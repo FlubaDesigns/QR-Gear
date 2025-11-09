@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Gear</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      background-color: black;
+      color: white;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background-color: #000;
+    }
+    .logo img {
+      height: 50px;
+    }
+    nav {
+      display: flex;
+      gap: 24px;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .main {
+      padding: 40px 24px;
+    }
+    @media (max-width: 600px) {
+      .logo img {
+        height: 30px;
+      }
+      nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">
+      <img src="assets/qr-gear-logo.svg" alt="QR Gear Logo" />
+    </div>
+    <nav>
+      <a href="#">Customize</a>
+      <a href="#">Store</a>
+      <a href="#">Home</a>
+      <a href="#">About</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+  <main class="main">
+    <h1>Welcome to QR Gear</h1>
+    <p>Customize your own scannable gear. Shirts, bags, and more.</p>
+  </main>
+</body>
+</html>
