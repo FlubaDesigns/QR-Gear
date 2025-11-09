@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import heroImage from "@assets/generated_images/Hero_lifestyle_QR_shirt_bd1f5f41.png";
 
@@ -18,22 +19,26 @@ export default function Hero() {
           Create custom QR codes on premium products. Hidden messages, instant connections, proudly American-made.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button
-            size="lg"
-            variant="default"
-            className="text-lg px-8"
-            data-testid="button-create-design"
-          >
-            Create Your Design
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="text-lg px-8 bg-background/10 backdrop-blur-sm border-white/20 text-white hover:bg-background/20"
-            data-testid="button-shop-gallery"
-          >
-            Shop Gallery
-          </Button>
+          <Link href="/creator">
+            <Button
+              size="lg"
+              variant="default"
+              className="text-lg px-8"
+              data-testid="button-create-design"
+            >
+              Create Your Design
+            </Button>
+          </Link>
+          <Link href="/gallery">
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-lg px-8 bg-background/10 backdrop-blur-sm border-white/20 text-white hover:bg-background/20"
+              data-testid="button-shop-gallery"
+            >
+              Shop Gallery
+            </Button>
+          </Link>
         </div>
       </div>
     </section>
