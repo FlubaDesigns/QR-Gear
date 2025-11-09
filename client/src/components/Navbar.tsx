@@ -3,6 +3,7 @@ import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "./ThemeToggle";
+import logoSvg from "@assets/assets/qr-gear-logo.svg";
 
 export default function Navbar() {
   const cartItemCount = 0;
@@ -11,6 +12,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2 hover-elevate active-elevate-2 px-2 py-1 rounded-md">
+          <img src={logoSvg} alt="QR Gear" className="h-8 w-8" />
           <span className="text-2xl font-heading font-bold">
             QR<span className="text-primary">Gear</span>
           </span>
