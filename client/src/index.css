@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE - Kingdom Connect inspired */
+/* LIGHT MODE - Light Glass Blue Theme */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
@@ -10,68 +10,68 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
   
-  /* QR Gear Light Theme - soft blues matching KC */
-  --background: 220 100% 97%;
-  --foreground: 210 66% 15%;
-  --border: 220 30% 85%;
-  --card: 0 0% 100%;
-  --card-foreground: 210 66% 15%;
-  --card-border: 220 30% 90%;
+  /* Light Glass Blue - soft, ethereal blues with transparency feel */
+  --background: 200 100% 98%;
+  --foreground: 210 40% 20%;
+  --border: 200 40% 88%;
+  --card: 200 50% 99%;
+  --card-foreground: 210 40% 20%;
+  --card-border: 200 35% 92%;
   
-  --sidebar: 220 40% 96%;
-  --sidebar-foreground: 210 66% 15%;
-  --sidebar-border: 220 30% 88%;
+  --sidebar: 200 45% 97%;
+  --sidebar-foreground: 210 40% 20%;
+  --sidebar-border: 200 35% 90%;
   
-  /* Gold accent - Kingdom Connect signature color */
-  --sidebar-primary: 51 100% 50%;
-  --sidebar-primary-foreground: 210 66% 15%;
-  --sidebar-accent: 51 30% 92%;
-  --sidebar-accent-foreground: 210 66% 15%;
-  --sidebar-ring: 51 100% 50%;
+  /* Bright sky blue accent */
+  --sidebar-primary: 200 100% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 200 45% 94%;
+  --sidebar-accent-foreground: 210 40% 20%;
+  --sidebar-ring: 200 100% 60%;
   
-  --popover: 0 0% 100%;
-  --popover-foreground: 210 66% 15%;
-  --popover-border: 220 30% 85%;
+  --popover: 200 50% 99%;
+  --popover-foreground: 210 40% 20%;
+  --popover-border: 200 35% 88%;
   
-  /* Gold primary accent */
-  --primary: 51 100% 50%;
-  --primary-foreground: 210 66% 15%;
+  /* Bright glass blue primary */
+  --primary: 200 100% 60%;
+  --primary-foreground: 0 0% 100%;
   
-  /* Navy secondary */
-  --secondary: 210 40% 90%;
-  --secondary-foreground: 210 66% 15%;
+  /* Soft blue-gray secondary */
+  --secondary: 200 25% 94%;
+  --secondary-foreground: 210 40% 20%;
   
-  --muted: 220 30% 92%;
-  --muted-foreground: 210 30% 40%;
+  --muted: 200 30% 95%;
+  --muted-foreground: 210 25% 45%;
   
-  --accent: 220 40% 94%;
-  --accent-foreground: 210 66% 15%;
+  --accent: 200 50% 96%;
+  --accent-foreground: 210 40% 20%;
   
   --destructive: 0 84% 45%;
   --destructive-foreground: 0 0% 98%;
-  --input: 220 30% 85%;
-  --ring: 51 100% 50%;
+  --input: 200 35% 92%;
+  --ring: 200 100% 60%;
   
-  --chart-1: 210 70% 45%;
-  --chart-2: 220 70% 45%;
-  --chart-3: 180 60% 40%;
-  --chart-4: 30 70% 45%;
-  --chart-5: 340 70% 45%;
+  --chart-1: 200 70% 55%;
+  --chart-2: 220 70% 55%;
+  --chart-3: 180 60% 50%;
+  --chart-4: 30 70% 55%;
+  --chart-5: 340 70% 55%;
   
   --font-sans: Open Sans, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: .5rem;
   
-  /* Enhanced shadows for Web 4.0 plasticky look */
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.04);
-  --shadow-xs: 0px 2px 4px 0px hsl(0 0% 0% / 0.06);
-  --shadow-sm: 0px 4px 6px -1px hsl(0 0% 0% / 0.08), 0px 2px 4px -2px hsl(0 0% 0% / 0.04);
-  --shadow: 0px 10px 15px -3px hsl(0 0% 0% / 0.10), 0px 4px 6px -4px hsl(0 0% 0% / 0.08);
-  --shadow-md: 0px 12px 24px 0px hsl(0 0% 0% / 0.15), 0px 6px 10px -2px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0px 16px 28px 0px hsl(0 0% 0% / 0.18), 0px 10px 16px -4px hsl(0 0% 0% / 0.12);
-  --shadow-xl: 0px 20px 32px 0px hsl(0 0% 0% / 0.22), 0px 12px 20px -6px hsl(0 0% 0% / 0.15);
-  --shadow-2xl: 0px 24px 40px 0px hsl(0 0% 0% / 0.28);
+  /* Soft shadows for glass effect */
+  --shadow-2xs: 0px 1px 2px 0px hsl(200 50% 70% / 0.08);
+  --shadow-xs: 0px 2px 4px 0px hsl(200 50% 60% / 0.10);
+  --shadow-sm: 0px 4px 6px -1px hsl(200 50% 50% / 0.12), 0px 2px 4px -2px hsl(200 50% 60% / 0.08);
+  --shadow: 0px 10px 15px -3px hsl(200 50% 40% / 0.15), 0px 4px 6px -4px hsl(200 50% 50% / 0.10);
+  --shadow-md: 0px 12px 24px 0px hsl(200 50% 30% / 0.18), 0px 6px 10px -2px hsl(200 50% 40% / 0.12);
+  --shadow-lg: 0px 16px 28px 0px hsl(200 50% 30% / 0.22), 0px 10px 16px -4px hsl(200 50% 40% / 0.15);
+  --shadow-xl: 0px 20px 32px 0px hsl(200 50% 20% / 0.25), 0px 12px 20px -6px hsl(200 50% 30% / 0.18);
+  --shadow-2xl: 0px 24px 40px 0px hsl(200 50% 20% / 0.30);
   
   --tracking-normal: 0em;
   --spacing: 0.25rem;
@@ -105,7 +105,7 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-/* DARK MODE - Kingdom Connect inspired navy theme */
+/* DARK MODE - Deep blue with glass effect */
 .dark {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
@@ -113,63 +113,63 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
   
-  /* QR Gear Dark Theme - deep navy blues matching KC */
-  --background: 210 60% 15%;
-  --foreground: 220 100% 95%;
-  --border: 210 30% 22%;
-  --card: 210 60% 12%;
-  --card-foreground: 220 100% 95%;
-  --card-border: 210 40% 18%;
+  /* Dark glass blue - deep blues with transparency */
+  --background: 210 45% 12%;
+  --foreground: 200 100% 95%;
+  --border: 210 30% 20%;
+  --card: 210 40% 15%;
+  --card-foreground: 200 100% 95%;
+  --card-border: 210 35% 22%;
   
-  --sidebar: 210 60% 10%;
-  --sidebar-foreground: 220 100% 95%;
-  --sidebar-border: 210 40% 16%;
+  --sidebar: 210 45% 13%;
+  --sidebar-foreground: 200 100% 95%;
+  --sidebar-border: 210 35% 18%;
   
-  /* Gold accent - pops against dark background */
-  --sidebar-primary: 51 100% 50%;
-  --sidebar-primary-foreground: 210 66% 15%;
-  --sidebar-accent: 210 45% 18%;
-  --sidebar-accent-foreground: 220 100% 95%;
-  --sidebar-ring: 51 100% 50%;
+  /* Bright blue accent pops on dark */
+  --sidebar-primary: 200 100% 60%;
+  --sidebar-primary-foreground: 210 45% 12%;
+  --sidebar-accent: 210 40% 20%;
+  --sidebar-accent-foreground: 200 100% 95%;
+  --sidebar-ring: 200 100% 60%;
   
-  --popover: 210 60% 12%;
-  --popover-foreground: 220 100% 95%;
-  --popover-border: 210 40% 18%;
+  --popover: 210 40% 15%;
+  --popover-foreground: 200 100% 95%;
+  --popover-border: 210 35% 22%;
   
-  /* Gold primary - KC signature */
-  --primary: 51 100% 50%;
-  --primary-foreground: 210 66% 15%;
+  /* Bright glass blue primary */
+  --primary: 200 100% 60%;
+  --primary-foreground: 210 45% 12%;
   
-  /* Navy secondary */
-  --secondary: 210 40% 20%;
-  --secondary-foreground: 220 100% 95%;
+  /* Dark blue-gray secondary */
+  --secondary: 210 35% 22%;
+  --secondary-foreground: 200 100% 95%;
   
-  --muted: 210 35% 22%;
-  --muted-foreground: 220 40% 70%;
+  --muted: 210 30% 24%;
+  --muted-foreground: 200 40% 70%;
   
-  --accent: 210 45% 18%;
-  --accent-foreground: 220 100% 95%;
+  --accent: 210 40% 20%;
+  --accent-foreground: 200 100% 95%;
   
   --destructive: 0 84% 45%;
   --destructive-foreground: 0 0% 98%;
-  --input: 210 40% 25%;
-  --ring: 51 100% 50%;
+  --input: 210 35% 25%;
+  --ring: 200 100% 60%;
   
-  --chart-1: 210 70% 70%;
-  --chart-2: 220 70% 70%;
-  --chart-3: 180 60% 65%;
-  --chart-4: 30 70% 70%;
-  --chart-5: 340 70% 70%;
+  --chart-1: 200 70% 65%;
+  --chart-2: 220 70% 65%;
+  --chart-3: 180 60% 60%;
+  --chart-4: 30 70% 65%;
+  --chart-5: 340 70% 65%;
   
-  /* Enhanced dark mode shadows */
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
-  --shadow-xs: 0px 2px 4px 0px hsl(0 0% 0% / 0.30);
-  --shadow-sm: 0px 4px 6px -1px hsl(0 0% 0% / 0.35), 0px 2px 4px -2px hsl(0 0% 0% / 0.25);
-  --shadow: 0px 10px 15px -3px hsl(0 0% 0% / 0.40), 0px 4px 6px -4px hsl(0 0% 0% / 0.30);
-  --shadow-md: 0px 12px 24px 0px hsl(0 0% 0% / 0.45), 0px 6px 10px -2px hsl(0 0% 0% / 0.35);
-  --shadow-lg: 0px 16px 28px 0px hsl(0 0% 0% / 0.50), 0px 10px 16px -4px hsl(0 0% 0% / 0.40);
-  --shadow-xl: 0px 20px 32px 0px hsl(0 0% 0% / 0.55), 0px 12px 20px -6px hsl(0 0% 0% / 0.45);
-  --shadow-2xl: 0px 24px 40px 0px hsl(0 0% 0% / 0.60);
+  /* Enhanced dark shadows with blue tint */
+  --shadow-2xs: 0px 1px 2px 0px hsl(210 60% 5% / 0.40);
+  --shadow-xs: 0px 2px 4px 0px hsl(210 60% 5% / 0.45);
+  --shadow-sm: 0px 4px 6px -1px hsl(210 60% 5% / 0.50), 0px 2px 4px -2px hsl(210 60% 5% / 0.40);
+  --shadow: 0px 10px 15px -3px hsl(210 60% 5% / 0.55), 0px 4px 6px -4px hsl(210 60% 5% / 0.45);
+  --shadow-md: 0px 12px 24px 0px hsl(210 60% 5% / 0.60), 0px 6px 10px -2px hsl(210 60% 5% / 0.50);
+  --shadow-lg: 0px 16px 28px 0px hsl(210 60% 5% / 0.65), 0px 10px 16px -4px hsl(210 60% 5% / 0.55);
+  --shadow-xl: 0px 20px 32px 0px hsl(210 60% 5% / 0.70), 0px 12px 20px -6px hsl(210 60% 5% / 0.60);
+  --shadow-2xl: 0px 24px 40px 0px hsl(210 60% 5% / 0.75);
 
   /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -213,22 +213,6 @@
 /**
  * Using the elevate system.
  * Automatic contrast adjustment.
- *
- * <element className="hover-elevate" />
- * <element className="active-elevate-2" />
- *
- * // Using the tailwind utility when a data attribute is "on"
- * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
- * // Or manually controlling the toggle state
- * <element className="toggle-elevate toggle-elevated" />
- *
- * Elevation systems have to handle many states.
- * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
- * - toggled or not
- * - focused or not (this is not handled with these utilities)
- *
- * Even without handling focused or not, this is six possible combinations that
- * need to be distinguished from eachother visually.
  */
 @layer utilities {
 
@@ -244,20 +228,10 @@
     pointer-events: none;
   }
 
-  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
-   * buttons/badges can remove the automatic brightness adjustment on interactions
-   * and program their own. */
   .no-default-hover-elevate {}
 
   .no-default-active-elevate {}
 
-
-  /**
-   * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
-   * This way they can stack/compound. Both will overlap the parent's borders!
-   * So borders will be automatically adjusted both on toggle, and hover/active,
-   * and they will be compounded.
-   */
   .toggle-elevate::before,
   .toggle-elevate-2::before {
     content: "";
@@ -272,12 +246,10 @@
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.toggle-elevate::before {
     inset: -1px;
   }
 
-  /* Does not work on elements with overflow:hidden! */
   .hover-elevate:not(.no-default-hover-elevate),
   .active-elevate:not(.no-default-active-elevate),
   .hover-elevate-2:not(.no-default-hover-elevate),
@@ -308,7 +280,6 @@
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
@@ -317,16 +288,18 @@
     inset: -1px;
   }
   
-  /* Gold metallic gradient text - KC signature style */
-  .text-gold-metallic {
-    background: linear-gradient(180deg, #FFF4B0 0%, #FFD700 32%, #DAA520 64%, #B8860B 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 1px 0 rgba(0,0,0,.25), 0 6px 18px rgba(0,0,0,.25);
+  /* Glass effect utilities */
+  .glass-light {
+    background: rgba(200, 230, 255, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(200, 230, 255, 0.3);
   }
   
-  .dark .text-gold-metallic {
-    text-shadow: 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.25);
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(200, 230, 255, 0.4);
   }
 }
