@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Analytics - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Sales Analytics</h2>
+      <p>Track Pro subscriptions, revenue, commissions, and platform growth.</p>
+
+      <article class="card">
+        <h3 class="gold">Platform Overview</h3>
+        <div id="stats" class="grid-responsive">
+          <div class="card text-center">
+            <div class="text-5xl font-bold gold" id="totalBusinesses">-</div>
+            <div class="opacity-80">Total Businesses</div>
+          </div>
+          <div class="card text-center">
+            <div class="text-5xl font-bold gold" id="proBusinesses">-</div>
+            <div class="opacity-80">Pro Subscriptions</div>
+          </div>
+          <div class="card text-center">
+            <div class="text-5xl font-bold gold" id="totalChurches">-</div>
+            <div class="opacity-80">Total Churches</div>
+          </div>
+          <div class="card text-center">
+            <div class="text-5xl font-bold gold" id="totalUsers">-</div>
+            <div class="opacity-80">Total Users</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3 class="gold">Revenue & Tithing</h3>
+        <p>Financial data will be calculated from Stripe payments collection.</p>
+        <div id="revenue" class="card-highlight">
+          <strong>Coming soon:</strong> Monthly recurring revenue (MRR), total revenue, 10% tithe allocation
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const businessesSnap = await getDocs(collection(db, "business_listings"));
+        const proBusinessesSnap = await getDocs(query(collection(db, "business_listings"), where("pro_status", "==", true)));
+        const churchesSnap = await getDocs(collection(db, "churches"));
+        const usersSnap = await getDocs(collection(db, "users"));
+
+        document.getElementById("totalBusinesses").textContent = businessesSnap.size;
+        document.getElementById("proBusinesses").textContent = proBusinessesSnap.size;
+        document.getElementById("totalChurches").textContent = churchesSnap.size;
+        document.getElementById("totalUsers").textContent = usersSnap.size;
+
+      } catch (error) {
+        console.error("Analytics error:", error);
+      }
+    });
+  </script>
+  </div>
+</body>
+</html>

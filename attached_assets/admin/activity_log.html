@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Activity Log - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+
+  <style>
+    .activity-card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border-left: 4px solid var(--gold);
+    }
+    .activity-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .activity-type {
+      font-weight: 600;
+      color: var(--gold);
+    }
+    .activity-time {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+    .activity-details {
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .activity-meta {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #333;
+      font-size: 0.85rem;
+      color: #888;
+    }
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #333;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .stat-label {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Activity Log</h2>
+      <p>System-wide audit trail of important platform actions for security and compliance.</p>
+
+      <div class="stat-cards">
+        <div class="stat-card">
+          <div class="stat-value" id="totalActivities">0</div>
+          <div class="stat-label">Total Activities</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="todayActivities">0</div>
+          <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="weekActivities">0</div>
+          <div class="stat-label">This Week</div>
+        </div>
+      </div>
+
+      <div class="flex-gap-center mb-md">
+        <select id="filterType" class="input-dark" style="max-width: 250px;">
+          <option value="">All Activity Types</option>
+          <option value="create_listing">Create Listing</option>
+          <option value="edit_listing">Edit Listing</option>
+          <option value="delete_listing">Delete Listing</option>
+          <option value="create_review">Create Review</option>
+          <option value="moderate_review">Moderate Review</option>
+          <option value="upgrade_pro">Upgrade to Pro</option>
+          <option value="create_user">Create User</option>
+          <option value="edit_user">Edit User</option>
+          <option value="delete_user">Delete User</option>
+        </select>
+        <select id="filterTarget" class="input-dark" style="max-width: 200px;">
+          <option value="">All Targets</option>
+          <option value="business">Business</option>
+          <option value="church">Church</option>
+          <option value="review">Review</option>
+          <option value="user">User</option>
+        </select>
+        <input type="date" id="filterDate" class="input-dark" style="max-width: 200px;">
+      </div>
+
+      <div id="loading" class="text-center mt-lg">
+        <p>Loading activity log...</p>
+      </div>
+
+      <div id="content" style="display: none;">
+        <div id="activitiesList"></div>
+      </div>
+
+      <div id="empty" style="display: none;" class="text-center mt-lg">
+        <p>No activities found. Activity logging will begin tracking actions moving forward.</p>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading activity log. Please refresh the page.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyAdminAccess } from "./js/admin-auth-guard.js";
+
+    let currentUser = null;
+    let allActivities = [];
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAdmin = await verifyAdminAccess(user);
+      if (!isAdmin) return;
+      
+      currentUser = user;
+      await loadActivities();
+    });
+
+    document.getElementById('filterType').addEventListener('change', renderActivities);
+    document.getElementById('filterTarget').addEventListener('change', renderActivities);
+    document.getElementById('filterDate').addEventListener('change', renderActivities);
+
+    async function loadActivities() {
+      try {
+        const activitiesQuery = query(
+          collection(db, "activity_log"),
+          orderBy("timestamp", "desc"),
+          limit(500)
+        );
+        
+        const activitiesSnapshot = await getDocs(activitiesQuery);
+
+        if (activitiesSnapshot.empty) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('empty').style.display = 'block';
+          return;
+        }
+
+        allActivities = activitiesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        updateStats();
+        renderActivities();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading activities:', error);
+        document.getElementById('loading').style.display = 'none';
+        
+        if (error.code === 'failed-precondition' || error.message.includes('index')) {
+          document.getElementById('empty').style.display = 'block';
+          document.getElementById('empty').innerHTML = `
+            <p style="color: #f4a261;">Activity logging is not yet configured.</p>
+            <p style="color: #aaa; margin-top: 1rem;">The activity_log collection needs to be created and indexed in Firestore.</p>
+            <p style="color: #aaa;">Once configured, this page will track all platform actions for security and audit purposes.</p>
+          `;
+        } else {
+          document.getElementById('error').style.display = 'block';
+        }
+      }
+    }
+
+    function updateStats() {
+      const totalActivities = allActivities.length;
+      
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - 7);
+
+      const todayActivities = allActivities.filter(a => {
+        const timestamp = a.timestamp?.toDate();
+        return timestamp && timestamp >= startOfToday;
+      }).length;
+
+      const weekActivities = allActivities.filter(a => {
+        const timestamp = a.timestamp?.toDate();
+        return timestamp && timestamp >= startOfWeek;
+      }).length;
+
+      document.getElementById('totalActivities').textContent = totalActivities;
+      document.getElementById('todayActivities').textContent = todayActivities;
+      document.getElementById('weekActivities').textContent = weekActivities;
+    }
+
+    function renderActivities() {
+      const filterType = document.getElementById('filterType').value;
+      const filterTarget = document.getElementById('filterTarget').value;
+      const filterDate = document.getElementById('filterDate').value;
+      
+      let filtered = [...allActivities];
+
+      if (filterType) {
+        filtered = filtered.filter(a => a.activity_type === filterType);
+      }
+
+      if (filterTarget) {
+        filtered = filtered.filter(a => a.target_type === filterTarget);
+      }
+
+      if (filterDate) {
+        const selectedDate = new Date(filterDate);
+        const nextDay = new Date(selectedDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        
+        filtered = filtered.filter(a => {
+          const timestamp = a.timestamp?.toDate();
+          return timestamp && timestamp >= selectedDate && timestamp < nextDay;
+        });
+      }
+
+      const container = document.getElementById('activitiesList');
+      container.innerHTML = '';
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #aaa; padding: 2rem;">No activities match the selected filters</p>';
+        return;
+      }
+
+      filtered.forEach(activity => {
+        const card = document.createElement('div');
+        card.className = 'activity-card';
+
+        const timestamp = activity.timestamp?.toDate ? activity.timestamp.toDate().toLocaleString() : 'Unknown time';
+        const activityTypeLabel = formatActivityType(activity.activity_type);
+        const targetTypeLabel = (activity.target_type || 'unknown').charAt(0).toUpperCase() + (activity.target_type || 'unknown').slice(1);
+
+        card.innerHTML = `
+          <div class="activity-header">
+            <div class="activity-type">${escapeHtml(activityTypeLabel)}</div>
+            <div class="activity-time">${timestamp}</div>
+          </div>
+          <div class="activity-details">
+            ${escapeHtml(activity.details || 'No details provided')}
+          </div>
+          <div class="activity-meta">
+            <strong>User:</strong> ${escapeHtml(activity.user_id || 'System')} | 
+            <strong>Target:</strong> ${targetTypeLabel} (${escapeHtml(activity.target_id || 'N/A')}) 
+            ${activity.ip_address ? `| <strong>IP:</strong> ${escapeHtml(activity.ip_address)}` : ''}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function formatActivityType(type) {
+      if (!type) return 'Unknown Activity';
+      return type
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

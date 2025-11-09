@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Church Questionnaire - Kingdom Connects Church Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .progress-bar {
+      background: var(--card-bg);
+      height: 8px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .progress-fill {
+      background: linear-gradient(90deg, var(--gold), #ffdf80);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-text {
+      text-align: center;
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+    }
+    .completion-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: rgba(76, 175, 80, 0.2);
+      border: 2px solid #4caf50;
+      border-radius: 8px;
+      color: #4caf50;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Church Questionnaire</h2>
+      <p class="text-muted mb-lg">Help us understand your church's reach and impact. This information helps Kingdom Connects serve you better and demonstrate our collective influence.</p>
+      
+      <div id="completionBadge" style="display: none;" class="completion-badge">
+        ✓ Questionnaire Complete
+      </div>
+
+      <div class="progress-text" id="progressText">Question 1 of 13</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div id="loadingMessage" class="text-center p-md">Loading...</div>
+      
+      <form id="questionnaireForm" style="display: none;">
+        
+        <article class="card">
+          <h3 class="gold">Basic Church Information</h3>
+          
+          <div>
+            <label for="church_name">1. Church Name *</label>
+            <input type="text" id="church_name" required class="input-dark" placeholder="Will be pre-filled from your profile">
+          </div>
+
+          <div>
+            <label for="church_website">2. Church Website (optional)</label>
+            <input type="url" id="church_website" class="input-dark" placeholder="https://yourchurch.com">
+          </div>
+
+          <div>
+            <label for="church_email">3. Church Email</label>
+            <input type="email" id="church_email" required class="input-dark" placeholder="contact@yourchurch.com">
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Congregation Profile</h3>
+          
+          <div>
+            <label for="active_members">4. Approximately how many active members attend your church? *</label>
+            <input type="number" id="active_members" required class="input-dark" min="1" placeholder="e.g., 150">
+            <p class="help-text">This helps us estimate total community reach</p>
+          </div>
+
+          <div>
+            <label for="years_established">5. How long has your church been established? *</label>
+            <select id="years_established" required class="input-dark">
+              <option value="">Select...</option>
+              <option value="<1">Less than 1 year</option>
+              <option value="1-5">1-5 years</option>
+              <option value="6-10">6-10 years</option>
+              <option value="10+">10+ years</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="weekly_services">6. How many weekly services or gatherings do you host? *</label>
+            <input type="number" id="weekly_services" required class="input-dark" min="1" placeholder="e.g., 2">
+          </div>
+
+          <div>
+            <label>7. Do you have any of these ministries? (check all that apply)</label>
+            <div class="flex-gap" style="flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="has_youth" value="youth">
+                <span>Youth Ministry</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="has_mens" value="mens">
+                <span>Men's Ministry</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="has_womens" value="womens">
+                <span>Women's Ministry</span>
+              </label>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Engagement & Influence</h3>
+          
+          <div>
+            <label for="promotes_local_businesses">8. Does your church currently promote local businesses?</label>
+            <select id="promotes_local_businesses" class="input-dark">
+              <option value="">Select...</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+              <option value="sometimes">Sometimes</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="feature_kc">9. Would you like to feature Kingdom Connects in your bulletin or website?</label>
+            <select id="feature_kc" class="input-dark">
+              <option value="">Select...</option>
+              <option value="yes">Yes, definitely</option>
+              <option value="maybe">Maybe, need more info</option>
+              <option value="no">No, not at this time</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="estimated_weekly_reach">10. Estimated number of people who might see Kingdom Connects promotions each week *</label>
+            <input type="number" id="estimated_weekly_reach" required class="input-dark" min="0" placeholder="e.g., 200 (bulletins + slides + word of mouth)">
+            <p class="help-text">Include bulletins, slides, announcements, and social media reach</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Optional Information</h3>
+          
+          <div>
+            <label for="referral_source">11. Who referred you to Kingdom Connects? (optional)</label>
+            <input type="text" id="referral_source" class="input-dark" placeholder="Name or organization">
+          </div>
+
+          <div>
+            <label for="wants_welcome_kit">12. Would you like a free Kingdom Connects welcome kit?</label>
+            <select id="wants_welcome_kit" class="input-dark">
+              <option value="">Select...</option>
+              <option value="yes">Yes, please!</option>
+              <option value="no">No, thank you</option>
+            </select>
+          </div>
+
+          <div id="mailingAddressSection" style="display: none;">
+            <label for="mailing_address">13. Mailing address for welcome kit</label>
+            <textarea id="mailing_address" class="input-dark" rows="3" placeholder="Street Address&#10;City, State ZIP"></textarea>
+          </div>
+        </article>
+
+        <div class="flex-gap">
+          <button type="submit" class="action-button btn-gold">Save Questionnaire</button>
+          <button type="button" id="saveDraftBtn" class="action-button btn-secondary">Save as Draft</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  <script src="js/church-auth-guard.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from '../js/firebase-config.js';
+    import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    const form = document.getElementById('questionnaireForm');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const completionBadge = document.getElementById('completionBadge');
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    const progressText = document.getElementById('progressText');
+    const progressFill = document.getElementById('progressFill');
+    const welcomeKitSelect = document.getElementById('wants_welcome_kit');
+    const mailingAddressSection = document.getElementById('mailingAddressSection');
+
+    let churchId = null;
+    let currentData = {};
+
+    welcomeKitSelect.addEventListener('change', () => {
+      mailingAddressSection.style.display = welcomeKitSelect.value === 'yes' ? 'block' : 'none';
+    });
+
+    const totalQuestions = 13;
+    function updateProgress() {
+      const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+      let filled = 0;
+      inputs.forEach(input => {
+        if (input.type === 'checkbox') {
+          return;
+        }
+        if (input.value.trim()) filled++;
+      });
+      
+      const progress = Math.round((filled / inputs.length) * 100);
+      progressFill.style.width = progress + '%';
+      progressText.textContent = `Progress: ${progress}% complete`;
+    }
+
+    form.addEventListener('input', updateProgress);
+    form.addEventListener('change', updateProgress);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+
+      try {
+        const churchesQuery = query(collection(db, 'churches'), where('admin_uid', '==', user.uid));
+        const churchesSnapshot = await getDocs(churchesQuery);
+
+        if (churchesSnapshot.empty) {
+          loadingMessage.textContent = 'No church found for your account.';
+          return;
+        }
+
+        const churchDoc = churchesSnapshot.docs[0];
+        churchId = churchDoc.id;
+        const churchData = churchDoc.data();
+
+        document.getElementById('church_name').value = churchData.church_name || '';
+        document.getElementById('church_website').value = churchData.website || '';
+        document.getElementById('church_email').value = churchData.contact_email || '';
+
+        const insightsRef = doc(db, 'church_insights', churchId);
+        const insightsSnap = await getDoc(insightsRef);
+
+        if (insightsSnap.exists()) {
+          currentData = insightsSnap.data();
+          loadFormData(currentData);
+          
+          if (currentData.completed) {
+            completionBadge.style.display = 'block';
+          }
+        }
+
+        loadingMessage.style.display = 'none';
+        form.style.display = 'block';
+        updateProgress();
+
+      } catch (error) {
+        console.error('Error loading questionnaire:', error);
+        loadingMessage.textContent = 'Error loading questionnaire. Please try again.';
+      }
+    });
+
+    function loadFormData(data) {
+      if (data.active_members) document.getElementById('active_members').value = data.active_members;
+      if (data.years_established) document.getElementById('years_established').value = data.years_established;
+      if (data.weekly_services) document.getElementById('weekly_services').value = data.weekly_services;
+      if (data.ministries) {
+        if (data.ministries.includes('youth')) document.getElementById('has_youth').checked = true;
+        if (data.ministries.includes('mens')) document.getElementById('has_mens').checked = true;
+        if (data.ministries.includes('womens')) document.getElementById('has_womens').checked = true;
+      }
+      if (data.promotes_local_businesses) document.getElementById('promotes_local_businesses').value = data.promotes_local_businesses;
+      if (data.feature_kc) document.getElementById('feature_kc').value = data.feature_kc;
+      if (data.estimated_weekly_reach) document.getElementById('estimated_weekly_reach').value = data.estimated_weekly_reach;
+      if (data.referral_source) document.getElementById('referral_source').value = data.referral_source;
+      if (data.wants_welcome_kit) {
+        document.getElementById('wants_welcome_kit').value = data.wants_welcome_kit;
+        if (data.wants_welcome_kit === 'yes') {
+          mailingAddressSection.style.display = 'block';
+          if (data.mailing_address) document.getElementById('mailing_address').value = data.mailing_address;
+        }
+      }
+    }
+
+    async function saveQuestionnaire(isComplete) {
+      if (!churchId) return;
+
+      const ministries = [];
+      if (document.getElementById('has_youth').checked) ministries.push('youth');
+      if (document.getElementById('has_mens').checked) ministries.push('mens');
+      if (document.getElementById('has_womens').checked) ministries.push('womens');
+
+      const data = {
+        church_id: churchId,
+        church_name: document.getElementById('church_name').value.trim(),
+        church_website: document.getElementById('church_website').value.trim(),
+        church_email: document.getElementById('church_email').value.trim(),
+        active_members: parseInt(document.getElementById('active_members').value) || 0,
+        years_established: document.getElementById('years_established').value,
+        weekly_services: parseInt(document.getElementById('weekly_services').value) || 0,
+        ministries: ministries,
+        promotes_local_businesses: document.getElementById('promotes_local_businesses').value,
+        feature_kc: document.getElementById('feature_kc').value,
+        estimated_weekly_reach: parseInt(document.getElementById('estimated_weekly_reach').value) || 0,
+        referral_source: document.getElementById('referral_source').value.trim(),
+        wants_welcome_kit: document.getElementById('wants_welcome_kit').value,
+        mailing_address: document.getElementById('mailing_address').value.trim(),
+        completed: isComplete,
+        updated_at: serverTimestamp()
+      };
+
+      if (!currentData.created_at) {
+        data.created_at = serverTimestamp();
+      }
+
+      const insightsRef = doc(db, 'church_insights', churchId);
+      await setDoc(insightsRef, data, { merge: true });
+
+      return data;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      try {
+        await saveQuestionnaire(true);
+        completionBadge.style.display = 'block';
+        alert('Questionnaire saved successfully! Thank you for helping us understand your church better.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (error) {
+        console.error('Error saving questionnaire:', error);
+        alert('Error saving questionnaire. Please try again.');
+      }
+    });
+
+    saveDraftBtn.addEventListener('click', async () => {
+      try {
+        await saveQuestionnaire(false);
+        alert('Draft saved successfully. You can complete it later.');
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        alert('Error saving draft. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>

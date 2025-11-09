@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>For Businesses - Kingdom Connects</title>
+  <meta name="description" content="Join Kingdom Connects and grow your Christian business. Free listings, optional Pro upgrades, and connect with church communities.">
+  
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+
+  <style>
+    .hero-section {
+      background: linear-gradient(135deg, rgba(218,165,32,0.1) 0%, rgba(0,0,0,0.3) 100%);
+      padding: 4rem 2rem;
+      text-align: center;
+      border-bottom: 2px solid rgba(218,165,32,0.3);
+      margin-bottom: 3rem;
+    }
+
+    .hero-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    .hero-subtitle {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      max-width: 800px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .pricing-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .pricing-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(218,165,32,0.2);
+    }
+
+    .pricing-card.featured {
+      border-color: var(--gold);
+      background: rgba(218,165,32,0.1);
+    }
+
+    .pricing-badge {
+      position: absolute;
+      top: -15px;
+      right: 20px;
+      background: var(--gold);
+      color: #000;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    .pricing-tier {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 1rem;
+    }
+
+    .pricing-price {
+      font-size: 3rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+
+    .pricing-period {
+      opacity: 0.7;
+      margin-bottom: 2rem;
+    }
+
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 2rem 0;
+      text-align: left;
+    }
+
+    .feature-list li {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: start;
+      gap: 0.75rem;
+    }
+
+    .feature-list li:last-child {
+      border-bottom: none;
+    }
+
+    .feature-icon {
+      color: var(--gold);
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .benefit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .benefit-card {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .benefit-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .benefit-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .cta-section {
+      background: linear-gradient(135deg, rgba(218,165,32,0.15) 0%, rgba(0,0,0,0.3) 100%);
+      padding: 4rem 2rem;
+      text-align: center;
+      border-radius: 12px;
+      margin: 4rem 0;
+    }
+
+    .faq-section {
+      margin: 4rem 0;
+    }
+
+    .faq-item {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .faq-question {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+
+    .faq-answer {
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <section class="hero-section">
+      <h1 class="hero-title">Grow Your Christian Business</h1>
+      <p class="hero-subtitle">
+        Join the premier directory connecting faith-based businesses with church communities across the country. 
+        Start with a free listing, upgrade to Pro for maximum visibility.
+      </p>
+      <div class="flex-gap-center" style="justify-content: center;">
+        <a href="submit-business.html" class="action-button btn-gold btn-lg">List Your Business Free</a>
+        <a href="#pricing" class="action-button btn-lg">View Pricing</a>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Why Kingdom Connects?</h2>
+      <div class="benefit-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">⛪</div>
+          <h3 class="benefit-title">Church Community Access</h3>
+          <p>Connect directly with church members actively seeking Christian-owned businesses to support.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">💼</div>
+          <h3 class="benefit-title">Kingdom Economics</h3>
+          <p>Be part of a movement keeping dollars circulating within the Christian community.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🌟</div>
+          <h3 class="benefit-title">Permanent Listings</h3>
+          <p>Your listing stays active forever. Downgrade anytime without losing your presence.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📈</div>
+          <h3 class="benefit-title">Build Trust</h3>
+          <p>Verified reviews from church members build credibility and attract more customers.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing">
+      <h2 class="gold-metallic text-center">Simple, Transparent Pricing</h2>
+      <p class="text-center opacity-80 mb-lg">Choose the plan that fits your business. Upgrade or downgrade anytime.</p>
+
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <h3 class="pricing-tier">Free Tier</h3>
+          <div class="pricing-price">$0</div>
+          <p class="pricing-period">Forever</p>
+          
+          <ul class="feature-list">
+            <li>
+              <span class="feature-icon">✓</span>
+              <span>Basic business profile</span>
+            </li>
+            <li>
+              <span class="feature-icon">✓</span>
+              <span>Primary category listing</span>
+            </li>
+            <li>
+              <span class="feature-icon">✓</span>
+              <span>Contact information display</span>
+            </li>
+            <li>
+              <span class="feature-icon">✓</span>
+              <span>Customer reviews</span>
+            </li>
+            <li>
+              <span class="feature-icon">✓</span>
+              <span>Standard search visibility</span>
+            </li>
+            <li>
+              <span class="feature-icon">✓</span>
+              <span>Never expires</span>
+            </li>
+          </ul>
+
+          <a href="submit-business.html" class="action-button btn-block">Get Started Free</a>
+        </div>
+
+        <div class="pricing-card featured">
+          <span class="pricing-badge">Most Popular</span>
+          <h3 class="pricing-tier">Pro Tier</h3>
+          <div class="pricing-price">$8.99</div>
+          <p class="pricing-period">per month</p>
+          <p class="text-sm opacity-80 mb-md">or <strong class="gold-metallic">$74.99/year</strong> — Save $23.90 (2.7 months free!)</p>
+          
+          <ul class="feature-list">
+            <li>
+              <span class="feature-icon">✓</span>
+              <span><strong>Everything in Free, plus:</strong></span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Priority placement in search</span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Featured badge on listing</span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Multiple category selections</span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Photo & video gallery</span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Enhanced business description</span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Social media links</span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Analytics dashboard</span>
+            </li>
+            <li>
+              <span class="feature-icon">★</span>
+              <span>Monthly performance reports</span>
+            </li>
+          </ul>
+
+          <a href="submit-business.html" class="action-button btn-gold btn-block">Start Free Trial</a>
+          <p class="text-sm opacity-70 mt-sm">30-day free trial, cancel anytime</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <h2 class="gold-metallic">Supporting Kingdom Growth</h2>
+      <p style="font-size: 1.15rem; max-width: 700px; margin: 1rem auto 2rem;">
+        10% of all Pro subscription revenue goes directly back to churches and ministries. 
+        When you upgrade to Pro, you're not just growing your business—you're supporting the Body of Christ.
+      </p>
+      <a href="submit-business.html" class="action-button btn-gold btn-lg">Join Kingdom Connects Today</a>
+    </section>
+
+    <section class="faq-section">
+      <h2 class="gold-metallic text-center">Frequently Asked Questions</h2>
+
+      <div class="faq-item">
+        <h3 class="faq-question">Is the free listing really free forever?</h3>
+        <p class="faq-answer">
+          Yes! Your free listing never expires. Even if you upgrade to Pro and later downgrade, 
+          your basic listing remains active permanently. We believe in supporting Christian businesses long-term.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">What happens if I cancel my Pro subscription?</h3>
+        <p class="faq-answer">
+          Your listing automatically downgrades to the free tier. You keep your business profile, 
+          reviews, and contact information. You simply lose the Pro features like priority placement and photo galleries.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">How do I know churches will actually see my listing?</h3>
+        <p class="faq-answer">
+          Churches can feature their preferred local businesses on their profiles, and church members 
+          actively search our directory. Pro members get priority placement in search results, 
+          making you more visible to this engaged audience.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">Can I upgrade from free to Pro anytime?</h3>
+        <p class="faq-answer">
+          Absolutely! Upgrade or downgrade anytime from your business dashboard. 
+          Changes take effect immediately, and you can try Pro risk-free with a 30-day trial.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">What categories can I list under?</h3>
+        <p class="faq-answer">
+          We have 44+ categories covering everything from contractors to professional services. 
+          Free listings get one primary category. Pro members can select multiple categories for broader visibility. 
+          Don't see your category? Suggest it and we'll add it!
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-question">How does the 10% giving back work?</h3>
+        <p class="faq-answer">
+          10% of gross revenue from Pro subscriptions is allocated to churches and ministry outreach programs. 
+          This ensures Kingdom Connects actively supports the Body of Christ while helping your business grow.
+        </p>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <h2 class="gold-metallic">Ready to Get Started?</h2>
+      <p style="font-size: 1.15rem; margin: 1rem 0 2rem;">
+        Join hundreds of Christian businesses connecting with church communities.
+      </p>
+      <a href="submit-business.html" class="action-button btn-gold btn-lg">Create Your Free Listing</a>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+</body>
+</html>

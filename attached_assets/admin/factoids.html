@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manage Factoids - Kingdom Connects Admin</title>
+  
+  <link rel="stylesheet" href="../styles/layout.css?v=3">
+  <link rel="stylesheet" href="../styles/theme.css?v=3">
+  <link rel="stylesheet" href="../styles/buttons.css?v=1">
+  <link rel="stylesheet" href="../styles/forms.css?v=1">
+  <link rel="stylesheet" href="../styles/overrides.css?v=3">
+
+  <style>
+    .factoid-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      
+      transition: all 0.2s ease;
+    }
+
+    .factoid-card:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,215,0,0.3);
+    }
+
+    .factoid-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      
+    }
+
+    .factoid-meta {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      font-size: 0.85rem;
+      opacity: 0.7;
+      
+    }
+
+    .factoid-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-active {
+      background: rgba(0,255,0,0.2);
+      color: #0f0;
+    }
+
+    .status-inactive {
+      background: rgba(255,0,0,0.2);
+      color: #f88;
+    }
+
+    .add-form {
+      background: rgba(255,215,0,0.1);
+      border: 2px solid rgba(255,215,0,0.3);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .char-counter {
+      text-align: right;
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <div class="page-header">
+      <h2>Manage "Did You Know?" Factoids</h2>
+      <p class="opacity-80">Create and manage factoids that appear on the homepage. Each visitor sees a random active factoid.</p>
+    </div>
+
+    <div class="add-form">
+      <h3 class="gold mt-0">Add New Factoid</h3>
+      <form id="addFactoidForm">
+        <div class="kc-field">
+          <label class="kc-label" for="factoidText">Factoid Text<span class="req">*</span></label>
+          <textarea 
+            class="kc-textarea" 
+            id="factoidText" 
+            name="factoidText" 
+            rows="3"
+            maxlength="250"
+            placeholder="Enter an interesting fact about Kingdom Connects..."
+            required></textarea>
+          <div class="char-counter">
+            <span id="charCount">0</span> / 250 characters
+          </div>
+        </div>
+
+        <div class="kc-field">
+          <label class="flex-align-center cursor-pointer">
+            <input type="checkbox" id="isActive" name="isActive" checked>
+            <span>Active (show on homepage)</span>
+          </label>
+        </div>
+
+        <button type="submit" class="action-button btn-gold">Add Factoid</button>
+      </form>
+    </div>
+
+    <div class="page-header">
+      <h3>All Factoids (<span id="factoidCount">0</span>)</h3>
+    </div>
+
+    <div id="factoidList">
+      <p class="status-message empty">Loading factoids...</p>
+    </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD3Im6F3lWgMbJiA7plsDt_Rp9kCLTr6KU",
+      authDomain: "kingdom-commerce.firebaseapp.com",
+      projectId: "kingdom-commerce",
+      storageBucket: "kingdom-commerce.appspot.com",
+      messagingSenderId: "926457853462",
+      appId: "1:926457853462:web:eba8e9ecb2bb5ff43da737"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const factoidList = document.getElementById('factoidList');
+    const factoidCount = document.getElementById('factoidCount');
+    const addForm = document.getElementById('addFactoidForm');
+    const factoidTextInput = document.getElementById('factoidText');
+    const charCount = document.getElementById('charCount');
+
+    // Character counter
+    factoidTextInput.addEventListener('input', () => {
+      charCount.textContent = factoidTextInput.value.length;
+    });
+
+    // Load all factoids
+    async function loadFactoids() {
+      try {
+        const q = query(collection(db, "factoids"), orderBy("created_at", "desc"));
+        const snapshot = await getDocs(q);
+        const factoids = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        factoidCount.textContent = factoids.length;
+
+        if (factoids.length === 0) {
+          factoidList.innerHTML = `
+            <p class="status-message empty">
+              No factoids yet. Add your first one above!
+            </p>
+          `;
+          return;
+        }
+
+        factoidList.innerHTML = factoids.map(f => {
+          const createdDate = f.created_at ? new Date(f.created_at).toLocaleDateString() : 'N/A';
+          const isActive = f.active !== false;
+          
+          return `
+            <div class="factoid-card">
+              <div class="factoid-text">"${escapeHtml(f.text)}"</div>
+              <div class="factoid-meta">
+                <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">
+                  ${isActive ? '✓ Active' : '✗ Inactive'}
+                </span>
+                <span>Created: ${createdDate}</span>
+              </div>
+              <div class="factoid-actions">
+                <button class="action-button btn-small ${isActive ? 'btn-secondary' : 'btn-gold'}" onclick="toggleActive('${f.id}', ${isActive})">
+                  ${isActive ? 'Deactivate' : 'Activate'}
+                </button>
+                <button class="action-button btn-small btn-danger" onclick="deleteFactoid('${f.id}')">
+                  Delete
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error("Error loading factoids:", error);
+        factoidList.innerHTML = `
+          <div class="error-box">⚠️ Error loading factoids. Please try again.</div>
+        `;
+      }
+    }
+
+    // Add new factoid
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const text = factoidTextInput.value.trim();
+      const active = document.getElementById('isActive').checked;
+
+      if (!text) {
+        alert('Please enter factoid text.');
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "factoids"), {
+          text: text,
+          active: active,
+          created_at: new Date().toISOString()
+        });
+
+        addForm.reset();
+        charCount.textContent = '0';
+        await loadFactoids();
+        alert('✅ Factoid added successfully!');
+      } catch (error) {
+        console.error("Error adding factoid:", error);
+        alert('❌ Error adding factoid: ' + error.message);
+      }
+    });
+
+    // Toggle active status
+    window.toggleActive = async (id, currentStatus) => {
+      try {
+        await updateDoc(doc(db, "factoids", id), {
+          active: !currentStatus
+        });
+        await loadFactoids();
+      } catch (error) {
+        console.error("Error toggling status:", error);
+        alert('❌ Error updating status: ' + error.message);
+      }
+    };
+
+    // Delete factoid
+    window.deleteFactoid = async (id) => {
+      if (!confirm('Are you sure you want to delete this factoid? This cannot be undone.')) {
+        return;
+      }
+
+      try {
+        await deleteDoc(doc(db, "factoids", id));
+        await loadFactoids();
+        alert('✅ Factoid deleted successfully!');
+      } catch (error) {
+        console.error("Error deleting factoid:", error);
+        alert('❌ Error deleting factoid: ' + error.message);
+      }
+    };
+
+    // HTML escape helper
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initial load
+    loadFactoids();
+  </script>
+
+  <script src="js/header.js?v=3" defer></script>
+  <script src="js/footer.js?v=1" defer></script>
+  </div>
+</body>
+</html>

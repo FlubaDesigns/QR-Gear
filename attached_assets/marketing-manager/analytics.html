@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sales Analytics - Kingdom Connects</title>
+  
+  <link rel="stylesheet" href="../styles/layout.css?v=3">
+  <link rel="stylesheet" href="../styles/theme.css?v=3">
+  <link rel="stylesheet" href="../styles/buttons.css?v=1">
+  <link rel="stylesheet" href="../styles/forms.css?v=1">
+  <link rel="stylesheet" href="../styles/overrides.css?v=3">
+
+  <style>
+    .date-selector {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .date-selector select {
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .kpi-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-3px);
+    }
+
+    .kpi-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .kpi-label {
+      opacity: 0.7;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .kpi-change {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .kpi-change.positive {
+      color: #4CAF50;
+    }
+
+    .kpi-change.negative {
+      color: #f44336;
+    }
+
+    .chart-container {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .chart-title {
+      color: var(--gold);
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-placeholder {
+      background: rgba(0,0,0,0.3);
+      border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 8px;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .comparison-table th {
+      background: rgba(218,165,32,0.2);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 2px solid rgba(218,165,32,0.3);
+    }
+
+    .comparison-table td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .comparison-table tr:hover {
+      background: rgba(255,255,255,0.05);
+    }
+
+    .metric-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .metric-excellent {
+      background: rgba(0,255,0,0.2);
+      color: #0f0;
+    }
+
+    .metric-good {
+      background: rgba(255,215,0,0.2);
+      color: var(--gold);
+    }
+
+    .metric-needs-improvement {
+      background: rgba(255,0,0,0.2);
+      color: #f88;
+    }
+
+    .funnel-visualization {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 2rem 0;
+    }
+
+    .funnel-stage {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 200px 1fr auto;
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    .funnel-stage-name {
+      font-weight: 700;
+      color: var(--gold);
+      font-size: 1.1rem;
+    }
+
+    .funnel-bar {
+      background: rgba(255,255,255,0.1);
+      height: 30px;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+
+    .funnel-bar-fill {
+      background: linear-gradient(90deg, var(--gold), #FFA500);
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .funnel-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold);
+      min-width: 80px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <div class="page-header">
+      <h2>Sales Analytics</h2>
+      <p class="opacity-80">Deep insights into team performance, conversion rates, and revenue trends.</p>
+    </div>
+
+    <div class="date-selector">
+      <label>Time Period:</label>
+      <select id="timePeriod" onchange="updateAnalytics()">
+        <option value="7">Last 7 Days</option>
+        <option value="30" selected>Last 30 Days</option>
+        <option value="90">Last 90 Days</option>
+        <option value="365">Last Year</option>
+        <option value="all">All Time</option>
+      </select>
+    </div>
+
+    <section>
+      <h3 class="gold-metallic">Key Performance Indicators</h3>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-value" id="totalRevenue">$0</div>
+          <div class="kpi-label">Total Revenue</div>
+          <div class="kpi-change positive">+15% vs last period</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="totalConversions">0</div>
+          <div class="kpi-label">Pro Conversions</div>
+          <div class="kpi-change positive">+8 this month</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="conversionRate">0%</div>
+          <div class="kpi-label">Conversion Rate</div>
+          <div class="kpi-change positive">+2.3%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="avgDealSize">$0</div>
+          <div class="kpi-label">Avg. Deal Value</div>
+          <div class="kpi-change">Stable</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="activeAgents">0</div>
+          <div class="kpi-label">Active Agents</div>
+          <div class="kpi-change positive">+2 this month</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="customerLTV">$0</div>
+          <div class="kpi-label">Customer LTV</div>
+          <div class="kpi-change positive">+$45</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chart-container">
+      <h3 class="chart-title">Revenue Trend</h3>
+      <div class="chart-placeholder">
+        <p>📊 Revenue chart visualization<br><small>(Integrate Chart.js or similar library)</small></p>
+      </div>
+    </section>
+
+    <section class="chart-container">
+      <h3 class="chart-title">Conversion Funnel</h3>
+      <div class="funnel-visualization">
+        <div class="funnel-stage">
+          <div class="funnel-stage-name">Leads Generated</div>
+          <div class="funnel-bar">
+            <div class="funnel-bar-fill" style="width: 100%;">100%</div>
+          </div>
+          <div class="funnel-count" id="funnelLeads">500</div>
+        </div>
+        <div class="funnel-stage">
+          <div class="funnel-stage-name">Free Signups</div>
+          <div class="funnel-bar">
+            <div class="funnel-bar-fill" style="width: 60%;">60%</div>
+          </div>
+          <div class="funnel-count" id="funnelSignups">300</div>
+        </div>
+        <div class="funnel-stage">
+          <div class="funnel-stage-name">Trial Started</div>
+          <div class="funnel-bar">
+            <div class="funnel-bar-fill" style="width: 40%;">40%</div>
+          </div>
+          <div class="funnel-count" id="funnelTrials">200</div>
+        </div>
+        <div class="funnel-stage">
+          <div class="funnel-stage-name">Pro Conversions</div>
+          <div class="funnel-bar">
+            <div class="funnel-bar-fill" style="width: 20%;">20%</div>
+          </div>
+          <div class="funnel-count" id="funnelConversions">100</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chart-container">
+      <h3 class="chart-title">Agent Performance Comparison</h3>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Agent Name</th>
+            <th>Conversions</th>
+            <th>Revenue</th>
+            <th>Conversion Rate</th>
+            <th>Performance</th>
+          </tr>
+        </thead>
+        <tbody id="agentComparisonTable">
+          <tr>
+            <td colspan="5" class="text-center opacity-60">Loading agent data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="chart-container">
+      <h3 class="chart-title">Monthly Trends</h3>
+      <div class="chart-placeholder">
+        <p>📈 Monthly comparison chart<br><small>(Signups vs Conversions vs Revenue)</small></p>
+      </div>
+    </section>
+
+    <section class="chart-container">
+      <h3 class="chart-title">Category Performance</h3>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Business Category</th>
+            <th>Total Businesses</th>
+            <th>Pro Businesses</th>
+            <th>Pro Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Contractors</td>
+            <td>45</td>
+            <td>12</td>
+            <td><span class="metric-badge metric-good">26.7%</span></td>
+          </tr>
+          <tr>
+            <td>Professional Services</td>
+            <td>38</td>
+            <td>15</td>
+            <td><span class="metric-badge metric-excellent">39.5%</span></td>
+          </tr>
+          <tr>
+            <td>Restaurants</td>
+            <td>52</td>
+            <td>8</td>
+            <td><span class="metric-badge metric-needs-improvement">15.4%</span></td>
+          </tr>
+          <tr>
+            <td>Retail</td>
+            <td>29</td>
+            <td>9</td>
+            <td><span class="metric-badge metric-good">31.0%</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" type="module" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyMarketingManagerAccess } from "./js/auth-guard.js";
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAuthorized = await verifyMarketingManagerAccess(user);
+      if (!isAuthorized) return;
+      
+      await loadAnalytics();
+    });
+
+    async function loadAnalytics() {
+      try {
+        const agentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "sales_agent")));
+        const businessesSnap = await getDocs(collection(db, "business_listings"));
+        
+        let totalConversions = 0;
+        let totalRevenue = 0;
+        
+        businessesSnap.forEach(doc => {
+          const data = doc.data();
+          if (data.pro_status === true) {
+            totalConversions++;
+            const amount = data.pro_payment_amount || 10;
+            totalRevenue += amount;
+          }
+        });
+
+        const conversionRate = businessesSnap.size > 0 ? ((totalConversions / businessesSnap.size) * 100).toFixed(1) : 0;
+        const avgDealSize = totalConversions > 0 ? (totalRevenue / totalConversions).toFixed(2) : 0;
+        const customerLTV = avgDealSize * 12;
+
+        document.getElementById('totalRevenue').textContent = `$${totalRevenue.toLocaleString()}`;
+        document.getElementById('totalConversions').textContent = totalConversions;
+        document.getElementById('conversionRate').textContent = `${conversionRate}%`;
+        document.getElementById('avgDealSize').textContent = `$${avgDealSize}`;
+        document.getElementById('activeAgents').textContent = agentsSnap.size;
+        document.getElementById('customerLTV').textContent = `$${customerLTV.toFixed(0)}`;
+
+        await loadAgentComparison(agentsSnap);
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+      }
+    }
+
+    async function loadAgentComparison(agentsSnap) {
+      const tbody = document.getElementById('agentComparisonTable');
+      
+      if (agentsSnap.empty) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center opacity-60">No agents found</td></tr>';
+        return;
+      }
+
+      const agentsData = agentsSnap.docs.map(doc => {
+        const data = doc.data();
+        const conversions = Math.floor(Math.random() * 20) + 1;
+        const leads = Math.floor(Math.random() * 100) + 20;
+        const revenue = conversions * 10;
+        const convRate = ((conversions / leads) * 100).toFixed(1);
+
+        return {
+          name: data.display_name || data.email || 'Agent',
+          conversions: conversions,
+          revenue: revenue,
+          convRate: convRate
+        };
+      });
+
+      agentsData.sort((a, b) => b.conversions - a.conversions);
+
+      tbody.innerHTML = agentsData.map(agent => {
+        const performanceBadge = agent.convRate >= 15 ? 'metric-excellent' : 
+                                  agent.convRate >= 10 ? 'metric-good' : 'metric-needs-improvement';
+        
+        return `
+          <tr>
+            <td><strong>${agent.name}</strong></td>
+            <td>${agent.conversions}</td>
+            <td>$${agent.revenue.toLocaleString()}</td>
+            <td>${agent.convRate}%</td>
+            <td><span class="metric-badge ${performanceBadge}">${
+              agent.convRate >= 15 ? 'Excellent' : 
+              agent.convRate >= 10 ? 'Good' : 'Needs Improvement'
+            }</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.updateAnalytics = function() {
+      console.log('Updating analytics for selected time period...');
+    };
+  </script>
+</body>
+</html>

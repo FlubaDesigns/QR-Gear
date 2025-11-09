@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Business Dashboard - Kingdom Connects</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-top: 0.5rem;
+    }
+    .pro-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+      color: #000;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .free-badge {
+      display: inline-block;
+      background: #555;
+      color: #fff;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">My Business Dashboard</h2>
+      <div id="loadingMessage" class="text-center p-md">Loading your dashboard...</div>
+      <div id="noBusinessMessage" class="text-center p-md" style="display: none;">
+        <p>No business listing found for your account.</p>
+        <a href="../submit_business.html" class="action-button btn-gold">Create a Business Listing</a>
+      </div>
+
+      <div id="dashboardContent" style="display: none;">
+        <article class="card">
+          <h3 class="gold">Your Business</h3>
+          <div class="grid-col-2">
+            <div>
+              <p><strong>Business Name:</strong> <span id="businessName">-</span></p>
+              <p><strong>Category:</strong> <span id="businessCategory">-</span></p>
+              <p><strong>Location:</strong> <span id="businessLocation">-</span></p>
+            </div>
+            <div class="text-right">
+              <p><strong>Membership:</strong> <span id="membershipBadge"></span></p>
+              <p><strong>Status:</strong> <span id="listingStatus">-</span></p>
+              <p><strong>Member Since:</strong> <span id="memberSince">-</span></p>
+            </div>
+          </div>
+        </article>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" id="totalViews">0</div>
+            <div class="stat-label">Total Views</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="averageRating">0.0</div>
+            <div class="stat-label">Average Rating</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="reviewCount">0</div>
+            <div class="stat-label">Reviews</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="photoCount">0</div>
+            <div class="stat-label">Photos</div>
+          </div>
+        </div>
+
+        <div id="upgradePromo" class="card" style="display: none; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); border: 2px solid var(--gold);">
+          <h3 class="gold-metallic text-center">🚀 Unlock Pro Features</h3>
+          <p class="text-center">Get more visibility and grow your business with Pro membership!</p>
+          <div class="grid-col-2 mt-md">
+            <div>
+              <h4 class="gold">Pro Benefits:</h4>
+              <ul>
+                <li>✅ Photo Gallery (10 photos)</li>
+                <li>✅ Video Embedding (3 videos)</li>
+                <li>✅ Social Media Links</li>
+                <li>✅ 5 Secondary Categories</li>
+                <li>✅ Featured Placement</li>
+                <li>✅ Priority Support</li>
+              </ul>
+            </div>
+            <div class="text-center">
+              <p class="pricing-headline">Just $9-12/month</p>
+              <a href="upgrade.html" class="action-button btn-gold">Upgrade to Pro Now</a>
+            </div>
+          </div>
+        </div>
+
+        <div id="proStatus" class="card" style="display: none; background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%); color: #000;">
+          <h3 style="color: #000;">⭐ Pro Member Benefits Active</h3>
+          <div class="grid-col-3">
+            <div>
+              <p><strong>Pro Since:</strong> <span id="proStartDate">-</span></p>
+            </div>
+            <div>
+              <p><strong>Renewal Date:</strong> <span id="proEndDate">-</span></p>
+            </div>
+            <div class="text-right">
+              <a href="pro_cancel.html" class="action-button" style="background: #555;">Manage Subscription</a>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="gold mt-md">Quick Actions</h3>
+        <div class="grid-col-2">
+          <article class="card">
+            <h4 class="gold">📝 Edit Listing</h4>
+            <p>Update your business information, photos, hours, and more.</p>
+            <a href="edit-listing.html" class="action-button btn-gold">Edit My Listing</a>
+          </article>
+
+          <article class="card">
+            <h4 class="gold">⭐ Reviews</h4>
+            <p>View and respond to customer reviews.</p>
+            <a href="reviews.html" class="action-button btn-gold">Manage Reviews</a>
+          </article>
+
+          <article class="card">
+            <h4 class="gold">📊 Statistics</h4>
+            <p>See detailed analytics about your listing performance.</p>
+            <a href="stats.html" class="action-button btn-gold">View Stats</a>
+          </article>
+
+          <article class="card">
+            <h4 class="gold">🏷️ Suggest Category</h4>
+            <p>Don't see your business type? Suggest a new category.</p>
+            <a href="suggest-category.html" class="action-button btn-gold">Suggest Category</a>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadDashboard(user.email);
+    });
+
+    async function loadDashboard(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const noBusinessMessage = document.getElementById('noBusinessMessage');
+      const dashboardContent = document.getElementById('dashboardContent');
+
+      try {
+        const q = query(collection(db, "business_listings"), where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.style.display = 'none';
+          noBusinessMessage.style.display = 'block';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        const business = docSnap.data();
+        const businessId = docSnap.id;
+
+        document.getElementById('businessName').textContent = business.business_name || 'N/A';
+        document.getElementById('businessCategory').textContent = business.primary_category || 'N/A';
+        document.getElementById('businessLocation').textContent = `${business.city || ''}, ${business.state || ''}`.trim() || 'N/A';
+        
+        const isPro = business.pro_status === true;
+        const badge = isPro ? '<span class="pro-badge">PRO</span>' : '<span class="free-badge">FREE</span>';
+        document.getElementById('membershipBadge').innerHTML = badge;
+
+        const statusMap = {
+          'active': '✅ Active',
+          'pending': '⏳ Pending Approval',
+          'suspended': '⛔ Suspended'
+        };
+        document.getElementById('listingStatus').textContent = statusMap[business.listing_status] || business.listing_status || 'Unknown';
+
+        if (business.created_at) {
+          const createdDate = business.created_at.toDate ? business.created_at.toDate() : new Date(business.created_at);
+          document.getElementById('memberSince').textContent = createdDate.toLocaleDateString();
+        } else {
+          document.getElementById('memberSince').textContent = 'Unknown';
+        }
+
+        document.getElementById('totalViews').textContent = business.total_views || 0;
+        document.getElementById('averageRating').textContent = business.average_rating ? business.average_rating.toFixed(1) : '0.0';
+        
+        const reviewCount = await getReviewCount(businessId);
+        document.getElementById('reviewCount').textContent = reviewCount;
+
+        const photoCount = business.photos && Array.isArray(business.photos) ? business.photos.length : 0;
+        document.getElementById('photoCount').textContent = photoCount;
+
+        if (isPro) {
+          document.getElementById('proStatus').style.display = 'block';
+          document.getElementById('upgradePromo').style.display = 'none';
+
+          if (business.pro_start_date) {
+            const startDate = business.pro_start_date.toDate ? business.pro_start_date.toDate() : new Date(business.pro_start_date);
+            document.getElementById('proStartDate').textContent = startDate.toLocaleDateString();
+          }
+
+          if (business.pro_end_date) {
+            const endDate = business.pro_end_date.toDate ? business.pro_end_date.toDate() : new Date(business.pro_end_date);
+            document.getElementById('proEndDate').textContent = endDate.toLocaleDateString();
+          }
+        } else {
+          document.getElementById('upgradePromo').style.display = 'block';
+          document.getElementById('proStatus').style.display = 'none';
+        }
+
+        loadingMessage.style.display = 'none';
+        dashboardContent.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+        loadingMessage.textContent = 'Error loading dashboard: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function getReviewCount(businessId) {
+      try {
+        const q = query(collection(db, "reviews"), where("business_id", "==", businessId));
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.size;
+      } catch (error) {
+        console.error('Error counting reviews:', error);
+        return 0;
+      }
+    }
+  </script>
+  </div>
+</body>
+</html>

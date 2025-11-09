@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Church Member Businesses - Kingdom Connects</title>
+  <meta name="description" content="View businesses run by members of this church.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+
+    <main class="main-content" id="main">
+      <section class="page-content">
+        <article class="card">
+          <h1 class="gold-metallic">Member Businesses</h1>
+          <p id="churchNameDisplay" class="text-lg line-height-relaxed"></p>
+          <a href="church_directory.html" class="action-button btn-gold">← Back to Church Directory</a>
+        </article>
+
+        <article class="card">
+          <div id="statusMessage" class="p-md text-center"></div>
+          <div id="businessList" class="grid-auto"></div>
+        </article>
+      </section>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const churchId = params.get('church_id');
+
+    const businessList = document.getElementById('businessList');
+    const statusMessage = document.getElementById('statusMessage');
+    const churchNameDisplay = document.getElementById('churchNameDisplay');
+
+    if (!churchId) {
+      statusMessage.textContent = 'Error: No church ID provided.';
+      statusMessage.style.color = 'red';
+      return;
+    }
+
+    churchNameDisplay.textContent = `Showing businesses affiliated with church ID: ${churchId}`;
+
+    async function loadBusinesses() {
+      statusMessage.textContent = 'Loading member businesses...';
+
+      try {
+        const q = query(
+          collection(db, "business_listings"),
+          where("church_id", "==", churchId)
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          statusMessage.textContent = 'No businesses found for this church. Be the first to add your business!';
+          return;
+        }
+
+        statusMessage.textContent = '';
+
+        querySnapshot.forEach((doc) => {
+          const business = doc.data();
+          const businessId = doc.id;
+
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.style.padding = '1.5rem';
+
+          const title = document.createElement('h3');
+          title.className = 'gold';
+          title.textContent = business.business_name || 'Unnamed Business';
+          card.appendChild(title);
+
+          const category = document.createElement('p');
+          category.style.opacity = '0.8';
+          category.style.fontSize = '0.9rem';
+          category.textContent = business.primary_category || 'Uncategorized';
+          card.appendChild(category);
+
+          const description = document.createElement('p');
+          description.style.marginTop = '0.75rem';
+          description.style.lineHeight = '1.6';
+          description.textContent = business.description || 'No description available.';
+          card.appendChild(description);
+
+          const locationParts = [];
+          if (business.city) locationParts.push(business.city);
+          if (business.state) locationParts.push(business.state);
+          if (locationParts.length > 0) {
+            const location = document.createElement('p');
+            location.style.marginTop = '0.5rem';
+            location.style.fontSize = '0.9rem';
+            location.style.opacity = '0.7';
+            location.textContent = `📍 ${locationParts.join(', ')}`;
+            card.appendChild(location);
+          }
+
+          const contactParts = [];
+          if (business.phone && business.show_phone !== false) contactParts.push(`📞 ${business.phone}`);
+          if (business.email && business.show_email !== false) contactParts.push(`✉️ ${business.email}`);
+          if (business.website && business.show_website !== false) contactParts.push(`🌐 Website`);
+          if (contactParts.length > 0) {
+            const contactInfo = document.createElement('p');
+            contactInfo.style.marginTop = '0.75rem';
+            contactInfo.style.fontSize = '0.9rem';
+            contactInfo.textContent = contactParts.join(' • ');
+            card.appendChild(contactInfo);
+          }
+
+          const reviewButton = document.createElement('p');
+          reviewButton.style.marginTop = '1rem';
+          reviewButton.innerHTML = `<a href="submit_review.html?id=${businessId}" class="action-button btn-gold badge-inline">Leave a Review</a>`;
+          card.appendChild(reviewButton);
+
+          businessList.appendChild(card);
+        });
+
+      } catch (error) {
+        console.error("Error loading businesses:", error);
+        statusMessage.style.color = 'red';
+        statusMessage.textContent = `Error: ${error.message}`;
+      }
+    }
+
+    loadBusinesses();
+  </script>
+</body>
+</html>

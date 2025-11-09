@@ -1,0 +1,228 @@
+/* ============================================================
+   Kingdom Connects — FORMS (V6.4, forms-only)
+   Scope: index.html, business.html, submit_business.html
+   Purpose: Unified form fields + compact search input styling
+   ============================================================ */
+
+/* Tokens (fallbacks; defer to theme.css if defined) */
+:root{
+  --gold-bright: var(--gold, #ffd700);
+  --gold-dark:   #a57c00;
+
+  --kc-text:        #e9f2ff;
+  --kc-muted:       rgba(255,255,255,.65);
+  --kc-input-bg:    rgba(255,255,255,.08);
+  --kc-input-bg-f:  rgba(255,255,255,.12);
+  --kc-border:      rgba(255,255,255,.25);
+}
+
+/* -------------------- Form wrapper + grid -------------------- */
+.kc-form{
+  display: grid;
+  gap: clamp(12px, 2.2vw, 18px);
+  color: var(--kc-text);
+}
+
+.kc-form .section-title,
+.kc-form h3.gold{
+  margin: 2px 0 6px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: var(--gold-bright);
+}
+
+.kc-field{ display: grid; gap: 8px; }
+
+.kc-field.grid-2,
+.kc-field.grid-3{ display: grid; gap: 12px; }
+
+/* Utility for form field spacing */
+.form-group{
+  display: grid;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+}
+.form-group:last-child{
+  margin-bottom: 0;
+}
+
+@media (min-width: 720px){
+  .kc-field.grid-2{ grid-template-columns: 1fr 1fr; }
+  .kc-field.grid-3{ grid-template-columns: repeat(3, 1fr); }
+}
+
+.kc-label{ font-weight: 700; color: var(--kc-text); }
+.kc-help{ font-size: .92rem; color: var(--kc-muted); }
+.req{ color: var(--gold-bright); font-weight: 800; }
+
+/* -------------------- Inputs (text, select, textarea) -------------------- */
+.kc-input,
+.kc-textarea,
+.kc-select,
+.kc-search-input{
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  color: var(--kc-text);
+  background: var(--kc-input-bg);
+  border: 1.5px solid var(--kc-border);
+  border-radius: 0.75rem;
+  transition:
+    border-color .22s ease,
+    background-color .22s ease,
+    box-shadow .22s ease;
+  outline: none; /* suppress UA outlines */
+}
+
+.kc-input::placeholder,
+.kc-textarea::placeholder,
+.kc-search-input::placeholder{
+  color: var(--kc-muted);
+}
+
+/* Hover = dark gold rim */
+.kc-input:hover:not(:focus),
+.kc-textarea:hover:not(:focus),
+.kc-select:hover:not(:focus),
+.kc-search-input:hover:not(:focus){
+  border-color: var(--gold-dark);
+}
+
+/* Focus = bright gold rim + soft glow */
+.kc-input:focus,
+.kc-textarea:focus,
+.kc-select:focus,
+.kc-search-input:focus,
+.kc-input:focus-visible,
+.kc-textarea:focus-visible,
+.kc-select:focus-visible,
+.kc-search-input:focus-visible{
+  background: var(--kc-input-bg-f);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(255,215,0,.35);
+}
+
+/* Select and textarea specifics */
+.kc-select{ padding-right: 2.2rem; }
+.kc-textarea{ min-height: 120px; resize: vertical; }
+
+/* Disabled */
+.kc-input:disabled,
+.kc-textarea:disabled,
+.kc-select:disabled,
+.kc-search-input:disabled{
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+/* -------------------- Validation (gold system, no red) -------------------- */
+.kc-input:invalid,
+.kc-textarea:invalid,
+.kc-select:invalid,
+.kc-search-input:invalid{
+  border-color: var(--gold-dark);
+  box-shadow: none;
+  outline: none;
+}
+
+.kc-input:focus:invalid,
+.kc-textarea:focus:invalid,
+.kc-select:focus:invalid,
+.kc-search-input:focus:invalid,
+.kc-input:focus-visible:invalid,
+.kc-textarea:focus-visible:invalid,
+.kc-select:focus-visible:invalid,
+.kc-search-input:focus-visible:invalid{
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(255,215,0,.35);
+  outline: none;
+}
+
+/* -------------------- Search field (business.html) -------------------- */
+.kc-search{ position: relative; display: block; }
+.kc-search-input{ padding-left: 2.2rem; }
+
+.kc-search-icon{
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.95rem;
+  height: 0.95rem;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23a57c00' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l4.99 4.99a1 1 0 001.41-1.41L15.5 14zM10 14a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E");
+}
+
+.kc-search-input:focus ~ .kc-search-icon,
+.kc-search-input:focus-visible ~ .kc-search-icon{
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23ffd700' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l4.99 4.99a1 1 0 001.41-1.41L15.5 14zM10 14a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E");
+}
+
+/* -------------------- Inline messages (submit page) -------------------- */
+.message{
+  margin-top: .75rem;
+  font-weight: 700;
+  text-align: center;
+}
+.message.success{ color: var(--gold-bright); }
+.message.error{ color: #ff6b6b; }
+
+@media (max-width: 400px){
+  .kc-field.grid-2,
+  .kc-field.grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* -------------------- Alternative input styles -------------------- */
+/* Dark input variant (used in admin forms) */
+.input-dark,
+.textarea-dark,
+.select-dark {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.textarea-dark {
+  resize: vertical;
+}
+
+/* Rounded variant (alternative forms) */
+.input-rounded,
+.textarea-rounded,
+.select-rounded {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.textarea-rounded {
+  resize: vertical;
+}
+
+/* List style utilities */
+.list-unstyled {
+  list-style: none;
+  padding: 0;
+}
+
+.list-indent {
+  padding-left: 1.5em;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* EOF */

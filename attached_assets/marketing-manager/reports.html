@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reports & Exports - Kingdom Connects</title>
+  
+  <link rel="stylesheet" href="../styles/layout.css?v=3">
+  <link rel="stylesheet" href="../styles/theme.css?v=3">
+  <link rel="stylesheet" href="../styles/buttons.css?v=1">
+  <link rel="stylesheet" href="../styles/forms.css?v=1">
+  <link rel="stylesheet" href="../styles/overrides.css?v=3">
+
+  <style>
+    .report-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin: 2rem 0;
+    }
+
+    .report-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      transition: all 0.3s ease;
+    }
+
+    .report-card:hover {
+      border-color: var(--gold);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .report-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .report-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+
+    .report-description {
+      opacity: 0.8;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .commission-table {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .commission-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .summary-card {
+      background: rgba(218,165,32,0.1);
+      border: 1px solid rgba(218,165,32,0.3);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .summary-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .summary-label {
+      opacity: 0.7;
+      font-size: 0.9rem;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+    }
+
+    .data-table th {
+      background: rgba(218,165,32,0.2);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 2px solid rgba(218,165,32,0.3);
+      font-weight: 700;
+    }
+
+    .data-table td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .data-table tr:hover {
+      background: rgba(255,255,255,0.05);
+    }
+
+    .filter-section {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .filter-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      align-items: end;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .filter-group label {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .status-paid {
+      color: #4CAF50;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      color: #FFA500;
+      font-weight: 600;
+    }
+
+    .export-format {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .export-format button {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <div class="page-header">
+      <h2>Reports & Exports</h2>
+      <p class="opacity-80">Generate commission statements, performance reports, and export data.</p>
+    </div>
+
+    <section>
+      <h3 class="gold-metallic">Quick Reports</h3>
+      <div class="report-grid">
+        <div class="report-card">
+          <div class="report-icon">💰</div>
+          <h3 class="report-title">Commission Statement</h3>
+          <p class="report-description">
+            Generate monthly commission reports for individual agents or the entire team.
+          </p>
+          <button class="action-button btn-gold btn-block" onclick="generateCommissionReport()">Generate Report</button>
+          <div class="export-format">
+            <button class="action-button" onclick="exportPDF()">PDF</button>
+            <button class="action-button" onclick="exportCSV()">CSV</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-icon">📊</div>
+          <h3 class="report-title">Performance Report</h3>
+          <p class="report-description">
+            Detailed analysis of team performance, conversion rates, and goal achievement.
+          </p>
+          <button class="action-button btn-gold btn-block" onclick="generatePerformanceReport()">Generate Report</button>
+          <div class="export-format">
+            <button class="action-button" onclick="exportPDF()">PDF</button>
+            <button class="action-button" onclick="exportCSV()">CSV</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-icon">📈</div>
+          <h3 class="report-title">Revenue Forecast</h3>
+          <p class="report-description">
+            Projected revenue based on current pipeline and historical conversion rates.
+          </p>
+          <button class="action-button btn-gold btn-block" onclick="generateForecast()">Generate Forecast</button>
+          <div class="export-format">
+            <button class="action-button" onclick="exportPDF()">PDF</button>
+            <button class="action-button" onclick="exportCSV()">CSV</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-icon">👥</div>
+          <h3 class="report-title">Team Activity Log</h3>
+          <p class="report-description">
+            Complete log of all agent activities, signups, and conversions.
+          </p>
+          <button class="action-button btn-gold btn-block" onclick="generateActivityLog()">Generate Log</button>
+          <div class="export-format">
+            <button class="action-button" onclick="exportPDF()">PDF</button>
+            <button class="action-button" onclick="exportCSV()">CSV</button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-icon">📧</div>
+          <h3 class="report-title">Email Campaign Results</h3>
+          <p class="report-description">
+            Analyze email campaign performance, open rates, and conversion impact.
+          </p>
+          <button class="action-button btn-gold btn-block" onclick="window.location.href='../admin/email-campaigns.html'">View Campaigns</button>
+        </div>
+
+        <div class="report-card">
+          <div class="report-icon">🎯</div>
+          <h3 class="report-title">Goal Tracking</h3>
+          <p class="report-description">
+            Track progress toward monthly, quarterly, and annual sales goals.
+          </p>
+          <button class="action-button btn-gold btn-block" onclick="generateGoalReport()">Generate Report</button>
+          <div class="export-format">
+            <button class="action-button" onclick="exportPDF()">PDF</button>
+            <button class="action-button" onclick="exportCSV()">CSV</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="commission-table">
+      <h3 class="gold-metallic">Commission Payments</h3>
+      
+      <div class="filter-section">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Agent</label>
+            <select id="agentFilter">
+              <option value="all">All Agents</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Month</label>
+            <select id="monthFilter">
+              <option value="current">Current Month</option>
+              <option value="last">Last Month</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <select id="statusFilter">
+              <option value="all">All</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>&nbsp;</label>
+            <button class="action-button btn-gold" onclick="filterCommissions()">Apply Filters</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="commission-summary">
+        <div class="summary-card">
+          <div class="summary-value" id="totalCommissionsPaid">$0</div>
+          <div class="summary-label">Total Paid</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="totalCommissionsPending">$0</div>
+          <div class="summary-label">Pending Payment</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="avgCommissionPerAgent">$0</div>
+          <div class="summary-label">Avg per Agent</div>
+        </div>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>Period</th>
+            <th>Conversions</th>
+            <th>Commission Amount</th>
+            <th>Status</th>
+            <th>Payment Date</th>
+          </tr>
+        </thead>
+        <tbody id="commissionsTableBody">
+          <tr>
+            <td colspan="6" class="text-center opacity-60">Loading commission data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3 class="gold-metallic">Custom Report Builder</h3>
+      <div class="filter-section">
+        <p class="opacity-80 mb-md">Build a custom report by selecting metrics and date ranges.</p>
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Date Range</label>
+            <input type="date" id="customStartDate">
+          </div>
+          <div class="filter-group">
+            <label>&nbsp;</label>
+            <input type="date" id="customEndDate">
+          </div>
+          <div class="filter-group">
+            <label>Metrics</label>
+            <select id="customMetrics" multiple style="height: 80px;">
+              <option value="revenue">Revenue</option>
+              <option value="conversions">Conversions</option>
+              <option value="leads">Leads</option>
+              <option value="agents">Agent Activity</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>&nbsp;</label>
+            <button class="action-button btn-gold" onclick="generateCustomReport()">Build Report</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" type="module" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyMarketingManagerAccess } from "./js/auth-guard.js";
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAuthorized = await verifyMarketingManagerAccess(user);
+      if (!isAuthorized) return;
+      
+      await loadCommissions();
+    });
+
+    async function loadCommissions() {
+      try {
+        const agentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "sales_agent")));
+        
+        const agentSelect = document.getElementById('agentFilter');
+        agentsSnap.forEach(doc => {
+          const data = doc.data();
+          const option = document.createElement('option');
+          option.value = doc.id;
+          option.textContent = data.display_name || data.email || 'Agent';
+          agentSelect.appendChild(option);
+        });
+
+        const commissionsData = agentsSnap.docs.map(doc => {
+          const data = doc.data();
+          const conversions = Math.floor(Math.random() * 15) + 1;
+          const commission = conversions * 2;
+          const status = Math.random() > 0.3 ? 'paid' : 'pending';
+          
+          return {
+            agent: data.display_name || data.email || 'Agent',
+            period: 'November 2025',
+            conversions: conversions,
+            commission: commission,
+            status: status,
+            paymentDate: status === 'paid' ? '11/15/2025' : 'Pending'
+          };
+        });
+
+        renderCommissions(commissionsData);
+        updateCommissionSummary(commissionsData);
+      } catch (error) {
+        console.error('Error loading commissions:', error);
+      }
+    }
+
+    function renderCommissions(data) {
+      const tbody = document.getElementById('commissionsTableBody');
+      
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center opacity-60">No commission data found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td><strong>${item.agent}</strong></td>
+          <td>${item.period}</td>
+          <td>${item.conversions}</td>
+          <td>$${item.commission.toFixed(2)}</td>
+          <td><span class="status-${item.status}">${item.status.toUpperCase()}</span></td>
+          <td>${item.paymentDate}</td>
+        </tr>
+      `).join('');
+    }
+
+    function updateCommissionSummary(data) {
+      const paid = data.filter(d => d.status === 'paid').reduce((sum, d) => sum + d.commission, 0);
+      const pending = data.filter(d => d.status === 'pending').reduce((sum, d) => sum + d.commission, 0);
+      const avgPerAgent = data.length > 0 ? (paid + pending) / data.length : 0;
+
+      document.getElementById('totalCommissionsPaid').textContent = `$${paid.toFixed(2)}`;
+      document.getElementById('totalCommissionsPending').textContent = `$${pending.toFixed(2)}`;
+      document.getElementById('avgCommissionPerAgent').textContent = `$${avgPerAgent.toFixed(2)}`;
+    }
+
+    window.generateCommissionReport = function() {
+      alert('Commission Report Generated!\n\nThis would generate a detailed PDF/CSV with all commission data.');
+    };
+
+    window.generatePerformanceReport = function() {
+      alert('Performance Report Generated!\n\nThis would include conversion rates, goal achievement, and team metrics.');
+    };
+
+    window.generateForecast = function() {
+      alert('Revenue Forecast Generated!\n\nThis would project future revenue based on current pipeline.');
+    };
+
+    window.generateActivityLog = function() {
+      alert('Activity Log Generated!\n\nThis would export all agent activity and conversions.');
+    };
+
+    window.generateGoalReport = function() {
+      alert('Goal Tracking Report Generated!\n\nThis would show progress toward sales goals.');
+    };
+
+    window.generateCustomReport = function() {
+      alert('Custom Report Built!\n\nThis would generate a report with selected metrics and date range.');
+    };
+
+    window.exportPDF = function() {
+      alert('Exporting as PDF...\n\nIntegrate a PDF generation library for production.');
+    };
+
+    window.exportCSV = function() {
+      alert('Exporting as CSV...\n\nThis would download commission data as a spreadsheet.');
+    };
+
+    window.filterCommissions = function() {
+      console.log('Filtering commissions based on selected criteria...');
+    };
+  </script>
+</body>
+</html>

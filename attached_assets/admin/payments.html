@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Payment Oversight - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+
+  <style>
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .payment-table {
+      width: 100%;
+      min-width: 1000px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+    .payment-table th {
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .payment-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #333;
+    }
+    .payment-table tr:hover {
+      background: rgba(212, 175, 55, 0.05);
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-paid { background: #50c878; color: white; }
+    .status-pending { background: #f4a261; color: white; }
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #333;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .stat-label {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+    .tab-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .tab-button {
+      padding: 0.75rem 1.5rem;
+      background: #333;
+      border: none;
+      border-radius: 4px;
+      color: #aaa;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab-button.active {
+      background: var(--gold);
+      color: black;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Payment Oversight</h2>
+      <p>Monitor all Pro subscriptions, commission payments, and platform revenue.</p>
+
+      <div class="stat-cards">
+        <div class="stat-card">
+          <div class="stat-value" id="totalRevenue">$0</div>
+          <div class="stat-label">Total Revenue</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="activeProBusiness">0</div>
+          <div class="stat-label">Active Pro Businesses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="totalCommissions">$0</div>
+          <div class="stat-label">Total Commissions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="totalTithes">$0</div>
+          <div class="stat-label">Total Church Tithes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="monthlyRecurring">$0</div>
+          <div class="stat-label">Monthly Recurring</div>
+        </div>
+      </div>
+
+      <div class="tab-buttons">
+        <button class="tab-button active" onclick="window.switchTab('commissions')">Commissions</button>
+        <button class="tab-button" onclick="window.switchTab('pro-businesses')">Pro Businesses</button>
+      </div>
+
+      <!-- Commissions Tab -->
+      <div id="tab-commissions" class="tab-content active">
+        <div class="flex-gap-center mb-md">
+          <select id="filterPaidStatus" class="input-dark" style="max-width: 200px;">
+            <option value="">All Commissions</option>
+            <option value="paid">Paid Only</option>
+            <option value="pending">Pending Only</option>
+          </select>
+          <button id="exportCommissions" class="action-button btn-gold">📥 Export CSV</button>
+        </div>
+
+        <div id="commissionsLoading" class="text-center mt-lg">
+          <p>Loading commissions...</p>
+        </div>
+
+        <div id="commissionsContent" style="display: none;">
+          <div class="table-wrapper">
+            <table class="payment-table">
+              <thead>
+                <tr>
+                  <th>Business</th>
+                  <th>Sales Agent</th>
+                  <th>Pro Payment</th>
+                  <th>Commission</th>
+                  <th>Church Tithe</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="commissionsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="commissionsEmpty" style="display: none;" class="text-center mt-lg">
+          <p>No commissions found.</p>
+        </div>
+      </div>
+
+      <!-- Pro Businesses Tab -->
+      <div id="tab-pro-businesses" class="tab-content">
+        <div id="proLoading" class="text-center mt-lg">
+          <p>Loading Pro businesses...</p>
+        </div>
+
+        <div id="proContent" style="display: none;">
+          <div class="table-wrapper">
+            <table class="payment-table">
+              <thead>
+                <tr>
+                  <th>Business Name</th>
+                  <th>Owner Email</th>
+                  <th>Pro Start</th>
+                  <th>Pro End</th>
+                  <th>Status</th>
+                  <th>Referred By</th>
+                </tr>
+              </thead>
+              <tbody id="proTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="proEmpty" style="display: none;" class="text-center mt-lg">
+          <p>No Pro businesses found.</p>
+        </div>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading payment data. Please refresh the page.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, updateDoc, doc, query, where, collectionGroup, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyAdminAccess } from "./js/admin-auth-guard.js";
+
+    let currentUser = null;
+    let allCommissions = [];
+    let allProBusinesses = [];
+    let currentTab = 'commissions';
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAdmin = await verifyAdminAccess(user);
+      if (!isAdmin) return;
+      
+      currentUser = user;
+      await loadData();
+    });
+
+    document.getElementById('filterPaidStatus').addEventListener('change', renderCommissions);
+    document.getElementById('exportCommissions').addEventListener('click', exportCommissionsCSV);
+
+    window.switchTab = function(tabName) {
+      currentTab = tabName;
+      
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    };
+
+    async function loadData() {
+      try {
+        const [commissionsData, proBusinessesData] = await Promise.all([
+          loadCommissions(),
+          loadProBusinesses()
+        ]);
+
+        updateStats();
+
+      } catch (error) {
+        console.error('Error loading payment data:', error);
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    async function loadCommissions() {
+      try {
+        const commissionsQuery = query(
+          collectionGroup(db, "commissions"),
+          orderBy("created_at", "desc")
+        );
+        
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+
+        if (commissionsSnapshot.empty) {
+          document.getElementById('commissionsLoading').style.display = 'none';
+          document.getElementById('commissionsEmpty').style.display = 'block';
+          return;
+        }
+
+        const businessLookups = new Map();
+
+        commissionsSnapshot.forEach(commissionDoc => {
+          const commission = commissionDoc.data();
+          const businessId = commissionDoc.ref.parent.parent.id;
+          
+          if (!businessLookups.has(businessId)) {
+            businessLookups.set(businessId, {
+              ref: commissionDoc.ref.parent.parent,
+              commissions: []
+            });
+          }
+          
+          businessLookups.get(businessId).commissions.push({
+            id: commissionDoc.id,
+            businessId,
+            ...commission
+          });
+        });
+
+        const businessPromises = Array.from(businessLookups.values()).map(item =>
+          item.ref.get().catch(e => {
+            console.error('Error loading business:', e);
+            return null;
+          })
+        );
+
+        const businessDocs = await Promise.all(businessPromises);
+        
+        allCommissions = [];
+        businessDocs.forEach((businessDoc, index) => {
+          if (businessDoc && businessDoc.exists) {
+            const businessData = businessDoc.data();
+            const businessId = businessDoc.id;
+            const commissions = businessLookups.get(businessId).commissions;
+            
+            commissions.forEach(commission => {
+              allCommissions.push({
+                ...commission,
+                businessName: businessData.business_name || 'Unknown'
+              });
+            });
+          }
+        });
+
+        renderCommissions();
+        document.getElementById('commissionsLoading').style.display = 'none';
+        document.getElementById('commissionsContent').style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading commissions:', error);
+        document.getElementById('commissionsLoading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    async function loadProBusinesses() {
+      try {
+        const proQuery = query(
+          collection(db, "business_listings"),
+          where("pro_status", "==", true)
+        );
+        
+        const proSnapshot = await getDocs(proQuery);
+
+        if (proSnapshot.empty) {
+          document.getElementById('proLoading').style.display = 'none';
+          document.getElementById('proEmpty').style.display = 'block';
+          return;
+        }
+
+        allProBusinesses = proSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        renderProBusinesses();
+        document.getElementById('proLoading').style.display = 'none';
+        document.getElementById('proContent').style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading Pro businesses:', error);
+        document.getElementById('proLoading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function updateStats() {
+      const totalRevenue = allCommissions.reduce((sum, c) => sum + (c.pro_payment_amount || 0), 0);
+      const totalCommissions = allCommissions.reduce((sum, c) => sum + (c.commission_amount || 0), 0);
+      const totalTithes = allCommissions.reduce((sum, c) => sum + (c.tithe_amount || 0), 0);
+      const activeProCount = allProBusinesses.length;
+      
+      const avgProPayment = totalRevenue / Math.max(1, allCommissions.length);
+      const monthlyRecurring = activeProCount * avgProPayment;
+
+      document.getElementById('totalRevenue').textContent = `$${totalRevenue.toFixed(2)}`;
+      document.getElementById('activeProBusiness').textContent = activeProCount;
+      document.getElementById('totalCommissions').textContent = `$${totalCommissions.toFixed(2)}`;
+      document.getElementById('totalTithes').textContent = `$${totalTithes.toFixed(2)}`;
+      document.getElementById('monthlyRecurring').textContent = `$${monthlyRecurring.toFixed(2)}`;
+    }
+
+    function renderCommissions() {
+      const filterStatus = document.getElementById('filterPaidStatus').value;
+      let filtered = [...allCommissions];
+
+      if (filterStatus === 'paid') {
+        filtered = filtered.filter(c => c.commission_paid === true);
+      } else if (filterStatus === 'pending') {
+        filtered = filtered.filter(c => c.commission_paid !== true);
+      }
+
+      const tbody = document.getElementById('commissionsTableBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #aaa;">No commissions match the filter</td></tr>';
+        return;
+      }
+
+      filtered.forEach(commission => {
+        const tr = document.createElement('tr');
+        
+        const createdDate = commission.created_at?.toDate ? commission.created_at.toDate().toLocaleDateString() : 'N/A';
+        const paidDate = commission.payment_date?.toDate ? commission.payment_date.toDate().toLocaleDateString() : '-';
+        const statusClass = commission.commission_paid ? 'status-paid' : 'status-pending';
+        const statusText = commission.commission_paid ? 'Paid' : 'Pending';
+
+        tr.innerHTML = `
+          <td>${escapeHtml(commission.businessName)}</td>
+          <td>${escapeHtml(commission.referrer_display_name || 'Unknown')}</td>
+          <td>$${(commission.pro_payment_amount || 0).toFixed(2)}</td>
+          <td>$${(commission.commission_amount || 0).toFixed(2)}</td>
+          <td>$${(commission.tithe_amount || 0).toFixed(2)}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td>${createdDate}</td>
+          <td>
+            ${!commission.commission_paid ? 
+              `<button class="action-button btn-small" style="background: #50c878;" onclick="window.markPaid('${commission.businessId}', '${commission.id}')">Mark Paid</button>` :
+              `<span style="color: #aaa;">Paid ${paidDate}</span>`
+            }
+          </td>
+        `;
+        
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderProBusinesses() {
+      const tbody = document.getElementById('proTableBody');
+      tbody.innerHTML = '';
+
+      allProBusinesses.forEach(business => {
+        const tr = document.createElement('tr');
+        
+        const startDate = business.pro_start_date?.toDate ? business.pro_start_date.toDate().toLocaleDateString() : 'N/A';
+        const endDate = business.pro_end_date?.toDate ? business.pro_end_date.toDate().toLocaleDateString() : 'N/A';
+        const now = new Date();
+        const isActive = business.pro_end_date?.toDate ? business.pro_end_date.toDate() > now : false;
+        const statusClass = isActive ? 'status-paid' : 'status-pending';
+        const statusText = isActive ? 'Active' : 'Expired';
+
+        tr.innerHTML = `
+          <td>${escapeHtml(business.business_name || 'Unknown')}</td>
+          <td>${escapeHtml(business.email || 'N/A')}</td>
+          <td>${startDate}</td>
+          <td>${endDate}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td>${escapeHtml(business.referrer_display_name || '-')}</td>
+        `;
+        
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.markPaid = async function(businessId, commissionId) {
+      if (!confirm('Mark this commission as paid?')) return;
+
+      try {
+        await updateDoc(doc(db, "business_listings", businessId, "commissions", commissionId), {
+          commission_paid: true,
+          payment_date: serverTimestamp()
+        });
+        alert('Commission marked as paid');
+        await loadData();
+      } catch (error) {
+        console.error('Error marking commission as paid:', error);
+        alert('Error: ' + error.message);
+      }
+    };
+
+    function exportCommissionsCSV() {
+      if (allCommissions.length === 0) {
+        alert('No commissions to export');
+        return;
+      }
+
+      const headers = ['Business', 'Sales Agent', 'Pro Payment', 'Commission', 'Church Tithe', 'Status', 'Created Date', 'Paid Date'];
+      const rows = allCommissions.map(commission => {
+        const createdDate = commission.created_at?.toDate().toLocaleDateString() || 'Unknown';
+        const paidDate = commission.payment_date?.toDate().toLocaleDateString() || '-';
+        const status = commission.commission_paid ? 'Paid' : 'Pending';
+        
+        return [
+          `"${(commission.businessName || 'Unknown').replace(/"/g, '""')}"`,
+          `"${(commission.referrer_display_name || 'Unknown').replace(/"/g, '""')}"`,
+          (commission.pro_payment_amount || 0).toFixed(2),
+          (commission.commission_amount || 0).toFixed(2),
+          (commission.tithe_amount || 0).toFixed(2),
+          status,
+          createdDate,
+          paidDate
+        ].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kingdom-connects-commissions-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

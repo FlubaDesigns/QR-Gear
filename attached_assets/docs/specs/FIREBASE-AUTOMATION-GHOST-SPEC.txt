@@ -1,0 +1,330 @@
+Kingdom Connects – Firebase Automation Options
+-----------------------------------------------
+
+Overview:
+This document explains how to automate data entry into Firebase without manual typing.
+It summarizes three setup paths (A, B, C). Option A is the recommended route.
+
+=============================================================
+Option A (Recommended): GitHub Actions “Seeder” (Hands-Free)
+=============================================================
+
+Purpose:
+Automatically import data into Firebase Firestore whenever you or Claude commit a JSON file to GitHub.
+
+Setup Steps:
+1. Create a restricted Firebase Service Account (Firestore-only).
+2. Download the JSON credentials.
+3. In your GitHub repository:
+   - Go to Settings → Secrets → Actions.
+   - Add two secrets:
+       FIREBASE_SERVICE_ACCOUNT = (paste full JSON)
+       FIREBASE_PROJECT_ID = (your Firebase project ID)
+
+4. Add these files to your repository:
+
+-------------------------------------------------------------
+File: .github/workflows/seed-firestore.yml
+-------------------------------------------------------------
+name: Seed Firestore
+on:
+  push:
+    paths:
+      - 'seed/**.json'
+      - 'tools/seed/**'
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm i firebase-admin@12.x
+
+      - name: Write service account file
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > serviceAccount.json
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Run seeder(s)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/serviceAccount.json
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          node tools/seed/seed.js
+
+-------------------------------------------------------------
+File: tools/seed/seed.js
+-------------------------------------------------------------
+const fs = require('fs');
+const path = require('path');
+const admin = require('firebase-admin');
+
+const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+if (!credsPath || !fs.existsSync(credsPath)) {
+  console.error('Missing GOOGLE_APPLICATION_CREDENTIALS / serviceAccount.json');
+  process.exit(1);
+}
+
+admin.initializeApp({
+  credential: admin.credential.cert(require(credsPath)),
+  projectId: process.env.FIREBASE_PROJECT_ID
+});
+const db = admin.firestore();
+
+(async () => {
+  try {
+    const seedDir = path.join(process.cwd(), 'seed');
+    const files = fs.readdirSync(seedDir).filter(f => f.endsWith('.json'));
+
+    for (const file of files) {
+      const full = path.join(seedDir, file);
+      const payload = JSON.parse(fs.readFileSync(full, 'utf8'));
+
+      const batches = payload.batches ?? [payload];
+      for (const batch of batches) {
+        const col = batch.collection;
+        if (!col || !Array.isArray(batch.docs)) continue;
+        console.log(`Seeding ${col} from ${file} (${batch.docs.length} docs)...`);
+        for (const d of batch.docs) {
+          const ref = d.id ? db.collection(col).doc(d.id) : db.collection(col).doc();
+          await ref.set(d.data, { merge: true });
+        }
+      }
+    }
+    console.log('✅ Seeding complete.');
+  } catch (e) {
+    console.error('Seeder error:', e);
+    process.exit(1);
+  }
+})();
+
+-------------------------------------------------------------
+File: seed/church_insights.json (Example)
+-------------------------------------------------------------
+{
+  "collection": "church_insights",
+  "docs": [
+    {
+      "id": "sample-church-001",
+      "data": {
+        "church_name": "First Community Church",
+        "website": "https://firstcommunity.example",
+        "email": "admin@firstcommunity.example",
+        "estimated_attendance": 220,
+        "years_established": "10+",
+        "weekly_services": 2,
+        "ministries": ["youth", "men", "women"],
+        "promotes_local_business": true,
+        "will_feature_KC": true,
+        "estimated_audience_reach": 220,
+        "created_at": { "_serverTimestamp": true }
+      }
+    }
+  ]
+}
+
+=============================================================
+Option B: Ingest Cloud Function (POST JSON from anywhere)
+=============================================================
+
+Purpose:
+Create a secure HTTPS function to accept JSON and insert it into Firestore.
+
+-------------------------------------------------------------
+Code Snippet:
+-------------------------------------------------------------
+const functions = require('firebase-functions/v2/https');
+const admin = require('firebase-admin');
+admin.initializeApp();
+
+const AUTH_TOKEN = process.env.INGEST_TOKEN;
+
+exports.ingestFirestore = functions.onRequest(async (req, res) => {
+  try {
+    if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token || token !== AUTH_TOKEN) return res.status(401).send('Unauthorized');
+
+    const { collection, docs, batches } = req.body || {};
+    const tasks = [];
+    const work = batches ?? [{ collection, docs }];
+
+    for (const b of work) {
+      if (!b?.collection || !Array.isArray(b.docs)) continue;
+      for (const d of b.docs) {
+        const ref = d.id
+          ? admin.firestore().collection(b.collection).doc(d.id)
+          : admin.firestore().collection(b.collection).doc();
+        tasks.push(ref.set(d.data, { merge: true }));
+      }
+    }
+
+    await Promise.all(tasks);
+    res.json({ ok: true, written: tasks.length });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+=============================================================
+Option C: Google Sheets → Apps Script “Sync to Firestore”
+=============================================================
+
+Purpose:
+Use Google Sheets to manage data visually, then push it to Firestore with one button.
+
+-------------------------------------------------------------
+Snippet:
+-------------------------------------------------------------
+function syncToFirestore() {
+  const props = PropertiesService.getScriptProperties();
+  const svc = JSON.parse(props.getProperty('SERVICE_ACCOUNT_JSON'));
+  const projectId = props.getProperty('PROJECT_ID');
+  const jwt = getJWT(svc);
+  const token = getAccessToken(jwt);
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName('church_insights');
+  const rows = sheet.getDataRange().getValues();
+  const header = rows.shift();
+
+  rows.forEach(row => {
+    const data = {};
+    header.forEach((h, i) => data[h] = row[i]);
+    upsertDoc(token, projectId, 'church_insights', data.id || null, data);
+  });
+}
+-------------------------------------------------------------
+
+Recommended Next Steps:
+- Sleep 😴
+- When ready, confirm Option A setup.
+- I’ll help lock in your collections and generate sample seed JSONs.
+
+— Ghost in the Machine
+
+
+=============================================================
+Church Admin Questionnaire Concept
+=============================================================
+
+Purpose:
+To gather valuable insights from churches joining Kingdom Connects, allowing estimation of audience reach and engagement.
+
+Proposed Questions:
+1. Church Name
+2. Church Website (optional)
+3. Church Email / Phone
+4. Approximate number of active members?
+5. How long has your church been established?
+   - Options: <1 year, 1–5 years, 6–10, 10+
+6. How many weekly services or gatherings?
+7. Which ministries do you host? (youth, men, women, etc.)
+8. Does your church promote local businesses?
+9. Would you like to feature Kingdom Connects in your bulletin or website?
+10. Estimated number of people who might see Kingdom Connects promotions each week.
+11. Who referred you to Kingdom Connects?
+12. Would you like a free Kingdom Connects welcome kit?
+13. Mailing address for welcome kit (if Yes).
+
+Firestore Collection:
+/church_insights (or /churchMetrics)
+
+Each document should include fields like:
+- church_name
+- website
+- email
+- estimated_attendance
+- years_established
+- weekly_services
+- ministries[]
+- promotes_local_business
+- will_feature_KC
+- estimated_audience_reach
+- created_at (timestamp)
+
+Purpose of Data:
+To measure community impact and potential visibility.
+Display aggregate metrics publicly, such as:
+"Kingdom Connects is now reaching an estimated 25,000+ people through partner churches."
+
+=============================================================
+Kingdom Gear Integration Program (Welcome Packages & Merch)
+=============================================================
+
+Purpose:
+To reinforce the Kingdom Connects mission through physical, branded merchandise produced by QR Gear.
+
+-------------------------------------------------------------
+Business (Pro Annual) Package
+-------------------------------------------------------------
+- Free custom T-shirt upon annual Pro upgrade (minus 30-day free trial)
+- Includes:
+  - Kingdom Connects logo and website URL
+  - QR code linking directly to the business’s listing
+  - Inspirational Bible verse (e.g., Matthew 5:16 – “Let your light shine before others.”)
+- Fulfilled automatically via QR Gear (Printify/Printful integration)
+
+-------------------------------------------------------------
+Church Partner Package
+-------------------------------------------------------------
+- Free Kingdom Connects T-shirt, coffee mug, or banner upon joining
+- Includes church-specific QR code linking to their Kingdom Connects page
+- Uses same print-on-demand flow as business packages
+
+-------------------------------------------------------------
+Implementation Flow
+-------------------------------------------------------------
+1. Stripe triggers Cloud Function upon successful annual Pro or Church signup.
+2. Function calls QR Gear’s Printify API to generate a personalized order:
+   - Generates QR code using listing ID or church ID.
+   - Selects random or pre-defined verse from a verse pool.
+   - Adds business/church name and logo to shirt design.
+3. Email confirmation sent with digital QR code and tracking link.
+4. Data logged to Firestore in a `welcome_kits` collection.
+
+-------------------------------------------------------------
+Example Firestore Fields (welcome_kits)
+-------------------------------------------------------------
+- user_id / church_id
+- order_id
+- merch_type (“shirt”, “mug”, “banner”)
+- qr_link_url
+- verse
+- status (“pending”, “shipped”, “delivered”)
+- created_at (timestamp)
+
+-------------------------------------------------------------
+Verse Pool (for rotation)
+-------------------------------------------------------------
+- Matthew 5:16 – “Let your light shine before others.”
+- Colossians 3:23 – “Whatever you do, work at it with all your heart.”
+- Proverbs 16:3 – “Commit to the Lord whatever you do, and He will establish your plans.”
+- 1 Corinthians 10:31 – “Whatever you do, do it all for the glory of God.”
+
+-------------------------------------------------------------
+Long-Term Vision
+-------------------------------------------------------------
+- QR Gear becomes the official merchandise provider for all Kingdom Connects members.
+- Launch the “Kingdom Gear” online store with faith-based designs and member branding options.
+- Enable churches and businesses to order additional branded gear directly.
+- Every item sold or gifted reinforces community identity and grassroots marketing.
+
+=============================================================
+Summary
+=============================================================
+The combination of automated Firebase data seeding (Option A), the Church Admin Questionnaire, and the Kingdom Gear Integration Program creates a complete ecosystem:
+
+1. **Automation** – GitHub Actions handle data imports without manual typing.
+2. **Insight** – Church questionnaire builds real reach analytics.
+3. **Engagement** – Welcome merch deepens emotional and spiritual connection.
+
+Together they form a fully integrated digital + physical faith network powered by Kingdom Connects and QR Gear.

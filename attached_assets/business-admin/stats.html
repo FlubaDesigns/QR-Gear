@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Statistics - Kingdom Connects Business Portal</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-top: 0.5rem;
+    }
+    .trend-up {
+      color: #4caf50;
+      font-size: 0.85rem;
+    }
+    .trend-down {
+      color: #f44336;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Business Statistics</h2>
+      <div id="loadingMessage" class="text-center p-md">Loading statistics...</div>
+      
+      <div id="noBusinessMessage" class="text-center p-md" style="display: none;">
+        <p>No business listing found for your account.</p>
+        <a href="../submit_business.html" class="action-button btn-gold">Create a Business Listing</a>
+      </div>
+
+      <div id="statsContent" style="display: none;">
+        <article class="card">
+          <h3 class="gold">Performance Overview</h3>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number" id="totalViews">0</div>
+              <div class="stat-label">Total Profile Views</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="averageRating">0.0</div>
+              <div class="stat-label">Average Rating</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="reviewCount">0</div>
+              <div class="stat-label">Customer Reviews</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="photoCount">0</div>
+              <div class="stat-label">Photos Uploaded</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Listing Details</h3>
+          <div class="grid-col-2">
+            <div>
+              <p><strong>Listing Status:</strong> <span id="listingStatus">-</span></p>
+              <p><strong>Membership Tier:</strong> <span id="membershipTier">-</span></p>
+              <p><strong>Primary Category:</strong> <span id="primaryCategory">-</span></p>
+              <p><strong>Member Since:</strong> <span id="memberSince">-</span></p>
+            </div>
+            <div>
+              <p><strong>Church Affiliation:</strong> <span id="churchAffiliation">-</span></p>
+              <p><strong>Secondary Categories:</strong> <span id="secondaryCategories">-</span></p>
+              <p><strong>Location:</strong> <span id="businessLocation">-</span></p>
+              <p><strong>Website Listed:</strong> <span id="websiteListed">-</span></p>
+            </div>
+          </div>
+        </article>
+
+        <div id="proPromo" class="card card-highlight" style="display: none;">
+          <h3 class="gold">🔒 Unlock Advanced Analytics with Pro</h3>
+          <p>Pro members get access to detailed analytics including:</p>
+          <ul>
+            <li>✅ Visitor trends over time</li>
+            <li>✅ Click-through rates</li>
+            <li>✅ Conversion tracking</li>
+            <li>✅ Search ranking position</li>
+            <li>✅ Geographic breakdown of visitors</li>
+          </ul>
+          <a href="upgrade.html" class="action-button btn-gold">Upgrade to Pro</a>
+        </div>
+
+        <article class="card" id="proStats" style="display: none;">
+          <h3 class="gold">Pro Analytics</h3>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number" id="clickThroughRate">0%</div>
+              <div class="stat-label">Click-Through Rate</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="searchImpressions">0</div>
+              <div class="stat-label">Search Impressions</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="websiteClicks">0</div>
+              <div class="stat-label">Website Clicks</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="phoneClicks">0</div>
+              <div class="stat-label">Phone Number Clicks</div>
+            </div>
+          </div>
+          <p class="text-center text-sm opacity-70 mt-md">Pro analytics data will be available once tracking is enabled</p>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Optimize Your Listing</h3>
+          <div id="optimizationTips"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let businessId = null;
+    let currentBusiness = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadBusiness(user.email);
+    });
+
+    async function loadBusiness(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const noBusinessMessage = document.getElementById('noBusinessMessage');
+      const statsContent = document.getElementById('statsContent');
+
+      try {
+        const q = query(collection(db, "business_listings"), where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.style.display = 'none';
+          noBusinessMessage.style.display = 'block';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        businessId = docSnap.id;
+        currentBusiness = docSnap.data();
+
+        await loadStats();
+
+        loadingMessage.style.display = 'none';
+        statsContent.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading business:', error);
+        loadingMessage.textContent = 'Error loading business: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function loadStats() {
+      const business = currentBusiness;
+      const isPro = business.pro_status === true;
+
+      document.getElementById('totalViews').textContent = business.total_views || 0;
+      document.getElementById('averageRating').textContent = business.average_rating ? business.average_rating.toFixed(1) : '0.0';
+      
+      const reviewCount = await getReviewCount(businessId);
+      document.getElementById('reviewCount').textContent = reviewCount;
+
+      const photoCount = business.photos && Array.isArray(business.photos) ? business.photos.length : 0;
+      document.getElementById('photoCount').textContent = photoCount;
+
+      const statusMap = {
+        'active': '✅ Active',
+        'pending': '⏳ Pending Approval',
+        'suspended': '⛔ Suspended'
+      };
+      document.getElementById('listingStatus').textContent = statusMap[business.listing_status] || business.listing_status || 'Unknown';
+      document.getElementById('membershipTier').textContent = isPro ? '⭐ Pro Member' : '🆓 Free Tier';
+      document.getElementById('primaryCategory').textContent = business.primary_category || 'Not set';
+
+      if (business.created_at) {
+        const createdDate = business.created_at.toDate ? business.created_at.toDate() : new Date(business.created_at);
+        document.getElementById('memberSince').textContent = createdDate.toLocaleDateString();
+      } else {
+        document.getElementById('memberSince').textContent = 'Unknown';
+      }
+
+      if (business.church_id) {
+        const churchName = await getChurchName(business.church_id);
+        document.getElementById('churchAffiliation').textContent = churchName;
+      } else {
+        document.getElementById('churchAffiliation').textContent = 'None';
+      }
+
+      const secondaryCount = business.categories && Array.isArray(business.categories) ? business.categories.length : 0;
+      document.getElementById('secondaryCategories').textContent = secondaryCount > 0 ? `${secondaryCount} categories` : 'None';
+      
+      const locationParts = [business.city, business.state].filter(Boolean);
+      document.getElementById('businessLocation').textContent = locationParts.length > 0 ? locationParts.join(', ') : 'Not set';
+      document.getElementById('websiteListed').textContent = business.website ? 'Yes' : 'No';
+
+      if (isPro) {
+        document.getElementById('proPromo').style.display = 'none';
+        document.getElementById('proStats').style.display = 'block';
+        
+        document.getElementById('clickThroughRate').textContent = '0%';
+        document.getElementById('searchImpressions').textContent = business.total_views || 0;
+        document.getElementById('websiteClicks').textContent = '0';
+        document.getElementById('phoneClicks').textContent = '0';
+      } else {
+        document.getElementById('proPromo').style.display = 'block';
+        document.getElementById('proStats').style.display = 'none';
+      }
+
+      generateOptimizationTips(business, reviewCount, photoCount, isPro);
+    }
+
+    async function getReviewCount(businessId) {
+      try {
+        const q = query(collection(db, "reviews"), where("business_id", "==", businessId));
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.size;
+      } catch (error) {
+        console.error('Error counting reviews:', error);
+        return 0;
+      }
+    }
+
+    async function getChurchName(churchId) {
+      try {
+        const docSnap = await getDoc(doc(db, "churches", churchId));
+        if (docSnap.exists()) {
+          return docSnap.data().church_name || 'Unknown Church';
+        }
+        return 'Unknown Church';
+      } catch (error) {
+        console.error('Error loading church:', error);
+        return 'Unknown Church';
+      }
+    }
+
+    function generateOptimizationTips(business, reviewCount, photoCount, isPro) {
+      const tips = [];
+
+      if (!business.description || business.description.length < 50) {
+        tips.push('📝 <strong>Add a detailed description</strong> - Listings with detailed descriptions get 3x more views');
+      }
+
+      if (photoCount === 0 && !isPro) {
+        tips.push('📸 <strong>Upgrade to Pro to add photos</strong> - Listings with photos get 5x more engagement');
+      }
+
+      if (photoCount > 0 && photoCount < 5 && isPro) {
+        tips.push(`📸 <strong>Add more photos</strong> - You have ${photoCount}/10 photos. More photos = more trust`);
+      }
+
+      if (reviewCount === 0) {
+        tips.push('⭐ <strong>Ask satisfied customers for reviews</strong> - Reviews build credibility and trust');
+      }
+
+      if (!business.website) {
+        tips.push('🌐 <strong>Add your website URL</strong> - Direct customers to learn more about your business');
+      }
+
+      if (!business.church_id) {
+        tips.push('⛪ <strong>Connect with your church</strong> - Support your church through our 10% tithing program');
+      }
+
+      if (!business.hours_of_operation || Object.keys(business.hours_of_operation).length === 0) {
+        tips.push('🕐 <strong>Add business hours</strong> - Customers want to know when you\'re open');
+      }
+
+      const secondaryCount = business.categories && Array.isArray(business.categories) ? business.categories.length : 0;
+      if (secondaryCount === 0 && !isPro) {
+        tips.push('🏷️ <strong>Add a secondary category</strong> - Increase your visibility in searches');
+      }
+
+      if (secondaryCount < 3 && isPro) {
+        tips.push(`🏷️ <strong>Add more categories</strong> - Pro members can add up to 5 (you have ${secondaryCount})`);
+      }
+
+      if (!isPro) {
+        tips.push('⭐ <strong>Consider upgrading to Pro</strong> - Pro members get 10x more visibility');
+      }
+
+      const tipsContainer = document.getElementById('optimizationTips');
+      if (tips.length === 0) {
+        tipsContainer.innerHTML = '<p class="text-center">✅ Your listing is fully optimized! Great job!</p>';
+      } else {
+        tipsContainer.innerHTML = '<ul>' + tips.map(tip => `<li class="m-block-sm">${tip}</li>`).join('') + '</ul>';
+      }
+    }
+  </script>
+  </div>
+</body>
+</html>

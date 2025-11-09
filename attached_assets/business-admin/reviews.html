@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Reviews - Kingdom Connects Business Portal</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .review-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .review-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .stars {
+      color: var(--gold);
+      font-size: 1.2rem;
+    }
+    .review-date {
+      color: #aaa;
+      font-size: 0.85rem;
+    }
+    .response-box {
+      background: rgba(212, 175, 55, 0.1);
+      border-left: 3px solid var(--gold);
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 4px;
+    }
+    .response-form {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Customer Reviews</h2>
+      <div id="loadingMessage" class="text-center p-md">Loading reviews...</div>
+      
+      <div id="noBusinessMessage" class="text-center p-md" style="display: none;">
+        <p>No business listing found for your account.</p>
+        <a href="../submit_business.html" class="action-button btn-gold">Create a Business Listing</a>
+      </div>
+
+      <div id="reviewsContent" style="display: none;">
+        <article class="card">
+          <h3 class="gold">Review Summary</h3>
+          <div class="grid-col-3">
+            <div class="text-center">
+              <div class="stat-number" id="averageRating">0.0</div>
+              <div class="stat-label">Average Rating</div>
+            </div>
+            <div class="text-center">
+              <div class="stat-number" id="totalReviews">0</div>
+              <div class="stat-label">Total Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="stat-number" id="responseRate">0%</div>
+              <div class="stat-label">Response Rate</div>
+            </div>
+          </div>
+        </article>
+
+        <div id="upgradePromo" class="card card-highlight" style="display: none;">
+          <h3 class="gold">🔒 Upgrade to Respond to Reviews</h3>
+          <p>Pro members can respond to customer reviews, building trust and engagement with potential clients.</p>
+          <a href="upgrade.html" class="action-button btn-gold">Upgrade to Pro</a>
+        </div>
+
+        <h3 class="gold mt-md">All Reviews</h3>
+        <div id="reviewsList"></div>
+        
+        <div id="noReviews" class="card text-center" style="display: none;">
+          <p>No reviews yet. When customers leave reviews, they'll appear here.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let businessId = null;
+    let currentBusiness = null;
+    let allReviews = [];
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadBusiness(user.email);
+    });
+
+    async function loadBusiness(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const noBusinessMessage = document.getElementById('noBusinessMessage');
+      const reviewsContent = document.getElementById('reviewsContent');
+
+      try {
+        const q = query(collection(db, "business_listings"), where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.style.display = 'none';
+          noBusinessMessage.style.display = 'block';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        businessId = docSnap.id;
+        currentBusiness = docSnap.data();
+
+        const isPro = currentBusiness.pro_status === true;
+        if (!isPro) {
+          document.getElementById('upgradePromo').style.display = 'block';
+        }
+
+        await loadReviews();
+
+        loadingMessage.style.display = 'none';
+        reviewsContent.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading business:', error);
+        loadingMessage.textContent = 'Error loading business: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function loadReviews() {
+      try {
+        const q = query(collection(db, "reviews"), where("business_id", "==", businessId));
+        const querySnapshot = await getDocs(q);
+
+        allReviews = [];
+        querySnapshot.forEach((doc) => {
+          allReviews.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (allReviews.length === 0) {
+          document.getElementById('noReviews').style.display = 'block';
+          document.getElementById('reviewsList').innerHTML = '';
+          updateStats([], 0);
+          return;
+        }
+
+        document.getElementById('noReviews').style.display = 'none';
+
+        const totalRating = allReviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+        const avgRating = totalRating / allReviews.length;
+        const responsesCount = allReviews.filter(r => r.response_text).length;
+
+        updateStats(allReviews, responsesCount);
+        renderReviews(allReviews);
+
+      } catch (error) {
+        console.error('Error loading reviews:', error);
+      }
+    }
+
+    function updateStats(reviews, responsesCount) {
+      const total = reviews.length;
+      const totalRating = total > 0 ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) : 0;
+      const avgRating = total > 0 ? (totalRating / total).toFixed(1) : '0.0';
+      const responseRate = total > 0 ? Math.round((responsesCount / total) * 100) : 0;
+
+      document.getElementById('averageRating').textContent = avgRating;
+      document.getElementById('totalReviews').textContent = total;
+      document.getElementById('responseRate').textContent = responseRate + '%';
+    }
+
+    function renderReviews(reviews) {
+      const reviewsList = document.getElementById('reviewsList');
+      reviewsList.innerHTML = '';
+
+      reviews.sort((a, b) => {
+        const aDate = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at);
+        const bDate = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at);
+        return bDate - aDate;
+      });
+
+      reviews.forEach(review => {
+        const reviewCard = createReviewCard(review);
+        reviewsList.appendChild(reviewCard);
+      });
+    }
+
+    function createReviewCard(review) {
+      const card = document.createElement('div');
+      card.className = 'review-card';
+
+      const stars = '★'.repeat(review.rating || 0) + '☆'.repeat(5 - (review.rating || 0));
+      const reviewDate = review.created_at?.toDate ? review.created_at.toDate().toLocaleDateString() : 'Unknown date';
+      const reviewerName = review.reviewer_name || 'Anonymous';
+
+      let responseHTML = '';
+      if (review.response_text) {
+        const responseDate = review.response_date?.toDate ? review.response_date.toDate().toLocaleDateString() : '';
+        responseHTML = `
+          <div class="response-box">
+            <strong>Your Response:</strong> <span class="review-date">${responseDate}</span>
+            <p class="mt-sm">${escapeHtml(review.response_text)}</p>
+          </div>
+        `;
+      } else if (currentBusiness?.pro_status === true) {
+        responseHTML = `
+          <div class="response-form">
+            <textarea id="response_${review.id}" rows="3" class="input-dark" placeholder="Write your response..."></textarea>
+            <button class="action-button btn-gold mt-sm" onclick="window.submitResponse('${review.id}')">Post Response</button>
+          </div>
+        `;
+      }
+
+      card.innerHTML = `
+        <div class="review-header">
+          <div>
+            <strong>${escapeHtml(reviewerName)}</strong>
+            <div class="stars">${stars}</div>
+          </div>
+          <div class="review-date">${reviewDate}</div>
+        </div>
+        <p>${escapeHtml(review.review_text || 'No review text provided')}</p>
+        ${responseHTML}
+      `;
+
+      return card;
+    }
+
+    window.submitResponse = async (reviewId) => {
+      const responseText = document.getElementById(`response_${reviewId}`).value.trim();
+      
+      if (!responseText) {
+        alert('Please enter a response');
+        return;
+      }
+      
+      // Sanitize input (max 500 chars for responses)
+      const sanitized = sanitizeInput(responseText, 500);
+
+      try {
+        await updateDoc(doc(db, "reviews", reviewId), {
+          response_text: sanitized,
+          response_date: serverTimestamp()
+        });
+
+        alert('✅ Response posted successfully!');
+        await loadReviews();
+
+      } catch (error) {
+        console.error('Error posting response:', error);
+        alert('❌ Error posting response: ' + error.message);
+      }
+    };
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function sanitizeInput(input, maxLength = 1000) {
+      if (!input) return '';
+      let clean = input.trim();
+      if (clean.length > maxLength) {
+        clean = clean.substring(0, maxLength);
+      }
+      return clean;
+    }
+  </script>
+  </div>
+</body>
+</html>

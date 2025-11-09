@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Pro Conversions - Kingdom Connects Sales</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 2.5rem;
+      color: var(--gold);
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+    .metric-label {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .conversion-list {
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      min-width: 500px;
+    }
+    .conversion-item {
+      padding: 1rem;
+      border-bottom: 1px solid #333;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 1rem;
+      align-items: center;
+    }
+    .conversion-item:last-child {
+      border-bottom: none;
+    }
+    .conversion-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .business-info h4 {
+      margin: 0;
+      color: var(--gold);
+    }
+    .business-info p {
+      margin: 0.25rem 0 0 0;
+      color: #888;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Pro Conversion Tracking</h2>
+      <p>Monitor Pro upgrade conversions and subscription performance.</p>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Conversion Rate</div>
+          <div class="metric-value" id="conversionRate">0%</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Active Pro Clients</div>
+          <div class="metric-value" id="activeProCount">0</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Avg. Subscription</div>
+          <div class="metric-value" id="avgLength">0</div>
+          <div class="metric-label">months</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Total Conversions</div>
+          <div class="metric-value" id="totalConversions">0</div>
+        </div>
+      </div>
+
+      <h3 class="gold-metallic mt-lg">Recent Pro Conversions</h3>
+      
+      <div id="loading" class="text-center">
+        <p>Loading conversion data...</p>
+      </div>
+
+      <div id="content" style="display: none;">
+        <div class="table-wrapper">
+          <div class="conversion-list" id="conversionsList"></div>
+        </div>
+      </div>
+
+      <div id="empty" style="display: none;" class="text-center mt-lg">
+        <p>No Pro conversions yet. Keep referring businesses to earn commissions!</p>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading conversion data. Please try again.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, query, where, getDocs, collectionGroup, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let currentUser = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      currentUser = user;
+      await loadConversions();
+    });
+
+    async function loadConversions() {
+      try {
+        const commissionsQuery = query(
+          collectionGroup(db, "commissions"),
+          where("referrer_id", "==", currentUser.uid)
+        );
+        
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+        
+        if (commissionsSnapshot.empty) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('empty').style.display = 'block';
+          return;
+        }
+
+        const businessIds = new Set();
+        const businessLookups = new Map();
+
+        commissionsSnapshot.forEach(commissionDoc => {
+          const businessId = commissionDoc.ref.parent.parent.id;
+          businessIds.add(businessId);
+          
+          if (!businessLookups.has(businessId)) {
+            businessLookups.set(businessId, {
+              ref: commissionDoc.ref.parent.parent,
+              commissions: []
+            });
+          }
+          
+          businessLookups.get(businessId).commissions.push({
+            ...commissionDoc.data(),
+            id: commissionDoc.id
+          });
+        });
+
+        const businessPromises = Array.from(businessLookups.values()).map(item =>
+          getDoc(item.ref).catch(e => {
+            console.error('Error loading business:', e);
+            return null;
+          })
+        );
+
+        const businessDocs = await Promise.all(businessPromises);
+        
+        const conversions = [];
+        let activeCount = 0;
+        let totalMonths = 0;
+        
+        businessDocs.forEach((businessDoc, index) => {
+          if (businessDoc && businessDoc.exists()) {
+            const business = businessDoc.data();
+            const businessId = businessDoc.id;
+            const businessCommissions = businessLookups.get(businessId).commissions;
+            
+            const totalCommission = businessCommissions.reduce((sum, c) => sum + (c.commission_amount || 0), 0);
+            const firstCommission = businessCommissions.sort((a, b) => {
+              const dateA = a.created_at?.toDate() || new Date(0);
+              const dateB = b.created_at?.toDate() || new Date(0);
+              return dateA - dateB;
+            })[0];
+
+            if (business.pro_status === true) {
+              activeCount++;
+            }
+
+            if (business.pro_start_date && business.pro_end_date) {
+              const start = business.pro_start_date.toDate();
+              const end = business.pro_end_date.toDate();
+              const months = (end - start) / (1000 * 60 * 60 * 24 * 30);
+              totalMonths += months;
+            }
+
+            conversions.push({
+              businessId: businessId,
+              businessName: business.business_name,
+              proStartDate: business.pro_start_date,
+              proEndDate: business.pro_end_date,
+              proStatus: business.pro_status,
+              commission: totalCommission,
+              createdAt: firstCommission.created_at
+            });
+          }
+        });
+
+        conversions.sort((a, b) => {
+          const dateA = a.createdAt?.toDate() || new Date(0);
+          const dateB = b.createdAt?.toDate() || new Date(0);
+          return dateB - dateA;
+        });
+
+        const totalConversions = conversions.filter(c => c.proStatus === true).length;
+        const totalReferrals = conversions.length;
+        const conversionRate = totalReferrals > 0 ? (totalConversions / totalReferrals * 100) : 0;
+        const avgLength = conversions.length > 0 ? (totalMonths / conversions.length) : 0;
+
+        document.getElementById('conversionRate').textContent = `${conversionRate.toFixed(0)}%`;
+        document.getElementById('activeProCount').textContent = activeCount;
+        document.getElementById('avgLength').textContent = avgLength.toFixed(1);
+        document.getElementById('totalConversions').textContent = totalConversions;
+
+        renderConversions(conversions);
+
+      } catch (error) {
+        console.error('Error loading conversions:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function renderConversions(conversions) {
+      const container = document.getElementById('conversionsList');
+      container.innerHTML = '';
+
+      if (conversions.length === 0) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('empty').style.display = 'block';
+        return;
+      }
+
+      conversions.forEach(conversion => {
+        const item = document.createElement('div');
+        item.className = 'conversion-item';
+
+        const startDate = conversion.proStartDate?.toDate().toLocaleDateString() || 'Unknown';
+        const status = conversion.proStatus ? '✓ Active' : '✗ Inactive';
+        const statusColor = conversion.proStatus ? '#4caf50' : '#888';
+
+        item.innerHTML = `
+          <div class="business-info">
+            <h4>${escapeHtml(conversion.businessName)}</h4>
+            <p>Upgraded: ${escapeHtml(startDate)}</p>
+          </div>
+          <div>
+            <strong>Commission:</strong><br>
+            <span style="color: var(--gold);">$${conversion.commission.toFixed(2)}</span>
+          </div>
+          <div style="color: ${statusColor};">
+            ${status}
+          </div>
+        `;
+
+        container.appendChild(item);
+      });
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

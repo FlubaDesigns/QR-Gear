@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Referrals - Kingdom Connects Sales</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin-top: 1rem;
+    }
+    .referral-table {
+      width: 100%;
+      min-width: 600px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .referral-table th {
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .referral-table td {
+      padding: 1rem;
+      border-top: 1px solid #333;
+    }
+    .referral-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .pro-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #d4af37 0%, #f4e5a8 100%);
+      color: #000;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .free-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.1);
+      color: #888;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-box {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-box h3 {
+      font-size: 2rem;
+      color: var(--gold);
+      margin: 0;
+    }
+    .stat-box p {
+      margin: 0.5rem 0 0 0;
+      color: #aaa;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Referral Management</h2>
+      <p>Track all businesses you've referred to the platform.</p>
+
+      <div class="summary-stats">
+        <div class="stat-box">
+          <h3 id="totalReferrals">0</h3>
+          <p>Total Referrals</p>
+        </div>
+        <div class="stat-box">
+          <h3 id="proReferrals">0</h3>
+          <p>Pro Upgrades</p>
+        </div>
+        <div class="stat-box">
+          <h3 id="activeReferrals">0</h3>
+          <p>Active Businesses</p>
+        </div>
+      </div>
+
+      <div id="loading" class="text-center">
+        <p>Loading referrals...</p>
+      </div>
+
+      <div id="content" style="display: none;">
+        <div class="table-wrapper">
+          <table class="referral-table">
+            <thead>
+              <tr>
+                <th>Business Name</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Tier</th>
+                <th>Referred Date</th>
+              </tr>
+            </thead>
+            <tbody id="referralsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="empty" style="display: none;" class="text-center mt-lg">
+        <p>No referrals yet. Start referring businesses to earn commissions!</p>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading referrals. Please try again.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, query, where, getDocs, collectionGroup, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let currentUser = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      currentUser = user;
+      await loadReferrals();
+    });
+
+    async function loadReferrals() {
+      try {
+        const commissionsQuery = query(
+          collectionGroup(db, "commissions"),
+          where("referrer_id", "==", currentUser.uid)
+        );
+        
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+        
+        if (commissionsSnapshot.empty) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('empty').style.display = 'block';
+          return;
+        }
+
+        const businessIds = new Set();
+        commissionsSnapshot.forEach(commissionDoc => {
+          const businessId = commissionDoc.ref.parent.parent.id;
+          businessIds.add(businessId);
+        });
+
+        const businessPromises = Array.from(businessIds).map(businessId =>
+          getDoc(doc(db, "business_listings", businessId)).catch(e => {
+            console.error('Error loading business:', e);
+            return null;
+          })
+        );
+
+        const businessDocs = await Promise.all(businessPromises);
+
+        const referrals = businessDocs
+          .filter(businessDoc => businessDoc && businessDoc.exists())
+          .map(businessDoc => ({
+            id: businessDoc.id,
+            ...businessDoc.data()
+          }));
+
+        referrals.sort((a, b) => {
+          const dateA = a.created_at?.toDate() || new Date(0);
+          const dateB = b.created_at?.toDate() || new Date(0);
+          return dateB - dateA;
+        });
+
+        const totalReferrals = referrals.length;
+        const proReferrals = referrals.filter(r => r.pro_status === true).length;
+        const activeReferrals = referrals.filter(r => r.listing_status === 'active').length;
+
+        document.getElementById('totalReferrals').textContent = totalReferrals;
+        document.getElementById('proReferrals').textContent = proReferrals;
+        document.getElementById('activeReferrals').textContent = activeReferrals;
+
+        renderReferrals(referrals);
+
+      } catch (error) {
+        console.error('Error loading referrals:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function renderReferrals(referrals) {
+      const tbody = document.getElementById('referralsTableBody');
+      tbody.innerHTML = '';
+
+      if (referrals.length === 0) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('empty').style.display = 'block';
+        return;
+      }
+
+      referrals.forEach(referral => {
+        const row = document.createElement('tr');
+
+        const createdDate = referral.created_at?.toDate().toLocaleDateString() || 'Unknown';
+        const tierBadge = referral.pro_status 
+          ? '<span class="pro-badge">PRO</span>'
+          : '<span class="free-badge">Free</span>';
+        const statusText = referral.listing_status === 'active' ? 'Active' : 'Inactive';
+
+        row.innerHTML = `
+          <td><strong>${escapeHtml(referral.business_name || 'Unknown')}</strong></td>
+          <td>${escapeHtml(referral.primary_category || 'Uncategorized')}</td>
+          <td>${escapeHtml(statusText)}</td>
+          <td>${tierBadge}</td>
+          <td>${escapeHtml(createdDate)}</td>
+        `;
+
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

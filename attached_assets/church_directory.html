@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Church Directory - Kingdom Connects</title>
+  <meta name="description" content="Browse local churches on Kingdom Connects. Find congregations in your area and discover faith-aligned communities.">
+  <link rel="canonical" href="https://kingdomconnects.com/church_directory.html">
+
+  <meta property="og:title" content="Church Directory - Kingdom Connects">
+  <meta property="og:description" content="Find local churches and faith communities in your area.">
+  <meta property="og:url" content="https://kingdomconnects.com/church_directory.html">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="dns-prefetch" href="//www.gstatic.com">
+  <link rel="dns-prefetch" href="//firestore.googleapis.com">
+
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#081529" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content" id="main">
+      <section class="page-content">
+        <article class="card">
+          <h1 class="gold-metallic">Church Directory</h1>
+          <p class="text-lg line-height-relaxed">
+            Find local churches and connect with faith communities in your area. Click on any church to view details and member businesses.
+          </p>
+          <div >
+            <a href="submit_church.html" class="action-button btn-gold">+ Submit Your Church</a>
+          </div>
+        </article>
+
+        <!-- HOW TO USE THIS PAGE -->
+        <article class="card" style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04)); border: 2px solid rgba(255,215,0,0.3);">
+          <h3 class="gold" style="margin-top: 0;">💡 How to Find Churches</h3>
+          <div style="display: grid; gap: 12px; font-size: 0.95rem; line-height: 1.6;">
+            <p><strong>1. Use Search Filters Below</strong> - Pick your denomination (Baptist, Methodist, Non-Denominational, etc.), state, or city</p>
+            <p><strong>2. Search by Name</strong> - Know the church name? Type it in the "Church Name" field to find it quickly</p>
+            <p><strong>3. View Details</strong> - Click any church card to see service times, address, contact info, and businesses from their members</p>
+            <p style="margin: 0; padding-top: 8px; border-top: 1px solid rgba(255,215,0,0.2);"><strong>⛪ Church leader?</strong> <a href="submit_church.html" class="gold" style="text-decoration: underline;">Add your church</a> to help members find you and feature your congregation's businesses</p>
+          </div>
+        </article>
+
+        <!-- SEARCH FILTERS -->
+        <article class="card">
+          <h2 class="gold text-2xl">Search Filters</h2>
+          
+          <!-- Primary Filter: Denomination -->
+          <div>
+            <label class="block font-semibold opacity-90">Denomination</label>
+            <select id="filterDenomination" class="input-rounded">
+              <option value="">All Denominations</option>
+              <option value="Baptist">Baptist</option>
+              <option value="Methodist">Methodist</option>
+              <option value="Non-Denominational">Non-Denominational</option>
+              <option value="Pentecostal">Pentecostal</option>
+              <option value="Presbyterian">Presbyterian</option>
+              <option value="Lutheran">Lutheran</option>
+              <option value="Catholic">Catholic</option>
+              <option value="Episcopal">Episcopal</option>
+              <option value="Assembly of God">Assembly of God</option>
+              <option value="Church of Christ">Church of Christ</option>
+              <option value="Evangelical">Evangelical</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="grid-2 gap-md">
+            <!-- State Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">State</label>
+              <select id="filterState" class="input-rounded">
+                <option value="">All States</option>
+                <option value="FL">Florida</option>
+                <option value="AL">Alabama</option>
+                <option value="GA">Georgia</option>
+                <option value="SC">South Carolina</option>
+                <option value="NC">North Carolina</option>
+                <option value="TN">Tennessee</option>
+                <option value="MS">Mississippi</option>
+                <option value="LA">Louisiana</option>
+              </select>
+            </div>
+
+            <!-- City Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">City</label>
+              <input type="text" id="filterCity" placeholder="Enter city name" class="input-rounded">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold opacity-90">Church Name</label>
+            <input type="text" id="filterName" placeholder="Search by church name" class="input-rounded">
+          </div>
+
+          <div class="flex-gap">
+            <button id="clearFilters" class="action-button flex-1-min">Clear Filters</button>
+            <div id="resultCount" class="flex-1 flex-center font-semibold opacity-80"></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div id="statusMessage" class="p-md text-center"></div>
+          <div id="churchList" class="grid-auto"></div>
+        </article>
+      </section>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import {
+      collection,
+      getDocs,
+      query,
+      orderBy
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const churchList = document.getElementById("churchList");
+      const statusMessage = document.getElementById("statusMessage");
+      const resultCount = document.getElementById("resultCount");
+      
+      // Filter elements
+      const filterDenomination = document.getElementById("filterDenomination");
+      const filterState = document.getElementById("filterState");
+      const filterCity = document.getElementById("filterCity");
+      const filterName = document.getElementById("filterName");
+      const clearFiltersBtn = document.getElementById("clearFilters");
+
+      let allChurches = [];
+
+      statusMessage.textContent = "Loading churches...";
+
+      try {
+        const q = query(
+          collection(db, "churches"), 
+          orderBy("church_name")
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          statusMessage.textContent = "No churches found. Check back soon as we add more faith communities!";
+          return;
+        }
+
+        statusMessage.textContent = "";
+
+        // Store all churches
+        querySnapshot.forEach((doc) => {
+          allChurches.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+
+        // Initial display
+        displayChurches(allChurches);
+
+        // Add filter event listeners
+        filterDenomination.addEventListener("change", applyFilters);
+        filterState.addEventListener("change", applyFilters);
+        filterCity.addEventListener("input", debounce(applyFilters, 300));
+        filterName.addEventListener("input", debounce(applyFilters, 300));
+        clearFiltersBtn.addEventListener("click", clearFilters);
+
+      } catch (error) {
+        console.error("🔥 Firebase error:", error);
+        statusMessage.style.color = "orange";
+        statusMessage.style.backgroundColor = "rgba(255,0,0,0.1)";
+        statusMessage.style.padding = "1.5rem";
+        statusMessage.style.border = "2px solid red";
+        statusMessage.style.borderRadius = "8px";
+        statusMessage.innerHTML = `
+          <strong>⚠️ Error loading churches</strong><br/>
+          <span class="text-md">${error.message}</span><br/>
+          <small class="color-ccc block">
+            Check Firebase configuration or try refreshing the page.
+          </small>
+        `;
+      }
+
+      function applyFilters() {
+        const filters = {
+          denomination: filterDenomination.value.toLowerCase(),
+          state: filterState.value.toUpperCase(),
+          city: filterCity.value.toLowerCase().trim(),
+          name: filterName.value.toLowerCase().trim()
+        };
+
+        const filtered = allChurches.filter(church => {
+          // Denomination filter (primary)
+          if (filters.denomination && 
+              (!church.denomination || church.denomination.toLowerCase() !== filters.denomination)) {
+            return false;
+          }
+
+          // State filter
+          if (filters.state && 
+              (!church.state || church.state.toUpperCase() !== filters.state)) {
+            return false;
+          }
+
+          // City filter (partial match)
+          if (filters.city && 
+              (!church.city || !church.city.toLowerCase().includes(filters.city))) {
+            return false;
+          }
+
+          // Name filter (partial match)
+          if (filters.name) {
+            const churchName = (church.church_name || church.name || "").toLowerCase();
+            if (!churchName.includes(filters.name)) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+
+        displayChurches(filtered);
+      }
+
+      function displayChurches(churches) {
+        churchList.innerHTML = "";
+
+        if (churches.length === 0) {
+          churchList.innerHTML = `
+            <div class="status-message empty">
+              <p class="text-lg">No churches match your search criteria.</p>
+              <p class="text-md">Try adjusting your filters or clearing them.</p>
+            </div>
+          `;
+          resultCount.textContent = "0 churches found";
+          return;
+        }
+
+        resultCount.textContent = `${churches.length} church${churches.length === 1 ? '' : 'es'} found`;
+
+        churches.forEach((church) => {
+          const churchId = church.id;
+          if (!church.name && !church.church_name) return;
+
+          const card = document.createElement("div");
+          card.className = "card";
+          card.style.cursor = "pointer";
+          card.style.transition = "transform 0.2s, box-shadow 0.2s";
+          card.addEventListener("mouseenter", () => {
+            card.style.transform = "translateY(-4px)";
+          });
+          card.addEventListener("mouseleave", () => {
+            card.style.transform = "translateY(0)";
+          });
+
+          const link = document.createElement("a");
+          link.href = `church.html?id=${churchId}`;
+          link.style.textDecoration = "none";
+          link.style.color = "inherit";
+          link.style.display = "block";
+
+          const title = document.createElement("h2");
+          title.className = "gold";
+          title.style.marginBottom = "0.5rem";
+          title.textContent = church.church_name || church.name;
+
+          link.appendChild(title);
+
+          if (church.city || church.state) {
+            const location = document.createElement("p");
+            const locationParts = [];
+            if (church.city) locationParts.push(church.city);
+            if (church.state) locationParts.push(church.state);
+            location.textContent = locationParts.join(', ');
+            location.style.opacity = "0.8";
+            location.style.marginBottom = "0.5rem";
+            link.appendChild(location);
+          }
+
+          if (church.description) {
+            const desc = document.createElement("p");
+            desc.textContent = church.description.length > 150 
+              ? church.description.substring(0, 150) + "..." 
+              : church.description;
+            desc.style.fontSize = "0.95rem";
+            desc.style.lineHeight = "1.6";
+            link.appendChild(desc);
+          }
+
+          card.appendChild(link);
+          churchList.appendChild(card);
+        });
+      }
+
+      function clearFilters() {
+        filterDenomination.value = "";
+        filterState.value = "";
+        filterCity.value = "";
+        filterName.value = "";
+        displayChurches(allChurches);
+      }
+
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+    });
+  </script>
+  <script src="js/breadcrumbs.js" defer></script>
+</body>
+</html>

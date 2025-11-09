@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Edit Listing - Kingdom Connects Business Portal</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .photo-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .photo-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--card-bg);
+    }
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .photo-remove {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .pro-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+      color: #000;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-left: 0.5rem;
+    }
+    .tier-free {
+      opacity: 0.6;
+    }
+    .hours-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr 1fr;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Edit Your Business Listing</h2>
+      <div id="loadingMessage" class="text-center p-md">Loading your business...</div>
+      <div id="noBusinessMessage" class="text-center p-md" style="display: none;">
+        <p>No business listing found for your account.</p>
+        <a href="../submit_business.html" class="action-button btn-gold">Create a Business Listing</a>
+      </div>
+
+      <form id="businessForm" style="display: none;">
+        <article class="card">
+          <h3 class="gold">Basic Information</h3>
+          <div>
+            <label for="business_name">Business Name *</label>
+            <input type="text" id="business_name" required class="input-dark">
+          </div>
+
+          <div>
+            <label for="your_name">Your Name *</label>
+            <input type="text" id="your_name" required class="input-dark">
+          </div>
+
+          <div class="grid-col-2">
+            <div>
+              <label for="email">Email *</label>
+              <input type="email" id="email" required class="input-dark">
+            </div>
+            <div>
+              <label for="phone">Phone *</label>
+              <input type="tel" id="phone" required class="input-dark">
+            </div>
+          </div>
+
+          <div>
+            <label for="website">Website</label>
+            <input type="url" id="website" placeholder="https://example.com" class="input-dark">
+          </div>
+
+          <div>
+            <label for="description">Business Description *</label>
+            <textarea id="description" rows="5" required maxlength="500" class="input-dark" placeholder="Tell customers about your business..."></textarea>
+            <p class="help-text"><span id="descriptionCounter">0/500</span> characters</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Categories</h3>
+          <div>
+            <label for="primary_category">Primary Category *</label>
+            <select id="primary_category" required class="input-dark">
+              <option value="">Select primary category...</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="categories">Secondary Categories <span id="categoryLimit" class="tier-free">(Free: 1, Pro: 5)</span></label>
+            <div id="categoriesContainer"></div>
+            <button type="button" id="addCategory" class="action-button btn-small mt-sm">+ Add Category</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Location</h3>
+          <div>
+            <label for="address_line1">Street Address *</label>
+            <input type="text" id="address_line1" required class="input-dark">
+          </div>
+
+          <div>
+            <label for="address_line2">Suite/Unit (optional)</label>
+            <input type="text" id="address_line2" class="input-dark">
+          </div>
+
+          <div class="grid-col-3">
+            <div>
+              <label for="city">City *</label>
+              <input type="text" id="city" required class="input-dark">
+            </div>
+            <div>
+              <label for="state">State *</label>
+              <select id="state" required class="input-dark">
+                <option value="">Select...</option>
+                <option value="FL">Florida</option>
+                <option value="AL">Alabama</option>
+                <option value="GA">Georgia</option>
+                <option value="MS">Mississippi</option>
+                <option value="SC">South Carolina</option>
+                <option value="TN">Tennessee</option>
+              </select>
+            </div>
+            <div>
+              <label for="zip_code">ZIP Code *</label>
+              <input type="text" id="zip_code" pattern="[0-9]{5}" required class="input-dark">
+            </div>
+          </div>
+
+          <div>
+            <label for="country">Country</label>
+            <input type="text" id="country" value="USA" class="input-dark">
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Church Affiliation</h3>
+          <div>
+            <label for="church_id">Your Church</label>
+            <select id="church_id" class="input-dark">
+              <option value="">Select your church...</option>
+            </select>
+            <p class="help-text">Associate your business with your church to support them through our tithing program</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Hours of Operation</h3>
+          <div id="hoursContainer">
+            <div class="hours-grid">
+              <strong>Day</strong>
+              <strong>Open</strong>
+              <strong>Close</strong>
+            </div>
+            <div class="hours-grid">
+              <span>Monday</span>
+              <input type="time" id="hours_mon_open" class="input-dark">
+              <input type="time" id="hours_mon_close" class="input-dark">
+            </div>
+            <div class="hours-grid">
+              <span>Tuesday</span>
+              <input type="time" id="hours_tue_open" class="input-dark">
+              <input type="time" id="hours_tue_close" class="input-dark">
+            </div>
+            <div class="hours-grid">
+              <span>Wednesday</span>
+              <input type="time" id="hours_wed_open" class="input-dark">
+              <input type="time" id="hours_wed_close" class="input-dark">
+            </div>
+            <div class="hours-grid">
+              <span>Thursday</span>
+              <input type="time" id="hours_thu_open" class="input-dark">
+              <input type="time" id="hours_thu_close" class="input-dark">
+            </div>
+            <div class="hours-grid">
+              <span>Friday</span>
+              <input type="time" id="hours_fri_open" class="input-dark">
+              <input type="time" id="hours_fri_close" class="input-dark">
+            </div>
+            <div class="hours-grid">
+              <span>Saturday</span>
+              <input type="time" id="hours_sat_open" class="input-dark">
+              <input type="time" id="hours_sat_close" class="input-dark">
+            </div>
+            <div class="hours-grid">
+              <span>Sunday</span>
+              <input type="time" id="hours_sun_open" class="input-dark">
+              <input type="time" id="hours_sun_close" class="input-dark">
+            </div>
+          </div>
+          <p class="help-text">Leave blank for closed days</p>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Social Media <span class="pro-badge" id="socialProBadge" style="display: none;">PRO</span></h3>
+          <div id="socialMediaSection">
+            <div>
+              <label>
+                <input type="checkbox" id="show_social_media">
+                <span class="ml-sm"><strong>Show social media links on public listing</strong></span>
+              </label>
+              <p class="help-text">Turn this on to display your social media links publicly. Only filled-in platforms will show.</p>
+            </div>
+
+            <div class="grid-col-2">
+              <div>
+                <label for="social_facebook">Facebook</label>
+                <input type="url" id="social_facebook" placeholder="https://facebook.com/..." class="input-dark">
+              </div>
+              <div>
+                <label for="social_instagram">Instagram</label>
+                <input type="url" id="social_instagram" placeholder="https://instagram.com/..." class="input-dark">
+              </div>
+            </div>
+            <div class="grid-col-2">
+              <div>
+                <label for="social_twitter">Twitter/X</label>
+                <input type="url" id="social_twitter" placeholder="https://twitter.com/..." class="input-dark">
+              </div>
+              <div>
+                <label for="social_linkedin">LinkedIn</label>
+                <input type="url" id="social_linkedin" placeholder="https://linkedin.com/..." class="input-dark">
+              </div>
+            </div>
+          </div>
+          <div id="socialUpgradePrompt" style="display: none;">
+            <p class="text-center">🔒 Social media links are a Pro feature</p>
+            <div class="text-center">
+              <a href="upgrade.html" class="action-button btn-gold">Upgrade to Pro</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Photos <span class="pro-badge" id="photosProBadge" style="display: none;">PRO</span></h3>
+          <div id="photosSection">
+            <div id="photoPreviewGrid" class="photo-preview-grid"></div>
+            <div class="mt-md">
+              <label for="photoUrl">Add Photo URL</label>
+              <div class="flex-gap">
+                <input type="url" id="photoUrl" placeholder="https://..." class="input-dark">
+                <button type="button" id="addPhoto" class="action-button btn-small">Add Photo</button>
+              </div>
+              <p class="help-text">Pro members can add up to 10 photos</p>
+            </div>
+          </div>
+          <div id="photosUpgradePrompt" style="display: none;">
+            <p class="text-center">🔒 Photo galleries are a Pro feature</p>
+            <div class="text-center">
+              <a href="upgrade.html" class="action-button btn-gold">Upgrade to Pro</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Videos <span class="pro-badge" id="videosProBadge" style="display: none;">PRO</span></h3>
+          <div id="videosSection">
+            <div>
+              <label for="videoUrl">Video URL (YouTube, Vimeo, etc.)</label>
+              <div class="flex-gap">
+                <input type="url" id="videoUrl" placeholder="https://youtube.com/..." class="input-dark">
+                <button type="button" id="addVideo" class="action-button btn-small">Add Video</button>
+              </div>
+              <div id="videosList" class="mt-sm"></div>
+              <p class="help-text">Pro members can add up to 3 videos</p>
+            </div>
+          </div>
+          <div id="videosUpgradePrompt" style="display: none;">
+            <p class="text-center">🔒 Video embedding is a Pro feature</p>
+            <div class="text-center">
+              <a href="upgrade.html" class="action-button btn-gold">Upgrade to Pro</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Pro Membership Status</h3>
+          <div class="grid-col-3">
+            <div>
+              <label>Status</label>
+              <input type="text" id="pro_status_display" disabled class="input-dark">
+            </div>
+            <div>
+              <label>Pro Start Date</label>
+              <input type="text" id="pro_start_date_display" disabled class="input-dark">
+            </div>
+            <div>
+              <label>Pro End Date</label>
+              <input type="text" id="pro_end_date_display" disabled class="input-dark">
+            </div>
+          </div>
+          <div id="upgradePrompt" class="text-center mt-sm" style="display: none;">
+            <a href="upgrade.html" class="action-button btn-gold">Upgrade to Pro</a>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Listing Settings</h3>
+          <div>
+            <label>
+              <input type="checkbox" id="allow_reviews">
+              <span class="ml-sm">Allow customers to review my business</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              <input type="checkbox" id="allow_social_sharing">
+              <span class="ml-sm">Allow social media sharing of my listing</span>
+            </label>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Privacy Controls</h3>
+          <p class="help-text">Control what contact information is shown publicly on your listing</p>
+          <div>
+            <label>
+              <input type="checkbox" id="show_phone">
+              <span class="ml-sm">📞 Show phone number publicly</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              <input type="checkbox" id="show_email">
+              <span class="ml-sm">✉️ Show email address publicly</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              <input type="checkbox" id="show_address">
+              <span class="ml-sm">📍 Show full street address publicly (city/state always shown)</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              <input type="checkbox" id="show_website">
+              <span class="ml-sm">🌐 Show website link publicly</span>
+            </label>
+          </div>
+          <p class="help-text">Note: Unchecking these prevents spam but may reduce customer inquiries</p>
+        </article>
+
+        <div class="flex-gap-center mt-md">
+          <button type="submit" class="action-button btn-gold">💾 Save Changes</button>
+          <button type="button" id="previewButton" class="action-button">👁️ Preview Listing</button>
+          <a href="index.html" class="action-button">Cancel</a>
+        </div>
+      </form>
+
+      <!-- Preview Modal -->
+      <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
+        <div style="max-width: 800px; margin: 2rem auto; background: var(--card-bg); border-radius: 8px; padding: 2rem; position: relative;">
+          <button id="closePreview" style="position: absolute; top: 1rem; right: 1rem; background: #f44336; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 1.5rem; font-weight: bold;">×</button>
+          <h2 class="gold-metallic text-center">Preview Your Public Listing</h2>
+          <p class="text-center help-text mb-md">This is how customers will see your business</p>
+          <div id="previewContent"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let businessId = null;
+    let currentBusiness = null;
+    let allCategories = [];
+    let secondaryCategorySelects = [];
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadBusiness(user.email);
+    });
+
+    async function loadBusiness(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const noBusinessMessage = document.getElementById('noBusinessMessage');
+      const businessForm = document.getElementById('businessForm');
+
+      try {
+        const q = query(collection(db, "business_listings"), where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.style.display = 'none';
+          noBusinessMessage.style.display = 'block';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        businessId = docSnap.id;
+        currentBusiness = docSnap.data();
+
+        await Promise.all([loadCategories(), loadChurches()]);
+        populateForm(currentBusiness);
+
+        loadingMessage.style.display = 'none';
+        businessForm.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading business:', error);
+        loadingMessage.textContent = 'Error loading business: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function loadCategories() {
+      try {
+        const querySnapshot = await getDocs(collection(db, "categories"));
+        allCategories = [];
+        querySnapshot.forEach((doc) => {
+          const cat = doc.data();
+          allCategories.push({ slug: cat.slug, label: cat.label });
+        });
+
+        allCategories.sort((a, b) => a.label.localeCompare(b.label));
+
+        const primarySelect = document.getElementById('primary_category');
+        allCategories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.slug;
+          option.textContent = cat.label;
+          primarySelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    }
+
+    async function loadChurches() {
+      try {
+        const q = query(collection(db, "churches"), where("listing_status", "==", "active"));
+        const querySnapshot = await getDocs(q);
+        
+        const churchSelect = document.getElementById('church_id');
+        querySnapshot.forEach((doc) => {
+          const church = doc.data();
+          const option = document.createElement('option');
+          option.value = doc.id;
+          option.textContent = church.church_name || 'Unnamed Church';
+          churchSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading churches:', error);
+      }
+    }
+
+    function populateForm(business) {
+      document.getElementById('business_name').value = business.business_name || '';
+      document.getElementById('your_name').value = business.your_name || '';
+      document.getElementById('email').value = business.email || '';
+      document.getElementById('phone').value = business.phone || '';
+      document.getElementById('website').value = business.website || '';
+      document.getElementById('description').value = business.description || '';
+      document.getElementById('primary_category').value = business.primary_category || '';
+      document.getElementById('address_line1').value = business.address_line1 || '';
+      document.getElementById('address_line2').value = business.address_line2 || '';
+      document.getElementById('city').value = business.city || '';
+      document.getElementById('state').value = business.state || '';
+      document.getElementById('zip_code').value = business.zip_code || '';
+      document.getElementById('country').value = business.country || 'USA';
+      document.getElementById('church_id').value = business.church_id || '';
+      document.getElementById('allow_reviews').checked = business.allow_reviews !== false;
+      document.getElementById('allow_social_sharing').checked = business.allow_social_sharing !== false;
+      document.getElementById('show_phone').checked = business.show_phone !== false;
+      document.getElementById('show_email').checked = business.show_email !== false;
+      document.getElementById('show_address').checked = business.show_address !== false;
+      document.getElementById('show_website').checked = business.show_website !== false;
+
+      const isPro = business.pro_status === true;
+      
+      document.getElementById('pro_status_display').value = isPro ? 'Pro Member' : 'Free Tier';
+      
+      if (business.pro_start_date) {
+        const startDate = business.pro_start_date.toDate ? business.pro_start_date.toDate() : new Date(business.pro_start_date);
+        document.getElementById('pro_start_date_display').value = startDate.toLocaleDateString();
+      } else {
+        document.getElementById('pro_start_date_display').value = 'N/A';
+      }
+      
+      if (business.pro_end_date) {
+        const endDate = business.pro_end_date.toDate ? business.pro_end_date.toDate() : new Date(business.pro_end_date);
+        document.getElementById('pro_end_date_display').value = endDate.toLocaleDateString();
+      } else {
+        document.getElementById('pro_end_date_display').value = 'N/A';
+      }
+      
+      if (!isPro) {
+        document.getElementById('upgradePrompt').style.display = 'block';
+      }
+      
+      setupProFeatures(isPro);
+
+      if (business.categories && Array.isArray(business.categories)) {
+        business.categories.forEach(cat => addSecondaryCategorySelect(cat));
+      }
+
+      if (business.hours_of_operation) {
+        populateHours(business.hours_of_operation);
+      }
+
+      if (isPro) {
+        document.getElementById('show_social_media').checked = business.show_social_media !== false;
+        if (business.social_media) {
+          document.getElementById('social_facebook').value = business.social_media.facebook || '';
+          document.getElementById('social_instagram').value = business.social_media.instagram || '';
+          document.getElementById('social_twitter').value = business.social_media.twitter || '';
+          document.getElementById('social_linkedin').value = business.social_media.linkedin || '';
+        }
+      }
+
+      if (isPro && business.photos && Array.isArray(business.photos)) {
+        business.photos.forEach(url => addPhotoPreview(url));
+      }
+
+      if (isPro && business.videos && Array.isArray(business.videos)) {
+        business.videos.forEach(url => addVideoItem(url));
+      }
+    }
+
+    function setupProFeatures(isPro) {
+      const socialSection = document.getElementById('socialMediaSection');
+      const socialUpgrade = document.getElementById('socialUpgradePrompt');
+      const photosSection = document.getElementById('photosSection');
+      const photosUpgrade = document.getElementById('photosUpgradePrompt');
+      const videosSection = document.getElementById('videosSection');
+      const videosUpgrade = document.getElementById('videosUpgradePrompt');
+
+      if (isPro) {
+        socialSection.style.display = 'block';
+        socialUpgrade.style.display = 'none';
+        photosSection.style.display = 'block';
+        photosUpgrade.style.display = 'none';
+        videosSection.style.display = 'block';
+        videosUpgrade.style.display = 'none';
+        document.getElementById('socialProBadge').style.display = 'inline-block';
+        document.getElementById('photosProBadge').style.display = 'inline-block';
+        document.getElementById('videosProBadge').style.display = 'inline-block';
+      } else {
+        socialSection.style.display = 'none';
+        socialUpgrade.style.display = 'block';
+        photosSection.style.display = 'none';
+        photosUpgrade.style.display = 'block';
+        videosSection.style.display = 'none';
+        videosUpgrade.style.display = 'block';
+      }
+    }
+
+    function populateHours(hours) {
+      const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+      days.forEach(day => {
+        if (hours[day]) {
+          document.getElementById(`hours_${day}_open`).value = hours[day].open || '';
+          document.getElementById(`hours_${day}_close`).value = hours[day].close || '';
+        }
+      });
+    }
+
+    function addSecondaryCategorySelect(selectedValue = '') {
+      const isPro = currentBusiness?.pro_status === true;
+      const maxCategories = isPro ? 5 : 1;
+
+      if (secondaryCategorySelects.length >= maxCategories) {
+        alert(`${isPro ? 'Pro' : 'Free'} tier allows up to ${maxCategories} secondary categories. Upgrade to Pro for more!`);
+        return;
+      }
+
+      const container = document.getElementById('categoriesContainer');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex-gap mt-sm';
+
+      const select = document.createElement('select');
+      select.className = 'input-dark';
+      select.innerHTML = '<option value="">Select category...</option>';
+      
+      allCategories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.slug;
+        option.textContent = cat.label;
+        if (cat.slug === selectedValue) option.selected = true;
+        select.appendChild(option);
+      });
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'action-button btn-small btn-danger';
+      removeBtn.textContent = 'Remove';
+      removeBtn.onclick = () => {
+        wrapper.remove();
+        const index = secondaryCategorySelects.indexOf(select);
+        if (index > -1) secondaryCategorySelects.splice(index, 1);
+      };
+
+      wrapper.appendChild(select);
+      wrapper.appendChild(removeBtn);
+      container.appendChild(wrapper);
+      secondaryCategorySelects.push(select);
+    }
+
+    document.getElementById('addCategory').addEventListener('click', () => {
+      addSecondaryCategorySelect();
+    });
+
+    let photoUrls = [];
+
+    function addPhotoPreview(url) {
+      if (photoUrls.length >= 10) {
+        alert('Maximum 10 photos allowed');
+        return;
+      }
+
+      photoUrls.push(url);
+      const grid = document.getElementById('photoPreviewGrid');
+      const item = document.createElement('div');
+      item.className = 'photo-item';
+      item.innerHTML = `
+        <img src="${url}" alt="Business photo">
+        <button class="photo-remove" onclick="window.removePhoto('${url}')">×</button>
+      `;
+      grid.appendChild(item);
+    }
+
+    window.removePhoto = (url) => {
+      photoUrls = photoUrls.filter(u => u !== url);
+      renderPhotoGrid();
+    };
+
+    function renderPhotoGrid() {
+      const grid = document.getElementById('photoPreviewGrid');
+      grid.innerHTML = '';
+      photoUrls.forEach(url => {
+        const item = document.createElement('div');
+        item.className = 'photo-item';
+        item.innerHTML = `
+          <img src="${url}" alt="Business photo">
+          <button class="photo-remove" onclick="window.removePhoto('${url}')">×</button>
+        `;
+        grid.appendChild(item);
+      });
+    }
+
+    document.getElementById('addPhoto').addEventListener('click', () => {
+      const url = document.getElementById('photoUrl').value.trim();
+      if (!url) {
+        alert('Please enter a photo URL');
+        return;
+      }
+      addPhotoPreview(url);
+      document.getElementById('photoUrl').value = '';
+    });
+
+    let videoUrls = [];
+
+    function addVideoItem(url) {
+      if (videoUrls.length >= 3) {
+        alert('Maximum 3 videos allowed');
+        return;
+      }
+
+      videoUrls.push(url);
+      renderVideoList();
+    }
+
+    function renderVideoList() {
+      const list = document.getElementById('videosList');
+      list.innerHTML = '';
+      videoUrls.forEach((url, index) => {
+        const item = document.createElement('div');
+        item.className = 'flex-gap mt-sm';
+        item.innerHTML = `
+          <input type="text" value="${url}" disabled class="input-dark">
+          <button class="action-button btn-small btn-danger" onclick="window.removeVideo(${index})">Remove</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    window.removeVideo = (index) => {
+      videoUrls.splice(index, 1);
+      renderVideoList();
+    };
+
+    document.getElementById('addVideo').addEventListener('click', () => {
+      const url = document.getElementById('videoUrl').value.trim();
+      if (!url) {
+        alert('Please enter a video URL');
+        return;
+      }
+      addVideoItem(url);
+      document.getElementById('videoUrl').value = '';
+    });
+
+    // Character counter for description
+    const descriptionField = document.getElementById('description');
+    const descriptionCounter = document.getElementById('descriptionCounter');
+    
+    function updateDescriptionCounter() {
+      const length = descriptionField.value.length;
+      descriptionCounter.textContent = `${length}/500`;
+    }
+    
+    descriptionField.addEventListener('input', updateDescriptionCounter);
+
+    // Preview modal functionality
+    document.getElementById('previewButton').addEventListener('click', () => {
+      const isPro = currentBusiness?.pro_status === true;
+      const businessName = document.getElementById('business_name').value.trim() || 'Your Business Name';
+      const description = document.getElementById('description').value.trim() || 'No description provided.';
+      const category = document.getElementById('primary_category').value || 'Uncategorized';
+      const phone = document.getElementById('phone').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const website = document.getElementById('website').value.trim();
+      const address = [
+        document.getElementById('address_line1').value.trim(),
+        document.getElementById('address_line2').value.trim(),
+        document.getElementById('city').value.trim(),
+        document.getElementById('state').value,
+        document.getElementById('zip_code').value.trim()
+      ].filter(x => x).join(', ');
+
+      const showPhone = document.getElementById('show_phone').checked;
+      const showEmail = document.getElementById('show_email').checked;
+      const showWebsite = document.getElementById('show_website').checked;
+      const showAddress = document.getElementById('show_address').checked;
+
+      let previewHTML = `
+        <div class="card">
+          <h3 class="gold-metallic">${escapeHtml(businessName)} ${isPro ? '<span class="pro-badge">PRO</span>' : ''}</h3>
+          <p><strong>Category:</strong> ${escapeHtml(category)}</p>
+          <p>${escapeHtml(description)}</p>
+          
+          <div class="mt-md">
+            <h4 class="gold">Contact Information</h4>
+            ${showPhone && phone ? `<p>📞 ${escapeHtml(phone)}</p>` : ''}
+            ${showEmail && email ? `<p>📧 ${escapeHtml(email)}</p>` : ''}
+            ${showWebsite && website ? `<p>🌐 <a href="${escapeHtml(website)}" target="_blank">${escapeHtml(website)}</a></p>` : ''}
+            ${showAddress && address ? `<p>📍 ${escapeHtml(address)}</p>` : ''}
+            ${!showPhone && !showEmail && !showWebsite && !showAddress ? '<p class="help-text">Contact information hidden (privacy settings)</p>' : ''}
+          </div>
+          
+          ${isPro ? `
+            <div class="mt-md">
+              <h4 class="gold">Pro Features</h4>
+              <p class="help-text">✨ Social media links, photos, videos, and extended categories will appear here when filled in</p>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      document.getElementById('previewContent').innerHTML = previewHTML;
+      document.getElementById('previewModal').style.display = 'block';
+    });
+
+    document.getElementById('closePreview').addEventListener('click', () => {
+      document.getElementById('previewModal').style.display = 'none';
+    });
+
+    // Close preview when clicking outside
+    document.getElementById('previewModal').addEventListener('click', (e) => {
+      if (e.target.id === 'previewModal') {
+        document.getElementById('previewModal').style.display = 'none';
+      }
+    });
+
+    document.getElementById('businessForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+      const hours_of_operation = {};
+      days.forEach(day => {
+        const open = document.getElementById(`hours_${day}_open`).value;
+        const close = document.getElementById(`hours_${day}_close`).value;
+        if (open || close) {
+          hours_of_operation[day] = { open, close };
+        }
+      });
+
+      const secondaryCategories = secondaryCategorySelects
+        .map(select => select.value)
+        .filter(val => val);
+
+      const updateData = {
+        business_name: document.getElementById('business_name').value.trim(),
+        your_name: document.getElementById('your_name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        website: document.getElementById('website').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        primary_category: document.getElementById('primary_category').value,
+        categories: secondaryCategories,
+        address_line1: document.getElementById('address_line1').value.trim(),
+        address_line2: document.getElementById('address_line2').value.trim(),
+        city: document.getElementById('city').value.trim(),
+        state: document.getElementById('state').value,
+        zip_code: document.getElementById('zip_code').value.trim(),
+        country: document.getElementById('country').value.trim(),
+        church_id: document.getElementById('church_id').value,
+        hours_of_operation: hours_of_operation,
+        allow_reviews: document.getElementById('allow_reviews').checked,
+        allow_social_sharing: document.getElementById('allow_social_sharing').checked,
+        show_phone: document.getElementById('show_phone').checked,
+        show_email: document.getElementById('show_email').checked,
+        show_address: document.getElementById('show_address').checked,
+        show_website: document.getElementById('show_website').checked
+      };
+
+      if (currentBusiness?.pro_status === true) {
+        updateData.show_social_media = document.getElementById('show_social_media').checked;
+        updateData.social_media = {
+          facebook: document.getElementById('social_facebook').value.trim(),
+          instagram: document.getElementById('social_instagram').value.trim(),
+          twitter: document.getElementById('social_twitter').value.trim(),
+          linkedin: document.getElementById('social_linkedin').value.trim()
+        };
+        updateData.photos = photoUrls;
+        updateData.videos = videoUrls;
+      }
+
+      try {
+        await updateDoc(doc(db, "business_listings", businessId), updateData);
+        alert('✅ Your business listing has been updated!');
+        window.location.href = 'index.html';
+      } catch (error) {
+        console.error('Error updating business:', error);
+        alert('❌ Error updating business: ' + error.message);
+      }
+    });
+  </script>
+  </div>
+</body>
+</html>

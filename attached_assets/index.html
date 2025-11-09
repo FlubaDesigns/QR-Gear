@@ -1,65 +1,406 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QR Gear</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Orbitron', sans-serif;
-      margin: 0;
-      background-color: black;
-      color: white;
-    }
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
-      background-color: #000;
-    }
-    .logo img {
-      height: 50px;
-    }
-    nav {
-      display: flex;
-      gap: 24px;
-    }
-    nav a {
-      color: white;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .main {
-      padding: 40px 24px;
-    }
-    @media (max-width: 600px) {
-      .logo img {
-        height: 30px;
-      }
-      nav {
-        display: none;
-      }
-    }
-  </style>
+  <!-- =========================================================
+       PAGE-SPECIFIC (keep in this page)
+       ========================================================= -->
+  <title>Kingdom Connects</title>
+  <meta name="description" content="Find a local church, browse trusted businesses, or submit your own listing. Kingdom Connects helps churches and community thrive.">
+  <link rel="canonical" href="https://kingdomconnects.com/">
+
+  <!-- Open Graph (per-page) -->
+  <meta property="og:title" content="Kingdom Connects – Faith-Based Business & Church Directory">
+  <meta property="og:description" content="Discover and support local Christian businesses and ministries in your area. Free listings for members and churches.">
+  <meta property="og:url" content="https://kingdomconnects.com/">
+  <meta property="og:image" content="https://kingdomconnects.com/assets/og-kingdom-connects.png">
+
+  <!-- Twitter (per-page; mirrors OG) -->
+  <meta name="twitter:title" content="Kingdom Connects – Faith-Based Business & Church Directory">
+  <meta name="twitter:description" content="Discover and support local Christian businesses and ministries in your area.">
+  <meta name="twitter:image" content="https://kingdomconnects.com/assets/og-kingdom-connects.png">
+
+  <!-- (Optional per-page) -->
+  <meta name="keywords" content="Kingdom Connects, Christian business directory, church listings, faith-based businesses, community outreach, Venice Florida, Sarasota County, Charlotte County">
+  <meta name="author" content="Fluba Designs LLC">
+
+  <!-- =========================================================
+       MOVE TO SHARED INCLUDE LATER (site-wide defaults)
+       ========================================================= -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Resource hints (perf) -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="dns-prefetch" href="//www.gstatic.com">
+  <link rel="dns-prefetch" href="//firestore.googleapis.com">
+
+  <!-- Crawling / UI tint -->
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#081529" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff"  media="(prefers-color-scheme: light)">
+
+  <!-- Open Graph defaults -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter defaults -->
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Favicon -->
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <!-- CSS (order matters) -->
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/loading-skeletons.css">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+  <!-- ===== END of SHARED block to move into include later ===== -->
 </head>
 <body>
-  <header class="header">
-    <div class="logo">
-      <img src="assets/qr-gear-logo.svg" alt="QR Gear Logo" />
-    </div>
-    <nav>
-      <a href="#">Customize</a>
-      <a href="#">Store</a>
-      <a href="#">Home</a>
-      <a href="#">About</a>
-      <a href="#">Contact</a>
-    </nav>
-  </header>
-  <main class="main">
-    <h1>Welcome to QR Gear</h1>
-    <p>Customize your own scannable gear. Shirts, bags, and more.</p>
-  </main>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <!-- Header injected by components.js -->
+    <div id="header"></div>
+
+    <main class="main-content" id="main">
+      <!-- HERO SECTION -->
+      <section class="page-content">
+        <article class="card text-center p-md">
+          <h1 class="gold-metallic" style="font-size: clamp(1.8rem, 5vw, 3rem); ">
+            Support Faith-Aligned Businesses
+          </h1>
+          <p class="mx-auto-content-lg text-lg line-height-relaxed">
+            Kingdom Connects helps the Body of Christ support each other's businesses. Find trusted Christian businesses in your community and help local entrepreneurs thrive.
+          </p>
+          
+          <!-- Quick Search Bar -->
+          <div style="max-width: 600px; margin: 24px auto;">
+            <form action="search_businesses.html" method="GET" style="display: flex; gap: 8px;">
+              <input 
+                type="search" 
+                name="q" 
+                placeholder="Try: 'plumber', 'auto repair', or 'Venice FL'..." 
+                class="input-dark" 
+                style="flex: 1; padding: 14px 16px; font-size: 1rem;"
+                aria-label="Search for businesses by name, category, or location"
+                title="Search by business name (e.g., Joe's Plumbing), category (e.g., Construction), or location (e.g., Sarasota)"
+              >
+              <button 
+                type="submit" 
+                class="action-button" 
+                style="padding: 14px 24px; background: #ff6b35; border-color: #ff6b35; font-weight: 700;"
+                title="Search for Christian businesses in your area"
+              >
+                🔍 Search
+              </button>
+            </form>
+            <p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">
+              💡 Search by business name, category, or city
+            </p>
+          </div>
+
+          <div class="flex-gap-center" style="margin-top: 16px;">
+            <a href="business.html" class="action-button btn-secondary" title="Browse all Christian businesses in our directory">📋 Browse All Businesses</a>
+            <a href="church_directory.html" class="action-button btn-secondary" title="Find churches near you">⛪ Find Churches</a>
+            <a href="admin/index.html" class="action-button btn-gold" title="Admin Dashboard">⚙️ Admin</a>
+          </div>
+        </article>
+      </section>
+
+      <!-- Trust Signals / Live Stats -->
+      <section class="page-content">
+        <div class="card" style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04)); border: 1px solid rgba(255,215,0,0.2);">
+          <div id="liveStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; text-align: center;">
+            <div>
+              <div class="gold-metallic" style="font-size: 2.5rem; font-weight: 800;" id="statsBusinesses">...</div>
+              <div class="text-muted">Christian Businesses</div>
+            </div>
+            <div>
+              <div class="gold-metallic" style="font-size: 2.5rem; font-weight: 800;" id="statsChurches">...</div>
+              <div class="text-muted">Churches Connected</div>
+            </div>
+            <div>
+              <div class="gold-metallic" style="font-size: 2.5rem; font-weight: 800;" id="statsTithed">$...</div>
+              <div class="text-muted">Tithed to Ministries</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUICK ACTION CARDS (Mobile-First Design) -->
+      <section class="page-content">
+        <div class="grid-3">
+          <!-- Block 1 -->
+          <article class="cta-block">
+            <div class="card">
+              <h2 class="gold-metallic">Find Your Church</h2>
+              <p>Browse churches near you and connect with a local congregation that fits your walk.</p>
+              <a href="church_directory.html"
+                 class="action-button btn-gold"
+                 title="Search our directory of local churches"
+                 onmouseover="handleMouseOver(this)"
+                 onmouseout="handleMouseOut(this)"
+                 onclick="handleClick(this)">⛪ Find Your Church</a>
+            </div>
+          </article>
+
+          <!-- Block 2 -->
+          <article class="cta-block">
+            <div class="card">
+              <h2 class="gold-metallic">Business Directory</h2>
+              <p>Discover trusted, faith-aligned businesses in your community—by category or location.</p>
+              <a href="business.html"
+                 class="action-button btn-gold"
+                 title="Browse Christian businesses by category or location"
+                 onmouseover="handleMouseOver(this)"
+                 onmouseout="handleMouseOut(this)"
+                 onclick="handleClick(this)">📋 Browse Businesses</a>
+            </div>
+          </article>
+
+          <!-- Block 3 -->
+          <article class="cta-block">
+            <div class="card">
+              <h2 class="gold-metallic">Submit Your Business</h2>
+              <p>Add your listing for free in minutes. Help others find your services and support local work.</p>
+              <a href="submit_business.html"
+                 class="action-button btn-gold"
+                 title="Add your business listing for FREE - takes 2 minutes"
+                 onmouseover="handleMouseOver(this)"
+                 onmouseout="handleMouseOut(this)"
+                 onclick="handleClick(this)">✍️ Submit Business</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- BROWSE BY CATEGORY -->
+      <section class="page-content">
+        <div class="card">
+          <h2 class="gold-metallic text-center" style="margin-bottom: 24px;">Browse by Category</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px;">
+            <a href="business.html?category=auto-repair" class="category-tile">
+              <div class="category-icon">🔧</div>
+              <div class="category-name">Auto Repair</div>
+            </a>
+            <a href="business.html?category=construction" class="category-tile">
+              <div class="category-icon">🏗️</div>
+              <div class="category-name">Construction</div>
+            </a>
+            <a href="business.html?category=real-estate" class="category-tile">
+              <div class="category-icon">🏠</div>
+              <div class="category-name">Real Estate</div>
+            </a>
+            <a href="business.html?category=lawn-care" class="category-tile">
+              <div class="category-icon">🌱</div>
+              <div class="category-name">Lawn Care</div>
+            </a>
+            <a href="business.html?category=plumbing" class="category-tile">
+              <div class="category-icon">🚰</div>
+              <div class="category-name">Plumbing</div>
+            </a>
+            <a href="business.html?category=electrical" class="category-tile">
+              <div class="category-icon">⚡</div>
+              <div class="category-name">Electrical</div>
+            </a>
+            <a href="business.html?category=hvac" class="category-tile">
+              <div class="category-icon">❄️</div>
+              <div class="category-name">HVAC</div>
+            </a>
+            <a href="business.html?category=cleaning" class="category-tile">
+              <div class="category-icon">✨</div>
+              <div class="category-name">Cleaning</div>
+            </a>
+          </div>
+          <div class="text-center" style="margin-top: 24px;">
+            <a href="business.html" class="gold">View All Categories →</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURED PRO BUSINESSES -->
+      <section class="page-content">
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+            <h2 class="gold-metallic" style="margin: 0;">Featured Pro Businesses</h2>
+            <a href="pricing.html" class="gold" style="font-size: 0.9rem;">Want to be featured? Upgrade to Pro →</a>
+          </div>
+          <div id="featuredBusinesses" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+            <div class="text-muted text-center" style="grid-column: 1 / -1; padding: 40px 20px;">
+              Loading featured businesses...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOW IT WORKS -->
+      <section class="page-content">
+        <div class="card text-center">
+          <h2 class="gold-metallic" style="font-size: clamp(1.5rem, 4vw, 2rem);">How Kingdom Connects Works</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;  text-align: left;">
+            <div>
+              <h3 class="gold text-2xl">1. Browse</h3>
+              <p>Search for faith-aligned businesses by category, location, or church affiliation.</p>
+            </div>
+            <div>
+              <h3 class="gold text-2xl">2. Connect</h3>
+              <p>Find trusted Christian business owners in your community who share your values.</p>
+            </div>
+            <div>
+              <h3 class="gold text-2xl">3. Support</h3>
+              <p>Help local entrepreneurs thrive while strengthening the Body of Christ economically.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VALUE PROPOSITION -->
+      <section class="page-content">
+        <div class="card">
+          <h2 class="gold">What is Kingdom Connects?</h2>
+          <p>
+            A community-powered directory where church members and faith-aligned business owners connect, grow,
+            and support each other. Discover trusted providers and help small businesses thrive while building God's Kingdom.
+          </p>
+        </div>
+        <div class="card">
+          <h2 class="gold">Is it free?</h2>
+          <p>
+            Yes! Listing your business is <strong>always free</strong> for church members. We offer optional Pro features ($9-12/month) for enhanced visibility, but the core directory will always be free. Plus, 10% of all revenue goes back to churches and outreach programs.
+          </p>
+        </div>
+        <div class="card">
+          <h2 class="gold">Why people use Kingdom Connects</h2>
+          <ul style="margin:0; padding-left:1.2em; line-height:1.6;">
+            <li>Local, faith-aligned businesses curated by the community</li>
+            <li>Support fellow believers while getting quality service</li>
+            <li>Free business listings that are never deleted</li>
+            <li>10% of revenue goes back to churches and ministries</li>
+            <li>Clean, mobile-friendly browsing and quick contact</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- DID YOU KNOW? FACTOID -->
+      <section class="page-content">
+        <div class="card" id="factoidCard" style="background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.08)); border: 2px solid rgba(255,215,0,0.4); text-align: center; display: none;">
+          <h3 class="gold-metallic text-2xl">💡 Did You Know?</h3>
+          <p id="factoidText" class="text-content-italic"></p>
+        </div>
+      </section>
+
+      <!-- TESTIMONIALS / SOCIAL PROOF (Placeholder) -->
+      <section class="page-content">
+        <div class="card card-gradient-alt">
+          <h2 class="gold-metallic text-center">Join Christian Businesses & Churches Across Florida</h2>
+          <div class="text-center">
+            <p class="text-content-center">
+              Kingdom Connects is growing across Southwest Florida—from Venice and Englewood to Port Charlotte and Sarasota. Whether you're a church leader looking to support your members or a business owner seeking Kingdom-minded customers, you belong here.
+            </p>
+            <a href="submit_business.html" class="action-button btn-gold" >Get Listed Today</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- EMAIL NEWSLETTER SIGNUP -->
+      <section class="page-content">
+        <div class="card" style="background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,165,0,0.06)); border: 2px solid rgba(255,215,0,0.3); text-align: center;">
+          <h2 class="gold-metallic">Stay Connected</h2>
+          <p class="text-lg">Get weekly updates on new businesses, featured listings, and community stories.</p>
+          <form id="newsletterForm" style="max-width: 500px; margin: 24px auto; display: flex; gap: 8px; flex-wrap: wrap;">
+            <input 
+              type="email" 
+              name="email" 
+              placeholder="Enter your email address" 
+              class="input-dark" 
+              required
+              style="flex: 1; min-width: 250px; padding: 14px 16px;"
+            >
+            <button type="submit" class="action-button btn-gold" style="padding: 14px 24px;">Subscribe</button>
+          </form>
+          <p class="text-muted" style="font-size: 0.85rem;">We respect your privacy. Unsubscribe anytime.</p>
+        </div>
+      </section>
+
+      <!-- FINAL CTA -->
+      <section class="page-content">
+        <div class="card text-center">
+          <h2 class="gold">Ready to Get Started?</h2>
+          <p class="text-lg">
+            Join Kingdom Connects and become part of a community that supports faith-aligned commerce.
+          </p>
+          <div class="flex-gap-center">
+            <a href="business.html" class="action-button btn-gold">Browse Businesses</a>
+            <a href="submit_business.html" class="action-button btn-gold">List Your Business Free</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer injected by components.js -->
+    <div id="footer"></div>
+  </div>
+
+  <!-- JS (header/footer modular) -->
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+  <script src="js/loading-skeletons.js" defer></script>
+  <script src="js/homepage-enhancements.js" type="module" defer></script>
+
+  <!-- Button sheen/press helpers -->
+  <script>
+    function handleMouseOver(el){ el.classList.add('hovered'); }
+    function handleMouseOut(el){ el.classList.remove('hovered'); }
+    function handleClick(el){
+      el.classList.add('is-pressed');
+      el.classList.remove('clicked'); void el.offsetWidth;
+      el.classList.add('clicked');
+      setTimeout(() => el.classList.remove('is-pressed'), 140);
+    }
+  </script>
+
+  <!-- Load Random Factoid -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD3Im6F3lWgMbJiA7plsDt_Rp9kCLTr6KU",
+      authDomain: "kingdom-commerce.firebaseapp.com",
+      projectId: "kingdom-commerce",
+      storageBucket: "kingdom-commerce.appspot.com",
+      messagingSenderId: "926457853462",
+      appId: "1:926457853462:web:eba8e9ecb2bb5ff43da737"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadRandomFactoid() {
+      try {
+        const q = query(collection(db, "factoids"), where("active", "==", true));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+          document.getElementById('factoidCard').style.display = 'none';
+          return;
+        }
+
+        const factoids = snapshot.docs.map(doc => doc.data());
+        const randomFactoid = factoids[Math.floor(Math.random() * factoids.length)];
+        
+        document.getElementById('factoidText').textContent = randomFactoid.text;
+        document.getElementById('factoidCard').style.display = 'block';
+      } catch (error) {
+        console.error("Error loading factoid:", error);
+        document.getElementById('factoidCard').style.display = 'none';
+      }
+    }
+
+    loadRandomFactoid();
+  </script>
 </body>
 </html>

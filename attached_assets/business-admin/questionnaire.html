@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Business Questionnaire - Kingdom Connects Business Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .progress-bar {
+      background: var(--card-bg);
+      height: 8px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .progress-fill {
+      background: linear-gradient(90deg, var(--gold), #ffdf80);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-text {
+      text-align: center;
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+    }
+    .completion-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: rgba(76, 175, 80, 0.2);
+      border: 2px solid #4caf50;
+      border-radius: 8px;
+      color: #4caf50;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+    .question-item {
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Business Questionnaire</h2>
+      <p class="text-muted mb-lg">Help us understand your business better. This information helps Kingdom Connects serve you and connect you with the Christian community.</p>
+      
+      <div id="completionBadge" style="display: none;" class="completion-badge">
+        ✓ Questionnaire Complete
+      </div>
+
+      <div class="progress-text" id="progressText">Loading questions...</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div id="loadingMessage" class="text-center p-md">Loading questions...</div>
+      
+      <form id="questionnaireForm" style="display: none;">
+        <article class="card">
+          <h3 class="gold">Business Information</h3>
+          <div id="questionsContainer"></div>
+          
+          <div class="actions mt-lg">
+            <button type="button" id="saveDraftBtn" class="action-button btn-secondary">Save Draft</button>
+            <button type="submit" class="action-button btn-gold">Submit Completed Questionnaire</button>
+          </div>
+        </article>
+      </form>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  <script src="js/auth-guard.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from '../js/firebase-config.js';
+    import { collection, doc, getDoc, getDocs, setDoc, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    const form = document.getElementById('questionnaireForm');
+    const questionsContainer = document.getElementById('questionsContainer');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const completionBadge = document.getElementById('completionBadge');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+
+    let businessId = null;
+    let currentData = {};
+    let questions = [];
+
+    async function loadQuestions() {
+      try {
+        const q = query(
+          collection(db, 'questionnaire_questions'), 
+          where('audience', '==', 'business'),
+          where('active', '==', true),
+          orderBy('order', 'asc')
+        );
+        const snapshot = await getDocs(q);
+        questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return questions;
+      } catch (error) {
+        console.error('Error loading questions:', error);
+        return [];
+      }
+    }
+
+    function renderQuestions() {
+      if (questions.length === 0) {
+        questionsContainer.innerHTML = '<p class="text-muted">No questions available at this time. Please check back later.</p>';
+        return;
+      }
+
+      questionsContainer.innerHTML = questions.map((q, index) => {
+        const fieldName = `q_${q.id}`;
+        const isRequired = q.required ? 'required' : '';
+        const placeholder = q.placeholder || '';
+
+        let inputHTML = '';
+
+        switch (q.question_type) {
+          case 'text':
+            inputHTML = `<input type="text" class="kc-input" id="${fieldName}" name="${fieldName}" placeholder="${placeholder}" ${isRequired}>`;
+            break;
+          
+          case 'number':
+            inputHTML = `<input type="number" class="kc-input" id="${fieldName}" name="${fieldName}" placeholder="${placeholder}" ${isRequired} min="0">`;
+            break;
+          
+          case 'textarea':
+            inputHTML = `<textarea class="kc-textarea" id="${fieldName}" name="${fieldName}" rows="4" placeholder="${placeholder}" ${isRequired}></textarea>`;
+            break;
+          
+          case 'select':
+            inputHTML = `
+              <select class="kc-select" id="${fieldName}" name="${fieldName}" ${isRequired}>
+                <option value="">Select an option...</option>
+                ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+              </select>
+            `;
+            break;
+          
+          case 'multiselect':
+            inputHTML = `
+              <div class="checkbox-group">
+                ${q.options.map(opt => `
+                  <label class="flex-align-center cursor-pointer mb-sm">
+                    <input type="checkbox" name="${fieldName}" value="${opt}">
+                    <span>${opt}</span>
+                  </label>
+                `).join('')}
+              </div>
+            `;
+            break;
+          
+          case 'yesno':
+            inputHTML = `
+              <select class="kc-select" id="${fieldName}" name="${fieldName}" ${isRequired}>
+                <option value="">Select...</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+                <option value="maybe">Maybe</option>
+              </select>
+            `;
+            break;
+        }
+
+        return `
+          <div class="kc-field question-item">
+            <label class="kc-label" for="${fieldName}">
+              ${index + 1}. ${q.question_text}${q.required ? '<span class="req">*</span>' : ''}
+            </label>
+            ${inputHTML}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateProgress() {
+      const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+      let filled = 0;
+      inputs.forEach(input => {
+        if (input.value && input.value.trim()) filled++;
+      });
+      
+      const totalRequired = inputs.length;
+      const progress = totalRequired > 0 ? Math.round((filled / totalRequired) * 100) : 0;
+      progressFill.style.width = progress + '%';
+      progressText.textContent = `Progress: ${progress}% complete (${filled} of ${totalRequired} required fields)`;
+    }
+
+    function loadFormData(data) {
+      if (!data.answers) return;
+      
+      Object.keys(data.answers).forEach(key => {
+        const value = data.answers[key];
+        const element = document.getElementById(key) || document.querySelector(`[name="${key}"]`);
+        
+        if (!element) return;
+
+        if (element.type === 'checkbox') {
+          const checkboxes = document.querySelectorAll(`[name="${key}"]`);
+          if (Array.isArray(value)) {
+            checkboxes.forEach(cb => {
+              cb.checked = value.includes(cb.value);
+            });
+          }
+        } else {
+          element.value = value;
+        }
+      });
+    }
+
+    async function saveQuestionnaire(isComplete) {
+      if (!businessId) return;
+
+      const formData = new FormData(form);
+      const answers = {};
+
+      questions.forEach(q => {
+        const fieldName = `q_${q.id}`;
+        
+        if (q.question_type === 'multiselect') {
+          const checkboxes = document.querySelectorAll(`[name="${fieldName}"]:checked`);
+          answers[fieldName] = Array.from(checkboxes).map(cb => cb.value);
+        } else {
+          const value = formData.get(fieldName);
+          if (value !== null) {
+            answers[fieldName] = value;
+          }
+        }
+      });
+
+      const data = {
+        business_id: businessId,
+        answers: answers,
+        completed: isComplete,
+        updated_at: serverTimestamp()
+      };
+
+      if (!currentData.created_at) {
+        data.created_at = serverTimestamp();
+      }
+
+      const insightsRef = doc(db, 'business_insights', businessId);
+      await setDoc(insightsRef, data, { merge: true });
+
+      return data;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+
+      try {
+        const questionsLoaded = await loadQuestions();
+        
+        if (questionsLoaded.length === 0) {
+          loadingMessage.textContent = 'No questions available. Please contact support.';
+          return;
+        }
+
+        const businessesQuery = query(collection(db, 'business_listings'), where('owner_uid', '==', user.uid));
+        const businessesSnapshot = await getDocs(businessesQuery);
+
+        if (businessesSnapshot.empty) {
+          loadingMessage.textContent = 'No business found for your account.';
+          return;
+        }
+
+        const businessDoc = businessesSnapshot.docs[0];
+        businessId = businessDoc.id;
+
+        renderQuestions();
+
+        const insightsRef = doc(db, 'business_insights', businessId);
+        const insightsSnap = await getDoc(insightsRef);
+
+        if (insightsSnap.exists()) {
+          currentData = insightsSnap.data();
+          loadFormData(currentData);
+          
+          if (currentData.completed) {
+            completionBadge.style.display = 'block';
+          }
+        }
+
+        loadingMessage.style.display = 'none';
+        form.style.display = 'block';
+        updateProgress();
+
+        form.addEventListener('input', updateProgress);
+        form.addEventListener('change', updateProgress);
+
+      } catch (error) {
+        console.error('Error loading questionnaire:', error);
+        loadingMessage.textContent = 'Error loading questionnaire. Please try again.';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      try {
+        await saveQuestionnaire(true);
+        completionBadge.style.display = 'block';
+        alert('Questionnaire saved successfully! Thank you for helping us understand your business better.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (error) {
+        console.error('Error saving questionnaire:', error);
+        alert('Error saving questionnaire. Please try again.');
+      }
+    });
+
+    saveDraftBtn.addEventListener('click', async () => {
+      try {
+        await saveQuestionnaire(false);
+        alert('Draft saved successfully. You can complete it later.');
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        alert('Error saving draft. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>

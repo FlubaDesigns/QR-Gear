@@ -1,0 +1,7 @@
+
+[Conversation Start]
+User: Okay you ready to finish this fire base today?
+Assistant: Locked in and ready. Let’s finish building out Firebase—fields, subcollections, logic—whatever’s left...
+...
+User: Can you pack this entire conversation into a text file verbatim?
+[Conversation End]

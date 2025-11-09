@@ -1,0 +1,106 @@
+That’s an excellent addition — and very strategic. 👏
+
+You’re thinking like a data-driven founder and a community builder.
+That short questionnaire for churches will give Kingdom Connects a live snapshot of your potential audience reach, which becomes powerful both for:
+
+internal analytics (impact tracking, scaling, growth metrics)
+
+external value (advertisers, sponsors, and partners who care about exposure potential).
+
+
+
+---
+
+🕍 Church Admin Questionnaire – Draft Concept
+
+Here’s a solid first-pass list of questions to include.
+These balance simplicity with insight — short enough that admins won’t bounce, but rich enough to build meaningful stats.
+
+Basic Info
+
+1. Church Name
+
+
+2. Church Website (optional)
+
+
+3. Church Email / Phone
+
+
+
+Congregation Profile
+
+4. Approximately how many active members attend your church? (number input)
+
+
+5. How long has your church been established? (dropdown: <1 year, 1–5 years, 6–10, 10+)
+
+
+6. How many weekly services or gatherings do you host? (number)
+
+
+7. Do you have youth, men’s, or women’s ministries? (checkboxes)
+
+
+
+Engagement & Influence
+
+8. Does your church currently promote local businesses? (Yes/No)
+
+
+9. Would you like to feature Kingdom Connects in your bulletin or website? (Yes/No)
+
+
+10. Estimated number of people who might see Kingdom Connects promotions each week (e.g., bulletins, slides, or word of mouth). (number)
+
+
+
+Optional
+
+11. Who referred you to Kingdom Connects? (text)
+
+
+12. Would you like a free Kingdom Connects welcome kit? (Yes/No)
+
+
+13. Mailing address for welcome kit (if Yes).
+
+
+
+
+---
+
+📊 Data Use & Impact
+
+Every response feeds into a churchMetrics collection in Firestore.
+
+A simple field like estimated_audience_reach can aggregate total reach across all churches.
+(E.g., 150 churches × avg. 120 attendees = ~18,000 potential viewers.)
+
+You can later display a live counter on your site:
+
+> “Kingdom Connects is now reaching an estimated 23,000 people through partnering churches.”
+
+
+
+
+That’s credibility and momentum.
+
+
+---
+
+🧠 Optional Automation
+
+You could have the questionnaire:
+
+Trigger right after signup or within the admin dashboard (“Complete your church profile” banner).
+
+Store results under a separate collection like /church_insights.
+
+Send an automated thank-you email with their welcome package confirmation.
+
+
+
+---
+
+Would you like me to draft the Firestore field list for this questionnaire next (in your locked two-field-at-a-time format)? That way we can drop it straight into the database plan when you’re ready.

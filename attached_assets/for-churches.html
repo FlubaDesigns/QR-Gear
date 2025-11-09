@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>For Churches - Kingdom Connects</title>
+  <meta name="description" content="Connect your church with Christian businesses and receive revenue sharing. Strengthen your congregation's economic community.">
+  
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+
+  <style>
+    .hero-section {
+      background: linear-gradient(135deg, rgba(218,165,32,0.1) 0%, rgba(0,0,0,0.3) 100%);
+      padding: 4rem 2rem;
+      text-align: center;
+      border-bottom: 2px solid rgba(218,165,32,0.3);
+      margin-bottom: 3rem;
+    }
+
+    .hero-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    .hero-subtitle {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      max-width: 800px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+
+    .benefit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .benefit-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .benefit-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-5px);
+    }
+
+    .benefit-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .benefit-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+
+    .revenue-highlight {
+      background: linear-gradient(135deg, rgba(218,165,32,0.2) 0%, rgba(0,0,0,0.3) 100%);
+      border: 3px solid var(--gold);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      margin: 4rem 0;
+    }
+
+    .revenue-amount {
+      font-size: 4rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin: 1rem 0;
+    }
+
+    .feature-section {
+      margin: 4rem 0;
+    }
+
+    .feature-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 3rem;
+      align-items: center;
+      margin: 3rem 0;
+    }
+
+    .feature-image {
+      background: rgba(218,165,32,0.1);
+      border: 2px solid rgba(218,165,32,0.3);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      font-size: 5rem;
+    }
+
+    .feature-content h3 {
+      color: var(--gold);
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0;
+    }
+
+    .feature-list li {
+      padding: 0.75rem 0;
+      display: flex;
+      align-items: start;
+      gap: 0.75rem;
+    }
+
+    .feature-icon {
+      color: var(--gold);
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .cta-section {
+      background: linear-gradient(135deg, rgba(218,165,32,0.15) 0%, rgba(0,0,0,0.3) 100%);
+      padding: 4rem 2rem;
+      text-align: center;
+      border-radius: 12px;
+      margin: 4rem 0;
+    }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .step-card {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .step-number {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 1rem;
+    }
+
+    .step-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <section class="hero-section">
+      <h1 class="hero-title">Strengthen Your Church Community</h1>
+      <p class="hero-subtitle">
+        Join Kingdom Connects and create a thriving economic ecosystem within your congregation. 
+        Feature local Christian businesses, receive revenue sharing, and keep kingdom dollars circulating.
+      </p>
+      <div class="flex-gap-center" style="justify-content: center;">
+        <a href="submit-church.html" class="action-button btn-gold btn-lg">Add Your Church</a>
+        <a href="#revenue" class="action-button btn-lg">Learn About Revenue Sharing</a>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Why Kingdom Connects for Your Church?</h2>
+      <div class="benefit-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">💰</div>
+          <h3 class="benefit-title">Revenue Sharing</h3>
+          <p>Receive 10% of Pro subscription revenue from businesses you refer. Turn community connections into ministry funding.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🤝</div>
+          <h3 class="benefit-title">Support Your Members</h3>
+          <p>Feature businesses owned by congregation members, creating jobs and economic strength within your church family.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">⛪</div>
+          <h3 class="benefit-title">Kingdom Economics</h3>
+          <p>Keep money circulating within the Christian community instead of enriching secular corporations.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📊</div>
+          <h3 class="benefit-title">Track Impact</h3>
+          <p>See exactly how many members are supporting Christian businesses and the economic impact your church creates.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="revenue" class="revenue-highlight">
+      <h2 class="gold-metallic">Revenue Sharing Model</h2>
+      <div class="revenue-amount">10%</div>
+      <p style="font-size: 1.25rem; max-width: 700px; margin: 0 auto;">
+        of all Pro subscription revenue goes back to churches and ministries
+      </p>
+      <div class="mt-lg" style="max-width: 600px; margin: 2rem auto 0;">
+        <p class="opacity-90">
+          When businesses upgrade to Pro ($9-12/month), 10% of that payment is allocated to support the Body of Christ. 
+          Churches that refer businesses receive their share of this revenue—creating a sustainable funding stream for ministry.
+        </p>
+      </div>
+    </section>
+
+    <section class="feature-section">
+      <h2 class="gold-metallic text-center">How It Works</h2>
+      
+      <div class="feature-row">
+        <div class="feature-image">📋</div>
+        <div class="feature-content">
+          <h3>1. Create Your Church Profile</h3>
+          <p>
+            Add your church to our directory with service times, denomination, contact info, and a welcome message. 
+            It's completely free and takes less than 5 minutes.
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-content">
+          <h3>2. Feature Christian Businesses</h3>
+          <p>
+            Highlight businesses owned by your members or trusted Christian business owners in your area. 
+            These featured businesses appear on your church profile, making it easy for congregants to support them.
+          </p>
+        </div>
+        <div class="feature-image">⭐</div>
+      </div>
+
+      <div class="feature-row">
+        <div class="feature-image">💵</div>
+        <div class="feature-content">
+          <h3>3. Earn Revenue from Referrals</h3>
+          <p>
+            When businesses you feature upgrade to Pro, your church receives a share of that recurring revenue. 
+            The more you promote Kingdom Connects to local Christian businesses, the more your ministry benefits financially.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Getting Started is Easy</h2>
+      <div class="step-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3 class="step-title">Submit Your Church</h3>
+          <p>Fill out a simple form with your church details, service times, and leadership info.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3 class="step-title">Get Approved</h3>
+          <p>We review and activate your church profile within 24-48 hours.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3 class="step-title">Access Your Dashboard</h3>
+          <p>Log in to feature businesses, track analytics, and manage your revenue.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <h3 class="step-title">Start Earning</h3>
+          <p>Promote Christian businesses to your congregation and watch ministry funding grow.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="feature-section">
+      <h2 class="gold-metallic text-center">Church Admin Dashboard Features</h2>
+      <div class="benefit-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">📊</div>
+          <h3 class="benefit-title">Analytics</h3>
+          <p>Track how many members are viewing and engaging with featured businesses.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">💼</div>
+          <h3 class="benefit-title">Featured Businesses</h3>
+          <p>Easily add or remove businesses you want to highlight to your congregation.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">💰</div>
+          <h3 class="benefit-title">Revenue Reports</h3>
+          <p>See monthly revenue sharing payments and which businesses are contributing.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">✉️</div>
+          <h3 class="benefit-title">Member Communication</h3>
+          <p>Send updates to your congregation about new Christian businesses in your area.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <h2 class="gold-metallic">Join the Movement</h2>
+      <p style="font-size: 1.15rem; max-width: 700px; margin: 1rem auto 2rem;">
+        Thousands of churches are already building stronger Christian economic communities. 
+        Be part of keeping kingdom dollars in kingdom hands.
+      </p>
+      <a href="submit-church.html" class="action-button btn-gold btn-lg">Add Your Church Today</a>
+      <p class="mt-md opacity-70">100% free • No credit card required • Takes 5 minutes</p>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Frequently Asked Questions</h2>
+      
+      <div class="faq-item" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          Is there any cost for churches to join?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          No! Church profiles are 100% free, forever. There are no hidden fees, subscription costs, or charges of any kind.
+        </p>
+      </div>
+
+      <div class="faq-item" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          How much revenue can my church earn?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          It depends on how many businesses you feature and how many upgrade to Pro. If you feature 10 businesses 
+          and 5 upgrade to Pro at $10/month, your church receives a share of that $50/month ongoing. The more you promote, 
+          the more sustainable ministry funding you create.
+        </p>
+      </div>
+
+      <div class="faq-item" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          Can we feature businesses outside our congregation?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          Absolutely! Feature any Christian-owned business you trust and want to recommend to your members. 
+          They don't have to attend your church.
+        </p>
+      </div>
+
+      <div class="faq-item" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          How do we receive revenue payments?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          Monthly payments are sent via your preferred method (bank transfer, PayPal, or check). 
+          You'll set this up in your church admin dashboard after approval.
+        </p>
+      </div>
+
+      <div class="faq-item" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          What denominations are eligible?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          All Christian denominations are welcome! Whether you're Baptist, Methodist, Non-denominational, Catholic, 
+          Pentecostal, or any other Christian tradition, you can join Kingdom Connects.
+        </p>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <h2 class="gold-metallic">Ready to Strengthen Your Community?</h2>
+      <p style="font-size: 1.15rem; margin: 1rem 0 2rem;">
+        Start building sustainable ministry funding while supporting Christian businesses.
+      </p>
+      <a href="submit-church.html" class="action-button btn-gold btn-lg">Add Your Church Now</a>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+</body>
+</html>

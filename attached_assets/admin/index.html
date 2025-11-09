@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Admin Dashboard - Kingdom Connects</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- CSS (shared across site) -->
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #333;
+    }
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .stat-label {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Admin Dashboard</h2>
+      <p>Welcome to the Kingdom Connects admin panel. Monitor platform health and manage all aspects of the system.</p>
+
+      <div id="statsLoading" class="text-center mt-lg mb-lg">
+        <p>Loading platform statistics...</p>
+      </div>
+
+      <div id="statsContent" style="display: none;">
+        <h3 class="gold-metallic">Platform Overview</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="totalUsers">0</div>
+            <div class="stat-label">Total Users</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="totalBusinesses">0</div>
+            <div class="stat-label">Total Businesses</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="totalChurches">0</div>
+            <div class="stat-label">Total Churches</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="proBusinesses">0</div>
+            <div class="stat-label">Pro Businesses</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="pendingReviews">0</div>
+            <div class="stat-label">Pending Reviews</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="totalRevenue">$0</div>
+            <div class="stat-label">Total Revenue</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="gold-metallic mt-lg">Quick Actions</h3>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">Business Listings</h3>
+          <p>Approve, suspend, or manage all business listings across the platform.</p>
+          <a href="businesses.html" class="action-button btn-gold">Manage Businesses</a>
+        </div>
+      </article>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">Church Directory</h3>
+          <p>Add, edit, or remove churches from the directory.</p>
+          <a href="churches.html" class="action-button btn-gold">Manage Churches</a>
+        </div>
+      </article>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">User Management</h3>
+          <p>View and manage user accounts, roles, and permissions.</p>
+          <a href="users.html" class="action-button btn-gold">Manage Users</a>
+        </div>
+      </article>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">Review Moderation</h3>
+          <p>Approve, flag, or remove business reviews. Manage reported content.</p>
+          <a href="review_moderation.html" class="action-button btn-gold">Manage Reviews</a>
+        </div>
+      </article>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">Payments & Subscriptions</h3>
+          <p>View all transactions, Pro subscriptions, and payment history.</p>
+          <a href="payments.html" class="action-button btn-gold">View Payments</a>
+        </div>
+      </article>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">Category Suggestions</h3>
+          <p>Review and approve/deny category suggestions from business owners.</p>
+          <a href="review-categories.html" class="action-button btn-gold">Review Suggestions</a>
+        </div>
+      </article>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">"Did You Know?" Factoids</h3>
+          <p>Manage factoids that appear on the homepage. Add, edit, or deactivate interesting facts.</p>
+          <a href="factoids.html" class="action-button btn-gold">Manage Factoids</a>
+        </div>
+      </article>
+
+      <article class="cta-block">
+        <div class="card">
+          <h3 class="gold-metallic">Activity Log</h3>
+          <p>System-wide audit trail of platform actions for security and compliance.</p>
+          <a href="activity_log.html" class="action-button btn-gold">View Activity Log</a>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <!-- Admin header/footer -->
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, collectionGroup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyAdminAccess } from "./js/admin-auth-guard.js";
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAdmin = await verifyAdminAccess(user);
+      if (!isAdmin) return;
+      
+      await loadStats();
+    });
+
+    async function loadStats() {
+      try {
+        const [usersSnap, businessesSnap, churchesSnap, reviewsSnap, commissionsSnap] = await Promise.all([
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "business_listings")),
+          getDocs(collection(db, "churches")),
+          getDocs(query(collection(db, "reviews"))),
+          getDocs(collectionGroup(db, "commissions"))
+        ]);
+
+        const totalUsers = usersSnap.size;
+        const totalBusinesses = businessesSnap.size;
+        const totalChurches = churchesSnap.size;
+        
+        let proBusinesses = 0;
+        businessesSnap.forEach(doc => {
+          if (doc.data().pro_status === true) proBusinesses++;
+        });
+
+        let pendingReviews = 0;
+        reviewsSnap.forEach(doc => {
+          const status = doc.data().status || 'pending';
+          if (status === 'pending') pendingReviews++;
+        });
+
+        let totalRevenue = 0;
+        commissionsSnap.forEach(doc => {
+          totalRevenue += (doc.data().pro_payment_amount || 0);
+        });
+
+        document.getElementById('totalUsers').textContent = totalUsers;
+        document.getElementById('totalBusinesses').textContent = totalBusinesses;
+        document.getElementById('totalChurches').textContent = totalChurches;
+        document.getElementById('proBusinesses').textContent = proBusinesses;
+        document.getElementById('pendingReviews').textContent = pendingReviews;
+        document.getElementById('totalRevenue').textContent = `$${totalRevenue.toFixed(0)}`;
+
+        document.getElementById('statsLoading').style.display = 'none';
+        document.getElementById('statsContent').style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading stats:', error);
+        document.getElementById('statsLoading').textContent = 'Error loading statistics';
+      }
+    }
+  </script>
+  </div>
+</body>
+</html>

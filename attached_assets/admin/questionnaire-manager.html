@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Questionnaire Manager - Kingdom Connects Admin</title>
+  
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+
+  <style>
+    .audience-tabs {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid var(--border-color);
+    }
+    .audience-tab {
+      padding: 1rem 2rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .audience-tab:hover {
+      color: var(--text-color);
+    }
+    .audience-tab.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+    }
+    .add-form {
+      background: rgba(212, 175, 55, 0.1);
+      border: 2px solid rgba(212, 175, 55, 0.3);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .question-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: all 0.2s ease;
+    }
+    .question-card:hover {
+      border-color: var(--gold);
+      background: var(--card-bg-hover);
+    }
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .question-number {
+      background: var(--gold);
+      color: #000;
+      font-weight: 800;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .question-text {
+      flex: 1;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .question-meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .question-type-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .question-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn-small {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+    .status-active {
+      background: rgba(0, 255, 0, 0.2);
+      color: #0f0;
+    }
+    .status-inactive {
+      background: rgba(255, 0, 0, 0.2);
+      color: #f88;
+    }
+    .order-controls {
+      display: flex;
+      gap: 0.25rem;
+    }
+    .order-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .order-btn:hover {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+    }
+    .order-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .edit-form {
+      background: rgba(33, 150, 243, 0.1);
+      border: 2px solid rgba(33, 150, 243, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    .radio-group {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div id="header"></div>
+
+    <main class="container">
+      <div class="page-header">
+        <h2>Questionnaire Manager</h2>
+        <p class="opacity-80">Create and manage questions for churches and businesses. Questions appear in order on their respective dashboards.</p>
+      </div>
+
+      <div class="audience-tabs">
+        <button class="audience-tab active" data-audience="church">Church Questions</button>
+        <button class="audience-tab" data-audience="business">Business Questions</button>
+      </div>
+
+      <div class="add-form">
+        <h3 class="gold mt-0">Add New Question</h3>
+        <form id="addQuestionForm">
+          <div class="kc-field">
+            <label class="kc-label" for="questionText">Question Text<span class="req">*</span></label>
+            <textarea 
+              class="kc-textarea" 
+              id="questionText" 
+              name="questionText" 
+              rows="2"
+              placeholder="Enter your question..."
+              required></textarea>
+          </div>
+
+          <div class="kc-field">
+            <label class="kc-label">Question Type<span class="req">*</span></label>
+            <div class="radio-group">
+              <label>
+                <input type="radio" name="questionType" value="text" checked>
+                <span>Text</span>
+              </label>
+              <label>
+                <input type="radio" name="questionType" value="number">
+                <span>Number</span>
+              </label>
+              <label>
+                <input type="radio" name="questionType" value="select">
+                <span>Dropdown</span>
+              </label>
+              <label>
+                <input type="radio" name="questionType" value="multiselect">
+                <span>Multi-Select</span>
+              </label>
+              <label>
+                <input type="radio" name="questionType" value="textarea">
+                <span>Long Text</span>
+              </label>
+              <label>
+                <input type="radio" name="questionType" value="yesno">
+                <span>Yes/No</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="kc-field" id="optionsField" style="display: none;">
+            <label class="kc-label" for="questionOptions">Options (one per line)<span class="req">*</span></label>
+            <textarea 
+              class="kc-textarea" 
+              id="questionOptions" 
+              name="questionOptions" 
+              rows="4"
+              placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
+            <small class="opacity-70">For dropdown and multi-select questions</small>
+          </div>
+
+          <div class="kc-field">
+            <label class="kc-label" for="questionPlaceholder">Placeholder Text (optional)</label>
+            <input 
+              type="text" 
+              class="kc-input" 
+              id="questionPlaceholder" 
+              name="questionPlaceholder" 
+              placeholder="e.g., Enter your answer here...">
+          </div>
+
+          <div class="kc-field">
+            <label class="flex-align-center cursor-pointer">
+              <input type="checkbox" id="isRequired" name="isRequired" checked>
+              <span>Required question</span>
+            </label>
+          </div>
+
+          <div class="kc-field">
+            <label class="flex-align-center cursor-pointer">
+              <input type="checkbox" id="isActive" name="isActive" checked>
+              <span>Active (visible to users)</span>
+            </label>
+          </div>
+
+          <input type="hidden" id="currentAudience" name="audience" value="church">
+
+          <button type="submit" class="action-button btn-gold">Add Question</button>
+        </form>
+      </div>
+
+      <div class="page-header">
+        <h3>Questions (<span id="questionCount">0</span>)</h3>
+      </div>
+
+      <div id="questionList">
+        <p class="status-message empty">Loading questions...</p>
+      </div>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  <script src="js/admin-auth-guard.js" defer></script>
+  <script src="../js/breadcrumbs.js" defer></script>
+
+  <script type="module">
+    import { db } from '../js/firebase-config.js';
+    import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    let currentAudience = 'church';
+    let allQuestions = [];
+
+    const questionList = document.getElementById('questionList');
+    const questionCount = document.getElementById('questionCount');
+    const addForm = document.getElementById('addQuestionForm');
+    const currentAudienceInput = document.getElementById('currentAudience');
+    const questionTypeRadios = document.querySelectorAll('input[name="questionType"]');
+    const optionsField = document.getElementById('optionsField');
+
+    // Tab switching
+    document.querySelectorAll('.audience-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.audience-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentAudience = tab.dataset.audience;
+        currentAudienceInput.value = currentAudience;
+        renderQuestions();
+      });
+    });
+
+    // Show/hide options field based on question type
+    questionTypeRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        const type = document.querySelector('input[name="questionType"]:checked').value;
+        optionsField.style.display = (type === 'select' || type === 'multiselect') ? 'block' : 'none';
+        document.getElementById('questionOptions').required = (type === 'select' || type === 'multiselect');
+      });
+    });
+
+    // Load questions
+    async function loadQuestions() {
+      try {
+        const q = query(collection(db, 'questionnaire_questions'), orderBy('order', 'asc'));
+        const snapshot = await getDocs(q);
+        allQuestions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderQuestions();
+      } catch (error) {
+        console.error('Error loading questions:', error);
+        questionList.innerHTML = `<p class="status-message error">Error loading questions. Please try again.</p>`;
+      }
+    }
+
+    function renderQuestions() {
+      const filtered = allQuestions.filter(q => q.audience === currentAudience);
+      questionCount.textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        questionList.innerHTML = `<p class="status-message empty">No ${currentAudience} questions yet. Add your first one above!</p>`;
+        return;
+      }
+
+      questionList.innerHTML = filtered.map((q, index) => `
+        <div class="question-card" data-id="${q.id}">
+          <div class="question-header">
+            <div class="question-number">${index + 1}</div>
+            <div class="question-text">${q.question_text}</div>
+            <div class="order-controls">
+              <button class="order-btn" onclick="moveQuestion('${q.id}', 'up')" ${index === 0 ? 'disabled' : ''}>↑</button>
+              <button class="order-btn" onclick="moveQuestion('${q.id}', 'down')" ${index === filtered.length - 1 ? 'disabled' : ''}>↓</button>
+            </div>
+          </div>
+          
+          <div class="question-meta">
+            <span class="question-type-badge">${q.question_type}</span>
+            ${q.required ? '<span>✓ Required</span>' : '<span>Optional</span>'}
+            <span class="status-active ${q.active ? 'status-active' : 'status-inactive'}">${q.active ? 'Active' : 'Inactive'}</span>
+            ${q.options && q.options.length ? `<span>Options: ${q.options.join(', ')}</span>` : ''}
+          </div>
+
+          <div class="question-actions">
+            <button class="btn-small btn-primary" onclick="editQuestion('${q.id}')">Edit</button>
+            <button class="btn-small ${q.active ? 'btn-secondary' : 'btn-gold'}" onclick="toggleActive('${q.id}', ${!q.active})">${q.active ? 'Deactivate' : 'Activate'}</button>
+            <button class="btn-small btn-danger" onclick="deleteQuestion('${q.id}')">Delete</button>
+          </div>
+
+          <div id="edit-${q.id}" style="display: none;"></div>
+        </div>
+      `).join('');
+    }
+
+    // Add question
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(addForm);
+      const type = formData.get('questionType');
+      const optionsText = formData.get('questionOptions');
+      const options = (type === 'select' || type === 'multiselect') && optionsText 
+        ? optionsText.split('\n').map(o => o.trim()).filter(o => o) 
+        : [];
+
+      if ((type === 'select' || type === 'multiselect') && options.length === 0) {
+        alert('Please provide at least one option for this question type.');
+        return;
+      }
+
+      try {
+        const filtered = allQuestions.filter(q => q.audience === currentAudience);
+        const maxOrder = filtered.length > 0 ? Math.max(...filtered.map(q => q.order || 0)) : 0;
+
+        await addDoc(collection(db, 'questionnaire_questions'), {
+          question_text: formData.get('questionText'),
+          question_type: type,
+          audience: formData.get('audience'),
+          options: options,
+          placeholder: formData.get('questionPlaceholder') || '',
+          required: formData.get('isRequired') === 'on',
+          active: formData.get('isActive') === 'on',
+          order: maxOrder + 1,
+          created_at: Timestamp.now()
+        });
+
+        addForm.reset();
+        document.querySelector('input[name="questionType"][value="text"]').checked = true;
+        optionsField.style.display = 'none';
+        await loadQuestions();
+      } catch (error) {
+        console.error('Error adding question:', error);
+        alert('Error adding question. Please try again.');
+      }
+    });
+
+    // Toggle active status
+    window.toggleActive = async (id, newStatus) => {
+      try {
+        await updateDoc(doc(db, 'questionnaire_questions', id), { active: newStatus });
+        await loadQuestions();
+      } catch (error) {
+        console.error('Error toggling status:', error);
+        alert('Error updating question. Please try again.');
+      }
+    };
+
+    // Delete question
+    window.deleteQuestion = async (id) => {
+      if (!confirm('Are you sure you want to delete this question? This cannot be undone.')) return;
+      
+      try {
+        await deleteDoc(doc(db, 'questionnaire_questions', id));
+        await loadQuestions();
+      } catch (error) {
+        console.error('Error deleting question:', error);
+        alert('Error deleting question. Please try again.');
+      }
+    };
+
+    // Move question up/down
+    window.moveQuestion = async (id, direction) => {
+      const filtered = allQuestions.filter(q => q.audience === currentAudience);
+      const currentIndex = filtered.findIndex(q => q.id === id);
+      
+      if (currentIndex === -1) return;
+      if (direction === 'up' && currentIndex === 0) return;
+      if (direction === 'down' && currentIndex === filtered.length - 1) return;
+
+      const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      const current = filtered[currentIndex];
+      const swap = filtered[swapIndex];
+
+      try {
+        await updateDoc(doc(db, 'questionnaire_questions', current.id), { order: swap.order });
+        await updateDoc(doc(db, 'questionnaire_questions', swap.id), { order: current.order });
+        await loadQuestions();
+      } catch (error) {
+        console.error('Error reordering questions:', error);
+        alert('Error reordering questions. Please try again.');
+      }
+    };
+
+    // Edit question
+    window.editQuestion = (id) => {
+      const question = allQuestions.find(q => q.id === id);
+      if (!question) return;
+
+      const editContainer = document.getElementById(`edit-${id}`);
+      editContainer.style.display = 'block';
+      editContainer.innerHTML = `
+        <div class="edit-form">
+          <h4 class="mt-0">Edit Question</h4>
+          <form id="editForm-${id}">
+            <div class="kc-field">
+              <label class="kc-label">Question Text</label>
+              <textarea class="kc-textarea" rows="2" required>${question.question_text}</textarea>
+            </div>
+            <div class="kc-field">
+              <label class="kc-label">Placeholder</label>
+              <input type="text" class="kc-input" value="${question.placeholder || ''}">
+            </div>
+            ${question.options && question.options.length ? `
+            <div class="kc-field">
+              <label class="kc-label">Options (one per line)</label>
+              <textarea class="kc-textarea" rows="4">${question.options.join('\n')}</textarea>
+            </div>
+            ` : ''}
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="submit" class="btn-small btn-gold">Save</button>
+              <button type="button" class="btn-small btn-secondary" onclick="cancelEdit('${id}')">Cancel</button>
+            </div>
+          </form>
+        </div>
+      `;
+
+      document.getElementById(`editForm-${id}`).addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inputs = e.target.querySelectorAll('input, textarea');
+        const newText = inputs[0].value;
+        const newPlaceholder = inputs[1].value;
+        const newOptions = inputs[2] ? inputs[2].value.split('\n').map(o => o.trim()).filter(o => o) : question.options;
+
+        try {
+          await updateDoc(doc(db, 'questionnaire_questions', id), {
+            question_text: newText,
+            placeholder: newPlaceholder,
+            options: newOptions
+          });
+          await loadQuestions();
+        } catch (error) {
+          console.error('Error updating question:', error);
+          alert('Error updating question. Please try again.');
+        }
+      });
+    };
+
+    window.cancelEdit = (id) => {
+      document.getElementById(`edit-${id}`).style.display = 'none';
+    };
+
+    loadQuestions();
+  </script>
+</body>
+</html>

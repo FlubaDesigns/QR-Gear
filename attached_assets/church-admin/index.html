@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Church Admin Dashboard - Kingdom Connects</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div id="loadingMessage" class="text-center p-md">Loading dashboard...</div>
+      
+      <div id="noChurchMessage" class="text-center p-md" style="display: none;">
+        <article class="card card-highlight">
+          <h3 class="gold">No Church Found</h3>
+          <p>Your email address is not associated with a church admin account.</p>
+          <p>Please contact support if you believe this is an error.</p>
+        </article>
+      </div>
+
+      <div id="dashboardContent" style="display: none;">
+        <h2 class="gold-metallic">Church Admin Dashboard</h2>
+        <p>Welcome, <span id="churchName" class="gold"></span></p>
+
+        <article class="card">
+          <h3 class="gold">Overview</h3>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number" id="totalBusinesses">0</div>
+              <div class="stat-label">Member Businesses</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="proMembers">0</div>
+              <div class="stat-label">Pro Members</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="totalTithe">$0</div>
+              <div class="stat-label">Total Tithe Received</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="thisMonthTithe">$0</div>
+              <div class="stat-label">This Month</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Quick Actions</h3>
+          <div class="grid-col-2">
+            <div>
+              <h4 class="gold-sm">Manage Church Profile</h4>
+              <p>Update your church information, service times, and contact details</p>
+              <a href="profile.html" class="action-button btn-gold">Edit Church Profile</a>
+            </div>
+            <div>
+              <h4 class="gold-sm">View Member Businesses</h4>
+              <p>See all businesses affiliated with your church</p>
+              <a href="businesses.html" class="action-button btn-gold">View Member Businesses</a>
+            </div>
+          </div>
+          <div class="grid-col-2 mt-md">
+            <div>
+              <h4 class="gold-sm">Feature Businesses</h4>
+              <p>Highlight member businesses on your church profile</p>
+              <a href="featured.html" class="action-button btn-gold">Manage Featured</a>
+            </div>
+            <div>
+              <h4 class="gold-sm">View Analytics</h4>
+              <p>Track engagement, tithe earnings, and growth metrics</p>
+              <a href="analytics.html" class="action-button btn-gold">View Analytics</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card-highlight">
+          <h3 class="gold">💰 Kingdom Connects Tithing Program</h3>
+          <p>Your church receives 10% of all Pro subscription revenue from member businesses. When your parishioners upgrade to Pro, your church earns recurring monthly income!</p>
+          <div class="mt-md">
+            <strong>Encourage your members to:</strong>
+            <ul>
+              <li>✅ List their businesses on Kingdom Connects</li>
+              <li>✅ Upgrade to Pro for enhanced visibility</li>
+              <li>✅ Support fellow church members' businesses</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let churchId = null;
+    let churchData = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadChurch(user.email);
+    });
+
+    async function loadChurch(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const noChurchMessage = document.getElementById('noChurchMessage');
+      const dashboardContent = document.getElementById('dashboardContent');
+
+      try {
+        const q = query(collection(db, "churches"), where("contact_email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.style.display = 'none';
+          noChurchMessage.style.display = 'block';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        churchId = docSnap.id;
+        churchData = docSnap.data();
+
+        await loadStats();
+
+        document.getElementById('churchName').textContent = churchData.church_name || 'Unknown Church';
+
+        loadingMessage.style.display = 'none';
+        dashboardContent.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading church:', error);
+        loadingMessage.textContent = 'Error loading dashboard: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const q = query(collection(db, "business_listings"), where("church_id", "==", churchId));
+        const querySnapshot = await getDocs(q);
+
+        const totalBusinesses = querySnapshot.size;
+        let proMembers = 0;
+        let totalTithe = 0;
+        let thisMonthTithe = 0;
+
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+
+        querySnapshot.forEach((doc) => {
+          const business = doc.data();
+          
+          if (business.pro_status === true) {
+            proMembers++;
+          }
+        });
+
+        const commissionsQuery = query(collection(db, "business_listings"));
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+        
+        for (const bizDoc of commissionsSnapshot.docs) {
+          const commissionQ = query(
+            collection(db, "business_listings", bizDoc.id, "commissions"),
+            where("church_id", "==", churchId)
+          );
+          const commissionSnapshot = await getDocs(commissionQ);
+          
+          commissionSnapshot.forEach((commDoc) => {
+            const commission = commDoc.data();
+            const titheAmount = commission.tithe_amount || 0;
+            totalTithe += titheAmount;
+
+            if (commission.payment_date) {
+              const paymentDate = commission.payment_date.toDate ? commission.payment_date.toDate() : new Date(commission.payment_date);
+              if (paymentDate.getMonth() === thisMonth && paymentDate.getFullYear() === thisYear) {
+                thisMonthTithe += titheAmount;
+              }
+            }
+          });
+        }
+
+        document.getElementById('totalBusinesses').textContent = totalBusinesses;
+        document.getElementById('proMembers').textContent = proMembers;
+        document.getElementById('totalTithe').textContent = '$' + totalTithe.toFixed(2);
+        document.getElementById('thisMonthTithe').textContent = '$' + thisMonthTithe.toFixed(2);
+
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    }
+  </script>
+  </div>
+</body>
+</html>

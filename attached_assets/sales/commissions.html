@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Commissions - Kingdom Connects Sales</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .filter-bar {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar select {
+      padding: 0.5rem;
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid #444;
+    }
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .summary-card {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .summary-value {
+      font-size: 1.5rem;
+      color: var(--gold);
+      font-weight: bold;
+    }
+    .summary-label {
+      color: #aaa;
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .commission-table {
+      width: 100%;
+      min-width: 600px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .commission-table th {
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .commission-table td {
+      padding: 1rem;
+      border-top: 1px solid #333;
+    }
+    .commission-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .status-paid {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4caf50;
+    }
+    .status-pending {
+      background: rgba(255, 152, 0, 0.2);
+      color: #ff9800;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Commission History</h2>
+      <p>Detailed view of all commissions earned from Pro subscriptions.</p>
+
+      <div class="filter-bar">
+        <label>
+          Status:
+          <select id="filterStatus">
+            <option value="all">All Commissions</option>
+            <option value="paid">Paid Only</option>
+            <option value="pending">Pending Only</option>
+          </select>
+        </label>
+        <label>
+          Sort By:
+          <select id="sortBy">
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="amount-desc">Highest Amount</option>
+            <option value="amount-asc">Lowest Amount</option>
+          </select>
+        </label>
+        <button id="exportCSV" class="action-button btn-gold" style="margin-left: auto;">
+          📥 Export CSV
+        </button>
+      </div>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="summary-value" id="totalEarned">$0.00</div>
+          <div class="summary-label">Total Earned</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="totalPaid">$0.00</div>
+          <div class="summary-label">Total Paid</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="totalPending">$0.00</div>
+          <div class="summary-label">Pending Payment</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="commissionCount">0</div>
+          <div class="summary-label">Total Commissions</div>
+        </div>
+      </div>
+
+      <div id="loading" class="text-center">
+        <p>Loading commissions...</p>
+      </div>
+
+      <div id="content" style="display: none;">
+        <div class="table-wrapper">
+          <table class="commission-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Business</th>
+                <th>Pro Payment</th>
+                <th>Commission</th>
+                <th>Status</th>
+                <th>Paid Date</th>
+              </tr>
+            </thead>
+            <tbody id="commissionsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="empty" style="display: none;" class="text-center mt-lg">
+        <p>No commissions found. Start referring businesses to earn commissions!</p>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading commissions. Please try again.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, query, where, getDocs, collectionGroup, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let currentUser = null;
+    let allCommissions = [];
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      currentUser = user;
+      await loadCommissions();
+    });
+
+    document.getElementById('filterStatus').addEventListener('change', renderCommissions);
+    document.getElementById('sortBy').addEventListener('change', renderCommissions);
+    document.getElementById('exportCSV').addEventListener('click', exportToCSV);
+
+    async function loadCommissions() {
+      try {
+        const commissionsQuery = query(
+          collectionGroup(db, "commissions"),
+          where("referrer_id", "==", currentUser.uid)
+        );
+        
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+        
+        if (commissionsSnapshot.empty) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('empty').style.display = 'block';
+          return;
+        }
+
+        const businessLookups = new Map();
+        
+        commissionsSnapshot.forEach(commissionDoc => {
+          const commission = commissionDoc.data();
+          const businessId = commissionDoc.ref.parent.parent.id;
+          
+          if (!businessLookups.has(businessId)) {
+            businessLookups.set(businessId, {
+              ref: commissionDoc.ref.parent.parent,
+              name: 'Unknown Business'
+            });
+          }
+          
+          allCommissions.push({
+            id: commissionDoc.id,
+            businessId: businessId,
+            ...commission
+          });
+        });
+
+        const businessPromises = Array.from(businessLookups.values()).map(item =>
+          getDoc(item.ref).catch(e => {
+            console.error('Error loading business:', e);
+            return null;
+          })
+        );
+
+        const businessDocs = await Promise.all(businessPromises);
+        
+        businessDocs.forEach((businessDoc, index) => {
+          if (businessDoc && businessDoc.exists()) {
+            const businessId = businessDoc.id;
+            businessLookups.get(businessId).name = businessDoc.data().business_name;
+          }
+        });
+
+        allCommissions = allCommissions.map(commission => ({
+          ...commission,
+          businessName: businessLookups.get(commission.businessId)?.name || 'Unknown Business'
+        }));
+
+        updateSummary();
+        renderCommissions();
+
+      } catch (error) {
+        console.error('Error loading commissions:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function updateSummary() {
+      const totalEarned = allCommissions.reduce((sum, c) => sum + (c.commission_amount || 0), 0);
+      const totalPaid = allCommissions.filter(c => c.commission_paid).reduce((sum, c) => sum + (c.commission_amount || 0), 0);
+      const totalPending = totalEarned - totalPaid;
+
+      document.getElementById('totalEarned').textContent = `$${totalEarned.toFixed(2)}`;
+      document.getElementById('totalPaid').textContent = `$${totalPaid.toFixed(2)}`;
+      document.getElementById('totalPending').textContent = `$${totalPending.toFixed(2)}`;
+      document.getElementById('commissionCount').textContent = allCommissions.length;
+    }
+
+    function renderCommissions() {
+      const filterStatus = document.getElementById('filterStatus').value;
+      const sortBy = document.getElementById('sortBy').value;
+
+      let filtered = [...allCommissions];
+
+      if (filterStatus === 'paid') {
+        filtered = filtered.filter(c => c.commission_paid);
+      } else if (filterStatus === 'pending') {
+        filtered = filtered.filter(c => !c.commission_paid);
+      }
+
+      filtered.sort((a, b) => {
+        if (sortBy === 'date-desc') {
+          return (b.created_at?.toDate() || 0) - (a.created_at?.toDate() || 0);
+        } else if (sortBy === 'date-asc') {
+          return (a.created_at?.toDate() || 0) - (b.created_at?.toDate() || 0);
+        } else if (sortBy === 'amount-desc') {
+          return (b.commission_amount || 0) - (a.commission_amount || 0);
+        } else if (sortBy === 'amount-asc') {
+          return (a.commission_amount || 0) - (b.commission_amount || 0);
+        }
+        return 0;
+      });
+
+      const tbody = document.getElementById('commissionsTableBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'none';
+        document.getElementById('empty').style.display = 'block';
+        return;
+      }
+
+      filtered.forEach(commission => {
+        const row = document.createElement('tr');
+        
+        const createdDate = commission.created_at?.toDate().toLocaleDateString() || 'Unknown';
+        const paidDate = commission.payment_date?.toDate().toLocaleDateString() || '-';
+        const statusBadge = commission.commission_paid 
+          ? '<span class="status-badge status-paid">Paid</span>'
+          : '<span class="status-badge status-pending">Pending</span>';
+
+        row.innerHTML = `
+          <td>${escapeHtml(createdDate)}</td>
+          <td>${escapeHtml(commission.businessName)}</td>
+          <td>$${(commission.pro_payment_amount || 0).toFixed(2)}</td>
+          <td>$${(commission.commission_amount || 0).toFixed(2)}</td>
+          <td>${statusBadge}</td>
+          <td>${escapeHtml(paidDate)}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function exportToCSV() {
+      if (allCommissions.length === 0) {
+        alert('No commissions to export');
+        return;
+      }
+
+      const headers = ['Date', 'Business', 'Pro Payment', 'Commission', 'Status', 'Paid Date'];
+      const rows = allCommissions.map(commission => {
+        const createdDate = commission.created_at?.toDate().toLocaleDateString() || 'Unknown';
+        const paidDate = commission.payment_date?.toDate().toLocaleDateString() || '-';
+        const status = commission.commission_paid ? 'Paid' : 'Pending';
+        
+        return [
+          createdDate,
+          `"${(commission.businessName || 'Unknown').replace(/"/g, '""')}"`,
+          (commission.pro_payment_amount || 0).toFixed(2),
+          (commission.commission_amount || 0).toFixed(2),
+          status,
+          paidDate
+        ].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kingdom-connects-commissions-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }
+  </script>
+  </div>
+</body>
+</html>

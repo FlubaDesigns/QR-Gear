@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Featured Businesses - Kingdom Connects Church Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .business-list {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .business-item {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid rgba(255, 215, 0, 0.2);
+    }
+    .business-item.featured {
+      border-color: #FFD700;
+      background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,165,0,0.05));
+    }
+    .featured-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+      color: #000;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-left: 0.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Featured Businesses</h2>
+      
+      <div id="loadingMessage" class="text-center p-md">Loading businesses...</div>
+
+      <div id="contentArea" style="display: none;">
+        <article class="card">
+          <h3 class="gold">Feature Management</h3>
+          <p>
+            As a church admin, you can highlight up to 5 member businesses on your church profile page.
+            This helps drive traffic to faith-aligned businesses in your congregation.
+          </p>
+          <p class="text-sm opacity-80">
+            <strong>Currently Featured:</strong> <span class="gold text-lg"><strong id="featuredCount">0</strong> / 5</span>
+          </p>
+        </article>
+
+        <div id="emptyState" class="text-center p-lg" style="display: none;">
+          <article class="card">
+            <h3 class="gold">No Member Businesses</h3>
+            <p>Your church doesn't have any member businesses to feature yet.</p>
+          </article>
+        </div>
+
+        <article class="card" id="businessListCard" style="display: none;">
+          <h3 class="gold">Member Businesses</h3>
+          <p class="help-text">Click "Feature" to highlight a business on your church profile. Click "Remove" to unfeature it.</p>
+          <div id="businessList" class="business-list"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let churchId = null;
+    let churchData = null;
+    let businesses = [];
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadChurch(user.email);
+    });
+
+    async function loadChurch(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const contentArea = document.getElementById('contentArea');
+
+      try {
+        const q = query(collection(db, "churches"), where("contact_email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.textContent = 'No church found for your account.';
+          loadingMessage.style.color = '#f44336';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        churchId = docSnap.id;
+        churchData = docSnap.data();
+
+        await loadBusinesses();
+
+        loadingMessage.style.display = 'none';
+        contentArea.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading church:', error);
+        loadingMessage.textContent = 'Error loading data: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function loadBusinesses() {
+      try {
+        const q = query(
+          collection(db, "business_listings"), 
+          where("church_id", "==", churchId),
+          where("listing_status", "==", "active")
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          document.getElementById('emptyState').style.display = 'block';
+          return;
+        }
+
+        businesses = [];
+        querySnapshot.forEach((doc) => {
+          businesses.push({ id: doc.id, ...doc.data() });
+        });
+
+        businesses.sort((a, b) => {
+          if (a.is_featured && !b.is_featured) return -1;
+          if (!a.is_featured && b.is_featured) return 1;
+          return (a.business_name || '').localeCompare(b.business_name || '');
+        });
+
+        renderBusinesses();
+        document.getElementById('businessListCard').style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading businesses:', error);
+        document.getElementById('emptyState').innerHTML = '<p class="error">Error loading businesses: ' + error.message + '</p>';
+        document.getElementById('emptyState').style.display = 'block';
+      }
+    }
+
+    function renderBusinesses() {
+      const businessList = document.getElementById('businessList');
+      businessList.innerHTML = '';
+
+      const featuredCount = businesses.filter(b => b.is_featured === true).length;
+      document.getElementById('featuredCount').textContent = featuredCount;
+
+      businesses.forEach((business) => {
+        const item = document.createElement('div');
+        item.className = 'business-item' + (business.is_featured ? ' featured' : '');
+
+        const isFeatured = business.is_featured === true;
+        const featuredBadge = isFeatured ? '<span class="featured-badge">FEATURED</span>' : '';
+
+        const businessInfo = document.createElement('div');
+        businessInfo.innerHTML = `
+          <div>
+            <strong class="gold">${escapeHtml(business.business_name || 'Unnamed Business')}</strong>${featuredBadge}
+            <p class="text-sm opacity-70 mt-xs">${escapeHtml(business.primary_category || 'Uncategorized')}</p>
+          </div>
+        `;
+
+        const actionBtn = document.createElement('button');
+        actionBtn.className = 'action-button btn-small';
+        
+        if (isFeatured) {
+          actionBtn.textContent = 'Remove';
+          actionBtn.classList.add('btn-danger');
+          actionBtn.onclick = () => toggleFeature(business.id, false);
+        } else {
+          actionBtn.textContent = 'Feature';
+          actionBtn.classList.add('btn-gold');
+          actionBtn.onclick = () => {
+            if (featuredCount >= 5) {
+              alert('You can only feature up to 5 businesses. Please remove one first.');
+              return;
+            }
+            toggleFeature(business.id, true);
+          };
+        }
+
+        item.appendChild(businessInfo);
+        item.appendChild(actionBtn);
+        businessList.appendChild(item);
+      });
+    }
+
+    async function toggleFeature(businessId, isFeatured) {
+      try {
+        await updateDoc(doc(db, "business_listings", businessId), {
+          is_featured: isFeatured
+        });
+
+        const business = businesses.find(b => b.id === businessId);
+        if (business) {
+          business.is_featured = isFeatured;
+        }
+
+        renderBusinesses();
+
+        const action = isFeatured ? 'featured' : 'unfeatured';
+        alert(`✅ Business ${action} successfully!`);
+
+      } catch (error) {
+        console.error('Error updating feature status:', error);
+        alert('❌ Error updating business: ' + error.message);
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

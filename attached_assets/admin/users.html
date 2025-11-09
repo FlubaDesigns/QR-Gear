@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Manage Users - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+
+  <style>
+    .user-table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .user-table {
+      width: 100%;
+      min-width: 900px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+    .user-table th {
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .user-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #333;
+    }
+    .user-table tr:hover {
+      background: rgba(212, 175, 55, 0.05);
+    }
+    .role-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .role-admin { background: #ff6b35; color: white; }
+    .role-church-admin { background: #4a90e2; color: white; }
+    .role-business-admin { background: #50c878; color: white; }
+    .role-sales { background: #f4a261; color: white; }
+    .role-user { background: #666; color: white; }
+    .status-active { background: #50c878; color: white; }
+    .status-suspended { background: #f4a261; color: white; }
+    .status-banned { background: #d32f2f; color: white; }
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn-small {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: var(--card-bg);
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 700px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .form-section {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #333;
+    }
+    .form-section:last-of-type {
+      border-bottom: none;
+    }
+    .form-section h4 {
+      color: var(--gold);
+      margin-top: 0;
+      margin-bottom: 1rem;
+    }
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 600px) {
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #333;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .stat-label {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">User Management</h2>
+      <p>Manage user accounts, assign roles, control access, and track activity across Kingdom Connects.</p>
+
+      <div class="stat-cards">
+        <div class="stat-card">
+          <div class="stat-value" id="totalUsers">0</div>
+          <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="adminCount">0</div>
+          <div class="stat-label">Administrators</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="businessOwners">0</div>
+          <div class="stat-label">Business Owners</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="salesAgents">0</div>
+          <div class="stat-label">Sales Agents</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="proUsers">0</div>
+          <div class="stat-label">Pro Users</div>
+        </div>
+      </div>
+
+      <div class="flex-gap-center mb-md">
+        <button id="btnCreateUser" class="action-button btn-gold">+ Create User</button>
+        <select id="filterRole" class="input-dark" style="max-width: 200px;">
+          <option value="">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="church-admin">Church Admin</option>
+          <option value="business-admin">Business Admin</option>
+          <option value="sales">Sales</option>
+          <option value="user">User</option>
+        </select>
+        <select id="filterStatus" class="input-dark" style="max-width: 200px;">
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+          <option value="banned">Banned</option>
+        </select>
+      </div>
+
+      <div id="loading" class="text-center mt-lg">
+        <p>Loading users...</p>
+      </div>
+
+      <div id="content" style="display: none;">
+        <div class="user-table-wrapper">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Pro</th>
+                <th>Listings</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="empty" style="display: none;" class="text-center mt-lg">
+        <p>No users found.</p>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading users. Please refresh the page.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <!-- Create/Edit User Modal -->
+  <div id="userModal" class="modal">
+    <div class="modal-content">
+      <h3 class="gold-metallic" id="modalTitle">Create User</h3>
+      <form id="userForm">
+        
+        <!-- Basic Information -->
+        <div class="form-section">
+          <h4>Basic Information</h4>
+          <div class="mb-md">
+            <label class="block font-bold mb-sm">Email *</label>
+            <input type="email" id="userEmail" required class="input-dark" maxlength="100">
+          </div>
+          <div class="mb-md">
+            <label class="block font-bold mb-sm">Full Name *</label>
+            <input type="text" id="userName" required class="input-dark" maxlength="100">
+          </div>
+          <div class="form-grid-2">
+            <div>
+              <label class="block font-bold mb-sm">Phone Number</label>
+              <input type="tel" id="userPhone" class="input-dark" maxlength="20">
+            </div>
+            <div>
+              <label class="block font-bold mb-sm">Profile Photo URL</label>
+              <input type="url" id="userPhoto" class="input-dark" maxlength="500">
+            </div>
+          </div>
+        </div>
+
+        <!-- Role & Status -->
+        <div class="form-section">
+          <h4>Role & Status</h4>
+          <div class="form-grid-2">
+            <div>
+              <label class="block font-bold mb-sm">Role *</label>
+              <select id="userRole" required class="input-dark">
+                <option value="user">User</option>
+                <option value="business-admin">Business Admin</option>
+                <option value="church-admin">Church Admin</option>
+                <option value="sales">Sales Agent</option>
+                <option value="admin">Platform Admin</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold mb-sm">Account Status *</label>
+              <select id="userStatus" required class="input-dark">
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+                <option value="banned">Banned</option>
+              </select>
+            </div>
+          </div>
+          <p class="text-sm text-muted mt-sm">
+            <strong>User:</strong> Basic access | <strong>Business Admin:</strong> Manage listings | 
+            <strong>Church Admin:</strong> Manage church | <strong>Sales:</strong> Track commissions | 
+            <strong>Admin:</strong> Full access
+          </p>
+        </div>
+
+        <!-- Sales Agent Details -->
+        <div class="form-section" id="salesSection" style="display: none;">
+          <h4>Sales Agent Details</h4>
+          <div class="mb-md">
+            <label class="block font-bold mb-sm">Referral Code</label>
+            <input type="text" id="userReferralCode" class="input-dark" maxlength="50" placeholder="e.g., JOHN2025">
+            <p class="text-sm text-muted mt-sm">Unique code for tracking referrals. Auto-generated if blank.</p>
+          </div>
+        </div>
+
+        <!-- Pro Status -->
+        <div class="form-section">
+          <h4>Pro Subscription Status</h4>
+          <div class="mb-md">
+            <label class="block font-bold mb-sm">
+              <input type="checkbox" id="userIsPro"> User has Pro business
+            </label>
+          </div>
+          <div class="form-grid-2" id="proFields" style="display: none;">
+            <div>
+              <label class="block font-bold mb-sm">Pro Start Date</label>
+              <input type="date" id="userProStart" class="input-dark">
+            </div>
+            <div>
+              <label class="block font-bold mb-sm">Pro End Date</label>
+              <input type="date" id="userProEnd" class="input-dark">
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Metrics -->
+        <div class="form-section">
+          <h4>Activity Metrics</h4>
+          <div class="form-grid-2">
+            <div>
+              <label class="block font-bold mb-sm">Listing Count</label>
+              <input type="number" id="userListingCount" class="input-dark" min="0" value="0">
+            </div>
+            <div>
+              <label class="block font-bold mb-sm">Review Count</label>
+              <input type="number" id="userReviewCount" class="input-dark" min="0" value="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="form-section">
+          <h4>Notifications</h4>
+          <div class="mb-md">
+            <label class="block font-bold mb-sm">
+              <input type="checkbox" id="userNotificationsEnabled" checked> Notifications Enabled
+            </label>
+          </div>
+          <div class="mb-md">
+            <label class="block font-bold mb-sm">
+              <input type="checkbox" id="userEmailVerified"> Email Verified
+            </label>
+          </div>
+        </div>
+
+        <!-- Admin Notes -->
+        <div class="form-section">
+          <h4>Admin Notes (Internal Only)</h4>
+          <textarea id="userAdminNotes" class="textarea-dark" rows="4" maxlength="1000" placeholder="Internal notes about this user..."></textarea>
+        </div>
+
+        <div id="modalStatus" class="mb-md text-center"></div>
+        <div class="flex-gap-center">
+          <button type="submit" class="action-button btn-gold">Save User</button>
+          <button type="button" id="btnCancelModal" class="action-button">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyAdminAccess } from "./js/admin-auth-guard.js";
+
+    let currentUser = null;
+    let allUsers = [];
+    let editingUserId = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAdmin = await verifyAdminAccess(user);
+      if (!isAdmin) return;
+      
+      currentUser = user;
+      await loadUsers();
+    });
+
+    document.getElementById('btnCreateUser').addEventListener('click', openCreateModal);
+    document.getElementById('btnCancelModal').addEventListener('click', closeModal);
+    document.getElementById('filterRole').addEventListener('change', renderUsers);
+    document.getElementById('filterStatus').addEventListener('change', renderUsers);
+    document.getElementById('userForm').addEventListener('submit', saveUser);
+    document.getElementById('userRole').addEventListener('change', toggleSalesSection);
+    document.getElementById('userIsPro').addEventListener('change', toggleProFields);
+
+    function toggleSalesSection() {
+      const role = document.getElementById('userRole').value;
+      document.getElementById('salesSection').style.display = role === 'sales' ? 'block' : 'none';
+    }
+
+    function toggleProFields() {
+      const isPro = document.getElementById('userIsPro').checked;
+      document.getElementById('proFields').style.display = isPro ? 'grid' : 'none';
+    }
+
+    async function loadUsers() {
+      try {
+        const usersQuery = query(collection(db, "users"), orderBy("created_at", "desc"));
+        const usersSnapshot = await getDocs(usersQuery);
+
+        if (usersSnapshot.empty) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('empty').style.display = 'block';
+          return;
+        }
+
+        allUsers = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        updateStats();
+        renderUsers();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading users:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function updateStats() {
+      const totalUsers = allUsers.length;
+      const adminCount = allUsers.filter(u => u.role === 'admin').length;
+      const businessOwners = allUsers.filter(u => u.role === 'business-admin').length;
+      const salesAgents = allUsers.filter(u => u.role === 'sales').length;
+      const proUsers = allUsers.filter(u => u.is_pro_user === true).length;
+
+      document.getElementById('totalUsers').textContent = totalUsers;
+      document.getElementById('adminCount').textContent = adminCount;
+      document.getElementById('businessOwners').textContent = businessOwners;
+      document.getElementById('salesAgents').textContent = salesAgents;
+      document.getElementById('proUsers').textContent = proUsers;
+    }
+
+    function renderUsers() {
+      const filterRole = document.getElementById('filterRole').value;
+      const filterStatus = document.getElementById('filterStatus').value;
+      let filtered = [...allUsers];
+
+      if (filterRole) {
+        filtered = filtered.filter(u => u.role === filterRole);
+      }
+      if (filterStatus) {
+        filtered = filtered.filter(u => (u.account_status || 'active') === filterStatus);
+      }
+
+      const tbody = document.getElementById('userTableBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="8" style="text-align: center; padding: 2rem; color: #aaa;">No users match the selected filters</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      filtered.forEach(user => {
+        const tr = document.createElement('tr');
+        
+        const roleClass = `role-${user.role || 'user'}`;
+        const statusClass = `status-${user.account_status || 'active'}`;
+        const createdDate = user.created_at?.toDate ? user.created_at.toDate().toLocaleDateString() : 'N/A';
+        const proIcon = user.is_pro_user ? '⭐' : '-';
+        const listingCount = user.listing_count || 0;
+
+        tr.innerHTML = `
+          <td>${escapeHtml(user.email || 'No email')}</td>
+          <td>${escapeHtml(user.name || 'N/A')}</td>
+          <td><span class="role-badge ${roleClass}">${escapeHtml(user.role || 'user')}</span></td>
+          <td><span class="status-badge ${statusClass}">${escapeHtml(user.account_status || 'active')}</span></td>
+          <td style="text-align: center;">${proIcon}</td>
+          <td style="text-align: center;">${listingCount}</td>
+          <td>${createdDate}</td>
+          <td>
+            <div class="action-buttons">
+              <button class="action-button btn-small" onclick="window.editUser('${user.id}')">Edit</button>
+              <button class="action-button btn-small" style="background: #d32f2f;" onclick="window.deleteUser('${user.id}', '${escapeHtml(user.email || 'this user')}')">Delete</button>
+            </div>
+          </td>
+        `;
+        
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openCreateModal() {
+      editingUserId = null;
+      document.getElementById('modalTitle').textContent = 'Create User';
+      document.getElementById('userForm').reset();
+      document.getElementById('userStatus').value = 'active';
+      document.getElementById('userNotificationsEnabled').checked = true;
+      document.getElementById('modalStatus').textContent = '';
+      document.getElementById('salesSection').style.display = 'none';
+      document.getElementById('proFields').style.display = 'none';
+      document.getElementById('userModal').style.display = 'flex';
+    }
+
+    window.editUser = function(userId) {
+      const user = allUsers.find(u => u.id === userId);
+      if (!user) return;
+
+      editingUserId = userId;
+      document.getElementById('modalTitle').textContent = 'Edit User';
+      
+      document.getElementById('userEmail').value = user.email || '';
+      document.getElementById('userName').value = user.name || '';
+      document.getElementById('userPhone').value = user.phone_number || '';
+      document.getElementById('userPhoto').value = user.profile_photo_url || '';
+      document.getElementById('userRole').value = user.role || 'user';
+      document.getElementById('userStatus').value = user.account_status || 'active';
+      document.getElementById('userReferralCode').value = user.referral_code || '';
+      document.getElementById('userIsPro').checked = user.is_pro_user || false;
+      document.getElementById('userListingCount').value = user.listing_count || 0;
+      document.getElementById('userReviewCount').value = user.review_count || 0;
+      document.getElementById('userNotificationsEnabled').checked = user.notifications_enabled !== false;
+      document.getElementById('userEmailVerified').checked = user.is_email_verified || false;
+      document.getElementById('userAdminNotes').value = user.admin_notes || '';
+      
+      if (user.pro_start_date?.toDate) {
+        document.getElementById('userProStart').value = user.pro_start_date.toDate().toISOString().split('T')[0];
+      }
+      if (user.pro_end_date?.toDate) {
+        document.getElementById('userProEnd').value = user.pro_end_date.toDate().toISOString().split('T')[0];
+      }
+      
+      toggleSalesSection();
+      toggleProFields();
+      document.getElementById('modalStatus').textContent = '';
+      document.getElementById('userModal').style.display = 'flex';
+    };
+
+    window.deleteUser = async function(userId, userEmail) {
+      if (!confirm(`Are you sure you want to delete ${userEmail}? This action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await deleteDoc(doc(db, "users", userId));
+        alert('User deleted successfully');
+        await loadUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Error deleting user: ' + error.message);
+      }
+    };
+
+    function closeModal() {
+      document.getElementById('userModal').style.display = 'none';
+      document.getElementById('userForm').reset();
+      editingUserId = null;
+    }
+
+    async function saveUser(e) {
+      e.preventDefault();
+
+      const statusDiv = document.getElementById('modalStatus');
+      statusDiv.style.color = '#ccc';
+      statusDiv.textContent = 'Saving...';
+
+      const userData = {
+        email: document.getElementById('userEmail').value.trim(),
+        name: document.getElementById('userName').value.trim(),
+        phone_number: document.getElementById('userPhone').value.trim() || null,
+        profile_photo_url: document.getElementById('userPhoto').value.trim() || null,
+        role: document.getElementById('userRole').value,
+        account_status: document.getElementById('userStatus').value,
+        is_pro_user: document.getElementById('userIsPro').checked,
+        listing_count: parseInt(document.getElementById('userListingCount').value) || 0,
+        review_count: parseInt(document.getElementById('userReviewCount').value) || 0,
+        notifications_enabled: document.getElementById('userNotificationsEnabled').checked,
+        is_email_verified: document.getElementById('userEmailVerified').checked,
+        admin_notes: document.getElementById('userAdminNotes').value.trim() || null,
+        updated_at: serverTimestamp()
+      };
+
+      if (document.getElementById('userRole').value === 'sales') {
+        let referralCode = document.getElementById('userReferralCode').value.trim();
+        if (!referralCode && !editingUserId) {
+          referralCode = userData.name.substring(0, 4).toUpperCase() + Math.floor(Math.random() * 10000);
+        }
+        userData.referral_code = referralCode || null;
+      }
+
+      if (userData.is_pro_user) {
+        const startDate = document.getElementById('userProStart').value;
+        const endDate = document.getElementById('userProEnd').value;
+        userData.pro_start_date = startDate ? Timestamp.fromDate(new Date(startDate)) : null;
+        userData.pro_end_date = endDate ? Timestamp.fromDate(new Date(endDate)) : null;
+      } else {
+        userData.pro_start_date = null;
+        userData.pro_end_date = null;
+      }
+
+      try {
+        if (editingUserId) {
+          await updateDoc(doc(db, "users", editingUserId), userData);
+          statusDiv.style.color = '#50c878';
+          statusDiv.textContent = 'User updated successfully!';
+        } else {
+          userData.created_at = serverTimestamp();
+          userData.last_login = null;
+          userData.last_activity = null;
+          await addDoc(collection(db, "users"), userData);
+          statusDiv.style.color = '#50c878';
+          statusDiv.textContent = 'User created successfully!';
+        }
+
+        setTimeout(() => {
+          closeModal();
+          loadUsers();
+        }, 1000);
+
+      } catch (error) {
+        console.error('Error saving user:', error);
+        statusDiv.style.color = '#ff6b6b';
+        statusDiv.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    window.addEventListener('click', (e) => {
+      if (e.target.id === 'userModal') {
+        closeModal();
+      }
+    });
+  </script>
+  </div>
+</body>
+</html>

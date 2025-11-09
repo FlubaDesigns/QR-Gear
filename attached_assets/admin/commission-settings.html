@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Commission Settings - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .policy-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .policy-card.active {
+      border-color: var(--gold);
+    }
+    .split-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+    .split-item {
+      background: rgba(255,255,255,0.03);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 2px solid transparent;
+    }
+    .split-item.church { border-color: #4caf50; }
+    .split-item.salesperson { border-color: #2196f3; }
+    .split-item.director { border-color: #ff9800; }
+    .split-item.kc { border-color: var(--gold); }
+    
+    .split-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .split-value {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .split-amount {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+    .total-check {
+      background: rgba(76, 175, 80, 0.1);
+      border: 2px solid #4caf50;
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .total-check.invalid {
+      background: rgba(244, 67, 54, 0.1);
+      border-color: #f44336;
+    }
+    .validation-message {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1 class="gold-metallic">Commission Settings</h1>
+        <button class="action-button btn-gold" id="saveSettingsBtn">Save Changes</button>
+      </div>
+
+      <p class="text-muted">Configure how Pro subscription revenue is split between stakeholders. Changes apply to all future Pro payments.</p>
+
+      <div class="policy-card active">
+        <h2 class="gold">Default Commission Policy</h2>
+        <p class="text-muted">Revenue split for every Pro subscription ($8.99/month or $74.99/year)</p>
+
+        <div class="split-grid">
+          <div class="split-item church">
+            <div class="split-label">Church Share</div>
+            <div class="split-value">
+              <input type="number" id="churchPercent" class="input-dark" style="width: 100px; font-size: 2rem; text-align: center; background: transparent; border: none; color: var(--gold);" value="10" min="0" max="100" step="0.1">%
+            </div>
+            <div class="split-amount" id="churchAmount">$0.90 per monthly</div>
+          </div>
+
+          <div class="split-item salesperson">
+            <div class="split-label">Salesperson Share</div>
+            <div class="split-value">
+              <input type="number" id="salespersonPercent" class="input-dark" style="width: 100px; font-size: 2rem; text-align: center; background: transparent; border: none; color: var(--gold);" value="5" min="0" max="100" step="0.1">%
+            </div>
+            <div class="split-amount" id="salespersonAmount">$0.45 per monthly</div>
+          </div>
+
+          <div class="split-item director">
+            <div class="split-label">Sales Director Share</div>
+            <div class="split-value">
+              <input type="number" id="directorPercent" class="input-dark" style="width: 100px; font-size: 2rem; text-align: center; background: transparent; border: none; color: var(--gold);" value="30" min="0" max="100" step="0.1">%
+            </div>
+            <div class="split-amount" id="directorAmount">$2.70 per monthly</div>
+          </div>
+
+          <div class="split-item kc">
+            <div class="split-label">Kingdom Connect</div>
+            <div class="split-value" id="kcPercent">55%</div>
+            <div class="split-amount" id="kcAmount">$4.94 per monthly</div>
+          </div>
+        </div>
+
+        <div id="totalCheck" class="total-check">
+          <div class="validation-message">✓ Total: <span id="totalPercent">100</span>%</div>
+        </div>
+
+        <div class="card" style="margin-top: 2rem; background: rgba(255,193,7,0.1); border: 2px solid #ffc107;">
+          <h3 style="color: #ffc107;">💡 How Commissions Work</h3>
+          <ul style="line-height: 1.8;">
+            <li><strong>Recurring Monthly:</strong> As long as business stays Pro, all parties get paid monthly</li>
+            <li><strong>Church:</strong> 10% goes to the business's home church</li>
+            <li><strong>Salesperson:</strong> 5% goes to whoever signed that church</li>
+            <li><strong>Sales Director:</strong> 30% goes to whoever recruited that salesperson</li>
+            <li><strong>Kingdom Connect:</strong> Remainder (55%) for operations/profit</li>
+          </ul>
+        </div>
+
+        <div class="card" style="margin-top: 1rem;">
+          <h3 class="gold">Required Fields for Commission Tracking</h3>
+          <p>Every Pro business MUST have these fields populated in Firestore:</p>
+          <ul style="line-height: 1.8;">
+            <li><code>home_church_id</code> - Which church gets the 10%</li>
+            <li><code>referring_salesperson_id</code> - Who gets the 5%</li>
+            <li><code>sales_director_id</code> - Who gets the 30%</li>
+          </ul>
+          <p class="text-muted">See MISSING-FIREBASE-FIELDS.md for complete setup instructions.</p>
+        </div>
+      </div>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  <script src="js/admin-auth-guard.js" defer></script>
+  <script src="../js/breadcrumbs.js" defer></script>
+
+  <script type="module">
+    import { db } from '../js/firebase-config.js';
+    import { doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const MONTHLY_PRO_PRICE = 8.99;
+    const YEARLY_PRO_PRICE = 74.99;
+
+    const churchInput = document.getElementById('churchPercent');
+    const salespersonInput = document.getElementById('salespersonPercent');
+    const directorInput = document.getElementById('directorPercent');
+    const kcPercentDisplay = document.getElementById('kcPercent');
+    const totalPercentDisplay = document.getElementById('totalPercent');
+    const totalCheck = document.getElementById('totalCheck');
+
+    async function loadSettings() {
+      try {
+        const policyDoc = await getDoc(doc(db, 'commission_policies', 'default'));
+        
+        if (policyDoc.exists()) {
+          const data = policyDoc.data();
+          churchInput.value = data.church_percentage || 10;
+          salespersonInput.value = data.salesperson_percentage || 5;
+          directorInput.value = data.sales_director_percentage || 30;
+        }
+        
+        updateCalculations();
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    }
+
+    function updateCalculations() {
+      const church = parseFloat(churchInput.value) || 0;
+      const salesperson = parseFloat(salespersonInput.value) || 0;
+      const director = parseFloat(directorInput.value) || 0;
+      const kc = 100 - church - salesperson - director;
+      
+      kcPercentDisplay.textContent = kc.toFixed(1) + '%';
+      
+      document.getElementById('churchAmount').textContent = `$${(MONTHLY_PRO_PRICE * church / 100).toFixed(2)} per monthly`;
+      document.getElementById('salespersonAmount').textContent = `$${(MONTHLY_PRO_PRICE * salesperson / 100).toFixed(2)} per monthly`;
+      document.getElementById('directorAmount').textContent = `$${(MONTHLY_PRO_PRICE * director / 100).toFixed(2)} per monthly`;
+      document.getElementById('kcAmount').textContent = `$${(MONTHLY_PRO_PRICE * kc / 100).toFixed(2)} per monthly`;
+      
+      const total = church + salesperson + director + kc;
+      totalPercentDisplay.textContent = total.toFixed(1);
+      
+      if (Math.abs(total - 100) < 0.01) {
+        totalCheck.classList.remove('invalid');
+        totalCheck.querySelector('.validation-message').innerHTML = `✓ Total: ${total.toFixed(1)}%`;
+      } else {
+        totalCheck.classList.add('invalid');
+        totalCheck.querySelector('.validation-message').innerHTML = `⚠ Total: ${total.toFixed(1)}% (must equal 100%)`;
+      }
+    }
+
+    churchInput.addEventListener('input', updateCalculations);
+    salespersonInput.addEventListener('input', updateCalculations);
+    directorInput.addEventListener('input', updateCalculations);
+
+    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+      const church = parseFloat(churchInput.value) || 0;
+      const salesperson = parseFloat(salespersonInput.value) || 0;
+      const director = parseFloat(directorInput.value) || 0;
+      const kc = 100 - church - salesperson - director;
+      
+      const total = church + salesperson + director + kc;
+      
+      if (Math.abs(total - 100) > 0.01) {
+        alert('Error: Percentages must add up to 100%');
+        return;
+      }
+      
+      if (church < 0 || salesperson < 0 || director < 0 || kc < 0) {
+        alert('Error: All percentages must be 0 or greater');
+        return;
+      }
+      
+      const saveBtn = document.getElementById('saveSettingsBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+      
+      try {
+        await setDoc(doc(db, 'commission_policies', 'default'), {
+          policy_name: 'Default Commission Split',
+          church_percentage: church,
+          salesperson_percentage: salesperson,
+          sales_director_percentage: director,
+          kingdom_connect_percentage: kc,
+          active: true,
+          updated_at: serverTimestamp()
+        }, { merge: true });
+        
+        alert('Commission settings saved successfully!');
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('Error saving settings. Please try again.');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+      }
+    });
+
+    loadSettings();
+  </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Suggest a Category - Kingdom Connects</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- CSS (shared across site) -->
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+
+  <style>
+    .suggestion-status {
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+    }
+    .status-pending { border-left: 4px solid #FFA500; }
+    .status-approved { border-left: 4px solid #4CAF50; }
+    .status-denied { border-left: 4px solid #f44336; }
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-pending { background: #FFA500; color: #000; }
+    .badge-approved { background: #4CAF50; color: #fff; }
+    .badge-denied { background: #f44336; color: #fff; }
+    .admin-feedback {
+      
+      padding: 0.75rem;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Suggest a New Category</h2>
+      <p>Don't see your business type in our category list? Suggest a new category and our admin team will review it!</p>
+
+      <!-- Suggestion Form -->
+      <article class="card">
+        <h3 class="gold">Submit Category Suggestion</h3>
+        <form id="suggestionForm">
+          <div class="form-group">
+            <label for="suggestedLabel">Category Name<span class="error-text">*</span></label>
+            <input type="text" id="suggestedLabel" name="suggestedLabel" required 
+                   placeholder="e.g., Mobile Car Wash Services"
+                   style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff;">
+            <p class="text-sm opacity-70 mt-sm">Enter the display name for the category</p>
+          </div>
+
+          <div class="form-group" >
+            <label for="description">Why is this category needed?<span class="error-text">*</span></label>
+            <textarea id="description" name="description" required rows="4"
+                      placeholder="Explain what types of businesses this category would serve and why it's needed..."
+                      class="textarea-rounded"></textarea>
+            <p class="text-sm opacity-70 mt-sm">Help us understand the need for this category (minimum 20 characters)</p>
+          </div>
+
+          <div id="formMessage" class="m-block"></div>
+
+          <button type="submit" class="action-button btn-gold" id="submitBtn">Submit Suggestion</button>
+        </form>
+      </article>
+
+      <!-- My Suggestions -->
+      <article class="card">
+        <h3 class="gold">My Suggestions</h3>
+        <div id="suggestionsList">
+          <p class="opacity-60">Loading your suggestions...</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <!-- Business Admin header/footer -->
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBXi91kVuqJdwwsY9be8KCM_f8r5lFTdnM",
+      authDomain: "kingdom-connects.firebaseapp.com",
+      projectId: "kingdom-connects",
+      storageBucket: "kingdom-connects.firebasestorage.app",
+      messagingSenderId: "863800499672",
+      appId: "1:863800499672:web:d72c579bfcad41a7b3c88c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+
+    // Create slug from label
+    function createSlug(label) {
+      return label
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    }
+
+    // Load user's suggestions
+    async function loadSuggestions(userId) {
+      try {
+        const q = query(
+          collection(db, 'category_suggestions'),
+          where('suggested_by', '==', userId),
+          orderBy('created_at', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        
+        const suggestionsContainer = document.getElementById('suggestionsList');
+        
+        if (snapshot.empty) {
+          suggestionsContainer.innerHTML = '<p class="opacity-60">You haven\'t submitted any category suggestions yet.</p>';
+          return;
+        }
+
+        suggestionsContainer.innerHTML = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const statusClass = `status-${data.status}`;
+          const badgeClass = `badge-${data.status}`;
+          const date = data.created_at ? new Date(data.created_at.toDate()).toLocaleDateString() : 'Unknown date';
+          
+          const feedbackHTML = data.admin_feedback ? `
+            <div class="admin-feedback">
+              <strong>Admin Response:</strong><br>
+              ${data.admin_feedback}
+            </div>
+          ` : '';
+
+          return `
+            <div class="suggestion-status ${statusClass}">
+              <div class="flex-between">
+                <h4 class="m-0 gold">${data.suggested_label}</h4>
+                <span class="status-badge ${badgeClass}">${data.status}</span>
+              </div>
+              <p class="opacity-80 m-block-sm">${data.description}</p>
+              <p class="text-sm opacity-60 m-block-sm">
+                Submitted: ${date}
+                ${data.reviewed_at ? ` • Reviewed: ${new Date(data.reviewed_at.toDate()).toLocaleDateString()}` : ''}
+              </p>
+              ${feedbackHTML}
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading suggestions:', error);
+        document.getElementById('suggestionsList').innerHTML = '<p class="error-text">Error loading suggestions. Please refresh the page.</p>';
+      }
+    }
+
+    // Handle form submission
+    document.getElementById('suggestionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!currentUser) {
+        showMessage('Please log in to submit suggestions.', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      const formMessage = document.getElementById('formMessage');
+      
+      const suggestedLabel = document.getElementById('suggestedLabel').value.trim();
+      const description = document.getElementById('description').value.trim();
+
+      // Validation
+      if (suggestedLabel.length < 3) {
+        showMessage('Category name must be at least 3 characters.', 'error');
+        return;
+      }
+
+      if (description.length < 20) {
+        showMessage('Please provide a more detailed explanation (minimum 20 characters).', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      formMessage.innerHTML = '';
+
+      try {
+        const suggestedSlug = createSlug(suggestedLabel);
+
+        await addDoc(collection(db, 'category_suggestions'), {
+          suggested_by: currentUser.uid,
+          suggested_slug: suggestedSlug,
+          suggested_label: suggestedLabel,
+          description: description,
+          status: 'pending',
+          created_at: serverTimestamp()
+        });
+
+        showMessage('✓ Category suggestion submitted successfully! Our admin team will review it shortly.', 'success');
+        document.getElementById('suggestionForm').reset();
+        
+        // Reload suggestions
+        await loadSuggestions(currentUser.uid);
+      } catch (error) {
+        console.error('Error submitting suggestion:', error);
+        showMessage('⚠️ Error submitting suggestion. Please try again.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Suggestion';
+      }
+    });
+
+    function showMessage(message, type) {
+      const formMessage = document.getElementById('formMessage');
+      formMessage.innerHTML = `
+        <p style="padding: 1rem; border-radius: 8px; background: ${type === 'success' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)'}; color: ${type === 'success' ? '#4CAF50' : '#f44336'};">
+          ${message}
+        </p>
+      `;
+    }
+
+    // Auth check
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = '../login.html';
+      } else {
+        currentUser = user;
+        loadSuggestions(user.uid);
+      }
+    });
+  </script>
+  </div>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Sales Team - Kingdom Connects Sales</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .agent-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border-left: 4px solid var(--gold);
+    }
+    .agent-card h3 {
+      margin-top: 0;
+      color: var(--gold);
+    }
+    .agent-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #333;
+    }
+    .agent-stat:last-child {
+      border-bottom: none;
+    }
+    .agent-stat label {
+      color: #aaa;
+    }
+    .agent-stat value {
+      color: var(--text-color);
+      font-weight: 600;
+    }
+    .info-box {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      border-left: 4px solid #2196F3;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Sales Team Management</h2>
+      <p>View sales agent performance and team hierarchy (managers only).</p>
+
+      <div class="info-box">
+        <h3 style="margin-top: 0; color: #2196F3;">🎯 Sales Team Features</h3>
+        <p><strong>For Sales Managers:</strong> View your team's performance, track individual agent commissions, and monitor overall sales metrics.</p>
+        <p><strong>For Sales Agents:</strong> This page shows your own performance stats.</p>
+        <p style="margin-bottom: 0;"><strong>Note:</strong> Team hierarchy management and commission splits will be configured by platform admins.</p>
+      </div>
+
+      <div id="loading" class="text-center">
+        <p>Loading sales team data...</p>
+      </div>
+
+      <div id="content" style="display: none;">
+        <h3 class="gold-metallic">Your Performance</h3>
+        <div class="agents-grid" id="agentsList"></div>
+      </div>
+
+      <div id="noAccess" style="display: none;" class="text-center mt-lg">
+        <p>You do not have sales team access. Contact an administrator for assistance.</p>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading team data. Please try again.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, query, where, getDocs, collectionGroup, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let currentUser = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      currentUser = user;
+      await loadAgentData();
+    });
+
+    async function loadAgentData() {
+      try {
+        const commissionsQuery = query(
+          collectionGroup(db, "commissions"),
+          where("referrer_id", "==", currentUser.uid)
+        );
+        
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+        
+        let totalCommissions = 0;
+        let paidCommissions = 0;
+        let pendingCommissions = 0;
+        let activeClients = new Set();
+
+        commissionsSnapshot.forEach(doc => {
+          const commission = doc.data();
+          const amount = commission.commission_amount || 0;
+          
+          totalCommissions += amount;
+          
+          if (commission.commission_paid) {
+            paidCommissions += amount;
+          } else {
+            pendingCommissions += amount;
+          }
+
+          const businessId = doc.ref.parent.parent.id;
+          activeClients.add(businessId);
+        });
+
+        renderAgentCard({
+          name: currentUser.displayName || currentUser.email || 'You',
+          totalCommissions: totalCommissions,
+          paidCommissions: paidCommissions,
+          pendingCommissions: pendingCommissions,
+          activeClients: activeClients.size,
+          totalReferrals: commissionsSnapshot.size
+        });
+
+      } catch (error) {
+        console.error('Error loading agent data:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function renderAgentCard(agent) {
+      const container = document.getElementById('agentsList');
+      container.innerHTML = '';
+
+      const card = document.createElement('div');
+      card.className = 'agent-card';
+
+      card.innerHTML = `
+        <h3>${escapeHtml(agent.name)}</h3>
+        <div class="agent-stat">
+          <label>Total Earned:</label>
+          <value>$${agent.totalCommissions.toFixed(2)}</value>
+        </div>
+        <div class="agent-stat">
+          <label>Paid Out:</label>
+          <value style="color: #4caf50;">$${agent.paidCommissions.toFixed(2)}</value>
+        </div>
+        <div class="agent-stat">
+          <label>Pending:</label>
+          <value style="color: #ff9800;">$${agent.pendingCommissions.toFixed(2)}</value>
+        </div>
+        <div class="agent-stat">
+          <label>Active Clients:</label>
+          <value>${agent.activeClients}</value>
+        </div>
+        <div class="agent-stat">
+          <label>Total Referrals:</label>
+          <value>${agent.totalReferrals}</value>
+        </div>
+      `;
+
+      container.appendChild(card);
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

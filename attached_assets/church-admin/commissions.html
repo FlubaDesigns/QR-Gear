@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Commission Earnings - Kingdom Connects</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .earnings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .earnings-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 2px solid var(--border-color);
+      text-align: center;
+    }
+    .earnings-card:hover {
+      border-color: var(--gold);
+    }
+    .earnings-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .earnings-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .commission-table {
+      width: 100%;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .commission-table th {
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .commission-table td {
+      padding: 1rem;
+      border-top: 1px solid #333;
+    }
+    .commission-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .status-paid {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4caf50;
+    }
+    .status-pending {
+      background: rgba(255, 152, 0, 0.2);
+      color: #ff9800;
+    }
+  </style>
+</head>
+
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1 class="gold-metallic">Church Commission Earnings</h1>
+        <button class="action-button btn-gold" id="exportBtn">Export CSV</button>
+      </div>
+
+      <p class="text-muted">Your church receives 10% of every Pro subscription from member businesses as a recurring monthly offering.</p>
+
+      <div class="earnings-grid">
+        <div class="earnings-card">
+          <div class="earnings-value" id="monthlyEarnings">$0.00</div>
+          <div class="earnings-label">This Month</div>
+        </div>
+        <div class="earnings-card">
+          <div class="earnings-value" id="ytdEarnings">$0.00</div>
+          <div class="earnings-label">Year-to-Date</div>
+        </div>
+        <div class="earnings-card">
+          <div class="earnings-value" id="lifetimeEarnings">$0.00</div>
+          <div class="earnings-label">Lifetime Total</div>
+        </div>
+        <div class="earnings-card">
+          <div class="earnings-value" id="unpaidBalance">$0.00</div>
+          <div class="earnings-label">Pending Payment</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="gold">Commission History</h2>
+        <div id="loading">
+          <p class="status-message">Loading commission history...</p>
+        </div>
+
+        <div id="emptyState" style="display: none;">
+          <p class="status-message empty">No commission earnings yet. Encourage your member businesses to upgrade to Pro!</p>
+        </div>
+
+        <div id="tableWrapper" style="display: none;">
+          <table class="commission-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Business</th>
+                <th>Pro Payment</th>
+                <th>Your 10%</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="commissionsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="background: rgba(76, 175, 80, 0.1); border: 2px solid #4caf50;">
+        <h3 style="color: #4caf50;">💚 How Church Commissions Work</h3>
+        <ul style="line-height: 1.8;">
+          <li><strong>10% Share:</strong> Your church receives 10% of every Pro subscription payment</li>
+          <li><strong>Recurring Monthly:</strong> As long as the business stays Pro, you keep receiving</li>
+          <li><strong>Member Businesses:</strong> Only businesses linked to your church generate commissions</li>
+          <li><strong>Kingdom Commerce:</strong> Supporting your members supports your ministry</li>
+        </ul>
+      </div>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  <script src="js/church-auth-guard.js" defer></script>
+  <script src="../js/breadcrumbs.js" defer></script>
+
+  <script type="module">
+    import { db } from '../js/firebase-config.js';
+    import { collection, query, where, getDocs, getDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    const auth = getAuth();
+    let currentChurchId = null;
+    let allCommissions = [];
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentChurchId = user.uid;
+        await loadEarnings();
+      }
+    });
+
+    async function loadEarnings() {
+      try {
+        const churchDoc = await getDoc(doc(db, 'churches', currentChurchId));
+        
+        if (churchDoc.exists()) {
+          const data = churchDoc.data();
+          document.getElementById('monthlyEarnings').textContent = `$${(data.monthly_commission_total || 0).toFixed(2)}`;
+          document.getElementById('ytdEarnings').textContent = `$${(data.ytd_commission_total || 0).toFixed(2)}`;
+          document.getElementById('lifetimeEarnings').textContent = `$${(data.total_commission_earned || 0).toFixed(2)}`;
+          document.getElementById('unpaidBalance').textContent = `$${(data.unpaid_commission_balance || 0).toFixed(2)}`;
+        }
+
+        const ledgerQuery = query(
+          collection(db, 'commission_ledger'),
+          where('recipient_type', '==', 'church'),
+          where('recipient_id', '==', currentChurchId)
+        );
+        
+        const ledgerSnapshot = await getDocs(ledgerQuery);
+        
+        if (ledgerSnapshot.empty) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('emptyState').style.display = 'block';
+          return;
+        }
+
+        allCommissions = await Promise.all(ledgerSnapshot.docs.map(async (ledgerDoc) => {
+          const data = ledgerDoc.data();
+          
+          let businessName = 'Unknown Business';
+          if (data.business_id) {
+            const businessDoc = await getDoc(doc(db, 'business_listings', data.business_id));
+            if (businessDoc.exists()) {
+              businessName = businessDoc.data().business_name || 'Unknown Business';
+            }
+          }
+          
+          return {
+            date: data.billing_date?.toDate() || new Date(),
+            businessName: businessName,
+            proAmount: data.pro_amount || 0,
+            churchAmount: data.amount || 0,
+            status: data.status || 'pending'
+          };
+        }));
+
+        renderTable();
+
+      } catch (error) {
+        console.error('Error loading earnings:', error);
+        document.getElementById('loading').innerHTML = '<p class="status-message error">Error loading earnings. Please try again.</p>';
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('commissionsBody');
+      tbody.innerHTML = '';
+
+      allCommissions.sort((a, b) => b.date - a.date).forEach(comm => {
+        const row = document.createElement('tr');
+        const statusBadge = comm.status === 'paid' 
+          ? '<span class="status-badge status-paid">Paid</span>'
+          : '<span class="status-badge status-pending">Pending</span>';
+
+        row.innerHTML = `
+          <td>${comm.date.toLocaleDateString()}</td>
+          <td>${comm.businessName}</td>
+          <td>$${comm.proAmount.toFixed(2)}</td>
+          <td>$${comm.churchAmount.toFixed(2)}</td>
+          <td>${statusBadge}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('tableWrapper').style.display = 'block';
+    }
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      if (allCommissions.length === 0) {
+        alert('No commission data to export');
+        return;
+      }
+
+      const headers = ['Date', 'Business', 'Pro Payment', 'Church 10%', 'Status'];
+      const rows = allCommissions.map(c => [
+        c.date.toLocaleDateString(),
+        `"${c.businessName.replace(/"/g, '""')}"`,
+        c.proAmount.toFixed(2),
+        c.churchAmount.toFixed(2),
+        c.status
+      ].join(','));
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `church-commissions-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

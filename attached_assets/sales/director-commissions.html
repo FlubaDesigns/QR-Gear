@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Director Commissions - Kingdom Connects Sales</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .earnings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .earnings-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 2px solid var(--border-color);
+      text-align: center;
+    }
+    .earnings-card.highlight {
+      border-color: var(--gold);
+    }
+    .earnings-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .earnings-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .team-table {
+      width: 100%;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .team-table th {
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .team-table td {
+      padding: 1rem;
+      border-top: 1px solid #333;
+    }
+    .team-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Sales Director Dashboard</h2>
+      <p>Track your team's performance and your 30% override commissions.</p>
+
+      <div class="earnings-grid">
+        <div class="earnings-card highlight">
+          <div class="earnings-value" id="directorMonthly">$0.00</div>
+          <div class="earnings-label">Director Commission (This Month)</div>
+        </div>
+        <div class="earnings-card">
+          <div class="earnings-value" id="directorYTD">$0.00</div>
+          <div class="earnings-label">Director YTD</div>
+        </div>
+        <div class="earnings-card">
+          <div class="earnings-value" id="directorLifetime">$0.00</div>
+          <div class="earnings-label">Director Lifetime</div>
+        </div>
+        <div class="earnings-card">
+          <div class="earnings-value" id="teamSize">0</div>
+          <div class="earnings-label">Team Members</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="gold">Your Sales Team Performance</h3>
+        <p class="text-muted">You earn 30% on all Pro subscriptions sold by your team members.</p>
+
+        <div id="loading">
+          <p>Loading team data...</p>
+        </div>
+
+        <div id="emptyState" style="display: none;">
+          <p class="text-muted">No team members yet. Recruit salespeople to start earning override commissions!</p>
+        </div>
+
+        <div id="teamWrapper" style="display: none;">
+          <table class="team-table">
+            <thead>
+              <tr>
+                <th>Salesperson</th>
+                <th>Active Referrals</th>
+                <th>Monthly Sales</th>
+                <th>Your 30% Cut</th>
+              </tr>
+            </thead>
+            <tbody id="teamBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="background: rgba(255, 152, 0, 0.1); border: 2px solid #ff9800;">
+        <h3 style="color: #ff9800;">🎯 Director Commission Structure</h3>
+        <ul style="line-height: 1.8;">
+          <li><strong>30% Override:</strong> You earn 30% on every Pro subscription your team sells</li>
+          <li><strong>Recurring Income:</strong> As long as businesses stay Pro, you keep earning</li>
+          <li><strong>Team Growth:</strong> More salespeople = more recurring income</li>
+          <li><strong>Example:</strong> Team member signs 10 Pro businesses ($8.99 each) = $26.97/month for you</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let currentUserId = null;
+    let teamData = [];
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      currentUserId = user.uid;
+      await loadDirectorData();
+    });
+
+    async function loadDirectorData() {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', currentUserId));
+        
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          document.getElementById('directorMonthly').textContent = `$${(data.monthly_commission_total || 0).toFixed(2)}`;
+          document.getElementById('directorYTD').textContent = `$${(data.ytd_commission_total || 0).toFixed(2)}`;
+          document.getElementById('directorLifetime').textContent = `$${(data.total_sales_director_commission || 0).toFixed(2)}`;
+        }
+
+        const teamQuery = query(
+          collection(db, 'users'),
+          where('sales_director_id', '==', currentUserId)
+        );
+        
+        const teamSnapshot = await getDocs(teamQuery);
+        
+        if (teamSnapshot.empty) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('emptyState').style.display = 'block';
+          return;
+        }
+
+        teamData = await Promise.all(teamSnapshot.docs.map(async (teamDoc) => {
+          const salesperson = teamDoc.data();
+          const salespersonId = teamDoc.id;
+          
+          const businessQuery = query(
+            collection(db, 'business_listings'),
+            where('referring_salesperson_id', '==', salespersonId),
+            where('pro_status', '==', true)
+          );
+          
+          const businessSnapshot = await getDocs(businessQuery);
+          const activeReferrals = businessSnapshot.size;
+          const monthlySales = activeReferrals * 8.99;
+          const yourCut = monthlySales * 0.30;
+          
+          return {
+            name: salesperson.display_name || salesperson.email || 'Unknown',
+            activeReferrals: activeReferrals,
+            monthlySales: monthlySales,
+            yourCut: yourCut
+          };
+        }));
+
+        document.getElementById('teamSize').textContent = teamData.length;
+        renderTeamTable();
+
+      } catch (error) {
+        console.error('Error loading director data:', error);
+        document.getElementById('loading').innerHTML = '<p style="color: #f44336;">Error loading data. Please try again.</p>';
+      }
+    }
+
+    function renderTeamTable() {
+      const tbody = document.getElementById('teamBody');
+      tbody.innerHTML = '';
+
+      teamData.forEach(member => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${member.name}</td>
+          <td>${member.activeReferrals}</td>
+          <td>$${member.monthlySales.toFixed(2)}</td>
+          <td style="color: var(--gold); font-weight: 700;">$${member.yourCut.toFixed(2)}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('teamWrapper').style.display = 'block';
+    }
+  </script>
+  </div>
+</body>
+</html>

@@ -1,0 +1,2 @@
+
+Ghost… resume Firestore field list for Kingdom Connect. We crossed 50% of the last conversation doing the missing field mapping from website pages vs Firestore. Start with the next 2 fields in 3-block format.

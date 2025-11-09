@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Church Profile - Kingdom Connects Church Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Church Profile</h2>
+      
+      <div id="loadingMessage" class="text-center p-md">Loading your church profile...</div>
+      
+      <div id="noChurchMessage" class="text-center p-md" style="display: none;">
+        <p>No church found for your account.</p>
+      </div>
+
+      <form id="churchForm" style="display: none;">
+        <article class="card">
+          <h3 class="gold">Basic Information</h3>
+          <div>
+            <label for="church_name">Church Name *</label>
+            <input type="text" id="church_name" required class="input-dark">
+          </div>
+
+          <div>
+            <label for="denomination">Denomination</label>
+            <input type="text" id="denomination" placeholder="e.g., Baptist, Methodist, Non-denominational" class="input-dark">
+          </div>
+
+          <div>
+            <label for="description">Church Description</label>
+            <textarea id="description" rows="5" maxlength="500" placeholder="Tell people about your church, mission, and values..." class="input-dark"></textarea>
+            <p class="help-text"><span id="descriptionCounter">0/500</span> characters</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Location</h3>
+          <div>
+            <label for="address_line1">Street Address</label>
+            <input type="text" id="address_line1" class="input-dark">
+          </div>
+
+          <div>
+            <label for="address_line2">Suite/Building (optional)</label>
+            <input type="text" id="address_line2" class="input-dark">
+          </div>
+
+          <div class="grid-col-3">
+            <div>
+              <label for="city">City *</label>
+              <input type="text" id="city" required class="input-dark">
+            </div>
+            <div>
+              <label for="state">State *</label>
+              <select id="state" required class="input-dark">
+                <option value="">Select...</option>
+                <option value="FL">Florida</option>
+                <option value="AL">Alabama</option>
+                <option value="GA">Georgia</option>
+                <option value="MS">Mississippi</option>
+                <option value="SC">South Carolina</option>
+                <option value="TN">Tennessee</option>
+                <option value="NC">North Carolina</option>
+                <option value="LA">Louisiana</option>
+              </select>
+            </div>
+            <div>
+              <label for="zip_code">ZIP Code *</label>
+              <input type="text" id="zip_code" pattern="[0-9]{5}" required class="input-dark">
+            </div>
+          </div>
+
+          <div>
+            <label for="country">Country</label>
+            <input type="text" id="country" value="USA" class="input-dark">
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Contact Information</h3>
+          <div>
+            <label for="contact_phone">Phone Number</label>
+            <input type="tel" id="contact_phone" class="input-dark">
+          </div>
+
+          <div>
+            <label for="contact_email">Email Address *</label>
+            <input type="email" id="contact_email" required class="input-dark">
+            <p class="help-text">This email is used for church admin login</p>
+          </div>
+
+          <div>
+            <label for="website">Website URL</label>
+            <input type="url" id="website" placeholder="https://yourchurch.com" class="input-dark">
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Service Times</h3>
+          <p class="help-text">Add your worship service schedule (optional)</p>
+          
+          <div>
+            <label for="sunday_service">Sunday Service</label>
+            <input type="text" id="sunday_service" placeholder="e.g., 9:00 AM, 11:00 AM" class="input-dark">
+          </div>
+
+          <div>
+            <label for="wednesday_service">Wednesday Service</label>
+            <input type="text" id="wednesday_service" placeholder="e.g., 7:00 PM" class="input-dark">
+          </div>
+
+          <div>
+            <label for="other_services">Other Services</label>
+            <textarea id="other_services" rows="3" placeholder="List any additional services, Bible studies, or events..." class="input-dark"></textarea>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Parishioner Information</h3>
+          <div>
+            <label for="parishioner_count">Estimated Parishioner Count</label>
+            <input type="number" id="parishioner_count" min="0" placeholder="e.g., 250" class="input-dark">
+            <p class="help-text">Approximate number of active church members (used for reach metrics)</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Digital Directory</h3>
+          <div>
+            <label for="directory_link">Business Directory QR Code URL</label>
+            <input type="url" id="directory_link" placeholder="https://..." class="input-dark">
+            <p class="help-text">Link to your church's business directory page (for QR code generation)</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Social Media Links</h3>
+          <p class="help-text">Add your church's social media profiles (optional).</p>
+          
+          <div>
+            <label>
+              <input type="checkbox" id="show_social_media">
+              <span class="ml-sm"><strong>Show social media links on public listing</strong></span>
+            </label>
+            <p class="help-text">Turn this on to display your social media links publicly. Only filled-in platforms will show.</p>
+          </div>
+
+          <div>
+            <label for="facebook_url">Facebook Page</label>
+            <input type="url" id="facebook_url" placeholder="https://facebook.com/yourchurch" class="input-dark">
+          </div>
+
+          <div>
+            <label for="instagram_url">Instagram Profile</label>
+            <input type="url" id="instagram_url" placeholder="https://instagram.com/yourchurch" class="input-dark">
+          </div>
+
+          <div>
+            <label for="twitter_url">X (Twitter) Profile</label>
+            <input type="url" id="twitter_url" placeholder="https://x.com/yourchurch" class="input-dark">
+          </div>
+
+          <div>
+            <label for="youtube_url">YouTube Channel</label>
+            <input type="url" id="youtube_url" placeholder="https://youtube.com/@yourchurch" class="input-dark">
+          </div>
+
+          <div>
+            <label for="linkedin_url">LinkedIn Page (optional)</label>
+            <input type="url" id="linkedin_url" placeholder="https://linkedin.com/company/yourchurch" class="input-dark">
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">Listing Settings</h3>
+          <div>
+            <label>
+              <input type="checkbox" id="allow_reviews_for_church">
+              <span class="ml-sm">Allow members to review the church</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              <input type="checkbox" id="allow_social_sharing">
+              <span class="ml-sm">Allow social media sharing of church profile</span>
+            </label>
+          </div>
+        </article>
+
+        <div class="flex-gap-center mt-md">
+          <button type="submit" class="action-button btn-gold">💾 Save Changes</button>
+          <button type="button" id="previewButton" class="action-button">👁️ Preview Profile</button>
+          <a href="index.html" class="action-button">Cancel</a>
+        </div>
+      </form>
+
+      <!-- Preview Modal -->
+      <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
+        <div style="max-width: 800px; margin: 2rem auto; background: var(--card-bg); border-radius: 8px; padding: 2rem; position: relative;">
+          <button id="closePreview" style="position: absolute; top: 1rem; right: 1rem; background: #f44336; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 1.5rem; font-weight: bold;">×</button>
+          <h2 class="gold-metallic text-center">Preview Your Public Church Profile</h2>
+          <p class="text-center help-text mb-md">This is how visitors will see your church</p>
+          <div id="previewContent"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let churchId = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadChurch(user.email);
+    });
+
+    async function loadChurch(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const noChurchMessage = document.getElementById('noChurchMessage');
+      const churchForm = document.getElementById('churchForm');
+
+      try {
+        const q = query(collection(db, "churches"), where("contact_email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.style.display = 'none';
+          noChurchMessage.style.display = 'block';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        churchId = docSnap.id;
+        const church = docSnap.data();
+
+        populateForm(church);
+
+        loadingMessage.style.display = 'none';
+        churchForm.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading church:', error);
+        loadingMessage.textContent = 'Error loading church: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    function populateForm(church) {
+      document.getElementById('church_name').value = church.church_name || '';
+      document.getElementById('denomination').value = church.denomination || '';
+      document.getElementById('description').value = church.description || '';
+      document.getElementById('address_line1').value = church.address_line1 || '';
+      document.getElementById('address_line2').value = church.address_line2 || '';
+      document.getElementById('city').value = church.city || '';
+      document.getElementById('state').value = church.state || '';
+      document.getElementById('zip_code').value = church.zip_code || '';
+      document.getElementById('country').value = church.country || 'USA';
+      document.getElementById('contact_phone').value = church.contact_phone || '';
+      document.getElementById('contact_email').value = church.contact_email || '';
+      document.getElementById('website').value = church.website || '';
+      document.getElementById('sunday_service').value = church.sunday_service || '';
+      document.getElementById('wednesday_service').value = church.wednesday_service || '';
+      document.getElementById('other_services').value = church.other_services || '';
+      document.getElementById('parishioner_count').value = church.parishioner_count || '';
+      document.getElementById('directory_link').value = church.directory_link || '';
+      document.getElementById('show_social_media').checked = church.show_social_media !== false;
+      document.getElementById('facebook_url').value = church.social_media?.facebook || '';
+      document.getElementById('instagram_url').value = church.social_media?.instagram || '';
+      document.getElementById('twitter_url').value = church.social_media?.twitter || '';
+      document.getElementById('youtube_url').value = church.social_media?.youtube || '';
+      document.getElementById('linkedin_url').value = church.social_media?.linkedin || '';
+      document.getElementById('allow_reviews_for_church').checked = church.allow_reviews_for_church !== false;
+      document.getElementById('allow_social_sharing').checked = church.allow_social_sharing !== false;
+    }
+
+    // Character counter for description
+    const descriptionField = document.getElementById('description');
+    const descriptionCounter = document.getElementById('descriptionCounter');
+    
+    function updateDescriptionCounter() {
+      const length = descriptionField.value.length;
+      descriptionCounter.textContent = `${length}/500`;
+    }
+    
+    descriptionField.addEventListener('input', updateDescriptionCounter);
+
+    // Preview modal functionality
+    document.getElementById('previewButton').addEventListener('click', () => {
+      const churchName = document.getElementById('church_name').value.trim() || 'Your Church Name';
+      const denomination = document.getElementById('denomination').value.trim();
+      const description = document.getElementById('description').value.trim() || 'No description provided.';
+      const phone = document.getElementById('contact_phone').value.trim();
+      const email = document.getElementById('contact_email').value.trim();
+      const website = document.getElementById('website').value.trim();
+      const address = [
+        document.getElementById('address_line1').value.trim(),
+        document.getElementById('address_line2').value.trim(),
+        document.getElementById('city').value.trim(),
+        document.getElementById('state').value,
+        document.getElementById('zip_code').value.trim()
+      ].filter(x => x).join(', ');
+      
+      const sundayService = document.getElementById('sunday_service').value.trim();
+      const wednesdayService = document.getElementById('wednesday_service').value.trim();
+      const otherServices = document.getElementById('other_services').value.trim();
+
+      let previewHTML = `
+        <div class="card">
+          <h3 class="gold-metallic">${escapeHtml(churchName)}</h3>
+          ${denomination ? `<p><strong>Denomination:</strong> ${escapeHtml(denomination)}</p>` : ''}
+          <p>${escapeHtml(description)}</p>
+          
+          <div class="mt-md">
+            <h4 class="gold">Contact Information</h4>
+            ${phone ? `<p>📞 ${escapeHtml(phone)}</p>` : ''}
+            ${email ? `<p>📧 ${escapeHtml(email)}</p>` : ''}
+            ${website ? `<p>🌐 <a href="${escapeHtml(website)}" target="_blank">${escapeHtml(website)}</a></p>` : ''}
+            ${address ? `<p>📍 ${escapeHtml(address)}</p>` : ''}
+          </div>
+          
+          ${sundayService || wednesdayService || otherServices ? `
+            <div class="mt-md">
+              <h4 class="gold">Service Times</h4>
+              ${sundayService ? `<p><strong>Sunday:</strong> ${escapeHtml(sundayService)}</p>` : ''}
+              ${wednesdayService ? `<p><strong>Wednesday:</strong> ${escapeHtml(wednesdayService)}</p>` : ''}
+              ${otherServices ? `<p><strong>Other Services:</strong> ${escapeHtml(otherServices)}</p>` : ''}
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      document.getElementById('previewContent').innerHTML = previewHTML;
+      document.getElementById('previewModal').style.display = 'block';
+    });
+
+    document.getElementById('closePreview').addEventListener('click', () => {
+      document.getElementById('previewModal').style.display = 'none';
+    });
+
+    // Close preview when clicking outside
+    document.getElementById('previewModal').addEventListener('click', (e) => {
+      if (e.target.id === 'previewModal') {
+        document.getElementById('previewModal').style.display = 'none';
+      }
+    });
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.getElementById('churchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const updateData = {
+        church_name: document.getElementById('church_name').value.trim(),
+        denomination: document.getElementById('denomination').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        address_line1: document.getElementById('address_line1').value.trim(),
+        address_line2: document.getElementById('address_line2').value.trim(),
+        city: document.getElementById('city').value.trim(),
+        state: document.getElementById('state').value,
+        zip_code: document.getElementById('zip_code').value.trim(),
+        country: document.getElementById('country').value.trim(),
+        contact_phone: document.getElementById('contact_phone').value.trim(),
+        contact_email: document.getElementById('contact_email').value.trim(),
+        website: document.getElementById('website').value.trim(),
+        sunday_service: document.getElementById('sunday_service').value.trim(),
+        wednesday_service: document.getElementById('wednesday_service').value.trim(),
+        other_services: document.getElementById('other_services').value.trim(),
+        parishioner_count: parseInt(document.getElementById('parishioner_count').value) || 0,
+        directory_link: document.getElementById('directory_link').value.trim(),
+        show_social_media: document.getElementById('show_social_media').checked,
+        social_media: {
+          facebook: document.getElementById('facebook_url').value.trim(),
+          instagram: document.getElementById('instagram_url').value.trim(),
+          twitter: document.getElementById('twitter_url').value.trim(),
+          youtube: document.getElementById('youtube_url').value.trim(),
+          linkedin: document.getElementById('linkedin_url').value.trim()
+        },
+        allow_reviews_for_church: document.getElementById('allow_reviews_for_church').checked,
+        allow_social_sharing: document.getElementById('allow_social_sharing').checked
+      };
+
+      try {
+        await updateDoc(doc(db, "churches", churchId), updateData);
+        alert('✅ Church profile updated successfully!');
+        window.location.href = 'index.html';
+      } catch (error) {
+        console.error('Error updating church:', error);
+        alert('❌ Error updating church: ' + error.message);
+      }
+    });
+  </script>
+  </div>
+</body>
+</html>

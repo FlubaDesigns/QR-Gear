@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin – Activity Log</title>
+
+  <!-- Global CSS (one level up from /admin/) -->
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+</head>
+<body>
+
+  <!-- DIAGNOSTIC PANEL — optional, remove when done -->
+  <div id="kc-debug" style="position:fixed;left:8px;top:8px;z-index:999999;background:#111;color:#fff;padding:10px;border-radius:8px;font:12px/1.2 ui-sans-serif;max-width:calc(100vw - 24px);">
+    <strong style="display:block;margin-bottom:6px">KC debug</strong>
+    <div id="kc-debug-out">checking…</div>
+  </div>
+
+  <script>
+  (function(){
+    const log = (k,v) => {
+      const el = document.createElement('div');
+      el.style.marginBottom = '6px';
+      el.innerHTML = '<b>'+k+':</b> '+(v===null?'<em>missing</em>':(v===true?'<span style="color:#6f6">OK</span>':'<span style="color:#f66">'+v+'</span>'));
+      document.getElementById('kc-debug-out').appendChild(el);
+    };
+
+    log('Location', location.pathname);
+
+    const hdr = document.getElementById('header');
+    const ftr = document.getElementById('footer');
+    log('Header slot', hdr ? (hdr.childElementCount===0 ? 'present, EMPTY' : 'present, has content') : 'MISSING');
+    log('Footer slot', ftr ? (ftr.childElementCount===0 ? 'present, EMPTY' : 'present, has content') : 'MISSING');
+
+    const cssFiles = ['theme.css','layout.css','forms.css','buttons.css','overrides.css'];
+    cssFiles.forEach(name=>{
+      const link = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).find(l => (l.href||'').endsWith('/'+name) || (l.href||'').endsWith(name));
+      log('CSS '+name, link ? true : null);
+      if (link) {
+        const href = link.getAttribute('href');
+        const el = document.createElement('div');
+        el.style.fontSize='11px'; el.style.opacity='0.9';
+        el.textContent = '→ href='+href;
+        document.getElementById('kc-debug-out').appendChild(el);
+      }
+    });
+
+    const scriptTag = Array.from(document.querySelectorAll('script')).find(s => (s.src||'').includes('components.js'));
+    log('components.js tag', scriptTag ? ('found: '+scriptTag.getAttribute('src')) : 'MISSING');
+
+    const hasIsAdmin = document.body.classList.contains('is-admin');
+    log('body.is-admin', hasIsAdmin ? true : null);
+
+    if (!window.__kc_errors) { window.__kc_errors = []; window.addEventListener('error', e=> window.__kc_errors.push(e.message)); }
+    log('console errors captured', window.__kc_errors.length ? (window.__kc_errors.length + ' errors — open console') : 'none');
+
+    fetch('../styles/layout.css', {method:'HEAD'}).then(r=>{
+      log('HEAD ../styles/layout.css', r.ok ? ('status '+r.status) : ('fail '+r.status));
+    }).catch(()=> log('HEAD ../styles/layout.css','error'));
+  })();
+  </script>
+
+  <!-- Shared header injected by components.js -->
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h1>Admin – Activity Log</h1>
+
+      <div class="clear"></div>
+
+      <div id="logList">
+        <p>Loading activity log...</p>
+      </div>
+
+      <button class="action-button" type="button" onclick="location.href='admin_dashboard.html'">
+        ← Back to Admin Dashboard
+      </button>
+    </section>
+  </main>
+
+  <!-- Shared footer injected by components.js -->
+  <div id="footer"></div>
+
+  <!-- Firebase module (unchanged) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { firebaseConfig } from "../js/firebase-config.js";
+    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadActivityLog() {
+      const list = document.getElementById("logList");
+      list.innerHTML = "<p>Loading activity log...</p>";
+
+      try {
+        const q = query(collection(db, "activity_log"), orderBy("timestamp", "desc"));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          list.innerHTML = "<p>No activity found.</p>";
+          return;
+        }
+
+        let html = "";
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          html += `<div class="business-card">
+              <strong>${data.action || "Action"}</strong><br>
+              User: ${data.user_email || "N/A"}<br>
+              Time: ${new Date(data.timestamp?.seconds * 1000).toLocaleString()}<br>
+              Details: ${data.details || "No details"}
+              <hr></div>`;
+        });
+
+        list.innerHTML = html;
+      } catch (err) {
+        list.innerHTML = "<p>Error loading activity log.</p>";
+        console.error(err);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", loadActivityLog);
+  </script>
+
+  <!-- FIXED: correct components loader -->
+  <script src="../js/components.js"></script>
+
+  <!-- Tiny marker to confirm components.js actually ran; remove later -->
+  <script>
+    window.__kc_components_alive = true;
+    setTimeout(()=> {
+      const p = document.createElement('div');
+      p.style.position='fixed';
+      p.style.left='8px';
+      p.style.bottom='8px';
+      p.style.zIndex=999999;
+      p.style.background='rgba(0,0,0,0.65)';
+      p.style.color='#fff';
+      p.style.padding='6px 8px';
+      p.style.borderRadius='6px';
+      p.style.fontSize='11px';
+      p.textContent = window.__kc_components_alive ? 'components.js executed' : 'components.js MISSING';
+      document.body.appendChild(p);
+      setTimeout(()=> p.remove(), 2500);
+    }, 600);
+  </script>
+</body>
+</html>

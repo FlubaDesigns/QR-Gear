@@ -1,0 +1,7 @@
+# _replit_gitops_secure_bundle.zip
+
+This text file represents the ZIP bundle that contains the secure Git‑Ops Repl files
+(app.py, shell scripts, requirements, etc.).
+
+If you only need the code details, refer to `_GHOST_to_CLAUDE_GitOps_Setup.md` under “Files & Contents.”
+Otherwise, upload the actual ZIP (`_replit_gitops_secure_bundle.zip`) along with these documents into Replit.

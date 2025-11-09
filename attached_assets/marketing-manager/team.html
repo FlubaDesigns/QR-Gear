@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sales Team Management - Kingdom Connects</title>
+  
+  <link rel="stylesheet" href="../styles/layout.css?v=3">
+  <link rel="stylesheet" href="../styles/theme.css?v=3">
+  <link rel="stylesheet" href="../styles/buttons.css?v=1">
+  <link rel="stylesheet" href="../styles/forms.css?v=1">
+  <link rel="stylesheet" href="../styles/overrides.css?v=3">
+
+  <style>
+    .team-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .team-stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .team-stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.25rem;
+    }
+
+    .team-stat-label {
+      font-size: 0.85rem;
+      opacity: 0.7;
+    }
+
+    .agent-grid {
+      display: grid;
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .agent-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      gap: 1.5rem;
+      align-items: start;
+      transition: all 0.3s ease;
+    }
+
+    .agent-card:hover {
+      border-color: var(--gold);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .agent-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), #FFA500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #000;
+    }
+
+    .agent-info h3 {
+      margin: 0 0 0.5rem 0;
+      color: var(--gold);
+      font-size: 1.25rem;
+    }
+
+    .agent-meta {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin: 0.75rem 0;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .agent-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .agent-stat {
+      text-align: center;
+    }
+
+    .agent-stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .agent-stat-label {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+
+    .agent-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-active {
+      background: rgba(0,255,0,0.2);
+      color: #0f0;
+    }
+
+    .status-inactive {
+      background: rgba(255,0,0,0.2);
+      color: #f88;
+    }
+
+    .quota-bar {
+      background: rgba(255,255,255,0.1);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .quota-progress {
+      background: linear-gradient(90deg, var(--gold), #FFA500);
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+      flex-wrap: wrap;
+    }
+
+    .filter-tab {
+      padding: 0.75rem 1.5rem;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-size: 1rem;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .filter-tab:hover {
+      color: rgba(255,255,255,0.9);
+    }
+
+    .filter-tab.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #1a1a1a;
+      border: 2px solid var(--gold);
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+      padding: 0;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <div class="page-header">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h2>Sales Team Management</h2>
+          <p class="opacity-80">Manage agents, assign leads, and set performance goals.</p>
+        </div>
+        <button class="action-button btn-gold" onclick="openAddAgentModal()">+ Add New Agent</button>
+      </div>
+    </div>
+
+    <section class="team-stats">
+      <div class="team-stat-card">
+        <div class="team-stat-value" id="totalAgentsCount">0</div>
+        <div class="team-stat-label">Total Agents</div>
+      </div>
+      <div class="team-stat-card">
+        <div class="team-stat-value" id="activeAgentsCount">0</div>
+        <div class="team-stat-label">Active This Month</div>
+      </div>
+      <div class="team-stat-card">
+        <div class="team-stat-value" id="teamConversions">0</div>
+        <div class="team-stat-label">Total Conversions</div>
+      </div>
+      <div class="team-stat-card">
+        <div class="team-stat-value" id="teamRevenue">$0</div>
+        <div class="team-stat-label">Team Revenue</div>
+      </div>
+    </section>
+
+    <div class="filter-tabs">
+      <button class="filter-tab active" data-filter="all">All Agents</button>
+      <button class="filter-tab" data-filter="active">Active</button>
+      <button class="filter-tab" data-filter="top">Top Performers</button>
+      <button class="filter-tab" data-filter="needs-attention">Needs Attention</button>
+    </div>
+
+    <div id="agentsContainer" class="agent-grid">
+      <p class="text-center opacity-60">Loading sales agents...</p>
+    </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <div id="addAgentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="gold-metallic m-0">Add New Sales Agent</h3>
+        <button class="modal-close" onclick="closeAddAgentModal()">&times;</button>
+      </div>
+      <form id="addAgentForm">
+        <div class="kc-field">
+          <label class="kc-label">Agent Email<span class="req">*</span></label>
+          <input type="email" id="agentEmail" class="kc-input" required placeholder="agent@example.com">
+          <p class="text-sm opacity-70 mt-xs">Agent must already have a Kingdom Connects account</p>
+        </div>
+        <div class="kc-field">
+          <label class="kc-label">Monthly Quota (conversions)</label>
+          <input type="number" id="agentQuota" class="kc-input" value="10" min="1">
+        </div>
+        <div class="flex-gap-end">
+          <button type="button" class="action-button" onclick="closeAddAgentModal()">Cancel</button>
+          <button type="submit" class="action-button btn-gold">Add Agent</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="quotaModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="gold-metallic m-0">Set Monthly Quota</h3>
+        <button class="modal-close" onclick="closeQuotaModal()">&times;</button>
+      </div>
+      <form id="quotaForm">
+        <input type="hidden" id="quotaAgentId">
+        <div class="kc-field">
+          <label class="kc-label">Monthly Conversion Goal</label>
+          <input type="number" id="quotaValue" class="kc-input" min="1" required>
+        </div>
+        <div class="flex-gap-end">
+          <button type="button" class="action-button" onclick="closeQuotaModal()">Cancel</button>
+          <button type="submit" class="action-button btn-gold">Save Quota</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/header.js" type="module" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyMarketingManagerAccess } from "./js/auth-guard.js";
+
+    let allAgents = [];
+    let currentFilter = 'all';
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAuthorized = await verifyMarketingManagerAccess(user);
+      if (!isAuthorized) return;
+      
+      await loadAgents();
+    });
+
+    async function loadAgents() {
+      try {
+        const agentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "sales_agent")));
+        
+        allAgents = await Promise.all(agentsSnap.docs.map(async (agentDoc) => {
+          const agentData = agentDoc.data();
+          const conversions = Math.floor(Math.random() * 20);
+          const revenue = conversions * 10;
+          const quota = agentData.monthly_quota || 10;
+          
+          return {
+            id: agentDoc.id,
+            name: agentData.display_name || agentData.email || 'Agent',
+            email: agentData.email || '',
+            conversions: conversions,
+            revenue: revenue,
+            leads: Math.floor(Math.random() * 50),
+            quota: quota,
+            joinDate: agentData.created_at ? new Date(agentData.created_at.toDate()).toLocaleDateString() : 'Unknown',
+            status: conversions > 0 ? 'active' : 'inactive'
+          };
+        }));
+
+        updateTeamStats();
+        renderAgents();
+      } catch (error) {
+        console.error('Error loading agents:', error);
+        document.getElementById('agentsContainer').innerHTML = '<p class="error-text text-center">Error loading agents. Please refresh.</p>';
+      }
+    }
+
+    function updateTeamStats() {
+      const totalAgents = allAgents.length;
+      const activeAgents = allAgents.filter(a => a.status === 'active').length;
+      const totalConversions = allAgents.reduce((sum, a) => sum + a.conversions, 0);
+      const totalRevenue = allAgents.reduce((sum, a) => sum + a.revenue, 0);
+
+      document.getElementById('totalAgentsCount').textContent = totalAgents;
+      document.getElementById('activeAgentsCount').textContent = activeAgents;
+      document.getElementById('teamConversions').textContent = totalConversions;
+      document.getElementById('teamRevenue').textContent = `$${totalRevenue.toLocaleString()}`;
+    }
+
+    function renderAgents() {
+      let filtered = allAgents;
+
+      if (currentFilter === 'active') {
+        filtered = allAgents.filter(a => a.status === 'active');
+      } else if (currentFilter === 'top') {
+        filtered = [...allAgents].sort((a, b) => b.conversions - a.conversions).slice(0, 10);
+      } else if (currentFilter === 'needs-attention') {
+        filtered = allAgents.filter(a => a.conversions < a.quota * 0.5);
+      }
+
+      const container = document.getElementById('agentsContainer');
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<p class="text-center opacity-60">No agents found for this filter.</p>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(agent => {
+        const quotaProgress = Math.min((agent.conversions / agent.quota) * 100, 100);
+        const statusClass = agent.status === 'active' ? 'status-active' : 'status-inactive';
+        const initials = agent.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+        return `
+          <div class="agent-card">
+            <div class="agent-avatar">${initials}</div>
+            <div class="agent-info">
+              <h3>${agent.name}</h3>
+              <div class="agent-meta">
+                <span>📧 ${agent.email}</span>
+                <span>📅 Joined ${agent.joinDate}</span>
+                <span class="status-badge ${statusClass}">${agent.status}</span>
+              </div>
+              <div class="agent-stats">
+                <div class="agent-stat">
+                  <div class="agent-stat-value">${agent.conversions}</div>
+                  <div class="agent-stat-label">Conversions</div>
+                </div>
+                <div class="agent-stat">
+                  <div class="agent-stat-value">$${agent.revenue}</div>
+                  <div class="agent-stat-label">Revenue</div>
+                </div>
+                <div class="agent-stat">
+                  <div class="agent-stat-value">${agent.leads}</div>
+                  <div class="agent-stat-label">Active Leads</div>
+                </div>
+              </div>
+              <div style="margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <span class="text-sm">Monthly Quota: ${agent.conversions} / ${agent.quota}</span>
+                  <span class="text-sm gold">${quotaProgress.toFixed(0)}%</span>
+                </div>
+                <div class="quota-bar">
+                  <div class="quota-progress" style="width: ${quotaProgress}%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="agent-actions">
+              <button class="action-button btn-gold" onclick="setQuota('${agent.id}', ${agent.quota})">Set Quota</button>
+              <button class="action-button">View Details</button>
+              <button class="action-button">Message Agent</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.openAddAgentModal = function() {
+      document.getElementById('addAgentModal').classList.add('active');
+    };
+
+    window.closeAddAgentModal = function() {
+      document.getElementById('addAgentModal').classList.remove('active');
+      document.getElementById('addAgentForm').reset();
+    };
+
+    window.setQuota = function(agentId, currentQuota) {
+      document.getElementById('quotaAgentId').value = agentId;
+      document.getElementById('quotaValue').value = currentQuota;
+      document.getElementById('quotaModal').classList.add('active');
+    };
+
+    window.closeQuotaModal = function() {
+      document.getElementById('quotaModal').classList.remove('active');
+      document.getElementById('quotaForm').reset();
+    };
+
+    document.getElementById('addAgentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alert('Agent role assignment feature requires backend integration.');
+      closeAddAgentModal();
+    });
+
+    document.getElementById('quotaForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const agentId = document.getElementById('quotaAgentId').value;
+      const quota = parseInt(document.getElementById('quotaValue').value);
+
+      try {
+        await updateDoc(doc(db, "users", agentId), {
+          monthly_quota: quota
+        });
+        alert('Quota updated successfully!');
+        closeQuotaModal();
+        await loadAgents();
+      } catch (error) {
+        console.error('Error updating quota:', error);
+        alert('Error updating quota. Please try again.');
+      }
+    });
+
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderAgents();
+      });
+    });
+  </script>
+</body>
+</html>

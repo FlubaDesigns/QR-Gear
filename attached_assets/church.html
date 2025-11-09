@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Church Profile - Kingdom Connects</title>
+  <meta name="description" content="View church profile and member businesses on Kingdom Connects.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#081529" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+
+    <main class="main-content" id="main">
+      <section class="page-content">
+        <div id="loadingMessage" class="card">
+          <p>Loading church information...</p>
+        </div>
+
+        <div id="errorMessage" class="card" style="display: none; background: rgba(255,0,0,0.1); border: 2px solid red;">
+          <h2 class="gold">Error</h2>
+          <p id="errorText"></p>
+          <a href="church_directory.html" class="action-button btn-gold">← Back to Church Directory</a>
+        </div>
+
+        <div id="churchProfile" class="hidden">
+          <article class="card">
+            <h1 id="churchName" class="gold-metallic"></h1>
+            <p id="churchDescription" style="line-height: 1.7; margin: 1rem 0;"></p>
+          </article>
+
+          <article class="card">
+            <h2 class="gold">Location</h2>
+            <p id="churchLocation"></p>
+          </article>
+
+          <article class="card" id="serviceTimesCard" class="hidden">
+            <h2 class="gold">Service Times</h2>
+            <ul id="serviceTimes" style="line-height: 1.7;"></ul>
+          </article>
+
+          <article class="card" id="pastorMessageCard" style="display: none;">
+            <h2 class="gold">Pastor's Message</h2>
+            <h3 id="messageTitle" style="color: var(--gold); margin: 1rem 0 0.5rem 0;"></h3>
+            <p id="messageDate" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;"></p>
+            <p id="messageContent" style="line-height: 1.7; white-space: pre-wrap;"></p>
+          </article>
+
+          <article class="card" id="activitiesCard" style="display: none;">
+            <h2 class="gold">Upcoming Activities & Events</h2>
+            <div id="activitiesList"></div>
+          </article>
+
+          <article class="card">
+            <h2 class="gold">Member Businesses</h2>
+            <p>Discover businesses run by members of this church.</p>
+            <a href="businesses_by_church.html" class="action-button btn-gold" id="viewBusinessesLink">View Member Businesses</a>
+          </article>
+
+          <article class="card">
+            <a href="church_directory.html" class="action-button btn-gold">← Back to Church Directory</a>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+
+  <style>
+    .activity-item {
+      background: rgba(255,255,255,0.03);
+      border-left: 3px solid var(--gold);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border-radius: 4px;
+    }
+    .activity-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .activity-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .activity-meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .activity-image {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+    .badge-recurring {
+      background: rgba(33, 150, 243, 0.2);
+      color: #2196f3;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .share-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .share-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+    .share-facebook {
+      background: #1877f2;
+      color: white;
+    }
+    .share-facebook:hover {
+      background: #145dbf;
+    }
+    .share-twitter {
+      background: #1da1f2;
+      color: white;
+    }
+    .share-twitter:hover {
+      background: #0d8bd9;
+    }
+  </style>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import {
+      doc,
+      getDoc,
+      collection,
+      query,
+      where,
+      getDocs,
+      orderBy,
+      limit
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const params = new URLSearchParams(window.location.search);
+      const churchId = params.get('id');
+
+      const loadingMessage = document.getElementById('loadingMessage');
+      const errorMessage = document.getElementById('errorMessage');
+      const errorText = document.getElementById('errorText');
+      const churchProfile = document.getElementById('churchProfile');
+
+      if (!churchId) {
+        loadingMessage.style.display = 'none';
+        errorMessage.style.display = 'block';
+        errorText.textContent = 'No church ID provided. Please select a church from the directory.';
+        return;
+      }
+
+      try {
+        const churchDoc = await getDoc(doc(db, "churches", churchId));
+
+        if (!churchDoc.exists()) {
+          loadingMessage.style.display = 'none';
+          errorMessage.style.display = 'block';
+          errorText.textContent = 'Church not found. This church may have been removed.';
+          return;
+        }
+
+        const church = churchDoc.data();
+
+        document.getElementById('churchName').textContent = church.church_name || church.name || 'Unknown Church';
+        document.getElementById('churchDescription').textContent = church.description || 'No description available.';
+        
+        const locationParts = [];
+        if (church.city) locationParts.push(church.city);
+        if (church.state) locationParts.push(church.state);
+        if (church.zip_code) locationParts.push(church.zip_code);
+        document.getElementById('churchLocation').textContent = locationParts.join(', ') || 'Location not specified';
+
+        if (church.service_times && Array.isArray(church.service_times) && church.service_times.length > 0) {
+          const serviceTimesCard = document.getElementById('serviceTimesCard');
+          const serviceTimesList = document.getElementById('serviceTimes');
+          
+          church.service_times.forEach(time => {
+            const li = document.createElement('li');
+            li.textContent = time;
+            serviceTimesList.appendChild(li);
+          });
+          
+          serviceTimesCard.style.display = 'block';
+        }
+
+        const viewBusinessesLink = document.getElementById('viewBusinessesLink');
+        viewBusinessesLink.href = `businesses_by_church.html?church_id=${churchId}`;
+
+        document.title = `${church.church_name || church.name || 'Church'} - Kingdom Connects`;
+
+        loadingMessage.style.display = 'none';
+        churchProfile.style.display = 'block';
+
+        // Load monthly message
+        loadMonthlyMessage(churchId);
+        
+        // Load activities
+        loadActivities(churchId);
+
+      } catch (error) {
+        console.error("Error loading church:", error);
+        loadingMessage.style.display = 'none';
+        errorMessage.style.display = 'block';
+        errorText.textContent = `Error loading church: ${error.message}. Please try again later.`;
+      }
+    });
+
+    async function loadMonthlyMessage(churchId) {
+      try {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        const q = query(
+          collection(db, 'church_messages'),
+          where('church_id', '==', churchId),
+          where('month', '==', currentMonth),
+          where('year', '==', currentYear),
+          where('active', '==', true),
+          limit(1)
+        );
+
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const msgData = snapshot.docs[0].data();
+          const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+          
+          document.getElementById('messageTitle').textContent = msgData.title;
+          document.getElementById('messageDate').textContent = `${months[msgData.month]} ${msgData.year}`;
+          document.getElementById('messageContent').textContent = msgData.message;
+          document.getElementById('pastorMessageCard').style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error loading monthly message:', error);
+      }
+    }
+
+    async function loadActivities(churchId) {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        const q = query(
+          collection(db, 'church_activities'),
+          where('church_id', '==', churchId),
+          where('active', '==', true)
+        );
+
+        const snapshot = await getDocs(q);
+        const activities = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(activity => activity.date >= today || activity.is_recurring)
+          .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        
+        if (activities.length > 0) {
+          const activitiesList = document.getElementById('activitiesList');
+          
+          activitiesList.innerHTML = activities.map(activity => {
+            const shareUrl = window.location.href;
+            const shareText = `${activity.title} at ${activity.location}`;
+            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+            
+            return `
+              <div class="activity-item">
+                <div class="activity-header">
+                  <div>
+                    <div class="activity-title">${activity.title}</div>
+                    <div class="activity-meta">
+                      <span>📅 ${formatDate(activity.date, activity.time)}</span>
+                      <span>📍 ${activity.location}</span>
+                      ${activity.is_recurring ? `<span class="badge-recurring">Recurring: ${activity.recurring_description || activity.recurring_pattern}</span>` : ''}
+                    </div>
+                  </div>
+                </div>
+                ${activity.image_url ? `<img src="${activity.image_url}" class="activity-image" alt="${activity.title}">` : ''}
+                <p style="line-height: 1.7; margin-bottom: 1rem;">${activity.description}</p>
+                ${activity.contact_info ? `<p style="color: var(--text-muted);"><strong>Contact:</strong> ${activity.contact_info}</p>` : ''}
+                <div class="share-buttons">
+                  <a href="${facebookUrl}" target="_blank" class="share-btn share-facebook">
+                    Share on Facebook
+                  </a>
+                  <a href="${twitterUrl}" target="_blank" class="share-btn share-twitter">
+                    Share on Twitter
+                  </a>
+                </div>
+              </div>
+            `;
+          }).join('');
+          
+          document.getElementById('activitiesCard').style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error loading activities:', error);
+      }
+    }
+
+    function formatDate(dateStr, timeStr) {
+      if (!dateStr) return 'TBA';
+      const date = new Date(dateStr);
+      const dateFormatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return timeStr ? `${dateFormatted} at ${timeStr}` : dateFormatted;
+    }
+  </script>
+</body>
+</html>

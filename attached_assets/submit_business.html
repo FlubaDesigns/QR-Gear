@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <!-- =========================================================
+       Kingdom Connects — Submit Business (Version 6.1)
+       ========================================================= -->
+  <title>Submit Your Business – Kingdom Connects</title>
+  <meta name="description" content="Add your business to the Kingdom Connects community directory. Free listings for faith-aligned members and local services.">
+  <link rel="canonical" href="https://kingdomconnects.com/submit_business.html">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Submit Your Business – Kingdom Connects">
+  <meta property="og:description" content="Add your business to the Kingdom Connects directory.">
+  <meta property="og:url" content="https://kingdomconnects.com/submit_business.html">
+  <meta property="og:image" content="https://kingdomconnects.com/assets/og-kingdom-connects.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Submit Your Business – Kingdom Connects">
+  <meta name="twitter:description" content="Add your business to the Kingdom Connects directory.">
+  <meta name="twitter:image" content="https://kingdomconnects.com/assets/og-kingdom-connects.png">
+
+  <!-- SEO -->
+  <meta name="keywords" content="Kingdom Connects, submit business, Christian directory, local listings, faith-based services">
+  <meta name="author" content="Fluba Designs LLC">
+
+  <!-- Core setup -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Resource hints -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="dns-prefetch" href="//www.gstatic.com">
+  <link rel="dns-prefetch" href="//firestore.googleapis.com">
+
+  <!-- Theme colors -->
+  <meta name="theme-color" content="#081529" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff"  media="(prefers-color-scheme: light)">
+
+  <!-- Favicon -->
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <!-- Styles (order critical and matching index/business) -->
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/help-system.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+
+  <style>
+    /* Simple success animation */
+    .message.success {
+      opacity: 0;
+      color: var(--gold, #FFD700);
+      font-weight: 700;
+      
+      text-align: center;
+      transition: opacity .6s ease;
+    }
+    .message.success.visible { opacity: 1; }
+
+    .message.error {
+      color: #ff6b6b;
+      font-weight: 700;
+      
+      text-align: center;
+    }
+
+    /* Website preview helper (uses existing .kc-help tone) */
+    #websitePreview a {
+      font-weight: 700;
+      text-decoration: none;
+    }
+    #websitePreview a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <!-- Header injected by components.js -->
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content" id="main">
+      <section class="page-content">
+        <div class="card">
+          <h2 class="gold-metallic">Submit Your Business</h2>
+          <p>Join the Kingdom Connects community by adding your business below. Free listings for members.</p>
+        </div>
+
+        <!-- HOW IT WORKS -->
+        <div class="card" style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04)); border: 2px solid rgba(255,215,0,0.3);">
+          <h3 class="gold" style="margin-top: 0;">✅ How This Works (Takes 2 Minutes!)</h3>
+          <div style="display: grid; gap: 12px; font-size: 0.95rem; line-height: 1.6;">
+            <p><strong>Step 1: Fill Out the Form</strong> - Enter your business name, description, contact info, and address. Look for the <strong style="color: var(--gold);">?</strong> icons for help on any field!</p>
+            <p><strong>Step 2: Choose Categories</strong> - Pick your main category (Auto Repair, Construction, etc.) and optionally add secondary categories</p>
+            <p><strong>Step 3: Select Your Church</strong> - Link your business to your home church (optional but recommended - helps your church community find you!)</p>
+            <p><strong>Step 4: Submit</strong> - Click the submit button and your FREE listing goes live immediately. Want more features? <a href="pricing.html" class="gold" style="text-decoration: underline;">Upgrade to Pro</a> anytime!</p>
+            <p style="margin: 0; padding-top: 8px; border-top: 1px solid rgba(255,215,0,0.2); color: var(--text-muted); font-size: 0.9rem;">
+              <strong>💎 Pro Tip:</strong> Complete ALL fields (even optional ones) to rank higher in search results and build trust with potential customers
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <form id="businessForm" class="kc-form">
+            <!-- =========================
+                 Section 1: Business Details
+                 ========================= -->
+            <h3 class="gold">Business Details</h3>
+
+            <div class="kc-field field-help-wrapper">
+              <div class="kc-label-with-help">
+                <label class="kc-label" for="business_name">Business Name<span class="req">*</span></label>
+                <span class="help-icon" data-help="Enter your official business name as it appears on your license or registration.">?</span>
+              </div>
+              <p class="help-text">Enter your official business name as it appears on your license or registration.</p>
+              <input class="kc-input" type="text" id="business_name" name="business_name" required>
+            </div>
+
+            <div class="kc-field field-help-wrapper">
+              <div class="kc-label-with-help">
+                <label class="kc-label" for="description">Brief Description<span class="req">*</span></label>
+                <span class="help-icon" data-help="Describe what your business does and what makes you unique. This helps customers find you!">?</span>
+              </div>
+              <p class="help-text">Describe what your business does and what makes you unique. This helps customers find you!</p>
+              <textarea class="kc-textarea" id="description" name="description" required></textarea>
+            </div>
+
+            <div class="kc-field field-help-wrapper">
+              <div class="kc-label-with-help">
+                <label class="kc-label" for="primary_category">Primary Category<span class="req">*</span></label>
+                <span class="help-icon" data-help="Choose your MAIN business category. This is how customers will primarily find you.">?</span>
+              </div>
+              <p class="help-text">Choose your MAIN business category. This is how customers will primarily find you.</p>
+              <select class="kc-select" id="primary_category" name="primary_category" required>
+                <option value="">-- Select Primary Category --</option>
+                <!-- Categories loaded dynamically from Firestore -->
+              </select>
+            </div>
+
+            <div class="kc-field field-help-wrapper">
+              <div class="kc-label-with-help">
+                <label class="kc-label">Secondary Categories (Optional)</label>
+                <span class="help-icon" data-help="Select other services you offer. Free accounts get 1 secondary category, Pro accounts get up to 5!">?</span>
+              </div>
+              <p class="help-text">Select other services you offer. Free accounts get 1 secondary category, Pro accounts get up to 5!</p>
+              <div id="secondaryCategoriesContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 1rem; background: rgba(0,0,0,0.3);">
+                <!-- Categories will be populated by JavaScript -->
+              </div>
+              <p id="categoryLimitMessage" class="kc-help gold">Free tier: 1 secondary category. Upgrade to Pro for up to 5!</p>
+            </div>
+
+            <div class="kc-field grid-2">
+              <div>
+                <label class="kc-label" for="website">Website</label>
+                <!-- text + url keyboard; no native URL validation -->
+                <input class="kc-input"
+                       type="text"
+                       id="website"
+                       name="website"
+                       inputmode="url"
+                       autocomplete="url"
+                       placeholder="e.g. davebusiness.com">
+                <!-- live preview (hidden until valid) -->
+                <div id="websitePreview" class="kc-help" aria-live="polite" class="hidden"></div>
+              </div>
+              <div>
+                <label class="kc-label" for="phone">Phone<span class="req">*</span></label>
+                <input class="kc-input" type="tel" id="phone" name="phone" required>
+              </div>
+            </div>
+
+            <!-- =========================
+                 Section 2: Location & Contact
+                 ========================= -->
+            <h3 class="gold">Location & Contact Info</h3>
+
+            <div class="kc-field grid-2">
+              <div>
+                <label class="kc-label" for="your_name">Your Name<span class="req">*</span></label>
+                <input class="kc-input" type="text" id="your_name" name="your_name" required>
+              </div>
+              <div>
+                <label class="kc-label" for="email">Email<span class="req">*</span></label>
+                <input class="kc-input" type="email" id="email" name="email" required>
+              </div>
+            </div>
+
+            <div class="kc-field">
+              <label class="kc-label" for="address_line1">Address Line 1</label>
+              <input class="kc-input" type="text" id="address_line1" name="address_line1">
+            </div>
+
+            <div class="kc-field">
+              <label class="kc-label" for="address_line2">Address Line 2</label>
+              <input class="kc-input" type="text" id="address_line2" name="address_line2">
+            </div>
+
+            <div class="kc-field grid-3">
+              <div>
+                <label class="kc-label" for="city">City<span class="req">*</span></label>
+                <input class="kc-input" type="text" id="city" name="city" required>
+              </div>
+              <div>
+                <label class="kc-label" for="state">State<span class="req">*</span></label>
+                <input class="kc-input" type="text" id="state" name="state" required>
+              </div>
+              <div>
+                <label class="kc-label" for="zip_code">ZIP<span class="req">*</span></label>
+                <input class="kc-input" type="text" id="zip_code" name="zip_code" required>
+              </div>
+            </div>
+
+            <div class="kc-field field-help-wrapper">
+              <div class="kc-label-with-help">
+                <label class="kc-label" for="church_id">Select Your Church<span class="req">*</span></label>
+                <span class="help-icon" data-help="Choose the church you attend. This helps fellow members find and support your business!">?</span>
+              </div>
+              <p class="help-text">Choose the church you attend. This helps fellow members find and support your business!</p>
+              <select class="kc-select" id="church_id" name="church_id" required>
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+
+            <div class="kc-field text-center m-block-xl">
+              <button type="submit" class="action-button btn-gold">Submit Listing</button>
+            </div>
+
+            <div id="message" class="message"></div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer injected by components.js -->
+    <div id="footer"></div>
+  </div>
+
+  <!-- Shared site scripts (match index/business) -->
+  <script src="js/components.js?v=21" defer></script>
+
+  <!-- Firebase + Form Logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD3Im6F3lWgMbJiA7plsDt_Rp9kCLTr6KU",
+      authDomain: "kingdom-commerce.firebaseapp.com",
+      projectId: "kingdom-commerce",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Normalize URL so users can type "davebusiness.com" (no http required)
+    function normalizeUrl(u){
+      const s = (u || "").trim();
+      if (!s) return "";
+      if (/^https?:\/\//i.test(s)) return s;
+      try { return new URL("https://" + s).href; } catch(e) { return ""; }
+    }
+
+    // Populate church dropdown
+    const churchSelect = document.getElementById("church_id");
+    getDocs(collection(db, "churches")).then(snapshot => {
+      snapshot.forEach(doc => {
+        const opt = document.createElement("option");
+        opt.value = doc.id;
+        opt.textContent = doc.data().church_name || "Unnamed Church";
+        churchSelect.appendChild(opt);
+      });
+    }).catch(err => console.error("Error loading churches:", err));
+
+    const form = document.getElementById("businessForm");
+    const messageDiv = document.getElementById("message");
+
+    // --- Category System (Hybrid: Primary + Secondary) - DYNAMIC LOADING ---
+    let categories = [];
+
+    const primaryCategorySelect = document.getElementById('primary_category');
+    const secondaryCategoriesContainer = document.getElementById('secondaryCategoriesContainer');
+    const categoryLimitMessage = document.getElementById('categoryLimitMessage');
+    
+    const MAX_SECONDARY_FREE = 1;
+    const MAX_SECONDARY_PRO = 5;
+    const currentTier = 'free'; // For now, all submissions are free tier
+
+    // Load categories from Firestore
+    async function loadCategories() {
+      try {
+        const q = query(collection(db, "categories"), where("active", "==", true), orderBy("display_order"));
+        const snapshot = await getDocs(q);
+        
+        categories = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          categories.push({
+            value: data.slug,
+            label: data.label
+          });
+        });
+
+        // Populate primary category dropdown
+        categories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.value;
+          option.textContent = cat.label;
+          primaryCategorySelect.appendChild(option);
+        });
+
+        // Initialize secondary categories
+        updateSecondaryCategories();
+      } catch (error) {
+        console.error("Error loading categories:", error);
+        messageDiv.innerHTML = '<p class="error">⚠️ Error loading categories. Please refresh the page.</p>';
+      }
+    }
+
+    // Call loadCategories on page load
+    loadCategories();
+
+    function updateSecondaryCategories() {
+      const primaryValue = primaryCategorySelect.value;
+      secondaryCategoriesContainer.innerHTML = '';
+
+      if (!primaryValue) {
+        secondaryCategoriesContainer.innerHTML = '<p style="opacity: 0.6; font-size: 0.9rem;">Select a primary category first</p>';
+        return;
+      }
+
+      // Show categories except the selected primary
+      const availableCategories = categories.filter(cat => cat.value !== primaryValue);
+      
+      availableCategories.forEach(cat => {
+        const checkboxWrapper = document.createElement('div');
+        checkboxWrapper.style.marginBottom = '0.5rem';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'secondary_categories';
+        checkbox.value = cat.value;
+        checkbox.id = `cat_${cat.value}`;
+        checkbox.addEventListener('change', handleCategoryLimit);
+        
+        const label = document.createElement('label');
+        label.htmlFor = `cat_${cat.value}`;
+        label.textContent = cat.label;
+        label.style.marginLeft = '0.5rem';
+        label.style.cursor = 'pointer';
+        
+        checkboxWrapper.appendChild(checkbox);
+        checkboxWrapper.appendChild(label);
+        secondaryCategoriesContainer.appendChild(checkboxWrapper);
+      });
+    }
+
+    function handleCategoryLimit() {
+      const checkboxes = document.querySelectorAll('input[name="secondary_categories"]');
+      const checked = Array.from(checkboxes).filter(cb => cb.checked);
+      const maxAllowed = currentTier === 'pro' ? MAX_SECONDARY_PRO : MAX_SECONDARY_FREE;
+      
+      // Disable unchecked boxes if limit reached
+      checkboxes.forEach(cb => {
+        if (!cb.checked && checked.length >= maxAllowed) {
+          cb.disabled = true;
+        } else if (!cb.checked) {
+          cb.disabled = false;
+        }
+      });
+
+      // Update message
+      const remaining = maxAllowed - checked.length;
+      if (remaining > 0) {
+        categoryLimitMessage.textContent = `You can select ${remaining} more secondary categor${remaining === 1 ? 'y' : 'ies'}. Upgrade to Pro for up to 5!`;
+        categoryLimitMessage.style.color = '#FFD700';
+      } else {
+        categoryLimitMessage.textContent = `Limit reached! Upgrade to Pro for up to 5 secondary categories.`;
+        categoryLimitMessage.style.color = '#FFA500';
+      }
+    }
+
+    // Update secondary categories when primary changes
+    primaryCategorySelect.addEventListener('change', updateSecondaryCategories);
+    
+    // Initialize on page load
+    updateSecondaryCategories();
+
+    // --- Live website preview (non-blocking, safe) ---
+    const websiteInput = document.getElementById("website");
+    const websitePreview = document.getElementById("websitePreview");
+
+    let previewTimer;
+    function updateWebsitePreview(){
+      const href = normalizeUrl(websiteInput.value);
+      // Only show when we successfully normalized to a valid absolute URL
+      if (href) {
+        websitePreview.style.display = "";
+        websitePreview.innerHTML = `Preview: <a href="${href}" target="_blank" rel="noopener">${href.replace(/^https?:\/\//i,'')}</a>`;
+      } else {
+        websitePreview.style.display = "none";
+        websitePreview.textContent = "";
+      }
+    }
+    websiteInput.addEventListener("input", () => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(updateWebsitePreview, 200); // light debounce
+    });
+    websiteInput.addEventListener("blur", updateWebsitePreview);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      messageDiv.textContent = "";
+      messageDiv.className = "message";
+
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+
+      // Collect secondary categories
+      const secondaryCheckboxes = document.querySelectorAll('input[name="secondary_categories"]:checked');
+      const secondaryCategories = Array.from(secondaryCheckboxes).map(cb => cb.value);
+      
+      // Build categories array: primary + secondary
+      const allCategories = [data.primary_category, ...secondaryCategories];
+
+      try {
+        await addDoc(collection(db, "business_listings"), {
+          business_name: data.business_name,
+          your_name: data.your_name,
+          email: data.email,
+          description: data.description,
+          phone: data.phone,
+          website: normalizeUrl(data.website),
+          address_line1: data.address_line1,
+          address_line2: data.address_line2,
+          city: data.city,
+          state: data.state,
+          zip_code: data.zip_code,
+          church_id: data.church_id,
+          primary_category: data.primary_category,
+          categories: allCategories,
+          listing_status: "pending",
+          pro_status: "free",
+          created_at: new Date().toISOString()
+        });
+
+        messageDiv.textContent = "✅ Your listing was sent!";
+        messageDiv.className = "message success visible";
+        form.reset();
+        websitePreview.style.display = "none";
+        websitePreview.textContent = "";
+        updateSecondaryCategories(); // Reset category checkboxes
+
+      } catch (error) {
+        console.error("Submission error:", error);
+        messageDiv.textContent = "❌ Error: " + error.message;
+        messageDiv.className = "message error";
+      }
+    });
+  </script>
+
+  <!-- Help tooltip system (mobile) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const helpIcons = document.querySelectorAll('.help-icon');
+      let activeTooltip = null;
+
+      helpIcons.forEach(icon => {
+        icon.addEventListener('click', (e) => {
+          e.stopPropagation();
+          
+          // Remove existing tooltip if any
+          if (activeTooltip) {
+            activeTooltip.remove();
+            if (activeTooltip.helpIcon === icon) {
+              activeTooltip = null;
+              return;
+            }
+          }
+
+          // Create tooltip
+          const tooltip = document.createElement('div');
+          tooltip.className = 'help-tooltip show';
+          tooltip.textContent = icon.dataset.help;
+          tooltip.helpIcon = icon;
+
+          const wrapper = icon.closest('.field-help-wrapper');
+          wrapper.appendChild(tooltip);
+          activeTooltip = tooltip;
+
+          // Position tooltip
+          setTimeout(() => {
+            const rect = icon.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            // Make sure tooltip doesn't go off screen
+            if (tooltipRect.left < 10) {
+              tooltip.style.left = '10px';
+              tooltip.style.transform = 'none';
+            }
+            if (tooltipRect.right > window.innerWidth - 10) {
+              tooltip.style.right = '10px';
+              tooltip.style.left = 'auto';
+              tooltip.style.transform = 'none';
+            }
+          }, 10);
+        });
+      });
+
+      // Close tooltip when clicking outside
+      document.addEventListener('click', () => {
+        if (activeTooltip) {
+          activeTooltip.remove();
+          activeTooltip = null;
+        }
+      });
+    });
+  </script>
+  <script src="js/breadcrumbs.js" defer></script>
+</body>
+</html>

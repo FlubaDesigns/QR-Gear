@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Business Questionnaire Insights - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 2px solid var(--border-color);
+      text-align: center;
+    }
+    .stat-card:hover {
+      border-color: var(--gold);
+    }
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .action-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-box {
+      flex: 1;
+      max-width: 400px;
+    }
+    .response-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: all 0.2s ease;
+    }
+    .response-card:hover {
+      border-color: var(--gold);
+    }
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .response-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .response-meta {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-complete {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4caf50;
+    }
+    .badge-draft {
+      background: rgba(255, 152, 0, 0.2);
+      color: #ff9800;
+    }
+    .answers-grid {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .answer-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 1rem;
+      border-radius: 4px;
+      border-left: 3px solid var(--gold);
+    }
+    .answer-question {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-color);
+    }
+    .answer-value {
+      color: var(--text-muted);
+    }
+    .toggle-btn {
+      background: var(--gold);
+      color: #000;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .toggle-btn:hover {
+      opacity: 0.9;
+    }
+    .answers-collapsed {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1 class="gold-metallic">Business Questionnaire Insights</h1>
+        <div class="flex-gap">
+          <button class="action-button btn-gold" id="exportCSV">Export CSV</button>
+          <button class="action-button btn-secondary" id="refreshData">Refresh Data</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalResponses">0</div>
+          <div class="stat-label">Total Responses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="completedResponses">0</div>
+          <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="draftResponses">0</div>
+          <div class="stat-label">Drafts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="completionRate">0%</div>
+          <div class="stat-label">Completion Rate</div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <div class="search-box">
+          <input type="text" id="searchInput" class="input-dark" placeholder="Search by business name or ID...">
+        </div>
+        <select id="statusFilter" class="input-dark">
+          <option value="">All Status</option>
+          <option value="complete">Completed</option>
+          <option value="draft">Drafts</option>
+        </select>
+      </div>
+
+      <div id="responsesList">
+        <p class="status-message">Loading responses...</p>
+      </div>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  <script src="js/admin-auth-guard.js" defer></script>
+  <script src="../js/breadcrumbs.js" defer></script>
+
+  <script type="module">
+    import { db } from '../js/firebase-config.js';
+    import { collection, getDocs, query, onSnapshot, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    let allResponses = [];
+    let filteredResponses = [];
+    let questions = [];
+    let unsubscribe = null;
+
+    const responsesList = document.getElementById('responsesList');
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+
+    async function loadQuestions() {
+      try {
+        const q = query(collection(db, 'questionnaire_questions'));
+        const snapshot = await getDocs(q);
+        questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (error) {
+        console.error('Error loading questions:', error);
+      }
+    }
+
+    function getQuestionText(questionId) {
+      const q = questions.find(q => q.id === questionId);
+      return q ? q.question_text : 'Unknown Question';
+    }
+
+    function setupRealtimeListener() {
+      try {
+        const insightsQuery = query(collection(db, 'business_insights'));
+        
+        unsubscribe = onSnapshot(insightsQuery, async (snapshot) => {
+          allResponses = await Promise.all(snapshot.docs.map(async (responseDoc) => {
+            const data = responseDoc.data();
+            
+            let businessName = 'Unknown Business';
+            if (data.business_id) {
+              try {
+                const businessDoc = await getDoc(doc(db, 'business_listings', data.business_id));
+                if (businessDoc.exists()) {
+                  businessName = businessDoc.data().business_name || 'Unknown Business';
+                }
+              } catch (err) {
+                console.error('Error fetching business:', err);
+              }
+            }
+            
+            return {
+              id: responseDoc.id,
+              business_name: businessName,
+              ...data
+            };
+          }));
+
+          updateStats();
+          applyFilters();
+          
+        }, (error) => {
+          console.error('Error loading responses:', error);
+          responsesList.innerHTML = `<p class="status-message error">Error loading responses. Please try again.</p>`;
+        });
+      } catch (error) {
+        console.error('Error setting up real-time listener:', error);
+      }
+    }
+
+    function updateStats() {
+      const total = allResponses.length;
+      const completed = allResponses.filter(r => r.completed).length;
+      const drafts = total - completed;
+      const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      document.getElementById('totalResponses').textContent = total;
+      document.getElementById('completedResponses').textContent = completed;
+      document.getElementById('draftResponses').textContent = drafts;
+      document.getElementById('completionRate').textContent = completionRate + '%';
+    }
+
+    function applyFilters() {
+      const search = searchInput.value.toLowerCase();
+      const status = statusFilter.value;
+
+      filteredResponses = allResponses.filter(response => {
+        if (search && !response.id.toLowerCase().includes(search) && !response.business_name.toLowerCase().includes(search)) return false;
+        if (status === 'complete' && !response.completed) return false;
+        if (status === 'draft' && response.completed) return false;
+        return true;
+      });
+
+      renderResponses();
+    }
+
+    function renderResponses() {
+      if (filteredResponses.length === 0) {
+        responsesList.innerHTML = `<p class="status-message empty">No responses found.</p>`;
+        return;
+      }
+
+      responsesList.innerHTML = filteredResponses.map(response => {
+        const answers = response.answers || {};
+        const answersHTML = Object.keys(answers).map(key => {
+          const questionId = key.replace('q_', '');
+          const value = Array.isArray(answers[key]) ? answers[key].join(', ') : answers[key];
+          return `
+            <div class="answer-item">
+              <div class="answer-question">${getQuestionText(questionId)}</div>
+              <div class="answer-value">${value || 'No answer'}</div>
+            </div>
+          `;
+        }).join('');
+        
+        const answerCount = Object.keys(answers).length;
+
+        return `
+          <div class="response-card">
+            <div class="response-header">
+              <div class="response-name">${response.business_name}</div>
+              <div class="response-meta">
+                <span class="badge ${response.completed ? 'badge-complete' : 'badge-draft'}">
+                  ${response.completed ? 'Complete' : 'Draft'}
+                </span>
+                <span>ID: ${response.id}</span>
+                ${response.updated_at ? `<span>Updated: ${new Date(response.updated_at.seconds * 1000).toLocaleDateString()}</span>` : ''}
+                <button class="toggle-btn" onclick="toggleAnswers('${response.id}')">
+                  ${answerCount} Answers
+                </button>
+              </div>
+            </div>
+            <div id="answers-${response.id}" class="answers-grid answers-collapsed">
+              ${answersHTML || '<p class="text-muted">No answers submitted yet.</p>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.toggleAnswers = (responseId) => {
+      const answersDiv = document.getElementById(`answers-${responseId}`);
+      answersDiv.classList.toggle('answers-collapsed');
+    };
+
+    function exportToCSV() {
+      if (filteredResponses.length === 0) {
+        alert('No data to export');
+        return;
+      }
+
+      const allQuestionIds = new Set();
+      filteredResponses.forEach(r => {
+        if (r.answers) {
+          Object.keys(r.answers).forEach(key => allQuestionIds.add(key));
+        }
+      });
+
+      const questionIds = Array.from(allQuestionIds).sort();
+      const headers = ['Business Name', 'Business ID', 'Status', 'Updated', ...questionIds.map(id => getQuestionText(id.replace('q_', '')))];
+
+      const rows = filteredResponses.map(response => {
+        const baseData = [
+          response.business_name || '',
+          response.id || '',
+          response.completed ? 'Complete' : 'Draft',
+          response.updated_at ? new Date(response.updated_at.seconds * 1000).toLocaleString() : ''
+        ];
+
+        const answerData = questionIds.map(qId => {
+          const value = response.answers?.[qId];
+          if (Array.isArray(value)) return value.join('; ');
+          return value || '';
+        });
+
+        return [...baseData, ...answerData];
+      });
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `business-questionnaire-responses-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    searchInput.addEventListener('input', applyFilters);
+    statusFilter.addEventListener('change', applyFilters);
+
+    document.getElementById('exportCSV').addEventListener('click', exportToCSV);
+    document.getElementById('refreshData').addEventListener('click', () => {
+      if (unsubscribe) unsubscribe();
+      loadData();
+    });
+
+    async function loadData() {
+      await loadQuestions();
+      setupRealtimeListener();
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

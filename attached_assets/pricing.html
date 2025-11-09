@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Pricing - Kingdom Connects</title>
+  <meta name="description" content="Kingdom Connects pricing - Free baseline listings or Pro tier for enhanced features. Permanent listings, never deleted.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+  <style>
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      max-width: 900px;
+      margin: 32px auto;
+    }
+    @media (min-width: 768px) {
+      .pricing-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .pricing-card {
+      background: var(--card-bg);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px 24px;
+      position: relative;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .pricing-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    }
+    .pricing-card.featured {
+      border-color: var(--gold);
+      box-shadow: 0 8px 24px rgba(255,215,0,0.15);
+    }
+    .pricing-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gold);
+      color: var(--dark-blue);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .pricing-tier {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: var(--gold);
+    }
+    .pricing-price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin: 0 0 4px;
+      line-height: 1;
+    }
+    .pricing-price small {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    .pricing-period {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin: 0 0 24px;
+    }
+    .pricing-features {
+      list-style: none;
+      padding: 0;
+      margin: 24px 0;
+    }
+    .pricing-features li {
+      padding: 10px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .pricing-features li:last-child {
+      border-bottom: none;
+    }
+    .pricing-features .check {
+      color: var(--gold);
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .pricing-cta {
+      margin-top: 24px;
+    }
+    .guarantee {
+      text-align: center;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 24px;
+      background: rgba(255,215,0,0.05);
+      border: 1px solid rgba(255,215,0,0.2);
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content">
+      <div class="text-center m-block">
+        <h1 class="gold-metallic">Simple, Transparent Pricing</h1>
+        <p class="text-lg">Choose the plan that fits your business. Upgrade or downgrade anytime.</p>
+      </div>
+
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <h2 class="pricing-tier">Free Tier</h2>
+          <div class="pricing-price">$0<small>/month</small></div>
+          <p class="pricing-period">Perfect for getting started</p>
+          
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> <span>Basic business listing with contact info</span></li>
+            <li><span class="check">✓</span> <span>Primary category selection</span></li>
+            <li><span class="check">✓</span> <span>1 secondary category</span></li>
+            <li><span class="check">✓</span> <span>Customer reviews and ratings</span></li>
+            <li><span class="check">✓</span> <span>Church affiliation display</span></li>
+            <li><span class="check">✓</span> <span>Search visibility</span></li>
+            <li><span class="check">✓</span> <span><strong>Permanent listing - never deleted</strong></span></li>
+          </ul>
+
+          <div class="pricing-cta">
+            <a href="submit_business.html" class="action-button btn-secondary full-width">Get Started Free</a>
+          </div>
+        </div>
+
+        <div class="pricing-card featured">
+          <div class="pricing-badge">Most Popular</div>
+          <h2 class="pricing-tier">Pro Tier</h2>
+          <div class="pricing-price">$9-12<small>/month</small></div>
+          <p class="pricing-period">Everything in Free, plus:</p>
+          
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> <span><strong>Up to 5 secondary categories</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>Photo gallery (multiple images)</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>Video showcase</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>Featured placement in search results</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>QR code for offline marketing</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>Respond to customer reviews</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>Enhanced business profile</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>Priority customer support</strong></span></li>
+            <li><span class="check">✓</span> <span><strong>Analytics and insights</strong></span></li>
+          </ul>
+
+          <div class="pricing-cta">
+            <a href="submit_business.html" class="action-button btn-gold full-width">Start Pro Trial</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="guarantee">
+        <h3 class="gold">Our Permanent Listing Promise</h3>
+        <p><strong>Kingdom Connects never deletes your business listing.</strong> If you cancel Pro tier, your listing simply downgrades to the free baseline level. Your business remains discoverable forever - we believe in supporting the Body of Christ for the long haul.</p>
+      </div>
+
+      <div class="card m-block">
+        <h2 class="gold text-center">Frequently Asked Questions</h2>
+        
+        <h3>Can I upgrade or downgrade anytime?</h3>
+        <p>Absolutely! Upgrade to Pro or cancel anytime. No long-term contracts.</p>
+
+        <h3>What happens if I cancel Pro?</h3>
+        <p>Your listing downgrades to the free baseline tier. It's never deleted - you'll still appear in searches with basic information.</p>
+
+        <h3>Do you offer refunds?</h3>
+        <p>We don't offer refunds for partial months, but you can cancel anytime to prevent future charges.</p>
+
+        <h3>How does the tithing model work?</h3>
+        <p>Kingdom Connects tithes 10% of gross revenue to support churches and Christian ministries. When you upgrade to Pro, you're helping fund Kingdom work!</p>
+
+        <h3>Can churches list for free?</h3>
+        <p>Yes! Church listings are always 100% free.</p>
+      </div>
+
+      <div class="text-center m-block">
+        <h2 class="gold">Ready to Get Started?</h2>
+        <p class="text-lg">Join hundreds of Christian businesses connecting with their communities.</p>
+        <a href="submit_business.html" class="action-button btn-gold">Submit Your Business</a>
+      </div>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+  <script src="js/breadcrumbs.js" defer></script>
+</body>
+</html>

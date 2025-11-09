@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Become a Sales Agent - Kingdom Connects</title>
+  <meta name="description" content="Earn recurring commissions by helping Christian businesses grow. Join Kingdom Connects as a sales agent and build passive income.">
+  
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+
+  <style>
+    .hero-section {
+      background: linear-gradient(135deg, rgba(218,165,32,0.1) 0%, rgba(0,0,0,0.3) 100%);
+      padding: 4rem 2rem;
+      text-align: center;
+      border-bottom: 2px solid rgba(218,165,32,0.3);
+      margin-bottom: 3rem;
+    }
+
+    .hero-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    .hero-subtitle {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      max-width: 800px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+
+    .earnings-highlight {
+      background: linear-gradient(135deg, rgba(218,165,32,0.2) 0%, rgba(0,0,0,0.3) 100%);
+      border: 3px solid var(--gold);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      margin: 4rem 0;
+    }
+
+    .earnings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .earnings-box {
+      background: rgba(0,0,0,0.3);
+      padding: 2rem;
+      border-radius: 12px;
+      border: 1px solid rgba(218,165,32,0.3);
+    }
+
+    .earnings-amount {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .earnings-label {
+      opacity: 0.8;
+      font-size: 0.95rem;
+    }
+
+    .benefit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .benefit-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .benefit-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-5px);
+    }
+
+    .benefit-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .benefit-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+
+    .commission-table {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .commission-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .commission-row:last-child {
+      border-bottom: none;
+    }
+
+    .commission-header {
+      font-weight: 700;
+      color: var(--gold);
+      background: rgba(218,165,32,0.1);
+      border-radius: 8px;
+    }
+
+    .cta-section {
+      background: linear-gradient(135deg, rgba(218,165,32,0.15) 0%, rgba(0,0,0,0.3) 100%);
+      padding: 4rem 2rem;
+      text-align: center;
+      border-radius: 12px;
+      margin: 4rem 0;
+    }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .step-card {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .step-number {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 1rem;
+    }
+
+    .step-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .ideal-candidate {
+      background: rgba(218,165,32,0.1);
+      border-left: 4px solid var(--gold);
+      padding: 2rem;
+      border-radius: 8px;
+      margin: 2rem 0;
+    }
+
+    .ideal-candidate ul {
+      list-style: none;
+      padding: 0;
+      margin: 1rem 0;
+    }
+
+    .ideal-candidate li {
+      padding: 0.5rem 0;
+      display: flex;
+      align-items: start;
+      gap: 0.75rem;
+    }
+
+    .ideal-candidate li::before {
+      content: "✓";
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <section class="hero-section">
+      <h1 class="hero-title">Build Passive Income Helping Christian Businesses</h1>
+      <p class="hero-subtitle">
+        Become a Kingdom Connects sales agent and earn recurring commissions by connecting Christian businesses 
+        with the platform. No cold calling. No inventory. Just relationship-based selling with residual income.
+      </p>
+      <div class="flex-gap-center" style="justify-content: center;">
+        <a href="signup.html" class="action-button btn-gold btn-lg">Apply to Become an Agent</a>
+        <a href="#commission" class="action-button btn-lg">See Commission Structure</a>
+      </div>
+    </section>
+
+    <section class="earnings-highlight">
+      <h2 class="gold-metallic">Earning Potential</h2>
+      <div class="earnings-grid">
+        <div class="earnings-box">
+          <div class="earnings-amount">$20-40</div>
+          <p class="earnings-label">Per Pro signup (one-time)</p>
+        </div>
+        <div class="earnings-box">
+          <div class="earnings-amount">20%</div>
+          <p class="earnings-label">Monthly recurring commission</p>
+        </div>
+        <div class="earnings-box">
+          <div class="earnings-amount">$1,800+</div>
+          <p class="earnings-label">Monthly potential (50 active Pro clients)</p>
+        </div>
+      </div>
+      <p class="mt-lg opacity-90" style="max-width: 650px; margin: 2rem auto 0;">
+        Build a portfolio of Christian businesses paying you every month. The more clients you bring on, 
+        the more passive income you generate. Your earnings compound over time.
+      </p>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Why Become a Kingdom Connects Agent?</h2>
+      <div class="benefit-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">💰</div>
+          <h3 class="benefit-title">Recurring Revenue</h3>
+          <p>Earn 20% monthly commissions on every Pro subscription you sell—for as long as they stay subscribed.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🎯</div>
+          <h3 class="benefit-title">Easy Sell</h3>
+          <p>Businesses get a FREE trial. You're not asking for money upfront—just offering value with no risk.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📈</div>
+          <h3 class="benefit-title">Compound Growth</h3>
+          <p>Your income grows every month as you add clients. Build a portfolio that pays you while you sleep.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">⛪</div>
+          <h3 class="benefit-title">Kingdom Impact</h3>
+          <p>Help strengthen Christian economic communities while building your own financial freedom.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🏠</div>
+          <h3 class="benefit-title">Work From Anywhere</h3>
+          <p>Set your own hours. Work from home. No office required. Perfect for side income or full-time.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📊</div>
+          <h3 class="benefit-title">Real-Time Dashboard</h3>
+          <p>Track your leads, conversions, and earnings with a powerful analytics dashboard.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="commission">
+      <h2 class="gold-metallic text-center">Commission Structure</h2>
+      <p class="text-center opacity-80 mb-lg">Simple, transparent, and designed to reward your efforts long-term.</p>
+
+      <div class="commission-table">
+        <div class="commission-row commission-header">
+          <div>Action</div>
+          <div>Commission</div>
+          <div>When Paid</div>
+        </div>
+        <div class="commission-row">
+          <div>
+            <strong>Free Listing Signup</strong>
+            <p class="text-sm opacity-70 mt-xs">Business creates free account</p>
+          </div>
+          <div><strong>$0</strong></div>
+          <div>N/A</div>
+        </div>
+        <div class="commission-row">
+          <div>
+            <strong>Pro Upgrade (First Payment)</strong>
+            <p class="text-sm opacity-70 mt-xs">Business upgrades to $9-12/month Pro</p>
+          </div>
+          <div><strong>$20-40</strong></div>
+          <div>One-time</div>
+        </div>
+        <div class="commission-row">
+          <div>
+            <strong>Monthly Recurring Revenue</strong>
+            <p class="text-sm opacity-70 mt-xs">Client stays subscribed to Pro</p>
+          </div>
+          <div><strong>20%</strong></div>
+          <div>Every month</div>
+        </div>
+      </div>
+
+      <div class="ideal-candidate">
+        <h3 class="gold-metallic">Example: Building Passive Income</h3>
+        <p class="opacity-90 mb-md">Here's how your income grows as you build your client portfolio:</p>
+        <ul style="list-style: none; padding: 0;">
+          <li style="padding: 0.5rem 0; display: block;"><strong>Month 1:</strong> Sign up 10 Pro clients → Earn $200-400 upfront + $18-24/month ongoing</li>
+          <li style="padding: 0.5rem 0; display: block;"><strong>Month 3:</strong> Total 30 Pro clients → Earning $54-72/month recurring</li>
+          <li style="padding: 0.5rem 0; display: block;"><strong>Month 6:</strong> Total 50 Pro clients → Earning $90-120/month recurring</li>
+          <li style="padding: 0.5rem 0; display: block;"><strong>Month 12:</strong> Total 100 Pro clients → Earning $180-240/month recurring</li>
+        </ul>
+        <p class="mt-md opacity-90">Plus you continue earning upfront bonuses on every new signup!</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">How It Works</h2>
+      <div class="step-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3 class="step-title">Apply & Get Approved</h3>
+          <p>Create an account and apply for sales agent status. We review and approve qualified candidates.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3 class="step-title">Access Your Dashboard</h3>
+          <p>Get your unique referral link and access to marketing materials, training, and analytics.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3 class="step-title">Connect with Businesses</h3>
+          <p>Reach out to Christian business owners in your network. Show them the value of Kingdom Connects.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <h3 class="step-title">Earn Recurring Income</h3>
+          <p>Track signups, conversions, and watch your monthly recurring revenue grow automatically.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Ideal Candidate Profile</h2>
+      <div class="ideal-candidate">
+        <h3 class="gold">You're a great fit if you:</h3>
+        <ul>
+          <li>Have connections in the Christian business community</li>
+          <li>Attend a church and understand kingdom economics</li>
+          <li>Are entrepreneurial and self-motivated</li>
+          <li>Want to build passive income through recurring commissions</li>
+          <li>Believe in supporting Christian-owned businesses</li>
+          <li>Can communicate value and build relationships</li>
+          <li>Are comfortable with technology and online platforms</li>
+        </ul>
+      </div>
+
+      <div class="ideal-candidate" style="background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.3);">
+        <h3>What you DON'T need:</h3>
+        <ul>
+          <li>Sales experience (we provide training)</li>
+          <li>College degree</li>
+          <li>Large existing client base</li>
+          <li>Full-time availability (part-time is fine)</li>
+          <li>Office space or startup capital</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Agent Dashboard Features</h2>
+      <div class="benefit-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">🔗</div>
+          <h3 class="benefit-title">Unique Referral Link</h3>
+          <p>Track every signup back to your efforts with your personalized tracking link.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📊</div>
+          <h3 class="benefit-title">Real-Time Analytics</h3>
+          <p>See leads, conversions, active clients, and earnings updated live.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">💵</div>
+          <h3 class="benefit-title">Commission Reports</h3>
+          <p>Transparent monthly statements showing exactly what you've earned.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📧</div>
+          <h3 class="benefit-title">Marketing Materials</h3>
+          <p>Email templates, social media graphics, and pitch decks ready to use.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🎓</div>
+          <h3 class="benefit-title">Training Resources</h3>
+          <p>Learn proven sales strategies and best practices for Christian business outreach.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🏆</div>
+          <h3 class="benefit-title">Leaderboards</h3>
+          <p>See how you rank among other agents and earn recognition for top performance.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <h2 class="gold-metallic">Ready to Start Building Passive Income?</h2>
+      <p style="font-size: 1.15rem; max-width: 700px; margin: 1rem auto 2rem;">
+        Join Kingdom Connects as a sales agent and create a portfolio of Christian businesses 
+        that pay you recurring commissions month after month.
+      </p>
+      <a href="signup.html" class="action-button btn-gold btn-lg">Apply to Become an Agent</a>
+      <p class="mt-md opacity-70">Free to apply • No upfront costs • Start earning immediately</p>
+    </section>
+
+    <section>
+      <h2 class="gold-metallic text-center">Frequently Asked Questions</h2>
+      
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          Is there a cost to become an agent?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          No! There's zero cost to apply and become a Kingdom Connects sales agent. We make money when you make money.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          Do I need sales experience?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          Not at all! We provide full training, marketing materials, and support. If you can build relationships 
+          and communicate value, you can succeed as a Kingdom Connects agent.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          When do I get paid commissions?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          Upfront bonuses are paid within 30 days of a Pro subscription starting. Recurring monthly commissions 
+          are paid on the 15th of each month for the prior month's subscriptions.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          What if a client cancels their Pro subscription?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          Your recurring commission stops when they cancel, but you keep all commissions earned while they were active. 
+          This is why building a large portfolio is important—some will cancel, but most stay long-term.
+        </p>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 0.75rem;">
+          Can I do this part-time?
+        </h3>
+        <p style="opacity: 0.9; line-height: 1.6;">
+          Absolutely! Many of our top agents started part-time and built up their client portfolio over months. 
+          Set your own schedule and work at your own pace.
+        </p>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <h2 class="gold-metallic">Start Earning Today</h2>
+      <p style="font-size: 1.15rem; margin: 1rem 0 2rem;">
+        The sooner you start, the sooner you build recurring income.
+      </p>
+      <a href="signup.html" class="action-button btn-gold btn-lg">Apply Now</a>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Member Businesses - Kingdom Connects Church Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .business-grid {
+      display: grid;
+      gap: 1rem;
+    }
+    .business-item {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 215, 0, 0.2);
+    }
+    .pro-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+      color: #000;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-left: 0.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Member Businesses</h2>
+      
+      <div id="loadingMessage" class="text-center p-md">Loading member businesses...</div>
+      
+      <div id="contentArea" style="display: none;">
+        <article class="card">
+          <div class="flex-between-center">
+            <h3 class="gold">Businesses Affiliated with <span id="churchName"></span></h3>
+            <div>
+              <span class="gold text-lg"><strong id="businessCount">0</strong> Total Businesses</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card-highlight">
+          <h3 class="gold">💡 Grow Your Church's Impact</h3>
+          <p>Encourage your members to:</p>
+          <ul>
+            <li>✅ List their businesses on Kingdom Connects</li>
+            <li>✅ Upgrade to Pro ($9-12/month) for enhanced visibility</li>
+            <li>✅ Support fellow members' businesses</li>
+          </ul>
+          <p><strong>Remember:</strong> Your church receives 10% of all Pro subscription revenue from these businesses!</p>
+        </article>
+
+        <div id="emptyState" class="text-center p-lg" style="display: none;">
+          <article class="card">
+            <h3 class="gold">No Member Businesses Yet</h3>
+            <p>Your church doesn't have any affiliated businesses on Kingdom Connects yet.</p>
+            <p>Share this link with your congregation:</p>
+            <p class="gold text-lg"><strong>kingdomconnects.com/submit_business.html</strong></p>
+          </article>
+        </div>
+
+        <div id="businessList" class="business-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let churchId = null;
+    let churchData = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadChurch(user.email);
+    });
+
+    async function loadChurch(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const contentArea = document.getElementById('contentArea');
+
+      try {
+        const q = query(collection(db, "churches"), where("contact_email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.textContent = 'No church found for your account.';
+          loadingMessage.style.color = '#f44336';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        churchId = docSnap.id;
+        churchData = docSnap.data();
+
+        document.getElementById('churchName').textContent = churchData.church_name || 'Your Church';
+
+        await loadBusinesses();
+
+        loadingMessage.style.display = 'none';
+        contentArea.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading church:', error);
+        loadingMessage.textContent = 'Error loading data: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function loadBusinesses() {
+      try {
+        const q = query(collection(db, "business_listings"), where("church_id", "==", churchId));
+        const querySnapshot = await getDocs(q);
+
+        const businessCount = querySnapshot.size;
+        document.getElementById('businessCount').textContent = businessCount;
+
+        if (businessCount === 0) {
+          document.getElementById('emptyState').style.display = 'block';
+          return;
+        }
+
+        const businessList = document.getElementById('businessList');
+        businessList.innerHTML = '';
+
+        const businesses = [];
+        querySnapshot.forEach((doc) => {
+          businesses.push({ id: doc.id, ...doc.data() });
+        });
+
+        businesses.sort((a, b) => {
+          if (a.pro_status && !b.pro_status) return -1;
+          if (!a.pro_status && b.pro_status) return 1;
+          return (a.business_name || '').localeCompare(b.business_name || '');
+        });
+
+        businesses.forEach((business) => {
+          const item = document.createElement('div');
+          item.className = 'business-item';
+
+          const isPro = business.pro_status === true;
+          const proBadge = isPro ? '<span class="pro-badge">PRO</span>' : '';
+
+          const rating = business.average_rating || 0;
+          const stars = rating > 0 ? '⭐'.repeat(Math.round(rating)) : 'No reviews yet';
+
+          const statusMap = {
+            'active': '✅ Active',
+            'pending': '⏳ Pending',
+            'suspended': '⛔ Suspended'
+          };
+          const status = statusMap[business.listing_status] || business.listing_status || 'Unknown';
+
+          const locationParts = [];
+          if (business.city) locationParts.push(business.city);
+          if (business.state) locationParts.push(business.state);
+          const location = locationParts.length > 0 ? locationParts.join(', ') : 'Location not set';
+
+          item.innerHTML = `
+            <div class="flex-between-center">
+              <h4 class="gold m-0">${escapeHtml(business.business_name || 'Unnamed Business')}${proBadge}</h4>
+              <span>${status}</span>
+            </div>
+            <p class="text-sm opacity-70 mt-sm">${escapeHtml(business.primary_category || 'Uncategorized')} • ${location}</p>
+            <p class="mt-sm">${escapeHtml(business.description || 'No description').substring(0, 150)}${business.description && business.description.length > 150 ? '...' : ''}</p>
+            <div class="flex-between-center mt-sm">
+              <div>
+                <span class="gold">${stars}</span>
+                ${rating > 0 ? `<span class="opacity-70 text-sm ml-sm">${rating.toFixed(1)}</span>` : ''}
+              </div>
+              <div>
+                <span class="opacity-70 text-sm">Owner: ${escapeHtml(business.your_name || 'N/A')}</span>
+              </div>
+            </div>
+            ${business.phone || business.email ? `
+              <div class="mt-sm text-sm opacity-80">
+                ${business.phone ? `📞 ${escapeHtml(business.phone)}` : ''}
+                ${business.phone && business.email ? ' • ' : ''}
+                ${business.email ? `✉️ ${escapeHtml(business.email)}` : ''}
+              </div>
+            ` : ''}
+          `;
+
+          businessList.appendChild(item);
+        });
+
+      } catch (error) {
+        console.error('Error loading businesses:', error);
+        document.getElementById('emptyState').innerHTML = '<p class="error">Error loading businesses: ' + error.message + '</p>';
+        document.getElementById('emptyState').style.display = 'block';
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

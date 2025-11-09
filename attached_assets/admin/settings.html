@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Settings - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Platform Settings</h2>
+      <p>Configure Kingdom Connects platform settings and preferences.</p>
+
+      <article class="card">
+        <h3 class="gold">General Settings</h3>
+        <form>
+          <div class="form-group">
+            <label class="block font-bold">Platform Name</label>
+            <input type="text" value="Kingdom Connects" class="input-dark">
+          </div>
+
+          <div class="form-group">
+            <label class="block font-bold">Support Email</label>
+            <input type="email" value="support@kingdomconnects.com" class="input-dark">
+          </div>
+
+          <div class="form-group">
+            <label class="block font-bold">
+              <input type="checkbox" checked>
+              Enable new business submissions
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="block font-bold">
+              <input type="checkbox" checked>
+              Enable church submissions
+            </label>
+          </div>
+
+          <button type="submit" class="action-button btn-gold">Save Settings</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h3 class="gold">Pro Subscription Pricing</h3>
+        <form>
+          <div class="form-group">
+            <label class="block font-bold">Monthly Price (USD)</label>
+            <input type="number" value="12" min="1" class="input-dark">
+          </div>
+
+          <div class="form-group">
+            <label class="block font-bold">Church Tithe Percentage</label>
+            <input type="number" value="10" min="0" max="100" class="input-dark">
+          </div>
+
+          <button type="submit" class="action-button btn-gold">Update Pricing</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h3 class="gold color-red">Danger Zone</h3>
+        <p class="color-ccc">Careful with these actions - they affect the entire platform.</p>
+        <div class="flex-gap-sm">
+          <button class="action-button bg-error">Clear All Cache</button>
+          <button class="action-button bg-error">Export All Data</button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  </div>
+</body>
+</html>

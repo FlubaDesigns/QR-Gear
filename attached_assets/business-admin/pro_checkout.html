@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Upgrade to Pro - Kingdom Connects Business Portal</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Complete Your Pro Upgrade</h2>
+      <p>You're one step away from unlocking premium features for your business.</p>
+
+      <article class="card card-gradient-strong">
+        <h3 class="gold-metallic text-center">Kingdom Connects Pro</h3>
+        <p class="pricing-headline">$12/month</p>
+
+        <div class="m-block-xl">
+          <h4 class="gold">What You'll Get:</h4>
+          <ul class="list-unstyled">
+            <li class="p-block-sm">✓ Featured placement in directory</li>
+            <li class="p-block-sm">✓ Upload photos & videos</li>
+            <li class="p-block-sm">✓ Extended business description</li>
+            <li class="p-block-sm">✓ Custom QR code</li>
+            <li class="p-block-sm">✓ Priority in search results</li>
+            <li class="p-block-sm">✓ Business analytics</li>
+            <li class="p-block-sm">✓ Respond to reviews</li>
+          </ul>
+        </div>
+
+        <div id="promo_section" class="m-block-hidden">
+          <label class="block font-bold">Promo Code</label>
+          <input type="text" id="promo_code" placeholder="Enter promo code" class="input-dark">
+        </div>
+
+        <input type="hidden" id="utm_source" value="">
+        <input type="hidden" id="utm_campaign" value="">
+
+        <div class="text-center">
+          <button id="checkout-button" class="action-button btn-gold btn-xl">
+            Proceed to Payment
+          </button>
+        </div>
+
+        <p class="text-center text-sm opacity-70">
+          Secure payment powered by Stripe. Cancel anytime.
+        </p>
+      </article>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script>
+    const stripe = Stripe("pk_test_REPLACE_WITH_YOUR_KEY");
+
+    const queryParams = new URLSearchParams(window.location.search);
+    const promo = queryParams.get("promo");
+    const utmSource = queryParams.get("utm_source") || "";
+    const utmCampaign = queryParams.get("utm_campaign") || "";
+
+    if (promo) {
+      document.getElementById("promo_section").style.display = "block";
+      document.getElementById("promo_code").value = promo;
+    }
+
+    document.getElementById("utm_source").value = utmSource;
+    document.getElementById("utm_campaign").value = utmCampaign;
+
+    document.getElementById("checkout-button").addEventListener("click", () => {
+      const businessId = "REPLACE_WITH_ACTUAL_BUSINESS_ID";
+      const referrerId = queryParams.get("ref") || "";
+      const churchId = "REPLACE_WITH_CHURCH_ID";
+
+      const promoCodeInput = document.getElementById("promo_code");
+      const promoCode = promoCodeInput && promoCodeInput.value.trim();
+
+      const payload = {
+        business_id: businessId,
+        referrer_id: referrerId,
+        church_id: churchId,
+        auto_renew: true
+      };
+
+      if (promoCode) payload.promo_code = promoCode;
+      if (utmSource) payload.utm_source = utmSource;
+      if (utmCampaign) payload.utm_campaign = utmCampaign;
+
+      fetch("https://us-central1-kingdom-commerce.cloudfunctions.net/createCheckoutSession", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+        .then((res) => res.json())
+        .then((session) => {
+          return stripe.redirectToCheckout({ sessionId: session.id });
+        })
+        .then((result) => {
+          if (result.error) {
+            alert(result.error.message);
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          alert("Payment error. Please try again or contact support.");
+        });
+    });
+  </script>
+  </div>
+</body>
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Email Campaigns - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .campaign-grid {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      margin-top: 1.5rem;
+    }
+    .campaign-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+    .campaign-card:hover {
+      background: var(--card-bg-hover);
+      border-color: var(--gold);
+    }
+    .campaign-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+    .campaign-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .stat-item {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .segment-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .segment-option {
+      background: var(--card-bg);
+      padding: 1rem;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .segment-option:hover {
+      border-color: var(--gold);
+    }
+    .segment-option.selected {
+      border-color: var(--gold);
+      background: rgba(212, 175, 55, 0.1);
+    }
+    .segment-option input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+    .segment-count {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    .template-editor {
+      margin-top: 1.5rem;
+    }
+    .template-preview {
+      background: #fff;
+      color: #333;
+      padding: 2rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      max-width: 600px;
+    }
+    .status-draft { color: #999; }
+    .status-scheduled { color: #ff9800; }
+    .status-sent { color: #4caf50; }
+    .email-provider-setup {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border-left: 4px solid var(--gold);
+      margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1 class="gold-metallic">Email Campaigns</h1>
+        <button class="action-button btn-gold" id="newCampaignBtn">+ New Campaign</button>
+      </div>
+
+      <div class="email-provider-setup" id="providerSetup">
+        <h3 class="gold">📧 Email Service Setup</h3>
+        <p>Configure your email service provider to enable campaign sending.</p>
+        <div class="flex-gap m-block">
+          <button class="action-button btn-secondary" id="setupSendGridBtn">Setup SendGrid</button>
+          <button class="action-button btn-secondary" id="setupMailchimpBtn">Setup Mailchimp</button>
+        </div>
+        <p class="text-sm text-muted m-block-sm">Status: <span id="providerStatus">Not configured</span></p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="campaigns">Campaigns</button>
+        <button class="tab-btn" data-tab="templates">Templates</button>
+        <button class="tab-btn" data-tab="analytics">Analytics</button>
+      </div>
+
+      <div class="tab-content active" id="campaigns-tab">
+        <div class="filters">
+          <input type="text" id="searchCampaigns" class="input-dark" placeholder="Search campaigns...">
+          <select id="filterStatus" class="input-dark">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="sent">Sent</option>
+          </select>
+        </div>
+
+        <div class="campaign-grid" id="campaignList">
+          <p class="text-muted">No campaigns yet. Create your first one!</p>
+        </div>
+      </div>
+
+      <div class="tab-content" id="templates-tab">
+        <button class="action-button btn-gold m-block" id="newTemplateBtn">+ New Template</button>
+        <div id="templateList"></div>
+      </div>
+
+      <div class="tab-content" id="analytics-tab">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="totalSent">0</div>
+            <div class="stat-label">Total Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="totalOpened">0%</div>
+            <div class="stat-label">Open Rate</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="totalClicked">0%</div>
+            <div class="stat-label">Click Rate</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="avgEngagement">0%</div>
+            <div class="stat-label">Engagement</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <div id="newCampaignModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2 class="gold-metallic">Create Email Campaign</h2>
+        <button class="modal-close" id="closeCampaignModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="campaignForm">
+          <div class="kc-field">
+            <label for="campaignName">Campaign Name *</label>
+            <input type="text" id="campaignName" class="input-dark" required placeholder="e.g., Pro Winback - November 2025">
+          </div>
+
+          <div class="kc-field">
+            <label>Target Audience *</label>
+            <div class="segment-selector">
+              <label class="segment-option">
+                <input type="checkbox" name="segment" value="pro_lapsed">
+                <div>
+                  <strong>Pro Lapsed</strong>
+                  <span class="segment-count" id="count-pro-lapsed">Loading...</span>
+                </div>
+              </label>
+              <label class="segment-option">
+                <input type="checkbox" name="segment" value="new_signups">
+                <div>
+                  <strong>New Signups</strong>
+                  <span class="segment-count" id="count-new-signups">Loading...</span>
+                </div>
+              </label>
+              <label class="segment-option">
+                <input type="checkbox" name="segment" value="active_businesses">
+                <div>
+                  <strong>Active Businesses</strong>
+                  <span class="segment-count" id="count-active-businesses">Loading...</span>
+                </div>
+              </label>
+              <label class="segment-option">
+                <input type="checkbox" name="segment" value="churches">
+                <div>
+                  <strong>Churches</strong>
+                  <span class="segment-count" id="count-churches">Loading...</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="kc-field">
+            <label for="emailSubject">Subject Line *</label>
+            <input type="text" id="emailSubject" class="input-dark" required placeholder="Your Kingdom Connects benefits are waiting...">
+          </div>
+
+          <div class="kc-field">
+            <label for="emailTemplate">Template</label>
+            <select id="emailTemplate" class="input-dark">
+              <option value="">Custom (write below)</option>
+              <option value="welcome">Welcome Email</option>
+              <option value="qr_code_delivery">Business QR Code (sent after profile completion)</option>
+              <option value="pro_winback">Pro Winback</option>
+              <option value="church_partnership">Church Partnership</option>
+            </select>
+          </div>
+
+          <div class="kc-field template-editor">
+            <label for="emailBody">Email Content *</label>
+            <textarea id="emailBody" class="input-dark" rows="12" required placeholder="Write your email content here..."></textarea>
+            <p class="text-sm text-muted">Available variables: {{name}}, {{business_name}}, {{church_name}}, {{email}}</p>
+          </div>
+
+          <div class="kc-field">
+            <label for="scheduleType">Send Schedule</label>
+            <select id="scheduleType" class="input-dark">
+              <option value="now">Send Now</option>
+              <option value="scheduled">Schedule for Later</option>
+              <option value="draft">Save as Draft</option>
+            </select>
+          </div>
+
+          <div class="kc-field" id="scheduleDateTime" style="display: none;">
+            <label for="sendDateTime">Send Date & Time</label>
+            <input type="datetime-local" id="sendDateTime" class="input-dark">
+          </div>
+
+          <div class="flex-gap">
+            <button type="submit" class="action-button btn-gold">Create Campaign</button>
+            <button type="button" class="action-button btn-secondary" id="cancelCampaign">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  <script src="js/admin-auth-guard.js" defer></script>
+  <script src="../js/breadcrumbs.js" defer></script>
+
+  <script type="module">
+    import { db } from '../js/firebase-config.js';
+    import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const newCampaignBtn = document.getElementById('newCampaignBtn');
+    const newCampaignModal = document.getElementById('newCampaignModal');
+    const closeCampaignModal = document.getElementById('closeCampaignModal');
+    const cancelCampaign = document.getElementById('cancelCampaign');
+    const campaignForm = document.getElementById('campaignForm');
+    const scheduleType = document.getElementById('scheduleType');
+    const scheduleDateTime = document.getElementById('scheduleDateTime');
+    const campaignList = document.getElementById('campaignList');
+
+    newCampaignBtn.addEventListener('click', () => {
+      newCampaignModal.style.display = 'flex';
+      loadSegmentCounts();
+    });
+
+    closeCampaignModal.addEventListener('click', () => {
+      newCampaignModal.style.display = 'none';
+    });
+
+    cancelCampaign.addEventListener('click', () => {
+      newCampaignModal.style.display = 'none';
+    });
+
+    scheduleType.addEventListener('change', () => {
+      scheduleDateTime.style.display = scheduleType.value === 'scheduled' ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('.segment-option').forEach(option => {
+      option.addEventListener('click', function(e) {
+        if (e.target.type !== 'checkbox') {
+          const checkbox = this.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+        }
+        this.classList.toggle('selected', this.querySelector('input').checked);
+      });
+    });
+
+    async function loadSegmentCounts() {
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const businessesSnap = await getDocs(collection(db, 'business_listings'));
+        const churchesSnap = await getDocs(collection(db, 'churches'));
+
+        const users = usersSnap.docs.map(d => d.data());
+        const businesses = businessesSnap.docs.map(d => d.data());
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const newSignups = users.filter(u => {
+          const created = u.created_at?.toDate ? u.created_at.toDate() : new Date(u.created_at);
+          return created > thirtyDaysAgo;
+        }).length;
+
+        const proLapsed = businesses.filter(b => 
+          b.is_pro === false && b.was_pro === true
+        ).length;
+
+        const activeBusinesses = businesses.filter(b => 
+          b.account_status === 'active'
+        ).length;
+
+        document.getElementById('count-new-signups').textContent = `${newSignups} recipients`;
+        document.getElementById('count-pro-lapsed').textContent = `${proLapsed} recipients`;
+        document.getElementById('count-active-businesses').textContent = `${activeBusinesses} recipients`;
+        document.getElementById('count-churches').textContent = `${churchesSnap.size} recipients`;
+
+      } catch (error) {
+        console.error('Error loading segment counts:', error);
+      }
+    }
+
+    campaignForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const selectedSegments = Array.from(document.querySelectorAll('input[name="segment"]:checked'))
+        .map(cb => cb.value);
+
+      if (selectedSegments.length === 0) {
+        alert('Please select at least one audience segment.');
+        return;
+      }
+
+      const campaignData = {
+        name: document.getElementById('campaignName').value.trim(),
+        subject: document.getElementById('emailSubject').value.trim(),
+        body: document.getElementById('emailBody').value.trim(),
+        template: document.getElementById('emailTemplate').value,
+        segments: selectedSegments,
+        schedule_type: scheduleType.value,
+        status: scheduleType.value === 'draft' ? 'draft' : 
+                scheduleType.value === 'scheduled' ? 'scheduled' : 'pending',
+        send_at: scheduleType.value === 'scheduled' ? 
+          Timestamp.fromDate(new Date(document.getElementById('sendDateTime').value)) : null,
+        created_at: serverTimestamp(),
+        sent_count: 0,
+        opened_count: 0,
+        clicked_count: 0
+      };
+
+      try {
+        await addDoc(collection(db, 'email_campaigns'), campaignData);
+        alert('Campaign created successfully!');
+        newCampaignModal.style.display = 'none';
+        campaignForm.reset();
+        loadCampaigns();
+      } catch (error) {
+        console.error('Error creating campaign:', error);
+        alert('Failed to create campaign. Please try again.');
+      }
+    });
+
+    async function loadCampaigns() {
+      try {
+        const q = query(collection(db, 'email_campaigns'), orderBy('created_at', 'desc'));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          campaignList.innerHTML = '<p class="text-muted">No campaigns yet. Create your first one!</p>';
+          return;
+        }
+
+        campaignList.innerHTML = '';
+        snapshot.forEach(doc => {
+          const campaign = doc.data();
+          const openRate = campaign.sent_count > 0 ? 
+            ((campaign.opened_count / campaign.sent_count) * 100).toFixed(1) : 0;
+          const clickRate = campaign.sent_count > 0 ? 
+            ((campaign.clicked_count / campaign.sent_count) * 100).toFixed(1) : 0;
+
+          const card = document.createElement('div');
+          card.className = 'campaign-card';
+          card.innerHTML = `
+            <div class="campaign-header">
+              <div>
+                <h3>${campaign.name}</h3>
+                <p class="text-sm text-muted">${campaign.segments.join(', ')}</p>
+              </div>
+              <span class="status-${campaign.status}">${campaign.status.toUpperCase()}</span>
+            </div>
+            <p class="text-sm"><strong>Subject:</strong> ${campaign.subject}</p>
+            ${campaign.status === 'sent' ? `
+              <div class="campaign-stats">
+                <div class="stat-item">
+                  <div class="stat-value">${campaign.sent_count}</div>
+                  <div class="stat-label">Sent</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">${openRate}%</div>
+                  <div class="stat-label">Opened</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">${clickRate}%</div>
+                  <div class="stat-label">Clicked</div>
+                </div>
+              </div>
+            ` : ''}
+          `;
+          campaignList.appendChild(card);
+        });
+      } catch (error) {
+        console.error('Error loading campaigns:', error);
+      }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        this.classList.add('active');
+        document.getElementById(this.dataset.tab + '-tab').classList.add('active');
+      });
+    });
+
+    loadCampaigns();
+  </script>
+</body>
+</html>

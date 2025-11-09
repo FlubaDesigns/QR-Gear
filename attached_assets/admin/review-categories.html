@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review Category Suggestions - Kingdom Connects Admin</title>
+  
+  <link rel="stylesheet" href="../styles/layout.css?v=3">
+  <link rel="stylesheet" href="../styles/theme.css?v=3">
+  <link rel="stylesheet" href="../styles/buttons.css?v=1">
+  <link rel="stylesheet" href="../styles/forms.css?v=1">
+  <link rel="stylesheet" href="../styles/overrides.css?v=3">
+
+  <style>
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+      flex-wrap: wrap;
+    }
+
+    .filter-tab {
+      padding: 0.75rem 1.5rem;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-size: 1rem;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .filter-tab:hover {
+      color: rgba(255,255,255,0.9);
+    }
+
+    .filter-tab.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+    }
+
+    .suggestion-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .suggestion-card.pending {
+      border-left: 4px solid #FFA500;
+    }
+
+    .suggestion-card.approved {
+      border-left: 4px solid #4CAF50;
+      opacity: 0.8;
+    }
+
+    .suggestion-card.denied {
+      border-left: 4px solid #f44336;
+      opacity: 0.8;
+    }
+
+    .suggestion-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+
+    .suggestion-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--gold);
+      margin: 0;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-pending {
+      background: #FFA500;
+      color: #000;
+    }
+
+    .badge-approved {
+      background: #4CAF50;
+      color: #fff;
+    }
+
+    .badge-denied {
+      background: #f44336;
+      color: #fff;
+    }
+
+    .suggestion-description {
+      margin: 1rem 0;
+      line-height: 1.6;
+      opacity: 0.9;
+    }
+
+    .suggestion-meta {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .suggestion-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .admin-feedback-box {
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      padding: 0.75rem;
+      margin-top: 1rem;
+      font-style: italic;
+    }
+
+    .feedback-form {
+      display: none;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+
+    .feedback-form.active {
+      display: block;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      opacity: 0.6;
+    }
+
+    .stats-summary {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-box {
+      flex: 1;
+      min-width: 150px;
+      background: rgba(255,255,255,0.05);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <div class="page-header">
+      <h2>Review Category Suggestions</h2>
+      <p class="opacity-80">Review and approve category suggestions from business owners. Approved categories become available for all businesses.</p>
+    </div>
+
+    <div class="stats-summary">
+      <div class="stat-box">
+        <div class="stat-number" id="pendingCount">0</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="approvedCount">0</div>
+        <div class="stat-label">Approved</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="deniedCount">0</div>
+        <div class="stat-label">Denied</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="totalCount">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+    </div>
+
+    <div class="filter-tabs">
+      <button class="filter-tab active" data-filter="pending">Pending Review</button>
+      <button class="filter-tab" data-filter="all">All Suggestions</button>
+      <button class="filter-tab" data-filter="approved">Approved</button>
+      <button class="filter-tab" data-filter="denied">Denied</button>
+    </div>
+
+    <div id="suggestionsContainer">
+      <p class="text-center opacity-60">Loading suggestions...</p>
+    </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, doc, updateDoc, serverTimestamp, query, orderBy, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyAdminAccess } from "./js/admin-auth-guard.js";
+
+    let allSuggestions = [];
+    let currentFilter = 'pending';
+    let currentUser = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAdmin = await verifyAdminAccess(user);
+      if (!isAdmin) return;
+      
+      currentUser = user;
+      await loadSuggestions();
+    });
+
+    async function loadSuggestions() {
+      try {
+        const q = query(collection(db, "category_suggestions"), orderBy("created_at", "desc"));
+        const snapshot = await getDocs(q);
+        
+        allSuggestions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        updateStats();
+        renderSuggestions();
+      } catch (error) {
+        console.error('Error loading suggestions:', error);
+        document.getElementById('suggestionsContainer').innerHTML = 
+          '<p class="error-text text-center">Error loading suggestions. Please refresh the page.</p>';
+      }
+    }
+
+    function updateStats() {
+      const pending = allSuggestions.filter(s => s.status === 'pending').length;
+      const approved = allSuggestions.filter(s => s.status === 'approved').length;
+      const denied = allSuggestions.filter(s => s.status === 'denied').length;
+      
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('approvedCount').textContent = approved;
+      document.getElementById('deniedCount').textContent = denied;
+      document.getElementById('totalCount').textContent = allSuggestions.length;
+    }
+
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderSuggestions() {
+      let filtered = allSuggestions;
+      
+      if (currentFilter !== 'all') {
+        filtered = allSuggestions.filter(s => s.status === currentFilter);
+      }
+
+      const container = document.getElementById('suggestionsContainer');
+      container.innerHTML = '';
+      
+      if (filtered.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state';
+        const p = document.createElement('p');
+        p.textContent = `No ${currentFilter === 'all' ? '' : currentFilter} suggestions found.`;
+        emptyDiv.appendChild(p);
+        container.appendChild(emptyDiv);
+        return;
+      }
+
+      filtered.forEach(suggestion => {
+        const card = document.createElement('div');
+        card.className = `suggestion-card ${suggestion.status}`;
+
+        const header = document.createElement('div');
+        header.className = 'suggestion-header';
+        
+        const title = document.createElement('h3');
+        title.className = 'suggestion-title';
+        title.textContent = suggestion.suggested_label || 'Untitled';
+        
+        const badge = document.createElement('span');
+        badge.className = `status-badge badge-${suggestion.status}`;
+        badge.textContent = suggestion.status;
+        
+        header.appendChild(title);
+        header.appendChild(badge);
+        card.appendChild(header);
+
+        const description = document.createElement('div');
+        description.className = 'suggestion-description';
+        description.textContent = suggestion.description || '';
+        card.appendChild(description);
+
+        const meta = document.createElement('div');
+        meta.className = 'suggestion-meta';
+        const createdDate = suggestion.created_at ? 
+          new Date(suggestion.created_at.toDate()).toLocaleDateString() : 'Unknown';
+        const reviewedDate = suggestion.reviewed_at ? 
+          new Date(suggestion.reviewed_at.toDate()).toLocaleDateString() : null;
+        
+        const span1 = document.createElement('span');
+        span1.textContent = `Submitted: ${createdDate}`;
+        meta.appendChild(span1);
+        
+        if (reviewedDate) {
+          const span2 = document.createElement('span');
+          span2.textContent = `Reviewed: ${reviewedDate}`;
+          meta.appendChild(span2);
+        }
+        
+        const span3 = document.createElement('span');
+        span3.textContent = `Suggested by: ${suggestion.suggested_by || 'Unknown'}`;
+        meta.appendChild(span3);
+        card.appendChild(meta);
+
+        if (suggestion.admin_feedback) {
+          const feedbackBox = document.createElement('div');
+          feedbackBox.className = 'admin-feedback-box';
+          const strong = document.createElement('strong');
+          strong.textContent = 'Admin Feedback:';
+          feedbackBox.appendChild(strong);
+          feedbackBox.appendChild(document.createElement('br'));
+          const feedbackText = document.createTextNode(suggestion.admin_feedback);
+          feedbackBox.appendChild(feedbackText);
+          card.appendChild(feedbackBox);
+        }
+
+        if (suggestion.status === 'pending') {
+          const actions = document.createElement('div');
+          actions.className = 'suggestion-actions';
+          
+          const approveBtn = document.createElement('button');
+          approveBtn.className = 'action-button btn-gold';
+          approveBtn.textContent = '✓ Approve';
+          approveBtn.dataset.suggestionId = suggestion.id;
+          approveBtn.dataset.suggestedLabel = suggestion.suggested_label;
+          approveBtn.addEventListener('click', () => approveCategory(suggestion.id, suggestion.suggested_label));
+          
+          const denyBtn = document.createElement('button');
+          denyBtn.className = 'action-button';
+          denyBtn.textContent = '✗ Deny';
+          denyBtn.dataset.suggestionId = suggestion.id;
+          denyBtn.addEventListener('click', () => toggleFeedbackForm(suggestion.id));
+          
+          actions.appendChild(approveBtn);
+          actions.appendChild(denyBtn);
+          card.appendChild(actions);
+
+          const feedbackForm = document.createElement('div');
+          feedbackForm.id = `feedback-form-${suggestion.id}`;
+          feedbackForm.className = 'feedback-form';
+          
+          const label = document.createElement('label');
+          label.className = 'kc-label';
+          label.textContent = 'Reason for denial (optional):';
+          
+          const textarea = document.createElement('textarea');
+          textarea.id = `feedback-text-${suggestion.id}`;
+          textarea.className = 'kc-textarea';
+          textarea.rows = 3;
+          textarea.placeholder = 'Explain why this category was denied...';
+          
+          const btnContainer = document.createElement('div');
+          btnContainer.style.cssText = 'display: flex; gap: 0.5rem; margin-top: 0.5rem;';
+          
+          const submitBtn = document.createElement('button');
+          submitBtn.className = 'action-button btn-gold';
+          submitBtn.textContent = 'Submit Denial';
+          submitBtn.addEventListener('click', () => denyCategory(suggestion.id));
+          
+          const cancelBtn = document.createElement('button');
+          cancelBtn.className = 'action-button';
+          cancelBtn.textContent = 'Cancel';
+          cancelBtn.addEventListener('click', () => toggleFeedbackForm(suggestion.id));
+          
+          btnContainer.appendChild(submitBtn);
+          btnContainer.appendChild(cancelBtn);
+          
+          feedbackForm.appendChild(label);
+          feedbackForm.appendChild(textarea);
+          feedbackForm.appendChild(btnContainer);
+          card.appendChild(feedbackForm);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    function toggleFeedbackForm(suggestionId) {
+      const form = document.getElementById(`feedback-form-${suggestionId}`);
+      if (form) {
+        form.classList.toggle('active');
+      }
+    }
+
+    async function approveCategory(suggestionId, suggestedLabel) {
+      if (!confirm(`Approve category "${suggestedLabel}"?\n\nThis will add it to the categories collection and make it available for all businesses.`)) {
+        return;
+      }
+
+      try {
+        const slug = suggestedLabel
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-');
+
+        await addDoc(collection(db, "categories"), {
+          label: suggestedLabel,
+          slug: slug,
+          active: true,
+          created_at: serverTimestamp(),
+          created_by: 'admin'
+        });
+
+        await updateDoc(doc(db, "category_suggestions", suggestionId), {
+          status: 'approved',
+          reviewed_at: serverTimestamp(),
+          reviewed_by: currentUser.uid
+        });
+
+        alert('Category approved and added to the system!');
+        await loadSuggestions();
+      } catch (error) {
+        console.error('Error approving category:', error);
+        alert('Error approving category. Please try again.');
+      }
+    }
+
+    async function denyCategory(suggestionId) {
+      const feedbackText = document.getElementById(`feedback-text-${suggestionId}`).value.trim();
+
+      try {
+        await updateDoc(doc(db, "category_suggestions", suggestionId), {
+          status: 'denied',
+          reviewed_at: serverTimestamp(),
+          reviewed_by: currentUser.uid,
+          admin_feedback: feedbackText || 'No feedback provided'
+        });
+
+        alert('Category suggestion denied.');
+        await loadSuggestions();
+      } catch (error) {
+        console.error('Error denying category:', error);
+        alert('Error denying category. Please try again.');
+      }
+    }
+
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderSuggestions();
+      });
+    });
+  </script>
+</body>
+</html>

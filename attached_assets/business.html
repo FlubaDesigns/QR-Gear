@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <!-- =========================================================
+       PAGE-SPECIFIC (keep in this page)
+       ========================================================= -->
+  <title>Member Businesses – Kingdom Connects</title>
+  <meta name="description" content="Browse trusted, faith-aligned businesses in your community—by category or location.">
+  <link rel="canonical" href="https://kingdomconnects.com/business.html">
+
+  <!-- Open Graph (per-page) -->
+  <meta property="og:title" content="Member Businesses – Kingdom Connects">
+  <meta property="og:description" content="Browse trusted, faith-aligned businesses in your community—by category or location.">
+  <meta property="og:url" content="https://kingdomconnects.com/business.html">
+  <meta property="og:image" content="https://kingdomconnects.com/assets/og-kingdom-connects.png">
+
+  <!-- Twitter (per-page; mirrors OG) -->
+  <meta name="twitter:title" content="Member Businesses – Kingdom Connects">
+  <meta name="twitter:description" content="Browse trusted, faith-aligned businesses in your community—by category or location.">
+  <meta name="twitter:image" content="https://kingdomconnects.com/assets/og-kingdom-connects.png">
+
+  <!-- (Optional per-page) -->
+  <meta name="keywords" content="business directory, Christian businesses, faith-based services, local listings">
+  <meta name="author" content="Fluba Designs LLC">
+
+  <!-- =========================================================
+       MOVE TO SHARED INCLUDE LATER (site-wide defaults)
+       ========================================================= -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Resource hints (perf) -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="dns-prefetch" href="//www.gstatic.com">
+  <link rel="dns-prefetch" href="//firestore.googleapis.com">
+
+  <!-- Crawling / UI tint -->
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#081529" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff"  media="(prefers-color-scheme: light)">
+
+  <!-- Open Graph defaults -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter defaults -->
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Favicon -->
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <!-- CSS (order matters) -->
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+  <!-- ===== END of SHARED block to move into include later ===== -->
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+
+    <!-- Header injected by components.js -->
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content" id="main">
+      <section class="page-content">
+        <article class="card">
+          <h1 class="gold-metallic">Business Directory</h1>
+          <p class="text-lg line-height-relaxed">
+            Find trusted Christian businesses in your community. Support local entrepreneurs and keep commerce within the Body of Christ.
+          </p>
+          <div >
+            <a href="submit_business.html" class="action-button btn-gold">+ Submit Your Business</a>
+          </div>
+        </article>
+
+        <!-- HOW TO USE THIS PAGE -->
+        <article class="card" style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04)); border: 2px solid rgba(255,215,0,0.3);">
+          <h3 class="gold" style="margin-top: 0;">💡 How to Find Businesses</h3>
+          <div style="display: grid; gap: 12px; font-size: 0.95rem; line-height: 1.6;">
+            <p><strong>1. Use Search Filters Below</strong> - Choose a category (Auto Repair, Construction, etc.), select a church, or filter by rating</p>
+            <p><strong>2. Browse Results</strong> - Scroll through the businesses and click any card to see full details, reviews, and contact info</p>
+            <p><strong>3. Contact Directly</strong> - Each business listing shows phone, email, website, and location. Click to call or visit!</p>
+            <p style="margin: 0; padding-top: 8px; border-top: 1px solid rgba(255,215,0,0.2);"><strong>💼 Own a business?</strong> <a href="submit_business.html" class="gold" style="text-decoration: underline;">Submit your FREE listing</a> or <a href="pricing.html" class="gold" style="text-decoration: underline;">upgrade to Pro</a> for more visibility</p>
+          </div>
+        </article>
+
+        <!-- SEARCH FILTERS -->
+        <article class="card">
+          <h2 class="gold text-2xl">Search Filters</h2>
+          
+          <!-- Primary Filter: Category -->
+          <div>
+            <label class="block font-semibold opacity-90">Business Category</label>
+            <select id="filterCategory" class="input-rounded">
+              <option value="">All Categories</option>
+              <!-- Categories loaded dynamically from Firestore -->
+            </select>
+          </div>
+
+          <div class="grid-2 gap-md">
+            <!-- Church Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">Church Affiliation</label>
+              <select id="filterChurch" class="input-rounded">
+                <option value="">All Churches</option>
+              </select>
+            </div>
+
+            <!-- Rating Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">Minimum Rating</label>
+              <select id="filterRating" class="input-rounded">
+                <option value="">All Ratings</option>
+                <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
+                <option value="4">⭐⭐⭐⭐ 4+ Stars</option>
+                <option value="3">⭐⭐⭐ 3+ Stars</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-2 gap-md">
+            <!-- State Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">State</label>
+              <select id="filterState" class="input-rounded">
+                <option value="">All States</option>
+                <option value="FL">Florida</option>
+                <option value="AL">Alabama</option>
+                <option value="GA">Georgia</option>
+                <option value="SC">South Carolina</option>
+                <option value="NC">North Carolina</option>
+                <option value="TN">Tennessee</option>
+                <option value="MS">Mississippi</option>
+                <option value="LA">Louisiana</option>
+              </select>
+            </div>
+
+            <!-- City Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">City</label>
+              <input type="text" id="filterCity" placeholder="Enter city name" class="input-rounded">
+            </div>
+          </div>
+
+          <div class="grid-2 gap-md">
+            <!-- ZIP Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">ZIP Code</label>
+              <input type="text" id="filterZip" placeholder="Enter ZIP" pattern="[0-9]*" inputmode="numeric" class="input-rounded">
+            </div>
+
+            <!-- Name Filter -->
+            <div>
+              <label class="block font-semibold opacity-90">Business Name</label>
+              <input type="text" id="filterName" placeholder="Search by name" class="input-rounded">
+            </div>
+          </div>
+
+          <div class="flex-gap">
+            <button id="clearFilters" class="action-button flex-1-min">Clear Filters</button>
+            <div id="resultCount" class="flex-1 flex-center font-semibold opacity-80"></div>
+          </div>
+        </article>
+
+        <!-- RESULTS -->
+        <article class="card">
+          <div id="businessList" class="card-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <!-- Footer injected by components.js -->
+    <div id="footer"></div>
+  </div>
+
+  <!-- Header/Footer + menus -->
+  <script src="js/components.js?v=21" defer></script>
+
+  <!-- Button sheen/press helpers (shared) -->
+  <script>
+    function handleClick(el){
+      el.classList.add('is-pressed');
+      el.classList.remove('clicked'); void el.offsetWidth;
+      el.classList.add('clicked');
+      setTimeout(() => el.classList.remove('is-pressed'), 140);
+    }
+  </script>
+
+  <!-- Firestore + directory logic -->
+  <script type="module">
+    import { db } from './js/firebase-config.js';
+    import { collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const businessList = document.getElementById("businessList");
+    const resultCount = document.getElementById("resultCount");
+    
+    // Filter elements
+    const filterCategory = document.getElementById("filterCategory");
+    const filterChurch = document.getElementById("filterChurch");
+    const filterRating = document.getElementById("filterRating");
+    const filterState = document.getElementById("filterState");
+    const filterCity = document.getElementById("filterCity");
+    const filterZip = document.getElementById("filterZip");
+    const filterName = document.getElementById("filterName");
+    const clearFiltersBtn = document.getElementById("clearFilters");
+
+    let allBusinesses = [];
+    let allChurches = [];
+
+    // ------- helpers -------
+    const H = (strings, ...vals) => strings.map((s,i)=>s+(vals[i]??"")).join("");
+
+    function safe(v){ return (v || "").toString().trim(); }
+
+    // UPDATED: robust URL normalizer to allow plain domains
+    function cleanUrl(u){
+      const s = safe(u).replace(/\s+/g, "");
+      if (!s) return "";
+      try {
+        const hasScheme = /^https?:\/\//i.test(s);
+        const url = new URL(hasScheme ? s : "https://" + s);
+        return url.href; // always absolute
+      } catch (e) {
+        return ""; // if malformed, render nothing
+      }
+    }
+
+    function showSkeleton(n=4){
+      businessList.innerHTML = Array.from({length:n})
+        .map(()=>'<div class="skeleton" aria-hidden="true"></div>').join('');
+    }
+
+    function renderBusinesses(data) {
+      if (!data.length) {
+        businessList.innerHTML = "<p>No businesses found. Try a different search.</p>";
+        return;
+      }
+      businessList.innerHTML = data.map(biz => {
+        const name = safe(biz.business_name) || "Unnamed Business";
+        const desc = safe(biz.description) || "No description provided.";
+        const cat  = safe(biz.primary_category);
+        const city = safe(biz.city);
+        const state = safe(biz.state);
+        const phone = safe(biz.phone);
+        const website = safe(biz.website);
+        const isPro = biz.pro_status === true || biz.pro_status === "active";
+        const rating = parseFloat(biz.average_rating) || 0;
+        const reviewCount = parseInt(biz.review_count) || 0;
+        
+        // Get church name
+        const churchId = biz.church_id;
+        const church = allChurches.find(c => c.id === churchId);
+        const churchName = church ? (church.church_name || church.name) : null;
+
+        // Star rating display
+        const stars = rating > 0 ? '⭐'.repeat(Math.round(rating)) : '';
+        const ratingHTML = rating > 0 
+          ? H`<span class="gold-lg">${stars}</span> <span style="opacity: 0.8; font-size: 0.9rem;">(${rating.toFixed(1)})</span>`
+          : '<span style="opacity: 0.5; font-size: 0.9rem;">No reviews yet</span>';
+
+        // Pro badge
+        const proBadge = isPro 
+          ? H`<span class="pro-badge-gradient">PRO</span>`
+          : '';
+
+        // Location
+        const locationParts = [];
+        if (city) locationParts.push(city);
+        if (state) locationParts.push(state);
+        const location = locationParts.length > 0 ? locationParts.join(', ') : '';
+
+        // Category + Location line
+        const metaParts = [];
+        if (cat) metaParts.push(cat);
+        if (location) metaParts.push(location);
+        const metaLine = metaParts.join(' • ');
+
+        // Contact buttons - respect privacy controls
+        const showPhone = biz.show_phone !== false;
+        const showWebsite = biz.show_website !== false;
+        
+        const phoneBtn = phone && showPhone
+          ? H`<a href="tel:${phone}" class="contact-btn link-badge">📞 Call</a>`
+          : '';
+
+        const siteHref = website ? cleanUrl(website) : "";
+        const websiteBtn = siteHref && showWebsite
+          ? H`<a href="${siteHref}" target="_blank" rel="noopener" class="contact-btn link-badge">🌐 Website</a>`
+          : '';
+
+        const churchBadge = churchName
+          ? H`<span class="inline-flex-sm">⛪ ${churchName}</span>`
+          : '';
+
+        // Card styling - Pro gets gold border
+        const cardStyle = isPro
+          ? 'border: 2px solid #FFD700; box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);'
+          : '';
+
+        return H`
+          <div class="business-card" style="${cardStyle}">
+            <div class="flex-between-center">
+              <h3 class="biz-title m-0">${name}${proBadge}</h3>
+            </div>
+            
+            <div>
+              ${ratingHTML}
+            </div>
+
+            ${metaLine ? H`<p style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.75rem;">${metaLine}</p>` : ''}
+
+            <p class="line-height-normal">${desc}</p>
+
+            <div class="flex-gap-sm">
+              ${phoneBtn}
+              ${websiteBtn}
+              ${churchBadge}
+            </div>
+
+            <a href="submit_review.html?id=${biz.id}" class="action-button btn-gold badge-inline">
+              Leave a Review
+            </a>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadData() {
+      try {
+        showSkeleton();
+        
+        // Load businesses, churches, and categories in parallel
+        const [bizSnapshot, churchSnapshot, categoriesSnapshot] = await Promise.all([
+          getDocs(collection(db, "business_listings")),
+          getDocs(collection(db, "churches")),
+          getDocs(query(collection(db, "categories"), where("active", "==", true), orderBy("display_order")))
+        ]);
+        
+        allBusinesses = bizSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        allChurches = churchSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Populate church dropdown
+        allChurches.forEach(church => {
+          const option = document.createElement('option');
+          option.value = church.id;
+          option.textContent = church.church_name || church.name || 'Unnamed Church';
+          filterChurch.appendChild(option);
+        });
+        
+        // Populate category filter dropdown
+        categoriesSnapshot.forEach(doc => {
+          const data = doc.data();
+          const option = document.createElement('option');
+          option.value = data.slug;
+          option.textContent = data.label;
+          filterCategory.appendChild(option);
+        });
+        
+        displayBusinesses(allBusinesses);
+        
+        // Add filter event listeners
+        filterCategory.addEventListener("change", applyFilters);
+        filterChurch.addEventListener("change", applyFilters);
+        filterRating.addEventListener("change", applyFilters);
+        filterState.addEventListener("change", applyFilters);
+        filterCity.addEventListener("input", debounce(applyFilters, 300));
+        filterZip.addEventListener("input", debounce(applyFilters, 300));
+        filterName.addEventListener("input", debounce(applyFilters, 300));
+        clearFiltersBtn.addEventListener("click", clearFilters);
+        
+      } catch (error) {
+        console.error("🔥 Error loading data:", error);
+        businessList.innerHTML = '<div class="error-box">⚠️ Error loading businesses. Please try again.</div>';
+      }
+    }
+
+    function applyFilters() {
+      const filters = {
+        category: filterCategory.value.toLowerCase(),
+        churchId: filterChurch.value,
+        rating: parseFloat(filterRating.value) || 0,
+        state: filterState.value.toUpperCase(),
+        city: filterCity.value.toLowerCase().trim(),
+        zip: filterZip.value.trim(),
+        name: filterName.value.toLowerCase().trim()
+      };
+
+      const filtered = allBusinesses.filter(biz => {
+        // Category filter - check if filter value is in categories array
+        if (filters.category) {
+          const bizCategories = (biz.categories || []).map(c => c.toLowerCase());
+          if (!bizCategories.includes(filters.category)) {
+            return false;
+          }
+        }
+
+        // Church filter
+        if (filters.churchId && biz.church_id !== filters.churchId) {
+          return false;
+        }
+
+        // Rating filter (average_rating >= minimum)
+        if (filters.rating > 0) {
+          const bizRating = parseFloat(biz.average_rating) || 0;
+          if (bizRating < filters.rating) {
+            return false;
+          }
+        }
+
+        // State filter
+        if (filters.state && 
+            (!biz.state || biz.state.toUpperCase() !== filters.state)) {
+          return false;
+        }
+
+        // City filter (partial match)
+        if (filters.city && 
+            (!biz.city || !biz.city.toLowerCase().includes(filters.city))) {
+          return false;
+        }
+
+        // ZIP filter (exact match)
+        if (filters.zip && biz.zip_code !== filters.zip) {
+          return false;
+        }
+
+        // Name filter (partial match)
+        if (filters.name) {
+          const bizName = safe(biz.business_name).toLowerCase();
+          if (!bizName.includes(filters.name)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      displayBusinesses(filtered);
+    }
+
+    function displayBusinesses(businesses) {
+      if (!businesses.length) {
+        businessList.innerHTML = `
+          <div class="status-message empty">
+            <p class="text-lg">No businesses match your search criteria.</p>
+            <p class="text-md">Try adjusting your filters or clearing them.</p>
+          </div>
+        `;
+        resultCount.textContent = "0 businesses found";
+        return;
+      }
+
+      resultCount.textContent = `${businesses.length} business${businesses.length === 1 ? '' : 'es'} found`;
+      renderBusinesses(businesses);
+    }
+
+    function clearFilters() {
+      filterCategory.value = "";
+      filterChurch.value = "";
+      filterRating.value = "";
+      filterState.value = "";
+      filterCity.value = "";
+      filterZip.value = "";
+      filterName.value = "";
+      displayBusinesses(allBusinesses);
+    }
+
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    loadData();
+  </script>
+  <script src="js/breadcrumbs.js" defer></script>
+</body>
+</html>

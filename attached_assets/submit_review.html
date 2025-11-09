@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Submit a Review - Kingdom Connects</title>
+  <meta name="description" content="Leave a review for a business on Kingdom Connects.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+
+    <main class="main-content" id="main">
+      <section class="page-content">
+        <article class="card">
+          <h1 class="gold-metallic">Submit a Review</h1>
+          <p id="businessNameDisplay" style="font-size: 1.1rem; opacity: 0.8;"></p>
+        </article>
+
+        <article class="card">
+          <form id="reviewForm">
+            <div>
+              <label class="block font-bold">Your Name *</label>
+              <input type="text" id="reviewerName" required class="input-dark">
+            </div>
+
+            <div>
+              <label class="block font-bold">Star Rating *</label>
+              <select id="starRating" required class="input-dark">
+                <option value="">Select Rating</option>
+                <option value="5">⭐⭐⭐⭐⭐ (5 Stars - Excellent)</option>
+                <option value="4">⭐⭐⭐⭐ (4 Stars - Good)</option>
+                <option value="3">⭐⭐⭐ (3 Stars - Average)</option>
+                <option value="2">⭐⭐ (2 Stars - Poor)</option>
+                <option value="1">⭐ (1 Star - Very Poor)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold">Your Review *</label>
+              <textarea id="reviewText" required rows="6" class="textarea-dark"></textarea>
+            </div>
+
+            <div id="statusMessage" class="p-md hidden"></div>
+
+            <button type="submit" class="action-button btn-gold">Submit Review</button>
+            <a href="business.html" class="action-button ml-md">Cancel</a>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const businessId = params.get('id');
+
+    if (!businessId) {
+      document.getElementById('businessNameDisplay').textContent = 'Error: No business ID provided.';
+      document.getElementById('reviewForm').style.display = 'none';
+    } else {
+      document.getElementById('businessNameDisplay').textContent = `Reviewing business ID: ${businessId}`;
+    }
+
+    document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const statusDiv = document.getElementById('statusMessage');
+      statusDiv.style.display = 'block';
+      statusDiv.style.color = '#ccc';
+      statusDiv.style.background = 'rgba(255,215,0,0.1)';
+      statusDiv.style.border = '1px solid gold';
+      statusDiv.style.borderRadius = '8px';
+      statusDiv.textContent = 'Submitting your review...';
+
+      const reviewData = {
+        business_id: businessId,
+        reviewer_name: document.getElementById('reviewerName').value.trim(),
+        star_rating: parseInt(document.getElementById('starRating').value),
+        review_text: document.getElementById('reviewText').value.trim(),
+        status: "pending",
+        submitted_at: serverTimestamp()
+      };
+
+      try {
+        await addDoc(collection(db, "reviews"), reviewData);
+        window.location.href = 'thank_you_review.html';
+
+      } catch (error) {
+        console.error("Error submitting review:", error);
+        statusDiv.style.color = 'red';
+        statusDiv.style.background = 'rgba(255,0,0,0.1)';
+        statusDiv.style.border = '1px solid red';
+        statusDiv.textContent = `Error: ${error.message}. Please try again.`;
+      }
+    });
+  </script>
+</body>
+</html>

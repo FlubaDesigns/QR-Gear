@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin – Site Settings · Kingdom Connects</title>
+
+  <!-- RELATIVE-ONLY (admin is one level deeper) -->
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <link rel="stylesheet" href="../styles/layout.css" />
+  <link rel="stylesheet" href="../styles/forms.css" />
+  <link rel="stylesheet" href="../styles/buttons.css" />
+  <link rel="stylesheet" href="../styles/overrides.css" />
+</head>
+<body class="is-admin">
+  <!-- header/footer are injected by components.js -->
+  <div id="header"></div>
+
+  <main class="main-content" role="main">
+    <section class="page-content card" aria-labelledby="pageTitle">
+      <h1 id="pageTitle">Admin – Site Settings</h1>
+
+      <form id="settingsForm" class="kc-form" novalidate>
+        <div class="form-group">
+          <label for="siteTitle">Site Title</label>
+          <div class="input-wrap">
+            <input id="siteTitle" type="text" class="kc-input" placeholder="Site Title" autocomplete="organization" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="supportEmail">Support Email</label>
+            <div class="input-wrap">
+              <input id="supportEmail" type="email" class="kc-input" placeholder="support@domain.com" autocomplete="email" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="contactPhone">Contact Phone</label>
+            <div class="input-wrap">
+              <input id="contactPhone" type="tel" class="kc-input" placeholder="(555) 555-5555" inputmode="tel" autocomplete="tel" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="defaultChurch">Default Church Name</label>
+          <div class="input-wrap">
+            <input id="defaultChurch" type="text" class="kc-input" placeholder="Default Church Name" />
+          </div>
+        </div>
+
+        <div id="result" class="form-note" aria-live="polite"></div>
+
+        <div class="form-actions">
+          <button type="button" id="saveSettingsBtn" class="action-button">Save Settings</button>
+          <a class="action-button" href="./admin_dashboard.html">← Back to Admin Dashboard</a>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <!-- RELATIVE-ONLY -->
+  <script defer src="../js/components.js"></script>
+
+  <!-- Firebase (module only; no classic <script> to avoid blocking errors) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { firebaseConfig } from "../js/firebase-config.js";
+    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const ref = doc(db, "site_settings", "main");
+
+    const el = {
+      title:  document.getElementById('siteTitle'),
+      email:  document.getElementById('supportEmail'),
+      phone:  document.getElementById('contactPhone'),
+      church: document.getElementById('defaultChurch'),
+      result: document.getElementById('result'),
+      save:   document.getElementById('saveSettingsBtn')
+    };
+
+    async function loadSettings() {
+      try {
+        el.result.textContent = "Loading…";
+        const snap = await getDoc(ref);
+        const data = snap.exists() ? snap.data() : {};
+        el.title.value  = data.site_title ?? "";
+        el.email.value  = data.support_email ?? "";
+        el.phone.value  = data.contact_phone ?? "";
+        el.church.value = data.default_church ?? "";
+        el.result.textContent = "";
+      } catch (e) {
+        console.warn(e);
+        el.result.textContent = "Error loading settings.";
+      }
+    }
+
+    async function saveSettings() {
+      try {
+        el.result.textContent = "Saving…";
+        await updateDoc(ref, {
+          site_title:     el.title.value.trim(),
+          support_email:  el.email.value.trim(),
+          contact_phone:  el.phone.value.trim(),
+          default_church: el.church.value.trim()
+        });
+        el.result.textContent = "✅ Settings saved.";
+      } catch (e) {
+        console.warn(e);
+        el.result.textContent = "❌ Error saving settings.";
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSettings();
+      el.save.addEventListener('click', saveSettings);

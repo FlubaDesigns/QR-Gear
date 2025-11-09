@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marketing Manager Dashboard - Kingdom Connects</title>
+  
+  <link rel="stylesheet" href="../styles/layout.css?v=3">
+  <link rel="stylesheet" href="../styles/theme.css?v=3">
+  <link rel="stylesheet" href="../styles/buttons.css?v=1">
+  <link rel="stylesheet" href="../styles/forms.css?v=1">
+  <link rel="stylesheet" href="../styles/overrides.css?v=3">
+
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-3px);
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      opacity: 0.7;
+      font-size: 0.9rem;
+    }
+
+    .stat-change {
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      font-weight: 600;
+    }
+
+    .stat-change.positive {
+      color: #4CAF50;
+    }
+
+    .stat-change.negative {
+      color: #f44336;
+    }
+
+    .leaderboard {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .leaderboard-item {
+      display: grid;
+      grid-template-columns: 60px 1fr auto auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .leaderboard-item:last-child {
+      border-bottom: none;
+    }
+
+    .rank-badge {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+
+    .rank-1 {
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      color: #000;
+    }
+
+    .rank-2 {
+      background: linear-gradient(135deg, #C0C0C0, #808080);
+      color: #000;
+    }
+
+    .rank-3 {
+      background: linear-gradient(135deg, #CD7F32, #8B4513);
+      color: #fff;
+    }
+
+    .rank-other {
+      background: rgba(255,255,255,0.1);
+      color: var(--gold);
+    }
+
+    .agent-info h4 {
+      margin: 0 0 0.25rem 0;
+      color: var(--gold);
+    }
+
+    .agent-info p {
+      margin: 0;
+      opacity: 0.7;
+      font-size: 0.85rem;
+    }
+
+    .performance-metric {
+      text-align: right;
+    }
+
+    .performance-metric .value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .performance-metric .label {
+      font-size: 0.75rem;
+      opacity: 0.7;
+    }
+
+    .activity-feed {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .activity-item {
+      padding: 1rem;
+      border-left: 3px solid rgba(218,165,32,0.3);
+      margin-bottom: 1rem;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+    }
+
+    .activity-item.conversion {
+      border-left-color: #4CAF50;
+    }
+
+    .activity-item.signup {
+      border-left-color: #2196F3;
+    }
+
+    .activity-time {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      margin-top: 0.5rem;
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+
+    .quick-action-card {
+      background: rgba(218,165,32,0.1);
+      border: 2px solid rgba(218,165,32,0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .quick-action-card:hover {
+      background: rgba(218,165,32,0.2);
+      border-color: var(--gold);
+      transform: translateY(-3px);
+    }
+
+    .quick-action-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .quick-action-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+  <div id="header"></div>
+
+  <main class="container">
+    <div class="page-header">
+      <h2>Marketing Manager Dashboard</h2>
+      <p class="opacity-80">Manage your sales team, track performance, and monitor revenue growth.</p>
+    </div>
+
+    <section>
+      <h3 class="gold-metallic">Performance Overview</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalAgents">0</div>
+          <div class="stat-label">Active Agents</div>
+          <div class="stat-change positive" id="agentsChange">+0 this month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="totalConversions">0</div>
+          <div class="stat-label">Total Pro Conversions</div>
+          <div class="stat-change positive" id="conversionsChange">+0 this month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="monthlyRevenue">$0</div>
+          <div class="stat-label">Monthly Revenue</div>
+          <div class="stat-change positive" id="revenueChange">+0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avgDealSize">$0</div>
+          <div class="stat-label">Avg. Deal Value</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="conversionRate">0%</div>
+          <div class="stat-label">Conversion Rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="activeLeads">0</div>
+          <div class="stat-label">Active Leads</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="quick-actions">
+      <a href="team.html" class="quick-action-card">
+        <div class="quick-action-icon">👥</div>
+        <h3 class="quick-action-title">Manage Team</h3>
+        <p>View agents, assign leads, set quotas</p>
+      </a>
+      <a href="analytics.html" class="quick-action-card">
+        <div class="quick-action-icon">📊</div>
+        <h3 class="quick-action-title">View Analytics</h3>
+        <p>Deep dive into performance metrics</p>
+      </a>
+      <a href="reports.html" class="quick-action-card">
+        <div class="quick-action-icon">📄</div>
+        <h3 class="quick-action-title">Generate Reports</h3>
+        <p>Export commission statements</p>
+      </a>
+      <a href="../admin/email-campaigns.html" class="quick-action-card">
+        <div class="quick-action-icon">✉️</div>
+        <h3 class="quick-action-title">Email Campaigns</h3>
+        <p>Send announcements to team</p>
+      </a>
+    </section>
+
+    <section class="leaderboard">
+      <h3 class="gold-metallic">Top Performers This Month</h3>
+      <div id="leaderboardContainer">
+        <p class="text-center opacity-60">Loading top performers...</p>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
+      <section class="activity-feed">
+        <h3 class="gold-metallic">Recent Activity</h3>
+        <div id="activityFeed">
+          <p class="text-center opacity-60">Loading recent activity...</p>
+        </div>
+      </section>
+
+      <section class="activity-feed">
+        <h3 class="gold-metallic">Team Goals</h3>
+        <div id="goalsContainer">
+          <div style="margin: 1rem 0;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+              <span>Monthly Conversion Goal</span>
+              <span class="gold"><span id="goalProgress">0</span> / <span id="goalTarget">50</span></span>
+            </div>
+            <div style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
+              <div id="goalProgressBar" style="background: linear-gradient(90deg, var(--gold), #FFA500); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+          <div style="margin: 2rem 0;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+              <span>Revenue Target</span>
+              <span class="gold">$<span id="revenueProgress">0</span> / $<span id="revenueTarget">10000</span></span>
+            </div>
+            <div style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
+              <div id="revenueProgressBar" style="background: linear-gradient(90deg, #4CAF50, #45a049); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" type="module" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { verifyMarketingManagerAccess } from "./js/auth-guard.js";
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAuthorized = await verifyMarketingManagerAccess(user);
+      if (!isAuthorized) return;
+      
+      await loadDashboard();
+    });
+
+    async function loadDashboard() {
+      try {
+        const agentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "sales_agent")));
+        const businessesSnap = await getDocs(collection(db, "business_listings"));
+        
+        let totalConversions = 0;
+        let monthlyRevenue = 0;
+        let activeLeads = 0;
+        
+        businessesSnap.forEach(doc => {
+          const data = doc.data();
+          if (data.pro_status === true) {
+            totalConversions++;
+            monthlyRevenue += (data.pro_payment_amount || 10);
+          }
+        });
+
+        const conversionRate = businessesSnap.size > 0 ? ((totalConversions / businessesSnap.size) * 100).toFixed(1) : 0;
+        const avgDealSize = totalConversions > 0 ? (monthlyRevenue / totalConversions).toFixed(2) : 0;
+
+        document.getElementById('totalAgents').textContent = agentsSnap.size;
+        document.getElementById('totalConversions').textContent = totalConversions;
+        document.getElementById('monthlyRevenue').textContent = `$${monthlyRevenue.toLocaleString()}`;
+        document.getElementById('avgDealSize').textContent = `$${avgDealSize}`;
+        document.getElementById('conversionRate').textContent = `${conversionRate}%`;
+        document.getElementById('activeLeads').textContent = activeLeads;
+
+        document.getElementById('goalProgress').textContent = totalConversions;
+        document.getElementById('revenueProgress').textContent = monthlyRevenue.toLocaleString();
+        
+        const goalPercentage = Math.min((totalConversions / 50) * 100, 100);
+        const revenuePercentage = Math.min((monthlyRevenue / 10000) * 100, 100);
+        document.getElementById('goalProgressBar').style.width = `${goalPercentage}%`;
+        document.getElementById('revenueProgressBar').style.width = `${revenuePercentage}%`;
+
+        await loadLeaderboard(agentsSnap);
+        loadRecentActivity();
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+      }
+    }
+
+    async function loadLeaderboard(agentsSnap) {
+      const container = document.getElementById('leaderboardContainer');
+      
+      if (agentsSnap.empty) {
+        container.innerHTML = '<p class="text-center opacity-60">No agents yet. Add agents from the Team page.</p>';
+        return;
+      }
+
+      const agentsWithStats = await Promise.all(agentsSnap.docs.map(async (agentDoc) => {
+        const agentData = agentDoc.data();
+        const conversions = 5;
+        const revenue = 50;
+        
+        return {
+          id: agentDoc.id,
+          name: agentData.display_name || agentData.email || 'Agent',
+          conversions: conversions,
+          revenue: revenue
+        };
+      }));
+
+      agentsWithStats.sort((a, b) => b.conversions - a.conversions);
+      const topAgents = agentsWithStats.slice(0, 5);
+
+      container.innerHTML = topAgents.map((agent, index) => {
+        const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : 'rank-other';
+        return `
+          <div class="leaderboard-item">
+            <div class="rank-badge ${rankClass}">${index + 1}</div>
+            <div class="agent-info">
+              <h4>${agent.name}</h4>
+              <p>${agent.conversions} conversions</p>
+            </div>
+            <div class="performance-metric">
+              <div class="value">$${agent.revenue}</div>
+              <div class="label">Revenue</div>
+            </div>
+            <div class="performance-metric">
+              <div class="value">${agent.conversions}</div>
+              <div class="label">Deals</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function loadRecentActivity() {
+      const activityFeed = document.getElementById('activityFeed');
+      
+      const sampleActivities = [
+        { type: 'conversion', message: 'John Smith converted "Dave\'s Auto Repair" to Pro', time: '2 hours ago' },
+        { type: 'signup', message: 'Sarah Johnson signed up new business "Grace Bakery"', time: '4 hours ago' },
+        { type: 'conversion', message: 'Mike Williams upgraded "Kingdom Plumbing" to Pro', time: '1 day ago' },
+      ];
+
+      activityFeed.innerHTML = sampleActivities.map(activity => `
+        <div class="activity-item ${activity.type}">
+          <p>${activity.message}</p>
+          <p class="activity-time">${activity.time}</p>
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

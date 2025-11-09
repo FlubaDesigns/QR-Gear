@@ -1,0 +1,113 @@
+/* =========================================
+   Kingdom Connects - Help System
+   Responsive help tooltips for forms
+   Mobile: Tappable ? icons
+   Desktop: Inline help text
+   ========================================= */
+
+.field-help-wrapper {
+  position: relative;
+}
+
+/* Help icon (mobile only) */
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 215, 0, 0.2);
+  color: #FFD700;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: help;
+  margin-left: 0.5rem;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.help-icon:hover,
+.help-icon:focus {
+  background: rgba(255, 215, 0, 0.3);
+  transform: scale(1.1);
+}
+
+/* Help text (hidden on mobile, shown on desktop) */
+.help-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  opacity: 0.7;
+  margin-top: 0.25rem;
+  display: none; /* Hidden by default (mobile) */
+}
+
+/* Mobile: Show icon, hide text */
+@media (max-width: 719px) {
+  .help-icon {
+    display: inline-flex;
+  }
+  
+  .help-text {
+    display: none;
+  }
+
+  /* Tooltip popup when icon is tapped */
+  .help-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: linear-gradient(135deg, #1a2f4a 0%, #0d1f35 100%);
+    color: #fff;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-width: 280px;
+    width: max-content;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .help-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1a2f4a;
+  }
+
+  .help-tooltip.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-12px);
+  }
+}
+
+/* Desktop: Hide icon, show inline text */
+@media (min-width: 720px) {
+  .help-icon {
+    display: none;
+  }
+  
+  .help-text {
+    display: block;
+  }
+}
+
+/* Enhanced label styling with help */
+.kc-label-with-help {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.kc-label-with-help .kc-label {
+  margin-bottom: 0;
+}

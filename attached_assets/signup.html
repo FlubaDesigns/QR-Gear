@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Create Account - Kingdom Connects</title>
+  <meta name="description" content="Create your Kingdom Connects account to join our faith-based business directory.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+  
+  <style>
+    .status-message {
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      text-align: center;
+      display: none;
+    }
+    .status-error {
+      background: rgba(211, 47, 47, 0.2);
+      border: 1px solid #d32f2f;
+      color: #ff6b6b;
+    }
+    .status-success {
+      background: rgba(80, 200, 120, 0.2);
+      border: 1px solid #50c878;
+      color: #50c878;
+    }
+    .role-info {
+      background: rgba(212, 175, 55, 0.05);
+      padding: 1rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content">
+      <div class="card" style="max-width: 550px; margin: 40px auto;">
+        <h1 class="gold-metallic text-center">Create Your Account</h1>
+        <p class="text-center text-muted m-block">Join Kingdom Connects and support the Body of Christ through Christian commerce.</p>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <form id="signupForm" class="m-block">
+          <div class="kc-field">
+            <label for="name">Full Name *</label>
+            <input 
+              type="text" 
+              id="name" 
+              name="name" 
+              class="input-dark" 
+              required 
+              maxlength="100"
+              placeholder="John Doe"
+            >
+          </div>
+
+          <div class="kc-field">
+            <label for="email">Email Address *</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              class="input-dark" 
+              required 
+              autocomplete="email"
+              placeholder="you@example.com"
+            >
+          </div>
+
+          <div class="kc-field">
+            <label for="password">Password *</label>
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              class="input-dark" 
+              required 
+              minlength="6"
+              autocomplete="new-password"
+              placeholder="At least 6 characters"
+            >
+            <p class="text-sm text-muted mt-sm">Minimum 6 characters</p>
+          </div>
+
+          <div class="kc-field">
+            <label for="confirmPassword">Confirm Password *</label>
+            <input 
+              type="password" 
+              id="confirmPassword" 
+              name="confirmPassword" 
+              class="input-dark" 
+              required 
+              minlength="6"
+              autocomplete="new-password"
+              placeholder="Re-enter your password"
+            >
+          </div>
+
+          <div class="card-highlight">
+            <p><strong>Note:</strong> All new accounts start as Regular Users. After signing up, you can:</p>
+            <ul style="margin-top: 0.5rem; font-size: 0.9rem;">
+              <li>Submit a business listing to become a Business Owner</li>
+              <li>Submit a church profile to become a Church Admin</li>
+              <li>Contact us to apply for Sales Agent role</li>
+            </ul>
+          </div>
+
+          <div class="kc-field">
+            <label class="flex-align-center cursor-pointer">
+              <input type="checkbox" id="agreeTerms" name="agreeTerms" required>
+              <span>I agree to the <a href="#" class="gold">Terms of Service</a> and <a href="#" class="gold">Privacy Policy</a></span>
+            </label>
+          </div>
+
+          <button type="submit" id="signupBtn" class="action-button btn-gold full-width">
+            Create Account
+          </button>
+        </form>
+
+        <div class="text-center m-block">
+          <p class="text-muted">Already have an account?</p>
+          <p><a href="login.html" class="gold">Sign In</a></p>
+        </div>
+      </div>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+  <script src="js/breadcrumbs.js" defer></script>
+
+  <script type="module">
+    import { auth, db } from "./js/firebase-config.js";
+    import { createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const signupForm = document.getElementById('signupForm');
+    const signupBtn = document.getElementById('signupBtn');
+    const statusMessage = document.getElementById('statusMessage');
+
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (password !== confirmPassword) {
+        showStatus('Passwords do not match.', 'error');
+        return;
+      }
+
+      signupBtn.disabled = true;
+      signupBtn.textContent = 'Creating account...';
+      hideStatus();
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await updateProfile(user, {
+          displayName: name
+        });
+
+        await setDoc(doc(db, "users", user.uid), {
+          email: email,
+          name: name,
+          role: 'user',
+          account_status: 'active',
+          is_email_verified: false,
+          notifications_enabled: true,
+          listing_count: 0,
+          review_count: 0,
+          is_pro_user: false,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+          last_login: null,
+          last_activity: null
+        });
+
+        showStatus('Account created successfully! Redirecting to home...', 'success');
+
+        setTimeout(() => {
+          window.location.href = '/index.html';
+        }, 1500);
+
+      } catch (error) {
+        console.error('Signup error:', error);
+        
+        let errorMessage = 'Account creation failed. Please try again.';
+        
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = 'An account with this email already exists.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'Password is too weak. Use at least 6 characters.';
+            break;
+          case 'auth/operation-not-allowed':
+            errorMessage = 'Email/password authentication is not enabled.';
+            break;
+        }
+
+        showStatus(errorMessage, 'error');
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Create Account';
+      }
+    });
+
+    function showStatus(message, type) {
+      statusMessage.textContent = message;
+      statusMessage.className = `status-message status-${type}`;
+      statusMessage.style.display = 'block';
+    }
+
+    function hideStatus() {
+      statusMessage.style.display = 'none';
+    }
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        window.location.href = '/index.html';
+      }
+    });
+  </script>
+</body>
+</html>

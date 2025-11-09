@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Analytics - Kingdom Connects Church Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-top: 0.5rem;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+    }
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <div class="m-block">
+        <a href="index.html" class="action-button btn-small">← Back to Dashboard</a>
+      </div>
+
+      <h2 class="gold-metallic">Church Analytics</h2>
+      
+      <div id="loadingMessage" class="text-center p-md">Loading analytics...</div>
+
+      <div id="analyticsContent" style="display: none;">
+        <p>Track your church's impact on Kingdom Connects and tithe earnings</p>
+
+        <article class="card">
+          <h3 class="gold">💰 Tithe Earnings Overview</h3>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number" id="totalTithe">$0.00</div>
+              <div class="stat-label">Total Received</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="thisMonthTithe">$0.00</div>
+              <div class="stat-label">This Month</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="proMembers">0</div>
+              <div class="stat-label">Pro Members</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="avgMonthlyTithe">$0.00</div>
+              <div class="stat-label">Avg Monthly</div>
+            </div>
+          </div>
+          <p class="text-sm opacity-80 mt-sm">
+            <strong>Tithing Model:</strong> Your church receives 10% of all Pro subscription revenue from member businesses.
+          </p>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">📊 Parishioner Reach Metrics</h3>
+          <div class="metric-row">
+            <span class="font-semibold">Estimated Parishioners:</span>
+            <span class="gold text-lg" id="parishionerCount">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="font-semibold">Member Businesses on Platform:</span>
+            <span class="gold text-lg" id="totalBusinesses">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="font-semibold">Business Penetration Rate:</span>
+            <span class="gold text-lg" id="penetrationRate">0%</span>
+          </div>
+          <div class="metric-row">
+            <span class="font-semibold">Pro Adoption Rate:</span>
+            <span class="gold text-lg" id="proAdoptionRate">0%</span>
+          </div>
+          <p class="text-sm opacity-80 mt-md">
+            <strong>Penetration Rate:</strong> Percentage of parishioners who own businesses listed on Kingdom Connects (assumes avg 10% of parishioners are business owners)
+          </p>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">📈 Growth Insights</h3>
+          <div class="metric-row">
+            <span class="font-semibold">Active Listings:</span>
+            <span id="activeListings">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="font-semibold">Pending Listings:</span>
+            <span id="pendingListings">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="font-semibold">Pro Members:</span>
+            <span id="proListings">0</span>
+          </div>
+          <div class="metric-row">
+            <span class="font-semibold">Free Tier:</span>
+            <span id="freeListings">0</span>
+          </div>
+        </article>
+
+        <article class="card card-highlight">
+          <h3 class="gold">💡 Growth Opportunities</h3>
+          <div id="recommendations"></div>
+        </article>
+
+        <article class="card">
+          <h3 class="gold">🔮 Revenue Potential</h3>
+          <p>If all <strong id="potentialBusinessCount">0</strong> member businesses upgraded to Pro:</p>
+          <div class="stats-grid mt-md">
+            <div class="stat-card">
+              <div class="stat-number" id="potentialMonthly">$0</div>
+              <div class="stat-label">Potential Monthly Tithe</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="potentialYearly">$0</div>
+              <div class="stat-label">Potential Yearly Tithe</div>
+            </div>
+          </div>
+          <p class="text-sm opacity-80 mt-sm">Based on average Pro subscription of $10.50/month × 10% tithe rate</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let churchId = null;
+    let churchData = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "../login.html";
+        return;
+      }
+
+      await loadChurch(user.email);
+    });
+
+    async function loadChurch(userEmail) {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const analyticsContent = document.getElementById('analyticsContent');
+
+      try {
+        const q = query(collection(db, "churches"), where("contact_email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          loadingMessage.textContent = 'No church found for your account.';
+          loadingMessage.style.color = '#f44336';
+          return;
+        }
+
+        const docSnap = querySnapshot.docs[0];
+        churchId = docSnap.id;
+        churchData = docSnap.data();
+
+        await loadAnalytics();
+
+        loadingMessage.style.display = 'none';
+        analyticsContent.style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading church:', error);
+        loadingMessage.textContent = 'Error loading analytics: ' + error.message;
+        loadingMessage.style.color = '#f44336';
+      }
+    }
+
+    async function loadAnalytics() {
+      try {
+        const q = query(collection(db, "business_listings"), where("church_id", "==", churchId));
+        const querySnapshot = await getDocs(q);
+
+        const totalBusinesses = querySnapshot.size;
+        let proMembers = 0;
+        let activeListings = 0;
+        let pendingListings = 0;
+        let totalTithe = 0;
+        let thisMonthTithe = 0;
+        const monthlyTithes = {};
+
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+
+        querySnapshot.forEach((doc) => {
+          const business = doc.data();
+          
+          if (business.pro_status === true) {
+            proMembers++;
+          }
+
+          if (business.listing_status === 'active') {
+            activeListings++;
+          } else if (business.listing_status === 'pending') {
+            pendingListings++;
+          }
+        });
+
+        const commissionsQuery = query(collection(db, "business_listings"));
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+        
+        for (const bizDoc of commissionsSnapshot.docs) {
+          const commissionQ = query(
+            collection(db, "business_listings", bizDoc.id, "commissions"),
+            where("church_id", "==", churchId)
+          );
+          const commissionSnapshot = await getDocs(commissionQ);
+          
+          commissionSnapshot.forEach((commDoc) => {
+            const commission = commDoc.data();
+            const titheAmount = commission.tithe_amount || 0;
+            totalTithe += titheAmount;
+
+            if (commission.payment_date) {
+              const paymentDate = commission.payment_date.toDate ? commission.payment_date.toDate() : new Date(commission.payment_date);
+              const monthKey = `${paymentDate.getFullYear()}-${paymentDate.getMonth()}`;
+              
+              if (!monthlyTithes[monthKey]) {
+                monthlyTithes[monthKey] = 0;
+              }
+              monthlyTithes[monthKey] += titheAmount;
+
+              if (paymentDate.getMonth() === thisMonth && paymentDate.getFullYear() === thisYear) {
+                thisMonthTithe += titheAmount;
+              }
+            }
+          });
+        }
+
+        const monthCount = Object.keys(monthlyTithes).length || 1;
+        const avgMonthlyTithe = totalTithe / monthCount;
+
+        const parishionerCount = churchData.parishioner_count || 0;
+        const estimatedBusinessOwners = Math.round(parishionerCount * 0.10);
+        const penetrationRate = estimatedBusinessOwners > 0 ? ((totalBusinesses / estimatedBusinessOwners) * 100).toFixed(1) : 0;
+        const proAdoptionRate = totalBusinesses > 0 ? ((proMembers / totalBusinesses) * 100).toFixed(1) : 0;
+
+        document.getElementById('totalTithe').textContent = '$' + totalTithe.toFixed(2);
+        document.getElementById('thisMonthTithe').textContent = '$' + thisMonthTithe.toFixed(2);
+        document.getElementById('proMembers').textContent = proMembers;
+        document.getElementById('avgMonthlyTithe').textContent = '$' + avgMonthlyTithe.toFixed(2);
+
+        document.getElementById('parishionerCount').textContent = parishionerCount.toLocaleString();
+        document.getElementById('totalBusinesses').textContent = totalBusinesses;
+        document.getElementById('penetrationRate').textContent = penetrationRate + '%';
+        document.getElementById('proAdoptionRate').textContent = proAdoptionRate + '%';
+
+        document.getElementById('activeListings').textContent = activeListings;
+        document.getElementById('pendingListings').textContent = pendingListings;
+        document.getElementById('proListings').textContent = proMembers;
+        document.getElementById('freeListings').textContent = (totalBusinesses - proMembers);
+
+        const freeMembers = totalBusinesses - proMembers;
+        const potentialMonthly = freeMembers * 10.50 * 0.10;
+        const potentialYearly = potentialMonthly * 12;
+
+        document.getElementById('potentialBusinessCount').textContent = freeMembers;
+        document.getElementById('potentialMonthly').textContent = '$' + potentialMonthly.toFixed(2);
+        document.getElementById('potentialYearly').textContent = '$' + potentialYearly.toFixed(2);
+
+        generateRecommendations(totalBusinesses, proMembers, penetrationRate, parishionerCount);
+
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+      }
+    }
+
+    function generateRecommendations(totalBusinesses, proMembers, penetrationRate, parishionerCount) {
+      const recommendations = [];
+
+      if (totalBusinesses === 0) {
+        recommendations.push('📢 <strong>Get Started:</strong> Share Kingdom Connects with your congregation! Announce it during services and in church bulletins.');
+      } else if (totalBusinesses < 5) {
+        recommendations.push('📢 <strong>Build Momentum:</strong> You have a few businesses listed. Personally invite more business owners in your congregation.');
+      }
+
+      if (parseFloat(penetrationRate) < 50 && parishionerCount > 0) {
+        recommendations.push('🎯 <strong>Increase Reach:</strong> Only ' + penetrationRate + '% of potential business owners are listed. Host a "Business Sunday" to promote the platform.');
+      }
+
+      const freeMembers = totalBusinesses - proMembers;
+      if (freeMembers > 0) {
+        recommendations.push('💰 <strong>Encourage Pro Upgrades:</strong> You have ' + freeMembers + ' free-tier businesses. Highlight Pro benefits to boost church revenue.');
+      }
+
+      if (proMembers > 0 && proMembers < totalBusinesses * 0.5) {
+        recommendations.push('⭐ <strong>Showcase Success:</strong> Feature Pro members prominently to demonstrate the value of upgrading.');
+      }
+
+      if (recommendations.length === 0) {
+        recommendations.push('✅ <strong>Great Work!</strong> Your church has strong Kingdom Connects participation. Keep encouraging engagement!');
+      }
+
+      const recommendationsDiv = document.getElementById('recommendations');
+      recommendationsDiv.innerHTML = '<ul>' + recommendations.map(r => `<li class="m-block-sm">${r}</li>`).join('') + '</ul>';
+    }
+  </script>
+  </div>
+</body>
+</html>

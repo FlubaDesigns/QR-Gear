@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Manage Churches - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .filters {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .filters input,
+    .filters select {
+      flex: 1;
+      min-width: 200px;
+    }
+    .church-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    .church-table th {
+      background: var(--card-bg);
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 2px solid var(--gold);
+      cursor: pointer;
+      user-select: none;
+    }
+    .church-table th:hover {
+      background: var(--card-bg-hover);
+    }
+    .church-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #333;
+    }
+    .church-table tr:hover {
+      background: var(--card-bg-hover);
+    }
+    .status-active {
+      color: #4caf50;
+      font-weight: 600;
+    }
+    .status-pending {
+      color: #ff9800;
+      font-weight: 600;
+    }
+    .status-suspended {
+      color: #f44336;
+      font-weight: 600;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn-small {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+    }
+    .btn-success {
+      background: #4caf50;
+    }
+    .btn-warning {
+      background: #ff9800;
+    }
+    .btn-danger {
+      background: #f44336;
+    }
+    .btn-info {
+      background: #2196f3;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Manage Church Directory</h2>
+      <p>View, approve, and manage all church listings across the platform.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalCount">0</div>
+          <div class="stat-label">Total Churches</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="activeCount">0</div>
+          <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="pendingCount">0</div>
+          <div class="stat-label">Pending Approval</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="businessCount">0</div>
+          <div class="stat-label">Associated Businesses</div>
+        </div>
+      </div>
+
+      <article class="card">
+        <h3 class="gold">Filter & Search</h3>
+        <div class="filters">
+          <input type="text" id="searchInput" placeholder="Search by name, city, or denomination..." class="input-dark">
+          <select id="statusFilter" class="input-dark">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <select id="denominationFilter" class="input-dark">
+            <option value="">All Denominations</option>
+          </select>
+          <button id="clearFilters" class="action-button btn-small">Clear Filters</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3 class="gold">Church Listings</h3>
+        <div id="statusMessage" class="text-center p-md"></div>
+        <div style="overflow-x: auto;">
+          <table class="church-table">
+            <thead>
+              <tr>
+                <th data-sort="church_name">Church Name ↕</th>
+                <th data-sort="denomination">Denomination ↕</th>
+                <th data-sort="city">Location ↕</th>
+                <th data-sort="zip_code">ZIP ↕</th>
+                <th>Contact</th>
+                <th data-sort="website">Website ↕</th>
+                <th data-sort="listing_status">Status ↕</th>
+                <th data-sort="submission_date">Submitted ↕</th>
+                <th>Businesses</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="churchTableBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db } from "../js/firebase-config.js";
+    import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    let allChurches = [];
+    let allBusinesses = [];
+    let currentSort = { field: 'church_name', asc: true };
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadBusinesses();
+      await loadChurches();
+      setupFilters();
+      setupSorting();
+    });
+
+    async function loadBusinesses() {
+      try {
+        const q = query(collection(db, "business_listings"));
+        const querySnapshot = await getDocs(q);
+        
+        allBusinesses = [];
+        querySnapshot.forEach((doc) => {
+          allBusinesses.push({ id: doc.id, ...doc.data() });
+        });
+      } catch (error) {
+        console.error("Error loading businesses:", error);
+      }
+    }
+
+    async function loadChurches() {
+      const statusMessage = document.getElementById("statusMessage");
+      statusMessage.textContent = "Loading churches...";
+
+      try {
+        const q = query(collection(db, "churches"));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          statusMessage.textContent = "No churches found. Churches will appear here when users submit listings.";
+          return;
+        }
+
+        allChurches = [];
+        const denominationFilter = document.getElementById('denominationFilter');
+        const denominations = new Set();
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          
+          allChurches.push({
+            id: doc.id,
+            ...data,
+            submission_date: data.submission_date?.toDate ? data.submission_date.toDate().toISOString() : data.submission_date,
+            created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : data.created_at
+          });
+
+          if (data.denomination) {
+            denominations.add(data.denomination);
+          }
+        });
+
+        Array.from(denominations).sort().forEach(denom => {
+          const option = document.createElement('option');
+          option.value = denom;
+          option.textContent = denom;
+          denominationFilter.appendChild(option);
+        });
+
+        statusMessage.textContent = "";
+        updateStats();
+        renderChurches(allChurches);
+
+      } catch (error) {
+        console.error("Firebase error:", error);
+        statusMessage.style.color = "#f44336";
+        statusMessage.textContent = "Error loading churches: " + error.message;
+      }
+    }
+
+    function updateStats() {
+      const total = allChurches.length;
+      const active = allChurches.filter(c => c.listing_status === 'active').length;
+      const pending = allChurches.filter(c => c.listing_status === 'pending').length;
+      const businessesWithChurch = allBusinesses.filter(b => b.church_id && b.church_id.trim() !== '').length;
+
+      document.getElementById('totalCount').textContent = total;
+      document.getElementById('activeCount').textContent = active;
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('businessCount').textContent = businessesWithChurch;
+    }
+
+    function getBusinessCountForChurch(churchId) {
+      return allBusinesses.filter(b => b.church_id === churchId).length;
+    }
+
+    function renderChurches(churches) {
+      const tbody = document.getElementById("churchTableBody");
+      tbody.innerHTML = "";
+
+      if (churches.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-md">No churches match your filters.</td></tr>`;
+        return;
+      }
+
+      churches.forEach((church) => {
+        const row = document.createElement("tr");
+        
+        const statusClass = `status-${church.listing_status || 'pending'}`;
+        const submittedDate = church.submission_date ? new Date(church.submission_date).toLocaleDateString() : 'Unknown';
+        const businessCount = getBusinessCountForChurch(church.id);
+
+        row.innerHTML = `
+          <td><strong>${escapeHtml(church.church_name || 'Unnamed')}</strong></td>
+          <td>${escapeHtml(church.denomination || 'N/A')}</td>
+          <td>${escapeHtml(church.city || 'N/A')}, ${escapeHtml(church.state || 'N/A')}</td>
+          <td>${escapeHtml(church.zip_code || 'N/A')}</td>
+          <td>
+            <small>${escapeHtml(church.contact_email || 'N/A')}<br/>
+            ${escapeHtml(church.contact_phone || 'N/A')}</small>
+          </td>
+          <td><small>${church.website ? '<a href="' + escapeHtml(church.website) + '" target="_blank">View</a>' : 'N/A'}</small></td>
+          <td class="${statusClass}">${(church.listing_status || 'pending').toUpperCase()}</td>
+          <td><small>${submittedDate}</small></td>
+          <td>${businessCount}</td>
+          <td>
+            <div class="action-buttons">
+              ${church.listing_status === 'pending' ? 
+                `<button class="action-button btn-small btn-success" onclick="window.approveChurch('${church.id}')">Approve</button>` : 
+                ''}
+              ${church.listing_status === 'active' ? 
+                `<button class="action-button btn-small btn-warning" onclick="window.suspendChurch('${church.id}')">Suspend</button>` : 
+                ''}
+              ${church.listing_status === 'suspended' ? 
+                `<button class="action-button btn-small btn-success" onclick="window.activateChurch('${church.id}')">Activate</button>` : 
+                ''}
+              <button class="action-button btn-small btn-info" onclick="window.editChurch('${church.id}')">Edit</button>
+              <button class="action-button btn-small btn-danger" onclick="window.deleteChurch('${church.id}')">Delete</button>
+            </div>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    function setupFilters() {
+      const searchInput = document.getElementById('searchInput');
+      const statusFilter = document.getElementById('statusFilter');
+      const denominationFilter = document.getElementById('denominationFilter');
+      const clearButton = document.getElementById('clearFilters');
+
+      const applyFilters = () => {
+        let filtered = [...allChurches];
+
+        const searchTerm = searchInput.value.toLowerCase();
+        if (searchTerm) {
+          filtered = filtered.filter(c => 
+            (c.church_name || '').toLowerCase().includes(searchTerm) ||
+            (c.city || '').toLowerCase().includes(searchTerm) ||
+            (c.denomination || '').toLowerCase().includes(searchTerm)
+          );
+        }
+
+        const status = statusFilter.value;
+        if (status) {
+          filtered = filtered.filter(c => c.listing_status === status);
+        }
+
+        const denomination = denominationFilter.value;
+        if (denomination) {
+          filtered = filtered.filter(c => c.denomination === denomination);
+        }
+
+        renderChurches(filtered);
+      };
+
+      searchInput.addEventListener('input', applyFilters);
+      statusFilter.addEventListener('change', applyFilters);
+      denominationFilter.addEventListener('change', applyFilters);
+      
+      clearButton.addEventListener('click', () => {
+        searchInput.value = '';
+        statusFilter.value = '';
+        denominationFilter.value = '';
+        renderChurches(allChurches);
+      });
+    }
+
+    function setupSorting() {
+      const headers = document.querySelectorAll('.church-table th[data-sort]');
+      const searchInput = document.getElementById('searchInput');
+      const statusFilter = document.getElementById('statusFilter');
+      const denominationFilter = document.getElementById('denominationFilter');
+      
+      headers.forEach(header => {
+        header.addEventListener('click', () => {
+          const field = header.getAttribute('data-sort');
+          
+          if (currentSort.field === field) {
+            currentSort.asc = !currentSort.asc;
+          } else {
+            currentSort.field = field;
+            currentSort.asc = true;
+          }
+
+          let filtered = [...allChurches];
+
+          const searchTerm = searchInput.value.toLowerCase();
+          if (searchTerm) {
+            filtered = filtered.filter(c => 
+              (c.church_name || '').toLowerCase().includes(searchTerm) ||
+              (c.city || '').toLowerCase().includes(searchTerm) ||
+              (c.denomination || '').toLowerCase().includes(searchTerm)
+            );
+          }
+
+          const status = statusFilter.value;
+          if (status) {
+            filtered = filtered.filter(c => c.listing_status === status);
+          }
+
+          const denomination = denominationFilter.value;
+          if (denomination) {
+            filtered = filtered.filter(c => c.denomination === denomination);
+          }
+
+          const sorted = filtered.sort((a, b) => {
+            let aVal = a[field] || '';
+            let bVal = b[field] || '';
+
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+            if (aVal < bVal) return currentSort.asc ? -1 : 1;
+            if (aVal > bVal) return currentSort.asc ? 1 : -1;
+            return 0;
+          });
+
+          renderChurches(sorted);
+        });
+      });
+    }
+
+    window.approveChurch = async (id) => {
+      if (!confirm('Approve this church listing?')) return;
+      
+      try {
+        await updateDoc(doc(db, "churches", id), {
+          listing_status: 'active'
+        });
+        alert('✅ Church approved!');
+        await loadChurches();
+      } catch (error) {
+        console.error('Error approving church:', error);
+        alert('❌ Error approving church: ' + error.message);
+      }
+    };
+
+    window.suspendChurch = async (id) => {
+      if (!confirm('Suspend this church listing?')) return;
+      
+      try {
+        await updateDoc(doc(db, "churches", id), {
+          listing_status: 'suspended'
+        });
+        alert('✅ Church suspended!');
+        await loadChurches();
+      } catch (error) {
+        console.error('Error suspending church:', error);
+        alert('❌ Error suspending church: ' + error.message);
+      }
+    };
+
+    window.activateChurch = async (id) => {
+      if (!confirm('Reactivate this church listing?')) return;
+      
+      try {
+        await updateDoc(doc(db, "churches", id), {
+          listing_status: 'active'
+        });
+        alert('✅ Church activated!');
+        await loadChurches();
+      } catch (error) {
+        console.error('Error activating church:', error);
+        alert('❌ Error activating church: ' + error.message);
+      }
+    };
+
+    window.editChurch = (id) => {
+      window.location.href = `edit_church.html?id=${id}`;
+    };
+
+    window.deleteChurch = async (id) => {
+      const businessCount = getBusinessCountForChurch(id);
+      
+      if (businessCount > 0) {
+        if (!confirm(`⚠️ WARNING: This church has ${businessCount} associated business(es). If you delete this church, those businesses will lose their church association.\n\nAre you sure you want to DELETE this church permanently?`)) {
+          return;
+        }
+      } else {
+        if (!confirm('⚠️ DELETE this church permanently? This cannot be undone.')) {
+          return;
+        }
+      }
+      
+      try {
+        await deleteDoc(doc(db, "churches", id));
+        alert('✅ Church deleted!');
+        await loadChurches();
+      } catch (error) {
+        console.error('Error deleting church:', error);
+        alert('❌ Error deleting church: ' + error.message);
+      }
+    };
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Manage Businesses - Kingdom Connects Admin</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .filters {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .filters input,
+    .filters select {
+      flex: 1;
+      min-width: 200px;
+    }
+    .business-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    .business-table th {
+      background: var(--card-bg);
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 2px solid var(--gold);
+      cursor: pointer;
+      user-select: none;
+    }
+    .business-table th:hover {
+      background: var(--card-bg-hover);
+    }
+    .business-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #333;
+    }
+    .business-table tr:hover {
+      background: var(--card-bg-hover);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .badge-pro {
+      background: var(--gold);
+      color: #000;
+    }
+    .badge-free {
+      background: #444;
+      color: #aaa;
+    }
+    .status-active {
+      color: #4caf50;
+      font-weight: 600;
+    }
+    .status-pending {
+      color: #ff9800;
+      font-weight: 600;
+    }
+    .status-suspended {
+      color: #f44336;
+      font-weight: 600;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn-small {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+    }
+    .btn-success {
+      background: #4caf50;
+    }
+    .btn-warning {
+      background: #ff9800;
+    }
+    .btn-danger {
+      background: #f44336;
+    }
+    .btn-info {
+      background: #2196f3;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Manage Business Listings</h2>
+      <p>View, approve, suspend, or edit all business listings across the platform.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalCount">0</div>
+          <div class="stat-label">Total Listings</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="activeCount">0</div>
+          <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="pendingCount">0</div>
+          <div class="stat-label">Pending Approval</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="proCount">0</div>
+          <div class="stat-label">Pro Businesses</div>
+        </div>
+      </div>
+
+      <article class="card">
+        <h3 class="gold">Filter & Search</h3>
+        <div class="filters">
+          <input type="text" id="searchInput" placeholder="Search by name, city, or email..." class="input-dark">
+          <select id="statusFilter" class="input-dark">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <select id="proFilter" class="input-dark">
+            <option value="">All Tiers</option>
+            <option value="true">Pro Only</option>
+            <option value="false">Free Only</option>
+          </select>
+          <select id="churchFilter" class="input-dark">
+            <option value="">All Churches</option>
+          </select>
+          <button id="clearFilters" class="action-button btn-small">Clear Filters</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3 class="gold">Business Listings</h3>
+        <div id="statusMessage" class="text-center p-md"></div>
+        <div style="overflow-x: auto;">
+          <table class="business-table">
+            <thead>
+              <tr>
+                <th data-sort="business_name">Business Name ↕</th>
+                <th data-sort="your_name">Owner ↕</th>
+                <th data-sort="city">Location ↕</th>
+                <th>Contact</th>
+                <th data-sort="listing_status">Status ↕</th>
+                <th data-sort="pro_status">Tier ↕</th>
+                <th data-sort="average_rating">Rating ↕</th>
+                <th data-sort="created_at">Created ↕</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="businessTableBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+
+  <script type="module">
+    import { db } from "../js/firebase-config.js";
+    import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    let allBusinesses = [];
+    let allChurches = [];
+    let currentSort = { field: 'business_name', asc: true };
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadChurches();
+      await loadBusinesses();
+      setupFilters();
+      setupSorting();
+    });
+
+    async function loadChurches() {
+      try {
+        const q = query(collection(db, "churches"), orderBy("church_name"));
+        const querySnapshot = await getDocs(q);
+        
+        allChurches = [];
+        const churchFilter = document.getElementById('churchFilter');
+        
+        querySnapshot.forEach((doc) => {
+          const church = doc.data();
+          allChurches.push({ id: doc.id, ...church });
+          
+          const option = document.createElement('option');
+          option.value = doc.id;
+          option.textContent = church.church_name || doc.id;
+          churchFilter.appendChild(option);
+        });
+      } catch (error) {
+        console.error("Error loading churches:", error);
+      }
+    }
+
+    async function loadBusinesses() {
+      const statusMessage = document.getElementById("statusMessage");
+      statusMessage.textContent = "Loading businesses...";
+
+      try {
+        const q = query(collection(db, "business_listings"));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          statusMessage.textContent = "No businesses found. Businesses will appear here when users submit listings.";
+          return;
+        }
+
+        allBusinesses = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          
+          allBusinesses.push({
+            id: doc.id,
+            ...data,
+            created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : data.created_at,
+            pro_start_date: data.pro_start_date?.toDate ? data.pro_start_date.toDate().toISOString() : data.pro_start_date,
+            pro_end_date: data.pro_end_date?.toDate ? data.pro_end_date.toDate().toISOString() : data.pro_end_date
+          });
+        });
+
+        statusMessage.textContent = "";
+        updateStats();
+        renderBusinesses(allBusinesses);
+
+      } catch (error) {
+        console.error("Firebase error:", error);
+        statusMessage.style.color = "#f44336";
+        statusMessage.textContent = "Error loading businesses: " + error.message;
+      }
+    }
+
+    function updateStats() {
+      const total = allBusinesses.length;
+      const active = allBusinesses.filter(b => b.listing_status === 'active').length;
+      const pending = allBusinesses.filter(b => b.listing_status === 'pending').length;
+      const pro = allBusinesses.filter(b => b.pro_status === true).length;
+
+      document.getElementById('totalCount').textContent = total;
+      document.getElementById('activeCount').textContent = active;
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('proCount').textContent = pro;
+    }
+
+    function renderBusinesses(businesses) {
+      const tbody = document.getElementById("businessTableBody");
+      tbody.innerHTML = "";
+
+      if (businesses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center p-md">No businesses match your filters.</td></tr>`;
+        return;
+      }
+
+      businesses.forEach((business) => {
+        const row = document.createElement("tr");
+        
+        const statusClass = `status-${business.listing_status || 'pending'}`;
+        const tierBadge = business.pro_status 
+          ? '<span class="badge badge-pro">PRO</span>' 
+          : '<span class="badge badge-free">FREE</span>';
+        
+        const rating = business.average_rating ? business.average_rating.toFixed(1) + ' ⭐' : 'No reviews';
+        const createdDate = business.created_at ? new Date(business.created_at).toLocaleDateString() : 'Unknown';
+
+        row.innerHTML = `
+          <td><strong>${escapeHtml(business.business_name || 'Unnamed')}</strong></td>
+          <td>${escapeHtml(business.your_name || 'N/A')}</td>
+          <td>${escapeHtml(business.city || 'N/A')}, ${escapeHtml(business.state || 'N/A')}</td>
+          <td>
+            <small>${escapeHtml(business.email || 'N/A')}<br/>
+            ${escapeHtml(business.phone || 'N/A')}</small>
+          </td>
+          <td class="${statusClass}">${(business.listing_status || 'pending').toUpperCase()}</td>
+          <td>${tierBadge}</td>
+          <td>${rating}</td>
+          <td><small>${createdDate}</small></td>
+          <td>
+            <div class="action-buttons">
+              ${business.listing_status === 'pending' ? 
+                `<button class="action-button btn-small btn-success" onclick="window.approveBusiness('${business.id}')">Approve</button>` : 
+                ''}
+              ${business.listing_status === 'active' ? 
+                `<button class="action-button btn-small btn-warning" onclick="window.suspendBusiness('${business.id}')">Suspend</button>` : 
+                ''}
+              ${business.listing_status === 'suspended' ? 
+                `<button class="action-button btn-small btn-success" onclick="window.activateBusiness('${business.id}')">Activate</button>` : 
+                ''}
+              <button class="action-button btn-small btn-info" onclick="window.editBusiness('${business.id}')">Edit</button>
+              <button class="action-button btn-small btn-danger" onclick="window.deleteBusiness('${business.id}')">Delete</button>
+            </div>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    function setupFilters() {
+      const searchInput = document.getElementById('searchInput');
+      const statusFilter = document.getElementById('statusFilter');
+      const proFilter = document.getElementById('proFilter');
+      const churchFilter = document.getElementById('churchFilter');
+      const clearButton = document.getElementById('clearFilters');
+
+      const applyFilters = () => {
+        let filtered = [...allBusinesses];
+
+        const searchTerm = searchInput.value.toLowerCase();
+        if (searchTerm) {
+          filtered = filtered.filter(b => 
+            (b.business_name || '').toLowerCase().includes(searchTerm) ||
+            (b.city || '').toLowerCase().includes(searchTerm) ||
+            (b.email || '').toLowerCase().includes(searchTerm)
+          );
+        }
+
+        const status = statusFilter.value;
+        if (status) {
+          filtered = filtered.filter(b => b.listing_status === status);
+        }
+
+        const pro = proFilter.value;
+        if (pro === 'true') {
+          filtered = filtered.filter(b => b.pro_status === true);
+        } else if (pro === 'false') {
+          filtered = filtered.filter(b => !b.pro_status);
+        }
+
+        const church = churchFilter.value;
+        if (church) {
+          filtered = filtered.filter(b => b.church_id === church);
+        }
+
+        renderBusinesses(filtered);
+      };
+
+      searchInput.addEventListener('input', applyFilters);
+      statusFilter.addEventListener('change', applyFilters);
+      proFilter.addEventListener('change', applyFilters);
+      churchFilter.addEventListener('change', applyFilters);
+      
+      clearButton.addEventListener('click', () => {
+        searchInput.value = '';
+        statusFilter.value = '';
+        proFilter.value = '';
+        churchFilter.value = '';
+        renderBusinesses(allBusinesses);
+      });
+    }
+
+    function setupSorting() {
+      const headers = document.querySelectorAll('.business-table th[data-sort]');
+      headers.forEach(header => {
+        header.addEventListener('click', () => {
+          const field = header.getAttribute('data-sort');
+          
+          if (currentSort.field === field) {
+            currentSort.asc = !currentSort.asc;
+          } else {
+            currentSort.field = field;
+            currentSort.asc = true;
+          }
+
+          const sorted = [...allBusinesses].sort((a, b) => {
+            let aVal = a[field] || '';
+            let bVal = b[field] || '';
+
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+            if (aVal < bVal) return currentSort.asc ? -1 : 1;
+            if (aVal > bVal) return currentSort.asc ? 1 : -1;
+            return 0;
+          });
+
+          renderBusinesses(sorted);
+        });
+      });
+    }
+
+    window.approveBusiness = async (id) => {
+      if (!confirm('Approve this business listing?')) return;
+      
+      try {
+        await updateDoc(doc(db, "business_listings", id), {
+          listing_status: 'active'
+        });
+        alert('✅ Business approved!');
+        await loadBusinesses();
+      } catch (error) {
+        console.error('Error approving business:', error);
+        alert('❌ Error approving business: ' + error.message);
+      }
+    };
+
+    window.suspendBusiness = async (id) => {
+      if (!confirm('Suspend this business listing?')) return;
+      
+      try {
+        await updateDoc(doc(db, "business_listings", id), {
+          listing_status: 'suspended'
+        });
+        alert('✅ Business suspended!');
+        await loadBusinesses();
+      } catch (error) {
+        console.error('Error suspending business:', error);
+        alert('❌ Error suspending business: ' + error.message);
+      }
+    };
+
+    window.activateBusiness = async (id) => {
+      if (!confirm('Reactivate this business listing?')) return;
+      
+      try {
+        await updateDoc(doc(db, "business_listings", id), {
+          listing_status: 'active'
+        });
+        alert('✅ Business activated!');
+        await loadBusinesses();
+      } catch (error) {
+        console.error('Error activating business:', error);
+        alert('❌ Error activating business: ' + error.message);
+      }
+    };
+
+    window.editBusiness = (id) => {
+      window.location.href = `edit_business.html?id=${id}`;
+    };
+
+    window.deleteBusiness = async (id) => {
+      if (!confirm('⚠️ DELETE this business permanently? This cannot be undone.\n\nNote: Kingdom Connects policy is to downgrade, not delete. Are you sure?')) return;
+      
+      try {
+        await deleteDoc(doc(db, "business_listings", id));
+        alert('✅ Business deleted!');
+        await loadBusinesses();
+      } catch (error) {
+        console.error('Error deleting business:', error);
+        alert('❌ Error deleting business: ' + error.message);
+      }
+    };
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  </div>
+</body>
+</html>

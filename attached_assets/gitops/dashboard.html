@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Git Dashboard - Kingdom Connects</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --gold: #d4af37;
+      --bg: #0a0a0a;
+      --card-bg: #1a1a1a;
+      --success: #4caf50;
+      --error: #f44336;
+      --warning: #ff9800;
+      --text: #ffffff;
+      --text-muted: #999;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    .section {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #333;
+    }
+
+    .section-title {
+      color: var(--gold);
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 1.25rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--gold);
+      color: #000;
+    }
+
+    .btn-primary:active {
+      background: #c9a030;
+    }
+
+    .btn-secondary {
+      background: #2a2a2a;
+      color: var(--text);
+      border: 1px solid var(--gold);
+    }
+
+    .btn-secondary:active {
+      background: #333;
+    }
+
+    .btn-danger {
+      background: #d32f2f;
+      color: var(--text);
+    }
+
+    .btn-danger:active {
+      background: #b71c1c;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-loading::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: 1rem;
+      width: 20px;
+      height: 20px;
+      margin-top: -10px;
+      border: 3px solid rgba(0, 0, 0, 0.2);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      display: none;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status-success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    .status-error {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .status-info {
+      background: rgba(212, 175, 55, 0.2);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+    }
+
+    .description {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .warning-box {
+      background: rgba(255, 152, 0, 0.1);
+      border: 1px solid var(--warning);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .warning-box p {
+      color: var(--warning);
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    .emoji {
+      font-size: 1.5rem;
+      margin-right: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 Git Dashboard</h1>
+    <p class="subtitle">Kingdom Connects - Dev Workflow</p>
+
+    <div class="section">
+      <div class="section-title">📤 Daily Work (Dev Branch)</div>
+      <p class="description">Use these buttons when you finish work and want to save/sync your changes.</p>
+      
+      <button class="btn btn-primary" id="pushDevBtn">
+        <span class="emoji">💾</span>Push to Dev
+      </button>
+      
+      <button class="btn btn-secondary" id="pullDevBtn">
+        <span class="emoji">⬇️</span>Pull from Dev
+      </button>
+
+      <div id="devStatus" class="status"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🚀 Weekly Publish</div>
+      <p class="description">Run once a week to publish dev changes to main (production).</p>
+      
+      <button class="btn btn-danger" id="syncBtn">
+        <span class="emoji">🔀</span>Sync Dev → Main
+      </button>
+
+      <div class="warning-box">
+        <p><strong>⚠️ Caution:</strong> This publishes dev to production. Only run after testing!</p>
+      </div>
+
+      <div id="syncStatus" class="status"></div>
+    </div>
+  </div>
+
+  <script>
+    const WEBHOOK_KEY = prompt('Enter your webhook secret:');
+    
+    if (!WEBHOOK_KEY) {
+      alert('Webhook key required! Refresh and try again.');
+    }
+
+    async function gitAction(endpoint, btnId, statusId, action) {
+      const btn = document.getElementById(btnId);
+      const status = document.getElementById(statusId);
+      
+      btn.disabled = true;
+      btn.classList.add('btn-loading');
+      status.className = 'status';
+      status.textContent = '';
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'X-Webhook-Key': WEBHOOK_KEY
+          }
+        });
+
+        const data = await response.json();
+        
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+
+        if (data.code === 0) {
+          status.className = 'status status-success show';
+          status.textContent = `✅ ${action} successful!\n${data.output || ''}`;
+        } else {
+          status.className = 'status status-error show';
+          status.textContent = `❌ ${action} failed:\n${data.error || data.output || 'Unknown error'}`;
+        }
+      } catch (error) {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+        status.className = 'status status-error show';
+        status.textContent = `❌ Network error:\n${error.message}`;
+      }
+    }
+
+    document.getElementById('pushDevBtn').addEventListener('click', () => {
+      if (confirm('Push your changes to dev branch?')) {
+        gitAction('/hook/push/dev', 'pushDevBtn', 'devStatus', 'Push');
+      }
+    });
+
+    document.getElementById('pullDevBtn').addEventListener('click', () => {
+      if (confirm('Pull latest changes from dev branch?')) {
+        gitAction('/hook/pull/dev', 'pullDevBtn', 'devStatus', 'Pull');
+      }
+    });
+
+    document.getElementById('syncBtn').addEventListener('click', () => {
+      if (confirm('⚠️ PUBLISH TO PRODUCTION?\n\nThis will sync dev → main.\n\nAre you sure?')) {
+        gitAction('/hook/sync/dev-to-main', 'syncBtn', 'syncStatus', 'Sync');
+      }
+    });
+  </script>
+</body>
+</html>

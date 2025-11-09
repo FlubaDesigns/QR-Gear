@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Sales Dashboard - Kingdom Connects</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="../styles/layout.css">
+  <link rel="stylesheet" href="../styles/theme.css">
+  <link rel="stylesheet" href="../styles/buttons.css">
+  <link rel="stylesheet" href="../styles/forms.css">
+  <link rel="stylesheet" href="../styles/overrides.css">
+  
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2rem;
+      color: var(--gold);
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+    .stat-label {
+      color: #aaa;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-sublabel {
+      color: #666;
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .action-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border-left: 4px solid var(--gold);
+    }
+    .action-card h3 {
+      margin-top: 0;
+      color: var(--gold);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+  <a id="top"></a>
+
+  <div id="header"></div>
+
+  <main class="main-content">
+    <section class="page-content">
+      <h2 class="gold-metallic">Sales Dashboard</h2>
+      <p>Track your commissions, Pro conversions, and recurring revenue.</p>
+
+      <div id="loading" class="text-center mt-lg">
+        <p>Loading your sales data...</p>
+      </div>
+
+      <div id="content" style="display: none;">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Earned</div>
+            <div class="stat-value" id="totalEarned">$0.00</div>
+            <div class="stat-sublabel" id="paidStatus">$0 paid • $0 pending</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Active Pro Clients</div>
+            <div class="stat-value" id="activeClients">0</div>
+            <div class="stat-sublabel">Generating monthly revenue</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Monthly Recurring</div>
+            <div class="stat-value" id="monthlyRevenue">$0.00</div>
+            <div class="stat-sublabel">Commission per month</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">This Month</div>
+            <div class="stat-value" id="newConversions">0</div>
+            <div class="stat-sublabel">New Pro conversions</div>
+          </div>
+        </div>
+
+        <h3 class="gold-metallic mt-lg">Quick Actions</h3>
+        <div class="quick-actions">
+          <div class="action-card">
+            <h3>Commission History</h3>
+            <p>View detailed commission records, payment history, and pending payouts.</p>
+            <a href="commissions.html" class="action-button btn-gold mt-sm">View Commissions</a>
+          </div>
+
+          <div class="action-card">
+            <h3>Pro Conversions</h3>
+            <p>Track Pro upgrade conversions, renewal rates, and subscription analytics.</p>
+            <a href="conversions.html" class="action-button btn-gold mt-sm">View Conversions</a>
+          </div>
+
+          <div class="action-card">
+            <h3>Referral Performance</h3>
+            <p>See all businesses and churches you've referred to the platform.</p>
+            <a href="referrals.html" class="action-button btn-gold mt-sm">View Referrals</a>
+          </div>
+
+          <div class="action-card">
+            <h3>Sales Team</h3>
+            <p>Manage sales agent accounts and commission splits (managers only).</p>
+            <a href="agents.html" class="action-button btn-gold mt-sm">Manage Team</a>
+          </div>
+        </div>
+      </div>
+
+      <div id="error" style="display: none;" class="text-center mt-lg">
+        <p style="color: #ff6b6b;">Error loading sales data. Please try again.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/header.js" defer></script>
+  <script src="js/footer.js" defer></script>
+  
+  <script type="module">
+    import { db, auth } from "../js/firebase-config.js";
+    import { collection, query, where, getDocs, collectionGroup, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let currentUser = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      currentUser = user;
+      await loadDashboardStats();
+    });
+
+    async function loadDashboardStats() {
+      try {
+        const commissionsQuery = query(
+          collectionGroup(db, "commissions"),
+          where("referrer_id", "==", currentUser.uid)
+        );
+        
+        const commissionsSnapshot = await getDocs(commissionsQuery);
+        
+        if (commissionsSnapshot.empty) {
+          showEmptyState();
+          return;
+        }
+
+        let totalEarned = 0;
+        let totalPaid = 0;
+        let totalPending = 0;
+        let totalTithes = 0;
+        let newConversionsThisMonth = 0;
+
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const activeBusinessIds = new Set();
+        const businessLookups = [];
+
+        commissionsSnapshot.forEach(doc => {
+          const commission = doc.data();
+          const amount = commission.commission_amount || 0;
+          const businessId = doc.ref.parent.parent.id;
+          
+          totalEarned += amount;
+          totalTithes += (commission.tithe_amount || 0);
+          
+          if (commission.commission_paid) {
+            totalPaid += amount;
+          } else {
+            totalPending += amount;
+          }
+
+          const createdAt = commission.created_at?.toDate();
+          if (createdAt && createdAt >= firstOfMonth) {
+            newConversionsThisMonth++;
+          }
+
+          if (!activeBusinessIds.has(businessId)) {
+            activeBusinessIds.add(businessId);
+            businessLookups.push(
+              getDoc(doc.ref.parent.parent).catch(e => {
+                console.error('Error loading business:', e);
+                return null;
+              })
+            );
+          }
+        });
+
+        const businessDocs = await Promise.all(businessLookups);
+        
+        let activeProClients = 0;
+        let monthlyRecurring = 0;
+        
+        businessDocs.forEach(businessDoc => {
+          if (businessDoc && businessDoc.exists()) {
+            const business = businessDoc.data();
+            if (business.pro_status === true) {
+              activeProClients++;
+              const avgCommission = totalEarned / commissionsSnapshot.size;
+              monthlyRecurring += avgCommission;
+            }
+          }
+        });
+
+        document.getElementById('totalEarned').textContent = `$${totalEarned.toFixed(2)}`;
+        document.getElementById('paidStatus').textContent = `$${totalPaid.toFixed(2)} paid • $${totalPending.toFixed(2)} pending`;
+        document.getElementById('activeClients').textContent = activeProClients;
+        document.getElementById('monthlyRevenue').textContent = `$${monthlyRecurring.toFixed(2)}`;
+        document.getElementById('newConversions').textContent = newConversionsThisMonth;
+
+        if (totalTithes > 0) {
+          const titheStat = document.createElement('div');
+          titheStat.className = 'stat-sublabel';
+          titheStat.style.marginTop = '1rem';
+          titheStat.style.padding = '0.75rem';
+          titheStat.style.background = 'rgba(212, 175, 55, 0.1)';
+          titheStat.style.borderRadius = '4px';
+          titheStat.innerHTML = `⛪ <strong>Church Impact:</strong> Your referrals generated <strong style="color: var(--gold)">$${totalTithes.toFixed(2)}</strong> in tithes`;
+          document.querySelector('.stats-grid').appendChild(titheStat);
+        }
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function showEmptyState() {
+      document.getElementById('loading').style.display = 'none';
+      const emptyHTML = `
+        <div style="text-align: center; padding: 3rem 1rem;">
+          <div style="font-size: 4rem; margin-bottom: 1rem;">🎯</div>
+          <h3 style="color: var(--gold); margin-bottom: 1rem;">Ready to Start Earning?</h3>
+          <p style="color: #aaa; margin-bottom: 2rem;">You haven't earned any commissions yet. Start referring businesses to Kingdom Connects!</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; max-width: 600px; margin: 0 auto;">
+            <a href="/business.html" class="action-button btn-gold">Browse Businesses</a>
+            <a href="/submit_business.html" class="action-button btn-gold">Refer a Business</a>
+          </div>
+        </div>
+      `;
+      document.getElementById('content').innerHTML = emptyHTML;
+      document.getElementById('content').style.display = 'block';
+    }
+  </script>
+  </div>
+</body>
+</html>

@@ -1,0 +1,5 @@
+[Chunk _1_ Placeholder]
+This file will contain the first chunk of the full verbatim conversation.
+
+Due to platform limitations, only part of the conversation is accessible at a time.
+I will export this in chunks (_1_, _2_, _3_, etc.), each as its own file.

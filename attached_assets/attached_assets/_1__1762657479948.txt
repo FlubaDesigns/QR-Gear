@@ -1,0 +1,7 @@
+User: Ghost let's pick up where we left off on Kingdom connects firestore
+Assistant: Picking up where we left off. What collection do you want to work on first?
+User: I'm going to upload the conversation from our last thread. Let's see if this gets you up to speed.
+[Uploads ZIP]
+...
+User: Do it and don't let me down again!
+Assistant: Understood. Starting now.

@@ -1,0 +1,74 @@
+_kingdom_connects_site_review.txt
+
+KINGDOM CONNECTS – FULL SITE AUDIT (v1)
+
+--------------------------------------------------
+🚨 BLOCKERS / MUST-FIX FOR GITHUB PAGES
+--------------------------------------------------
+- Root-absolute paths (“/assets/favicon.ico”) should be relative (“assets/favicon.ico”).
+- Firebase config fetch uses a server path. Move to a client-safe firebase-config.json or inline guarded config.
+- Google Maps key fetch uses __replit_secrets; replace with browser key or guard.
+- Live stats scripts should skip if Firebase fails.
+
+--------------------------------------------------
+❗ BROKEN / MISSING INTERNAL LINKS
+--------------------------------------------------
+- admin/index.html links to missing pages: import_factoids.html, migrate_categories.html, review-categories.html.
+- attached_assets/admin_site_settings_* references admin_dashboard.html (missing).
+
+--------------------------------------------------
+🧱 STRUCTURE & INCLUSION ISSUES
+--------------------------------------------------
+- gitops/dashboard.html missing header/footer container divs; add <div id="header"></div> and <div id="footer"></div>.
+- Logo paths should stay relative.
+
+--------------------------------------------------
+🔐 SECURITY / REPO HYGIENE
+--------------------------------------------------
+- Keep serviceAccountKey.json and .env out of repo; add to .gitignore.
+- Firestore rule files are fine for Firebase deploys but ignored on GitHub Pages.
+
+--------------------------------------------------
+🔎 SEO & META
+--------------------------------------------------
+- Replace hardcoded canonical URLs pointing to kingdomconnects.com for GitHub Pages preview.
+- Update Open Graph and Twitter tags after final domain setup.
+
+--------------------------------------------------
+♿ ACCESSIBILITY & UX
+--------------------------------------------------
+- Ensure all form inputs have matching <label for> attributes.
+- Focus management for modals/menus.
+- Keep dark theme contrast; orange accent is readable.
+
+--------------------------------------------------
+⚙️ WORKFLOW / LOGIC SUGGESTIONS
+--------------------------------------------------
+- Add site-env.js for feature flags (hosting, enableMaps, enableFirebase).
+- Graceful fallbacks for missing Firebase config or Maps keys.
+- Add 404.html, robots.txt, sitemap.xml.
+
+--------------------------------------------------
+🧪 LOOKS BROKEN ON PAGES UNTIL FIREBASE WIRED
+--------------------------------------------------
+- Stats counters
+- Admin/Auth
+- Maps
+
+--------------------------------------------------
+✅ GOOD STRUCTURE
+--------------------------------------------------
+- Modular CSS clean and consistent.
+- Clear directory layout for admin/church/business/sales.
+- Favicon exists and works with relative path.
+- Admin guard scaffolding set up.
+
+--------------------------------------------------
+NEXT STEPS
+--------------------------------------------------
+1) Replace all “/assets/” paths with relative “assets/”.
+2) Add 404.html and robots.txt.
+3) Add client-safe firebase-config.json (browser key only).
+4) Update google-maps.js for Pages environment.
+5) Stub missing admin pages.
+6) Enable GitHub Pages and verify public URL.

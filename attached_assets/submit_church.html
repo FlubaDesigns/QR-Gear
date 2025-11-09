@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <title>Submit Your Church - Kingdom Connects</title>
+  <meta name="description" content="Submit your church to the Kingdom Connects directory.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+
+  <link rel="stylesheet" href="styles/layout.css?v=3">
+  <link rel="stylesheet" href="styles/theme.css?v=3">
+  <link rel="stylesheet" href="styles/buttons.css?v=1">
+  <link rel="stylesheet" href="styles/forms.css?v=1">
+  <link rel="stylesheet" href="styles/overrides.css?v=3">
+</head>
+<body>
+  <a id="top"></a>
+  <div class="page-wrap">
+    <div id="header"></div>
+    <div id="breadcrumbs"></div>
+
+    <main class="main-content" id="main">
+      <section class="page-content">
+        <article class="card">
+          <h1 class="gold-metallic">Submit Your Church</h1>
+          <p class="text-lg line-height-relaxed">
+            Add your church to the Kingdom Connects directory and connect with local Christian businesses.
+          </p>
+        </article>
+
+        <article class="card">
+          <form id="churchForm">
+            <div>
+              <label class="block font-bold">Church Name *</label>
+              <input type="text" id="church_name" required class="input-dark">
+            </div>
+
+            <div>
+              <label class="block font-bold">City *</label>
+              <input type="text" id="city" required class="input-dark">
+            </div>
+
+            <div>
+              <label class="block font-bold">State *</label>
+              <select id="state" required class="input-dark">
+                <option value="">Select State</option>
+                <option value="FL">Florida</option>
+                <option value="AL">Alabama</option>
+                <option value="GA">Georgia</option>
+                <option value="SC">South Carolina</option>
+                <option value="NC">North Carolina</option>
+                <option value="TN">Tennessee</option>
+                <option value="MS">Mississippi</option>
+                <option value="LA">Louisiana</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold">ZIP Code</label>
+              <input type="text" id="zip_code" pattern="[0-9]{5}" placeholder="12345" class="input-dark">
+            </div>
+
+            <div>
+              <label class="block font-bold">Denomination</label>
+              <select id="denomination" class="input-dark">
+                <option value="">Select Denomination</option>
+                <option value="Baptist">Baptist</option>
+                <option value="Methodist">Methodist</option>
+                <option value="Non-Denominational">Non-Denominational</option>
+                <option value="Pentecostal">Pentecostal</option>
+                <option value="Presbyterian">Presbyterian</option>
+                <option value="Lutheran">Lutheran</option>
+                <option value="Catholic">Catholic</option>
+                <option value="Episcopal">Episcopal</option>
+                <option value="Assembly of God">Assembly of God</option>
+                <option value="Church of Christ">Church of Christ</option>
+                <option value="Evangelical">Evangelical</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold">Website</label>
+              <input type="url" id="website" class="input-dark">
+            </div>
+
+            <div>
+              <label class="block font-bold">Contact Email *</label>
+              <input type="email" id="contact_email" required class="input-dark">
+            </div>
+
+            <div>
+              <label class="block font-bold">Contact Phone</label>
+              <input type="tel" id="contact_phone" class="input-dark">
+            </div>
+
+            <div id="statusMessage" class="p-md hidden"></div>
+
+            <button type="submit" class="action-button btn-gold">Submit Church for Review</button>
+            <a href="church_directory.html" class="action-button ml-md">Cancel</a>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <div id="footer"></div>
+  </div>
+
+  <script src="js/header_public.js" defer></script>
+  <script src="js/footer_public.js" defer></script>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    document.getElementById('churchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const statusDiv = document.getElementById('statusMessage');
+      statusDiv.style.display = 'block';
+      statusDiv.style.color = '#ccc';
+      statusDiv.style.background = 'rgba(255,215,0,0.1)';
+      statusDiv.style.border = '1px solid gold';
+      statusDiv.style.borderRadius = '8px';
+      statusDiv.textContent = 'Submitting your church...';
+
+      const churchData = {
+        church_name: document.getElementById('church_name').value.trim(),
+        city: document.getElementById('city').value.trim(),
+        state: document.getElementById('state').value.trim(),
+        zip_code: document.getElementById('zip_code').value.trim(),
+        denomination: document.getElementById('denomination').value.trim(),
+        website: document.getElementById('website').value.trim(),
+        contact_email: document.getElementById('contact_email').value.trim(),
+        contact_phone: document.getElementById('contact_phone').value.trim(),
+        listing_status: "pending",
+        submission_date: serverTimestamp()
+      };
+
+      try {
+        await addDoc(collection(db, "churches"), churchData);
+        
+        statusDiv.style.color = 'green';
+        statusDiv.style.background = 'rgba(0,255,0,0.1)';
+        statusDiv.style.border = '1px solid green';
+        statusDiv.textContent = '✓ Church submitted successfully! Our team will review it shortly.';
+        
+        document.getElementById('churchForm').reset();
+        
+        setTimeout(() => {
+          window.location.href = 'church_directory.html';
+        }, 2000);
+
+      } catch (error) {
+        console.error("Error submitting church:", error);
+        statusDiv.style.color = 'red';
+        statusDiv.style.background = 'rgba(255,0,0,0.1)';
+        statusDiv.style.border = '1px solid red';
+        statusDiv.textContent = `Error: ${error.message}. Please try again.`;
+      }
+    });
+  </script>
+  <script src="js/breadcrumbs.js" defer></script>
+</body>
+</html>
