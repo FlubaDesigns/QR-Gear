@@ -3,9 +3,54 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
+import { verifyWidgetToken } from "./lib/widget-auth";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Widget API
+  app.get("/api/widget/session", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      
+      if (!token) {
+        return res.status(400).json({ error: "Token required" });
+      }
+
+      const payload = verifyWidgetToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+
+      // Get featured products (limit to 6 for widget)
+      const allProducts = await storage.getAllProducts();
+      const featuredProducts = allProducts.slice(0, 6).map(p => ({
+        id: p.id,
+        name: p.name,
+        imageUrl: p.imageUrl || "",
+        basePrice: p.basePrice,
+        category: p.category,
+      }));
+
+      // Generate QR code linking to KC business listing
+      const qrCodeDataUrl = await generateTextQRCode(payload.kcListingUrl, {
+        color: "#1e40af",
+        backgroundColor: "#ffffff",
+      });
+
+      res.json({
+        businessName: payload.businessName,
+        businessLogoUrl: payload.businessLogoUrl,
+        kcListingUrl: payload.kcListingUrl,
+        qrCodeDataUrl,
+        products: featuredProducts,
+      });
+    } catch (error: any) {
+      console.error("Widget session error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // QR Code Generation
   app.post("/api/qr/generate", async (req, res) => {
     try {
