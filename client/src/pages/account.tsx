@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus } from "lucide-react";
+import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/lib/auth";
 import type { Order, OrderItem } from "@shared/schema";
 
 interface OrderWithItems extends Order {
@@ -19,10 +20,21 @@ interface DashboardStats {
 }
 
 export default function Account() {
-  const userId = "demo-user-123"; // TODO: Get from auth context
+  const { user, loading: authLoading } = useAuth();
+
+  // TODO: Uncomment when /login page is created
+  // const [, setLocation] = useLocation();
+  // useEffect(() => {
+  //   if (!authLoading && !user) {
+  //     setLocation("/login");
+  //   }
+  // }, [user, authLoading, setLocation]);
+
+  const userId = user?.uid || "demo-user-123";
 
   const { data: orders, isLoading } = useQuery<OrderWithItems[]>({
     queryKey: ["/api/orders", userId],
+    enabled: !!user,
   });
 
   const stats: DashboardStats = {
@@ -63,19 +75,23 @@ export default function Account() {
     }
   };
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
         <div className="max-w-5xl mx-auto">
-          <div className="glass-card rounded-xl p-8 text-center">
-            <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-muted rounded w-1/3 mx-auto"></div>
-              <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
-            </div>
+          <div className="glass-card rounded-xl p-8 text-center space-y-4">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+            <p className="text-sm text-muted-foreground">
+              {authLoading ? "Checking authentication..." : "Loading dashboard..."}
+            </p>
           </div>
         </div>
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -282,11 +298,17 @@ export default function Account() {
                         View Details
                       </Button>
                     </div>
-                    {order.shippingAddress && (
-                      <div className="text-xs text-muted-foreground">
-                        Ships to: {String((order.shippingAddress as any)?.city)}, {String((order.shippingAddress as any)?.state)}
-                      </div>
-                    )}
+                    {(() => {
+                      const addr = order.shippingAddress;
+                      if (addr && typeof addr === 'object' && 'city' in addr && 'state' in addr) {
+                        return (
+                          <div className="text-xs text-muted-foreground">
+                            Ships to: {String(addr.city)}, {String(addr.state)}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </CardContent>
               </Card>

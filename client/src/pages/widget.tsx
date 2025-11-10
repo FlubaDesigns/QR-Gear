@@ -39,7 +39,7 @@ export default function Widget() {
   }, [toast]);
 
   const { data: session, isLoading, error } = useQuery<WidgetSession>({
-    queryKey: ["/api/widget/session", token],
+    queryKey: ["/api/widget/session", { token }],
     enabled: !!token,
   });
 
@@ -59,12 +59,27 @@ export default function Widget() {
     const checkoutUrl = `/creator?token=${encodeURIComponent(token)}&product=${productId}`;
     
     if (window.parent !== window) {
+      const allowedOrigins = import.meta.env.VITE_ALLOWED_WIDGET_ORIGINS?.split(',') || ['https://kingdomconnects.com'];
+      const targetOrigin = allowedOrigins[0] || 'https://kingdomconnects.com';
+      
       window.parent.postMessage({ 
         type: "qrgear-widget-navigate", 
         url: checkoutUrl 
-      }, "*");
+      }, targetOrigin);
     } else {
       window.location.href = checkoutUrl;
+    }
+  };
+  
+  const handleDesignComplete = (designData: unknown) => {
+    if (window.parent !== window) {
+      const allowedOrigins = import.meta.env.VITE_ALLOWED_WIDGET_ORIGINS?.split(',') || ['https://kingdomconnects.com'];
+      const targetOrigin = allowedOrigins[0] || 'https://kingdomconnects.com';
+      
+      window.parent.postMessage({ 
+        type: "qrgear-design-complete", 
+        design: designData 
+      }, targetOrigin);
     }
   };
 
