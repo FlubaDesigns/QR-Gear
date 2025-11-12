@@ -1,0 +1,267 @@
+  /* =========================================================
+   Kingdom Connects — buttons.css
+   Plasticky buttons + Web 4.0 sheen + responsive layout
+   ========================================================= */
+
+/* ---------- Base CTA appearance ---------- */
+.action-button, .btn {
+  --btn-fg: var(--button-fg);
+  --btn-bg-fallback: #f59e0b;
+  color: var(--btn-fg);
+  display: inline-block;
+  font-weight: 800;
+  text-align: center;
+  border: 0;
+  border-radius: 16px;
+  padding: 16px 28px;
+  font-size: clamp(16px, 1.05rem, 20px);
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+  text-decoration: none;
+
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 45%),
+    var(--button-bg, var(--btn-bg-fallback));
+
+  box-shadow:
+    0 12px 24px rgba(0,0,0,.35),
+    inset 0 -2px 0 rgba(0,0,0,.25),
+    inset 0 1px 0 rgba(255,255,255,.45);
+
+  transition: transform .12s ease, filter .15s ease, box-shadow .15s ease;
+}
+
+/* Gloss bar */
+.action-button::before, .btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,.65) 0%,
+    rgba(255,255,255,.35) 14%,
+    rgba(255,255,255,0) 40%);
+  mix-blend-mode: screen;
+  opacity: .9;
+}
+
+/* Sheen swipe */
+.action-button::after, .btn::after {
+  content: "";
+  position: absolute;
+  top: -100%;
+  left: -30%;
+  width: 60%;
+  height: 300%;
+  transform: rotate(25deg);
+  pointer-events: none;
+  border-radius: 24px;
+  opacity: 0;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,.45) 45%,
+    rgba(255,255,255,.85) 50%,
+    rgba(255,255,255,.45) 55%,
+    rgba(255,255,255,0) 100%);
+  filter: blur(0.5px);
+}
+
+/* Hover */
+.action-button:hover, .btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.03) saturate(1.02);
+  box-shadow:
+    0 16px 28px rgba(0,0,0,.4),
+    inset 0 -2px 0 rgba(0,0,0,.28),
+    inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+/* Pressed */
+.action-button:active, .btn:active,
+.action-button.is-pressed, .btn.is-pressed {
+  transform: translateY(2px);
+  filter: brightness(.98);
+  box-shadow:
+    0 6px 14px rgba(0,0,0,.35),
+    inset 0 -1px 0 rgba(0,0,0,.35),
+    inset 0 3px 8px rgba(0,0,0,.25),
+    inset 0 0 0 1px rgba(255,255,255,.18);
+}
+
+/* Sheen animation */
+.action-button.clicked::after, .btn.clicked::after {
+  animation: kc-sheen .6s ease forwards;
+  opacity: 1;
+}
+@keyframes kc-sheen {
+  0%   { transform: translateX(0) rotate(25deg); opacity: 0; }
+  10%  { opacity: .6; }
+  50%  { transform: translateX(240%) rotate(25deg); opacity: .9; }
+  100% { transform: translateX(360%) rotate(25deg); opacity: 0; }
+}
+
+/* Light theme tweak */
+html[data-theme="light"] .action-button, 
+html[data-theme="light"] .btn {
+  box-shadow:
+    0 12px 22px rgba(0,0,0,.18),
+    inset 0 -2px 0 rgba(0,0,0,.10),
+    inset 0 1px 0 rgba(255,255,255,.75);
+}
+
+/* ---------- Button Section Layout ---------- */
+.button-section {
+  display: grid;
+  gap: 18px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.button-section .action-button {
+  width: 100%;
+  min-height: 58px;
+}
+
+/* Mobile full width */
+@media (max-width: 720px) {
+  .button-section {
+    width: 100vw;
+    margin-left: 50%;
+    transform: translateX(-50%);
+    padding: 0 16px;
+    gap: 16px;
+  }
+}
+/* CTA blocks: make each button full-width with a solid tap target */
+.cta-block .action-button {
+  width: 100%;
+  min-height: 58px;
+}
+
+/* Mobile: All standalone CTA buttons should be full-width for better UX */
+@media (max-width: 720px) {
+  .action-button, .btn {
+    width: 100%;
+    display: block;
+  }
+
+  /* Exception: buttons in flex containers (like header actions) */
+  .header-actions .action-button,
+  .header-actions .btn,
+  .factoid-actions .action-button,
+  .factoid-actions .btn {
+    width: auto;
+    display: inline-block;
+  }
+}
+
+/* =========================================================
+   GOLD BUTTON VARIANT (works in dark & light themes)
+   - Use on: <a class="action-button btn-gold">…</a>
+             <button class="btn btn-gold">…</button>
+   - Honors your existing sheen/pressed effects (.clicked/.is-pressed)
+   ========================================================= */
+
+/* Palette (shared) */
+:root{
+  --gold-hi:  #FFF4B0;   /* highlight */
+  --gold:     #FFD700;   /* classic gold */
+  --gold-mid: #DAA520;   /* depth */
+  --gold-deep:#B8860B;   /* antique edge */
+  --ring-fallback: 0 0 0 3px rgba(59,130,246,.45);
+}
+
+/* Text color over gold, by theme */
+html[data-theme="dark"]  { --gold-fg: #0b1220; }  /* dark ink on bright gold */
+html[data-theme="light"] { --gold-fg: #0b1220; }
+
+/* Base state */
+.action-button.btn-gold,
+.btn.btn-gold {
+  color: var(--gold-fg);
+  /* drive your existing button system with these tokens */
+  --button-bg: linear-gradient(180deg, var(--gold) 0%, var(--gold-mid) 100%);
+  --button-bg-hover: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 100%);
+
+  /* immediate background so it also works if your base ignores --button-bg */
+  background: var(--button-bg);
+  /* slightly crisper inner rim for metallic feel */
+  box-shadow:
+    0 12px 24px rgba(0,0,0,.35),
+    inset 0 -2px 0 rgba(0,0,0,.22),
+    inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+/* Hover */
+.action-button.btn-gold:hover,
+.btn.btn-gold:hover {
+  background: var(--button-bg-hover);
+  filter: brightness(1.04) saturate(1.03);
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 28px rgba(0,0,0,.40),
+    inset 0 -2px 0 rgba(0,0,0,.25),
+    inset 0 1px 0 rgba(255,255,255,.65);
+}
+
+/* Active / pressed (works alongside your .is-pressed) */
+.action-button.btn-gold:active,
+.btn.btn-gold:active,
+.action-button.btn-gold.is-pressed,
+.btn.btn-gold.is-pressed {
+  background: linear-gradient(180deg, var(--gold-mid) 0%, var(--gold-deep) 100%);
+  transform: translateY(2px);
+  filter: brightness(.98);
+  box-shadow:
+    0 6px 14px rgba(0,0,0,.35),
+    inset 0 -1px 0 rgba(0,0,0,.35),
+    inset 0 3px 8px rgba(0,0,0,.25),
+    inset 0 0 0 1px rgba(255,255,255,.18);
+}
+
+/* Focus (keyboard) */
+.action-button.btn-gold:focus-visible,
+.btn.btn-gold:focus-visible {
+  outline: none;
+  box-shadow: var(--ring, var(--ring-fallback));
+}
+
+/* Disabled */
+.action-button.btn-gold[disabled],
+.btn.btn-gold[disabled],
+.action-button.btn-gold.is-disabled,
+.btn.btn-gold.is-disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  filter: grayscale(.1) saturate(.9);
+  transform: none;
+  box-shadow:
+    0 8px 16px rgba(0,0,0,.25),
+    inset 0 -1px 0 rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.40);
+}
+.admin-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 1rem;
+}
+
+.action-button {
+  padding: 12px 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(to bottom, #ffcc33, #e0a800);
+  color: #000;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.action-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
