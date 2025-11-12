@@ -5,7 +5,6 @@ import FeaturedProducts from "@/components/FeaturedProducts";
 import AmericanMade from "@/components/AmericanMade";
 import PreDesignedCollection from "@/components/PreDesignedCollection";
 import SocialProof from "@/components/SocialProof";
-import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
@@ -19,7 +18,6 @@ export default function Home() {
         <PreDesignedCollection />
         <SocialProof />
       </main>
-      <Footer />
     </div>
   );
 }
