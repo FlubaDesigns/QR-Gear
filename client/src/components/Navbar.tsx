@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Settings, Menu, ShoppingCart, Sun, Moon, Plus, Minus, X } from "lucide-react";
+import { Settings, ShoppingCart, Sun, Moon, Plus, Minus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import logoImage from "@assets/file_00000000215871f59ea892893d25458d_(1)_1765258506688.png";
 
@@ -11,10 +11,6 @@ export default function Navbar() {
   const [isDark, setIsDark] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const cartItemCount = 0;
-  
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -33,28 +29,6 @@ export default function Navbar() {
       setFontSize(size);
       document.documentElement.style.fontSize = `${size}px`;
     }
-  }, []);
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      
-      // Close settings if clicked outside settings area
-      if (settingsRef.current && !settingsRef.current.contains(target)) {
-        setSettingsOpen(false);
-      }
-      
-      // Close menu if clicked outside both the toggle button AND the nav dropdown
-      const clickedInMenu = menuRef.current?.contains(target);
-      const clickedInNav = navRef.current?.contains(target);
-      if (!clickedInMenu && !clickedInNav) {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const toggleTheme = () => {
@@ -87,54 +61,37 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="site-header">
-      <div className="header-inner">
-        <Link href="/" className="brand" data-testid="link-home">
-          <img 
-            src={logoImage} 
-            alt="QRGear Logo" 
-            className="h-10 w-10 object-contain dark:invert"
-          />
-          <span className="site-title">
-            QR<span className="brand-highlight">Gear</span>.com
-          </span>
-        </Link>
+    <>
+      <header className="site-header">
+        <div className="header-inner">
+          <Link href="/" className="brand" data-testid="link-home">
+            <img 
+              src={logoImage} 
+              alt="QRGear Logo" 
+              className="h-10 w-10 object-contain dark:invert"
+            />
+            <span className="site-title">
+              QR<span className="brand-highlight">Gear</span>.com
+            </span>
+          </Link>
 
-        <nav ref={navRef} className={`nav-links ${menuOpen ? "open" : ""}`}>
-          <button 
-            className="mobile-close-btn"
-            onClick={() => setMenuOpen(false)}
-            aria-label="Close menu"
-            data-testid="button-close-menu"
-          >
-            <X size={32} />
-          </button>
-          {navLinks.map((link) => (
-            <li key={link.href}>
+          <nav className="desktop-nav">
+            {navLinks.map((link) => (
               <Link
+                key={link.href}
                 href={link.href}
                 className={location === link.href ? "active" : ""}
-                onClick={() => setMenuOpen(false)}
                 data-testid={`link-${link.label.toLowerCase()}`}
               >
                 {link.label}
               </Link>
-            </li>
-          ))}
-          <li>
-            <Link
-              href="/cart"
-              className="login-link"
-              onClick={() => setMenuOpen(false)}
-              data-testid="link-store"
-            >
+            ))}
+            <Link href="/cart" className="store-link" data-testid="link-store">
               Store
             </Link>
-          </li>
-        </nav>
+          </nav>
 
-        <div className="header-actions">
-          <div className="gear-wrap" ref={settingsRef}>
+          <div className="header-actions">
             <button
               className="gear-btn"
               onClick={() => {
@@ -147,57 +104,6 @@ export default function Navbar() {
               <Settings size={24} />
             </button>
 
-            <div className={`settings-menu ${settingsOpen ? "open" : ""}`}>
-              <button 
-                className="mobile-close-btn"
-                onClick={() => setSettingsOpen(false)}
-                aria-label="Close settings"
-                data-testid="button-close-settings"
-              >
-                <X size={32} />
-              </button>
-              <h4>Settings</h4>
-              
-              <div className="setting-row">
-                <span>Theme</span>
-                <button
-                  className="theme-toggle"
-                  onClick={toggleTheme}
-                  data-testid="button-theme-toggle"
-                >
-                  <span className="toggle-track">
-                    <span className="toggle-thumb" />
-                  </span>
-                  <span className="toggle-icon">
-                    {isDark ? <Moon size={16} /> : <Sun size={16} />}
-                  </span>
-                </button>
-              </div>
-
-              <div className="setting-row">
-                <span>Font Size</span>
-                <div className="font-size-controls">
-                  <button
-                    onClick={() => adjustFontSize(-2)}
-                    disabled={fontSize <= 12}
-                    data-testid="button-font-decrease"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="font-size-display">{fontSize}</span>
-                  <button
-                    onClick={() => adjustFontSize(2)}
-                    disabled={fontSize >= 24}
-                    data-testid="button-font-increase"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div ref={menuRef} className="menu-wrap">
             <button
               className="menu-toggle"
               onClick={() => {
@@ -211,20 +117,109 @@ export default function Navbar() {
               <span className="bar" />
               <span className="bar" />
             </button>
-          </div>
 
-          <Link href="/cart" className="relative" data-testid="button-cart">
-            <button className="gear-btn">
-              <ShoppingCart size={24} />
-              {cartItemCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                  {cartItemCount}
-                </Badge>
-              )}
-            </button>
-          </Link>
+            <Link href="/cart" data-testid="button-cart">
+              <button className="gear-btn">
+                <ShoppingCart size={24} />
+                {cartItemCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {cartItemCount}
+                  </Badge>
+                )}
+              </button>
+            </Link>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {menuOpen && (
+        <div className="mobile-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="mobile-menu" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="mobile-close-btn"
+              onClick={() => setMenuOpen(false)}
+              aria-label="Close menu"
+              data-testid="button-close-menu"
+            >
+              <X size={32} />
+            </button>
+            <nav className="mobile-nav-links">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={location === link.href ? "active" : ""}
+                  onClick={() => setMenuOpen(false)}
+                  data-testid={`mobile-link-${link.label.toLowerCase()}`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Link
+                href="/cart"
+                className="store-link"
+                onClick={() => setMenuOpen(false)}
+                data-testid="mobile-link-store"
+              >
+                Store
+              </Link>
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div className="mobile-overlay" onClick={() => setSettingsOpen(false)}>
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="mobile-close-btn"
+              onClick={() => setSettingsOpen(false)}
+              aria-label="Close settings"
+              data-testid="button-close-settings"
+            >
+              <X size={32} />
+            </button>
+            <h4>Settings</h4>
+            
+            <div className="setting-row">
+              <span>Theme</span>
+              <button
+                className="theme-toggle"
+                onClick={toggleTheme}
+                data-testid="button-theme-toggle"
+              >
+                <span className="toggle-track">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-icon">
+                  {isDark ? <Moon size={16} /> : <Sun size={16} />}
+                </span>
+              </button>
+            </div>
+
+            <div className="setting-row">
+              <span>Font Size</span>
+              <div className="font-size-controls">
+                <button
+                  onClick={() => adjustFontSize(-2)}
+                  disabled={fontSize <= 12}
+                  data-testid="button-font-decrease"
+                >
+                  <Minus size={14} />
+                </button>
+                <span className="font-size-display">{fontSize}</span>
+                <button
+                  onClick={() => adjustFontSize(2)}
+                  disabled={fontSize >= 24}
+                  data-testid="button-font-increase"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
