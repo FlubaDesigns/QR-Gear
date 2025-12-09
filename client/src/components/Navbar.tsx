@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Settings, Menu, ShoppingCart, Sun, Moon, Plus, Minus } from "lucide-react";
+import { Settings, Menu, ShoppingCart, Sun, Moon, Plus, Minus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import logoImage from "@assets/file_00000000215871f59ea892893d25458d_(1)_1765258506688.png";
 
@@ -101,6 +101,14 @@ export default function Navbar() {
         </Link>
 
         <nav ref={navRef} className={`nav-links ${menuOpen ? "open" : ""}`}>
+          <button 
+            className="mobile-close-btn"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Close menu"
+            data-testid="button-close-menu"
+          >
+            <X size={32} />
+          </button>
           {navLinks.map((link) => (
             <li key={link.href}>
               <Link
@@ -140,6 +148,14 @@ export default function Navbar() {
             </button>
 
             <div className={`settings-menu ${settingsOpen ? "open" : ""}`}>
+              <button 
+                className="mobile-close-btn"
+                onClick={() => setSettingsOpen(false)}
+                aria-label="Close settings"
+                data-testid="button-close-settings"
+              >
+                <X size={32} />
+              </button>
               <h4>Settings</h4>
               
               <div className="setting-row">
