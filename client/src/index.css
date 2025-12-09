@@ -231,8 +231,10 @@ html[data-theme="light"] {
 }
 
 @layer base {
-  * {
-    @apply border-border;
+  *,
+  *::before,
+  *::after {
+    border-color: hsl(var(--border));
   }
 
   body {
