@@ -40,7 +40,7 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; }
   border-radius: 16px;
   margin: 0;                    /* vertical rhythm only */
   position: relative;
-  z-index: 10;
+  z-index: 100;
 }
 
 .header-inner{
@@ -51,6 +51,7 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; }
   grid-template-columns: 1fr auto; /* brand | actions (mobile) */
   align-items: center;
   gap: 12px;
+  position: relative;           /* anchor for dropdown positioning */
 }
 
 /* brand (logo + title) */
