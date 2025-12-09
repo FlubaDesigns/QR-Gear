@@ -7,6 +7,8 @@ QR Gear is a custom promotional merchandise e-commerce platform that creates per
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Documentation: Keep ADMIN_MANUAL.md updated as admin features evolve.
+Accessibility: User has CIDP (limited hand mobility) - agent should be fully autonomous.
 
 ## System Architecture
 
