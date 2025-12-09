@@ -381,18 +381,17 @@ export default function Creator() {
 
                   <div className="border-t pt-4 mt-2">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="kc-label">Custom Text (Optional)</span>
+                      <Label>Custom Text (Optional)</Label>
                       <Badge variant="outline" className="text-xs">+${TEXT_UPCHARGE.toFixed(2)} each</Badge>
                     </div>
                     
-                    <div className="form-group">
-                      <label htmlFor="text-above" className="kc-label">
-                        Text Above QR <span className="kc-help">({textAbove.length}/20)</span>
-                      </label>
-                      <input
+                    <div className="space-y-2 mb-4">
+                      <Label htmlFor="text-above">
+                        Text Above QR <span className="text-muted-foreground text-xs">({textAbove.length}/20)</span>
+                      </Label>
+                      <Input
                         id="text-above"
                         type="text"
-                        className="kc-input"
                         placeholder="SCAN ME"
                         maxLength={20}
                         value={textAbove}
@@ -401,14 +400,13 @@ export default function Creator() {
                       />
                     </div>
                     
-                    <div className="form-group">
-                      <label htmlFor="text-below" className="kc-label">
-                        Text Below QR <span className="kc-help">({textBelow.length}/30)</span>
-                      </label>
-                      <input
+                    <div className="space-y-2 mb-4">
+                      <Label htmlFor="text-below">
+                        Text Below QR <span className="text-muted-foreground text-xs">({textBelow.length}/30)</span>
+                      </Label>
+                      <Input
                         id="text-below"
                         type="text"
-                        className="kc-input"
                         placeholder="Connect with us!"
                         maxLength={30}
                         value={textBelow}
@@ -418,7 +416,7 @@ export default function Creator() {
                     </div>
                     
                     {(hasTextAbove || hasTextBelow) && (
-                      <p className="kc-help text-xs">
+                      <p className="text-xs text-muted-foreground">
                         Text adds +${textUpchargeTotal.toFixed(2)} to your order
                       </p>
                     )}
