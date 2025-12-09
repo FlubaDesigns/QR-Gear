@@ -215,10 +215,13 @@ export class DbStorage implements IStorage {
   }
 
   async incrementImageViews(id: string): Promise<void> {
-    await this.db.execute(
-      `UPDATE hosted_images SET views = views + 1 WHERE id = $1`,
-      [id] as any
-    );
+    const image = await this.getHostedImage(id);
+    if (image) {
+      await this.db
+        .update(schema.hostedImages)
+        .set({ views: (image.views || 0) + 1 })
+        .where(eq(schema.hostedImages.id, id));
+    }
   }
 
   async deleteHostedImage(id: string): Promise<void> {

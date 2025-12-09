@@ -7,6 +7,7 @@ import Home from "@/pages/home";
 import Creator from "@/pages/creator";
 import Widget from "@/pages/widget";
 import Account from "@/pages/account";
+import ViewImage from "@/pages/view-image";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/creator" component={Creator} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
+      <Route path="/view/:id" component={ViewImage} />
       <Route component={NotFound} />
     </Switch>
   );

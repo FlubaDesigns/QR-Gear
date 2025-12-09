@@ -5,6 +5,8 @@ import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./li
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders } from "./lib/printify";
+import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
+import { insertHostedImageSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -253,6 +255,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error: any) {
       console.error("Printify products error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Hosted Images API
+  app.post("/api/images/upload", async (req, res) => {
+    try {
+      const { imageData, originalName, mimeType, title, description, businessName, businessLogo, userId } = req.body;
+
+      if (!imageData || !originalName || !mimeType) {
+        return res.status(400).json({ error: "Missing required fields: imageData, originalName, mimeType" });
+      }
+
+      const uploadResult = await uploadImage(imageData, originalName, mimeType);
+
+      const hostedImage = await storage.createHostedImage({
+        userId: userId || null,
+        fileName: uploadResult.fileName,
+        originalName,
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: uploadResult.publicUrl,
+        title: title || null,
+        description: description || null,
+        businessName: businessName || null,
+        businessLogo: businessLogo || null,
+        isActive: true,
+        expiresAt: null,
+      });
+
+      res.json({
+        id: hostedImage.id,
+        publicUrl: `/view/${hostedImage.id}`,
+        directUrl: uploadResult.publicUrl,
+        landingUrl: `/view/${hostedImage.id}`,
+      });
+    } catch (error: any) {
+      console.error("Image upload error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/images/:imageId", async (req, res) => {
+    try {
+      const { imageId } = req.params;
+      
+      const images = await storage.getHostedImagesByUser("");
+      const allImages = images.length > 0 ? images : [];
+      
+      const hostedImage = await storage.getHostedImage(imageId);
+      
+      if (!hostedImage) {
+        const fileName = `hosted-images/${imageId}.jpeg`;
+        const imageBuffer = await getImageBuffer(fileName);
+        
+        if (!imageBuffer) {
+          const pngFileName = `hosted-images/${imageId}.png`;
+          const pngBuffer = await getImageBuffer(pngFileName);
+          
+          if (!pngBuffer) {
+            return res.status(404).json({ error: "Image not found" });
+          }
+          
+          res.setHeader("Content-Type", pngBuffer.mimeType);
+          res.setHeader("Cache-Control", "public, max-age=31536000");
+          return res.send(pngBuffer.buffer);
+        }
+        
+        res.setHeader("Content-Type", imageBuffer.mimeType);
+        res.setHeader("Cache-Control", "public, max-age=31536000");
+        return res.send(imageBuffer.buffer);
+      }
+
+      const imageBuffer = await getImageBuffer(hostedImage.storageUrl);
+      
+      if (!imageBuffer) {
+        return res.status(404).json({ error: "Image file not found" });
+      }
+
+      await storage.incrementImageViews(imageId);
+
+      res.setHeader("Content-Type", imageBuffer.mimeType);
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      res.send(imageBuffer.buffer);
+    } catch (error: any) {
+      console.error("Image serve error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/images/info/:imageId", async (req, res) => {
+    try {
+      const { imageId } = req.params;
+      const hostedImage = await storage.getHostedImage(imageId);
+      
+      if (!hostedImage || !hostedImage.isActive) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      res.json({
+        id: hostedImage.id,
+        title: hostedImage.title,
+        description: hostedImage.description,
+        businessName: hostedImage.businessName,
+        businessLogo: hostedImage.businessLogo,
+        views: hostedImage.views,
+        createdAt: hostedImage.createdAt,
+      });
+    } catch (error: any) {
+      console.error("Image info error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/images/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const images = await storage.getHostedImagesByUser(userId);
+      res.json(images);
+    } catch (error: any) {
+      console.error("User images error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/images/:imageId", async (req, res) => {
+    try {
+      const { imageId } = req.params;
+      const hostedImage = await storage.getHostedImage(imageId);
+      
+      if (!hostedImage) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      await deleteImage(hostedImage.storageUrl);
+      await storage.deleteHostedImage(imageId);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Image delete error:", error);
       res.status(500).json({ error: error.message });
     }
   });
