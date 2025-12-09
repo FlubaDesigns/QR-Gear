@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Settings, Menu, ShoppingCart, Sun, Moon, Plus, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import logoImage from "@assets/file_00000000215871f59ea892893d25458d_(1)_1765258506688.png";
 
 export default function Navbar() {
   const [location] = useLocation();
@@ -63,6 +64,11 @@ export default function Navbar() {
     <header className="site-header">
       <div className="header-inner">
         <Link href="/" className="brand" data-testid="link-home">
+          <img 
+            src={logoImage} 
+            alt="QRGear Logo" 
+            className="h-10 w-10 object-contain dark:invert"
+          />
           <span className="site-title">
             QR<span style={{ color: "hsl(187 80% 50%)" }}>Gear</span>
           </span>
