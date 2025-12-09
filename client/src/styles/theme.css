@@ -9,7 +9,7 @@ html[data-theme="dark"]{
   --page-bg: #0f243a;
   --text: #e8f3ff;
 
-  --header-bg: linear-gradient(180deg,#2f6bcb 0%, #1e4e9a 100%);
+  --header-bg: transparent;
   --header-fg: #ffffff;
 
   --panel-bg: #0c1e34;
@@ -37,7 +37,7 @@ html[data-theme="light"]{
   --page-bg: #f3f7ff;
   --text: #0d2540;
 
-  --header-bg: linear-gradient(180deg,#dfeaff 0%, #bed6ff 100%);
+  --header-bg: transparent;
   --header-fg: #102443;
 
   --panel-bg: #ffffff;

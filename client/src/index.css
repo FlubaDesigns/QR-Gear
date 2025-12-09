@@ -10,7 +10,7 @@
   --base-font-size: 16px;
   
   /* Header/Footer colors */
-  --header-bg: hsl(200 60% 15%);
+  --header-bg: transparent;
   --header-fg: hsl(0 0% 100%);
   --menu-bg: hsl(200 50% 20%);
   --menu-link: hsl(0 0% 95%);
@@ -20,7 +20,7 @@
 }
 
 html[data-theme="light"] {
-  --header-bg: hsl(200 60% 98%);
+  --header-bg: transparent;
   --header-fg: hsl(200 60% 15%);
   --menu-bg: hsl(0 0% 100%);
   --menu-link: hsl(200 60% 15%);
