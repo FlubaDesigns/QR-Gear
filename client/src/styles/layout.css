@@ -54,12 +54,11 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:
   width: 100%;
   margin: 0 auto;
   padding: 14px 18px;
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 12px;
   position: relative;
-  overflow: hidden;
 }
 
 /* brand (logo + title) */
@@ -81,12 +80,13 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:
   color: hsl(187 80% 50%);
 }
 
-/* actions row on mobile */
+/* actions row */
 .header-actions{
-  display:flex;
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 /* gear */
