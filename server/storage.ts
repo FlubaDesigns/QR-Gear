@@ -5,6 +5,7 @@ import * as schema from "@shared/schema";
 import type {
   User,
   InsertUser,
+  UpsertUser,
   QrDesign,
   InsertQrDesign,
   Product,
@@ -17,6 +18,8 @@ import type {
   InsertOrderItem,
   HostedImage,
   InsertHostedImage,
+  BrowsingHistory,
+  InsertBrowsingHistory,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -28,6 +31,12 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
+
+  // Browsing history operations
+  getBrowsingHistory(userId: string): Promise<BrowsingHistory[]>;
+  addBrowsingHistory(entry: InsertBrowsingHistory): Promise<BrowsingHistory>;
+  clearBrowsingHistory(userId: string): Promise<void>;
 
   // QR Design operations
   getQrDesign(id: string): Promise<QrDesign | undefined>;
@@ -84,6 +93,35 @@ export class DbStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await this.db.insert(schema.users).values(user).returning();
     return newUser;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await this.db
+      .insert(schema.users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: schema.users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Browsing history operations
+  async getBrowsingHistory(userId: string): Promise<BrowsingHistory[]> {
+    return this.db.select().from(schema.browsingHistory).where(eq(schema.browsingHistory.userId, userId));
+  }
+
+  async addBrowsingHistory(entry: InsertBrowsingHistory): Promise<BrowsingHistory> {
+    const [newEntry] = await this.db.insert(schema.browsingHistory).values(entry).returning();
+    return newEntry;
+  }
+
+  async clearBrowsingHistory(userId: string): Promise<void> {
+    await this.db.delete(schema.browsingHistory).where(eq(schema.browsingHistory.userId, userId));
   }
 
   // QR Design operations
@@ -238,6 +276,7 @@ class MemStorage implements IStorage {
   private orders = new Map<string, Order>();
   private orderItems = new Map<string, OrderItem>();
   private hostedImages = new Map<string, HostedImage>();
+  private browsingHistory = new Map<string, BrowsingHistory>();
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
@@ -250,12 +289,57 @@ class MemStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const newUser: User = { 
       ...user, 
-      displayName: user.displayName ?? null,
-      photoUrl: user.photoUrl ?? null,
-      createdAt: new Date() 
+      id: user.id || `user_${Date.now()}`,
+      firstName: user.firstName ?? null,
+      lastName: user.lastName ?? null,
+      profileImageUrl: user.profileImageUrl ?? null,
+      email: user.email ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     this.users.set(newUser.id, newUser);
     return newUser;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existing = userData.id ? this.users.get(userData.id) : undefined;
+    const user: User = {
+      id: userData.id || `user_${Date.now()}`,
+      email: userData.email ?? null,
+      firstName: userData.firstName ?? null,
+      lastName: userData.lastName ?? null,
+      profileImageUrl: userData.profileImageUrl ?? null,
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  async getBrowsingHistory(userId: string): Promise<BrowsingHistory[]> {
+    return Array.from(this.browsingHistory.values()).filter(h => h.userId === userId);
+  }
+
+  async addBrowsingHistory(entry: InsertBrowsingHistory): Promise<BrowsingHistory> {
+    const id = `bh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newEntry: BrowsingHistory = {
+      id,
+      userId: entry.userId,
+      productId: entry.productId,
+      viewedAt: new Date(),
+    };
+    this.browsingHistory.set(id, newEntry);
+    return newEntry;
+  }
+
+  async clearBrowsingHistory(userId: string): Promise<void> {
+    const toDelete: string[] = [];
+    this.browsingHistory.forEach((entry, id) => {
+      if (entry.userId === userId) {
+        toDelete.push(id);
+      }
+    });
+    toDelete.forEach(id => this.browsingHistory.delete(id));
   }
 
   async getQrDesign(id: string): Promise<QrDesign | undefined> {

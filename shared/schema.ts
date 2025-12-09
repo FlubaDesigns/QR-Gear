@@ -122,6 +122,12 @@ export const hostedImages = pgTable("hosted_images", {
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBrowsingHistorySchema = createInsertSchema(browsingHistory).omit({
+  id: true,
+  viewedAt: true,
 });
 
 export const insertQrDesignSchema = createInsertSchema(qrDesigns).omit({
@@ -177,3 +183,8 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
 export type HostedImage = typeof hostedImages.$inferSelect;
 export type InsertHostedImage = z.infer<typeof insertHostedImageSchema>;
+
+export type BrowsingHistory = typeof browsingHistory.$inferSelect;
+export type InsertBrowsingHistory = z.infer<typeof insertBrowsingHistorySchema>;
+
+export type UpsertUser = typeof users.$inferInsert;

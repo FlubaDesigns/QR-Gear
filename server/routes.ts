@@ -7,9 +7,50 @@ import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/wid
 import { printify, getUSAPrintProviders } from "./lib/printify";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { insertHostedImageSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup Replit Auth
+  await setupAuth(app);
+
+  // Auth routes - returns null if not authenticated (no 401)
+  app.get('/api/auth/user', async (req: any, res) => {
+    try {
+      if (!req.isAuthenticated() || !req.user?.claims?.sub) {
+        return res.json(null);
+      }
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user || null);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.json(null);
+    }
+  });
+
+  // Browsing history routes
+  app.get('/api/browsing-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const history = await storage.getBrowsingHistory(userId);
+      res.json(history);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/browsing-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { productId } = req.body;
+      const entry = await storage.addBrowsingHistory({ userId, productId });
+      res.json(entry);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Widget API
   app.get("/api/widget/session", async (req, res) => {
     try {
@@ -400,14 +441,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Cart
-  app.get("/api/cart", async (req, res) => {
+  // Cart - protected routes using session user
+  app.get("/api/cart", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.query.userId as string;
-      if (!userId) {
-        return res.status(401).json({ error: "User ID required" });
-      }
-
+      const userId = req.user.claims.sub;
       const items = await storage.getCartItemsByUser(userId);
       res.json(items);
     } catch (error: any) {
@@ -415,9 +452,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/cart", async (req, res) => {
+  app.post("/api/cart", isAuthenticated, async (req: any, res) => {
     try {
-      const validatedData = insertCartItemSchema.parse(req.body);
+      const userId = req.user.claims.sub;
+      const validatedData = insertCartItemSchema.parse({
+        ...req.body,
+        userId,
+      });
       const item = await storage.addCartItem(validatedData);
       res.json(item);
     } catch (error: any) {
@@ -428,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/cart/:id", async (req, res) => {
+  app.put("/api/cart/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { quantity } = req.body;
@@ -444,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/cart/:id", async (req, res) => {
+  app.delete("/api/cart/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteCartItem(id);
@@ -454,28 +495,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Orders
-  app.get("/api/orders", async (req, res) => {
+  // Orders - protected routes using session user
+  app.get("/api/orders", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.query.userId as string;
-      if (!userId) {
-        return res.status(401).json({ error: "User ID required" });
-      }
-
+      const userId = req.user.claims.sub;
       const orders = await storage.getOrdersByUser(userId);
-      res.json(orders);
+      
+      const ordersWithItems = await Promise.all(
+        orders.map(async (order) => {
+          const items = await storage.getOrderItems(order.id);
+          return { ...order, items };
+        })
+      );
+      
+      res.json(ordersWithItems);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/orders/:id", async (req, res) => {
+  app.get("/api/orders/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const userId = req.user.claims.sub;
       const order = await storage.getOrder(id);
       
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
+      }
+      
+      if (order.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
       }
       
       const items = await storage.getOrderItems(id);
@@ -485,9 +535,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/orders", async (req, res) => {
+  app.post("/api/orders", isAuthenticated, async (req: any, res) => {
     try {
-      const validatedOrder = insertOrderSchema.parse(req.body.order);
+      const userId = req.user.claims.sub;
+      const validatedOrder = insertOrderSchema.parse({
+        ...req.body.order,
+        userId,
+      });
       const order = await storage.createOrder(validatedOrder);
 
       if (req.body.items && Array.isArray(req.body.items)) {
