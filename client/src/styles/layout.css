@@ -16,6 +16,7 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; }
 /* Base gutter on the page wrap so all children align */
 .page-wrap{
   padding-inline: var(--gutter);
+  padding-top: 16px;
   min-height:100dvh;
   display:flex;
   flex-direction:column;
@@ -84,7 +85,8 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; }
 .gear-btn:hover{ transform: translateY(-1px) scale(1.02); }
 
 /* settings popover (from gear) */
-#settingsMenu{
+#settingsMenu,
+.settings-menu{
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
@@ -97,8 +99,10 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; }
   opacity: 0; transform: translateY(-6px);
   pointer-events:none;
   transition: opacity .18s ease, transform .18s ease;
+  z-index: 9999;
 }
-#settingsMenu.open{ opacity:1; transform:none; pointer-events:auto; }
+#settingsMenu.open,
+.settings-menu.open{ opacity:1; transform:none; pointer-events:auto; }
 #settingsMenu h4{ margin: 0 0 8px; }
 .setting-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 10px 0; }
 .font-size-controls button{
