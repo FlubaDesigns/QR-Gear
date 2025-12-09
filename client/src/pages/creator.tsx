@@ -14,14 +14,20 @@ import Navbar from "@/components/Navbar";
 import UsaFlag from "@/components/UsaFlag";
 import { Upload, ImageIcon, Loader2, Palette } from "lucide-react";
 import ImageDesigner from "@/components/ImageDesigner";
+import ProductMockup from "@/components/ProductMockup";
 import type { Product } from "@shared/schema";
 
 const placements = [
-  { value: "front-chest", label: "Front Chest" },
-  { value: "front-pocket", label: "Front Pocket" },
-  { value: "back", label: "Back" },
+  { value: "front-chest", label: "Front Chest (Large)" },
+  { value: "front-pocket", label: "Front Pocket (Small)" },
+  { value: "back", label: "Back (Large)" },
   { value: "left-shoulder", label: "Left Shoulder" },
   { value: "right-shoulder", label: "Right Shoulder" },
+  { value: "left-sleeve", label: "Left Sleeve" },
+  { value: "right-sleeve", label: "Right Sleeve" },
+  { value: "front-center", label: "Front Center" },
+  { value: "side-left", label: "Side Left" },
+  { value: "side-right", label: "Side Right" },
 ];
 
 const TEXT_UPCHARGE = 2.00;
@@ -695,63 +701,71 @@ export default function Creator() {
           </div>
 
           {/* Live Preview Panel */}
-          <div className="lg:sticky lg:top-24 h-fit">
+          <div className="lg:sticky lg:top-24 h-fit space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Live Preview</CardTitle>
-                <CardDescription>See your design come to life</CardDescription>
+                <CardTitle>Product Preview</CardTitle>
+                <CardDescription>See your design on the actual product</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-                  {selectedProduct?.imageUrl && (
-                    <img
-                      src={selectedProduct.imageUrl}
-                      alt="Product preview"
-                      className="absolute inset-0 w-full h-full object-cover opacity-30"
-                    />
-                  )}
-                  {qrCodeImage ? (
-                    <div className="relative z-10 bg-white p-4 rounded-lg shadow-lg text-center">
-                      {hasTextAbove && (
-                        <p className="text-sm font-bold text-black mb-2 tracking-wide" data-testid="preview-text-above">
-                          {textAbove}
-                        </p>
-                      )}
-                      <img
-                        src={qrCodeImage}
-                        alt="QR Code Preview"
-                        className="w-48 h-48 mx-auto"
-                      />
-                      {hasTextBelow && (
-                        <p className="text-sm font-bold text-black mt-2 tracking-wide" data-testid="preview-text-below">
-                          {textBelow}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {placement.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="text-center text-muted-foreground">
-                      <p className="font-semibold mb-1">No QR Code Yet</p>
-                      <p className="text-sm">Enter content to see preview</p>
-                    </div>
-                  )}
-                </div>
+                <ProductMockup
+                  product={selectedProduct}
+                  qrCodeImage={qrCodeImage}
+                  placement={placement}
+                  productColor={productColor}
+                  textAbove={textAbove}
+                  textBelow={textBelow}
+                />
 
-                {selectedProduct && productColor && (
+                {selectedProduct && (
                   <div className="mt-4 p-3 bg-muted rounded-md">
                     <p className="text-sm">
-                      <span className="font-semibold">{selectedProduct.name}</span> in{" "}
-                      <span className="font-semibold">{productColor}</span>
+                      <span className="font-semibold">{selectedProduct.name}</span>
+                      {productColor && <> in <span className="font-semibold">{productColor}</span></>}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      QR Code on {placement.replace("-", " ")}
+                      QR Code: {placement.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
                     </p>
+                    {(hasTextAbove || hasTextBelow) && (
+                      <p className="text-xs text-muted-foreground">
+                        {hasTextAbove && `"${textAbove}" above`}
+                        {hasTextAbove && hasTextBelow && " • "}
+                        {hasTextBelow && `"${textBelow}" below`}
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* QR Code Only Preview */}
+            {qrCodeImage && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">QR Code Close-up</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center gap-2">
+                    {hasTextAbove && (
+                      <p className="text-sm font-bold text-foreground tracking-wide" data-testid="preview-text-above">
+                        {textAbove}
+                      </p>
+                    )}
+                    <img
+                      src={qrCodeImage}
+                      alt="QR Code Preview"
+                      className="w-32 h-32"
+                      data-testid="preview-qr-code"
+                    />
+                    {hasTextBelow && (
+                      <p className="text-sm font-bold text-foreground tracking-wide" data-testid="preview-text-below">
+                        {textBelow}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
