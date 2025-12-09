@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/Navbar";
 import UsaFlag from "@/components/UsaFlag";
+import { Upload, ImageIcon, Loader2 } from "lucide-react";
 import type { Product } from "@shared/schema";
 
 const placements = [
@@ -23,10 +24,11 @@ const placements = [
 ];
 
 const TEXT_UPCHARGE = 2.00;
+const IMAGE_HOSTING_UPCHARGE = 5.00;
 
 export default function Creator() {
   const { toast } = useToast();
-  const [qrType, setQrType] = useState<"text" | "image">("text");
+  const [qrType, setQrType] = useState<"text" | "image" | "upload">("text");
   const [qrContent, setQrContent] = useState("");
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
@@ -36,6 +38,10 @@ export default function Creator() {
   const [productColor, setProductColor] = useState("");
   const [textAbove, setTextAbove] = useState("");
   const [textBelow, setTextBelow] = useState("");
+  const [uploadedImage, setUploadedImage] = useState<{ id: string; url: string; preview: string } | null>(null);
+  const [imageTitle, setImageTitle] = useState("");
+  const [imageDescription, setImageDescription] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
   const pendingRegenRef = useRef(false);
@@ -44,6 +50,75 @@ export default function Creator() {
   const { data: products = [], isLoading: productsLoading, isError: productsError } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const reader = new FileReader();
+      return new Promise<{ id: string; publicUrl: string; landingUrl: string }>((resolve, reject) => {
+        reader.onload = async () => {
+          try {
+            const base64 = (reader.result as string).split(",")[1];
+            const response = await apiRequest("POST", "/api/images/upload", {
+              imageData: base64,
+              originalName: file.name,
+              mimeType: file.type,
+              title: imageTitle || null,
+              description: imageDescription || null,
+            });
+            const data = await response.json();
+            resolve(data);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+    },
+    onSuccess: (data) => {
+      const fullUrl = `${window.location.origin}${data.landingUrl}`;
+      setUploadedImage({
+        id: data.id,
+        url: fullUrl,
+        preview: data.publicUrl,
+      });
+      setQrContent(fullUrl);
+      toast({
+        title: "Image uploaded",
+        description: "Your image is now hosted and ready for QR code generation",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a JPEG, PNG, GIF, or WebP image",
+          variant: "destructive",
+        });
+        return;
+      }
+      uploadImageMutation.mutate(file);
+    }
+  };
 
   const generateQRMutation = useMutation({
     mutationFn: async (data: { content: string; type: string; style: any }) => {
@@ -104,9 +179,9 @@ export default function Creator() {
       return;
     }
 
-    // For image type, validate URL before generating
-    if (qrType === "image" && !isValidURL(qrContent)) {
-      return; // Don't show error toast during typing
+    // For image and upload types, validate URL before generating
+    if ((qrType === "image" || qrType === "upload") && !isValidURL(qrContent)) {
+      return;
     }
 
     const currentState = {
@@ -138,7 +213,7 @@ export default function Creator() {
 
     generateQRMutation.mutate({
       content: qrContent,
-      type: qrType,
+      type: qrType === "upload" ? "image" : qrType,
       style: {
         color: qrColor,
         backgroundColor: qrBgColor,
@@ -166,7 +241,8 @@ export default function Creator() {
   const hasTextAbove = textAbove.trim().length > 0;
   const hasTextBelow = textBelow.trim().length > 0;
   const textUpchargeTotal = (hasTextAbove ? TEXT_UPCHARGE : 0) + (hasTextBelow ? TEXT_UPCHARGE : 0);
-  const totalPrice = selectedProduct ? (parseFloat(selectedProduct.basePrice) + textUpchargeTotal).toFixed(2) : "0.00";
+  const imageHostingUpcharge = qrType === "upload" && uploadedImage ? IMAGE_HOSTING_UPCHARGE : 0;
+  const totalPrice = selectedProduct ? (parseFloat(selectedProduct.basePrice) + textUpchargeTotal + imageHostingUpcharge).toFixed(2) : "0.00";
 
   return (
     <div className="min-h-screen bg-background">
@@ -187,10 +263,20 @@ export default function Creator() {
                 <CardDescription>Enter your message or image URL</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Tabs value={qrType} onValueChange={(v) => setQrType(v as "text" | "image")}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="text" data-testid="tab-qr-text">Text Message</TabsTrigger>
-                    <TabsTrigger value="image" data-testid="tab-qr-image">Image URL</TabsTrigger>
+                <Tabs value={qrType} onValueChange={(v) => {
+                  setQrType(v as "text" | "image" | "upload");
+                  if (v !== "upload") {
+                    setQrContent("");
+                    setUploadedImage(null);
+                  }
+                }}>
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="text" data-testid="tab-qr-text">Text</TabsTrigger>
+                    <TabsTrigger value="image" data-testid="tab-qr-image">URL</TabsTrigger>
+                    <TabsTrigger value="upload" data-testid="tab-qr-upload" className="flex items-center gap-1">
+                      <Upload className="w-3 h-3" />
+                      Upload
+                    </TabsTrigger>
                   </TabsList>
                   <TabsContent value="text" className="space-y-4">
                     <div>
@@ -223,6 +309,91 @@ export default function Creator() {
                         Requires internet - displays image when scanned
                       </p>
                     </div>
+                  </TabsContent>
+                  <TabsContent value="upload" className="space-y-4">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      data-testid="input-file-upload"
+                    />
+                    
+                    {!uploadedImage ? (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="image-title">Image Title (Optional)</Label>
+                          <Input
+                            id="image-title"
+                            placeholder="My Business Card"
+                            value={imageTitle}
+                            onChange={(e) => setImageTitle(e.target.value)}
+                            data-testid="input-image-title"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="image-description">Description (Optional)</Label>
+                          <Textarea
+                            id="image-description"
+                            placeholder="A brief description of the image..."
+                            value={imageDescription}
+                            onChange={(e) => setImageDescription(e.target.value)}
+                            rows={2}
+                            data-testid="textarea-image-description"
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full h-24 border-dashed"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadImageMutation.isPending}
+                          data-testid="button-upload-image"
+                        >
+                          {uploadImageMutation.isPending ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              <span>Uploading...</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-2">
+                              <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                              <span className="text-muted-foreground">Click to upload image</span>
+                              <span className="text-xs text-muted-foreground">JPEG, PNG, GIF, WebP up to 10MB</span>
+                            </div>
+                          )}
+                        </Button>
+                        <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-md">
+                          <Badge variant="outline" className="text-xs">+${IMAGE_HOSTING_UPCHARGE.toFixed(2)}</Badge>
+                          <span className="text-sm">Image hosting included for 1 year</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 bg-muted rounded-md">
+                          <ImageIcon className="w-8 h-8 text-primary" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">Image uploaded successfully</p>
+                            <p className="text-xs text-muted-foreground truncate">{uploadedImage.url}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setUploadedImage(null);
+                              setQrContent("");
+                              setQrCodeImage("");
+                            }}
+                            data-testid="button-remove-upload"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Your image is now hosted. The QR code will link to a branded landing page showing your image.
+                        </p>
+                      </div>
+                    )}
                   </TabsContent>
                 </Tabs>
 
