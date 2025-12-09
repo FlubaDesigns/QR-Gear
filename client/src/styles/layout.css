@@ -190,7 +190,7 @@ html[data-theme="light"] .theme-toggle .toggle-thumb{ transform: translateX(22px
   box-shadow: 0 10px 26px rgba(0,0,0,.25);
 }
 
-/*CTA button – rounded rectangle (not pill) */
+/*CTA button – Web 2.0 glossy style */
 .action-button{
   --btn-radius: 16px;
   appearance:none;
@@ -200,13 +200,19 @@ html[data-theme="light"] .theme-toggle .toggle-thumb{ transform: translateX(22px
   padding: 16px 26px;
   font-weight:800;
   font-size: clamp(16px, 1.1rem, 20px);
-  color: var(--btn-fg);
-  background: linear-gradient(90deg, #ff6a00 0%, #ffb000 100%);
-  box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.08);
+  color: #051526;
+  background: linear-gradient(135deg, #2ABED5 0%, #3FD6F0 50%, #2ABED5 100%);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.4), inset 0 -2px 0 rgba(0,0,0,.1);
   cursor:pointer;
   transition: transform .1s ease, box-shadow .1s ease, filter .15s;
 }
-.action-button:hover{ transform: translateY(-1px); filter: brightness(1.02); }
+.action-button:hover{ transform: translateY(-2px); filter: brightness(1.08); box-shadow: 0 14px 28px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.4); }
+
+/* Gold accent button */
+.action-button.gold{
+  background: linear-gradient(135deg, #E5A832 0%, #F0C050 50%, #E5A832 100%);
+  color: #051526;
+}
 
 /* ---------- Footer ---------- */
 

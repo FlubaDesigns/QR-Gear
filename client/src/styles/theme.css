@@ -3,58 +3,68 @@
    Visuals (colors, surfaces, effects); no layout
    ========================================= */
 
-/* ===== Dark (default) ===== */
+/* ===== Dark (default) - Blue Ice Theme ===== */
 :root,
 html[data-theme="dark"]{
-  --page-bg: #0f243a;
-  --text: #e8f3ff;
+  --page-bg: #051526;
+  --text: #e8f8ff;
+  
+  /* Brand colors */
+  --cyan: #2ABED5;
+  --gold: #E5A832;
 
-  --header-bg: transparent;
+  --header-bg: linear-gradient(180deg, #0a2540 0%, #051526 100%);
   --header-fg: #ffffff;
 
-  --panel-bg: #0c1e34;
+  --panel-bg: #0a1e32;
 
-  --menu-bg: #0e2036;
-  --menu-link: #dfeaff;
-  --menu-hover: rgba(255,255,255,.08);
+  /* Solid frosted navy dropdown */
+  --menu-bg: linear-gradient(160deg, #133A5C 0%, #0F2747 60%, #1B4C74 100%);
+  --menu-link: #e8f8ff;
+  --menu-hover: rgba(42, 190, 213, 0.15);
 
-  --btn-fg:#0fe0ff;
+  --btn-fg: #051526;
 
-  --footer-fg:#f7d48c;
-  --footer-link:#f7d48c;
+  --footer-fg: #E5A832;
+  --footer-link: #E5A832;
 
-  --social-bg:white;
-  --social-fg:#0a2438;
+  --social-bg: #2ABED5;
+  --social-fg: #051526;
 
   /* Controls */
-  --control-h: 28px;            /* toggle (+/-) height */
-  --toggle-ring: rgba(255,255,255,.35);
-  --toggle-icon: 18px;          /* dot size on left/right */
+  --control-h: 28px;
+  --toggle-ring: rgba(42, 190, 213, 0.5);
+  --toggle-icon: 18px;
 }
 
-/* ===== Light ===== */
+/* ===== Light - Blue Ice Theme ===== */
 html[data-theme="light"]{
-  --page-bg: #f3f7ff;
-  --text: #0d2540;
+  --page-bg: #ECF8FF;
+  --text: #0F2747;
+  
+  /* Brand colors */
+  --cyan: #2ABED5;
+  --gold: #E5A832;
 
-  --header-bg: transparent;
-  --header-fg: #102443;
+  --header-bg: linear-gradient(180deg, #FFFFFF 0%, #D7EDFA 100%);
+  --header-fg: #0F2747;
 
   --panel-bg: #ffffff;
 
-  --menu-bg: #ffffff;
-  --menu-link: #102443;
-  --menu-hover: rgba(16,36,67,.08);
+  /* Solid light dropdown */
+  --menu-bg: linear-gradient(160deg, #FFFFFF 0%, #E8F4FC 100%);
+  --menu-link: #0F2747;
+  --menu-hover: rgba(42, 190, 213, 0.12);
 
-  --btn-fg:#0d2540;
+  --btn-fg: #0F2747;
 
-  --footer-fg:#20406f;
-  --footer-link:#20406f;
+  --footer-fg: #0F2747;
+  --footer-link: #1B4C74;
 
-  --social-bg:#1c9ee9;
-  --social-fg:#ffffff;
+  --social-bg: #2ABED5;
+  --social-fg: #ffffff;
 
-  --toggle-ring: rgba(0,0,0,.35);
+  --toggle-ring: rgba(42, 190, 213, 0.5);
 }
 
 /* ===== Base hooks (no layout) ===== */
@@ -74,12 +84,13 @@ html[data-theme="light"] .nav-links{ border-color: rgba(0,0,0,.08); }
 .nav-links a{ color: var(--menu-link); }
 .nav-links a:hover{ background: var(--menu-hover); }
 
-/* Settings panel default surface (overridden to white below) */
-#settingsMenu{
-  background: transparent;
+/* Settings panel - solid background */
+#settingsMenu,
+.settings-menu{
+  background: var(--menu-bg);
   color: var(--menu-link);
   border-radius: 16px;
-  border: 1.5px solid var(--toggle-ring);
+  border: 1.5px solid rgba(42, 190, 213, 0.35);
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
 }
 
