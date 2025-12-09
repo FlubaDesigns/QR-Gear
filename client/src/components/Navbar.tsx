@@ -96,7 +96,7 @@ export default function Navbar() {
             className="h-10 w-10 object-contain dark:invert"
           />
           <span className="site-title">
-            QR<span style={{ color: "hsl(187 80% 50%)" }}>Gear</span>.com
+            QR<span className="brand-highlight">Gear</span>.com
           </span>
         </Link>
 
@@ -168,7 +168,7 @@ export default function Navbar() {
                   <span className="toggle-track">
                     <span className="toggle-thumb" />
                   </span>
-                  <span style={{ marginLeft: 8 }}>
+                  <span className="toggle-icon">
                     {isDark ? <Moon size={16} /> : <Sun size={16} />}
                   </span>
                 </button>
@@ -176,7 +176,7 @@ export default function Navbar() {
 
               <div className="setting-row">
                 <span>Font Size</span>
-                <div className="font-size-controls" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="font-size-controls">
                   <button
                     onClick={() => adjustFontSize(-2)}
                     disabled={fontSize <= 12}
@@ -184,7 +184,7 @@ export default function Navbar() {
                   >
                     <Minus size={14} />
                   </button>
-                  <span style={{ minWidth: 32, textAlign: "center" }}>{fontSize}</span>
+                  <span className="font-size-display">{fontSize}</span>
                   <button
                     onClick={() => adjustFontSize(2)}
                     disabled={fontSize >= 24}
