@@ -22,6 +22,8 @@ const placements = [
   { value: "right-shoulder", label: "Right Shoulder" },
 ];
 
+const TEXT_UPCHARGE = 2.00;
+
 export default function Creator() {
   const { toast } = useToast();
   const [qrType, setQrType] = useState<"text" | "image">("text");
@@ -32,6 +34,8 @@ export default function Creator() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [placement, setPlacement] = useState("front-chest");
   const [productColor, setProductColor] = useState("");
+  const [textAbove, setTextAbove] = useState("");
+  const [textBelow, setTextBelow] = useState("");
   
   // Track if we need to regenerate after current mutation completes
   const pendingRegenRef = useRef(false);
@@ -158,6 +162,11 @@ export default function Creator() {
 
   const availablePlacements = selectedProduct?.availablePlacements || [];
   const availableColors = (selectedProduct?.availableColors as any[]) || [];
+
+  const hasTextAbove = textAbove.trim().length > 0;
+  const hasTextBelow = textBelow.trim().length > 0;
+  const textUpchargeTotal = (hasTextAbove ? TEXT_UPCHARGE : 0) + (hasTextBelow ? TEXT_UPCHARGE : 0);
+  const totalPrice = selectedProduct ? (parseFloat(selectedProduct.basePrice) + textUpchargeTotal).toFixed(2) : "0.00";
 
   return (
     <div className="min-h-screen bg-background">
@@ -369,6 +378,51 @@ export default function Creator() {
                       <span className="text-sm font-medium">Proudly Made in USA</span>
                     </div>
                   )}
+
+                  <div className="border-t pt-4 mt-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="kc-label">Custom Text (Optional)</span>
+                      <Badge variant="outline" className="text-xs">+${TEXT_UPCHARGE.toFixed(2)} each</Badge>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="text-above" className="kc-label">
+                        Text Above QR <span className="kc-help">({textAbove.length}/20)</span>
+                      </label>
+                      <input
+                        id="text-above"
+                        type="text"
+                        className="kc-input"
+                        placeholder="SCAN ME"
+                        maxLength={20}
+                        value={textAbove}
+                        onChange={(e) => setTextAbove(e.target.value)}
+                        data-testid="input-text-above"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="text-below" className="kc-label">
+                        Text Below QR <span className="kc-help">({textBelow.length}/30)</span>
+                      </label>
+                      <input
+                        id="text-below"
+                        type="text"
+                        className="kc-input"
+                        placeholder="Connect with us!"
+                        maxLength={30}
+                        value={textBelow}
+                        onChange={(e) => setTextBelow(e.target.value)}
+                        data-testid="input-text-below"
+                      />
+                    </div>
+                    
+                    {(hasTextAbove || hasTextBelow) && (
+                      <p className="kc-help text-xs">
+                        Text adds +${textUpchargeTotal.toFixed(2)} to your order
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -380,7 +434,7 @@ export default function Creator() {
                 disabled={!qrCodeImage || !selectedProduct}
                 data-testid="button-add-to-cart"
               >
-                Add to Cart - ${selectedProduct?.basePrice || "0.00"}
+                Add to Cart - ${totalPrice}
               </Button>
               <Button
                 size="lg"
@@ -410,13 +464,23 @@ export default function Creator() {
                     />
                   )}
                   {qrCodeImage ? (
-                    <div className="relative z-10 bg-white p-4 rounded-lg shadow-lg">
+                    <div className="relative z-10 bg-white p-4 rounded-lg shadow-lg text-center">
+                      {hasTextAbove && (
+                        <p className="text-sm font-bold text-black mb-2 tracking-wide" data-testid="preview-text-above">
+                          {textAbove}
+                        </p>
+                      )}
                       <img
                         src={qrCodeImage}
                         alt="QR Code Preview"
-                        className="w-48 h-48"
+                        className="w-48 h-48 mx-auto"
                       />
-                      <p className="text-xs text-center text-muted-foreground mt-2">
+                      {hasTextBelow && (
+                        <p className="text-sm font-bold text-black mt-2 tracking-wide" data-testid="preview-text-below">
+                          {textBelow}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
                         {placement.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                       </p>
                     </div>
