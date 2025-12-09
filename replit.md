@@ -95,8 +95,8 @@ The widget system allows Kingdom Connects and other trusted partners to embed th
 ## External Dependencies
 
 ### Third-Party Services
-- **Printify API**: Print-on-demand fulfillment (product catalog, order submission)
-- **Stripe**: Payment processing (checkout, subscriptions)
+- **Printify API**: Print-on-demand fulfillment (CONNECTED - Shop ID: 19642701, Shop Name: QRGear)
+- **Stripe**: Payment processing (checkout, subscriptions) - AWAITING API KEYS
 - **Firebase/Firestore**: Secondary data store for user designs and real-time features (schema in FIREBASE_SCHEMA.md)
 - **Neon Database**: Primary PostgreSQL hosting (serverless)
 

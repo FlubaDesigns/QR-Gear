@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["unzip"]
+packages = ["unzip", "jq"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -54,3 +54,4 @@ VITE_FIREBASE_PROJECT_ID = "qrgear-c1ffd"
 VITE_FIREBASE_APP_ID = "1:701107798726:web:f1bc29deeb11a5d332cdc7"
 VITE_FIREBASE_AUTH_DOMAIN = "qrgear-c1ffd.firebaseapp.com"
 VITE_FIREBASE_STORAGE_BUCKET = "qrgear-c1ffd.firebasestorage.app"
+PRINTIFY_SHOP_ID = "19642701"

@@ -99,6 +99,35 @@ Choose from these available icons:
 
 ---
 
+## Printify Integration
+
+QR Gear is connected to Printify for print-on-demand fulfillment.
+
+### Connected Shop
+- **Shop Name:** QRGear
+- **Shop ID:** 19642701 (stored as PRINTIFY_SHOP_ID)
+
+### Available Products
+
+Products are synced from Printify's catalog. Current products include:
+
+| Product | Category | Blueprint ID | Made in USA |
+|---------|----------|--------------|-------------|
+| Unisex Jersey T-Shirt (Bella+Canvas) | Apparel | 12 | Yes |
+| Heavy Cotton T-Shirt (Gildan) | Apparel | 6 | Yes |
+| Trucker Cap (OTTO Cap) | Headwear | 1128 | Yes |
+| Dad Hat with Leather Patch | Headwear | 1221 | Yes |
+| Ceramic Mug 11oz | Drinkware | 68 | Yes |
+| Ceramic Mug 15oz | Drinkware | 425 | Yes |
+| Canvas Tote Bag | Bags | 467 | Yes |
+| Drawstring Bag | Bags | 414 | Yes |
+
+### USA Flag Badge
+
+Products marked as "Made in USA" display an American flag badge on product cards.
+
+---
+
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.
