@@ -1,14 +1,35 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, decimal, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, decimal, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  displayName: text("display_name"),
-  photoUrl: text("photo_url"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Browsing history for product recommendations
+export const browsingHistory = pgTable("browsing_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  viewedAt: timestamp("viewed_at").defaultNow().notNull(),
 });
 
 export const qrDesigns = pgTable("qr_designs", {
