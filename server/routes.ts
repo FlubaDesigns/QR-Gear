@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
-import { verifyWidgetToken } from "./lib/widget-auth";
+import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -47,6 +47,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Widget session error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Widget Token Generation (for embed script - requires API key)
+  app.post("/api/widget/token", async (req, res) => {
+    try {
+      const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+      const expectedKey = process.env.WIDGET_API_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Invalid or missing API key" });
+      }
+
+      const allowedOrigins = (process.env.ALLOWED_WIDGET_ORIGINS || 'https://kingdomconnects.com').split(',');
+      const origin = req.headers.origin || req.headers.referer || '';
+      const isAllowedOrigin = allowedOrigins.some(allowed => origin.startsWith(allowed.trim()));
+      
+      if (!isAllowedOrigin && origin) {
+        console.warn("Widget token request from unauthorized origin:", origin);
+      }
+
+      const validated = widgetTokenSchema.parse(req.body);
+      const token = signWidgetToken(validated);
+      
+      res.json({ 
+        token,
+        expiresIn: 3600
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid widget configuration", details: error.errors });
+      }
+      console.error("Widget token error:", error);
       res.status(500).json({ error: error.message });
     }
   });

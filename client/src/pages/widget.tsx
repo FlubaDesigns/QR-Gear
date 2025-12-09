@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,27 @@ interface WidgetSession {
   }>;
 }
 
+const ALLOWED_ORIGINS = (import.meta.env.VITE_ALLOWED_WIDGET_ORIGINS || 'https://kingdomconnects.com').split(',');
+
+function notifyParent(type: string, data?: Record<string, unknown>) {
+  if (window.parent !== window) {
+    const targetOrigin = ALLOWED_ORIGINS[0] || 'https://kingdomconnects.com';
+    window.parent.postMessage({ type, ...data }, targetOrigin);
+  }
+}
+
 export default function Widget() {
   const { toast } = useToast();
   const [token, setToken] = useState<string | null>(null);
+  const [compact, setCompact] = useState(false);
+  const [theme, setTheme] = useState<string>('auto');
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenParam = params.get("token");
+    const compactParam = params.get("compact");
+    const themeParam = params.get("theme");
     
     if (tokenParam) {
       setToken(tokenParam);
@@ -36,7 +50,22 @@ export default function Widget() {
         variant: "destructive",
       });
     }
+    
+    setCompact(compactParam === 'true');
+    setTheme(themeParam || 'auto');
   }, [toast]);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          notifyParent('qrgear-resize', { height: entry.contentRect.height + 40 });
+        }
+      });
+      resizeObserver.observe(containerRef.current);
+      return () => resizeObserver.disconnect();
+    }
+  }, []);
 
   const { data: session, isLoading, error } = useQuery<WidgetSession>({
     queryKey: ["/api/widget/session", { token }],
@@ -58,30 +87,18 @@ export default function Widget() {
     
     const checkoutUrl = `/creator?token=${encodeURIComponent(token)}&product=${productId}`;
     
-    if (window.parent !== window) {
-      const allowedOrigins = import.meta.env.VITE_ALLOWED_WIDGET_ORIGINS?.split(',') || ['https://kingdomconnects.com'];
-      const targetOrigin = allowedOrigins[0] || 'https://kingdomconnects.com';
-      
-      window.parent.postMessage({ 
-        type: "qrgear-widget-navigate", 
-        url: checkoutUrl 
-      }, targetOrigin);
-    } else {
+    notifyParent('qrgear-widget-navigate', { url: checkoutUrl });
+    
+    if (window.parent === window) {
       window.location.href = checkoutUrl;
     }
   };
-  
-  const handleDesignComplete = (designData: unknown) => {
-    if (window.parent !== window) {
-      const allowedOrigins = import.meta.env.VITE_ALLOWED_WIDGET_ORIGINS?.split(',') || ['https://kingdomconnects.com'];
-      const targetOrigin = allowedOrigins[0] || 'https://kingdomconnects.com';
-      
-      window.parent.postMessage({ 
-        type: "qrgear-design-complete", 
-        design: designData 
-      }, targetOrigin);
+
+  useEffect(() => {
+    if (session) {
+      notifyParent('qrgear-ready');
     }
-  };
+  }, [session]);
 
   if (isLoading) {
     return (
@@ -108,8 +125,11 @@ export default function Widget() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div 
+      ref={containerRef}
+      className={`bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 ${compact ? 'p-4' : 'p-6 min-h-screen'}`}
+    >
+      <div className={`mx-auto space-y-6 ${compact ? 'max-w-full' : 'max-w-5xl'}`}>
         <div className="glass-card rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
