@@ -37,9 +37,9 @@ html[data-theme="light"] {
   --elevate-1: rgba(42, 190, 213, .06);
   --elevate-2: rgba(42, 190, 213, .12);
   
-  /* Light mode - clean white with cyan tints */
-  --background: 190 30% 98%;
-  --foreground: 200 50% 15%;
+  /* Light mode - Blue Ice theme */
+  --background: 202 100% 96%;
+  --foreground: 211 60% 17%;
   --border: 190 40% 88%;
   
   /* Cards with slight cyan tint */
@@ -142,9 +142,9 @@ html[data-theme="light"] {
   --elevate-1: rgba(42, 190, 213, .08);
   --elevate-2: rgba(42, 190, 213, .15);
   
-  /* Deep dark background like the ARO logo */
-  --background: 210 30% 6%;
-  --foreground: 190 60% 95%;
+  /* Deep dark background - Blue Ice theme */
+  --background: 211 76% 8%;
+  --foreground: 202 100% 95%;
   --border: 210 25% 16%;
   
   /* Dark cards */
