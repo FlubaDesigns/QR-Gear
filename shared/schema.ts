@@ -79,6 +79,25 @@ export const orderItems = pgTable("order_items", {
   printifyItemId: text("printify_item_id"),
 });
 
+export const hostedImages = pgTable("hosted_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  fileName: text("file_name").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  storageUrl: text("storage_url").notNull(),
+  publicUrl: text("public_url").notNull(),
+  title: text("title"),
+  description: text("description"),
+  businessName: text("business_name"),
+  businessLogo: text("business_logo"),
+  views: integer("views").default(0),
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -110,6 +129,12 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
   id: true,
 });
 
+export const insertHostedImageSchema = createInsertSchema(hostedImages).omit({
+  id: true,
+  views: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -128,3 +153,6 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
+
+export type HostedImage = typeof hostedImages.$inferSelect;
+export type InsertHostedImage = z.infer<typeof insertHostedImageSchema>;

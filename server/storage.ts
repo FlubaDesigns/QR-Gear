@@ -15,6 +15,8 @@ import type {
   InsertOrder,
   OrderItem,
   InsertOrderItem,
+  HostedImage,
+  InsertHostedImage,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -56,6 +58,13 @@ export interface IStorage {
   // Order Item operations
   getOrderItems(orderId: string): Promise<OrderItem[]>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
+
+  // Hosted Image operations
+  getHostedImage(id: string): Promise<HostedImage | undefined>;
+  getHostedImagesByUser(userId: string): Promise<HostedImage[]>;
+  createHostedImage(image: InsertHostedImage): Promise<HostedImage>;
+  incrementImageViews(id: string): Promise<void>;
+  deleteHostedImage(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -189,6 +198,32 @@ export class DbStorage implements IStorage {
     const [newItem] = await this.db.insert(schema.orderItems).values(item).returning();
     return newItem;
   }
+
+  // Hosted Image operations
+  async getHostedImage(id: string): Promise<HostedImage | undefined> {
+    const [image] = await this.db.select().from(schema.hostedImages).where(eq(schema.hostedImages.id, id));
+    return image;
+  }
+
+  async getHostedImagesByUser(userId: string): Promise<HostedImage[]> {
+    return this.db.select().from(schema.hostedImages).where(eq(schema.hostedImages.userId, userId));
+  }
+
+  async createHostedImage(image: InsertHostedImage): Promise<HostedImage> {
+    const [newImage] = await this.db.insert(schema.hostedImages).values(image).returning();
+    return newImage;
+  }
+
+  async incrementImageViews(id: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE hosted_images SET views = views + 1 WHERE id = $1`,
+      [id] as any
+    );
+  }
+
+  async deleteHostedImage(id: string): Promise<void> {
+    await this.db.delete(schema.hostedImages).where(eq(schema.hostedImages.id, id));
+  }
 }
 
 // In-memory storage implementation
@@ -199,6 +234,7 @@ class MemStorage implements IStorage {
   private cartItems = new Map<string, CartItem>();
   private orders = new Map<string, Order>();
   private orderItems = new Map<string, OrderItem>();
+  private hostedImages = new Map<string, HostedImage>();
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
@@ -374,6 +410,45 @@ class MemStorage implements IStorage {
     };
     this.orderItems.set(id, newItem);
     return newItem;
+  }
+
+  // Hosted Image operations
+  async getHostedImage(id: string): Promise<HostedImage | undefined> {
+    return this.hostedImages.get(id);
+  }
+
+  async getHostedImagesByUser(userId: string): Promise<HostedImage[]> {
+    return Array.from(this.hostedImages.values()).filter(img => img.userId === userId);
+  }
+
+  async createHostedImage(image: InsertHostedImage): Promise<HostedImage> {
+    const id = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newImage: HostedImage = {
+      ...image,
+      id,
+      userId: image.userId ?? null,
+      title: image.title ?? null,
+      description: image.description ?? null,
+      businessName: image.businessName ?? null,
+      businessLogo: image.businessLogo ?? null,
+      views: 0,
+      isActive: image.isActive ?? true,
+      expiresAt: image.expiresAt ?? null,
+      createdAt: new Date(),
+    };
+    this.hostedImages.set(id, newImage);
+    return newImage;
+  }
+
+  async incrementImageViews(id: string): Promise<void> {
+    const image = this.hostedImages.get(id);
+    if (image) {
+      this.hostedImages.set(id, { ...image, views: (image.views || 0) + 1 });
+    }
+  }
+
+  async deleteHostedImage(id: string): Promise<void> {
+    this.hostedImages.delete(id);
   }
 }
 
