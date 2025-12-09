@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
+import { printify, getUSAPrintProviders } from "./lib/printify";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -179,6 +180,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(product);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Printify Catalog API
+  app.get("/api/printify/status", async (req, res) => {
+    res.json({ 
+      configured: printify.isConfigured,
+      message: printify.isConfigured 
+        ? "Printify API is connected" 
+        : "Printify API key or Shop ID not configured"
+    });
+  });
+
+  app.get("/api/printify/catalog", async (req, res) => {
+    try {
+      if (!printify.isConfigured) {
+        return res.status(503).json({ error: "Printify not configured" });
+      }
+      const blueprints = await printify.getCatalogBlueprints();
+      res.json(blueprints);
+    } catch (error: any) {
+      console.error("Printify catalog error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/printify/catalog/:blueprintId", async (req, res) => {
+    try {
+      if (!printify.isConfigured) {
+        return res.status(503).json({ error: "Printify not configured" });
+      }
+      const blueprintId = parseInt(req.params.blueprintId);
+      const [blueprint, providers] = await Promise.all([
+        printify.getBlueprintDetails(blueprintId),
+        getUSAPrintProviders(blueprintId),
+      ]);
+      res.json({ blueprint, providers });
+    } catch (error: any) {
+      console.error("Printify blueprint error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/printify/catalog/:blueprintId/variants", async (req, res) => {
+    try {
+      if (!printify.isConfigured) {
+        return res.status(503).json({ error: "Printify not configured" });
+      }
+      const blueprintId = parseInt(req.params.blueprintId);
+      const printProviderId = parseInt(req.query.providerId as string);
+      
+      if (!printProviderId) {
+        return res.status(400).json({ error: "providerId query param required" });
+      }
+      
+      const variants = await printify.getVariants(blueprintId, printProviderId);
+      res.json(variants);
+    } catch (error: any) {
+      console.error("Printify variants error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/printify/products", async (req, res) => {
+    try {
+      if (!printify.isConfigured) {
+        return res.status(503).json({ error: "Printify not configured" });
+      }
+      const products = await printify.getShopProducts();
+      res.json(products);
+    } catch (error: any) {
+      console.error("Printify products error:", error);
       res.status(500).json({ error: error.message });
     }
   });
