@@ -70,7 +70,7 @@ export default function Navbar() {
             className="h-10 w-10 object-contain dark:invert"
           />
           <span className="site-title">
-            QR<span style={{ color: "hsl(187 80% 50%)" }}>Gear</span>
+            QR<span style={{ color: "hsl(187 80% 50%)" }}>Gear</span>.com
           </span>
         </Link>
 
