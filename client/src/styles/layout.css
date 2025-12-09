@@ -9,13 +9,12 @@
   --base-font-size: 16px;
 }
 
-/* Push Replit dev banner below our dropdowns */
+/* Hide Replit dev banner */
 [data-replit-dev-banner],
 #replit-dev-banner,
 .replit-dev-banner,
-[class*="replit"][class*="banner"],
-body > div:first-child:not(.page-wrap) {
-  z-index: 1 !important;
+[class*="replit"][class*="banner"] {
+  display: none !important;
 }
 
 html{ font-size: var(--base-font-size); }
