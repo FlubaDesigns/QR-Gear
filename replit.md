@@ -38,6 +38,30 @@ Preferred communication style: Simple, everyday language.
 - **Order Processing**: Full order lifecycle with order items tracking
 - **Widget System**: Embeddable widget for external sites with JWT token authentication
 - **Premium QR Text**: Optional text above (20 chars) and below (30 chars) QR code with $2 upcharge per field
+- **Category System**: Firestore-based product categories with admin management panel
+
+### Firestore Categories
+Categories are stored in Firebase Firestore and managed via the admin panel at `/admin`.
+
+**Firestore Collection**: `categories`
+**Fields**:
+- `name`: Category display name
+- `slug`: URL-friendly identifier (auto-generated from name)
+- `description`: Brief description
+- `icon`: Lucide icon name (Church, Flag, Trophy, Briefcase, Music, Palette, Tag)
+- `sortOrder`: Display order (ascending)
+- `isActive`: Whether category is visible to users
+- `createdAt`, `updatedAt`: Timestamps
+
+**Default Categories** (seeded via admin panel):
+- Religious, Political, Sports, Business, Entertainment, Custom
+
+**Environment Variables for Firebase**:
+- `VITE_FIREBASE_API_KEY`: Firebase API key
+- `VITE_FIREBASE_PROJECT_ID`: Firebase project ID (e.g., qrgear-c1ffd)
+- `VITE_FIREBASE_APP_ID`: Firebase app ID
+- `VITE_FIREBASE_AUTH_DOMAIN`: (optional) Auth domain
+- `VITE_FIREBASE_STORAGE_BUCKET`: (optional) Storage bucket
 
 ### Embeddable Widget Security
 

@@ -56,6 +56,7 @@ export default function Navbar() {
     { href: "/creator", label: "Create" },
     { href: "/gallery", label: "Gallery" },
     { href: "/account", label: "Account" },
+    { href: "/admin", label: "Admin" },
   ];
 
   return (
