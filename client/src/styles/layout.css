@@ -9,6 +9,15 @@
   --base-font-size: 16px;
 }
 
+/* Push Replit dev banner below our dropdowns */
+[data-replit-dev-banner],
+#replit-dev-banner,
+.replit-dev-banner,
+[class*="replit"][class*="banner"],
+body > div:first-child:not(.page-wrap) {
+  z-index: 1 !important;
+}
+
 html{ font-size: var(--base-font-size); }
 *,*::before,*::after{ box-sizing:border-box; }
 body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; }
