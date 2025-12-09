@@ -147,6 +147,7 @@ html[data-theme="light"] .theme-toggle .toggle-thumb{ transform: translateX(22px
   opacity: 0; transform: translateY(-6px);
   pointer-events:none;
   transition: opacity .18s ease, transform .18s ease;
+  z-index: 9999;
 }
 .nav-links.open,
 .nav-links.active{ opacity:1; transform:none; pointer-events:auto; }

@@ -550,6 +550,7 @@ html[data-theme="light"] {
   transform: translateY(-6px);
   pointer-events: none;
   transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 9999;
 }
 
 .settings-menu.open,

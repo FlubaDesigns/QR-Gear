@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Settings, Menu, ShoppingCart, Sun, Moon, Plus, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,10 @@ export default function Navbar() {
   const [isDark, setIsDark] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const cartItemCount = 0;
+  
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -29,6 +33,28 @@ export default function Navbar() {
       setFontSize(size);
       document.documentElement.style.fontSize = `${size}px`;
     }
+  }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
+      // Close settings if clicked outside settings area
+      if (settingsRef.current && !settingsRef.current.contains(target)) {
+        setSettingsOpen(false);
+      }
+      
+      // Close menu if clicked outside both the toggle button AND the nav dropdown
+      const clickedInMenu = menuRef.current?.contains(target);
+      const clickedInNav = navRef.current?.contains(target);
+      if (!clickedInMenu && !clickedInNav) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const toggleTheme = () => {
@@ -74,7 +100,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <nav className={`nav-links ${menuOpen ? "open" : ""}`}>
+        <nav ref={navRef} className={`nav-links ${menuOpen ? "open" : ""}`}>
           {navLinks.map((link) => (
             <li key={link.href}>
               <Link
@@ -100,7 +126,7 @@ export default function Navbar() {
         </nav>
 
         <div className="header-actions">
-          <div className="gear-wrap">
+          <div className="gear-wrap" ref={settingsRef}>
             <button
               className="gear-btn"
               onClick={() => {
@@ -155,19 +181,21 @@ export default function Navbar() {
             </div>
           </div>
 
-          <button
-            className="menu-toggle"
-            onClick={() => {
-              setMenuOpen(!menuOpen);
-              setSettingsOpen(false);
-            }}
-            aria-label="Menu"
-            data-testid="button-menu"
-          >
-            <span className="bar" />
-            <span className="bar" />
-            <span className="bar" />
-          </button>
+          <div ref={menuRef} className="menu-wrap">
+            <button
+              className="menu-toggle"
+              onClick={() => {
+                setMenuOpen(!menuOpen);
+                setSettingsOpen(false);
+              }}
+              aria-label="Menu"
+              data-testid="button-menu"
+            >
+              <span className="bar" />
+              <span className="bar" />
+              <span className="bar" />
+            </button>
+          </div>
 
           <Link href="/cart" className="relative" data-testid="button-cart">
             <button className="gear-btn">
