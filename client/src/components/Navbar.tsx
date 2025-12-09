@@ -1,48 +1,177 @@
-import { Link } from "wouter";
-import { ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { Settings, Menu, ShoppingCart, Sun, Moon, Plus, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import ThemeToggle from "./ThemeToggle";
-import logoSvg from "@assets/assets/qr-gear-logo.svg";
 
 export default function Navbar() {
+  const [location] = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+  const [fontSize, setFontSize] = useState(16);
   const cartItemCount = 0;
 
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    const savedFontSize = localStorage.getItem("fontSize");
+    
+    if (savedTheme === "dark") {
+      setIsDark(true);
+      document.documentElement.classList.add("dark");
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+    
+    if (savedFontSize) {
+      const size = parseInt(savedFontSize);
+      setFontSize(size);
+      document.documentElement.style.fontSize = `${size}px`;
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
+    if (newIsDark) {
+      document.documentElement.classList.add("dark");
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.setAttribute("data-theme", "light");
+      localStorage.setItem("theme", "light");
+    }
+  };
+
+  const adjustFontSize = (delta: number) => {
+    const newSize = Math.min(24, Math.max(12, fontSize + delta));
+    setFontSize(newSize);
+    document.documentElement.style.fontSize = `${newSize}px`;
+    localStorage.setItem("fontSize", String(newSize));
+  };
+
+  const navLinks = [
+    { href: "/", label: "Home" },
+    { href: "/creator", label: "Create" },
+    { href: "/gallery", label: "Gallery" },
+    { href: "/account", label: "Account" },
+  ];
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-2 hover-elevate active-elevate-2 px-2 py-1 rounded-md">
-          <img src={logoSvg} alt="QR Gear" className="h-8 w-8" />
-          <span className="text-2xl font-heading font-bold">
-            QR<span className="text-primary">Gear</span>
+    <header className="site-header">
+      <div className="header-inner">
+        <Link href="/" className="brand" data-testid="link-home">
+          <span className="site-title">
+            QR<span style={{ color: "hsl(187 80% 50%)" }}>Gear</span>
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6">
-          <Link href="/" className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-shop">
-            Shop
-          </Link>
-          <Link href="/creator" className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-creator">
-            Custom Creator
-          </Link>
-          <Link href="/gallery" className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-gallery">
-            Gallery
-          </Link>
-          <Link href="/account" className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-account">
-            Account
-          </Link>
+        <nav className={`nav-links ${menuOpen ? "open" : ""}`}>
+          {navLinks.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className={location === link.href ? "active" : ""}
+                onClick={() => setMenuOpen(false)}
+                data-testid={`link-${link.label.toLowerCase()}`}
+              >
+                {link.label}
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link
+              href="/cart"
+              className="login-link"
+              onClick={() => setMenuOpen(false)}
+              data-testid="link-store"
+            >
+              Store
+            </Link>
+          </li>
         </nav>
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" className="relative" data-testid="button-cart">
-            <ShoppingCart className="h-5 w-5" />
-            {cartItemCount > 0 && (
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                {cartItemCount}
-              </Badge>
-            )}
-          </Button>
+        <div className="header-actions">
+          <div className="gear-wrap">
+            <button
+              className="gear-btn"
+              onClick={() => {
+                setSettingsOpen(!settingsOpen);
+                setMenuOpen(false);
+              }}
+              aria-label="Settings"
+              data-testid="button-settings"
+            >
+              <Settings size={24} />
+            </button>
+
+            <div className={`settings-menu ${settingsOpen ? "open" : ""}`}>
+              <h4>Settings</h4>
+              
+              <div className="setting-row">
+                <span>Theme</span>
+                <button
+                  className="theme-toggle"
+                  onClick={toggleTheme}
+                  data-testid="button-theme-toggle"
+                >
+                  <span className="toggle-track">
+                    <span className="toggle-thumb" />
+                  </span>
+                  <span style={{ marginLeft: 8 }}>
+                    {isDark ? <Moon size={16} /> : <Sun size={16} />}
+                  </span>
+                </button>
+              </div>
+
+              <div className="setting-row">
+                <span>Font Size</span>
+                <div className="font-size-controls" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    onClick={() => adjustFontSize(-2)}
+                    disabled={fontSize <= 12}
+                    data-testid="button-font-decrease"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span style={{ minWidth: 32, textAlign: "center" }}>{fontSize}</span>
+                  <button
+                    onClick={() => adjustFontSize(2)}
+                    disabled={fontSize >= 24}
+                    data-testid="button-font-increase"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            className="menu-toggle"
+            onClick={() => {
+              setMenuOpen(!menuOpen);
+              setSettingsOpen(false);
+            }}
+            aria-label="Menu"
+            data-testid="button-menu"
+          >
+            <span className="bar" />
+            <span className="bar" />
+            <span className="bar" />
+          </button>
+
+          <Link href="/cart" className="relative" data-testid="button-cart">
+            <button className="gear-btn">
+              <ShoppingCart size={24} />
+              {cartItemCount > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                  {cartItemCount}
+                </Badge>
+              )}
+            </button>
+          </Link>
         </div>
       </div>
     </header>
