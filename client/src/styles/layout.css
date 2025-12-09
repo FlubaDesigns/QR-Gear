@@ -104,12 +104,10 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:
 #settingsMenu,
 .settings-menu{
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
+  width: auto;
+  max-width: 100%;
+  height: auto;
   background: #051526;
   color: #E8F4F8;
   border-radius: 0;
@@ -164,12 +162,10 @@ html[data-theme="light"] .theme-toggle .toggle-thumb{ transform: translateX(22px
   margin: 0; 
   padding: 80px 24px 24px;
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
+  width: auto;
+  max-width: 100%;
+  height: auto;
   background: #051526;
   color: #E8F4F8;
   border-radius: 0;
