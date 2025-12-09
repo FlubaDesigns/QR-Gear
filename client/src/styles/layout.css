@@ -60,7 +60,6 @@ body{ margin:0; line-height:1.5; -webkit-font-smoothing:antialiased; }
   gap: 12px;
   text-decoration:none;
   color: inherit;
-  margin-left: 4px;
 }
 .site-logo{ height: 60px; width: auto; display:block; }
 .site-title{
@@ -149,22 +148,22 @@ html[data-theme="light"] .theme-toggle .toggle-thumb{ transform: translateX(22px
 .nav-links{
   list-style:none; margin:0; padding: 10px;
   position: absolute;
-  left: var(--gutter);
-  right: var(--gutter);
+  left: 50%;
+  right: auto;
   top: calc(100% + 10px);
-  max-width: 320px;
-  margin-inline: auto;
+  width: min(92vw, 320px);
   background: var(--menu-bg);
   color: var(--menu-link);
   border-radius: 16px;
   box-shadow: 0 18px 44px rgba(0,0,0,.45);
-  opacity: 0; transform: translateY(-6px);
+  opacity: 0; 
+  transform: translate(-50%, -6px);
   pointer-events:none;
   transition: opacity .18s ease, transform .18s ease;
   z-index: 99999;
 }
 .nav-links.open,
-.nav-links.active{ opacity:1; transform:none; pointer-events:auto; }
+.nav-links.active{ opacity:1; transform: translate(-50%, 0); pointer-events:auto; }
 
 .nav-links li{ margin: 8px 6px; }
 .nav-links a{
