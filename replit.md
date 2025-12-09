@@ -37,6 +37,29 @@ Preferred communication style: Simple, everyday language.
 - **Shopping Cart**: User-associated cart with quantity management
 - **Order Processing**: Full order lifecycle with order items tracking
 - **Widget System**: Embeddable widget for external sites with JWT token authentication
+- **Premium QR Text**: Optional text above (20 chars) and below (30 chars) QR code with $2 upcharge per field
+
+### Embeddable Widget Security
+
+The widget system allows Kingdom Connects and other trusted partners to embed the QR Gear mini-store on their sites.
+
+**Required Environment Variables:**
+- `WIDGET_JWT_SECRET`: Secret key for signing widget JWT tokens
+- `WIDGET_API_KEY`: API key required for token generation endpoint
+- `ALLOWED_WIDGET_ORIGINS`: Comma-separated list of allowed embedding domains (e.g., "https://kingdomconnects.com,https://app.kingdomconnects.com")
+- `VITE_ALLOWED_WIDGET_ORIGINS`: Same list for frontend postMessage validation
+
+**Security Architecture:**
+1. Token endpoint (`/api/widget/token`) requires `X-API-Key` header authentication
+2. JWT tokens are pre-signed by partner backends, not client-side
+3. Widget validates parent origin via postMessage with `VITE_ALLOWED_WIDGET_ORIGINS`
+4. Embed script (`/embed/qrgear-embed.js`) validates message origins before processing
+
+**Integration Steps for Partners:**
+1. Obtain API key from QR Gear admin
+2. Generate pre-signed tokens server-side using the `/api/widget/token` endpoint
+3. Pass token to embed script via `data-token` attribute or `token` option
+4. Configure callback handlers for `onOrder` events
 
 ### Design System
 - **Typography**: Inter (body), Space Grotesk (headings) from Google Fonts
