@@ -29,62 +29,63 @@ html[data-theme="light"] {
   --footer-link: hsl(200 40% 40%);
 }
 
-/* LIGHT MODE - Glassmorphism Blue Theme */
+/* LIGHT MODE - ARO Drone Cyan & Gold Theme */
 :root {
-  --button-outline: rgba(100, 180, 255, .15);
-  --badge-outline: rgba(100, 180, 255, .08);
+  --button-outline: rgba(42, 190, 213, .15);
+  --badge-outline: rgba(42, 190, 213, .08);
   --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(100, 180, 255, .06);
-  --elevate-2: rgba(100, 180, 255, .12);
+  --elevate-1: rgba(42, 190, 213, .06);
+  --elevate-2: rgba(42, 190, 213, .12);
   
-  /* Light glass blue - ethereal, translucent */
-  --background: 200 100% 97%;
-  --foreground: 210 45% 25%;
-  --border: 200 60% 85%;
+  /* Light mode - clean white with cyan tints */
+  --background: 190 30% 98%;
+  --foreground: 200 50% 15%;
+  --border: 190 40% 88%;
   
-  /* Glass cards with transparency */
-  --card: 200 100% 100%;
-  --card-foreground: 210 45% 25%;
-  --card-border: 200 50% 88%;
+  /* Cards with slight cyan tint */
+  --card: 0 0% 100%;
+  --card-foreground: 200 50% 15%;
+  --card-border: 190 35% 90%;
   
-  --sidebar: 200 50% 98%;
-  --sidebar-foreground: 210 45% 25%;
-  --sidebar-border: 200 45% 90%;
+  --sidebar: 190 25% 97%;
+  --sidebar-foreground: 200 50% 15%;
+  --sidebar-border: 190 30% 90%;
   
-  /* Bright blue accent for glass theme */
-  --sidebar-primary: 200 100% 55%;
+  /* Cyan primary for sidebar */
+  --sidebar-primary: 187 80% 50%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 200 60% 95%;
-  --sidebar-accent-foreground: 210 45% 25%;
-  --sidebar-ring: 200 100% 55%;
+  --sidebar-accent: 190 40% 95%;
+  --sidebar-accent-foreground: 200 50% 15%;
+  --sidebar-ring: 187 80% 50%;
   
-  --popover: 200 100% 99%;
-  --popover-foreground: 210 45% 25%;
-  --popover-border: 200 50% 88%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 200 50% 15%;
+  --popover-border: 190 35% 90%;
   
-  /* Bright sky blue primary */
-  --primary: 200 100% 55%;
+  /* ARO Cyan primary (#2ABED5) */
+  --primary: 187 80% 50%;
   --primary-foreground: 0 0% 100%;
   
-  /* Soft blue-gray secondary */
-  --secondary: 200 30% 94%;
-  --secondary-foreground: 210 45% 25%;
+  /* Soft gray secondary */
+  --secondary: 190 15% 94%;
+  --secondary-foreground: 200 50% 15%;
   
-  --muted: 200 40% 96%;
-  --muted-foreground: 210 30% 50%;
+  --muted: 190 20% 96%;
+  --muted-foreground: 200 25% 45%;
   
-  --accent: 200 70% 96%;
-  --accent-foreground: 210 45% 25%;
+  /* ARO Gold accent (#E5A832) */
+  --accent: 40 78% 55%;
+  --accent-foreground: 200 50% 12%;
   
   --destructive: 0 84% 45%;
   --destructive-foreground: 0 0% 98%;
-  --input: 200 45% 94%;
-  --ring: 200 100% 55%;
+  --input: 190 30% 95%;
+  --ring: 187 80% 50%;
   
-  --chart-1: 200 70% 55%;
-  --chart-2: 220 70% 55%;
-  --chart-3: 180 60% 50%;
-  --chart-4: 30 70% 55%;
+  --chart-1: 187 80% 50%;
+  --chart-2: 40 78% 55%;
+  --chart-3: 160 60% 45%;
+  --chart-4: 220 70% 55%;
   --chart-5: 340 70% 55%;
   
   --font-sans: Open Sans, sans-serif;
@@ -92,22 +93,22 @@ html[data-theme="light"] {
   --font-mono: Menlo, monospace;
   --radius: .75rem;
   
-  /* Soft blue-tinted glass shadows */
-  --shadow-2xs: 0px 1px 2px 0px rgba(100, 180, 255, 0.08);
-  --shadow-xs: 0px 2px 4px 0px rgba(100, 180, 255, 0.10);
-  --shadow-sm: 0px 4px 8px -2px rgba(100, 180, 255, 0.12), 0px 2px 4px -2px rgba(100, 180, 255, 0.08);
-  --shadow: 0px 10px 20px -5px rgba(100, 180, 255, 0.15), 0px 4px 8px -4px rgba(100, 180, 255, 0.10);
-  --shadow-md: 0px 16px 32px -8px rgba(100, 180, 255, 0.18), 0px 8px 16px -6px rgba(100, 180, 255, 0.12);
-  --shadow-lg: 0px 20px 40px -10px rgba(100, 180, 255, 0.22), 0px 12px 24px -8px rgba(100, 180, 255, 0.15);
-  --shadow-xl: 0px 24px 48px -12px rgba(100, 180, 255, 0.25), 0px 16px 32px -10px rgba(100, 180, 255, 0.18);
-  --shadow-2xl: 0px 32px 64px -16px rgba(100, 180, 255, 0.30);
+  /* Cyan-tinted shadows */
+  --shadow-2xs: 0px 1px 2px 0px rgba(42, 190, 213, 0.08);
+  --shadow-xs: 0px 2px 4px 0px rgba(42, 190, 213, 0.10);
+  --shadow-sm: 0px 4px 8px -2px rgba(42, 190, 213, 0.12), 0px 2px 4px -2px rgba(42, 190, 213, 0.08);
+  --shadow: 0px 10px 20px -5px rgba(42, 190, 213, 0.15), 0px 4px 8px -4px rgba(42, 190, 213, 0.10);
+  --shadow-md: 0px 16px 32px -8px rgba(42, 190, 213, 0.18), 0px 8px 16px -6px rgba(42, 190, 213, 0.12);
+  --shadow-lg: 0px 20px 40px -10px rgba(42, 190, 213, 0.22), 0px 12px 24px -8px rgba(42, 190, 213, 0.15);
+  --shadow-xl: 0px 24px 48px -12px rgba(42, 190, 213, 0.25), 0px 16px 32px -10px rgba(42, 190, 213, 0.18);
+  --shadow-2xl: 0px 32px 64px -16px rgba(42, 190, 213, 0.30);
   
   --tracking-normal: 0em;
   --spacing: 0.25rem;
   
   /* Glass effect variables */
   --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(200, 230, 255, 0.3);
+  --glass-border: rgba(42, 190, 213, 0.2);
   --glass-blur: 12px;
 
   /* Fallback for older browsers */
@@ -133,77 +134,78 @@ html[data-theme="light"] {
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-/* DARK MODE - Deep blue glass */
+/* DARK MODE - ARO Drone Dark Theme with Cyan & Gold */
 .dark {
-  --button-outline: rgba(100, 200, 255, .15);
-  --badge-outline: rgba(100, 200, 255, .08);
+  --button-outline: rgba(42, 190, 213, .18);
+  --badge-outline: rgba(42, 190, 213, .10);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(100, 200, 255, .06);
-  --elevate-2: rgba(100, 200, 255, .12);
+  --elevate-1: rgba(42, 190, 213, .08);
+  --elevate-2: rgba(42, 190, 213, .15);
   
-  /* Dark glass blue with depth */
-  --background: 210 50% 8%;
-  --foreground: 200 100% 96%;
-  --border: 210 40% 18%;
+  /* Deep dark background like the ARO logo */
+  --background: 210 30% 6%;
+  --foreground: 190 60% 95%;
+  --border: 210 25% 16%;
   
-  /* Glass cards on dark */
-  --card: 210 45% 12%;
-  --card-foreground: 200 100% 96%;
-  --card-border: 210 40% 20%;
+  /* Dark cards */
+  --card: 210 28% 10%;
+  --card-foreground: 190 60% 95%;
+  --card-border: 210 25% 18%;
   
-  --sidebar: 210 50% 10%;
-  --sidebar-foreground: 200 100% 96%;
-  --sidebar-border: 210 40% 16%;
+  --sidebar: 210 30% 8%;
+  --sidebar-foreground: 190 60% 95%;
+  --sidebar-border: 210 25% 14%;
   
-  /* Bright blue pops on dark glass */
-  --sidebar-primary: 200 100% 55%;
-  --sidebar-primary-foreground: 210 50% 8%;
-  --sidebar-accent: 210 45% 18%;
-  --sidebar-accent-foreground: 200 100% 96%;
-  --sidebar-ring: 200 100% 55%;
+  /* Cyan primary on dark */
+  --sidebar-primary: 187 80% 50%;
+  --sidebar-primary-foreground: 210 30% 6%;
+  --sidebar-accent: 210 28% 16%;
+  --sidebar-accent-foreground: 190 60% 95%;
+  --sidebar-ring: 187 80% 50%;
   
-  --popover: 210 45% 12%;
-  --popover-foreground: 200 100% 96%;
-  --popover-border: 210 40% 20%;
+  --popover: 210 28% 10%;
+  --popover-foreground: 190 60% 95%;
+  --popover-border: 210 25% 18%;
   
-  /* Bright glass blue primary */
-  --primary: 200 100% 55%;
-  --primary-foreground: 210 50% 8%;
+  /* ARO Cyan primary (#2ABED5) */
+  --primary: 187 80% 50%;
+  --primary-foreground: 210 30% 6%;
   
-  /* Dark blue secondary */
-  --secondary: 210 40% 20%;
-  --secondary-foreground: 200 100% 96%;
+  /* Dark gray secondary */
+  --secondary: 210 25% 18%;
+  --secondary-foreground: 190 60% 95%;
   
-  --muted: 210 35% 22%;
-  --muted-foreground: 200 50% 72%;
+  --muted: 210 22% 20%;
+  --muted-foreground: 190 40% 65%;
   
-  --accent: 210 45% 18%;
-  --accent-foreground: 200 100% 96%;
+  /* ARO Gold accent (#E5A832) */
+  --accent: 40 78% 55%;
+  --accent-foreground: 210 30% 6%;
   
   --destructive: 0 84% 45%;
   --destructive-foreground: 0 0% 98%;
-  --input: 210 40% 22%;
-  --ring: 200 100% 55%;
+  --input: 210 25% 18%;
+  --ring: 187 80% 50%;
   
-  --chart-1: 200 70% 65%;
-  --chart-2: 220 70% 65%;
-  --chart-3: 180 60% 60%;
-  --chart-4: 30 70% 65%;
+  --chart-1: 187 80% 55%;
+  --chart-2: 40 78% 60%;
+  --chart-3: 160 60% 55%;
+  --chart-4: 220 70% 65%;
   --chart-5: 340 70% 65%;
   
-  /* Dark glass shadows with blue glow */
-  --shadow-2xs: 0px 1px 2px 0px rgba(0, 150, 255, 0.15);
-  --shadow-xs: 0px 2px 4px 0px rgba(0, 150, 255, 0.18);
-  --shadow-sm: 0px 4px 8px -2px rgba(0, 150, 255, 0.22), 0px 2px 4px -2px rgba(0, 150, 255, 0.15);
-  --shadow: 0px 10px 20px -5px rgba(0, 150, 255, 0.25), 0px 4px 8px -4px rgba(0, 150, 255, 0.18);
-  --shadow-md: 0px 16px 32px -8px rgba(0, 150, 255, 0.30), 0px 8px 16px -6px rgba(0, 150, 255, 0.22);
-  --shadow-lg: 0px 20px 40px -10px rgba(0, 150, 255, 0.35), 0px 12px 24px -8px rgba(0, 150, 255, 0.25);
-  --shadow-xl: 0px 24px 48px -12px rgba(0, 150, 255, 0.40), 0px 16px 32px -10px rgba(0, 150, 255, 0.28);
-  --shadow-2xl: 0px 32px 64px -16px rgba(0, 150, 255, 0.45);
+  /* Dark shadows with cyan glow */
+  --shadow-2xs: 0px 1px 2px 0px rgba(42, 190, 213, 0.12);
+  --shadow-xs: 0px 2px 4px 0px rgba(42, 190, 213, 0.15);
+  --shadow-sm: 0px 4px 8px -2px rgba(42, 190, 213, 0.18), 0px 2px 4px -2px rgba(42, 190, 213, 0.12);
+  --shadow: 0px 10px 20px -5px rgba(42, 190, 213, 0.22), 0px 4px 8px -4px rgba(42, 190, 213, 0.15);
+  --shadow-md: 0px 16px 32px -8px rgba(42, 190, 213, 0.25), 0px 8px 16px -6px rgba(42, 190, 213, 0.18);
+  --shadow-lg: 0px 20px 40px -10px rgba(42, 190, 213, 0.30), 0px 12px 24px -8px rgba(42, 190, 213, 0.22);
+  --shadow-xl: 0px 24px 48px -12px rgba(42, 190, 213, 0.35), 0px 16px 32px -10px rgba(42, 190, 213, 0.25);
+  --shadow-2xl: 0px 32px 64px -16px rgba(42, 190, 213, 0.40);
   
   /* Glass effect variables for dark mode */
-  --glass-bg: rgba(20, 40, 70, 0.5);
-  --glass-border: rgba(100, 200, 255, 0.2);
+  --glass-bg: rgba(15, 25, 40, 0.6);
+  --glass-border: rgba(42, 190, 213, 0.25);
   --glass-blur: 16px;
 
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -236,14 +238,14 @@ html[data-theme="light"] {
   body {
     @apply font-sans antialiased bg-background text-foreground;
     background-image: 
-      radial-gradient(circle at 20% 50%, rgba(100, 180, 255, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(150, 200, 255, 0.06) 0%, transparent 50%);
+      radial-gradient(circle at 20% 50%, rgba(42, 190, 213, 0.06) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(229, 168, 50, 0.04) 0%, transparent 50%);
   }
   
   .dark body {
     background-image: 
-      radial-gradient(circle at 20% 50%, rgba(50, 150, 255, 0.12) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(100, 180, 255, 0.08) 0%, transparent 50%);
+      radial-gradient(circle at 20% 50%, rgba(42, 190, 213, 0.10) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(229, 168, 50, 0.06) 0%, transparent 50%);
   }
 }
 
@@ -339,15 +341,15 @@ html[data-theme="light"] {
   }
   
   .glass-button {
-    background: rgba(100, 180, 255, 0.15);
+    background: rgba(42, 190, 213, 0.15);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(100, 180, 255, 0.3);
+    border: 1px solid rgba(42, 190, 213, 0.3);
   }
   
   .glass-button:hover {
-    background: rgba(100, 180, 255, 0.25);
-    border-color: rgba(100, 180, 255, 0.5);
+    background: rgba(42, 190, 213, 0.25);
+    border-color: rgba(42, 190, 213, 0.5);
   }
   
   .glass-input {
@@ -704,7 +706,7 @@ html[data-theme="light"] .theme-toggle .toggle-thumb,
 }
 
 .footer-section h4 {
-  color: hsl(200 100% 55%);
+  color: hsl(187 80% 50%);
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -726,7 +728,7 @@ html[data-theme="light"] .theme-toggle .toggle-thumb,
 }
 
 .footer-links a:hover {
-  color: hsl(200 100% 55%);
+  color: hsl(187 80% 50%);
 }
 
 .footer-bottom {
@@ -744,7 +746,7 @@ html[data-theme="light"] .theme-toggle .toggle-thumb,
 }
 
 .back-to-top:hover {
-  color: hsl(200 100% 55%);
+  color: hsl(187 80% 50%);
 }
 
 /* Desktop responsive */
@@ -802,12 +804,12 @@ html[data-theme="light"] .theme-toggle .toggle-thumb,
   }
 
   .nav-links .login-link {
-    background: hsl(200 100% 55%);
+    background: hsl(187 80% 50%);
     color: hsl(0 0% 100%);
     font-weight: 600;
   }
 
   .nav-links .login-link:hover {
-    background: hsl(200 100% 60%);
+    background: hsl(187 80% 55%);
   }
 }

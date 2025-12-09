@@ -12,7 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/Navbar";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2 } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette } from "lucide-react";
+import ImageDesigner from "@/components/ImageDesigner";
 import type { Product } from "@shared/schema";
 
 const placements = [
@@ -25,10 +26,11 @@ const placements = [
 
 const TEXT_UPCHARGE = 2.00;
 const IMAGE_HOSTING_UPCHARGE = 5.00;
+const DESIGN_UPCHARGE = 8.00;
 
 export default function Creator() {
   const { toast } = useToast();
-  const [qrType, setQrType] = useState<"text" | "image" | "upload">("text");
+  const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design">("text");
   const [qrContent, setQrContent] = useState("");
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
@@ -120,6 +122,44 @@ export default function Creator() {
     }
   };
 
+  const uploadDesignMutation = useMutation({
+    mutationFn: async (imageDataUrl: string) => {
+      const base64 = imageDataUrl.split(",")[1];
+      const response = await apiRequest("POST", "/api/images/upload", {
+        imageData: base64,
+        originalName: "custom-design.png",
+        mimeType: "image/png",
+        title: "Custom Design",
+        description: "Created with QR Gear Designer",
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const fullUrl = `${window.location.origin}${data.landingUrl}`;
+      setUploadedImage({
+        id: data.id,
+        url: fullUrl,
+        preview: data.publicUrl,
+      });
+      setQrContent(fullUrl);
+      toast({
+        title: "Design saved",
+        description: "Your custom design is ready for QR code generation",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Save failed",
+        description: "Failed to save design. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDesignReady = (imageDataUrl: string) => {
+    uploadDesignMutation.mutate(imageDataUrl);
+  };
+
   const generateQRMutation = useMutation({
     mutationFn: async (data: { content: string; type: string; style: any }) => {
       const response = await apiRequest("POST", "/api/qr/generate", data);
@@ -179,8 +219,8 @@ export default function Creator() {
       return;
     }
 
-    // For image and upload types, validate URL before generating
-    if ((qrType === "image" || qrType === "upload") && !isValidURL(qrContent)) {
+    // For image, upload, and design types, validate URL before generating
+    if ((qrType === "image" || qrType === "upload" || qrType === "design") && !isValidURL(qrContent)) {
       return;
     }
 
@@ -213,7 +253,7 @@ export default function Creator() {
 
     generateQRMutation.mutate({
       content: qrContent,
-      type: qrType === "upload" ? "image" : qrType,
+      type: (qrType === "upload" || qrType === "design") ? "image" : qrType,
       style: {
         color: qrColor,
         backgroundColor: qrBgColor,
@@ -242,7 +282,8 @@ export default function Creator() {
   const hasTextBelow = textBelow.trim().length > 0;
   const textUpchargeTotal = (hasTextAbove ? TEXT_UPCHARGE : 0) + (hasTextBelow ? TEXT_UPCHARGE : 0);
   const imageHostingUpcharge = qrType === "upload" && uploadedImage ? IMAGE_HOSTING_UPCHARGE : 0;
-  const totalPrice = selectedProduct ? (parseFloat(selectedProduct.basePrice) + textUpchargeTotal + imageHostingUpcharge).toFixed(2) : "0.00";
+  const designUpcharge = qrType === "design" && uploadedImage ? DESIGN_UPCHARGE : 0;
+  const totalPrice = selectedProduct ? (parseFloat(selectedProduct.basePrice) + textUpchargeTotal + imageHostingUpcharge + designUpcharge).toFixed(2) : "0.00";
 
   return (
     <div className="min-h-screen bg-background">
@@ -264,18 +305,22 @@ export default function Creator() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Tabs value={qrType} onValueChange={(v) => {
-                  setQrType(v as "text" | "image" | "upload");
-                  if (v !== "upload") {
+                  setQrType(v as "text" | "image" | "upload" | "design");
+                  if (v !== "upload" && v !== "design") {
                     setQrContent("");
                     setUploadedImage(null);
                   }
                 }}>
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="text" data-testid="tab-qr-text">Text</TabsTrigger>
                     <TabsTrigger value="image" data-testid="tab-qr-image">URL</TabsTrigger>
                     <TabsTrigger value="upload" data-testid="tab-qr-upload" className="flex items-center gap-1">
                       <Upload className="w-3 h-3" />
                       Upload
+                    </TabsTrigger>
+                    <TabsTrigger value="design" data-testid="tab-qr-design" className="flex items-center gap-1">
+                      <Palette className="w-3 h-3" />
+                      Design
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="text" className="space-y-4">
@@ -391,6 +436,39 @@ export default function Creator() {
                         </div>
                         <p className="text-xs text-muted-foreground">
                           Your image is now hosted. The QR code will link to a branded landing page showing your image.
+                        </p>
+                      </div>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="design" className="space-y-4">
+                    {!uploadedImage ? (
+                      <ImageDesigner 
+                        onImageReady={handleDesignReady}
+                        isUploading={uploadDesignMutation.isPending}
+                      />
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 bg-muted rounded-md">
+                          <Palette className="w-8 h-8 text-primary" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">Design saved successfully</p>
+                            <p className="text-xs text-muted-foreground truncate">{uploadedImage.url}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setUploadedImage(null);
+                              setQrContent("");
+                              setQrCodeImage("");
+                            }}
+                            data-testid="button-remove-design"
+                          >
+                            Start Over
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Your custom design is now hosted. The QR code will link to a branded landing page showing your creation.
                         </p>
                       </div>
                     )}
