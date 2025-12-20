@@ -60,7 +60,7 @@ import {
   deleteCategory,
   seedDefaultCategories,
 } from "@/lib/categories";
-import type { Product, AdminSettings } from "@shared/schema";
+import type { Product, AdminSettings, ProductCategory } from "@shared/schema";
 
 const ICON_MAP: Record<string, typeof Tag> = {
   Church,
@@ -348,11 +348,98 @@ function CategoriesTab() {
   );
 }
 
+function ProductTagEditor({
+  productId,
+  allCategories,
+  assignedCategoryIds,
+  isEditing,
+  onEdit,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  productId: string;
+  allCategories: ProductCategory[];
+  assignedCategoryIds: string[];
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: (categoryIds: string[]) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [selectedIds, setSelectedIds] = useState<string[]>(assignedCategoryIds);
+
+  useEffect(() => {
+    setSelectedIds(assignedCategoryIds);
+  }, [assignedCategoryIds, isEditing]);
+
+  const toggleCategory = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  if (!isEditing) {
+    const assignedNames = allCategories
+      .filter(c => assignedCategoryIds.includes(c.id))
+      .map(c => c.name);
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-1 max-w-48">
+          {assignedNames.length === 0 ? (
+            <span className="text-muted-foreground text-sm">No tags</span>
+          ) : (
+            assignedNames.slice(0, 3).map(name => (
+              <Badge key={name} variant="secondary" className="text-xs">{name}</Badge>
+            ))
+          )}
+          {assignedNames.length > 3 && (
+            <Badge variant="outline" className="text-xs">+{assignedNames.length - 3}</Badge>
+          )}
+        </div>
+        <Button size="icon" variant="ghost" onClick={onEdit} data-testid={`button-edit-tags-${productId}`}>
+          <Pencil className="w-3 h-3" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 min-w-64">
+      <div className="flex flex-wrap gap-1 max-h-24 overflow-auto">
+        {allCategories.map(cat => (
+          <Badge
+            key={cat.id}
+            variant={selectedIds.includes(cat.id) ? "default" : "outline"}
+            className="cursor-pointer text-xs"
+            onClick={() => toggleCategory(cat.id)}
+            data-testid={`badge-tag-${cat.slug}`}
+          >
+            {selectedIds.includes(cat.id) && <Check className="w-2 h-2 mr-1" />}
+            {cat.name}
+          </Badge>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => onSave(selectedIds)} disabled={isSaving} data-testid="button-save-tags">
+          {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancel} disabled={isSaving}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 function ProductsTab() {
   const { toast } = useToast();
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   
   const { data: products = [], isLoading, refetch } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
+  });
+
+  const { data: allCategories = [] } = useQuery<ProductCategory[]>({
+    queryKey: ["/api/admin/product-categories"],
   });
 
   const toggleMutation = useMutation({
@@ -365,6 +452,20 @@ function ProductsTab() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update product.", variant: "destructive" });
+    },
+  });
+
+  const syncCategoriesMutation = useMutation({
+    mutationFn: async ({ productId, categoryIds }: { productId: string; categoryIds: string[] }) => {
+      return apiRequest("POST", `/api/admin/products/${productId}/categories`, { categoryIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      toast({ title: "Success", description: "Product tags updated." });
+      setEditingProductId(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update tags.", variant: "destructive" });
     },
   });
 
@@ -397,6 +498,7 @@ function ProductsTab() {
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Tags</TableHead>
                 <TableHead className="text-right">Base Price</TableHead>
                 <TableHead className="text-right">Markup %</TableHead>
                 <TableHead className="w-24 text-center">Enabled</TableHead>
@@ -419,6 +521,18 @@ function ProductsTab() {
                     </div>
                   </TableCell>
                   <TableCell>{product.category}</TableCell>
+                  <TableCell>
+                    <ProductTagEditor
+                      productId={product.id}
+                      allCategories={allCategories.filter(c => c.isActive)}
+                      assignedCategoryIds={product.categoryIds || []}
+                      isEditing={editingProductId === product.id}
+                      onEdit={() => setEditingProductId(product.id)}
+                      onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
+                      onCancel={() => setEditingProductId(null)}
+                      isSaving={syncCategoriesMutation.isPending}
+                    />
+                  </TableCell>
                   <TableCell className="text-right">${product.basePrice}</TableCell>
                   <TableCell className="text-right">{product.markupPercent || 0}%</TableCell>
                   <TableCell className="text-center">
@@ -1026,6 +1140,133 @@ function BackgroundsTab() {
   );
 }
 
+function ProductCategoriesTab() {
+  const { toast } = useToast();
+  
+  const { data: categories, isLoading, refetch } = useQuery<ProductCategory[]>({
+    queryKey: ["/api/admin/product-categories"],
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/product-categories/seed");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      refetch();
+      toast({
+        title: "Categories Seeded",
+        description: `Created ${data.created} default product categories.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to seed categories.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/product-categories/${id}`);
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: "Deleted", description: "Category removed." });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      await apiRequest("PUT", `/api/admin/product-categories/${id}`, { isActive });
+    },
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const groupedCategories = {
+    season: categories?.filter(c => c.taxonomyType === "season") || [],
+    holiday: categories?.filter(c => c.taxonomyType === "holiday") || [],
+    occasion: categories?.filter(c => c.taxonomyType === "occasion") || [],
+    other: categories?.filter(c => c.taxonomyType === "other") || [],
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <div>
+          <CardTitle>Product Categories</CardTitle>
+          <CardDescription>
+            Organize products by seasons, holidays, and occasions
+          </CardDescription>
+        </div>
+        <Button
+          onClick={() => seedMutation.mutate()}
+          disabled={seedMutation.isPending}
+          data-testid="button-seed-categories"
+        >
+          {seedMutation.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+          ) : (
+            <Plus className="w-4 h-4 mr-2" />
+          )}
+          Seed Defaults
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {(!categories || categories.length === 0) ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Tag className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>No product categories yet.</p>
+            <p className="text-sm">Click "Seed Defaults" to add standard categories.</p>
+          </div>
+        ) : (
+          <>
+            {Object.entries(groupedCategories).map(([taxonomyType, cats]) => (
+              cats.length > 0 && (
+                <div key={taxonomyType}>
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                    {taxonomyType === "season" ? "Seasons" :
+                     taxonomyType === "holiday" ? "Holidays" :
+                     taxonomyType === "occasion" ? "Occasions" : "Other Themes"}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {cats.map(cat => (
+                      <Badge
+                        key={cat.id}
+                        variant={cat.isActive ? "default" : "outline"}
+                        className="gap-2 px-3 py-1.5 cursor-pointer"
+                        onClick={() => toggleMutation.mutate({ id: cat.id, isActive: !cat.isActive })}
+                        data-testid={`badge-category-${cat.slug}`}
+                      >
+                        {cat.isActive ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                        {cat.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )
+            ))}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Admin() {
   const [, navigate] = useLocation();
 
@@ -1054,7 +1295,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="products" className="gap-2">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Products</span>
@@ -1069,7 +1310,11 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="categories" className="gap-2">
               <Tag className="h-4 w-4" />
-              <span className="hidden sm:inline">Categories</span>
+              <span className="hidden sm:inline">Templates</span>
+            </TabsTrigger>
+            <TabsTrigger value="product-tags" className="gap-2">
+              <Tag className="h-4 w-4" />
+              <span className="hidden sm:inline">Tags</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1087,6 +1332,10 @@ export default function Admin() {
 
           <TabsContent value="categories">
             <CategoriesTab />
+          </TabsContent>
+
+          <TabsContent value="product-tags">
+            <ProductCategoriesTab />
           </TabsContent>
         </Tabs>
       </main>

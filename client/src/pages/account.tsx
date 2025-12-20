@@ -5,16 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus, Loader2, History, Eye, LogOut, User as UserIcon, Palette, Trash2, Edit } from "lucide-react";
+import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus, Loader2, History, Eye, LogOut, User as UserIcon, Palette, Trash2, Edit, QrCode, Upload, Copy, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Order, OrderItem, CartItem, Product, BrowsingHistory, QrDesign } from "@shared/schema";
+import type { Order, OrderItem, CartItem, Product, BrowsingHistory, QrDesign, DynamicPage } from "@shared/schema";
 
 interface OrderWithItems extends Order {
   items: OrderItem[];
+}
+
+interface DynamicPageWithImage extends DynamicPage {
+  activeImage?: {
+    url: string;
+    title: string | null;
+  } | null;
 }
 
 interface DashboardStats {
@@ -47,6 +54,11 @@ export default function Account() {
 
   const { data: savedDesigns, isLoading: designsLoading } = useQuery<QrDesign[]>({
     queryKey: ["/api/designs"],
+    enabled: !!userId,
+  });
+
+  const { data: dynamicPages, isLoading: dynamicPagesLoading } = useQuery<DynamicPageWithImage[]>({
+    queryKey: ["/api/dynamic-pages"],
     enabled: !!userId,
   });
 
@@ -268,6 +280,10 @@ export default function Account() {
             <TabsTrigger value="history" className="gap-2" data-testid="tab-history">
               <History className="w-4 h-4" />
               Recently Viewed
+            </TabsTrigger>
+            <TabsTrigger value="dynamic" className="gap-2" data-testid="tab-dynamic">
+              <QrCode className="w-4 h-4" />
+              Dynamic Pages
             </TabsTrigger>
             <TabsTrigger value="suggestions" className="gap-2" data-testid="tab-suggestions">
               <TrendingUp className="w-4 h-4" />
@@ -540,6 +556,105 @@ export default function Account() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Viewed {format(new Date(entry.viewedAt), "MMM dd")}
                         </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="dynamic" className="space-y-4">
+            {dynamicPagesLoading ? (
+              <Card className="glass-card">
+                <CardContent className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </CardContent>
+              </Card>
+            ) : !dynamicPages || dynamicPages.length === 0 ? (
+              <Card className="glass-card">
+                <CardContent className="p-12 text-center">
+                  <QrCode className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold mb-2 text-foreground">No Dynamic QR Pages</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Create a Dynamic QR product to get a page you can update anytime!
+                  </p>
+                  <Link href="/creator">
+                    <Button className="btn btn-gold" data-testid="button-create-dynamic">
+                      Create Dynamic QR
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dynamicPages.map((page) => {
+                  const pageUrl = `${window.location.origin}/dynamic/${page.slug}`;
+                  const isExpired = page.expiresAt && new Date(page.expiresAt) < new Date();
+                  
+                  return (
+                    <Card key={page.id} className="glass-card" data-testid={`card-dynamic-${page.id}`}>
+                      <CardContent className="p-4">
+                        <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden flex items-center justify-center">
+                          {page.activeImage?.url ? (
+                            <img 
+                              src={page.activeImage.url} 
+                              alt={page.title} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            <div className="text-center text-muted-foreground p-4">
+                              <Upload className="w-8 h-8 mx-auto mb-2" />
+                              <p className="text-sm">No image uploaded</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium text-foreground truncate">{page.title}</p>
+                            <Badge variant={isExpired ? "destructive" : page.status === "active" ? "default" : "secondary"}>
+                              {isExpired ? "Expired" : page.status}
+                            </Badge>
+                          </div>
+                          {page.description && (
+                            <p className="text-sm text-muted-foreground truncate">{page.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Link2 className="w-3 h-3" />
+                            <span className="truncate">/dynamic/{page.slug}</span>
+                          </div>
+                          {page.expiresAt && (
+                            <p className="text-xs text-muted-foreground">
+                              {isExpired ? "Expired" : "Expires"}: {format(new Date(page.expiresAt), "MMM dd, yyyy")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-4">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 gap-1"
+                            onClick={() => {
+                              navigator.clipboard.writeText(pageUrl);
+                              toast({
+                                title: "Link copied!",
+                                description: "Dynamic page URL copied to clipboard.",
+                              });
+                            }}
+                            data-testid={`button-copy-link-${page.id}`}
+                          >
+                            <Copy className="w-3 h-3" />
+                            Copy Link
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            size="icon"
+                            onClick={() => window.open(pageUrl, '_blank')}
+                            data-testid={`button-view-page-${page.id}`}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   );

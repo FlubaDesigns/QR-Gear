@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/Navbar";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw } from "lucide-react";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
 import type { Product } from "@shared/schema";
@@ -66,13 +66,14 @@ interface PriceQuote {
     textBelowUpcharge: number;
     templateUpcharge: number;
     hostingUpcharge: number;
+    dynamicUpcharge: number;
   };
   hostingTier: string;
 }
 
 export default function Creator() {
   const { toast } = useToast();
-  const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design" | "template">("text");
+  const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design" | "template" | "dynamic">("text");
   const [qrContent, setQrContent] = useState("");
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
@@ -92,6 +93,9 @@ export default function Creator() {
   const [overlayText, setOverlayText] = useState("");
   const [overlayFontFamily, setOverlayFontFamily] = useState("Inter");
   const [overlayFontColor, setOverlayFontColor] = useState("#FFFFFF");
+  const [dynamicPageTitle, setDynamicPageTitle] = useState("");
+  const [dynamicPageDescription, setDynamicPageDescription] = useState("");
+  const [dynamicHostingTier, setDynamicHostingTier] = useState<string>("1_year");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
@@ -109,7 +113,7 @@ export default function Creator() {
 
   const { data: hostingTiers = [] } = useQuery<HostingTier[]>({
     queryKey: ["/api/hosting-tiers"],
-    enabled: qrType === "upload",
+    enabled: qrType === "upload" || qrType === "dynamic",
   });
 
   const filteredTemplates = templateCategory === "all" 
@@ -158,6 +162,13 @@ export default function Creator() {
         hostingTier?: string;
         templateId?: string;
         templateName?: string;
+        overlayText?: string;
+        overlayFontFamily?: string;
+        overlayFontColor?: string;
+        uploadedImageId?: string;
+        dynamicPageTitle?: string;
+        dynamicPageDescription?: string;
+        dynamicHostingTier?: string;
       };
       price: string;
     }) => {
@@ -380,7 +391,7 @@ export default function Creator() {
 
     generateQRMutation.mutate({
       content: qrContent,
-      type: (qrType === "upload" || qrType === "design" || qrType === "template") ? "image" : qrType,
+      type: (qrType === "upload" || qrType === "design" || qrType === "template" || qrType === "dynamic") ? "image" : qrType,
       style: {
         color: qrColor,
         backgroundColor: qrBgColor,
@@ -420,6 +431,9 @@ export default function Creator() {
       } else if (qrType === "template" && selectedTemplate) {
         productLine = "template";
         templateId = selectedTemplate.id;
+      } else if (qrType === "dynamic") {
+        productLine = "dynamic";
+        hostingTierCode = dynamicHostingTier;
       }
       
       const debounce = setTimeout(() => {
@@ -437,26 +451,29 @@ export default function Creator() {
       setPriceQuote(null);
       setPricingError(false);
     }
-  }, [selectedProduct?.id, hasTextAbove, hasTextBelow, qrType, selectedTemplate?.id, selectedHostingTier]);
+  }, [selectedProduct?.id, hasTextAbove, hasTextBelow, qrType, selectedTemplate?.id, selectedHostingTier, dynamicHostingTier]);
 
   const totalPrice = priceQuote?.finalPrice.toFixed(2) || "0.00";
 
   const handleAddToCart = () => {
-    if (!selectedProduct || !qrCodeImage || !priceQuote) return;
+    if (!selectedProduct || !priceQuote) return;
     if (qrType === "template" && !selectedTemplate) return;
+    if (qrType === "dynamic" && !dynamicPageTitle.trim()) return;
+    // QR code image is required for all types except dynamic (which generates later)
+    if (qrType !== "dynamic" && !qrCodeImage) return;
     
     addToCartMutation.mutate({
       productId: selectedProduct.id,
       quantity: 1,
       customization: {
-        qrContent,
+        qrContent: qrType === "dynamic" ? `pending-dynamic-${Date.now()}` : qrContent,
         qrType: qrType === "template" ? "template" : (qrType === "upload" || qrType === "design") ? "image" : qrType,
         qrColor,
         qrBgColor,
         placement,
         productColor,
-        textAbove: hasTextAbove ? textAbove : undefined,
-        textBelow: hasTextBelow ? textBelow : undefined,
+        textAbove: hasTextAbove && qrType !== "dynamic" ? textAbove : undefined,
+        textBelow: hasTextBelow && qrType !== "dynamic" ? textBelow : undefined,
         hostingTier: (qrType === "upload" || qrType === "design") ? selectedHostingTier : undefined,
         templateId: qrType === "template" ? selectedTemplate?.id : undefined,
         templateName: qrType === "template" ? selectedTemplate?.name : undefined,
@@ -464,6 +481,9 @@ export default function Creator() {
         overlayFontFamily: qrType === "upload" && overlayText ? overlayFontFamily : undefined,
         overlayFontColor: qrType === "upload" && overlayText ? overlayFontColor : undefined,
         uploadedImageId: qrType === "upload" && uploadedImage ? uploadedImage.id : undefined,
+        dynamicPageTitle: qrType === "dynamic" ? dynamicPageTitle : undefined,
+        dynamicPageDescription: qrType === "dynamic" ? dynamicPageDescription : undefined,
+        dynamicHostingTier: qrType === "dynamic" ? dynamicHostingTier : undefined,
       },
       price: priceQuote.finalPrice.toFixed(2),
     });
@@ -489,8 +509,8 @@ export default function Creator() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Tabs value={qrType} onValueChange={(v) => {
-                  setQrType(v as "text" | "image" | "upload" | "design" | "template");
-                  if (v === "upload" || v === "design") {
+                  setQrType(v as "text" | "image" | "upload" | "design" | "template" | "dynamic");
+                  if (v === "upload" || v === "design" || v === "dynamic") {
                     setQrContent("");
                     setUploadedImage(null);
                   } else if (v === "text") {
@@ -501,7 +521,7 @@ export default function Creator() {
                     setSelectedTemplate(null);
                   }
                 }}>
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="text" data-testid="tab-qr-text">Text</TabsTrigger>
                     <TabsTrigger value="template" data-testid="tab-qr-template" className="flex items-center gap-1">
                       <LayoutTemplate className="w-3 h-3" />
@@ -515,6 +535,10 @@ export default function Creator() {
                     <TabsTrigger value="design" data-testid="tab-qr-design" className="flex items-center gap-1">
                       <Palette className="w-3 h-3" />
                       Design
+                    </TabsTrigger>
+                    <TabsTrigger value="dynamic" data-testid="tab-qr-dynamic" className="flex items-center gap-1">
+                      <RefreshCw className="w-3 h-3" />
+                      Dynamic
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="text" className="space-y-4">
@@ -872,6 +896,88 @@ export default function Creator() {
                         </p>
                       </div>
                     )}
+                  </TabsContent>
+                  <TabsContent value="dynamic" className="space-y-4">
+                    <div className="space-y-4">
+                      <div className="p-4 bg-primary/10 rounded-md border border-primary/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <RefreshCw className="w-5 h-5 text-primary" />
+                          <span className="font-semibold text-primary">Dynamic QR Code</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Create a QR code that links to a page you control. Change the displayed image anytime - 
+                          today it could be a sunflower, tomorrow a battleship! Your QR code stays the same, 
+                          but the content can change whenever you want.
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="dynamic-title">Page Title</Label>
+                        <Input
+                          id="dynamic-title"
+                          placeholder="My Dynamic QR Page"
+                          value={dynamicPageTitle}
+                          onChange={(e) => setDynamicPageTitle(e.target.value)}
+                          data-testid="input-dynamic-title"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Give your dynamic page a title that describes its purpose
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="dynamic-description">Description (optional)</Label>
+                        <Textarea
+                          id="dynamic-description"
+                          placeholder="A description for your dynamic page..."
+                          value={dynamicPageDescription}
+                          onChange={(e) => setDynamicPageDescription(e.target.value)}
+                          rows={2}
+                          data-testid="textarea-dynamic-description"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Hosting Duration</Label>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          How long should your dynamic page remain active?
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {hostingTiers.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map((tier) => (
+                            <button
+                              key={tier.id}
+                              type="button"
+                              className={`p-3 rounded-md border text-left transition-all hover-elevate ${
+                                dynamicHostingTier === tier.code 
+                                  ? "border-primary bg-primary/5" 
+                                  : "border-border"
+                              }`}
+                              onClick={() => setDynamicHostingTier(tier.code)}
+                              data-testid={`button-dynamic-tier-${tier.code}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-sm">{tier.name}</span>
+                                {dynamicHostingTier === tier.code && (
+                                  <Check className="w-4 h-4 text-primary" />
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                {tier.isIncluded ? (
+                                  <Badge variant="outline" className="text-xs">Included</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge).toFixed(0)}</Badge>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        After purchase, you can upload and swap images anytime from your account dashboard.
+                        The QR code on your product will always show whatever image you have set as active.
+                      </p>
+                    </div>
                   </TabsContent>
                 </Tabs>
 

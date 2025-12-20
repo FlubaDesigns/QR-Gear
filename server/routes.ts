@@ -594,7 +594,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/products", isAuthenticated, async (req: any, res) => {
     try {
       const products = await storage.getAllProducts();
-      res.json(products);
+      // Enrich products with their assigned category IDs
+      const enrichedProducts = await Promise.all(
+        products.map(async (product) => {
+          const assignments = await storage.getProductCategoryAssignments(product.id);
+          return {
+            ...product,
+            categoryIds: assignments.map((a) => a.categoryId),
+          };
+        })
+      );
+      res.json(enrichedProducts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -791,14 +801,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ PRODUCT CATEGORIES ENDPOINTS ============
+
+  // Get all product categories (public)
+  // Admin: Get ALL product categories (including inactive)
+  app.get("/api/admin/product-categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const categories = await storage.getAllProductCategories();
+      res.json(categories);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/product-categories", async (req, res) => {
+    try {
+      const taxonomyType = req.query.taxonomy as string | undefined;
+      let categories;
+      if (taxonomyType) {
+        categories = await storage.getProductCategoriesByTaxonomy(taxonomyType);
+      } else {
+        categories = await storage.getActiveProductCategories();
+      }
+      res.json(categories);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get products by category (public)
+  app.get("/api/product-categories/:id/products", async (req, res) => {
+    try {
+      const products = await storage.getProductsByCategory(req.params.id);
+      // Only return enabled products
+      const enabledProducts = products.filter(p => p.isEnabled);
+      res.json(enabledProducts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get category assignments for a product
+  app.get("/api/products/:id/categories", async (req, res) => {
+    try {
+      const assignments = await storage.getProductCategoryAssignments(req.params.id);
+      res.json(assignments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Create a category
+  app.post("/api/admin/product-categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const { name, slug, description, taxonomyType, icon, parentId, sortOrder, isActive } = req.body;
+      const category = await storage.createProductCategory({
+        name,
+        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
+        description,
+        taxonomyType,
+        icon,
+        parentId,
+        sortOrder,
+        isActive,
+      });
+      res.status(201).json(category);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update a category
+  app.put("/api/admin/product-categories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const updated = await storage.updateProductCategory(req.params.id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Delete a category
+  app.delete("/api/admin/product-categories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteProductCategory(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Assign categories to a product
+  app.post("/api/admin/products/:id/categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const { categoryIds } = req.body;
+      await storage.syncProductCategories(req.params.id, categoryIds || []);
+      const assignments = await storage.getProductCategoryAssignments(req.params.id);
+      res.json(assignments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Seed default categories
+  app.post("/api/admin/product-categories/seed", isAuthenticated, async (req: any, res) => {
+    try {
+      const defaultCategories = [
+        // Seasons
+        { name: "Spring", slug: "spring", taxonomyType: "season", icon: "Flower2", sortOrder: 1 },
+        { name: "Summer", slug: "summer", taxonomyType: "season", icon: "Sun", sortOrder: 2 },
+        { name: "Fall", slug: "fall", taxonomyType: "season", icon: "Leaf", sortOrder: 3 },
+        { name: "Winter", slug: "winter", taxonomyType: "season", icon: "Snowflake", sortOrder: 4 },
+        // Holidays
+        { name: "Christmas", slug: "christmas", taxonomyType: "holiday", icon: "Gift", sortOrder: 1 },
+        { name: "Easter", slug: "easter", taxonomyType: "holiday", icon: "Egg", sortOrder: 2 },
+        { name: "Valentine's Day", slug: "valentines", taxonomyType: "holiday", icon: "Heart", sortOrder: 3 },
+        { name: "Halloween", slug: "halloween", taxonomyType: "holiday", icon: "Ghost", sortOrder: 4 },
+        { name: "Thanksgiving", slug: "thanksgiving", taxonomyType: "holiday", icon: "Utensils", sortOrder: 5 },
+        { name: "Fourth of July", slug: "july-4th", taxonomyType: "holiday", icon: "Flag", sortOrder: 6 },
+        { name: "Mother's Day", slug: "mothers-day", taxonomyType: "holiday", icon: "Heart", sortOrder: 7 },
+        { name: "Father's Day", slug: "fathers-day", taxonomyType: "holiday", icon: "Trophy", sortOrder: 8 },
+        // Occasions
+        { name: "Birthday", slug: "birthday", taxonomyType: "occasion", icon: "Cake", sortOrder: 1 },
+        { name: "Anniversary", slug: "anniversary", taxonomyType: "occasion", icon: "HeartHandshake", sortOrder: 2 },
+        { name: "Graduation", slug: "graduation", taxonomyType: "occasion", icon: "GraduationCap", sortOrder: 3 },
+        { name: "Wedding", slug: "wedding", taxonomyType: "occasion", icon: "Gem", sortOrder: 4 },
+        { name: "Baby Shower", slug: "baby-shower", taxonomyType: "occasion", icon: "Baby", sortOrder: 5 },
+        // Other
+        { name: "Religious", slug: "religious", taxonomyType: "other", icon: "Church", sortOrder: 1 },
+        { name: "Sports", slug: "sports", taxonomyType: "other", icon: "Trophy", sortOrder: 2 },
+        { name: "Business", slug: "business", taxonomyType: "other", icon: "Briefcase", sortOrder: 3 },
+        { name: "Patriotic", slug: "patriotic", taxonomyType: "other", icon: "Flag", sortOrder: 4 },
+      ];
+
+      const created = [];
+      for (const cat of defaultCategories) {
+        try {
+          const category = await storage.createProductCategory({
+            ...cat,
+            isActive: true,
+          });
+          created.push(category);
+        } catch (e) {
+          // Skip if already exists (unique constraint on slug)
+        }
+      }
+      res.json({ created: created.length, categories: created });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ DYNAMIC PAGES ENDPOINTS ============
   
-  // Get user's dynamic pages
+  // Get user's dynamic pages with active image info
   app.get("/api/dynamic-pages", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const pages = await storage.getDynamicPagesByUser(userId);
-      res.json(pages);
+      
+      // Enrich pages with active image data
+      const enrichedPages = await Promise.all(pages.map(async (page) => {
+        let activeImage = null;
+        if (page.activeAssetId) {
+          const assets = await storage.getDynamicPageAssets(page.id);
+          const activeAsset = assets.find(a => a.id === page.activeAssetId);
+          if (activeAsset && activeAsset.hostedImageId) {
+            const image = await storage.getHostedImage(activeAsset.hostedImageId);
+            if (image) {
+              activeImage = {
+                url: `/api/images/${image.id}`,
+                title: activeAsset.title || image.title,
+              };
+            }
+          }
+        }
+        return { ...page, activeImage };
+      }));
+      
+      res.json(enrichedPages);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

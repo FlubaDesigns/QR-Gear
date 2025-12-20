@@ -75,6 +75,28 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Product categories for filtering (seasons, holidays, birthdays, etc.)
+export const productCategories = pgTable("product_categories_lookup", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  taxonomyType: text("taxonomy_type").notNull(), // 'season', 'holiday', 'occasion', 'other'
+  icon: text("icon"), // lucide icon name
+  parentId: varchar("parent_id"),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Many-to-many: products can belong to multiple categories
+export const productCategoryAssignments = pgTable("product_category_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  categoryId: varchar("category_id").notNull().references(() => productCategories.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Product variants from Printify (size, color combinations)
 export const productVariants = pgTable("product_variants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -412,6 +434,16 @@ export const insertDynamicPageAssetSchema = createInsertSchema(dynamicPageAssets
   createdAt: true,
 });
 
+export const insertProductCategorySchema = createInsertSchema(productCategories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertProductCategoryAssignmentSchema = createInsertSchema(productCategoryAssignments).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -472,5 +504,11 @@ export type InsertDynamicPage = z.infer<typeof insertDynamicPageSchema>;
 
 export type DynamicPageAsset = typeof dynamicPageAssets.$inferSelect;
 export type InsertDynamicPageAsset = z.infer<typeof insertDynamicPageAssetSchema>;
+
+export type ProductCategory = typeof productCategories.$inferSelect;
+export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
+
+export type ProductCategoryAssignment = typeof productCategoryAssignments.$inferSelect;
+export type InsertProductCategoryAssignment = z.infer<typeof insertProductCategoryAssignmentSchema>;
 
 export type UpsertUser = typeof users.$inferInsert;

@@ -32,6 +32,10 @@ import type {
   InsertDynamicPage,
   DynamicPageAsset,
   InsertDynamicPageAsset,
+  ProductCategory,
+  InsertProductCategory,
+  ProductCategoryAssignment,
+  InsertProductCategoryAssignment,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -134,6 +138,23 @@ export interface IStorage {
   updateDynamicPageAsset(id: string, asset: Partial<InsertDynamicPageAsset>): Promise<DynamicPageAsset | undefined>;
   deleteDynamicPageAsset(id: string): Promise<void>;
   setActiveAsset(pageId: string, assetId: string): Promise<void>;
+
+  // Product Category operations
+  getProductCategories(): Promise<ProductCategory[]>;
+  getAllProductCategories(): Promise<ProductCategory[]>;
+  getActiveProductCategories(): Promise<ProductCategory[]>;
+  getProductCategoriesByTaxonomy(taxonomyType: string): Promise<ProductCategory[]>;
+  getProductCategory(id: string): Promise<ProductCategory | undefined>;
+  createProductCategory(category: InsertProductCategory): Promise<ProductCategory>;
+  updateProductCategory(id: string, category: Partial<InsertProductCategory>): Promise<ProductCategory | undefined>;
+  deleteProductCategory(id: string): Promise<void>;
+
+  // Product Category Assignment operations
+  getProductCategoryAssignments(productId: string): Promise<ProductCategoryAssignment[]>;
+  getProductsByCategory(categoryId: string): Promise<Product[]>;
+  assignProductToCategory(assignment: InsertProductCategoryAssignment): Promise<ProductCategoryAssignment>;
+  removeProductFromCategory(productId: string, categoryId: string): Promise<void>;
+  syncProductCategories(productId: string, categoryIds: string[]): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -529,6 +550,92 @@ export class DbStorage implements IStorage {
     await this.db.update(schema.dynamicPages)
       .set({ activeAssetId: assetId, updatedAt: new Date() })
       .where(eq(schema.dynamicPages.id, pageId));
+  }
+
+  // Product Category operations
+  async getProductCategories(): Promise<ProductCategory[]> {
+    return await this.db.select().from(schema.productCategories).orderBy(schema.productCategories.sortOrder);
+  }
+
+  async getAllProductCategories(): Promise<ProductCategory[]> {
+    return await this.db.select().from(schema.productCategories)
+      .orderBy(schema.productCategories.sortOrder);
+  }
+
+  async getActiveProductCategories(): Promise<ProductCategory[]> {
+    return await this.db.select().from(schema.productCategories)
+      .where(eq(schema.productCategories.isActive, true))
+      .orderBy(schema.productCategories.sortOrder);
+  }
+
+  async getProductCategoriesByTaxonomy(taxonomyType: string): Promise<ProductCategory[]> {
+    return await this.db.select().from(schema.productCategories)
+      .where(eq(schema.productCategories.taxonomyType, taxonomyType))
+      .orderBy(schema.productCategories.sortOrder);
+  }
+
+  async getProductCategory(id: string): Promise<ProductCategory | undefined> {
+    const [category] = await this.db.select().from(schema.productCategories).where(eq(schema.productCategories.id, id));
+    return category;
+  }
+
+  async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
+    const [newCategory] = await this.db.insert(schema.productCategories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateProductCategory(id: string, category: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+    const [updated] = await this.db
+      .update(schema.productCategories)
+      .set(category)
+      .where(eq(schema.productCategories.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteProductCategory(id: string): Promise<void> {
+    await this.db.delete(schema.productCategoryAssignments).where(eq(schema.productCategoryAssignments.categoryId, id));
+    await this.db.delete(schema.productCategories).where(eq(schema.productCategories.id, id));
+  }
+
+  // Product Category Assignment operations
+  async getProductCategoryAssignments(productId: string): Promise<ProductCategoryAssignment[]> {
+    return await this.db.select().from(schema.productCategoryAssignments)
+      .where(eq(schema.productCategoryAssignments.productId, productId));
+  }
+
+  async getProductsByCategory(categoryId: string): Promise<Product[]> {
+    const assignments = await this.db.select().from(schema.productCategoryAssignments)
+      .where(eq(schema.productCategoryAssignments.categoryId, categoryId));
+    const productIds = assignments.map(a => a.productId);
+    if (productIds.length === 0) return [];
+    const products = await this.db.select().from(schema.products);
+    return products.filter(p => productIds.includes(p.id));
+  }
+
+  async assignProductToCategory(assignment: InsertProductCategoryAssignment): Promise<ProductCategoryAssignment> {
+    const [newAssignment] = await this.db.insert(schema.productCategoryAssignments).values(assignment).returning();
+    return newAssignment;
+  }
+
+  async removeProductFromCategory(productId: string, categoryId: string): Promise<void> {
+    const assignments = await this.db.select().from(schema.productCategoryAssignments)
+      .where(eq(schema.productCategoryAssignments.productId, productId));
+    const toDelete = assignments.find(a => a.categoryId === categoryId);
+    if (toDelete) {
+      await this.db.delete(schema.productCategoryAssignments).where(eq(schema.productCategoryAssignments.id, toDelete.id));
+    }
+  }
+
+  async syncProductCategories(productId: string, categoryIds: string[]): Promise<void> {
+    await this.db.delete(schema.productCategoryAssignments).where(eq(schema.productCategoryAssignments.productId, productId));
+    if (categoryIds.length > 0) {
+      const assignments = categoryIds.map(categoryId => ({
+        productId,
+        categoryId,
+      }));
+      await this.db.insert(schema.productCategoryAssignments).values(assignments);
+    }
   }
 }
 
@@ -1077,6 +1184,102 @@ class MemStorage implements IStorage {
     const page = this.dynamicPages.get(pageId);
     if (page) {
       this.dynamicPages.set(pageId, { ...page, activeAssetId: assetId, updatedAt: new Date() });
+    }
+  }
+
+  // Product Category operations (MemStorage stubs)
+  private productCategories = new Map<string, ProductCategory>();
+  private productCategoryAssignments = new Map<string, ProductCategoryAssignment>();
+
+  async getProductCategories(): Promise<ProductCategory[]> {
+    return Array.from(this.productCategories.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  async getAllProductCategories(): Promise<ProductCategory[]> {
+    return Array.from(this.productCategories.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  async getActiveProductCategories(): Promise<ProductCategory[]> {
+    return Array.from(this.productCategories.values()).filter(c => c.isActive).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  async getProductCategoriesByTaxonomy(taxonomyType: string): Promise<ProductCategory[]> {
+    return Array.from(this.productCategories.values()).filter(c => c.taxonomyType === taxonomyType).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  async getProductCategory(id: string): Promise<ProductCategory | undefined> {
+    return this.productCategories.get(id);
+  }
+
+  async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
+    const id = `cat_${Date.now()}`;
+    const newCategory: ProductCategory = {
+      ...category,
+      id,
+      description: category.description ?? null,
+      icon: category.icon ?? null,
+      parentId: category.parentId ?? null,
+      sortOrder: category.sortOrder ?? 0,
+      isActive: category.isActive ?? true,
+      createdAt: new Date(),
+    };
+    this.productCategories.set(id, newCategory);
+    return newCategory;
+  }
+
+  async updateProductCategory(id: string, category: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+    const existing = this.productCategories.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...category };
+    this.productCategories.set(id, updated);
+    return updated;
+  }
+
+  async deleteProductCategory(id: string): Promise<void> {
+    for (const [assignmentId, assignment] of this.productCategoryAssignments) {
+      if (assignment.categoryId === id) this.productCategoryAssignments.delete(assignmentId);
+    }
+    this.productCategories.delete(id);
+  }
+
+  async getProductCategoryAssignments(productId: string): Promise<ProductCategoryAssignment[]> {
+    return Array.from(this.productCategoryAssignments.values()).filter(a => a.productId === productId);
+  }
+
+  async getProductsByCategory(categoryId: string): Promise<Product[]> {
+    const assignments = Array.from(this.productCategoryAssignments.values()).filter(a => a.categoryId === categoryId);
+    const productIds = assignments.map(a => a.productId);
+    return Array.from(this.products.values()).filter(p => productIds.includes(p.id));
+  }
+
+  async assignProductToCategory(assignment: InsertProductCategoryAssignment): Promise<ProductCategoryAssignment> {
+    const id = `pca_${Date.now()}`;
+    const newAssignment: ProductCategoryAssignment = {
+      ...assignment,
+      id,
+      createdAt: new Date(),
+    };
+    this.productCategoryAssignments.set(id, newAssignment);
+    return newAssignment;
+  }
+
+  async removeProductFromCategory(productId: string, categoryId: string): Promise<void> {
+    for (const [id, assignment] of this.productCategoryAssignments) {
+      if (assignment.productId === productId && assignment.categoryId === categoryId) {
+        this.productCategoryAssignments.delete(id);
+        break;
+      }
+    }
+  }
+
+  async syncProductCategories(productId: string, categoryIds: string[]): Promise<void> {
+    for (const [id, assignment] of this.productCategoryAssignments) {
+      if (assignment.productId === productId) {
+        this.productCategoryAssignments.delete(id);
+      }
+    }
+    for (const categoryId of categoryIds) {
+      await this.assignProductToCategory({ productId, categoryId });
     }
   }
 }

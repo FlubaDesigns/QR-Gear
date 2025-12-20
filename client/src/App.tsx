@@ -5,9 +5,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import Creator from "@/pages/creator";
+import Store from "@/pages/store";
 import Widget from "@/pages/widget";
 import Account from "@/pages/account";
 import ViewImage from "@/pages/view-image";
+import ViewDynamic from "@/pages/view-dynamic";
 import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
@@ -16,10 +18,13 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/creator" component={Creator} />
+      <Route path="/store" component={Store} />
+      <Route path="/gallery" component={Store} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
       <Route path="/admin" component={Admin} />
       <Route path="/view/:id" component={ViewImage} />
+      <Route path="/dynamic/:slug" component={ViewDynamic} />
       <Route component={NotFound} />
     </Switch>
   );
