@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
-import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema } from "@shared/schema";
+import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders } from "./lib/printify";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
@@ -1072,6 +1072,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       res.json({ created: created.length, categories: created });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ PARTNER STORE ENDPOINTS ============
+
+  // Admin: Get all partner stores
+  app.get("/api/admin/partner-stores", isAuthenticated, async (req: any, res) => {
+    try {
+      const stores = await storage.getPartnerStores();
+      res.json(stores);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get single partner store with products
+  app.get("/api/admin/partner-stores/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const store = await storage.getPartnerStore(req.params.id);
+      if (!store) {
+        return res.status(404).json({ error: "Partner store not found" });
+      }
+      const products = await storage.getPartnerStoreProducts(store.id);
+      res.json({ ...store, products });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Create partner store
+  app.post("/api/admin/partner-stores", isAuthenticated, async (req: any, res) => {
+    try {
+      const validated = insertPartnerStoreSchema.parse(req.body);
+      const store = await storage.createPartnerStore(validated);
+      res.json(store);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Validation error", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update partner store
+  app.put("/api/admin/partner-stores/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const store = await storage.updatePartnerStore(req.params.id, req.body);
+      if (!store) {
+        return res.status(404).json({ error: "Partner store not found" });
+      }
+      res.json(store);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Delete partner store
+  app.delete("/api/admin/partner-stores/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deletePartnerStore(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get partner store products
+  app.get("/api/admin/partner-stores/:id/products", isAuthenticated, async (req: any, res) => {
+    try {
+      const products = await storage.getPartnerStoreProducts(req.params.id);
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Sync partner store products
+  app.post("/api/admin/partner-stores/:id/products", isAuthenticated, async (req: any, res) => {
+    try {
+      const { productIds } = req.body;
+      if (!Array.isArray(productIds)) {
+        return res.status(400).json({ error: "productIds must be an array" });
+      }
+      await storage.syncPartnerStoreProducts(req.params.id, productIds);
+      const products = await storage.getPartnerStoreProducts(req.params.id);
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Public: Get partner store by slug (for widget embedding)
+  app.get("/api/widget/stores/:slug", async (req, res) => {
+    try {
+      const store = await storage.getPartnerStoreBySlug(req.params.slug);
+      if (!store || !store.isActive) {
+        return res.status(404).json({ error: "Partner store not found" });
+      }
+      const storeProducts = await storage.getPartnerStoreProducts(store.id);
+      const enabledProducts = storeProducts.filter(sp => sp.isEnabled);
+      
+      // Fetch actual product details
+      const productDetails = await Promise.all(
+        enabledProducts.map(async (sp) => {
+          const product = await storage.getProduct(sp.productId);
+          if (!product || !product.isEnabled) return null;
+          return {
+            id: product.id,
+            name: sp.customName || product.name,
+            imageUrl: product.imageUrl,
+            customPrice: sp.customPrice,
+            sortOrder: sp.sortOrder,
+          };
+        })
+      );
+      
+      res.json({
+        id: store.id,
+        name: store.name,
+        slug: store.slug,
+        logoUrl: store.logoUrl,
+        primaryColor: store.primaryColor,
+        accentColor: store.accentColor,
+        products: productDetails.filter(Boolean).sort((a: any, b: any) => (a?.sortOrder || 0) - (b?.sortOrder || 0)),
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
