@@ -30,9 +30,21 @@ const placements = [
   { value: "side-right", label: "Side Right" },
 ];
 
-const TEXT_UPCHARGE = 2.00;
-const IMAGE_HOSTING_UPCHARGE = 5.00;
-const DESIGN_UPCHARGE = 8.00;
+interface PriceQuote {
+  productLine: string;
+  basePrice: number;
+  finalPrice: number;
+  breakdown: {
+    base: number;
+    qrProduction: number;
+    markup: number;
+    textAboveUpcharge: number;
+    textBelowUpcharge: number;
+    templateUpcharge: number;
+    hostingUpcharge: number;
+  };
+  hostingTier: string;
+}
 
 export default function Creator() {
   const { toast } = useToast();
@@ -49,6 +61,7 @@ export default function Creator() {
   const [uploadedImage, setUploadedImage] = useState<{ id: string; url: string; preview: string } | null>(null);
   const [imageTitle, setImageTitle] = useState("");
   const [imageDescription, setImageDescription] = useState("");
+  const [priceQuote, setPriceQuote] = useState<PriceQuote | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
@@ -57,6 +70,66 @@ export default function Creator() {
 
   const { data: products = [], isLoading: productsLoading, isError: productsError } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  const [pricingError, setPricingError] = useState(false);
+
+  const pricingMutation = useMutation({
+    mutationFn: async (data: { 
+      productId: string; 
+      productLine: string; 
+      hasTextAbove: boolean; 
+      hasTextBelow: boolean;
+      hostingTierCode?: string;
+      templateId?: string;
+    }) => {
+      const response = await apiRequest("POST", "/api/pricing/quote", data);
+      return await response.json();
+    },
+    onSuccess: (data: PriceQuote) => {
+      setPriceQuote(data);
+      setPricingError(false);
+    },
+    onError: () => {
+      setPriceQuote(null);
+      setPricingError(true);
+    },
+  });
+
+  const addToCartMutation = useMutation({
+    mutationFn: async (data: {
+      productId: string;
+      quantity: number;
+      customization: {
+        qrContent: string;
+        qrType: string;
+        qrColor: string;
+        qrBgColor: string;
+        placement: string;
+        productColor: string;
+        textAbove?: string;
+        textBelow?: string;
+        hostingTier?: string;
+      };
+      price: string;
+    }) => {
+      const response = await apiRequest("POST", "/api/cart", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Added to cart",
+        description: "Your custom QR product has been added to your cart",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add to cart. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const uploadImageMutation = useMutation({
@@ -286,10 +359,49 @@ export default function Creator() {
 
   const hasTextAbove = textAbove.trim().length > 0;
   const hasTextBelow = textBelow.trim().length > 0;
-  const textUpchargeTotal = (hasTextAbove ? TEXT_UPCHARGE : 0) + (hasTextBelow ? TEXT_UPCHARGE : 0);
-  const imageHostingUpcharge = qrType === "upload" && uploadedImage ? IMAGE_HOSTING_UPCHARGE : 0;
-  const designUpcharge = qrType === "design" && uploadedImage ? DESIGN_UPCHARGE : 0;
-  const totalPrice = selectedProduct ? (parseFloat(selectedProduct.basePrice) + textUpchargeTotal + imageHostingUpcharge + designUpcharge).toFixed(2) : "0.00";
+
+  useEffect(() => {
+    if (selectedProduct) {
+      const productLine = (qrType === "upload" || qrType === "design") ? "custom" : "text";
+      const hostingTierCode = (qrType === "upload" || qrType === "design") ? "1_year" : undefined;
+      const debounce = setTimeout(() => {
+        pricingMutation.mutate({
+          productId: selectedProduct.id,
+          productLine,
+          hasTextAbove,
+          hasTextBelow,
+          hostingTierCode,
+        });
+      }, 300);
+      return () => clearTimeout(debounce);
+    } else {
+      setPriceQuote(null);
+      setPricingError(false);
+    }
+  }, [selectedProduct?.id, hasTextAbove, hasTextBelow, qrType]);
+
+  const totalPrice = priceQuote?.finalPrice.toFixed(2) || "0.00";
+
+  const handleAddToCart = () => {
+    if (!selectedProduct || !qrCodeImage || !priceQuote) return;
+    
+    addToCartMutation.mutate({
+      productId: selectedProduct.id,
+      quantity: 1,
+      customization: {
+        qrContent,
+        qrType: (qrType === "upload" || qrType === "design") ? "image" : qrType,
+        qrColor,
+        qrBgColor,
+        placement,
+        productColor,
+        textAbove: hasTextAbove ? textAbove : undefined,
+        textBelow: hasTextBelow ? textBelow : undefined,
+        hostingTier: (qrType === "upload" || qrType === "design") ? "1_year" : undefined,
+      },
+      price: priceQuote.finalPrice.toFixed(2),
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -637,7 +749,9 @@ export default function Creator() {
                   <div className="border-t pt-4 mt-2">
                     <div className="flex items-center justify-between mb-3">
                       <Label>Custom Text (Optional)</Label>
-                      <Badge variant="outline" className="text-xs">+${TEXT_UPCHARGE.toFixed(2)} each</Badge>
+                      {priceQuote && priceQuote.breakdown.textAboveUpcharge > 0 && (
+                        <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textAboveUpcharge.toFixed(2)} each</Badge>
+                      )}
                     </div>
                     
                     <div className="space-y-2 mb-4">
@@ -670,9 +784,9 @@ export default function Creator() {
                       />
                     </div>
                     
-                    {(hasTextAbove || hasTextBelow) && (
+                    {priceQuote && (hasTextAbove || hasTextBelow) && (
                       <p className="text-xs text-muted-foreground">
-                        Text adds +${textUpchargeTotal.toFixed(2)} to your order
+                        Text adds +${(priceQuote.breakdown.textAboveUpcharge + priceQuote.breakdown.textBelowUpcharge).toFixed(2)} to your order
                       </p>
                     )}
                   </div>
@@ -684,10 +798,14 @@ export default function Creator() {
               <Button
                 size="lg"
                 className="flex-1"
-                disabled={!qrCodeImage || !selectedProduct}
+                disabled={!qrCodeImage || !selectedProduct || addToCartMutation.isPending || !priceQuote || pricingError || pricingMutation.isPending}
+                onClick={handleAddToCart}
                 data-testid="button-add-to-cart"
               >
-                Add to Cart - ${totalPrice}
+                {addToCartMutation.isPending ? "Adding..." : 
+                 pricingMutation.isPending ? "Calculating..." : 
+                 pricingError ? "Pricing Error" :
+                 `Add to Cart - $${totalPrice}`}
               </Button>
               <Button
                 size="lg"
