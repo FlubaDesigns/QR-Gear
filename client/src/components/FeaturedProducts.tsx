@@ -1,4 +1,8 @@
-import ProductCard from "./ProductCard";
+import { Link } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import UsaFlag from "./UsaFlag";
 import tshirtImage from "@assets/generated_images/Product_mockup_white_tee_de332d78.png";
 import gymBagImage from "@assets/generated_images/Gym_bag_QR_mockup_9450e53d.png";
 
@@ -9,6 +13,7 @@ const products = [
     name: "Premium T-Shirt",
     price: 24.99,
     madeInUSA: true,
+    description: "Soft cotton blend with your custom QR code",
   },
   {
     id: 2,
@@ -16,6 +21,7 @@ const products = [
     name: "Gym Duffel Bag",
     price: 39.99,
     madeInUSA: true,
+    description: "Durable bag with private QR for your contact info",
   },
   {
     id: 3,
@@ -23,23 +29,75 @@ const products = [
     name: "Baseball Cap",
     price: 19.99,
     madeInUSA: false,
+    description: "Classic cap with front-panel QR code",
   },
 ];
 
 export default function FeaturedProducts() {
   return (
-    <section className="py-24 px-4 bg-card">
-      <div className="container mx-auto max-w-7xl">
+    <section className="py-24 px-4">
+      <div className="container mx-auto max-w-5xl">
         <h2 className="font-heading text-3xl md:text-4xl font-bold text-center mb-4">
           Featured Products
         </h2>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
           Explore our most popular QR code designs on premium products
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {products.map((product) => (
-            <ProductCard key={product.id} {...product} />
+            <Card 
+              key={product.id} 
+              className="glass-card border-0 overflow-hidden hover-elevate transition-all duration-200"
+              data-testid={`card-product-${product.id}`}
+            >
+              <div className="relative aspect-square bg-gradient-to-br from-white/80 to-white/40 dark:from-slate-800/80 dark:to-slate-900/40">
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
+                {product.madeInUSA && (
+                  <Badge 
+                    className="absolute top-3 right-3 gap-1.5 bg-white/90 dark:bg-slate-900/90 text-foreground"
+                    variant="secondary"
+                  >
+                    <UsaFlag className="w-4 h-3" />
+                    USA Made
+                  </Badge>
+                )}
+              </div>
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{product.description}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xl font-bold text-[#2ABED5]">
+                    ${product.price.toFixed(2)}
+                  </span>
+                  <Link href="/creator">
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      className="border-[#2ABED5]/30 hover:bg-[#2ABED5]/10"
+                      data-testid={`button-customize-${product.id}`}
+                    >
+                      Customize
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           ))}
+        </div>
+        <div className="text-center mt-12">
+          <Link href="/gallery">
+            <Button 
+              size="lg" 
+              className="bg-[#E5A832] hover:bg-[#E5A832]/90 text-[#051526] shadow-lg shadow-[#E5A832]/30"
+              data-testid="button-view-all-products"
+            >
+              View All Products
+            </Button>
+          </Link>
         </div>
       </div>
     </section>

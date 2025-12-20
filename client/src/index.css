@@ -450,3 +450,73 @@ html[data-theme="light"] {
 }
 
 /* Note: Header/footer layout rules are defined in styles/layout.css */
+
+/* Hero section background */
+.hero-bg {
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-gradient {
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.6), rgba(0,0,0,0.7));
+}
+
+/* Icon backgrounds for cyan/gold */
+.icon-bg-cyan {
+  background-color: rgba(42, 190, 213, 0.2);
+}
+
+.icon-bg-gold {
+  background-color: rgba(229, 168, 50, 0.2);
+}
+
+.icon-color-cyan {
+  color: #2ABED5;
+}
+
+.icon-color-gold {
+  color: #E5A832;
+}
+
+/* Stat card colors */
+.stat-icon-cyan {
+  background-color: rgba(42, 190, 213, 0.2);
+}
+
+.stat-icon-gold {
+  background-color: rgba(229, 168, 50, 0.2);
+}
+
+/* Button styles */
+.btn-cyan {
+  background-color: #2ABED5;
+  box-shadow: 0 10px 25px rgba(42, 190, 213, 0.3);
+}
+
+.btn-cyan:hover {
+  background-color: rgba(42, 190, 213, 0.9);
+}
+
+.btn-gold {
+  background-color: #E5A832;
+  color: #051526;
+  box-shadow: 0 10px 25px rgba(229, 168, 50, 0.3);
+}
+
+.btn-gold:hover {
+  background-color: rgba(229, 168, 50, 0.9);
+}
+
+/* Text colors */
+.text-cyan {
+  color: #2ABED5;
+}
+
+.text-gold {
+  color: #E5A832;
+}
+
+/* Impact stats section */
+.impact-stats-bg {
+  background: linear-gradient(to right, #051526, #0a2540);
+}
