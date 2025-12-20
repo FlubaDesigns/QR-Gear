@@ -549,7 +549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           productId: item.productId,
           quantity: item.quantity || 1,
           price: item.price,
-          customization: item.customization,
+          customization: item.customization as Record<string, unknown>,
         });
       }
 

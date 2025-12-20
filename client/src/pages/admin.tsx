@@ -51,6 +51,9 @@ import {
   Settings,
   Check,
   X,
+  Store,
+  Globe,
+  Link,
 } from "lucide-react";
 import {
   Category,
@@ -61,7 +64,8 @@ import {
   deleteCategory,
   seedDefaultCategories,
 } from "@/lib/categories";
-import type { Product, AdminSettings, ProductCategory } from "@shared/schema";
+import type { Product, AdminSettings, ProductCategory, PartnerStore } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ICON_MAP: Record<string, typeof Tag> = {
   Church,
@@ -1268,6 +1272,426 @@ function ProductCategoriesTab() {
   );
 }
 
+function PartnerStoresTab() {
+  const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingStore, setEditingStore] = useState<PartnerStore | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+    description: "",
+    logoUrl: "",
+    websiteUrl: "",
+    allowedOrigins: "",
+    primaryColor: "#1e40af",
+    accentColor: "#3b82f6",
+    commissionPercent: "0",
+    isActive: true,
+  });
+
+  const { data: stores, isLoading, refetch } = useQuery<PartnerStore[]>({
+    queryKey: ["/api/admin/partner-stores"],
+  });
+
+  const { data: products } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const res = await apiRequest("POST", "/api/admin/partner-stores", {
+        ...data,
+        allowedOrigins: data.allowedOrigins ? data.allowedOrigins.split(",").map(s => s.trim()) : null,
+      });
+      return res.json();
+    },
+    onSuccess: (store) => {
+      refetch();
+      if (selectedProducts.length > 0) {
+        syncProductsMutation.mutate({ storeId: store.id, productIds: selectedProducts });
+      }
+      setIsDialogOpen(false);
+      toast({ title: "Success", description: "Partner store created." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create store.", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      const res = await apiRequest("PUT", `/api/admin/partner-stores/${id}`, {
+        ...data,
+        allowedOrigins: data.allowedOrigins ? data.allowedOrigins.split(",").map(s => s.trim()) : null,
+      });
+      return res.json();
+    },
+    onSuccess: (store) => {
+      refetch();
+      syncProductsMutation.mutate({ storeId: store.id, productIds: selectedProducts });
+      setIsDialogOpen(false);
+      toast({ title: "Success", description: "Partner store updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update store.", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/partner-stores/${id}`);
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: "Deleted", description: "Partner store removed." });
+    },
+  });
+
+  const syncProductsMutation = useMutation({
+    mutationFn: async ({ storeId, productIds }: { storeId: string; productIds: string[] }) => {
+      await apiRequest("POST", `/api/admin/partner-stores/${storeId}/products`, { productIds });
+    },
+  });
+
+  function openCreateDialog() {
+    setEditingStore(null);
+    setFormData({
+      name: "",
+      slug: "",
+      description: "",
+      logoUrl: "",
+      websiteUrl: "",
+      allowedOrigins: "",
+      primaryColor: "#1e40af",
+      accentColor: "#3b82f6",
+      commissionPercent: "0",
+      isActive: true,
+    });
+    setSelectedProducts([]);
+    setIsDialogOpen(true);
+  }
+
+  async function openEditDialog(store: PartnerStore) {
+    setEditingStore(store);
+    setFormData({
+      name: store.name,
+      slug: store.slug,
+      description: store.description || "",
+      logoUrl: store.logoUrl || "",
+      websiteUrl: store.websiteUrl || "",
+      allowedOrigins: Array.isArray(store.allowedOrigins) ? store.allowedOrigins.join(", ") : "",
+      primaryColor: store.primaryColor || "#1e40af",
+      accentColor: store.accentColor || "#3b82f6",
+      commissionPercent: store.commissionPercent || "0",
+      isActive: store.isActive ?? true,
+    });
+    try {
+      const res = await fetch(`/api/admin/partner-stores/${store.id}/products`);
+      const storeProducts = await res.json();
+      setSelectedProducts(storeProducts.map((p: { productId: string }) => p.productId));
+    } catch {
+      setSelectedProducts([]);
+    }
+    setIsDialogOpen(true);
+  }
+
+  function handleSubmit() {
+    if (!formData.name.trim()) {
+      toast({ title: "Error", description: "Name is required.", variant: "destructive" });
+      return;
+    }
+    const slug = formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    const dataWithSlug = { ...formData, slug };
+    
+    if (editingStore) {
+      updateMutation.mutate({ id: editingStore.id, data: dataWithSlug });
+    } else {
+      createMutation.mutate(dataWithSlug);
+    }
+  }
+
+  function toggleProduct(productId: string) {
+    setSelectedProducts(prev =>
+      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <div>
+          <CardTitle>Partner Stores</CardTitle>
+          <CardDescription>
+            Configure embeddable mini-stores for partners like Kingdom Connects
+          </CardDescription>
+        </div>
+        <Button onClick={openCreateDialog} data-testid="button-add-partner-store">
+          <Plus className="w-4 h-4 mr-2" />
+          Add Store
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {(!stores || stores.length === 0) ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Store className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>No partner stores yet.</p>
+            <p className="text-sm">Add a partner to enable embedded mini-stores on their site.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead>Website</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Commission</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {stores.map(store => (
+                <TableRow key={store.id} data-testid={`row-partner-store-${store.id}`}>
+                  <TableCell className="font-medium">{store.name}</TableCell>
+                  <TableCell>
+                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{store.slug}</code>
+                  </TableCell>
+                  <TableCell>
+                    {store.websiteUrl && (
+                      <a href={store.websiteUrl} target="_blank" rel="noopener" className="text-primary hover:underline flex items-center gap-1">
+                        <Globe className="w-3 h-3" />
+                        Visit
+                      </a>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={store.isActive ? "default" : "secondary"}>
+                      {store.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{store.commissionPercent}%</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openEditDialog(store)}
+                        data-testid={`button-edit-store-${store.id}`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => deleteMutation.mutate(store.id)}
+                        data-testid={`button-delete-store-${store.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingStore ? "Edit Partner Store" : "Add Partner Store"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="store-name">Store Name</Label>
+                <Input
+                  id="store-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Kingdom Connects"
+                  data-testid="input-store-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-slug">Slug (URL path)</Label>
+                <Input
+                  id="store-slug"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  placeholder="kingdom-connects"
+                  data-testid="input-store-slug"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="store-description">Description</Label>
+              <Textarea
+                id="store-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Partner store description..."
+                data-testid="input-store-description"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="store-logo">Logo URL</Label>
+                <Input
+                  id="store-logo"
+                  value={formData.logoUrl}
+                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                  placeholder="https://..."
+                  data-testid="input-store-logo"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-website">Website URL</Label>
+                <Input
+                  id="store-website"
+                  value={formData.websiteUrl}
+                  onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
+                  placeholder="https://kingdomconnects.com"
+                  data-testid="input-store-website"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="store-origins">Allowed Origins (comma-separated)</Label>
+              <Input
+                id="store-origins"
+                value={formData.allowedOrigins}
+                onChange={(e) => setFormData({ ...formData, allowedOrigins: e.target.value })}
+                placeholder="https://kingdomconnects.com, https://app.kingdomconnects.com"
+                data-testid="input-store-origins"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="store-primary-color">Primary Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="store-primary-color"
+                    type="color"
+                    value={formData.primaryColor}
+                    onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                    className="w-12 h-9 p-1"
+                    data-testid="input-store-primary-color"
+                  />
+                  <Input
+                    value={formData.primaryColor}
+                    onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-accent-color">Accent Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="store-accent-color"
+                    type="color"
+                    value={formData.accentColor}
+                    onChange={(e) => setFormData({ ...formData, accentColor: e.target.value })}
+                    className="w-12 h-9 p-1"
+                    data-testid="input-store-accent-color"
+                  />
+                  <Input
+                    value={formData.accentColor}
+                    onChange={(e) => setFormData({ ...formData, accentColor: e.target.value })}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-commission">Commission %</Label>
+                <Input
+                  id="store-commission"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.commissionPercent}
+                  onChange={(e) => setFormData({ ...formData, commissionPercent: e.target.value })}
+                  data-testid="input-store-commission"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="store-active"
+                checked={formData.isActive}
+                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                data-testid="switch-store-active"
+              />
+              <Label htmlFor="store-active">Store Active</Label>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Products Available in Store</Label>
+              <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+                {products && products.length > 0 ? (
+                  <div className="grid gap-2">
+                    {products.filter(p => p.isEnabled).map(product => (
+                      <label
+                        key={product.id}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+                      >
+                        <Checkbox
+                          checked={selectedProducts.includes(product.id)}
+                          onCheckedChange={() => toggleProduct(product.id)}
+                          data-testid={`checkbox-product-${product.id}`}
+                        />
+                        <span className="text-sm">{product.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No products available</p>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedProducts.length} product(s) selected
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSubmit}
+              disabled={createMutation.isPending || updateMutation.isPending || !formData.name}
+              data-testid="button-save-store"
+            >
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              {editingStore ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 export default function Admin() {
   const [, navigate] = useLocation();
 
@@ -1297,7 +1721,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="products" className="gap-2">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Products</span>
@@ -1317,6 +1741,10 @@ export default function Admin() {
             <TabsTrigger value="product-tags" className="gap-2">
               <Tag className="h-4 w-4" />
               <span className="hidden sm:inline">Tags</span>
+            </TabsTrigger>
+            <TabsTrigger value="partners" className="gap-2">
+              <Store className="h-4 w-4" />
+              <span className="hidden sm:inline">Partners</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1338,6 +1766,10 @@ export default function Admin() {
 
           <TabsContent value="product-tags">
             <ProductCategoriesTab />
+          </TabsContent>
+
+          <TabsContent value="partners">
+            <PartnerStoresTab />
           </TabsContent>
         </Tabs>
       </main>
