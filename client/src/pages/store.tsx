@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import SEO from "@/components/SEO";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,11 @@ export default function Store() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO 
+        title="Shop QR Products | QR Gear"
+        description="Browse our collection of USA-made merchandise for your custom QR codes. T-shirts, hats, mugs, bags and more ready for customization."
+        keywords="QR code products, custom merchandise, promotional items, QR shirts, QR hats"
+      />
       <Navbar />
       <main className="flex-1 bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <PageBreadcrumb currentPage="Shop" />

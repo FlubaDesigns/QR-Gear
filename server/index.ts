@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedProducts } from "./lib/seed-products";
@@ -83,6 +84,36 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: "Too many requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: "Too many requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: { error: "Upload limit reached, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/checkout", strictLimiter);
+app.use("/api/orders", generalLimiter);
+app.use("/api/images/upload", uploadLimiter);
+app.use("/api/qr/generate", generalLimiter);
+app.use("/api/", generalLimiter);
 
 app.use((req, res, next) => {
   const start = Date.now();

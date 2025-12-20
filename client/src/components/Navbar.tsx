@@ -1,17 +1,27 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { ShoppingCart, Menu, X, Settings, User, Shield, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QRButton } from "@/components/QRButton";
 import { useAuth } from "@/hooks/useAuth";
+import { useGuestCart } from "@/hooks/useGuestCart";
+import type { CartItem } from "@shared/schema";
 
 export default function Navbar() {
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { user, isAuthenticated, isLoading } = useAuth();
-  const cartCount = 0;
+  const { itemCount: guestCartCount } = useGuestCart();
+
+  const { data: serverCartItems = [] } = useQuery<CartItem[]>({
+    queryKey: ["/api/cart"],
+    enabled: isAuthenticated,
+  });
+
+  const cartCount = isAuthenticated ? serverCartItems.length : guestCartCount;
 
   useEffect(() => {
     setMenuOpen(false);

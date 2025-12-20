@@ -18,6 +18,8 @@ import type {
   InsertOrderItem,
   HostedImage,
   InsertHostedImage,
+  HostingReminder,
+  InsertHostingReminder,
   BrowsingHistory,
   InsertBrowsingHistory,
   PricingRule,
@@ -81,6 +83,7 @@ export interface IStorage {
   // Order operations
   getOrder(id: string): Promise<Order | undefined>;
   getOrdersByUser(userId: string): Promise<Order[]>;
+  getOrdersByStatus(status: string): Promise<Order[]>;
   getOrderByStripeSession(sessionId: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
@@ -92,9 +95,15 @@ export interface IStorage {
   // Hosted Image operations
   getHostedImage(id: string): Promise<HostedImage | undefined>;
   getHostedImagesByUser(userId: string): Promise<HostedImage[]>;
+  getAllHostedImages(): Promise<HostedImage[]>;
   createHostedImage(image: InsertHostedImage): Promise<HostedImage>;
+  updateHostedImage(id: string, image: Partial<InsertHostedImage>): Promise<HostedImage | undefined>;
   incrementImageViews(id: string): Promise<void>;
   deleteHostedImage(id: string): Promise<void>;
+
+  // Hosting Reminder operations
+  getHostingReminderByImageAndDays(imageId: string, daysRemaining: number): Promise<HostingReminder | undefined>;
+  createHostingReminder(reminder: InsertHostingReminder): Promise<HostingReminder>;
 
   // Admin Settings operations
   getAdminSettings(): Promise<AdminSettings | undefined>;
@@ -314,6 +323,10 @@ export class DbStorage implements IStorage {
     return this.db.select().from(schema.orders).where(eq(schema.orders.userId, userId));
   }
 
+  async getOrdersByStatus(status: string): Promise<Order[]> {
+    return this.db.select().from(schema.orders).where(eq(schema.orders.status, status));
+  }
+
   async getOrderByStripeSession(sessionId: string): Promise<Order | undefined> {
     const [order] = await this.db.select().from(schema.orders).where(eq(schema.orders.stripeSessionId, sessionId));
     return order;
@@ -353,9 +366,22 @@ export class DbStorage implements IStorage {
     return this.db.select().from(schema.hostedImages).where(eq(schema.hostedImages.userId, userId));
   }
 
+  async getAllHostedImages(): Promise<HostedImage[]> {
+    return this.db.select().from(schema.hostedImages);
+  }
+
   async createHostedImage(image: InsertHostedImage): Promise<HostedImage> {
     const [newImage] = await this.db.insert(schema.hostedImages).values(image).returning();
     return newImage;
+  }
+
+  async updateHostedImage(id: string, image: Partial<InsertHostedImage>): Promise<HostedImage | undefined> {
+    const [updated] = await this.db
+      .update(schema.hostedImages)
+      .set(image)
+      .where(eq(schema.hostedImages.id, id))
+      .returning();
+    return updated;
   }
 
   async incrementImageViews(id: string): Promise<void> {
@@ -370,6 +396,18 @@ export class DbStorage implements IStorage {
 
   async deleteHostedImage(id: string): Promise<void> {
     await this.db.delete(schema.hostedImages).where(eq(schema.hostedImages.id, id));
+  }
+
+  // Hosting Reminder operations
+  async getHostingReminderByImageAndDays(imageId: string, daysRemaining: number): Promise<HostingReminder | undefined> {
+    const reminderType = `${daysRemaining}_day`;
+    const results = await this.db.select().from(schema.hostingReminders).where(eq(schema.hostingReminders.customGiftId, imageId));
+    return results.find(r => r.reminderType === reminderType);
+  }
+
+  async createHostingReminder(reminder: InsertHostingReminder): Promise<HostingReminder> {
+    const [newReminder] = await this.db.insert(schema.hostingReminders).values(reminder).returning();
+    return newReminder;
   }
 
   // Admin Settings operations
@@ -941,6 +979,10 @@ class MemStorage implements IStorage {
     return Array.from(this.orders.values()).filter(order => order.userId === userId);
   }
 
+  async getOrdersByStatus(status: string): Promise<Order[]> {
+    return Array.from(this.orders.values()).filter(order => order.status === status);
+  }
+
   async getOrderByStripeSession(sessionId: string): Promise<Order | undefined> {
     return Array.from(this.orders.values()).find(order => order.stripeSessionId === sessionId);
   }
@@ -995,6 +1037,10 @@ class MemStorage implements IStorage {
     return Array.from(this.hostedImages.values()).filter(img => img.userId === userId);
   }
 
+  async getAllHostedImages(): Promise<HostedImage[]> {
+    return Array.from(this.hostedImages.values());
+  }
+
   async createHostedImage(image: InsertHostedImage): Promise<HostedImage> {
     const id = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newImage: HostedImage = {
@@ -1014,6 +1060,14 @@ class MemStorage implements IStorage {
     return newImage;
   }
 
+  async updateHostedImage(id: string, image: Partial<InsertHostedImage>): Promise<HostedImage | undefined> {
+    const existing = this.hostedImages.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...image };
+    this.hostedImages.set(id, updated);
+    return updated;
+  }
+
   async incrementImageViews(id: string): Promise<void> {
     const image = this.hostedImages.get(id);
     if (image) {
@@ -1023,6 +1077,31 @@ class MemStorage implements IStorage {
 
   async deleteHostedImage(id: string): Promise<void> {
     this.hostedImages.delete(id);
+  }
+
+  // Hosting Reminder operations
+  private hostingReminders = new Map<string, HostingReminder>();
+
+  async getHostingReminderByImageAndDays(imageId: string, daysRemaining: number): Promise<HostingReminder | undefined> {
+    const reminderType = `${daysRemaining}_day`;
+    return Array.from(this.hostingReminders.values()).find(
+      r => r.customGiftId === imageId && r.reminderType === reminderType
+    );
+  }
+
+  async createHostingReminder(reminder: InsertHostingReminder): Promise<HostingReminder> {
+    const id = `reminder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newReminder: HostingReminder = {
+      ...reminder,
+      id,
+      userId: reminder.userId ?? null,
+      sentAt: reminder.sentAt ?? null,
+      emailAddress: reminder.emailAddress ?? null,
+      status: reminder.status ?? "pending",
+      createdAt: new Date(),
+    };
+    this.hostingReminders.set(id, newReminder);
+    return newReminder;
   }
 
   // Admin Settings operations

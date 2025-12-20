@@ -8,6 +8,9 @@ import { printify, getUSAPrintProviders } from "./lib/printify";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { sendOrderConfirmationEmail } from "./lib/email";
+import { submitOrderToPrintify, checkPrintifyOrderStatus } from "./lib/printify-orders";
+import { startCronJobs } from "./lib/cron-jobs";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -559,6 +562,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const orderItems = await storage.getOrderItems(order.id);
+
+      // Send order confirmation email
+      const user = await storage.getUser(userId);
+      if (user?.email) {
+        sendOrderConfirmationEmail({
+          orderId: order.id,
+          customerEmail: user.email,
+          customerName: user.firstName || 'Customer',
+          items: orderItems.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: parseFloat(item.price),
+          })),
+          totalAmount,
+          orderDate: new Date(),
+        }).catch(err => console.error('Failed to send order confirmation:', err));
+      }
+
       res.json({ order, items: orderItems });
     } catch (error: any) {
       console.error('Verify checkout error:', error);
@@ -630,6 +651,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Submit order to Printify for fulfillment
+  app.post("/api/orders/:id/submit-printify", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const order = await storage.getOrder(id);
+      
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      
+      if (order.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { shippingAddress } = req.body;
+      if (!shippingAddress) {
+        return res.status(400).json({ error: "Shipping address required" });
+      }
+
+      const result = await submitOrderToPrintify(id, shippingAddress);
+      if (result.success) {
+        res.json({ success: true, printifyOrderId: result.printifyOrderId });
+      } else {
+        res.status(500).json({ error: result.error });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check order status from Printify
+  app.get("/api/orders/:id/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const order = await storage.getOrder(id);
+      
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      
+      if (order.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const status = await checkPrintifyOrderStatus(id);
+      res.json(status);
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -1671,6 +1745,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Start cron jobs for hosting expiration checks and order status sync
+  startCronJobs();
 
   const httpServer = createServer(app);
   return httpServer;

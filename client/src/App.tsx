@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import Creator from "@/pages/creator";
 import Store from "@/pages/store";
+import Cart from "@/pages/cart";
 import Widget from "@/pages/widget";
 import Account from "@/pages/account";
 import ViewImage from "@/pages/view-image";
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/creator" component={Creator} />
       <Route path="/store" component={Store} />
       <Route path="/gallery" component={Store} />
+      <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
       <Route path="/admin" component={Admin} />

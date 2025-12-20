@@ -52,9 +52,47 @@ export async function generateImageQRCode(
   }
 }
 
+const DANGEROUS_PROTOCOLS = ['javascript:', 'data:', 'vbscript:', 'file:'];
+const SUSPICIOUS_PATTERNS = [
+  /<script\b/i,
+  /javascript:/i,
+  /on\w+\s*=/i,
+  /\beval\s*\(/i,
+  /\bdocument\./i,
+  /\bwindow\./i,
+];
+
+export function sanitizeQRContent(content: string): string {
+  if (!content) return '';
+  
+  let sanitized = content.trim();
+  
+  sanitized = sanitized
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+  
+  return sanitized;
+}
+
 export function validateQRContent(content: string, type: "text" | "image"): boolean {
   if (!content || content.trim().length === 0) {
     return false;
+  }
+
+  const lowerContent = content.toLowerCase().trim();
+  
+  for (const protocol of DANGEROUS_PROTOCOLS) {
+    if (lowerContent.startsWith(protocol)) {
+      return false;
+    }
+  }
+
+  for (const pattern of SUSPICIOUS_PATTERNS) {
+    if (pattern.test(content)) {
+      return false;
+    }
   }
 
   if (type === "text") {
@@ -63,7 +101,11 @@ export function validateQRContent(content: string, type: "text" | "image"): bool
 
   if (type === "image") {
     try {
-      new URL(content);
+      const url = new URL(content);
+      const allowedProtocols = ['http:', 'https:'];
+      if (!allowedProtocols.includes(url.protocol)) {
+        return false;
+      }
       return true;
     } catch {
       return false;

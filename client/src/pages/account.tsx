@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import SEO from "@/components/SEO";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Order, OrderItem, CartItem, Product, BrowsingHistory, QrDesign, DynamicPage } from "@shared/schema";
@@ -186,6 +187,11 @@ export default function Account() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <SEO 
+        title="My Account | QR Gear"
+        description="Manage your QR Gear account, view order history, track shipments, and manage your saved designs."
+        keywords="QR Gear account, order history, manage designs"
+      />
       <PageBreadcrumb currentPage="My Account" />
       <div className="max-w-6xl mx-auto space-y-6 p-6">
         <div className="glass-card rounded-xl p-6">
@@ -341,18 +347,51 @@ export default function Account() {
                         </div>
                       </div>
                     </CardHeader>
-                    {order.trackingNumber && (
-                      <CardContent>
-                        <div className="flex items-center gap-2 text-sm">
+                    <CardContent className="pt-0 space-y-3">
+                      {order.trackingNumber && (
+                        <div className="flex items-center gap-2 text-sm bg-muted/50 p-3 rounded-lg">
                           <Truck className="w-4 h-4 text-primary" />
                           <span>Tracking: {order.trackingNumber}</span>
-                          <Button variant="ghost" size="sm" className="ml-auto gap-1">
+                          <Button variant="ghost" size="sm" className="ml-auto gap-1" data-testid={`button-track-${order.id}`}>
                             <ExternalLink className="w-3 h-3" />
                             Track
                           </Button>
                         </div>
-                      </CardContent>
-                    )}
+                      )}
+                      
+                      {order.items && order.items.length > 0 && (
+                        <div className="space-y-2">
+                          {order.items.slice(0, 3).map((item, idx) => {
+                            const customization = item.customization as Record<string, unknown>;
+                            const productName = (customization?.productName as string) || "Custom QR Product";
+                            const size = customization?.productSize as string;
+                            const color = customization?.productColor as string;
+                            return (
+                              <div key={idx} className="flex items-center gap-3 text-sm border-l-2 border-primary/20 pl-3">
+                                <span className="font-medium">{productName}</span>
+                                {size && <Badge variant="outline" className="text-xs">{size}</Badge>}
+                                {color && <Badge variant="outline" className="text-xs">{color}</Badge>}
+                                <span className="text-muted-foreground ml-auto">x{item.quantity}</span>
+                              </div>
+                            );
+                          })}
+                          {order.items.length > 3 && (
+                            <p className="text-xs text-muted-foreground pl-3">
+                              +{order.items.length - 3} more item(s)
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <Link href="/creator">
+                          <Button variant="outline" size="sm" className="gap-1" data-testid={`button-reorder-${order.id}`}>
+                            <RefreshCw className="w-3 h-3" />
+                            Reorder Similar
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>

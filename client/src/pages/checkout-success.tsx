@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Package, ArrowRight, Mail, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import SEO from "@/components/SEO";
 import type { Order, OrderItem } from "@shared/schema";
 
 interface OrderWithItems extends Order {
@@ -103,6 +104,10 @@ export default function CheckoutSuccess() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO 
+        title="Order Confirmed | QR Gear"
+        description="Your QR Gear order has been confirmed and is being processed."
+      />
       <PageBreadcrumb
         items={[
           { label: "Home", href: "/" },

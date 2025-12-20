@@ -9,9 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useGuestCart } from "@/hooks/useGuestCart";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/Navbar";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
 import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw } from "lucide-react";
 import ImageDesigner from "@/components/ImageDesigner";
@@ -55,6 +58,29 @@ const placements = [
   { value: "side-right", label: "Side Right" },
 ];
 
+const standardSizes = [
+  { value: "XS", label: "XS" },
+  { value: "S", label: "S" },
+  { value: "M", label: "M" },
+  { value: "L", label: "L" },
+  { value: "XL", label: "XL" },
+  { value: "2XL", label: "2XL" },
+  { value: "3XL", label: "3XL" },
+];
+
+const mugSizes = [
+  { value: "11oz", label: "11 oz" },
+  { value: "15oz", label: "15 oz" },
+];
+
+const hatSizes = [
+  { value: "One Size", label: "One Size" },
+];
+
+const bagSizes = [
+  { value: "Standard", label: "Standard" },
+];
+
 interface PriceQuote {
   productLine: string;
   basePrice: number;
@@ -74,6 +100,8 @@ interface PriceQuote {
 
 export default function Creator() {
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
+  const { addItem: addGuestItem } = useGuestCart();
   const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design" | "template" | "dynamic">("text");
   const [qrContent, setQrContent] = useState("");
   const [qrColor, setQrColor] = useState("#000000");
@@ -97,6 +125,7 @@ export default function Creator() {
   const [dynamicPageTitle, setDynamicPageTitle] = useState("");
   const [dynamicPageDescription, setDynamicPageDescription] = useState("");
   const [dynamicHostingTier, setDynamicHostingTier] = useState<string>("1_year");
+  const [selectedSize, setSelectedSize] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
@@ -417,6 +446,23 @@ export default function Creator() {
   const availablePlacements = selectedProduct?.availablePlacements || [];
   const availableColors = (selectedProduct?.availableColors as any[]) || [];
 
+  const getAvailableSizes = () => {
+    if (!selectedProduct) return [];
+    const productName = selectedProduct.name.toLowerCase();
+    if (productName.includes("mug")) return mugSizes;
+    if (productName.includes("hat") || productName.includes("cap")) return hatSizes;
+    if (productName.includes("bag") || productName.includes("tote")) return bagSizes;
+    return standardSizes;
+  };
+  const availableSizes = getAvailableSizes();
+
+  useEffect(() => {
+    if (selectedProduct && availableSizes.length > 0 && !selectedSize) {
+      const mediumSize = availableSizes.find(s => s.value === "M" || s.value === "L");
+      setSelectedSize(mediumSize?.value || availableSizes[0].value);
+    }
+  }, [selectedProduct?.id]);
+
   const hasTextAbove = textAbove.trim().length > 0;
   const hasTextBelow = textBelow.trim().length > 0;
 
@@ -460,10 +506,9 @@ export default function Creator() {
     if (!selectedProduct || !priceQuote) return;
     if (qrType === "template" && !selectedTemplate) return;
     if (qrType === "dynamic" && !dynamicPageTitle.trim()) return;
-    // QR code image is required for all types except dynamic (which generates later)
     if (qrType !== "dynamic" && !qrCodeImage) return;
     
-    addToCartMutation.mutate({
+    const cartData = {
       productId: selectedProduct.id,
       quantity: 1,
       customization: {
@@ -473,6 +518,9 @@ export default function Creator() {
         qrBgColor,
         placement,
         productColor,
+        productSize: selectedSize,
+        productName: selectedProduct.name,
+        productImage: selectedProduct.imageUrl,
         textAbove: hasTextAbove && qrType !== "dynamic" ? textAbove : undefined,
         textBelow: hasTextBelow && qrType !== "dynamic" ? textBelow : undefined,
         hostingTier: (qrType === "upload" || qrType === "design") ? selectedHostingTier : undefined,
@@ -487,11 +535,26 @@ export default function Creator() {
         dynamicHostingTier: qrType === "dynamic" ? dynamicHostingTier : undefined,
       },
       price: priceQuote.finalPrice.toFixed(2),
-    });
+    };
+
+    if (isAuthenticated) {
+      addToCartMutation.mutate(cartData);
+    } else {
+      addGuestItem(cartData);
+      toast({
+        title: "Added to cart",
+        description: "Your custom QR product has been added to your cart",
+      });
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO 
+        title="QR Code Creator | Design Your Custom QR Products | QR Gear"
+        description="Design your custom QR code merchandise. Add text, upload images, or create dynamic QR codes that you can update anytime. USA-made products."
+        keywords="QR code creator, custom QR design, QR merchandise designer, dynamic QR codes"
+      />
       <Navbar />
       <PageBreadcrumb currentPage="Create" />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -523,23 +586,23 @@ export default function Creator() {
                     setSelectedTemplate(null);
                   }
                 }}>
-                  <TabsList className="grid w-full grid-cols-6">
+                  <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
                     <TabsTrigger value="text" data-testid="tab-qr-text">Text</TabsTrigger>
                     <TabsTrigger value="template" data-testid="tab-qr-template" className="flex items-center gap-1">
-                      <LayoutTemplate className="w-3 h-3" />
+                      <LayoutTemplate className="w-3 h-3 hidden sm:inline" />
                       Gift
                     </TabsTrigger>
                     <TabsTrigger value="image" data-testid="tab-qr-image">URL</TabsTrigger>
                     <TabsTrigger value="upload" data-testid="tab-qr-upload" className="flex items-center gap-1">
-                      <Upload className="w-3 h-3" />
+                      <Upload className="w-3 h-3 hidden sm:inline" />
                       Upload
                     </TabsTrigger>
                     <TabsTrigger value="design" data-testid="tab-qr-design" className="flex items-center gap-1">
-                      <Palette className="w-3 h-3" />
+                      <Palette className="w-3 h-3 hidden sm:inline" />
                       Design
                     </TabsTrigger>
                     <TabsTrigger value="dynamic" data-testid="tab-qr-dynamic" className="flex items-center gap-1">
-                      <RefreshCw className="w-3 h-3" />
+                      <RefreshCw className="w-3 h-3 hidden sm:inline" />
                       Dynamic
                     </TabsTrigger>
                   </TabsList>
@@ -1110,7 +1173,7 @@ export default function Creator() {
 
                   <div>
                     <Label>Product Color</Label>
-                    <div className="grid grid-cols-4 gap-2 mt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
                       {availableColors.map((color: any) => (
                         <Button
                           key={color.name}
@@ -1124,6 +1187,22 @@ export default function Creator() {
                             style={{ backgroundColor: color.hex }}
                           />
                           <span className="text-xs">{color.name}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Size</Label>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
+                      {availableSizes.map((size) => (
+                        <Button
+                          key={size.value}
+                          variant={selectedSize === size.value ? "default" : "outline"}
+                          onClick={() => setSelectedSize(size.value)}
+                          data-testid={`button-size-${size.value.toLowerCase()}`}
+                        >
+                          {size.label}
                         </Button>
                       ))}
                     </div>
