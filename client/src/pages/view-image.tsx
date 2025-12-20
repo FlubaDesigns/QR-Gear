@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Eye, Calendar, Building2 } from "lucide-react";
 
 interface HostedImageInfo {
@@ -23,6 +22,7 @@ export default function ViewImage() {
     queryKey: ['/api/images/info', imageId],
     enabled: !!imageId,
   });
+  // Note: View count is incremented server-side when the image is loaded via GET /api/images/:id
 
   if (isLoading) {
     return (
