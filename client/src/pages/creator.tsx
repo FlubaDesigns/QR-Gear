@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/Navbar";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import UsaFlag from "@/components/UsaFlag";
 import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw } from "lucide-react";
 import ImageDesigner from "@/components/ImageDesigner";
@@ -492,6 +493,7 @@ export default function Creator() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <PageBreadcrumb currentPage="Create" />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <h1 className="font-heading text-4xl font-bold mb-2">QR Code Creator</h1>
         <p className="text-muted-foreground mb-8">

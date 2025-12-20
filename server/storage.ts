@@ -36,6 +36,10 @@ import type {
   InsertProductCategory,
   ProductCategoryAssignment,
   InsertProductCategoryAssignment,
+  PartnerStore,
+  InsertPartnerStore,
+  PartnerStoreProduct,
+  InsertPartnerStoreProduct,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -156,6 +160,21 @@ export interface IStorage {
   assignProductToCategory(assignment: InsertProductCategoryAssignment): Promise<ProductCategoryAssignment>;
   removeProductFromCategory(productId: string, categoryId: string): Promise<void>;
   syncProductCategories(productId: string, categoryIds: string[]): Promise<void>;
+
+  // Partner Store operations
+  getPartnerStores(): Promise<PartnerStore[]>;
+  getPartnerStore(id: string): Promise<PartnerStore | undefined>;
+  getPartnerStoreBySlug(slug: string): Promise<PartnerStore | undefined>;
+  createPartnerStore(store: InsertPartnerStore): Promise<PartnerStore>;
+  updatePartnerStore(id: string, store: Partial<InsertPartnerStore>): Promise<PartnerStore | undefined>;
+  deletePartnerStore(id: string): Promise<void>;
+
+  // Partner Store Product operations
+  getPartnerStoreProducts(partnerStoreId: string): Promise<PartnerStoreProduct[]>;
+  addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct>;
+  updatePartnerStoreProduct(id: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined>;
+  removePartnerStoreProduct(id: string): Promise<void>;
+  syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -643,6 +662,76 @@ export class DbStorage implements IStorage {
       await this.db.insert(schema.productCategoryAssignments).values(assignments);
     }
   }
+
+  // Partner Store operations
+  async getPartnerStores(): Promise<PartnerStore[]> {
+    return await this.db.select().from(schema.partnerStores);
+  }
+
+  async getPartnerStore(id: string): Promise<PartnerStore | undefined> {
+    const [store] = await this.db.select().from(schema.partnerStores).where(eq(schema.partnerStores.id, id));
+    return store;
+  }
+
+  async getPartnerStoreBySlug(slug: string): Promise<PartnerStore | undefined> {
+    const [store] = await this.db.select().from(schema.partnerStores).where(eq(schema.partnerStores.slug, slug));
+    return store;
+  }
+
+  async createPartnerStore(store: InsertPartnerStore): Promise<PartnerStore> {
+    const [newStore] = await this.db.insert(schema.partnerStores).values(store).returning();
+    return newStore;
+  }
+
+  async updatePartnerStore(id: string, store: Partial<InsertPartnerStore>): Promise<PartnerStore | undefined> {
+    const [updated] = await this.db
+      .update(schema.partnerStores)
+      .set({ ...store, updatedAt: new Date() })
+      .where(eq(schema.partnerStores.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePartnerStore(id: string): Promise<void> {
+    await this.db.delete(schema.partnerStoreProducts).where(eq(schema.partnerStoreProducts.partnerStoreId, id));
+    await this.db.delete(schema.partnerStores).where(eq(schema.partnerStores.id, id));
+  }
+
+  // Partner Store Product operations
+  async getPartnerStoreProducts(partnerStoreId: string): Promise<PartnerStoreProduct[]> {
+    return await this.db.select().from(schema.partnerStoreProducts)
+      .where(eq(schema.partnerStoreProducts.partnerStoreId, partnerStoreId));
+  }
+
+  async addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct> {
+    const [newProduct] = await this.db.insert(schema.partnerStoreProducts).values(product).returning();
+    return newProduct;
+  }
+
+  async updatePartnerStoreProduct(id: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined> {
+    const [updated] = await this.db
+      .update(schema.partnerStoreProducts)
+      .set(product)
+      .where(eq(schema.partnerStoreProducts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async removePartnerStoreProduct(id: string): Promise<void> {
+    await this.db.delete(schema.partnerStoreProducts).where(eq(schema.partnerStoreProducts.id, id));
+  }
+
+  async syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void> {
+    await this.db.delete(schema.partnerStoreProducts).where(eq(schema.partnerStoreProducts.partnerStoreId, partnerStoreId));
+    if (productIds.length > 0) {
+      const products = productIds.map((productId, index) => ({
+        partnerStoreId,
+        productId,
+        sortOrder: index,
+      }));
+      await this.db.insert(schema.partnerStoreProducts).values(products);
+    }
+  }
 }
 
 // In-memory storage implementation
@@ -657,6 +746,8 @@ class MemStorage implements IStorage {
   private browsingHistory = new Map<string, BrowsingHistory>();
   private adminSettings: AdminSettings | undefined;
   private pricingRules = new Map<string, PricingRule>();
+  private partnerStores = new Map<string, PartnerStore>();
+  private partnerStoreProducts = new Map<string, PartnerStoreProduct>();
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
@@ -1296,6 +1387,94 @@ class MemStorage implements IStorage {
     }
     for (const categoryId of categoryIds) {
       await this.assignProductToCategory({ productId, categoryId });
+    }
+  }
+
+  // Partner Store operations
+  async getPartnerStores(): Promise<PartnerStore[]> {
+    return Array.from(this.partnerStores.values());
+  }
+
+  async getPartnerStore(id: string): Promise<PartnerStore | undefined> {
+    return this.partnerStores.get(id);
+  }
+
+  async getPartnerStoreBySlug(slug: string): Promise<PartnerStore | undefined> {
+    return Array.from(this.partnerStores.values()).find(s => s.slug === slug);
+  }
+
+  async createPartnerStore(store: InsertPartnerStore): Promise<PartnerStore> {
+    const id = `ps_${Date.now()}`;
+    const newStore: PartnerStore = {
+      ...store,
+      id,
+      description: store.description ?? null,
+      logoUrl: store.logoUrl ?? null,
+      websiteUrl: store.websiteUrl ?? null,
+      allowedOrigins: store.allowedOrigins ?? null,
+      primaryColor: store.primaryColor ?? null,
+      accentColor: store.accentColor ?? null,
+      commissionPercent: store.commissionPercent ?? "0",
+      isActive: store.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.partnerStores.set(id, newStore);
+    return newStore;
+  }
+
+  async updatePartnerStore(id: string, store: Partial<InsertPartnerStore>): Promise<PartnerStore | undefined> {
+    const existing = this.partnerStores.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...store, updatedAt: new Date() };
+    this.partnerStores.set(id, updated);
+    return updated;
+  }
+
+  async deletePartnerStore(id: string): Promise<void> {
+    for (const [productId, product] of this.partnerStoreProducts) {
+      if (product.partnerStoreId === id) this.partnerStoreProducts.delete(productId);
+    }
+    this.partnerStores.delete(id);
+  }
+
+  // Partner Store Product operations
+  async getPartnerStoreProducts(partnerStoreId: string): Promise<PartnerStoreProduct[]> {
+    return Array.from(this.partnerStoreProducts.values()).filter(p => p.partnerStoreId === partnerStoreId);
+  }
+
+  async addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct> {
+    const id = `psp_${Date.now()}`;
+    const newProduct: PartnerStoreProduct = {
+      ...product,
+      id,
+      customPrice: product.customPrice ?? null,
+      customName: product.customName ?? null,
+      sortOrder: product.sortOrder ?? 0,
+      isEnabled: product.isEnabled ?? true,
+    };
+    this.partnerStoreProducts.set(id, newProduct);
+    return newProduct;
+  }
+
+  async updatePartnerStoreProduct(id: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined> {
+    const existing = this.partnerStoreProducts.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...product };
+    this.partnerStoreProducts.set(id, updated);
+    return updated;
+  }
+
+  async removePartnerStoreProduct(id: string): Promise<void> {
+    this.partnerStoreProducts.delete(id);
+  }
+
+  async syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void> {
+    for (const [id, product] of this.partnerStoreProducts) {
+      if (product.partnerStoreId === partnerStoreId) this.partnerStoreProducts.delete(id);
+    }
+    for (let i = 0; i < productIds.length; i++) {
+      await this.addPartnerStoreProduct({ partnerStoreId, productId: productIds[i], sortOrder: i });
     }
   }
 }

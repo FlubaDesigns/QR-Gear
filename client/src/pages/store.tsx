@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +99,7 @@ export default function Store() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <PageBreadcrumb currentPage="Shop" />
         <div className="container py-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">Shop QR Products</h1>

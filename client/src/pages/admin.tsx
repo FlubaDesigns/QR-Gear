@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1273,6 +1274,7 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <PageBreadcrumb currentPage="Admin Panel" />
 
       <main className="container max-w-6xl mx-auto py-8 px-4">
         <div className="flex items-center gap-4 mb-8">

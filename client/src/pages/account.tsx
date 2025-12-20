@@ -9,6 +9,7 @@ import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCa
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Order, OrderItem, CartItem, Product, BrowsingHistory, QrDesign, DynamicPage } from "@shared/schema";
@@ -184,8 +185,9 @@ export default function Account() {
   const isLoading = ordersLoading || cartLoading || historyLoading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <PageBreadcrumb currentPage="My Account" />
+      <div className="max-w-6xl mx-auto space-y-6 p-6">
         <div className="glass-card rounded-xl p-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
