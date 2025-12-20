@@ -741,8 +741,8 @@ export default function Creator() {
                           )}
                         </Button>
                         <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-md">
-                          <Badge variant="outline" className="text-xs">+${IMAGE_HOSTING_UPCHARGE.toFixed(2)}</Badge>
-                          <span className="text-sm">Image hosting included for 1 year</span>
+                          <Badge variant="outline" className="text-xs">Included</Badge>
+                          <span className="text-sm">1-year image hosting included in price</span>
                         </div>
                       </div>
                     ) : (
