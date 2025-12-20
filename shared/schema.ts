@@ -57,10 +57,12 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(),
+  productLine: text("product_line").default("all"), // 'text', 'template', 'custom', 'all'
   basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
   imageUrl: text("image_url"),
   manufacturer: text("manufacturer"),
   madeInUSA: boolean("made_in_usa").default(false),
+  defaultPlacement: text("default_placement").default("front-chest"),
   availablePlacements: text("available_placements").array(),
   availableColors: jsonb("available_colors"),
   metadata: jsonb("metadata"),
@@ -71,6 +73,70 @@ export const products = pgTable("products", {
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Product variants from Printify (size, color combinations)
+export const productVariants = pgTable("product_variants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  printifyVariantId: integer("printify_variant_id").notNull(),
+  title: text("title").notNull(), // e.g., "S / White"
+  size: text("size"),
+  color: text("color"),
+  colorHex: text("color_hex"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  isEnabled: boolean("is_enabled").default(true),
+  isInStock: boolean("is_in_stock").default(true),
+});
+
+// Pre-designed QR templates (curated backgrounds like "John 3:16")
+export const qrTemplates = pgTable("qr_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category"), // 'religious', 'business', 'sports', etc.
+  thumbnailUrl: text("thumbnail_url").notNull(),
+  fullImageUrl: text("full_image_url").notNull(),
+  storageUrl: text("storage_url").notNull(),
+  qrPlacement: jsonb("qr_placement"), // {x, y, width, height} as percentages
+  availableSizes: text("available_sizes").array(), // ['small', 'medium', 'large']
+  defaultTextAbove: text("default_text_above"),
+  defaultTextBelow: text("default_text_below"),
+  textStyle: jsonb("text_style"), // {font, color, size}
+  priceUpcharge: decimal("price_upcharge", { precision: 10, scale: 2 }).default("0"),
+  isActive: boolean("is_active").default(true),
+  isFeatured: boolean("is_featured").default(false),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Partner stores for embeddable widgets (Kingdom Connects, etc.)
+export const partnerStores = pgTable("partner_stores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: text("slug").notNull().unique(), // 'kingdom-connects'
+  name: text("name").notNull(),
+  description: text("description"),
+  logoUrl: text("logo_url"),
+  websiteUrl: text("website_url"),
+  apiKey: text("api_key").notNull(), // for JWT token generation
+  allowedOrigins: text("allowed_origins").array(), // CORS origins
+  primaryColor: text("primary_color"),
+  accentColor: text("accent_color"),
+  commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Products enabled for each partner store
+export const partnerStoreProducts = pgTable("partner_store_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerStoreId: varchar("partner_store_id").notNull().references(() => partnerStores.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  customPrice: decimal("custom_price", { precision: 10, scale: 2 }),
+  customName: text("custom_name"),
+  sortOrder: integer("sort_order").default(0),
+  isEnabled: boolean("is_enabled").default(true),
 });
 
 export const pricingRules = pgTable("pricing_rules", {
@@ -200,6 +266,19 @@ export const customGifts = pgTable("custom_gifts", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Hosting reminder events (for email notifications)
+export const hostingReminders = pgTable("hosting_reminders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customGiftId: varchar("custom_gift_id").notNull().references(() => customGifts.id),
+  userId: varchar("user_id").references(() => users.id),
+  reminderType: text("reminder_type").notNull(), // '30_days', '7_days', 'expired'
+  scheduledFor: timestamp("scheduled_for").notNull(),
+  sentAt: timestamp("sent_at"),
+  emailAddress: text("email_address"),
+  status: text("status").default("pending"), // 'pending', 'sent', 'failed'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -268,6 +347,30 @@ export const insertCustomGiftSchema = createInsertSchema(customGifts).omit({
   updatedAt: true,
 });
 
+export const insertProductVariantSchema = createInsertSchema(productVariants).omit({
+  id: true,
+});
+
+export const insertQrTemplateSchema = createInsertSchema(qrTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPartnerStoreSchema = createInsertSchema(partnerStores).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPartnerStoreProductSchema = createInsertSchema(partnerStoreProducts).omit({
+  id: true,
+});
+
+export const insertHostingReminderSchema = createInsertSchema(hostingReminders).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -307,5 +410,20 @@ export type InsertHostingTier = z.infer<typeof insertHostingTierSchema>;
 
 export type CustomGift = typeof customGifts.$inferSelect;
 export type InsertCustomGift = z.infer<typeof insertCustomGiftSchema>;
+
+export type ProductVariant = typeof productVariants.$inferSelect;
+export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
+
+export type QrTemplate = typeof qrTemplates.$inferSelect;
+export type InsertQrTemplate = z.infer<typeof insertQrTemplateSchema>;
+
+export type PartnerStore = typeof partnerStores.$inferSelect;
+export type InsertPartnerStore = z.infer<typeof insertPartnerStoreSchema>;
+
+export type PartnerStoreProduct = typeof partnerStoreProducts.$inferSelect;
+export type InsertPartnerStoreProduct = z.infer<typeof insertPartnerStoreProductSchema>;
+
+export type HostingReminder = typeof hostingReminders.$inferSelect;
+export type InsertHostingReminder = z.infer<typeof insertHostingReminderSchema>;
 
 export type UpsertUser = typeof users.$inferInsert;

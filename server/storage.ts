@@ -24,6 +24,10 @@ import type {
   InsertPricingRule,
   AdminSettings,
   InsertAdminSettings,
+  HostingTier,
+  InsertHostingTier,
+  QrTemplate,
+  InsertQrTemplate,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -93,6 +97,22 @@ export interface IStorage {
   // Admin Product operations
   getEnabledProducts(): Promise<Product[]>;
   toggleProductEnabled(id: string, enabled: boolean): Promise<Product | undefined>;
+
+  // Hosting Tier operations
+  getHostingTiers(): Promise<HostingTier[]>;
+  getHostingTier(id: string): Promise<HostingTier | undefined>;
+  getHostingTierByCode(code: string): Promise<HostingTier | undefined>;
+  createHostingTier(tier: InsertHostingTier): Promise<HostingTier>;
+  updateHostingTier(id: string, tier: Partial<InsertHostingTier>): Promise<HostingTier | undefined>;
+  deleteHostingTier(id: string): Promise<void>;
+
+  // QR Template operations
+  getQrTemplates(): Promise<QrTemplate[]>;
+  getActiveQrTemplates(): Promise<QrTemplate[]>;
+  getQrTemplate(id: string): Promise<QrTemplate | undefined>;
+  createQrTemplate(template: InsertQrTemplate): Promise<QrTemplate>;
+  updateQrTemplate(id: string, template: Partial<InsertQrTemplate>): Promise<QrTemplate | undefined>;
+  deleteQrTemplate(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -343,6 +363,71 @@ export class DbStorage implements IStorage {
       .where(eq(schema.products.id, id))
       .returning();
     return updated;
+  }
+
+  // Hosting Tier operations
+  async getHostingTiers(): Promise<HostingTier[]> {
+    return this.db.select().from(schema.hostingTiers);
+  }
+
+  async getHostingTier(id: string): Promise<HostingTier | undefined> {
+    const [tier] = await this.db.select().from(schema.hostingTiers).where(eq(schema.hostingTiers.id, id));
+    return tier;
+  }
+
+  async getHostingTierByCode(code: string): Promise<HostingTier | undefined> {
+    const [tier] = await this.db.select().from(schema.hostingTiers).where(eq(schema.hostingTiers.code, code));
+    return tier;
+  }
+
+  async createHostingTier(tier: InsertHostingTier): Promise<HostingTier> {
+    const [newTier] = await this.db.insert(schema.hostingTiers).values(tier).returning();
+    return newTier;
+  }
+
+  async updateHostingTier(id: string, tier: Partial<InsertHostingTier>): Promise<HostingTier | undefined> {
+    const [updated] = await this.db
+      .update(schema.hostingTiers)
+      .set(tier)
+      .where(eq(schema.hostingTiers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteHostingTier(id: string): Promise<void> {
+    await this.db.delete(schema.hostingTiers).where(eq(schema.hostingTiers.id, id));
+  }
+
+  // QR Template operations
+  async getQrTemplates(): Promise<QrTemplate[]> {
+    return this.db.select().from(schema.qrTemplates);
+  }
+
+  async getActiveQrTemplates(): Promise<QrTemplate[]> {
+    return this.db.select().from(schema.qrTemplates).where(eq(schema.qrTemplates.isActive, true));
+  }
+
+  async getQrTemplate(id: string): Promise<QrTemplate | undefined> {
+    const [template] = await this.db.select().from(schema.qrTemplates).where(eq(schema.qrTemplates.id, id));
+    return template;
+  }
+
+  async createQrTemplate(template: InsertQrTemplate): Promise<QrTemplate> {
+    const [newTemplate] = await this.db.insert(schema.qrTemplates).values(template).returning();
+    return newTemplate;
+  }
+
+  async updateQrTemplate(id: string, template: Partial<InsertQrTemplate>): Promise<QrTemplate | undefined> {
+    const [updated] = await this.db
+      .update(schema.qrTemplates)
+      .set(template)
+      .where(eq(schema.qrTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteQrTemplate(id: string): Promise<void> {
+    await this.db.delete(schema.qrTemplates).where(eq(schema.qrTemplates.id, id));
   }
 }
 
@@ -694,6 +779,96 @@ class MemStorage implements IStorage {
     const updated = { ...existing, isEnabled: enabled, updatedAt: new Date() };
     this.products.set(id, updated);
     return updated;
+  }
+
+  // Hosting Tier operations (stubs for MemStorage)
+  private hostingTiers = new Map<string, HostingTier>();
+  private qrTemplates = new Map<string, QrTemplate>();
+
+  async getHostingTiers(): Promise<HostingTier[]> {
+    return Array.from(this.hostingTiers.values());
+  }
+
+  async getHostingTier(id: string): Promise<HostingTier | undefined> {
+    return this.hostingTiers.get(id);
+  }
+
+  async getHostingTierByCode(code: string): Promise<HostingTier | undefined> {
+    return Array.from(this.hostingTiers.values()).find(t => t.code === code);
+  }
+
+  async createHostingTier(tier: InsertHostingTier): Promise<HostingTier> {
+    const id = `tier_${Date.now()}`;
+    const newTier: HostingTier = {
+      ...tier,
+      id,
+      description: tier.description ?? null,
+      isIncluded: tier.isIncluded ?? false,
+      priceUpcharge: tier.priceUpcharge ?? "0",
+      isActive: tier.isActive ?? true,
+      sortOrder: tier.sortOrder ?? 0,
+    };
+    this.hostingTiers.set(id, newTier);
+    return newTier;
+  }
+
+  async updateHostingTier(id: string, tier: Partial<InsertHostingTier>): Promise<HostingTier | undefined> {
+    const existing = this.hostingTiers.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...tier };
+    this.hostingTiers.set(id, updated);
+    return updated;
+  }
+
+  async deleteHostingTier(id: string): Promise<void> {
+    this.hostingTiers.delete(id);
+  }
+
+  // QR Template operations
+  async getQrTemplates(): Promise<QrTemplate[]> {
+    return Array.from(this.qrTemplates.values());
+  }
+
+  async getActiveQrTemplates(): Promise<QrTemplate[]> {
+    return Array.from(this.qrTemplates.values()).filter(t => t.isActive);
+  }
+
+  async getQrTemplate(id: string): Promise<QrTemplate | undefined> {
+    return this.qrTemplates.get(id);
+  }
+
+  async createQrTemplate(template: InsertQrTemplate): Promise<QrTemplate> {
+    const id = `template_${Date.now()}`;
+    const newTemplate: QrTemplate = {
+      ...template,
+      id,
+      description: template.description ?? null,
+      category: template.category ?? null,
+      qrPlacement: template.qrPlacement ?? null,
+      availableSizes: template.availableSizes ?? null,
+      defaultTextAbove: template.defaultTextAbove ?? null,
+      defaultTextBelow: template.defaultTextBelow ?? null,
+      textStyle: template.textStyle ?? null,
+      priceUpcharge: template.priceUpcharge ?? "0",
+      isActive: template.isActive ?? true,
+      isFeatured: template.isFeatured ?? false,
+      sortOrder: template.sortOrder ?? 0,
+      createdAt: new Date(),
+    };
+    this.qrTemplates.set(id, newTemplate);
+    return newTemplate;
+  }
+
+  async updateQrTemplate(id: string, template: Partial<InsertQrTemplate>): Promise<QrTemplate | undefined> {
+    const existing = this.qrTemplates.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...template };
+    this.qrTemplates.set(id, updated);
+    return updated;
+  }
+
+  async deleteQrTemplate(id: string): Promise<void> {
+    this.qrTemplates.delete(id);
   }
 }
 

@@ -31,16 +31,48 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - **Database**: PostgreSQL via Neon serverless
 - **ORM**: Drizzle ORM with drizzle-kit for migrations
 - **Schema Location**: `shared/schema.ts` contains all table definitions
-- **Key Tables**: users, qrDesigns, products, cartItems, orders, orderItems
+- **Key Tables**:
+  - `users`: Customer accounts
+  - `products`: Printify products with pricing/markup controls
+  - `productVariants`: Size/color combinations from Printify
+  - `qrDesigns`: User-saved QR designs
+  - `qrTemplates`: Admin-curated pre-designed backgrounds
+  - `customGifts`: Fully custom user uploads with hosting
+  - `hostingTiers`: 1yr/3yr/5yr/permanent hosting options
+  - `hostingReminders`: Email reminder scheduling for expiration
+  - `partnerStores`: Embeddable widget configurations
+  - `partnerStoreProducts`: Per-partner product selections
+  - `cartItems`, `orders`, `orderItems`: Shopping flow
+  - `adminSettings`, `pricingRules`: Admin pricing controls
+
+### Three QR Product Lines
+
+**Line 1: Simple Text QR**
+- Customer enters URL/text → QR generated → placed on product
+- Optional: Text above QR (20 chars, +$2), text below QR (30 chars, +$2)
+- Available on all Printify products (shirts, hats, bags, mugs)
+
+**Line 2: Pre-designed QR Gifts**
+- Admin uploads curated backgrounds (religious, business, sports themes)
+- Customer selects template → QR placed on background → printed on products
+- Small/medium/large sizing options
+- QR links to hosted image page (clean display, no expiration shown)
+
+**Line 3: Fully Custom QR Gifts**
+- Customer uploads own image, adds text overlay with font/color choices
+- QR placed on composite → printed on products
+- Hosting tiers: 1 year (included), 3 years, 5 years, permanent (upcharges)
+- Email reminders: 30 days before, 7 days before, on expiration
 
 ### Core Features
 - **QR Code Generation**: Server-side QR code creation for text and image content
 - **Product Customization**: QR placement options (front-chest, back, left-sleeve, etc.)
 - **Shopping Cart**: User-associated cart with quantity management
 - **Order Processing**: Full order lifecycle with order items tracking
-- **Widget System**: Embeddable widget for external sites with JWT token authentication
+- **Widget System**: Embeddable widget for Kingdom Connects and partners
 - **Premium QR Text**: Optional text above (20 chars) and below (30 chars) QR code with $2 upcharge per field
 - **Category System**: Firestore-based product categories with admin management panel
+- **Pricing Strategy**: No upfront prices shown - customers see final price after customization
 
 ### Firestore Categories
 Categories are stored in Firebase Firestore and managed via the admin panel at `/admin`.

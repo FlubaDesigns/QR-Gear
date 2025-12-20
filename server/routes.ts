@@ -760,12 +760,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ HOSTING TIERS ENDPOINTS ============
+  
+  // Get all hosting tiers
+  app.get("/api/hosting-tiers", async (req, res) => {
+    try {
+      const tiers = await storage.getHostingTiers();
+      res.json(tiers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Seed default hosting tiers (admin only)
+  app.post("/api/admin/hosting-tiers/seed", isAuthenticated, async (req, res) => {
+    try {
+      const existingTiers = await storage.getHostingTiers();
+      if (existingTiers.length > 0) {
+        return res.json({ message: "Hosting tiers already exist", tiers: existingTiers });
+      }
+
+      const defaultTiers = [
+        { code: "1_year", name: "1 Year Hosting", description: "Included with purchase", durationDays: 365, isIncluded: true, priceUpcharge: "0", sortOrder: 1 },
+        { code: "3_year", name: "3 Year Hosting", description: "Extended hosting for 3 years", durationDays: 1095, isIncluded: false, priceUpcharge: "10", sortOrder: 2 },
+        { code: "5_year", name: "5 Year Hosting", description: "Extended hosting for 5 years", durationDays: 1825, isIncluded: false, priceUpcharge: "20", sortOrder: 3 },
+        { code: "permanent", name: "Permanent Hosting", description: "Lifetime hosting - never expires", durationDays: 36500, isIncluded: false, priceUpcharge: "50", sortOrder: 4 },
+      ];
+
+      const createdTiers = [];
+      for (const tier of defaultTiers) {
+        const created = await storage.createHostingTier(tier);
+        createdTiers.push(created);
+      }
+
+      res.json({ message: "Default hosting tiers created", tiers: createdTiers });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ QR TEMPLATES ENDPOINTS ============
+  
+  // Get active templates for customers
+  app.get("/api/templates", async (req, res) => {
+    try {
+      const templates = await storage.getActiveQrTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get all templates
+  app.get("/api/admin/templates", isAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getQrTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ PRICING QUOTE ENDPOINT ============
   
-  // Calculate final price for a product with customizations
+  // Calculate final price for a product with customizations (supports all 3 product lines)
   app.post("/api/pricing/quote", async (req, res) => {
     try {
-      const { productId, hasTextAbove, hasTextBelow, hasImageQR } = req.body;
+      const { 
+        productId, 
+        productLine = "text", // 'text', 'template', 'custom'
+        hasTextAbove, 
+        hasTextBelow, 
+        templateId,
+        hostingTierCode = "1_year",
+      } = req.body;
       
       const product = await storage.getProduct(productId);
       if (!product) {
@@ -782,28 +850,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let price = basePrice + qrCost;
       price = price * (1 + markupPercent / 100) + markupFixed;
       
-      // Add upcharges
+      const breakdown: Record<string, number> = {
+        base: basePrice,
+        qrProduction: qrCost,
+        markup: (basePrice + qrCost) * (markupPercent / 100) + markupFixed,
+        textAboveUpcharge: 0,
+        textBelowUpcharge: 0,
+        templateUpcharge: 0,
+        hostingUpcharge: 0,
+      };
+
+      // Add text upcharges (applicable to all lines)
       if (hasTextAbove) {
-        price += parseFloat(settings?.textAboveUpcharge || "2");
+        const upcharge = parseFloat(settings?.textAboveUpcharge || "2");
+        price += upcharge;
+        breakdown.textAboveUpcharge = upcharge;
       }
       if (hasTextBelow) {
-        price += parseFloat(settings?.textBelowUpcharge || "2");
+        const upcharge = parseFloat(settings?.textBelowUpcharge || "2");
+        price += upcharge;
+        breakdown.textBelowUpcharge = upcharge;
       }
-      if (hasImageQR) {
-        price += parseFloat(settings?.imageHostingUpcharge || "5");
+
+      // Template upcharge (Line 2)
+      if (productLine === "template" && templateId) {
+        const template = await storage.getQrTemplate(templateId);
+        if (template) {
+          const upcharge = parseFloat(template.priceUpcharge || "0");
+          price += upcharge;
+          breakdown.templateUpcharge = upcharge;
+        }
+      }
+
+      // Hosting tier upcharge (Line 2 & 3 - for image hosting)
+      if ((productLine === "template" || productLine === "custom") && hostingTierCode !== "1_year") {
+        const tier = await storage.getHostingTierByCode(hostingTierCode);
+        if (tier && !tier.isIncluded) {
+          const upcharge = parseFloat(tier.priceUpcharge || "0");
+          price += upcharge;
+          breakdown.hostingUpcharge = upcharge;
+        }
       }
       
       res.json({
+        productLine,
         basePrice,
         finalPrice: Math.round(price * 100) / 100,
-        breakdown: {
-          base: basePrice,
-          qrProduction: qrCost,
-          markup: (basePrice + qrCost) * (markupPercent / 100) + markupFixed,
-          textAboveUpcharge: hasTextAbove ? parseFloat(settings?.textAboveUpcharge || "2") : 0,
-          textBelowUpcharge: hasTextBelow ? parseFloat(settings?.textBelowUpcharge || "2") : 0,
-          imageHostingUpcharge: hasImageQR ? parseFloat(settings?.imageHostingUpcharge || "5") : 0,
-        }
+        breakdown,
+        hostingTier: hostingTierCode,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
