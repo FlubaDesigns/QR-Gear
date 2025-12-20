@@ -149,58 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // QR Designs
-  app.get("/api/designs", async (req, res) => {
-    try {
-      const userId = req.query.userId as string;
-      if (!userId) {
-        return res.status(401).json({ error: "User ID required" });
-      }
-
-      const designs = await storage.getQrDesignsByUser(userId);
-      res.json(designs);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/designs", async (req, res) => {
-    try {
-      const validatedData = insertQrDesignSchema.parse(req.body);
-      const design = await storage.createQrDesign(validatedData);
-      res.json(design);
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
-      }
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.put("/api/designs/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const design = await storage.updateQrDesign(id, req.body);
-      
-      if (!design) {
-        return res.status(404).json({ error: "Design not found" });
-      }
-      
-      res.json(design);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.delete("/api/designs/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteQrDesign(id);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+  // Note: QR Designs endpoints moved to authenticated section (see SAVED DESIGNS ENDPOINTS)
 
   // Products
   app.get("/api/products", async (req, res) => {
@@ -755,6 +704,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ SAVED DESIGNS ENDPOINTS ============
+  
+  // Get all saved designs for current user
+  app.get("/api/designs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const designs = await storage.getQrDesignsByUser(userId);
+      res.json(designs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get a single design by ID
+  app.get("/api/designs/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const design = await storage.getQrDesign(req.params.id);
+      if (!design) {
+        return res.status(404).json({ error: "Design not found" });
+      }
+      // Ensure user owns this design
+      if (design.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(design);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new saved design
+  app.post("/api/designs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertQrDesignSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const design = await storage.createQrDesign(validatedData);
+      res.status(201).json(design);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update a saved design
+  app.put("/api/designs/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const design = await storage.getQrDesign(req.params.id);
+      if (!design) {
+        return res.status(404).json({ error: "Design not found" });
+      }
+      if (design.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const updated = await storage.updateQrDesign(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a saved design
+  app.delete("/api/designs/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const design = await storage.getQrDesign(req.params.id);
+      if (!design) {
+        return res.status(404).json({ error: "Design not found" });
+      }
+      if (design.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      await storage.deleteQrDesign(req.params.id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus, Loader2, History, Eye, LogOut, User as UserIcon } from "lucide-react";
+import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus, Loader2, History, Eye, LogOut, User as UserIcon, Palette, Trash2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
-import type { Order, OrderItem, CartItem, Product, BrowsingHistory } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Order, OrderItem, CartItem, Product, BrowsingHistory, QrDesign } from "@shared/schema";
 
 interface OrderWithItems extends Order {
   items: OrderItem[];
@@ -24,6 +26,7 @@ interface DashboardStats {
 
 export default function Account() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const userId = user?.id;
 
@@ -42,8 +45,33 @@ export default function Account() {
     enabled: !!userId,
   });
 
+  const { data: savedDesigns, isLoading: designsLoading } = useQuery<QrDesign[]>({
+    queryKey: ["/api/designs"],
+    enabled: !!userId,
+  });
+
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  const deleteDesignMutation = useMutation({
+    mutationFn: async (designId: string) => {
+      await apiRequest("DELETE", `/api/designs/${designId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+      toast({
+        title: "Design deleted",
+        description: "Your saved design has been removed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete design. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const stats: DashboardStats = {
@@ -224,10 +252,14 @@ export default function Account() {
         </div>
 
         <Tabs defaultValue="orders" className="space-y-4">
-          <TabsList className="glass-card p-1">
+          <TabsList className="glass-card p-1 flex-wrap">
             <TabsTrigger value="orders" className="gap-2" data-testid="tab-orders">
               <Package className="w-4 h-4" />
               Orders
+            </TabsTrigger>
+            <TabsTrigger value="designs" className="gap-2" data-testid="tab-designs">
+              <Palette className="w-4 h-4" />
+              Saved Designs
             </TabsTrigger>
             <TabsTrigger value="cart" className="gap-2" data-testid="tab-cart">
               <ShoppingCart className="w-4 h-4" />
@@ -305,6 +337,93 @@ export default function Account() {
                     )}
                   </Card>
                 ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="designs" className="space-y-4">
+            {designsLoading ? (
+              <Card className="glass-card">
+                <CardContent className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </CardContent>
+              </Card>
+            ) : !savedDesigns || savedDesigns.length === 0 ? (
+              <Card className="glass-card">
+                <CardContent className="p-12 text-center">
+                  <Palette className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold mb-2 text-foreground">No saved designs</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Save your QR designs to reorder them later
+                  </p>
+                  <Link href="/creator">
+                    <Button className="btn btn-gold" data-testid="button-create-design">
+                      Create a Design
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {savedDesigns.map((design) => {
+                  const product = getProductById(design.productId || "");
+                  const qrStyle = design.qrStyle as { color?: string; backgroundColor?: string } | null;
+                  return (
+                    <Card key={design.id} className="glass-card" data-testid={`card-design-${design.id}`}>
+                      <CardContent className="p-4">
+                        <div className="aspect-square bg-muted rounded-lg mb-3 overflow-hidden flex items-center justify-center">
+                          {design.previewUrl ? (
+                            <img src={design.previewUrl} alt={design.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div 
+                              className="w-24 h-24 rounded-lg flex items-center justify-center border"
+                              style={{ 
+                                backgroundColor: qrStyle?.backgroundColor || '#FFFFFF',
+                              }}
+                            >
+                              <Palette className="w-12 h-12" style={{ color: qrStyle?.color || '#000000' }} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="font-medium text-foreground truncate">{design.name}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{design.qrType}</Badge>
+                            <Badge variant="secondary">{design.placement}</Badge>
+                            {design.madeInUSA && (
+                              <Badge variant="default" className="gap-1">
+                                USA Made
+                              </Badge>
+                            )}
+                          </div>
+                          {product && (
+                            <p className="text-sm text-muted-foreground">{product.name}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Created {format(new Date(design.createdAt), "MMM dd, yyyy")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-4">
+                          <Link href="/creator" className="flex-1">
+                            <Button variant="outline" className="w-full gap-1" size="sm" data-testid={`button-reorder-${design.id}`}>
+                              <Edit className="w-3 h-3" />
+                              Reorder
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => deleteDesignMutation.mutate(design.id)}
+                            disabled={deleteDesignMutation.isPending}
+                            data-testid={`button-delete-design-${design.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
