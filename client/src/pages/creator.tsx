@@ -12,10 +12,22 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/Navbar";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2, Palette } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check } from "lucide-react";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
 import type { Product } from "@shared/schema";
+
+interface QrTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  thumbnailUrl: string;
+  fullImageUrl: string;
+  priceUpcharge: string;
+  isActive: boolean;
+  isFeatured: boolean;
+}
 
 const placements = [
   { value: "front-chest", label: "Front Chest (Large)" },
@@ -48,7 +60,7 @@ interface PriceQuote {
 
 export default function Creator() {
   const { toast } = useToast();
-  const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design">("text");
+  const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design" | "template">("text");
   const [qrContent, setQrContent] = useState("");
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
@@ -62,6 +74,8 @@ export default function Creator() {
   const [imageTitle, setImageTitle] = useState("");
   const [imageDescription, setImageDescription] = useState("");
   const [priceQuote, setPriceQuote] = useState<PriceQuote | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<QrTemplate | null>(null);
+  const [templateCategory, setTemplateCategory] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
@@ -71,6 +85,17 @@ export default function Creator() {
   const { data: products = [], isLoading: productsLoading, isError: productsError } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
+
+  const { data: templates = [], isLoading: templatesLoading } = useQuery<QrTemplate[]>({
+    queryKey: ["/api/templates"],
+    enabled: qrType === "template",
+  });
+
+  const filteredTemplates = templateCategory === "all" 
+    ? templates.filter(t => t.isActive)
+    : templates.filter(t => t.isActive && t.category === templateCategory);
+
+  const templateCategories = ["all", ...Array.from(new Set(templates.filter(t => t.isActive).map(t => t.category).filter(Boolean)))];
 
   const [pricingError, setPricingError] = useState(false);
 
@@ -110,6 +135,8 @@ export default function Creator() {
         textAbove?: string;
         textBelow?: string;
         hostingTier?: string;
+        templateId?: string;
+        templateName?: string;
       };
       price: string;
     }) => {
@@ -298,8 +325,8 @@ export default function Creator() {
       return;
     }
 
-    // For image, upload, and design types, validate URL before generating
-    if ((qrType === "image" || qrType === "upload" || qrType === "design") && !isValidURL(qrContent)) {
+    // For image, upload, design, and template types, validate URL before generating
+    if ((qrType === "image" || qrType === "upload" || qrType === "design" || qrType === "template") && !isValidURL(qrContent)) {
       return;
     }
 
@@ -332,7 +359,7 @@ export default function Creator() {
 
     generateQRMutation.mutate({
       content: qrContent,
-      type: (qrType === "upload" || qrType === "design") ? "image" : qrType,
+      type: (qrType === "upload" || qrType === "design" || qrType === "template") ? "image" : qrType,
       style: {
         color: qrColor,
         backgroundColor: qrBgColor,
@@ -362,8 +389,18 @@ export default function Creator() {
 
   useEffect(() => {
     if (selectedProduct) {
-      const productLine = (qrType === "upload" || qrType === "design") ? "custom" : "text";
-      const hostingTierCode = (qrType === "upload" || qrType === "design") ? "1_year" : undefined;
+      let productLine = "text";
+      let hostingTierCode: string | undefined;
+      let templateId: string | undefined;
+      
+      if (qrType === "upload" || qrType === "design") {
+        productLine = "custom";
+        hostingTierCode = "1_year";
+      } else if (qrType === "template" && selectedTemplate) {
+        productLine = "template";
+        templateId = selectedTemplate.id;
+      }
+      
       const debounce = setTimeout(() => {
         pricingMutation.mutate({
           productId: selectedProduct.id,
@@ -371,6 +408,7 @@ export default function Creator() {
           hasTextAbove,
           hasTextBelow,
           hostingTierCode,
+          templateId,
         });
       }, 300);
       return () => clearTimeout(debounce);
@@ -378,19 +416,20 @@ export default function Creator() {
       setPriceQuote(null);
       setPricingError(false);
     }
-  }, [selectedProduct?.id, hasTextAbove, hasTextBelow, qrType]);
+  }, [selectedProduct?.id, hasTextAbove, hasTextBelow, qrType, selectedTemplate?.id]);
 
   const totalPrice = priceQuote?.finalPrice.toFixed(2) || "0.00";
 
   const handleAddToCart = () => {
     if (!selectedProduct || !qrCodeImage || !priceQuote) return;
+    if (qrType === "template" && !selectedTemplate) return;
     
     addToCartMutation.mutate({
       productId: selectedProduct.id,
       quantity: 1,
       customization: {
         qrContent,
-        qrType: (qrType === "upload" || qrType === "design") ? "image" : qrType,
+        qrType: qrType === "template" ? "template" : (qrType === "upload" || qrType === "design") ? "image" : qrType,
         qrColor,
         qrBgColor,
         placement,
@@ -398,6 +437,8 @@ export default function Creator() {
         textAbove: hasTextAbove ? textAbove : undefined,
         textBelow: hasTextBelow ? textBelow : undefined,
         hostingTier: (qrType === "upload" || qrType === "design") ? "1_year" : undefined,
+        templateId: qrType === "template" ? selectedTemplate?.id : undefined,
+        templateName: qrType === "template" ? selectedTemplate?.name : undefined,
       },
       price: priceQuote.finalPrice.toFixed(2),
     });
@@ -423,14 +464,24 @@ export default function Creator() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <Tabs value={qrType} onValueChange={(v) => {
-                  setQrType(v as "text" | "image" | "upload" | "design");
-                  if (v !== "upload" && v !== "design") {
+                  setQrType(v as "text" | "image" | "upload" | "design" | "template");
+                  if (v === "upload" || v === "design") {
+                    setQrContent("");
+                    setUploadedImage(null);
+                  } else if (v === "text") {
                     setQrContent("");
                     setUploadedImage(null);
                   }
+                  if (v !== "template") {
+                    setSelectedTemplate(null);
+                  }
                 }}>
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="text" data-testid="tab-qr-text">Text</TabsTrigger>
+                    <TabsTrigger value="template" data-testid="tab-qr-template" className="flex items-center gap-1">
+                      <LayoutTemplate className="w-3 h-3" />
+                      Gift
+                    </TabsTrigger>
                     <TabsTrigger value="image" data-testid="tab-qr-image">URL</TabsTrigger>
                     <TabsTrigger value="upload" data-testid="tab-qr-upload" className="flex items-center gap-1">
                       <Upload className="w-3 h-3" />
@@ -456,6 +507,118 @@ export default function Creator() {
                         Works offline - message embedded in QR code
                       </p>
                     </div>
+                  </TabsContent>
+                  <TabsContent value="template" className="space-y-4">
+                    <div>
+                      <Label>Pre-designed Gift Background</Label>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Choose a curated background - your QR code will be placed on it
+                      </p>
+                      
+                      {templateCategories.length > 1 && (
+                        <div className="flex gap-2 mb-4 flex-wrap">
+                          {templateCategories.map((cat) => (
+                            <Button
+                              key={cat}
+                              size="sm"
+                              variant={templateCategory === cat ? "default" : "outline"}
+                              onClick={() => setTemplateCategory(cat as string)}
+                              data-testid={`button-category-${cat}`}
+                            >
+                              {cat === "all" ? "All" : (cat as string).charAt(0).toUpperCase() + (cat as string).slice(1)}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {templatesLoading ? (
+                        <div className="text-center py-8">
+                          <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
+                        </div>
+                      ) : filteredTemplates.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <LayoutTemplate className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p>No templates available yet.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                          {filteredTemplates.map((template) => (
+                            <div
+                              key={template.id}
+                              className={`relative cursor-pointer rounded-md overflow-hidden border-2 transition-all hover-elevate ${
+                                selectedTemplate?.id === template.id 
+                                  ? "border-primary ring-2 ring-primary/30" 
+                                  : "border-transparent"
+                              }`}
+                              onClick={() => setSelectedTemplate(template)}
+                              data-testid={`template-${template.id}`}
+                            >
+                              <div className="aspect-square">
+                                <img
+                                  src={template.thumbnailUrl}
+                                  alt={template.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              {selectedTemplate?.id === template.id && (
+                                <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
+                                  <Check className="w-3 h-3" />
+                                </div>
+                              )}
+                              {template.isFeatured && (
+                                <Badge className="absolute top-1 left-1 text-xs">Featured</Badge>
+                              )}
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                <p className="text-white text-xs font-medium truncate">{template.name}</p>
+                                {parseFloat(template.priceUpcharge) > 0 && (
+                                  <p className="text-white/80 text-xs">+${template.priceUpcharge}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {selectedTemplate && (
+                        <div className="mt-4 p-3 bg-muted rounded-md">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{selectedTemplate.name}</p>
+                              {selectedTemplate.description && (
+                                <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
+                              )}
+                            </div>
+                            {parseFloat(selectedTemplate.priceUpcharge) > 0 && (
+                              <Badge variant="outline">+${selectedTemplate.priceUpcharge}</Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {selectedTemplate && (
+                      <div>
+                        <Label htmlFor="template-qr-url">QR Code Link</Label>
+                        <Input
+                          id="template-qr-url"
+                          type="url"
+                          placeholder="https://your-website.com"
+                          value={qrContent}
+                          onChange={(e) => setQrContent(e.target.value)}
+                          className={qrContent && !isValidURL(qrContent) ? "border-destructive" : ""}
+                          data-testid="input-template-qr-url"
+                        />
+                        {qrContent && !isValidURL(qrContent) ? (
+                          <p className="text-xs text-destructive mt-1">
+                            Please enter a valid URL (e.g., https://example.com)
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Enter the URL your QR code should link to
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </TabsContent>
                   <TabsContent value="image" className="space-y-4">
                     <div>
@@ -798,13 +961,23 @@ export default function Creator() {
               <Button
                 size="lg"
                 className="flex-1"
-                disabled={!qrCodeImage || !selectedProduct || addToCartMutation.isPending || !priceQuote || pricingError || pricingMutation.isPending}
+                disabled={
+                  !qrCodeImage || 
+                  !selectedProduct || 
+                  addToCartMutation.isPending || 
+                  !priceQuote || 
+                  pricingError || 
+                  pricingMutation.isPending ||
+                  (qrType === "template" && !selectedTemplate)
+                }
                 onClick={handleAddToCart}
                 data-testid="button-add-to-cart"
               >
                 {addToCartMutation.isPending ? "Adding..." : 
                  pricingMutation.isPending ? "Calculating..." : 
                  pricingError ? "Pricing Error" :
+                 (qrType === "template" && !selectedTemplate) ? "Select a Template" :
+                 !qrCodeImage ? "Enter QR Content" :
                  `Add to Cart - $${totalPrice}`}
               </Button>
               <Button
