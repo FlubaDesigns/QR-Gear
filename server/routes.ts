@@ -821,6 +821,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Create template
+  app.post("/api/admin/templates", isAuthenticated, async (req, res) => {
+    try {
+      const createSchema = z.object({
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        category: z.string().nullable().optional(),
+        thumbnailUrl: z.string().url(),
+        fullImageUrl: z.string().url(),
+        storageUrl: z.string().url(),
+        priceUpcharge: z.string().optional().default("0"),
+        isActive: z.boolean().optional().default(true),
+        isFeatured: z.boolean().optional().default(false),
+      });
+      
+      const validatedData = createSchema.parse(req.body);
+      const template = await storage.createQrTemplate(validatedData);
+      res.json(template);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update template
+  app.put("/api/admin/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateSchema = z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().nullable().optional(),
+        category: z.string().nullable().optional(),
+        thumbnailUrl: z.string().url().optional(),
+        fullImageUrl: z.string().url().optional(),
+        storageUrl: z.string().url().optional(),
+        priceUpcharge: z.string().optional(),
+        isActive: z.boolean().optional(),
+        isFeatured: z.boolean().optional(),
+      });
+      
+      const validatedData = updateSchema.parse(req.body);
+      const template = await storage.updateQrTemplate(id, validatedData);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Delete template
+  app.delete("/api/admin/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteQrTemplate(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ PRICING QUOTE ENDPOINT ============
   
   // Calculate final price for a product with customizations (supports all 3 product lines)
