@@ -201,11 +201,13 @@ export const cartItems = pgTable("cart_items", {
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
-  status: text("status").notNull(), // 'pending', 'processing', 'shipped', 'delivered'
+  status: text("status").notNull(), // 'pending', 'paid', 'processing', 'shipped', 'delivered'
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   stripePaymentId: text("stripe_payment_id"),
+  stripeSessionId: text("stripe_session_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
   printifyOrderId: text("printify_order_id"),
-  shippingAddress: jsonb("shipping_address").notNull(),
+  shippingAddress: jsonb("shipping_address"),
   trackingNumber: text("tracking_number"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -444,6 +444,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ STRIPE CHECKOUT ============
+  
+  // Get Stripe publishable key for frontend
+  app.get("/api/stripe/publishable-key", async (req, res) => {
+    try {
+      const { getStripePublishableKey } = await import('./stripeClient');
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (error: any) {
+      res.status(500).json({ error: "Stripe not configured" });
+    }
+  });
+
+  // Create Stripe checkout session from cart
+  app.post("/api/checkout", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const cartItems = await storage.getCartItemsByUser(userId);
+      
+      if (!cartItems || cartItems.length === 0) {
+        return res.status(400).json({ error: "Cart is empty" });
+      }
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      // Build line items from cart - customization contains product details
+      const lineItems = cartItems.map((item) => {
+        const customization = item.customization as any || {};
+        return {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: customization.productName || 'QR Gear Product',
+              description: `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'}`,
+            },
+            unit_amount: Math.round(parseFloat(item.price || '0') * 100),
+          },
+          quantity: item.quantity || 1,
+        };
+      });
+
+      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+      
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        mode: 'payment',
+        success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/cart`,
+        metadata: {
+          userId,
+        },
+      });
+
+      res.json({ url: session.url, sessionId: session.id });
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Verify checkout session and create order
+  app.get("/api/checkout/verify/:sessionId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.user.claims.sub;
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+      
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      // Check if order already exists for this session
+      const existingOrder = await storage.getOrderByStripeSession(sessionId);
+      if (existingOrder) {
+        const items = await storage.getOrderItems(existingOrder.id);
+        return res.json({ order: existingOrder, items, alreadyProcessed: true });
+      }
+
+      // Create order from cart
+      const cartItems = await storage.getCartItemsByUser(userId);
+      const totalAmount = cartItems.reduce((sum, item) => {
+        return sum + parseFloat(item.price || '0') * (item.quantity || 1);
+      }, 0);
+
+      const order = await storage.createOrder({
+        userId,
+        status: 'paid',
+        totalAmount: totalAmount.toFixed(2),
+        stripeSessionId: sessionId,
+        stripePaymentIntentId: session.payment_intent as string,
+      });
+
+      // Create order items from cart - customization contains all product details
+      for (const item of cartItems) {
+        await storage.createOrderItem({
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity || 1,
+          price: item.price,
+          customization: item.customization,
+        });
+      }
+
+      // Clear the cart
+      for (const item of cartItems) {
+        await storage.deleteCartItem(item.id);
+      }
+
+      const orderItems = await storage.getOrderItems(order.id);
+      res.json({ order, items: orderItems });
+    } catch (error: any) {
+      console.error('Verify checkout error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Orders - protected routes using session user
   app.get("/api/orders", isAuthenticated, async (req: any, res) => {
     try {

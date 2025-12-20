@@ -39,8 +39,8 @@ import type {
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
-const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
-const db = sql ? drizzle(sql, { schema }) : null;
+const neonSql = DATABASE_URL ? neon(DATABASE_URL) : null;
+const db = neonSql ? drizzle(neonSql, { schema }) : null;
 
 export interface IStorage {
   // User operations
@@ -77,6 +77,7 @@ export interface IStorage {
   // Order operations
   getOrder(id: string): Promise<Order | undefined>;
   getOrdersByUser(userId: string): Promise<Order[]>;
+  getOrderByStripeSession(sessionId: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
 
@@ -292,6 +293,11 @@ export class DbStorage implements IStorage {
 
   async getOrdersByUser(userId: string): Promise<Order[]> {
     return this.db.select().from(schema.orders).where(eq(schema.orders.userId, userId));
+  }
+
+  async getOrderByStripeSession(sessionId: string): Promise<Order | undefined> {
+    const [order] = await this.db.select().from(schema.orders).where(eq(schema.orders.stripeSessionId, sessionId));
+    return order;
   }
 
   async createOrder(order: InsertOrder): Promise<Order> {
@@ -781,6 +787,8 @@ class MemStorage implements IStorage {
       markupFixed: product.markupFixed ?? "0",
       qrProductionCost: product.qrProductionCost ?? "0",
       sortOrder: product.sortOrder ?? 0,
+      productLine: product.productLine ?? null,
+      defaultPlacement: product.defaultPlacement ?? null,
       createdAt: new Date(), 
       updatedAt: new Date() 
     };
@@ -842,14 +850,21 @@ class MemStorage implements IStorage {
     return Array.from(this.orders.values()).filter(order => order.userId === userId);
   }
 
+  async getOrderByStripeSession(sessionId: string): Promise<Order | undefined> {
+    return Array.from(this.orders.values()).find(order => order.stripeSessionId === sessionId);
+  }
+
   async createOrder(order: InsertOrder): Promise<Order> {
     const id = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newOrder: Order = { 
       ...order, 
       id,
       stripePaymentId: order.stripePaymentId ?? null,
+      stripeSessionId: order.stripeSessionId ?? null,
+      stripePaymentIntentId: order.stripePaymentIntentId ?? null,
       printifyOrderId: order.printifyOrderId ?? null,
       trackingNumber: order.trackingNumber ?? null,
+      shippingAddress: order.shippingAddress ?? null,
       createdAt: new Date(), 
       updatedAt: new Date() 
     };
@@ -933,6 +948,7 @@ class MemStorage implements IStorage {
       textAboveUpcharge: settings.textAboveUpcharge ?? "2",
       textBelowUpcharge: settings.textBelowUpcharge ?? "2",
       imageHostingUpcharge: settings.imageHostingUpcharge ?? "5",
+      dynamicQrUpcharge: settings.dynamicQrUpcharge ?? "25",
       showPricesBeforeCustomization: settings.showPricesBeforeCustomization ?? false,
       updatedAt: new Date(),
     };
