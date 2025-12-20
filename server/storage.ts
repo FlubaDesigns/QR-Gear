@@ -20,6 +20,10 @@ import type {
   InsertHostedImage,
   BrowsingHistory,
   InsertBrowsingHistory,
+  PricingRule,
+  InsertPricingRule,
+  AdminSettings,
+  InsertAdminSettings,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -74,6 +78,21 @@ export interface IStorage {
   createHostedImage(image: InsertHostedImage): Promise<HostedImage>;
   incrementImageViews(id: string): Promise<void>;
   deleteHostedImage(id: string): Promise<void>;
+
+  // Admin Settings operations
+  getAdminSettings(): Promise<AdminSettings | undefined>;
+  upsertAdminSettings(settings: InsertAdminSettings): Promise<AdminSettings>;
+
+  // Pricing Rules operations
+  getPricingRules(): Promise<PricingRule[]>;
+  getPricingRule(id: string): Promise<PricingRule | undefined>;
+  createPricingRule(rule: InsertPricingRule): Promise<PricingRule>;
+  updatePricingRule(id: string, rule: Partial<InsertPricingRule>): Promise<PricingRule | undefined>;
+  deletePricingRule(id: string): Promise<void>;
+
+  // Admin Product operations
+  getEnabledProducts(): Promise<Product[]>;
+  toggleProductEnabled(id: string, enabled: boolean): Promise<Product | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -265,6 +284,66 @@ export class DbStorage implements IStorage {
   async deleteHostedImage(id: string): Promise<void> {
     await this.db.delete(schema.hostedImages).where(eq(schema.hostedImages.id, id));
   }
+
+  // Admin Settings operations
+  async getAdminSettings(): Promise<AdminSettings | undefined> {
+    const [settings] = await this.db.select().from(schema.adminSettings).where(eq(schema.adminSettings.id, "default"));
+    return settings;
+  }
+
+  async upsertAdminSettings(settings: InsertAdminSettings): Promise<AdminSettings> {
+    const [result] = await this.db
+      .insert(schema.adminSettings)
+      .values({ ...settings, id: "default" })
+      .onConflictDoUpdate({
+        target: schema.adminSettings.id,
+        set: { ...settings, updatedAt: new Date() },
+      })
+      .returning();
+    return result;
+  }
+
+  // Pricing Rules operations
+  async getPricingRules(): Promise<PricingRule[]> {
+    return this.db.select().from(schema.pricingRules);
+  }
+
+  async getPricingRule(id: string): Promise<PricingRule | undefined> {
+    const [rule] = await this.db.select().from(schema.pricingRules).where(eq(schema.pricingRules.id, id));
+    return rule;
+  }
+
+  async createPricingRule(rule: InsertPricingRule): Promise<PricingRule> {
+    const [newRule] = await this.db.insert(schema.pricingRules).values(rule).returning();
+    return newRule;
+  }
+
+  async updatePricingRule(id: string, rule: Partial<InsertPricingRule>): Promise<PricingRule | undefined> {
+    const [updated] = await this.db
+      .update(schema.pricingRules)
+      .set(rule)
+      .where(eq(schema.pricingRules.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePricingRule(id: string): Promise<void> {
+    await this.db.delete(schema.pricingRules).where(eq(schema.pricingRules.id, id));
+  }
+
+  // Admin Product operations
+  async getEnabledProducts(): Promise<Product[]> {
+    return this.db.select().from(schema.products).where(eq(schema.products.isEnabled, true));
+  }
+
+  async toggleProductEnabled(id: string, enabled: boolean): Promise<Product | undefined> {
+    const [updated] = await this.db
+      .update(schema.products)
+      .set({ isEnabled: enabled, updatedAt: new Date() })
+      .where(eq(schema.products.id, id))
+      .returning();
+    return updated;
+  }
 }
 
 // In-memory storage implementation
@@ -277,6 +356,8 @@ class MemStorage implements IStorage {
   private orderItems = new Map<string, OrderItem>();
   private hostedImages = new Map<string, HostedImage>();
   private browsingHistory = new Map<string, BrowsingHistory>();
+  private adminSettings: AdminSettings | undefined;
+  private pricingRules = new Map<string, PricingRule>();
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
@@ -393,6 +474,8 @@ class MemStorage implements IStorage {
       ...product,
       id,
       printifyId: product.printifyId ?? null,
+      blueprintId: product.blueprintId ?? null,
+      printProviderId: product.printProviderId ?? null,
       description: product.description ?? null,
       imageUrl: product.imageUrl ?? null,
       manufacturer: product.manufacturer ?? null,
@@ -400,6 +483,11 @@ class MemStorage implements IStorage {
       availablePlacements: product.availablePlacements ?? null,
       availableColors: product.availableColors ?? null,
       metadata: product.metadata ?? null,
+      isEnabled: product.isEnabled ?? false,
+      markupPercent: product.markupPercent ?? "0",
+      markupFixed: product.markupFixed ?? "0",
+      qrProductionCost: product.qrProductionCost ?? "0",
+      sortOrder: product.sortOrder ?? 0,
       createdAt: new Date(), 
       updatedAt: new Date() 
     };
@@ -536,6 +624,76 @@ class MemStorage implements IStorage {
 
   async deleteHostedImage(id: string): Promise<void> {
     this.hostedImages.delete(id);
+  }
+
+  // Admin Settings operations
+  async getAdminSettings(): Promise<AdminSettings | undefined> {
+    return this.adminSettings;
+  }
+
+  async upsertAdminSettings(settings: InsertAdminSettings): Promise<AdminSettings> {
+    const newSettings: AdminSettings = {
+      id: "default",
+      globalMarkupPercent: settings.globalMarkupPercent ?? "25",
+      globalMarkupFixed: settings.globalMarkupFixed ?? "0",
+      globalQrProductionCost: settings.globalQrProductionCost ?? "2",
+      textAboveUpcharge: settings.textAboveUpcharge ?? "2",
+      textBelowUpcharge: settings.textBelowUpcharge ?? "2",
+      imageHostingUpcharge: settings.imageHostingUpcharge ?? "5",
+      showPricesBeforeCustomization: settings.showPricesBeforeCustomization ?? false,
+      updatedAt: new Date(),
+    };
+    this.adminSettings = newSettings;
+    return newSettings;
+  }
+
+  // Pricing Rules operations
+  async getPricingRules(): Promise<PricingRule[]> {
+    return Array.from(this.pricingRules.values());
+  }
+
+  async getPricingRule(id: string): Promise<PricingRule | undefined> {
+    return this.pricingRules.get(id);
+  }
+
+  async createPricingRule(rule: InsertPricingRule): Promise<PricingRule> {
+    const id = `rule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newRule: PricingRule = {
+      ...rule,
+      id,
+      scopeValue: rule.scopeValue ?? null,
+      qrProductionCost: rule.qrProductionCost ?? "0",
+      priority: rule.priority ?? 0,
+      isActive: rule.isActive ?? true,
+      createdAt: new Date(),
+    };
+    this.pricingRules.set(id, newRule);
+    return newRule;
+  }
+
+  async updatePricingRule(id: string, rule: Partial<InsertPricingRule>): Promise<PricingRule | undefined> {
+    const existing = this.pricingRules.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...rule };
+    this.pricingRules.set(id, updated);
+    return updated;
+  }
+
+  async deletePricingRule(id: string): Promise<void> {
+    this.pricingRules.delete(id);
+  }
+
+  // Admin Product operations
+  async getEnabledProducts(): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(p => p.isEnabled);
+  }
+
+  async toggleProductEnabled(id: string, enabled: boolean): Promise<Product | undefined> {
+    const existing = this.products.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, isEnabled: enabled, updatedAt: new Date() };
+    this.products.set(id, updated);
+    return updated;
   }
 }
 

@@ -738,16 +738,17 @@ export default function Creator() {
               </CardContent>
             </Card>
 
-            {/* QR Code Only Preview */}
+            {/* QR Code Only Preview - Matte zone for scannability */}
             {qrCodeImage && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">QR Code Close-up</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center gap-2">
+              <div className="card">
+                <div className="card__title mb-3">
+                  QR Code Close-up
+                  <span className="pill">High Contrast</span>
+                </div>
+                <div className="qr-zone">
+                  <div className="qr-zone__frame">
                     {hasTextAbove && (
-                      <p className="text-sm font-bold text-foreground tracking-wide" data-testid="preview-text-above">
+                      <p className="text-sm font-bold tracking-wide mb-2" data-testid="preview-text-above">
                         {textAbove}
                       </p>
                     )}
@@ -758,13 +759,16 @@ export default function Creator() {
                       data-testid="preview-qr-code"
                     />
                     {hasTextBelow && (
-                      <p className="text-sm font-bold text-foreground tracking-wide" data-testid="preview-text-below">
+                      <p className="text-sm font-bold tracking-wide mt-2" data-testid="preview-text-below">
                         {textBelow}
                       </p>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="qr-note">
+                    Matte background ensures fast, reliable scanning.
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

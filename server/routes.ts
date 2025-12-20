@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
-import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
+import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders } from "./lib/printify";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
@@ -559,6 +559,275 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ ADMIN ROUTES ============
+
+  // Admin Settings
+  app.get("/api/admin/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      let settings = await storage.getAdminSettings();
+      if (!settings) {
+        settings = await storage.upsertAdminSettings({});
+      }
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/admin/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const validated = insertAdminSettingsSchema.partial().parse(req.body);
+      const settings = await storage.upsertAdminSettings(validated);
+      res.json(settings);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Pricing Rules
+  app.get("/api/admin/pricing-rules", isAuthenticated, async (req: any, res) => {
+    try {
+      const rules = await storage.getPricingRules();
+      res.json(rules);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/pricing-rules", isAuthenticated, async (req: any, res) => {
+    try {
+      const validated = insertPricingRuleSchema.parse(req.body);
+      const rule = await storage.createPricingRule(validated);
+      res.json(rule);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/admin/pricing-rules/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const validated = insertPricingRuleSchema.partial().parse(req.body);
+      const rule = await storage.updatePricingRule(id, validated);
+      if (!rule) {
+        return res.status(404).json({ error: "Pricing rule not found" });
+      }
+      res.json(rule);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/pricing-rules/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deletePricingRule(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin Products - Get all products with admin fields
+  app.get("/api/admin/products", isAuthenticated, async (req: any, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Toggle product enabled/disabled
+  app.patch("/api/admin/products/:id/toggle", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { enabled } = req.body;
+      const product = await storage.toggleProductEnabled(id, enabled);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update product admin settings (markup, production cost, etc.)
+  app.patch("/api/admin/products/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const validated = insertProductSchema.partial().parse(req.body);
+      const product = await storage.updateProduct(id, validated);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      res.json(product);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Printify Catalog Browsing - Get blueprints
+  app.get("/api/admin/printify/blueprints", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      const blueprints = await printify.getCatalogBlueprints();
+      res.json(blueprints);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get print providers for a blueprint
+  app.get("/api/admin/printify/blueprints/:id/providers", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      const { id } = req.params;
+      const providers = await printify.getPrintProviders(parseInt(id));
+      res.json(providers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get variants for a blueprint + provider combination
+  app.get("/api/admin/printify/blueprints/:blueprintId/providers/:providerId/variants", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      const { blueprintId, providerId } = req.params;
+      const variants = await printify.getVariants(parseInt(blueprintId), parseInt(providerId));
+      res.json(variants);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add product from Printify catalog
+  app.post("/api/admin/products/from-printify", isAuthenticated, async (req: any, res) => {
+    try {
+      const { blueprintId, printProviderId, name, description, category, basePrice, imageUrl, manufacturer, madeInUSA, availablePlacements, availableColors, metadata } = req.body;
+      
+      const productId = `printify_${blueprintId}_${printProviderId}_${Date.now()}`;
+      
+      const product = await storage.createProduct({
+        id: productId,
+        printifyId: null,
+        blueprintId,
+        printProviderId,
+        name,
+        description,
+        category,
+        basePrice: basePrice.toString(),
+        imageUrl,
+        manufacturer,
+        madeInUSA: madeInUSA || false,
+        availablePlacements,
+        availableColors,
+        metadata,
+        isEnabled: false,
+        markupPercent: "0",
+        markupFixed: "0",
+        qrProductionCost: "0",
+        sortOrder: 0,
+      });
+      
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ PRICING QUOTE ENDPOINT ============
+  
+  // Calculate final price for a product with customizations
+  app.post("/api/pricing/quote", async (req, res) => {
+    try {
+      const { productId, hasTextAbove, hasTextBelow, hasImageQR } = req.body;
+      
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const settings = await storage.getAdminSettings();
+      
+      const basePrice = parseFloat(product.basePrice);
+      const markupPercent = parseFloat(product.markupPercent || "0") || parseFloat(settings?.globalMarkupPercent || "25");
+      const markupFixed = parseFloat(product.markupFixed || "0") || parseFloat(settings?.globalMarkupFixed || "0");
+      const qrCost = parseFloat(product.qrProductionCost || "0") || parseFloat(settings?.globalQrProductionCost || "2");
+      
+      let price = basePrice + qrCost;
+      price = price * (1 + markupPercent / 100) + markupFixed;
+      
+      // Add upcharges
+      if (hasTextAbove) {
+        price += parseFloat(settings?.textAboveUpcharge || "2");
+      }
+      if (hasTextBelow) {
+        price += parseFloat(settings?.textBelowUpcharge || "2");
+      }
+      if (hasImageQR) {
+        price += parseFloat(settings?.imageHostingUpcharge || "5");
+      }
+      
+      res.json({
+        basePrice,
+        finalPrice: Math.round(price * 100) / 100,
+        breakdown: {
+          base: basePrice,
+          qrProduction: qrCost,
+          markup: (basePrice + qrCost) * (markupPercent / 100) + markupFixed,
+          textAboveUpcharge: hasTextAbove ? parseFloat(settings?.textAboveUpcharge || "2") : 0,
+          textBelowUpcharge: hasTextBelow ? parseFloat(settings?.textBelowUpcharge || "2") : 0,
+          imageHostingUpcharge: hasImageQR ? parseFloat(settings?.imageHostingUpcharge || "5") : 0,
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get enabled products only (for store front)
+  app.get("/api/store/products", async (req, res) => {
+    try {
+      const products = await storage.getEnabledProducts();
+      // Don't expose admin pricing fields to storefront
+      const safeProducts = products.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        category: p.category,
+        imageUrl: p.imageUrl,
+        manufacturer: p.manufacturer,
+        madeInUSA: p.madeInUSA,
+        availablePlacements: p.availablePlacements,
+        availableColors: p.availableColors,
+      }));
+      res.json(safeProducts);
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });

@@ -83,10 +83,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "var(--font-sans)"],
+        sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
-        heading: ["Space Grotesk", "var(--font-sans)"],
+        heading: ["Orbitron", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {

@@ -1,50 +1,48 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Smartphone, RefreshCw, Globe } from "lucide-react";
 
-const steps = [
+const features = [
   {
-    number: "1",
-    title: "Browse",
-    description: "Choose from our collection of pre-designed QR codes or create your own custom design with any text, link, or image.",
+    icon: Smartphone,
+    title: "Instant Scan",
+    description: "Scan with any phone. No app. No friction.",
   },
   {
-    number: "2",
-    title: "Customize",
-    description: "Select your product — t-shirts, hats, bags, and more. Pick colors, placement, and see your design come to life.",
+    icon: RefreshCw,
+    title: "Customize & Update",
+    description: "Change destinations anytime without reprinting.",
   },
   {
-    number: "3",
-    title: "We Print & Ship",
-    description: "Your custom QR gear is professionally printed on quality products and shipped directly to your door.",
+    icon: Globe,
+    title: "Connect & Track",
+    description: "Perfect for brands, creators, events, and outreach.",
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="py-24 px-4">
-      <div className="container mx-auto max-w-5xl">
-        <h2 className="font-heading text-3xl md:text-4xl font-bold text-center mb-4">
-          How QR Gear Works
-        </h2>
-        <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-          Creating custom QR code merchandise is easy as 1-2-3
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {steps.map((step, index) => (
+    <section className="features">
+      <div className="container">
+        <div className="center mb-8">
+          <h2>How It Works</h2>
+          <p>Three simple steps to your custom QR gear</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {features.map((feature, index) => (
             <Card 
               key={index} 
-              className="glass-card border-0 text-center hover-elevate transition-all duration-200"
-              data-testid={`step-${index}`}
+              className="glass-card border-0"
+              data-testid={`feature-card-${index}`}
             >
-              <CardContent className="p-8">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#2ABED5] to-[#2ABED5]/70 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#2ABED5]/30">
-                  <span className="text-2xl font-bold text-white">{step.number}</span>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl icon-bg-ice flex items-center justify-center">
+                    <feature.icon className="w-5 h-5 icon-color-ice" />
+                  </div>
+                  <h3 className="card__title">{feature.title}</h3>
                 </div>
-                <h3 className="font-heading text-xl font-semibold mb-3">
-                  {step.title}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {step.description}
-                </p>
+                <p>{feature.description}</p>
               </CardContent>
             </Card>
           ))}

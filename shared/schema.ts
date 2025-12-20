@@ -52,6 +52,8 @@ export const qrDesigns = pgTable("qr_designs", {
 export const products = pgTable("products", {
   id: varchar("id").primaryKey(),
   printifyId: text("printify_id").unique(),
+  blueprintId: integer("blueprint_id"),
+  printProviderId: integer("print_provider_id"),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(),
@@ -59,10 +61,40 @@ export const products = pgTable("products", {
   imageUrl: text("image_url"),
   manufacturer: text("manufacturer"),
   madeInUSA: boolean("made_in_usa").default(false),
-  availablePlacements: text("available_placements").array(), // ['front-chest', 'back', etc.]
-  availableColors: jsonb("available_colors"), // [{name: 'White', hex: '#FFFFFF'}]
+  availablePlacements: text("available_placements").array(),
+  availableColors: jsonb("available_colors"),
   metadata: jsonb("metadata"),
+  isEnabled: boolean("is_enabled").default(false),
+  markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }).default("0"),
+  markupFixed: decimal("markup_fixed", { precision: 10, scale: 2 }).default("0"),
+  qrProductionCost: decimal("qr_production_cost", { precision: 10, scale: 2 }).default("0"),
+  sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const pricingRules = pgTable("pricing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  scope: text("scope").notNull(),
+  scopeValue: text("scope_value"),
+  markupType: text("markup_type").notNull(),
+  markupValue: decimal("markup_value", { precision: 10, scale: 2 }).notNull(),
+  qrProductionCost: decimal("qr_production_cost", { precision: 10, scale: 2 }).default("0"),
+  priority: integer("priority").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const adminSettings = pgTable("admin_settings", {
+  id: varchar("id").primaryKey().default("default"),
+  globalMarkupPercent: decimal("global_markup_percent", { precision: 5, scale: 2 }).default("25"),
+  globalMarkupFixed: decimal("global_markup_fixed", { precision: 10, scale: 2 }).default("0"),
+  globalQrProductionCost: decimal("global_qr_production_cost", { precision: 10, scale: 2 }).default("2"),
+  textAboveUpcharge: decimal("text_above_upcharge", { precision: 10, scale: 2 }).default("2"),
+  textBelowUpcharge: decimal("text_below_upcharge", { precision: 10, scale: 2 }).default("2"),
+  imageHostingUpcharge: decimal("image_hosting_upcharge", { precision: 10, scale: 2 }).default("5"),
+  showPricesBeforeCustomization: boolean("show_prices_before_customization").default(false),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -119,6 +151,55 @@ export const hostedImages = pgTable("hosted_images", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const giftBackgrounds = pgTable("gift_backgrounds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category"),
+  thumbnailUrl: text("thumbnail_url").notNull(),
+  fullImageUrl: text("full_image_url").notNull(),
+  storageUrl: text("storage_url").notNull(),
+  isActive: boolean("is_active").default(true),
+  isFeatured: boolean("is_featured").default(false),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const hostingTiers = pgTable("hosting_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  durationDays: integer("duration_days").notNull(),
+  isIncluded: boolean("is_included").default(false),
+  priceUpcharge: decimal("price_upcharge", { precision: 10, scale: 2 }).default("0"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+});
+
+export const customGifts = pgTable("custom_gifts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  slug: text("slug").notNull().unique(),
+  backgroundSource: text("background_source").notNull(),
+  backgroundId: varchar("background_id").references(() => giftBackgrounds.id),
+  uploadedImageId: varchar("uploaded_image_id").references(() => hostedImages.id),
+  compositeImageUrl: text("composite_image_url"),
+  overlayConfig: jsonb("overlay_config"),
+  textAboveQr: text("text_above_qr"),
+  textBelowQr: text("text_below_qr"),
+  qrTextContent: text("qr_text_content"),
+  hostingTierId: varchar("hosting_tier_id").references(() => hostingTiers.id),
+  disclaimerAccepted: boolean("disclaimer_accepted").default(false),
+  disclaimerAcceptedAt: timestamp("disclaimer_accepted_at"),
+  pricingSnapshot: jsonb("pricing_snapshot"),
+  views: integer("views").default(0),
+  status: text("status").default("active"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -162,6 +243,31 @@ export const insertHostedImageSchema = createInsertSchema(hostedImages).omit({
   createdAt: true,
 });
 
+export const insertPricingRuleSchema = createInsertSchema(pricingRules).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAdminSettingsSchema = createInsertSchema(adminSettings).omit({
+  updatedAt: true,
+});
+
+export const insertGiftBackgroundSchema = createInsertSchema(giftBackgrounds).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertHostingTierSchema = createInsertSchema(hostingTiers).omit({
+  id: true,
+});
+
+export const insertCustomGiftSchema = createInsertSchema(customGifts).omit({
+  id: true,
+  views: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -186,5 +292,20 @@ export type InsertHostedImage = z.infer<typeof insertHostedImageSchema>;
 
 export type BrowsingHistory = typeof browsingHistory.$inferSelect;
 export type InsertBrowsingHistory = z.infer<typeof insertBrowsingHistorySchema>;
+
+export type PricingRule = typeof pricingRules.$inferSelect;
+export type InsertPricingRule = z.infer<typeof insertPricingRuleSchema>;
+
+export type AdminSettings = typeof adminSettings.$inferSelect;
+export type InsertAdminSettings = z.infer<typeof insertAdminSettingsSchema>;
+
+export type GiftBackground = typeof giftBackgrounds.$inferSelect;
+export type InsertGiftBackground = z.infer<typeof insertGiftBackgroundSchema>;
+
+export type HostingTier = typeof hostingTiers.$inferSelect;
+export type InsertHostingTier = z.infer<typeof insertHostingTierSchema>;
+
+export type CustomGift = typeof customGifts.$inferSelect;
+export type InsertCustomGift = z.infer<typeof insertCustomGiftSchema>;
 
 export type UpsertUser = typeof users.$inferInsert;
