@@ -791,6 +791,213 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ DYNAMIC PAGES ENDPOINTS ============
+  
+  // Get user's dynamic pages
+  app.get("/api/dynamic-pages", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const pages = await storage.getDynamicPagesByUser(userId);
+      res.json(pages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single dynamic page by ID (auth required)
+  app.get("/api/dynamic-pages/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const page = await storage.getDynamicPage(req.params.id);
+      if (!page) {
+        return res.status(404).json({ error: "Dynamic page not found" });
+      }
+      if (page.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const assets = await storage.getDynamicPageAssets(page.id);
+      res.json({ ...page, assets });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new dynamic page
+  app.post("/api/dynamic-pages", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description, hostingTierId } = req.body;
+      
+      // Generate unique slug
+      const slug = crypto.randomUUID();
+      
+      // Calculate expiration based on hosting tier
+      let expiresAt: Date | null = null;
+      if (hostingTierId) {
+        const tier = await storage.getHostingTier(hostingTierId);
+        if (tier && tier.code !== "permanent") {
+          expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + tier.durationDays);
+        }
+      }
+      
+      const page = await storage.createDynamicPage({
+        userId,
+        slug,
+        title,
+        description,
+        hostingTierId,
+        expiresAt,
+        status: "active",
+      });
+      
+      res.status(201).json(page);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update a dynamic page
+  app.put("/api/dynamic-pages/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const page = await storage.getDynamicPage(req.params.id);
+      if (!page) {
+        return res.status(404).json({ error: "Dynamic page not found" });
+      }
+      if (page.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const updated = await storage.updateDynamicPage(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a dynamic page
+  app.delete("/api/dynamic-pages/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const page = await storage.getDynamicPage(req.params.id);
+      if (!page) {
+        return res.status(404).json({ error: "Dynamic page not found" });
+      }
+      if (page.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      await storage.deleteDynamicPage(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get assets for a dynamic page
+  app.get("/api/dynamic-pages/:id/assets", isAuthenticated, async (req: any, res) => {
+    try {
+      const page = await storage.getDynamicPage(req.params.id);
+      if (!page) {
+        return res.status(404).json({ error: "Dynamic page not found" });
+      }
+      if (page.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const assets = await storage.getDynamicPageAssets(page.id);
+      res.json(assets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add a new asset to a dynamic page (upload new image)
+  app.post("/api/dynamic-pages/:id/assets", isAuthenticated, async (req: any, res) => {
+    try {
+      const page = await storage.getDynamicPage(req.params.id);
+      if (!page) {
+        return res.status(404).json({ error: "Dynamic page not found" });
+      }
+      if (page.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const { hostedImageId, title, setAsActive } = req.body;
+      
+      const asset = await storage.createDynamicPageAsset({
+        pageId: page.id,
+        hostedImageId,
+        title,
+        isActive: false,
+      });
+      
+      // Optionally set this as the active asset
+      if (setAsActive) {
+        await storage.setActiveAsset(page.id, asset.id);
+      }
+      
+      res.status(201).json(asset);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Set active asset for a dynamic page (swap image)
+  app.post("/api/dynamic-pages/:id/set-active", isAuthenticated, async (req: any, res) => {
+    try {
+      const page = await storage.getDynamicPage(req.params.id);
+      if (!page) {
+        return res.status(404).json({ error: "Dynamic page not found" });
+      }
+      if (page.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const { assetId } = req.body;
+      await storage.setActiveAsset(page.id, assetId);
+      
+      const updatedPage = await storage.getDynamicPage(page.id);
+      res.json(updatedPage);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Public dynamic page viewer
+  app.get("/api/dynamic/:slug", async (req, res) => {
+    try {
+      const page = await storage.getDynamicPageBySlug(req.params.slug);
+      if (!page) {
+        return res.status(404).json({ error: "Page not found" });
+      }
+      if (page.status !== "active") {
+        return res.status(410).json({ error: "This page is no longer available" });
+      }
+      if (page.expiresAt && new Date(page.expiresAt) < new Date()) {
+        return res.status(410).json({ error: "This page has expired" });
+      }
+      
+      // Increment views
+      await storage.incrementDynamicPageViews(page.id);
+      
+      // Get active asset with hosted image details
+      let activeImage = null;
+      if (page.activeAssetId) {
+        const asset = await storage.getDynamicPageAsset(page.activeAssetId);
+        if (asset) {
+          activeImage = await storage.getHostedImage(asset.hostedImageId);
+        }
+      }
+      
+      res.json({
+        title: page.title,
+        description: page.description,
+        image: activeImage ? {
+          url: activeImage.publicUrl,
+          title: activeImage.title,
+        } : null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ HOSTING TIERS ENDPOINTS ============
   
   // Get all hosting tiers
@@ -921,12 +1128,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============ PRICING QUOTE ENDPOINT ============
   
-  // Calculate final price for a product with customizations (supports all 3 product lines)
+  // Calculate final price for a product with customizations (supports all 4 product lines)
   app.post("/api/pricing/quote", async (req, res) => {
     try {
       const { 
         productId, 
-        productLine = "text", // 'text', 'template', 'custom'
+        productLine = "text", // 'text', 'template', 'custom', 'dynamic'
         hasTextAbove, 
         hasTextBelow, 
         templateId,
@@ -956,15 +1163,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         textBelowUpcharge: 0,
         templateUpcharge: 0,
         hostingUpcharge: 0,
+        dynamicUpcharge: 0,
       };
 
-      // Add text upcharges (applicable to all lines)
-      if (hasTextAbove) {
+      // Add text upcharges (applicable to text, template, custom lines)
+      if (hasTextAbove && productLine !== "dynamic") {
         const upcharge = parseFloat(settings?.textAboveUpcharge || "2");
         price += upcharge;
         breakdown.textAboveUpcharge = upcharge;
       }
-      if (hasTextBelow) {
+      if (hasTextBelow && productLine !== "dynamic") {
         const upcharge = parseFloat(settings?.textBelowUpcharge || "2");
         price += upcharge;
         breakdown.textBelowUpcharge = upcharge;
@@ -980,8 +1188,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Hosting tier upcharge (Line 2 & 3 - for image hosting)
-      if ((productLine === "template" || productLine === "custom") && hostingTierCode !== "1_year") {
+      // Dynamic QR upcharge (Line 4) - base upcharge for changeable image feature
+      if (productLine === "dynamic") {
+        const dynamicUpcharge = parseFloat((settings as any)?.dynamicQrUpcharge || "25");
+        price += dynamicUpcharge;
+        breakdown.dynamicUpcharge = dynamicUpcharge;
+      }
+
+      // Hosting tier upcharge (Lines 2, 3, 4 - for image hosting)
+      if ((productLine === "template" || productLine === "custom" || productLine === "dynamic") && hostingTierCode !== "1_year") {
         const tier = await storage.getHostingTierByCode(hostingTierCode);
         if (tier && !tier.isIncluded) {
           const upcharge = parseFloat(tier.priceUpcharge || "0");

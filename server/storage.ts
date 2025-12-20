@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -28,6 +28,10 @@ import type {
   InsertHostingTier,
   QrTemplate,
   InsertQrTemplate,
+  DynamicPage,
+  InsertDynamicPage,
+  DynamicPageAsset,
+  InsertDynamicPageAsset,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -113,6 +117,23 @@ export interface IStorage {
   createQrTemplate(template: InsertQrTemplate): Promise<QrTemplate>;
   updateQrTemplate(id: string, template: Partial<InsertQrTemplate>): Promise<QrTemplate | undefined>;
   deleteQrTemplate(id: string): Promise<void>;
+
+  // Dynamic Page operations
+  getDynamicPage(id: string): Promise<DynamicPage | undefined>;
+  getDynamicPageBySlug(slug: string): Promise<DynamicPage | undefined>;
+  getDynamicPagesByUser(userId: string): Promise<DynamicPage[]>;
+  createDynamicPage(page: InsertDynamicPage): Promise<DynamicPage>;
+  updateDynamicPage(id: string, page: Partial<InsertDynamicPage>): Promise<DynamicPage | undefined>;
+  deleteDynamicPage(id: string): Promise<void>;
+  incrementDynamicPageViews(id: string): Promise<void>;
+
+  // Dynamic Page Asset operations
+  getDynamicPageAsset(id: string): Promise<DynamicPageAsset | undefined>;
+  getDynamicPageAssets(pageId: string): Promise<DynamicPageAsset[]>;
+  createDynamicPageAsset(asset: InsertDynamicPageAsset): Promise<DynamicPageAsset>;
+  updateDynamicPageAsset(id: string, asset: Partial<InsertDynamicPageAsset>): Promise<DynamicPageAsset | undefined>;
+  deleteDynamicPageAsset(id: string): Promise<void>;
+  setActiveAsset(pageId: string, assetId: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -428,6 +449,86 @@ export class DbStorage implements IStorage {
 
   async deleteQrTemplate(id: string): Promise<void> {
     await this.db.delete(schema.qrTemplates).where(eq(schema.qrTemplates.id, id));
+  }
+
+  // Dynamic Page operations
+  async getDynamicPage(id: string): Promise<DynamicPage | undefined> {
+    const [page] = await this.db.select().from(schema.dynamicPages).where(eq(schema.dynamicPages.id, id));
+    return page;
+  }
+
+  async getDynamicPageBySlug(slug: string): Promise<DynamicPage | undefined> {
+    const [page] = await this.db.select().from(schema.dynamicPages).where(eq(schema.dynamicPages.slug, slug));
+    return page;
+  }
+
+  async getDynamicPagesByUser(userId: string): Promise<DynamicPage[]> {
+    return this.db.select().from(schema.dynamicPages).where(eq(schema.dynamicPages.userId, userId));
+  }
+
+  async createDynamicPage(page: InsertDynamicPage): Promise<DynamicPage> {
+    const [newPage] = await this.db.insert(schema.dynamicPages).values(page).returning();
+    return newPage;
+  }
+
+  async updateDynamicPage(id: string, page: Partial<InsertDynamicPage>): Promise<DynamicPage | undefined> {
+    const [updated] = await this.db
+      .update(schema.dynamicPages)
+      .set({ ...page, updatedAt: new Date() })
+      .where(eq(schema.dynamicPages.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDynamicPage(id: string): Promise<void> {
+    await this.db.delete(schema.dynamicPageAssets).where(eq(schema.dynamicPageAssets.pageId, id));
+    await this.db.delete(schema.dynamicPages).where(eq(schema.dynamicPages.id, id));
+  }
+
+  async incrementDynamicPageViews(id: string): Promise<void> {
+    await this.db.update(schema.dynamicPages)
+      .set({ views: sql`${schema.dynamicPages.views} + 1` })
+      .where(eq(schema.dynamicPages.id, id));
+  }
+
+  // Dynamic Page Asset operations
+  async getDynamicPageAsset(id: string): Promise<DynamicPageAsset | undefined> {
+    const [asset] = await this.db.select().from(schema.dynamicPageAssets).where(eq(schema.dynamicPageAssets.id, id));
+    return asset;
+  }
+
+  async getDynamicPageAssets(pageId: string): Promise<DynamicPageAsset[]> {
+    return this.db.select().from(schema.dynamicPageAssets).where(eq(schema.dynamicPageAssets.pageId, pageId));
+  }
+
+  async createDynamicPageAsset(asset: InsertDynamicPageAsset): Promise<DynamicPageAsset> {
+    const [newAsset] = await this.db.insert(schema.dynamicPageAssets).values(asset).returning();
+    return newAsset;
+  }
+
+  async updateDynamicPageAsset(id: string, asset: Partial<InsertDynamicPageAsset>): Promise<DynamicPageAsset | undefined> {
+    const [updated] = await this.db
+      .update(schema.dynamicPageAssets)
+      .set(asset)
+      .where(eq(schema.dynamicPageAssets.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDynamicPageAsset(id: string): Promise<void> {
+    await this.db.delete(schema.dynamicPageAssets).where(eq(schema.dynamicPageAssets.id, id));
+  }
+
+  async setActiveAsset(pageId: string, assetId: string): Promise<void> {
+    await this.db.update(schema.dynamicPageAssets)
+      .set({ isActive: false, activatedAt: null })
+      .where(eq(schema.dynamicPageAssets.pageId, pageId));
+    await this.db.update(schema.dynamicPageAssets)
+      .set({ isActive: true, activatedAt: new Date() })
+      .where(eq(schema.dynamicPageAssets.id, assetId));
+    await this.db.update(schema.dynamicPages)
+      .set({ activeAssetId: assetId, updatedAt: new Date() })
+      .where(eq(schema.dynamicPages.id, pageId));
   }
 }
 
@@ -869,6 +970,114 @@ class MemStorage implements IStorage {
 
   async deleteQrTemplate(id: string): Promise<void> {
     this.qrTemplates.delete(id);
+  }
+
+  // Dynamic Page operations (MemStorage)
+  private dynamicPages = new Map<string, DynamicPage>();
+  private dynamicPageAssets = new Map<string, DynamicPageAsset>();
+
+  async getDynamicPage(id: string): Promise<DynamicPage | undefined> {
+    return this.dynamicPages.get(id);
+  }
+
+  async getDynamicPageBySlug(slug: string): Promise<DynamicPage | undefined> {
+    return Array.from(this.dynamicPages.values()).find(p => p.slug === slug);
+  }
+
+  async getDynamicPagesByUser(userId: string): Promise<DynamicPage[]> {
+    return Array.from(this.dynamicPages.values()).filter(p => p.userId === userId);
+  }
+
+  async createDynamicPage(page: InsertDynamicPage): Promise<DynamicPage> {
+    const id = `dp_${Date.now()}`;
+    const newPage: DynamicPage = {
+      ...page,
+      id,
+      description: page.description ?? null,
+      activeAssetId: page.activeAssetId ?? null,
+      hostingTierId: page.hostingTierId ?? null,
+      views: 0,
+      status: page.status ?? "active",
+      expiresAt: page.expiresAt ?? null,
+      renewalReminderSent: page.renewalReminderSent ?? false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.dynamicPages.set(id, newPage);
+    return newPage;
+  }
+
+  async updateDynamicPage(id: string, page: Partial<InsertDynamicPage>): Promise<DynamicPage | undefined> {
+    const existing = this.dynamicPages.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...page, updatedAt: new Date() };
+    this.dynamicPages.set(id, updated);
+    return updated;
+  }
+
+  async deleteDynamicPage(id: string): Promise<void> {
+    for (const [assetId, asset] of this.dynamicPageAssets) {
+      if (asset.pageId === id) this.dynamicPageAssets.delete(assetId);
+    }
+    this.dynamicPages.delete(id);
+  }
+
+  async incrementDynamicPageViews(id: string): Promise<void> {
+    const page = this.dynamicPages.get(id);
+    if (page) {
+      page.views = (page.views || 0) + 1;
+      this.dynamicPages.set(id, page);
+    }
+  }
+
+  async getDynamicPageAsset(id: string): Promise<DynamicPageAsset | undefined> {
+    return this.dynamicPageAssets.get(id);
+  }
+
+  async getDynamicPageAssets(pageId: string): Promise<DynamicPageAsset[]> {
+    return Array.from(this.dynamicPageAssets.values()).filter(a => a.pageId === pageId);
+  }
+
+  async createDynamicPageAsset(asset: InsertDynamicPageAsset): Promise<DynamicPageAsset> {
+    const id = `dpa_${Date.now()}`;
+    const newAsset: DynamicPageAsset = {
+      ...asset,
+      id,
+      title: asset.title ?? null,
+      isActive: asset.isActive ?? false,
+      activatedAt: asset.activatedAt ?? null,
+      createdAt: new Date(),
+    };
+    this.dynamicPageAssets.set(id, newAsset);
+    return newAsset;
+  }
+
+  async updateDynamicPageAsset(id: string, asset: Partial<InsertDynamicPageAsset>): Promise<DynamicPageAsset | undefined> {
+    const existing = this.dynamicPageAssets.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...asset };
+    this.dynamicPageAssets.set(id, updated);
+    return updated;
+  }
+
+  async deleteDynamicPageAsset(id: string): Promise<void> {
+    this.dynamicPageAssets.delete(id);
+  }
+
+  async setActiveAsset(pageId: string, assetId: string): Promise<void> {
+    for (const [id, asset] of this.dynamicPageAssets) {
+      if (asset.pageId === pageId) {
+        this.dynamicPageAssets.set(id, { ...asset, isActive: false, activatedAt: null });
+      }
+    }
+    const asset = this.dynamicPageAssets.get(assetId);
+    if (asset) {
+      this.dynamicPageAssets.set(assetId, { ...asset, isActive: true, activatedAt: new Date() });
+    }
+    const page = this.dynamicPages.get(pageId);
+    if (page) {
+      this.dynamicPages.set(pageId, { ...page, activeAssetId: assetId, updatedAt: new Date() });
+    }
   }
 }
 

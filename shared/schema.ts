@@ -160,6 +160,7 @@ export const adminSettings = pgTable("admin_settings", {
   textAboveUpcharge: decimal("text_above_upcharge", { precision: 10, scale: 2 }).default("2"),
   textBelowUpcharge: decimal("text_below_upcharge", { precision: 10, scale: 2 }).default("2"),
   imageHostingUpcharge: decimal("image_hosting_upcharge", { precision: 10, scale: 2 }).default("5"),
+  dynamicQrUpcharge: decimal("dynamic_qr_upcharge", { precision: 10, scale: 2 }).default("25"),
   showPricesBeforeCustomization: boolean("show_prices_before_customization").default(false),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -279,6 +280,34 @@ export const hostingReminders = pgTable("hosting_reminders", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Dynamic QR Pages - user-controlled landing pages where image can change anytime
+export const dynamicPages = pgTable("dynamic_pages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  slug: text("slug").notNull().unique(), // UUID-based for non-enumerable URLs
+  title: text("title").notNull(),
+  description: text("description"),
+  activeAssetId: varchar("active_asset_id"), // references dynamicPageAssets.id (added after table creation)
+  hostingTierId: varchar("hosting_tier_id").references(() => hostingTiers.id),
+  views: integer("views").default(0),
+  status: text("status").default("active"), // 'active', 'paused', 'expired'
+  expiresAt: timestamp("expires_at"),
+  renewalReminderSent: boolean("renewal_reminder_sent").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Dynamic Page Assets - history of all images uploaded for a dynamic page
+export const dynamicPageAssets = pgTable("dynamic_page_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pageId: varchar("page_id").notNull().references(() => dynamicPages.id),
+  hostedImageId: varchar("hosted_image_id").notNull().references(() => hostedImages.id),
+  title: text("title"),
+  isActive: boolean("is_active").default(false), // only one asset active at a time per page
+  activatedAt: timestamp("activated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -371,6 +400,18 @@ export const insertHostingReminderSchema = createInsertSchema(hostingReminders).
   createdAt: true,
 });
 
+export const insertDynamicPageSchema = createInsertSchema(dynamicPages).omit({
+  id: true,
+  views: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDynamicPageAssetSchema = createInsertSchema(dynamicPageAssets).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -425,5 +466,11 @@ export type InsertPartnerStoreProduct = z.infer<typeof insertPartnerStoreProduct
 
 export type HostingReminder = typeof hostingReminders.$inferSelect;
 export type InsertHostingReminder = z.infer<typeof insertHostingReminderSchema>;
+
+export type DynamicPage = typeof dynamicPages.$inferSelect;
+export type InsertDynamicPage = z.infer<typeof insertDynamicPageSchema>;
+
+export type DynamicPageAsset = typeof dynamicPageAssets.$inferSelect;
+export type InsertDynamicPageAsset = z.infer<typeof insertDynamicPageAssetSchema>;
 
 export type UpsertUser = typeof users.$inferInsert;
