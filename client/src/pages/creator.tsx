@@ -29,6 +29,18 @@ interface QrTemplate {
   isFeatured: boolean;
 }
 
+interface HostingTier {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  durationDays: number;
+  isIncluded: boolean;
+  priceUpcharge: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 const placements = [
   { value: "front-chest", label: "Front Chest (Large)" },
   { value: "front-pocket", label: "Front Pocket (Small)" },
@@ -76,6 +88,10 @@ export default function Creator() {
   const [priceQuote, setPriceQuote] = useState<PriceQuote | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<QrTemplate | null>(null);
   const [templateCategory, setTemplateCategory] = useState<string>("all");
+  const [selectedHostingTier, setSelectedHostingTier] = useState<string>("1_year");
+  const [overlayText, setOverlayText] = useState("");
+  const [overlayFontFamily, setOverlayFontFamily] = useState("Inter");
+  const [overlayFontColor, setOverlayFontColor] = useState("#FFFFFF");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
@@ -89,6 +105,11 @@ export default function Creator() {
   const { data: templates = [], isLoading: templatesLoading } = useQuery<QrTemplate[]>({
     queryKey: ["/api/templates"],
     enabled: qrType === "template",
+  });
+
+  const { data: hostingTiers = [] } = useQuery<HostingTier[]>({
+    queryKey: ["/api/hosting-tiers"],
+    enabled: qrType === "upload",
   });
 
   const filteredTemplates = templateCategory === "all" 
@@ -395,7 +416,7 @@ export default function Creator() {
       
       if (qrType === "upload" || qrType === "design") {
         productLine = "custom";
-        hostingTierCode = "1_year";
+        hostingTierCode = selectedHostingTier;
       } else if (qrType === "template" && selectedTemplate) {
         productLine = "template";
         templateId = selectedTemplate.id;
@@ -416,7 +437,7 @@ export default function Creator() {
       setPriceQuote(null);
       setPricingError(false);
     }
-  }, [selectedProduct?.id, hasTextAbove, hasTextBelow, qrType, selectedTemplate?.id]);
+  }, [selectedProduct?.id, hasTextAbove, hasTextBelow, qrType, selectedTemplate?.id, selectedHostingTier]);
 
   const totalPrice = priceQuote?.finalPrice.toFixed(2) || "0.00";
 
@@ -436,9 +457,13 @@ export default function Creator() {
         productColor,
         textAbove: hasTextAbove ? textAbove : undefined,
         textBelow: hasTextBelow ? textBelow : undefined,
-        hostingTier: (qrType === "upload" || qrType === "design") ? "1_year" : undefined,
+        hostingTier: (qrType === "upload" || qrType === "design") ? selectedHostingTier : undefined,
         templateId: qrType === "template" ? selectedTemplate?.id : undefined,
         templateName: qrType === "template" ? selectedTemplate?.name : undefined,
+        overlayText: qrType === "upload" && overlayText ? overlayText : undefined,
+        overlayFontFamily: qrType === "upload" && overlayText ? overlayFontFamily : undefined,
+        overlayFontColor: qrType === "upload" && overlayText ? overlayFontColor : undefined,
+        uploadedImageId: qrType === "upload" && uploadedImage ? uploadedImage.id : undefined,
       },
       price: priceQuote.finalPrice.toFixed(2),
     });
@@ -709,12 +734,106 @@ export default function Creator() {
                               setUploadedImage(null);
                               setQrContent("");
                               setQrCodeImage("");
+                              setOverlayText("");
                             }}
                             data-testid="button-remove-upload"
                           >
                             Remove
                           </Button>
                         </div>
+
+                        <div className="space-y-3 p-3 border rounded-md">
+                          <h4 className="text-sm font-medium">Text Overlay (Optional)</h4>
+                          <div className="space-y-2">
+                            <Label htmlFor="overlay-text">Text</Label>
+                            <Input
+                              id="overlay-text"
+                              placeholder="Your Company Name"
+                              value={overlayText}
+                              onChange={(e) => setOverlayText(e.target.value)}
+                              maxLength={50}
+                              data-testid="input-overlay-text"
+                            />
+                            <p className="text-xs text-muted-foreground">{overlayText.length}/50 characters</p>
+                          </div>
+                          
+                          {overlayText && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor="overlay-font">Font</Label>
+                                <Select value={overlayFontFamily} onValueChange={setOverlayFontFamily}>
+                                  <SelectTrigger data-testid="select-overlay-font">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Inter">Inter</SelectItem>
+                                    <SelectItem value="Arial">Arial</SelectItem>
+                                    <SelectItem value="Georgia">Georgia</SelectItem>
+                                    <SelectItem value="Verdana">Verdana</SelectItem>
+                                    <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                                    <SelectItem value="Courier New">Courier New</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="overlay-color">Color</Label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    id="overlay-color"
+                                    type="color"
+                                    value={overlayFontColor}
+                                    onChange={(e) => setOverlayFontColor(e.target.value)}
+                                    className="w-12 h-9 p-1"
+                                    data-testid="input-overlay-color"
+                                  />
+                                  <Input
+                                    value={overlayFontColor}
+                                    onChange={(e) => setOverlayFontColor(e.target.value)}
+                                    className="flex-1 font-mono text-xs"
+                                    data-testid="input-overlay-color-hex"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-3 p-3 border rounded-md">
+                          <h4 className="text-sm font-medium">Hosting Duration</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Your image will be hosted online and accessible via QR code for the selected duration.
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {hostingTiers.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map((tier) => (
+                              <button
+                                key={tier.id}
+                                type="button"
+                                onClick={() => setSelectedHostingTier(tier.code)}
+                                className={`p-3 rounded-md border text-left transition-colors ${
+                                  selectedHostingTier === tier.code 
+                                    ? "border-primary bg-primary/5" 
+                                    : "hover-elevate"
+                                }`}
+                                data-testid={`button-hosting-tier-${tier.code}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-sm">{tier.name}</span>
+                                  {selectedHostingTier === tier.code && (
+                                    <Check className="w-4 h-4 text-primary" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  {tier.isIncluded ? (
+                                    <Badge variant="outline" className="text-xs">Included</Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge).toFixed(0)}</Badge>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         <p className="text-xs text-muted-foreground">
                           Your image is now hosted. The QR code will link to a branded landing page showing your image.
                         </p>
