@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import ActionCards, { QuickLinks } from "@/components/ActionCards";
 import HowItWorks from "@/components/HowItWorks";
 import ImpactStats from "@/components/ImpactStats";
 import FeaturedProducts from "@/components/FeaturedProducts";
@@ -11,6 +12,8 @@ export default function Home() {
       <Navbar />
       <main className="flex-1">
         <Hero />
+        <ActionCards />
+        <QuickLinks />
         <HowItWorks />
         <ImpactStats />
         <FeaturedProducts />

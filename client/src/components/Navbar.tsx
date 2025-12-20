@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, Menu, X, Settings } from "lucide-react";
+import { ShoppingCart, Menu, X, Settings, User, Shield, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QRButton } from "@/components/QRButton";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { user, isAuthenticated, isLoading } = useAuth();
   const cartCount = 0;
 
   useEffect(() => {
@@ -141,7 +143,7 @@ export default function Navbar() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="card__title mb-4">
-              Settings
+              Menu
               <Button 
                 variant="ghost"
                 size="icon"
@@ -150,9 +152,45 @@ export default function Navbar() {
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-sm" data-testid="settings-info">
-              More settings coming soon
-            </p>
+            <div className="flex flex-col gap-2">
+              {isAuthenticated ? (
+                <>
+                  <div className="text-sm text-muted-foreground mb-2" data-testid="text-username">
+                    Signed in as {user?.firstName || user?.email || 'User'}
+                  </div>
+                  <Link href="/account" onClick={() => setSettingsOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-account">
+                      <User className="w-4 h-4" />
+                      My Account
+                    </Button>
+                  </Link>
+                  <Link href="/admin" onClick={() => setSettingsOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin">
+                      <Shield className="w-4 h-4" />
+                      Admin Panel
+                    </Button>
+                  </Link>
+                  <a href="/api/logout">
+                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-logout">
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </Button>
+                  </a>
+                </>
+              ) : (
+                <>
+                  <a href="/api/login">
+                    <Button variant="default" className="w-full justify-start gap-2" data-testid="button-login">
+                      <LogIn className="w-4 h-4" />
+                      Sign In with Replit
+                    </Button>
+                  </a>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Sign in to access your account and admin features
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
