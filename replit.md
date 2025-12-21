@@ -232,11 +232,10 @@ The widget system allows Kingdom Connects and other trusted partners to embed th
 ## Cross-AI Communication
 
 QR Gear uses a cross-AI communication protocol to coordinate with Kingdom Connects:
-- `docs/AIQR/` - Files received FROM Kingdom Connects AI
-- `docs/AIKC/` - Files to send TO Kingdom Connects AI
-- `docs/AIKC.zip` - Current issue package for Claude 1 review
+- `docs/AI-COMMS/` - All cross-AI communication files
+- `docs/AI-COMMS.zip` - Versioned zip for transport between AIs
 
-### Current Issue (docs/AIKC.zip)
+### Current Issue (docs/AI-COMMS.zip)
 Printify API returns intermittent 401 Unauthenticated errors when fetching product details. This breaks size/color selection and pricing in the creator. The zip contains:
 - PROBLEM_SUMMARY.md - Issue details
 - routes.ts, printify.ts, printify-orders.ts, schema.ts - Relevant code
