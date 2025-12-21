@@ -512,10 +512,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   // Step 1: Store Segment
   const [selectedSegment, setSelectedSegment] = useState<string>("");
   
-  // KC Placement (when Kingdom Connects selected)
-  const [kcPlacement, setKcPlacement] = useState<string>("");
+  // KC Placements (when Kingdom Connects selected) - can select multiple
+  const [kcPlacements, setKcPlacements] = useState<string[]>([]);
   
-  // KC Business Slug (only when kcPlacement is 'static_page')
+  // KC Business Slug (optional - can be used with any placement)
   const [kcBusinessSlug, setKcBusinessSlug] = useState<string>("");
   
   // Staging cart - accumulate products before saving
@@ -660,8 +660,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               defaultPlacement: product.placement,
               headerTextEnabled: product.headerEnabled,
               footerTextEnabled: product.footerEnabled,
-              kcPlacement: selectedSegment === "Kingdom Connects" ? kcPlacement : null,
-              kcBusinessSlug: kcPlacement === "static_page" ? kcBusinessSlug.trim() : null,
+              kcPlacements: selectedSegment === "Kingdom Connects" ? kcPlacements : null,
+              kcBusinessSlug: kcBusinessSlug.trim() || null,
               kcBusinessUrl,
             },
           })
@@ -685,7 +685,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 
   function resetForm() {
     setSelectedSegment("");
-    setKcPlacement("");
+    setKcPlacements([]);
     setKcBusinessSlug("");
     setStagedProducts([]);
     setSelectedCategory("");
@@ -703,17 +703,17 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setSelectedSegment(segment);
     // Clear KC fields when changing away from Kingdom Connects
     if (segment !== "Kingdom Connects") {
-      setKcPlacement("");
+      setKcPlacements([]);
       setKcBusinessSlug("");
     }
   }
   
-  function handleKcPlacementChange(placement: string) {
-    setKcPlacement(placement);
-    // Clear business slug if not static_page
-    if (placement !== "static_page") {
-      setKcBusinessSlug("");
-    }
+  function toggleKcPlacement(placement: string) {
+    setKcPlacements(prev => 
+      prev.includes(placement) 
+        ? prev.filter(p => p !== placement)
+        : [...prev, placement]
+    );
   }
 
   function handleCategoryChange(category: string) {
@@ -816,58 +816,77 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </select>
             </div>
             
-            {/* KC Placement Selection */}
+            {/* KC Placement Selection - Checkboxes for multiple placements */}
             {selectedSegment === "Kingdom Connects" && (
               <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Where on Kingdom Connects?</Label>
-                  <select
-                    className="w-full p-3 border rounded-md bg-background"
-                    value={kcPlacement}
-                    onChange={(e) => handleKcPlacementChange(e.target.value)}
-                    data-testid="select-kc-placement"
-                  >
-                    <option value="">-- Select placement --</option>
-                    <option value="homepage">Homepage (General KC Store)</option>
-                    <option value="dashboard">Dashboard (User's Dashboard)</option>
-                    <option value="static_page">Static Page (Specific Business/Church)</option>
-                  </select>
+                  <Label className="text-sm font-medium">Where on Kingdom Connects? (Select all that apply)</Label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={kcPlacements.includes("homepage")}
+                        onChange={() => toggleKcPlacement("homepage")}
+                        className="h-4 w-4 rounded border-gray-300"
+                        data-testid="checkbox-kc-homepage"
+                      />
+                      <span className="text-sm">Homepage (General KC Store)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={kcPlacements.includes("dashboard")}
+                        onChange={() => toggleKcPlacement("dashboard")}
+                        className="h-4 w-4 rounded border-gray-300"
+                        data-testid="checkbox-kc-dashboard"
+                      />
+                      <span className="text-sm">Dashboard (User's Dashboard)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={kcPlacements.includes("static_page")}
+                        onChange={() => toggleKcPlacement("static_page")}
+                        className="h-4 w-4 rounded border-gray-300"
+                        data-testid="checkbox-kc-static-page"
+                      />
+                      <span className="text-sm">Static Page (Business/Church Listing)</span>
+                    </label>
+                  </div>
                 </div>
                 
-                {/* Business Slug - only for static_page */}
-                {kcPlacement === "static_page" && (
-                  <div className="space-y-2 pt-2 border-t border-blue-200 dark:border-blue-700">
-                    <Label className="text-sm">Business/Church Slug</Label>
-                    <Input
-                      value={kcBusinessSlug}
-                      onChange={(e) => setKcBusinessSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                      placeholder="e.g. first-baptist-church"
-                      className="bg-background"
-                      data-testid="input-kc-slug"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {kcBusinessSlug ? (
-                        <>QR links to: <span className="font-mono text-blue-600">kingdomconnects.org/business/{kcBusinessSlug}.htm</span></>
-                      ) : (
-                        <>Enter the business slug from Kingdom Connects</>
-                      )}
-                    </p>
-                  </div>
-                )}
+                {/* Business Slug - optional, can be used with any placement */}
+                <div className="space-y-2 pt-2 border-t border-blue-200 dark:border-blue-700">
+                  <Label className="text-sm">Business/Church Slug (Optional)</Label>
+                  <Input
+                    value={kcBusinessSlug}
+                    onChange={(e) => setKcBusinessSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    placeholder="e.g. first-baptist-church"
+                    className="bg-background"
+                    data-testid="input-kc-slug"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {kcBusinessSlug ? (
+                      <>QR links to: <span className="font-mono text-blue-600">kingdomconnects.org/business/{kcBusinessSlug}.htm</span></>
+                    ) : (
+                      <>Leave blank for general KC products, or enter a slug to link to a specific business</>
+                    )}
+                  </p>
+                </div>
                 
-                {/* Placement description */}
-                {kcPlacement && (
+                {/* Selected placements summary */}
+                {kcPlacements.length > 0 && (
                   <p className="text-xs text-blue-700 dark:text-blue-300">
-                    {kcPlacement === "homepage" && "Products will appear on KC's main store page"}
-                    {kcPlacement === "dashboard" && "Products will appear in user dashboards on KC"}
-                    {kcPlacement === "static_page" && "Products will appear on a specific business listing page"}
+                    Product will appear on: {kcPlacements.map(p => 
+                      p === "homepage" ? "Homepage" : p === "dashboard" ? "Dashboard" : "Static Pages"
+                    ).join(", ")}
                   </p>
                 )}
               </div>
             )}
 
-            {/* Step 2: Product Type - show after segment selected (and KC placement if KC) */}
-            {selectedSegment && (selectedSegment !== "Kingdom Connects" || kcPlacement) && (
+            {/* Step 2: Product Type - show after segment selected (and at least one KC placement if KC) */}
+            {selectedSegment && (selectedSegment !== "Kingdom Connects" || kcPlacements.length > 0) && (
               <div className="space-y-2">
                 <Label>2. Product Type</Label>
                 <select

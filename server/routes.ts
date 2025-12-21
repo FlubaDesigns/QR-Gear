@@ -1125,7 +1125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // If this is a Kingdom Connects product, also create the partner store product entry
-      if (category === "Kingdom Connects" && metadata?.kcPlacement) {
+      if (category === "Kingdom Connects" && metadata?.kcPlacements?.length > 0) {
         // Find the Kingdom Connects partner store
         const partnerStores = await storage.getPartnerStores();
         const kcStore = partnerStores.find(p => p.slug === "kingdom-connects");
@@ -1134,7 +1134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.addPartnerStoreProduct({
             partnerStoreId: kcStore.id,
             productId: product.id,
-            kcPlacement: metadata.kcPlacement,
+            kcPlacements: metadata.kcPlacements,
             kcBusinessSlug: metadata.kcBusinessSlug || null,
             sortOrder: 0,
             isEnabled: true,

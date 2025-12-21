@@ -5,6 +5,28 @@
 
 ---
 
+## Embedded Widget Includes "Shop" Button
+
+The QR Gear embeddable widget (`/embed/qrgear-embed.js`) automatically includes a "Shop at QR Gear" button. KC just needs to embed the widget - no extra buttons needed.
+
+**Widget automatically handles:**
+- Displaying products for each placement (homepage, dashboard, static_page)
+- "Shop at QR Gear" button with proper linking
+- Passing partner context (slug, user email, business slug) to QR Gear
+
+**Embed code example:**
+```html
+<div id="qrgear-widget" 
+     data-partner="kingdom-connects" 
+     data-placement="dashboard" 
+     data-slug="first-baptist-church"
+     data-user-email="user@example.com">
+</div>
+<script src="https://qrgear.com/embed/qrgear-embed.js"></script>
+```
+
+---
+
 ## Feature Toggle Awareness
 
 Dave mentioned that churches on KC have the ability to turn off certain features. QR Gear is aware of this and will handle it as follows:
