@@ -191,14 +191,17 @@ export default function Navbar() {
               ) : (
                 <>
                   <a href="/api/login">
-                    <Button variant="default" className="w-full justify-start gap-2" data-testid="button-login">
-                      <LogIn className="w-4 h-4" />
-                      Sign In with Replit
+                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-login-user">
+                      <User className="w-4 h-4" />
+                      Sign In as Customer
                     </Button>
                   </a>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Sign in to access your account and admin features
-                  </p>
+                  <a href="/api/login">
+                    <Button variant="default" className="w-full justify-start gap-2" data-testid="button-login-admin">
+                      <Shield className="w-4 h-4" />
+                      Sign In as Admin
+                    </Button>
+                  </a>
                 </>
               )}
             </div>
