@@ -72,6 +72,29 @@ When Dave tells you a new preference:
 | 2025-12-21 | CIDP accessibility | Claude 1 briefing |
 | 2025-12-21 | Mobile-first | Claude 1 briefing |
 | 2025-12-21 | Share rules via this file | Dave instruction |
+| 2025-12-21 | USA-made check by BRAND not print location | Dave instruction |
+| 2025-12-21 | Product thumbnails with tap-to-zoom on mobile | Dave instruction |
+| 2025-12-21 | Staging cart for multi-product imports | Dave instruction |
+| 2025-12-21 | Partner-specific segments and perks | Dave instruction |
+| 2025-12-21 | Update ALL session info in AI-COMMS before zipping | Dave instruction |
+| 2025-12-21 | Annual KC members get free T-shirt/hat (admin configurable) | Dave instruction |
+
+---
+
+## USA-Made Brands List (Periodically Check Printify Catalog)
+
+These brands manufacture garments in the USA:
+- American Apparel
+- Royal Apparel
+- Bayside
+- Los Angeles Apparel
+- Bella+Canvas
+- Lane Seven
+- Cotton Heritage
+- Shaka Wear
+- Backpacks USA
+- American Giant
+- Next Level
 
 ---
 
