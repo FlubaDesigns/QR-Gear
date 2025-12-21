@@ -648,10 +648,69 @@ export default function Creator() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Configuration Panel */}
           <div className="space-y-6">
-            {/* Step 1: QR Code Content */}
+            {/* Step 1: Product Selection - MOVED TO TOP */}
             <Card>
               <CardHeader>
-                <CardTitle>1. Create Your QR Code</CardTitle>
+                <CardTitle>1. Choose Your Product</CardTitle>
+                <CardDescription>Select the item to print on</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {productsLoading && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Loading products...
+                  </div>
+                )}
+                
+                {productsError && (
+                  <div className="text-center py-8 text-destructive">
+                    Failed to load products. Please try refreshing the page.
+                  </div>
+                )}
+                
+                {!productsLoading && !productsError && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {products.map((product) => (
+                    <Card
+                      key={product.id}
+                      className={`cursor-pointer hover-elevate transition-all ${
+                        selectedProduct?.id === product.id ? "ring-2 ring-primary" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setProductColor("");
+                      }}
+                      data-testid={`card-product-${product.id}`}
+                    >
+                      <CardContent className="p-2 sm:p-3">
+                        <div className="aspect-square bg-muted rounded-md mb-2 overflow-hidden relative">
+                          <img
+                            src={product.imageUrl || ""}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = "/assets/generated_images/Product_mockup_white_tee_de332d78.png";
+                            }}
+                          />
+                          {product.madeInUSA && (
+                            <Badge className="absolute top-1 right-1 text-xs gap-1">
+                              <UsaFlag className="w-3 h-2" />
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs sm:text-sm font-semibold truncate">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">${product.basePrice}</p>
+                      </CardContent>
+                    </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Step 2: QR Code Content - MOVED DOWN */}
+            <Card>
+              <CardHeader>
+                <CardTitle>2. Create Your QR Code</CardTitle>
                 <CardDescription>Enter your message or image URL</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1201,65 +1260,6 @@ export default function Creator() {
                 </div>
               </div>
             )}
-
-            {/* Step 2: Product Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle>2. Choose Your Product</CardTitle>
-                <CardDescription>Select the item to print on</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {productsLoading && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Loading products...
-                  </div>
-                )}
-                
-                {productsError && (
-                  <div className="text-center py-8 text-destructive">
-                    Failed to load products. Please try refreshing the page.
-                  </div>
-                )}
-                
-                {!productsLoading && !productsError && (
-                  <div className="grid grid-cols-2 gap-3">
-                    {products.map((product) => (
-                    <Card
-                      key={product.id}
-                      className={`cursor-pointer hover-elevate transition-all ${
-                        selectedProduct?.id === product.id ? "ring-2 ring-primary" : ""
-                      }`}
-                      onClick={() => {
-                        setSelectedProduct(product);
-                        setProductColor("");
-                      }}
-                      data-testid={`card-product-${product.id}`}
-                    >
-                      <CardContent className="p-2 sm:p-3">
-                        <div className="aspect-square bg-muted rounded-md mb-2 overflow-hidden relative">
-                          <img
-                            src={product.imageUrl || ""}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = "/assets/generated_images/Product_mockup_white_tee_de332d78.png";
-                            }}
-                          />
-                          {product.madeInUSA && (
-                            <Badge className="absolute top-1 right-1 text-xs gap-1">
-                              <UsaFlag className="w-3 h-2" />
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs sm:text-sm font-semibold truncate">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">${product.basePrice}</p>
-                      </CardContent>
-                    </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* Step 3: Customization */}
             {selectedProduct && (
