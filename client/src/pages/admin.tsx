@@ -949,7 +949,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             
             {/* KC Placement Selection - Switches for multiple placements */}
             {selectedSegment === "Kingdom Connects" && (
-              <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+              <div className="space-y-3 p-3 bg-card/50 rounded-md border border-border">
                 <Label className="text-lg font-bold text-[var(--accent)]">Where on Kingdom Connects?</Label>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -983,7 +983,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 
                 {/* Selected placements summary */}
                 {kcPlacements.length > 0 && (
-                  <p className="text-xs text-blue-700 dark:text-blue-300 pt-2 border-t border-blue-200 dark:border-blue-700">
+                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
                     Product will appear on: {kcPlacements.map(p => 
                       p === "homepage" ? "Homepage" : p === "dashboard" ? "Dashboard" : "Static Pages"
                     ).join(", ")}
@@ -2786,7 +2786,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Admin-specific header - distinct from main site */}
       <div className="bg-slate-900 dark:bg-slate-950 text-white">
         <div className="container max-w-6xl mx-auto px-4 py-3">
