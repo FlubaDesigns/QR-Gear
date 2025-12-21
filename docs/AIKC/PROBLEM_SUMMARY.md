@@ -16,9 +16,9 @@ Printify API error for blueprint 5: Printify API error: 401 - {"error":"Unauthen
 - API key stored in PRINTIFY_API_KEY environment variable
 
 ## Files to Review
-- server/routes.ts - API routes including Printify endpoints
-- server/printify.ts - Printify API client
-- shared/schema.ts - Database schema
+- routes.ts - API routes including Printify endpoints
+- printify.ts - Printify API client
+- schema.ts - Database schema
 
 ## What Works
 - Product catalog listing (batch endpoint sometimes succeeds)

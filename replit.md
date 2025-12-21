@@ -234,7 +234,12 @@ The widget system allows Kingdom Connects and other trusted partners to embed th
 QR Gear uses a cross-AI communication protocol to coordinate with Kingdom Connects:
 - `docs/AIQR/` - Files received FROM Kingdom Connects AI
 - `docs/AIKC/` - Files to send TO Kingdom Connects AI
-- `docs/AIKC-for-claude1.zip` - Zip file for Dave to transport to KC
+- `docs/AIKC.zip` - Current issue package for Claude 1 review
+
+### Current Issue (docs/AIKC.zip)
+Printify API returns intermittent 401 Unauthenticated errors when fetching product details. This breaks size/color selection and pricing in the creator. The zip contains:
+- PROBLEM_SUMMARY.md - Issue details
+- routes.ts, printify.ts, printify-orders.ts, schema.ts - Relevant code
 
 ### KC Integration Points
 - Creator page accepts `?slug={business_slug}` URL param
