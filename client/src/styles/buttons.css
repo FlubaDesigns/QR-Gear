@@ -1,267 +1,203 @@
-  /* =========================================================
-   Kingdom Connects — buttons.css
-   Plasticky buttons + Web 4.0 sheen + responsive layout
+/* =========================================================
+   QR Gear — buttons.css
+   Plasticky glass buttons with ice-blue/orange accents
    ========================================================= */
 
-/* ---------- Base CTA appearance ---------- */
-.action-button, .btn {
-  --btn-fg: var(--button-fg);
-  --btn-bg-fallback: #f59e0b;
-  color: var(--btn-fg);
-  display: inline-block;
-  font-weight: 800;
-  text-align: center;
-  border: 0;
-  border-radius: 16px;
-  padding: 16px 28px;
-  font-size: clamp(16px, 1.05rem, 20px);
+/* ===== Base Button ===== */
+.qr-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-0);
+  padding: 12px 16px;
+  border-radius: var(--r-sm);
+  font-weight: 600;
   cursor: pointer;
-  position: relative;
-  isolation: isolate;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 45%),
-    var(--button-bg, var(--btn-bg-fallback));
+.qr-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.26);
+  transform: translateY(-1px);
+}
 
+.qr-btn:active {
+  transform: translateY(1px);
+}
+
+/* ===== Primary Button (Ice Blue) ===== */
+.qr-btn--primary {
+  border: none;
+  background: linear-gradient(180deg, var(--ice-1) 0%, var(--ice-3) 100%);
+  color: var(--bg-0);
   box-shadow:
-    0 12px 24px rgba(0,0,0,.35),
-    inset 0 -2px 0 rgba(0,0,0,.25),
-    inset 0 1px 0 rgba(255,255,255,.45);
-
-  transition: transform .12s ease, filter .15s ease, box-shadow .15s ease;
+    0 12px 24px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
-/* Gloss bar */
-.action-button::before, .btn::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(180deg,
-    rgba(255,255,255,.65) 0%,
-    rgba(255,255,255,.35) 14%,
-    rgba(255,255,255,0) 40%);
-  mix-blend-mode: screen;
-  opacity: .9;
-}
-
-/* Sheen swipe */
-.action-button::after, .btn::after {
-  content: "";
-  position: absolute;
-  top: -100%;
-  left: -30%;
-  width: 60%;
-  height: 300%;
-  transform: rotate(25deg);
-  pointer-events: none;
-  border-radius: 24px;
-  opacity: 0;
-  background: linear-gradient(90deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,.45) 45%,
-    rgba(255,255,255,.85) 50%,
-    rgba(255,255,255,.45) 55%,
-    rgba(255,255,255,0) 100%);
-  filter: blur(0.5px);
-}
-
-/* Hover */
-.action-button:hover, .btn:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.03) saturate(1.02);
+.qr-btn--primary:hover {
+  filter: brightness(1.08);
   box-shadow:
-    0 16px 28px rgba(0,0,0,.4),
-    inset 0 -2px 0 rgba(0,0,0,.28),
-    inset 0 1px 0 rgba(255,255,255,.55);
+    0 16px 28px rgba(0, 0, 0, 0.40),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
-/* Pressed */
-.action-button:active, .btn:active,
-.action-button.is-pressed, .btn.is-pressed {
-  transform: translateY(2px);
-  filter: brightness(.98);
+.qr-btn--primary:active {
+  filter: brightness(0.95);
   box-shadow:
-    0 6px 14px rgba(0,0,0,.35),
-    inset 0 -1px 0 rgba(0,0,0,.35),
-    inset 0 3px 8px rgba(0,0,0,.25),
-    inset 0 0 0 1px rgba(255,255,255,.18);
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    inset 0 3px 8px rgba(0, 0, 0, 0.25);
 }
 
-/* Sheen animation */
-.action-button.clicked::after, .btn.clicked::after {
-  animation: kc-sheen .6s ease forwards;
-  opacity: 1;
-}
-@keyframes kc-sheen {
-  0%   { transform: translateX(0) rotate(25deg); opacity: 0; }
-  10%  { opacity: .6; }
-  50%  { transform: translateX(240%) rotate(25deg); opacity: .9; }
-  100% { transform: translateX(360%) rotate(25deg); opacity: 0; }
-}
-
-/* Light theme tweak */
-html[data-theme="light"] .action-button, 
-html[data-theme="light"] .btn {
+/* ===== Accent Button (Orange) ===== */
+.qr-btn--accent {
+  border: none;
+  background: linear-gradient(180deg, var(--accent-2) 0%, var(--accent) 100%);
+  color: var(--bg-0);
   box-shadow:
-    0 12px 22px rgba(0,0,0,.18),
-    inset 0 -2px 0 rgba(0,0,0,.10),
-    inset 0 1px 0 rgba(255,255,255,.75);
+    0 12px 24px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
-/* ---------- Button Section Layout ---------- */
-.button-section {
-  display: grid;
-  gap: 18px;
-  max-width: 720px;
-  margin: 0 auto;
+.qr-btn--accent:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    0 16px 28px rgba(0, 0, 0, 0.40),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
-.button-section .action-button {
+.qr-btn--accent:active {
+  filter: brightness(0.95);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    inset 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* ===== Outline Button ===== */
+.qr-btn--outline {
+  background: transparent;
+  border: 2px solid var(--ice-2);
+  color: var(--ice-1);
+}
+
+.qr-btn--outline:hover {
+  background: rgba(46, 169, 255, 0.12);
+  border-color: var(--ice-1);
+}
+
+/* ===== Ghost Button ===== */
+.qr-btn--ghost {
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+}
+
+.qr-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-0);
+}
+
+/* ===== Small Button ===== */
+.qr-btn--sm {
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  border-radius: 8px;
+}
+
+/* ===== Large Button ===== */
+.qr-btn--lg {
+  padding: 16px 24px;
+  font-size: 1.125rem;
+  border-radius: var(--r-md);
+}
+
+/* ===== Full Width ===== */
+.qr-btn--full {
   width: 100%;
-  min-height: 58px;
 }
 
-/* Mobile full width */
-@media (max-width: 720px) {
-  .button-section {
-    width: 100vw;
-    margin-left: 50%;
-    transform: translateX(-50%);
-    padding: 0 16px;
-    gap: 16px;
+/* ===== Button States ===== */
+.qr-btn:disabled,
+.qr-btn.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.qr-btn.is-loading {
+  opacity: 0.7;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.qr-btn.is-success {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  border-color: #10b981;
+  color: #064e3b;
+}
+
+.qr-btn.is-error {
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+  border-color: #ef4444;
+  color: #7f1d1d;
+}
+
+/* ===== Button Row ===== */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .button-row {
+    flex-direction: column;
+  }
+  
+  .button-row > * {
+    width: 100%;
   }
 }
-/* CTA blocks: make each button full-width with a solid tap target */
-.cta-block .action-button {
-  width: 100%;
-  min-height: 58px;
+
+/* ===== Pill Badge ===== */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-1);
 }
 
-/* Mobile: All standalone CTA buttons should be full-width for better UX */
-@media (max-width: 720px) {
-  .action-button, .btn {
+/* ===== Badge ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-1);
+}
+
+/* ===== Mobile Full Width ===== */
+@media (max-width: 768px) {
+  .qr-btn--mobile-full {
     width: 100%;
     display: block;
   }
-
-  /* Exception: buttons in flex containers (like header actions) */
-  .header-actions .action-button,
-  .header-actions .btn,
-  .factoid-actions .action-button,
-  .factoid-actions .btn {
-    width: auto;
-    display: inline-block;
-  }
-}
-
-/* =========================================================
-   GOLD BUTTON VARIANT (works in dark & light themes)
-   - Use on: <a class="action-button btn-gold">…</a>
-             <button class="btn btn-gold">…</button>
-   - Honors your existing sheen/pressed effects (.clicked/.is-pressed)
-   ========================================================= */
-
-/* Palette (shared) */
-:root{
-  --gold-hi:  #FFF4B0;   /* highlight */
-  --gold:     #FFD700;   /* classic gold */
-  --gold-mid: #DAA520;   /* depth */
-  --gold-deep:#B8860B;   /* antique edge */
-  --ring-fallback: 0 0 0 3px rgba(59,130,246,.45);
-}
-
-/* Text color over gold, by theme */
-html[data-theme="dark"]  { --gold-fg: #0b1220; }  /* dark ink on bright gold */
-html[data-theme="light"] { --gold-fg: #0b1220; }
-
-/* Base state */
-.action-button.btn-gold,
-.btn.btn-gold {
-  color: var(--gold-fg);
-  /* drive your existing button system with these tokens */
-  --button-bg: linear-gradient(180deg, var(--gold) 0%, var(--gold-mid) 100%);
-  --button-bg-hover: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 100%);
-
-  /* immediate background so it also works if your base ignores --button-bg */
-  background: var(--button-bg);
-  /* slightly crisper inner rim for metallic feel */
-  box-shadow:
-    0 12px 24px rgba(0,0,0,.35),
-    inset 0 -2px 0 rgba(0,0,0,.22),
-    inset 0 1px 0 rgba(255,255,255,.55);
-}
-
-/* Hover */
-.action-button.btn-gold:hover,
-.btn.btn-gold:hover {
-  background: var(--button-bg-hover);
-  filter: brightness(1.04) saturate(1.03);
-  transform: translateY(-2px);
-  box-shadow:
-    0 16px 28px rgba(0,0,0,.40),
-    inset 0 -2px 0 rgba(0,0,0,.25),
-    inset 0 1px 0 rgba(255,255,255,.65);
-}
-
-/* Active / pressed (works alongside your .is-pressed) */
-.action-button.btn-gold:active,
-.btn.btn-gold:active,
-.action-button.btn-gold.is-pressed,
-.btn.btn-gold.is-pressed {
-  background: linear-gradient(180deg, var(--gold-mid) 0%, var(--gold-deep) 100%);
-  transform: translateY(2px);
-  filter: brightness(.98);
-  box-shadow:
-    0 6px 14px rgba(0,0,0,.35),
-    inset 0 -1px 0 rgba(0,0,0,.35),
-    inset 0 3px 8px rgba(0,0,0,.25),
-    inset 0 0 0 1px rgba(255,255,255,.18);
-}
-
-/* Focus (keyboard) */
-.action-button.btn-gold:focus-visible,
-.btn.btn-gold:focus-visible {
-  outline: none;
-  box-shadow: var(--ring, var(--ring-fallback));
-}
-
-/* Disabled */
-.action-button.btn-gold[disabled],
-.btn.btn-gold[disabled],
-.action-button.btn-gold.is-disabled,
-.btn.btn-gold.is-disabled {
-  opacity: .55;
-  cursor: not-allowed;
-  filter: grayscale(.1) saturate(.9);
-  transform: none;
-  box-shadow:
-    0 8px 16px rgba(0,0,0,.25),
-    inset 0 -1px 0 rgba(0,0,0,.18),
-    inset 0 1px 0 rgba(255,255,255,.40);
-}
-.admin-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  margin-top: 1rem;
-}
-
-.action-button {
-  padding: 12px 16px;
-  font-weight: 600;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(to bottom, #ffcc33, #e0a800);
-  color: #000;
-  cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.action-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
