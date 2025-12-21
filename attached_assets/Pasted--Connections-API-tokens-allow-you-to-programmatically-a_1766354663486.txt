@@ -1,0 +1,53 @@
+
+Connections
+API tokens allow you to programmatically access your Printify account and manage your products, orders, and stores. Use these tokens to integrate Printify with your own applications or third-party services.
+
+Common use cases:
+
+Build custom integrations with your existing systems
+Sync products between your custom store and Printify
+Automate order management and fulfillment
+Learn more about the Printify API and view detailed documentation 
+
+API tokens
+You have 3 Printify API token(s) created
+
+printify-api-token-2
+Printify-API-Token
+printify-api-token
+Contact email
+Contact email for Printify API updates, changes and other information
+
+Email
+perceys@gmail.com
+
+printify-api-token-2
+eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzN2Q0YmQzMDM1ZmUxMWU5YTgwM2FiN2VlYjNjY2M5NyIsImp0aSI6IjBiZjlmOTIwZTQzMGVhNzVkODYzYzc3MTdjYTJjODFmY2MzZWY1NTM1MDM0ODgwNzYzN2VhYmRmMWZkYmUwOTkyMWFmNWFkNDE1NjIzMWY4IiwiaWF0IjoxNzY2MzU0NjIzLjEwNTg0LCJuYmYiOjE3NjYzNTQ2MjMuMTA1ODQyLCJleHAiOjE3OTc4OTA2MjMuMDQ0NTgxLCJzdWIiOiIyMTA3MDg5MiIsInNjb3BlcyI6WyJzaG9wcy5tYW5hZ2UiLCJzaG9wcy5yZWFkIiwiY2F0YWxvZy5yZWFkIiwib3JkZXJzLnJlYWQiLCJvcmRlcnMud3JpdGUiLCJwcm9kdWN0cy5yZWFkIiwicHJvZHVjdHMud3JpdGUiLCJ3ZWJob29rcy5yZWFkIiwid2ViaG9va3Mud3JpdGUiLCJ1cGxvYWRzLnJlYWQiLCJ1cGxvYWRzLndyaXRlIiwicHJpbnRfcHJvdmlkZXJzLnJlYWQiLCJ1c2VyLmluZm8iXX0.TGDiVIuWiFJ9_R04iyTs05aS0sm-wq-_-h-HDWHiQ6b5cYpfS3JTOtTikuKRj5WOTENorjhzHN0aq4Zb4AU4WrDdFkaGnq8ArIqJZrdP9pmCz9Ljzm4j54X7MLZgGcZlTiP4lwVS98KC3ZofbZs791m34ink4aNlUcP4z76lVCu_JeHl9p5GT5Qt68x0ejPrkbNxTK_sWeqB3dBN7WvWxKJAqIkc22r_othYmITIKOk1YVufLUKFPYA_s0Ot86E_Q6yiNKESLPTMu3qCLOd6m_0dj104f0C_274_xZxg31YZmPEo_NBzLeUmYwRGFjWLCEqlIwkczdRZgSphO4K7UIwJi55dZVfUlFL64Eef1Aw_rTAccaB45jhmwbALxeQKXOegv8Ro3-98fitXDnulYJ5JMnxqN4QVH2SXKaHtGrTW0TluV-B3iOC0M7k1ibv0pHy8zeWWtPdmmGxjzea7v25viTEGFMGMwIXvKGo7VO9grhHjIQG1EeEgvPwXcmcpvHtpE3k5L6E2h8RR-8NCxfTQ90hWasF90pa6wvIrgxf3N9mTlakvJpN5NoNpNtj72peAzqouD2hP5ik-OVjUM8su6MGCRGHB-UXj7gqk7Gg1J3G_CfVG7ZV0AT9OeuNZNf1MCZdssojlpXhUUSPIazMI3u0Nv4j5yJDY0DI8oLA
+
+Scopes
+catalog.read
+Get access to Printify Product catalog
+orders.read
+Get access to Printify orders
+orders.write
+Submit orders
+print_providers.read
+Read available print providers
+products.read
+Get access to Merchant shop products
+products.write
+Get access to Merchant shop product creation
+shops.manage
+Manage Shop in your account, e.g. install webhooks, fulfill orders, etc
+shops.read
+Get access to Merchant shops
+uploads.read
+Get access to Merchant uploaded files
+uploads.write
+Upload custom artwork files and archive artwork
+user.info
+Read user information: name, email, ID
+webhooks.read
+Read installed Webhooks
+webhooks.write
+Install, update and delete Webhooks
