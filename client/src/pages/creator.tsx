@@ -1274,13 +1274,15 @@ export default function Creator() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {placements
-                          .filter((p) => availablePlacements.includes(p.value))
-                          .map((p) => (
-                            <SelectItem key={p.value} value={p.value}>
-                              {p.label}
+                        {availablePlacements.length > 0 ? (
+                          availablePlacements.map((pos: string) => (
+                            <SelectItem key={pos} value={pos}>
+                              {formatPlacementLabel(pos)}
                             </SelectItem>
-                          ))}
+                          ))
+                        ) : (
+                          <SelectItem value="front">Front</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
