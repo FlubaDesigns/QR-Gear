@@ -242,6 +242,11 @@ QR Gear uses a cross-AI communication protocol to coordinate with Kingdom Connec
 - Shows visual indicator when KC business promo mode is active
 
 ## Recent Changes Log
+- 2025-12-21: Fixed Printify API connection - added automatic whitespace trimming for API keys
+- 2025-12-21: Redesigned admin product catalog to show one item per row with cost, sizes, colors
+- 2025-12-21: Added batch endpoint for efficient product detail fetching with server-side caching
+- 2025-12-21: KC placement UI now uses Switch components with validation
+- 2025-12-21: Renamed "Store Products" to "QR Gear Product Catalog" with clearer workflow
 - 2025-12-21: Set up cross-AI communication folders and protocol
 - 2025-12-21: Added KC business slug parameter support in creator page
 - 2025-12-21: Created AIKC-for-claude1.zip for KC transport
