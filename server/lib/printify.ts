@@ -107,7 +107,7 @@ class PrintifyClient {
     return Boolean(this.getApiKey() && this.getShopId());
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, retries = 3): Promise<T> {
     if (!this.isConfigured) {
       throw new Error('Printify API not configured. Missing API key or Shop ID.');
     }
@@ -116,20 +116,43 @@ class PrintifyClient {
       ? endpoint 
       : `${PRINTIFY_API_BASE}${endpoint}`;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.headers,
-        ...options.headers,
-      },
-    });
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            ...this.headers,
+            ...options.headers,
+          },
+        });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Printify API error: ${response.status} - ${error}`);
+        // If 401/429, wait and retry (unless last attempt)
+        if ((response.status === 401 || response.status === 429) && attempt < retries - 1) {
+          const waitTime = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+          console.log(`Printify API ${response.status}, retrying in ${waitTime}ms (attempt ${attempt + 1}/${retries})`);
+          await new Promise(r => setTimeout(r, waitTime));
+          continue;
+        }
+
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Printify API error: ${response.status} - ${error}`);
+        }
+
+        return response.json();
+      } catch (error: any) {
+        lastError = error;
+        if (attempt < retries - 1) {
+          const waitTime = 1000 * Math.pow(2, attempt);
+          console.log(`Printify API error, retrying in ${waitTime}ms (attempt ${attempt + 1}/${retries}): ${error.message}`);
+          await new Promise(r => setTimeout(r, waitTime));
+        }
+      }
     }
-
-    return response.json();
+    
+    throw lastError || new Error('Printify API request failed after retries');
   }
 
   async getShops(): Promise<any[]> {
