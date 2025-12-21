@@ -855,15 +855,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Brands known to manufacture garments in the USA
+  // This list should be updated periodically by checking Printify's catalog
   const USA_MADE_BRANDS = [
     'american apparel',
     'royal apparel',
     'bayside',
     'los angeles apparel',
+    'bella+canvas',
+    'bella canvas',
     'lane seven',
     'cotton heritage',
     'shaka wear',
     'backpacks usa',
+    'american giant',
+    'next level',  // Some Next Level products made in USA
   ];
 
   // Get full catalog grouped by category with images and provider info
