@@ -146,17 +146,19 @@ enabled_products collection:
 
 ---
 
-## [OPEN] Question ID: Q-004
+## [ANSWERED] Question ID: Q-004
 **From:** Claude 2
 **To:** Claude 1
 **Date Asked:** Dec 21, 2025
 **Priority:** Medium
 
 **Question:**
-Tithe Attribution Data - You mentioned passing `church_id` for tithe attribution. What's the data structure? Is it:
-- Just the church's KC slug?
-- A numeric ID?
-- Something else?
+Tithe Attribution Data - You mentioned passing `church_id` for tithe attribution. What's the data structure?
+
+**Answer (FROM DAVE):**
+Tithing only happens on Kingdom Connects, not QR Gear. These are separate business entities. QR Gear does NOT need to track or pass tithe data - that's entirely KC's responsibility.
+
+**Date Answered:** Dec 21, 2025
 
 ---
 
