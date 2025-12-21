@@ -627,8 +627,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       if (!res.ok) throw new Error("Failed to fetch details");
       const data = await res.json();
       setCatalogDetails(data);
-      // Cache the details for this item
-      if (data.basePrice) {
+      // Cache the details for this item (check for basePrice existence, not truthiness - 0 is valid)
+      if (data.basePrice !== undefined) {
         setItemDetails(prev => ({ 
           ...prev, 
           [itemId]: {
@@ -639,10 +639,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             providerName: data.selectedProvider?.title,
           }
         }));
-        // Initialize all sizes/colors as enabled by default
-        setEnabledSizes(new Set(data.sizes || []));
-        setEnabledColors(new Set(data.colors || []));
       }
+      // Always initialize sizes/colors from response
+      setEnabledSizes(new Set(data.sizes || []));
+      setEnabledColors(new Set(data.colors || []));
     } catch (error) {
       toast({ title: "Error", description: "Failed to load product details.", variant: "destructive" });
     } finally {
@@ -1113,7 +1113,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             
                             {/* Cost */}
                             <div className="text-sm font-semibold text-primary">
-                              {details?.basePrice 
+                              {details?.basePrice !== undefined && details.basePrice !== null
                                 ? `Our Cost: $${details.basePrice.toFixed(2)}`
                                 : details?.error
                                   ? "Price unavailable"
