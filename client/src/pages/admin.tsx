@@ -731,7 +731,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   }
 
   const canAddToCart = selectedItem && selectedSegment && catalogDetails && !loadingDetails;
-  const canSaveAll = stagedProducts.length > 0 && selectedSegment;
+  // For KC products, require at least one placement selected
+  const kcPlacementValid = selectedSegment !== "Kingdom Connects" || kcPlacements.length > 0;
+  const canSaveAll = stagedProducts.length > 0 && selectedSegment && kcPlacementValid;
 
   return (
     <Card className="mb-6">
@@ -2089,6 +2091,7 @@ function PartnerStoresTab() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<PartnerStore | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [loadingStoreProducts, setLoadingStoreProducts] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -2198,14 +2201,18 @@ function PartnerStoresTab() {
       commissionPercent: store.commissionPercent || "0",
       isActive: store.isActive ?? true,
     });
+    setSelectedProducts([]);
+    setLoadingStoreProducts(true);
+    setIsDialogOpen(true);
     try {
       const res = await fetch(`/api/admin/partner-stores/${store.id}/products`);
       const storeProducts = await res.json();
       setSelectedProducts(storeProducts.map((p: { productId: string }) => p.productId));
     } catch {
       setSelectedProducts([]);
+    } finally {
+      setLoadingStoreProducts(false);
     }
-    setIsDialogOpen(true);
   }
 
   function handleSubmit() {
@@ -2464,7 +2471,12 @@ function PartnerStoresTab() {
                 Only enabled products from the Products tab are shown here.
               </p>
               <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-                {products && products.filter(p => p.isEnabled).length > 0 ? (
+                {loadingStoreProducts ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">Loading assigned products...</span>
+                  </div>
+                ) : products && products.filter(p => p.isEnabled).length > 0 ? (
                   <div className="grid gap-2">
                     {products.filter(p => p.isEnabled).map(product => (
                       <label
