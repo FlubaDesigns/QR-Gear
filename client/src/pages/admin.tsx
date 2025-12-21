@@ -1103,7 +1103,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
               <DialogContent className="max-w-2xl p-4">
                 {zoomedImage && (
-                  <div className="space-y-3">
+                  <div 
+                    className="space-y-3 cursor-pointer" 
+                    onClick={() => setZoomedImage(null)}
+                  >
                     <img
                       src={zoomedImage.url}
                       alt={zoomedImage.title}
@@ -1111,7 +1114,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     />
                     <div className="text-center">
                       <p className="font-medium">{zoomedImage.title}</p>
-                      <p className="text-sm text-muted-foreground">Click outside or X to close</p>
+                      <p className="text-sm text-muted-foreground">Tap image to close</p>
                     </div>
                   </div>
                 )}
