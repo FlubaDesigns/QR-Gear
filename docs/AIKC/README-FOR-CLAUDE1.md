@@ -83,3 +83,51 @@ docs/
 ---
 
 *Please zip your response files as AIQR-for-claude2.zip for Dave to bring back*
+
+---
+
+## QR Gear Email Module
+
+For KC integration, here's how our email system works:
+
+### What's Implemented
+
+**Resend Integration** - We use Resend for transactional emails.
+
+**Email Types:**
+1. **Order Confirmation** - Sent automatically after purchase. Includes order details, items, totals, fulfillment timeline.
+2. **Hosting Expiration Reminders** - Background job scans hourly and sends:
+   - 30 days before: "Friendly reminder"
+   - 7 days before: "Action needed soon"  
+   - Day of: "Expires today!"
+
+### How Emails Trigger
+
+```
+Order placed → Save to DB → Submit to Printify → Send confirmation email
+
+Hourly cron → Scan hostingReminders table → Send appropriate reminder
+```
+
+### KC Integration Points
+
+When KC businesses order promotional QR products:
+- Order confirmations can include KC business branding
+- Hosting reminders reference the KC business listing URL
+- Follow-up emails: "Your KC Business QR is Ready!"
+- Sales campaigns can target KC business owners specifically
+
+### For Sales/Marketing Extension
+
+Could add:
+- Campaign management for promotional blasts
+- Audience segmentation (KC businesses, repeat buyers, etc.)
+- Consent/unsubscribe tracking
+- Batched sending via Resend broadcast API
+
+### What We'd Need From KC
+
+- Customer consent preferences synced between platforms
+- Co-branded email template approval
+- KC business owner email list (with consent)
+- Preferred email frequency/timing
