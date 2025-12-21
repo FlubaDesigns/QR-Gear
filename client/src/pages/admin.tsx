@@ -436,6 +436,286 @@ function ProductTagEditor({
   );
 }
 
+interface PrintifyBlueprint {
+  id: number;
+  title: string;
+  description: string;
+  brand: string;
+  model: string;
+  images: string[];
+}
+
+interface CatalogDetails {
+  blueprint: PrintifyBlueprint;
+  selectedProvider: { id: number; title: string };
+  madeInUSA: boolean;
+  colors: string[];
+  sizes: string[];
+  basePrice: number;
+  imageUrl: string | null;
+}
+
+function AddFromPrintifyDialog({ onSuccess }: { onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedBlueprintId, setSelectedBlueprintId] = useState<number | null>(null);
+  const [selectedSegment, setSelectedSegment] = useState<string>("");
+  const [catalogDetails, setCatalogDetails] = useState<CatalogDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  // Fetch all blueprints
+  const { data: blueprints = [], isLoading: loadingBlueprints } = useQuery<PrintifyBlueprint[]>({
+    queryKey: ["/api/admin/printify/blueprints"],
+    enabled: open,
+  });
+
+  // Fetch store segments/categories
+  const { data: segments = [] } = useQuery<ProductCategory[]>({
+    queryKey: ["/api/admin/product-categories"],
+    enabled: open,
+  });
+
+  // Fetch catalog details when blueprint selected
+  async function fetchCatalogDetails(blueprintId: number) {
+    setLoadingDetails(true);
+    try {
+      const res = await fetch(`/api/admin/printify/catalog/${blueprintId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch details");
+      const data = await res.json();
+      setCatalogDetails(data);
+      setStep(2);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to load product details.", variant: "destructive" });
+    } finally {
+      setLoadingDetails(false);
+    }
+  }
+
+  // Add product mutation
+  const addProductMutation = useMutation({
+    mutationFn: async () => {
+      if (!catalogDetails || !selectedSegment) throw new Error("Missing data");
+      return apiRequest("POST", "/api/admin/products/from-printify", {
+        blueprintId: catalogDetails.blueprint.id,
+        printProviderId: catalogDetails.selectedProvider.id,
+        name: catalogDetails.blueprint.title,
+        description: catalogDetails.blueprint.description || "",
+        category: selectedSegment,
+        basePrice: catalogDetails.basePrice,
+        imageUrl: catalogDetails.imageUrl,
+        manufacturer: catalogDetails.selectedProvider.title,
+        madeInUSA: catalogDetails.madeInUSA,
+        availablePlacements: ["front"],
+        availableColors: catalogDetails.colors,
+        availableSizes: catalogDetails.sizes,
+        metadata: { brand: catalogDetails.blueprint.brand, model: catalogDetails.blueprint.model },
+      });
+    },
+    onSuccess: () => {
+      toast({ 
+        title: "Product Added!", 
+        description: `${catalogDetails?.blueprint.title} added to ${selectedSegment} segment.` 
+      });
+      resetDialog();
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add product.", variant: "destructive" });
+    },
+  });
+
+  function resetDialog() {
+    setOpen(false);
+    setStep(1);
+    setSelectedBlueprintId(null);
+    setSelectedSegment("");
+    setCatalogDetails(null);
+  }
+
+  function handleBlueprintSelect(blueprintId: string) {
+    const id = parseInt(blueprintId);
+    setSelectedBlueprintId(id);
+    fetchCatalogDetails(id);
+  }
+
+  function handleSegmentSelect(segment: string) {
+    setSelectedSegment(segment);
+    setStep(3);
+  }
+
+  function handleConfirmAdd() {
+    addProductMutation.mutate();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) resetDialog(); else setOpen(true); }}>
+      <DialogTrigger asChild>
+        <Button data-testid="button-add-from-printify">
+          <Plus className="h-4 w-4 mr-2" />
+          Add from Printify
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {step === 1 && "Step 1: Select Product"}
+            {step === 2 && "Step 2: Choose Store Segment"}
+            {step === 3 && "Step 3: Confirm & Add"}
+          </DialogTitle>
+        </DialogHeader>
+
+        {step === 1 && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Pick a product from the Printify catalog:</p>
+            {loadingBlueprints ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : (
+              <select
+                className="w-full p-3 border rounded-md bg-background"
+                value={selectedBlueprintId || ""}
+                onChange={(e) => handleBlueprintSelect(e.target.value)}
+                disabled={loadingDetails}
+                data-testid="select-printify-blueprint"
+              >
+                <option value="">-- Select a product --</option>
+                {blueprints.map((bp) => (
+                  <option key={bp.id} value={bp.id}>
+                    {bp.title} - {bp.brand}
+                  </option>
+                ))}
+              </select>
+            )}
+            {loadingDetails && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading product details...
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 2 && catalogDetails && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-3 bg-muted rounded-md">
+              {catalogDetails.imageUrl && (
+                <img src={catalogDetails.imageUrl} alt="" className="w-16 h-16 rounded object-cover" />
+              )}
+              <div className="flex-1">
+                <div className="font-medium flex items-center gap-2">
+                  {catalogDetails.blueprint.title}
+                  {catalogDetails.madeInUSA && (
+                    <Badge variant="outline" className="gap-1">
+                      <Flag className="h-3 w-3 text-red-500" /> USA
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  ${catalogDetails.basePrice.toFixed(2)} base • {catalogDetails.colors.length} colors • {catalogDetails.sizes.length} sizes
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground">Which store segment should this product appear in?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {segments.filter(s => s.isActive).map((seg) => (
+                <Button
+                  key={seg.id}
+                  variant={selectedSegment === seg.name ? "default" : "outline"}
+                  className="justify-start"
+                  onClick={() => handleSegmentSelect(seg.name)}
+                  data-testid={`button-segment-${seg.slug}`}
+                >
+                  {seg.name}
+                </Button>
+              ))}
+              <Button
+                variant={selectedSegment === "Kingdom Connects" ? "default" : "outline"}
+                className="justify-start"
+                onClick={() => handleSegmentSelect("Kingdom Connects")}
+                data-testid="button-segment-kingdom-connects"
+              >
+                Kingdom Connects
+              </Button>
+              <Button
+                variant={selectedSegment === "Holiday" ? "default" : "outline"}
+                className="justify-start"
+                onClick={() => handleSegmentSelect("Holiday")}
+                data-testid="button-segment-holiday"
+              >
+                Holiday
+              </Button>
+              <Button
+                variant={selectedSegment === "Dynamic" ? "default" : "outline"}
+                className="justify-start"
+                onClick={() => handleSegmentSelect("Dynamic")}
+                data-testid="button-segment-dynamic"
+              >
+                Dynamic
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && catalogDetails && (
+          <div className="space-y-4">
+            <div className="p-4 border rounded-md space-y-3">
+              <div className="flex items-start gap-4">
+                {catalogDetails.imageUrl && (
+                  <img src={catalogDetails.imageUrl} alt="" className="w-20 h-20 rounded object-cover" />
+                )}
+                <div className="flex-1">
+                  <div className="font-medium text-lg">{catalogDetails.blueprint.title}</div>
+                  <div className="text-sm text-muted-foreground">{catalogDetails.blueprint.brand}</div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-muted-foreground">Segment:</span> <strong>{selectedSegment}</strong></div>
+                <div><span className="text-muted-foreground">Base Price:</span> <strong>${catalogDetails.basePrice.toFixed(2)}</strong></div>
+                <div><span className="text-muted-foreground">Colors:</span> {catalogDetails.colors.length}</div>
+                <div><span className="text-muted-foreground">Sizes:</span> {catalogDetails.sizes.length}</div>
+                <div className="col-span-2 flex items-center gap-2">
+                  {catalogDetails.madeInUSA ? (
+                    <Badge className="gap-1"><Flag className="h-3 w-3" /> Made in USA</Badge>
+                  ) : (
+                    <Badge variant="outline">International</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+              <Button 
+                onClick={handleConfirmAdd} 
+                disabled={addProductMutation.isPending}
+                data-testid="button-confirm-add-product"
+              >
+                {addProductMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Adding...</>
+                ) : (
+                  <><Check className="h-4 w-4 mr-2" /> Add to Store</>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step !== 3 && (
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ProductsTab() {
   const { toast } = useToast();
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -479,15 +759,18 @@ function ProductsTab() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
         <div>
           <CardTitle>Store Products</CardTitle>
           <CardDescription>Enable/disable products and set pricing</CardDescription>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <AddFromPrintifyDialog onSuccess={() => refetch()} />
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (

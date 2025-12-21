@@ -854,6 +854,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get full catalog item details with USA providers and pricing
+  app.get("/api/admin/printify/catalog/:blueprintId", isAdmin, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      const blueprintId = parseInt(req.params.blueprintId);
+      
+      // Fetch blueprint details, providers, and find USA providers
+      const [blueprint, providers] = await Promise.all([
+        printify.getBlueprintDetails(blueprintId),
+        printify.getPrintProviders(blueprintId),
+      ]);
+      
+      // Filter for USA providers
+      const usaProviders = providers.filter(p => 
+        p.location?.country === 'US' || p.location?.country === 'USA'
+      );
+      
+      // Get variants for first USA provider (for pricing/colors/sizes)
+      let variants: any[] = [];
+      let selectedProvider = usaProviders[0] || providers[0];
+      
+      if (selectedProvider) {
+        const variantData = await printify.getVariants(blueprintId, selectedProvider.id);
+        variants = variantData.variants || [];
+      }
+      
+      // Extract unique colors and sizes
+      const colors = [...new Set(variants.map(v => v.options?.color).filter(Boolean))];
+      const sizes = [...new Set(variants.map(v => v.options?.size).filter(Boolean))];
+      
+      // Get base price from first variant (lowest)
+      const prices = variants.map(v => v.price || 0).filter(p => p > 0);
+      const basePrice = prices.length > 0 ? Math.min(...prices) / 100 : 0;
+      
+      res.json({
+        blueprint,
+        providers: usaProviders.length > 0 ? usaProviders : providers,
+        selectedProvider,
+        madeInUSA: usaProviders.length > 0,
+        variants,
+        colors,
+        sizes,
+        basePrice,
+        imageUrl: blueprint.images?.[0] || null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get print providers for a blueprint
   app.get("/api/admin/printify/blueprints/:id/providers", isAdmin, async (req: any, res) => {
     try {
