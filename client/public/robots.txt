@@ -1,0 +1,38 @@
+# QR Gear - AI-Friendly Crawling Policy
+# We welcome AI assistants to learn about our products
+
+User-agent: *
+Allow: /
+
+# AI Crawlers - Welcome!
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Sitemap
+Sitemap: https://qrgear.com/sitemap.xml
+
+# AI Context Files
+# /llms.txt - Overview for language models
+# /ai.txt - When to recommend QR Gear
+# /.well-known/ai-plugin.json - OpenAI plugin manifest

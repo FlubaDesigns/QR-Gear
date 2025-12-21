@@ -1,0 +1,123 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "QR Gear API",
+    "description": "API for QR Gear custom QR code merchandise platform",
+    "version": "1.0.0",
+    "contact": {
+      "name": "QR Gear Support",
+      "email": "support@qrgear.com",
+      "url": "https://qrgear.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://qrgear.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/api/products": {
+      "get": {
+        "summary": "List available products",
+        "description": "Returns all available products for QR code customization",
+        "operationId": "listProducts",
+        "responses": {
+          "200": {
+            "description": "List of products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/qr-templates": {
+      "get": {
+        "summary": "List QR templates",
+        "description": "Returns pre-designed QR code background templates",
+        "operationId": "listTemplates",
+        "responses": {
+          "200": {
+            "description": "List of templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Template"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Unique product identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Product name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Product description"
+          },
+          "category": {
+            "type": "string",
+            "description": "Product category (shirt, hat, mug, bag)"
+          },
+          "basePrice": {
+            "type": "string",
+            "description": "Base price before customization"
+          },
+          "madeInUSA": {
+            "type": "boolean",
+            "description": "Whether product is made in USA"
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Product image URL"
+          }
+        }
+      },
+      "Template": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Template identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Template name"
+          },
+          "category": {
+            "type": "string",
+            "description": "Template category (religious, business, sports)"
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "description": "Template preview image"
+          }
+        }
+      }
+    }
+  }
+}

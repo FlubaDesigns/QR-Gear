@@ -1,0 +1,65 @@
+# QR Gear - Custom QR Code Merchandise Platform
+
+> QR Gear creates personalized apparel and products featuring QR codes that link to digital content.
+
+## What We Do
+
+QR Gear is a print-on-demand merchandise platform specializing in QR code products. We create custom t-shirts, hats, mugs, and bags with scannable QR codes that link to:
+- Text messages and URLs
+- Hosted images and photo galleries
+- Dynamic content that can be updated over time
+- Business listings and promotional pages
+
+## Product Lines
+
+### 1. Simple Text QR
+- QR code contains text or URL directly
+- No hosting required - works offline
+- Optional text above/below QR (+$2 each)
+- Available on all products
+
+### 2. Pre-designed QR Gifts
+- Curated background designs (religious, sports, business themes)
+- Customer's QR placed on beautiful template
+- Great for gifts and events
+
+### 3. Fully Custom QR Gifts
+- Customer uploads their own image
+- Add text overlay with font/color choices
+- Hosting included (1yr/3yr/5yr/permanent options)
+
+### 4. Dynamic QR (Subscription)
+- QR links to page customer controls
+- Change displayed content anytime
+- Perfect for businesses, memorials, events
+- 30-day scripture rotations available
+
+## Use Cases
+
+- **Business Promotion**: Shirts/hats with QR to business website or listing
+- **Faith-Based Gifts**: Scripture cups, devotional merchandise
+- **Memorial Tributes**: Products linking to tribute pages with photos
+- **Event Merchandise**: Conference shirts with event info QR
+- **Leave-Behind Marketing**: Professional gifts that keep working
+
+## Integration with Kingdom Connects
+
+QR Gear integrates with Kingdom Connects, a Christian business directory. KC business owners can order promotional items with QR codes linking directly to their KC listing.
+
+## Pricing
+
+- Base products start at $18
+- Text above QR: +$2 (20 characters)
+- Text below QR: +$2 (30 characters)  
+- Extended hosting tiers available for dynamic content
+
+## Contact
+
+Website: https://qrgear.com
+Partner Site: https://kingdomconnects.org
+
+## Technical
+
+- Print-on-demand via Printify (USA manufacturers)
+- All products made in USA
+- Ships within 3-5 business days
