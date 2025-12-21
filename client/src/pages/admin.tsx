@@ -1254,27 +1254,28 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                           </div>
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                          {catalogDetails.sizes.map((size) => (
-                            <label 
-                              key={size} 
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded border cursor-pointer transition-all ${
-                                enabledSizes.has(size) 
-                                  ? "bg-primary/10 border-primary" 
-                                  : "bg-muted/50 border-transparent opacity-50"
-                              }`}
-                            >
-                              <Checkbox 
-                                checked={enabledSizes.has(size)}
-                                onCheckedChange={(checked) => {
+                          {catalogDetails.sizes.map((size) => {
+                            const isEnabled = enabledSizes.has(size);
+                            return (
+                              <div 
+                                key={size} 
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded border cursor-pointer transition-all ${
+                                  isEnabled 
+                                    ? "bg-primary/10 border-primary" 
+                                    : "bg-muted/50 border-transparent opacity-50"
+                                }`}
+                                onClick={() => {
                                   const next = new Set(enabledSizes);
-                                  if (checked) next.add(size);
-                                  else next.delete(size);
+                                  if (isEnabled) next.delete(size);
+                                  else next.add(size);
                                   setEnabledSizes(next);
                                 }}
-                              />
-                              <span className="text-sm">{size}</span>
-                            </label>
-                          ))}
+                              >
+                                <Checkbox checked={isEnabled} />
+                                <span className="text-sm">{size}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -1308,31 +1309,30 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         <div className="flex gap-2 flex-wrap">
                           {catalogDetails.colors.map((color) => {
                             const swatchColor = getSwatchColor(color);
+                            const isEnabled = enabledColors.has(color);
                             return (
-                              <label 
+                              <div 
                                 key={color} 
                                 className={`flex items-center gap-1.5 px-2 py-1 rounded border cursor-pointer transition-all ${
-                                  enabledColors.has(color) 
+                                  isEnabled 
                                     ? "bg-primary/10 border-primary" 
                                     : "bg-muted/50 border-transparent opacity-50"
                                 }`}
                                 title={color}
+                                onClick={() => {
+                                  const next = new Set(enabledColors);
+                                  if (isEnabled) next.delete(color);
+                                  else next.add(color);
+                                  setEnabledColors(next);
+                                }}
                               >
-                                <Checkbox 
-                                  checked={enabledColors.has(color)}
-                                  onCheckedChange={(checked) => {
-                                    const next = new Set(enabledColors);
-                                    if (checked) next.add(color);
-                                    else next.delete(color);
-                                    setEnabledColors(next);
-                                  }}
-                                />
+                                <Checkbox checked={isEnabled} />
                                 <div 
                                   className="w-5 h-5 rounded border border-gray-300"
                                   style={{ backgroundColor: swatchColor }}
                                 />
                                 <span className="text-xs max-w-20 truncate">{color}</span>
-                              </label>
+                              </div>
                             );
                           })}
                         </div>
