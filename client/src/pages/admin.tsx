@@ -950,7 +950,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             {/* KC Placement Selection - Switches for multiple placements */}
             {selectedSegment === "Kingdom Connects" && (
               <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
-                <Label className="text-sm font-medium">Where on Kingdom Connects?</Label>
+                <Label className="text-lg font-bold text-[var(--accent)]">Where on Kingdom Connects?</Label>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="kc-homepage" className="text-sm cursor-pointer">Homepage (General KC Store)</Label>
@@ -2498,7 +2498,7 @@ function PartnerStoresTab() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div>
-          <CardTitle>Partner Stores</CardTitle>
+          <CardTitle className="text-2xl text-[var(--accent)]">Partner Stores</CardTitle>
           <CardDescription>
             External partners who can embed QR Gear products on their websites.
             Each partner gets their own mini-store showing only the products you assign to them.
