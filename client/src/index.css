@@ -72,15 +72,6 @@
     border-color: hsl(var(--border));
   }
 
-  body {
-    background:
-      radial-gradient(1200px 700px at 18% 12%, rgba(134,215,255,0.16), transparent 55%),
-      radial-gradient(900px 520px at 72% 25%, rgba(46,169,255,0.12), transparent 50%),
-      radial-gradient(900px 600px at 55% 88%, rgba(255,122,26,0.08), transparent 55%),
-      linear-gradient(180deg, var(--bg-0), var(--bg-1) 42%, var(--bg-2));
-    background-attachment: fixed;
-    min-height: 100vh;
-  }
 
   /* Light "tech grid" texture (subtle) */
   body::before {
