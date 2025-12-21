@@ -32,6 +32,7 @@ export default function Navbar() {
     { href: "/", label: "Home" },
     { href: "/creator", label: "Create" },
     { href: "/gallery", label: "Shop" },
+    ...(isAuthenticated ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
   return (
