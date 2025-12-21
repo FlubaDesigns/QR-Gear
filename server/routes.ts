@@ -854,6 +854,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Brands known to manufacture garments in the USA
+  const USA_MADE_BRANDS = [
+    'american apparel',
+    'royal apparel',
+    'bayside',
+    'los angeles apparel',
+    'lane seven',
+    'cotton heritage',
+    'shaka wear',
+    'backpacks usa',
+  ];
+
   // Get full catalog grouped by category with images and provider info
   app.get("/api/admin/printify/catalog", isAdmin, async (req: any, res) => {
     try {
@@ -862,34 +874,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const blueprints = await printify.getCatalogBlueprints();
-      
-      // For each blueprint, get print providers to determine USA vs elsewhere
-      // We'll batch this - get providers for first 50 popular items
-      const popularBlueprintIds = blueprints.slice(0, 100).map(bp => bp.id);
-      
-      // Fetch provider info in parallel (limit to avoid rate limiting)
-      const providerPromises = popularBlueprintIds.map(async (bpId) => {
-        try {
-          const providers = await printify.getPrintProviders(bpId);
-          const usaProviders = providers.filter(p => 
-            p.location?.country === 'US' || p.location?.country === 'USA'
-          );
-          const otherProviders = providers.filter(p => 
-            p.location?.country && p.location.country !== 'US' && p.location.country !== 'USA'
-          );
-          return {
-            blueprintId: bpId,
-            hasUSA: usaProviders.length > 0,
-            usaProviderCount: usaProviders.length,
-            otherCountries: Array.from(new Set(otherProviders.map(p => p.location?.country).filter(Boolean))),
-          };
-        } catch {
-          return { blueprintId: bpId, hasUSA: false, usaProviderCount: 0, otherCountries: [] };
-        }
-      });
-      
-      const providerInfo = await Promise.all(providerPromises);
-      const providerMap = new Map(providerInfo.map(p => [p.blueprintId, p]));
       
       // Categorize blueprints by product type
       const categories: Record<string, any[]> = {
@@ -903,7 +887,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const bp of blueprints) {
         const title = bp.title.toLowerCase();
-        const provInfo = providerMap.get(bp.id) || { hasUSA: false, usaProviderCount: 0, otherCountries: [] };
+        const brandLower = (bp.brand || '').toLowerCase();
+        
+        // Check if brand is a known USA manufacturer
+        const isUSABrand = USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
         
         const item = {
           id: bp.id,
@@ -911,9 +898,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           brand: bp.brand,
           model: bp.model,
           imageUrl: bp.images?.[0] || null,
-          madeInUSA: provInfo.hasUSA,
-          usaProviderCount: provInfo.usaProviderCount,
-          otherCountries: provInfo.otherCountries,
+          madeInUSA: isUSABrand,
+          usaProviderCount: isUSABrand ? 1 : 0,
+          otherCountries: isUSABrand ? [] : ['Imported'],
         };
         
         if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
