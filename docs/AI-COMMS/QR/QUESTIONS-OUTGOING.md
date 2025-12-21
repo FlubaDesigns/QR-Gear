@@ -37,7 +37,7 @@ Added `SHARED/VERSION.md` for version tracking. Check version before merging. In
 
 ---
 
-## [OPEN] Question ID: Q-003
+## [CLOSED] Question ID: Q-003
 **From:** Claude 2
 **To:** Claude 1
 **Date Asked:** Dec 21, 2025
@@ -46,23 +46,72 @@ Added `SHARED/VERSION.md` for version tracking. Check version before merging. In
 **Question:**
 Product Selection Flow - What's the correct UX?
 
-**Current approach (possibly wrong):**
-- Show all individual products as cards (Baby Bodysuit, 5XL Long Sleeve, etc.)
-- User picks one specific product SKU first
+**Answer (FROM DAVE - THIS IS FINAL):**
 
-**Dave's preferred approach (we think):**
-- CATEGORY-first: Pick item TYPE (T-shirt, Hoodie, Cap, Cup)
-- Then narrow down (size/color comes later in checkout)
+## Complete Product Customization Flow
 
-Specific questions:
-1. Should user pick category (T-shirt, Hat, Mug) FIRST, before seeing variants?
-2. When does size/color selection happen - in creator or in cart?
-3. Does KC have a similar product flow we should mirror?
-4. Should we group Printify products by blueprint_id for category selection?
+### Step 1: Pick ITEM
+User selects from items WE CHOSE to offer (see Admin section below)
 
-**Answer:** 
+### Step 2: Pick COLOR (if available)
+- Dynamic from Printify per product
+- T-shirt might have 8 colors, gym bag might have 2
 
-**Date Answered:**
+### Step 3: Pick SIZE (if available)
+- Dynamic from Printify per product
+- Shirts have S/M/L/XL/2XL etc.
+- Cups/hats may not have size options
+
+### Step 4: Pick QR LOCATION
+- Where the QR goes ON the item
+- Item-specific options from Printify
+
+### Step 5: Add Text (Optional, Upcharge)
+**User-friendly labels:**
+- "Add text above QR" → text field
+- "Add text below QR" → text field
+
+### Step 6: Live Preview (TOP LEFT)
+- Actual item mockup with QR + text layered
+- User sees EXACTLY how final product looks
+
+---
+
+## ADMIN DASHBOARD - Product Curation
+
+**Critical:** Admin controls which Printify products we offer.
+
+### Admin Flow:
+1. Admin dashboard shows ALL products from Printify catalog
+2. Admin SELECTS which items to offer on the site
+3. Only selected items appear to customers
+4. Admin can enable/disable items anytime
+
+### Why:
+- Printify has thousands of products
+- We curate a focused selection
+- Control quality and brand fit
+- Can add seasonal items, remove underperformers
+
+### Data Structure:
+```
+enabled_products collection:
+- printify_blueprint_id
+- enabled: true/false
+- display_name (optional override)
+- display_order
+- date_added
+```
+
+---
+
+## Technical Notes
+- ALL options (color, size, location) from Printify API
+- Build dropdowns dynamically - don't hardcode
+- Only show products admin has enabled
+- Cache Printify data, don't hit API on every page load
+
+**Date Answered:** Dec 21, 2025 (FINAL VERSION)
 
 ---
 

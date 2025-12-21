@@ -154,11 +154,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Note: QR Designs endpoints moved to authenticated section (see SAVED DESIGNS ENDPOINTS)
 
-  // Products
+  // Products - Public endpoint returns only enabled products
   app.get("/api/products", async (req, res) => {
     try {
       const products = await storage.getAllProducts();
-      res.json(products);
+      // Only return enabled products for customers
+      const enabledProducts = products.filter(p => p.isEnabled);
+      res.json(enabledProducts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
