@@ -1016,12 +1016,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get full catalog item details with USA providers and pricing
+  // In-memory cache for individual blueprint details (shared with batch endpoint)
+  const individualBlueprintCache = new Map<number, { data: any; timestamp: number }>();
+  const INDIVIDUAL_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
   app.get("/api/admin/printify/catalog/:blueprintId", isAdmin, async (req: any, res) => {
     try {
       if (!printify) {
         return res.status(503).json({ error: "Printify API not configured" });
       }
       const blueprintId = parseInt(req.params.blueprintId);
+      
+      // Check cache first
+      const cached = individualBlueprintCache.get(blueprintId);
+      if (cached && Date.now() - cached.timestamp < INDIVIDUAL_CACHE_TTL) {
+        return res.json(cached.data);
+      }
       
       // Fetch blueprint details, providers, and find USA providers
       const [blueprint, providers] = await Promise.all([
@@ -1051,7 +1061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prices = variants.map(v => v.price || 0).filter(p => p > 0);
       const basePrice = prices.length > 0 ? Math.min(...prices) / 100 : 0;
       
-      res.json({
+      const responseData = {
         blueprint,
         providers: usaProviders.length > 0 ? usaProviders : providers,
         selectedProvider,
@@ -1061,9 +1071,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sizes,
         basePrice,
         imageUrl: blueprint.images?.[0] || null,
-      });
+      };
+      
+      // Cache the result
+      individualBlueprintCache.set(blueprintId, { data: responseData, timestamp: Date.now() });
+      
+      res.json(responseData);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(`Printify API error for blueprint ${req.params.blueprintId}:`, error.message);
+      res.status(500).json({ error: `Printify API error: ${error.message}` });
     }
   });
 
