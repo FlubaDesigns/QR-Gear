@@ -436,16 +436,23 @@ function ProductTagEditor({
   );
 }
 
+interface CatalogItem {
+  id: number;
+  title: string;
+  brand: string;
+  model: string;
+  imageUrl: string | null;
+  madeInUSA: boolean;
+  usaProviderCount: number;
+  otherCountries: string[];
+}
+
 interface CatalogCategory {
   name: string;
-  items: Array<{
-    id: number;
-    title: string;
-    brand: string;
-    model: string;
-    imageUrl: string | null;
-  }>;
+  items: CatalogItem[];
   count: number;
+  usaCount: number;
+  otherCount: number;
 }
 
 interface CatalogDetails {
@@ -475,14 +482,21 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [selectedSegment, setSelectedSegment] = useState<string>("");
   const [catalogDetails, setCatalogDetails] = useState<CatalogDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<"all" | "usa" | "other">("all");
 
   // Fetch categorized catalog with images
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/admin/printify/catalog"],
   });
 
-  // Get items for selected category
-  const categoryItems = catalog.find(c => c.name === selectedCategory)?.items || [];
+  // Get items for selected category, filtered by location
+  const categoryData = catalog.find(c => c.name === selectedCategory);
+  const allCategoryItems = categoryData?.items || [];
+  const categoryItems = allCategoryItems.filter(item => {
+    if (locationFilter === "usa") return item.madeInUSA;
+    if (locationFilter === "other") return !item.madeInUSA;
+    return true;
+  });
   const selectedItem = categoryItems.find(item => item.id === selectedItemId);
 
   // Fetch details when item selected
@@ -540,6 +554,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setSelectedCategory(category);
     setSelectedItemId(null);
     setCatalogDetails(null);
+    setLocationFilter("all");
+  }
+
+  function handleLocationFilterChange(filter: "all" | "usa" | "other") {
+    setLocationFilter(filter);
+    setSelectedItemId(null);
+    setCatalogDetails(null);
   }
 
   function handleItemChange(itemId: string) {
@@ -571,81 +592,159 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Row 1: Category and Item dropdowns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Category Dropdown */}
-              <div className="space-y-2">
-                <Label>Product Type</Label>
-                <select
-                  className="w-full p-3 border rounded-md bg-background"
-                  value={selectedCategory}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  data-testid="select-product-category"
-                >
-                  <option value="">-- Select type --</option>
-                  {catalog.map((cat) => (
-                    <option key={cat.name} value={cat.name}>
-                      {cat.name} ({cat.count} items)
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Row 1: Category Dropdown */}
+            <div className="space-y-2">
+              <Label>Product Type</Label>
+              <select
+                className="w-full p-3 border rounded-md bg-background"
+                value={selectedCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                data-testid="select-product-category"
+              >
+                <option value="">-- Select type --</option>
+                {catalog.map((cat) => (
+                  <option key={cat.name} value={cat.name}>
+                    {cat.name} ({cat.count} items)
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              {/* Item Dropdown with images */}
+            {/* Row 2: USA/Elsewhere Toggle (shows after category selected) */}
+            {selectedCategory && categoryData && (
               <div className="space-y-2">
-                <Label>Select Item</Label>
+                <Label>Manufacturing Location</Label>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={locationFilter === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleLocationFilterChange("all")}
+                    data-testid="filter-all"
+                  >
+                    All ({allCategoryItems.length})
+                  </Button>
+                  <Button
+                    variant={locationFilter === "usa" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleLocationFilterChange("usa")}
+                    data-testid="filter-usa"
+                  >
+                    <span className="mr-1">🇺🇸</span> Made in USA ({categoryData.usaCount})
+                  </Button>
+                  <Button
+                    variant={locationFilter === "other" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleLocationFilterChange("other")}
+                    data-testid="filter-other"
+                  >
+                    Made Elsewhere ({categoryData.otherCount})
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Row 3: Item Dropdown */}
+            {selectedCategory && (
+              <div className="space-y-2">
+                <Label>Select Item ({categoryItems.length} available)</Label>
                 <select
                   className="w-full p-3 border rounded-md bg-background"
                   value={selectedItemId || ""}
                   onChange={(e) => handleItemChange(e.target.value)}
-                  disabled={!selectedCategory || loadingDetails}
+                  disabled={loadingDetails}
                   data-testid="select-printify-item"
                 >
                   <option value="">-- Select item --</option>
                   {categoryItems.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.title} - {item.brand}
+                      {item.madeInUSA ? "🇺🇸 " : ""}{item.title} - {item.brand}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
+            )}
 
-            {/* Row 2: Selected Item Preview with Image */}
+            {/* Row 4: Selected Item Preview with Image, Sizes, Colors */}
             {selectedItem && (
-              <div className="flex items-center gap-4 p-4 bg-muted rounded-md">
-                {selectedItem.imageUrl ? (
-                  <img 
-                    src={selectedItem.imageUrl} 
-                    alt={selectedItem.title} 
-                    className="w-20 h-20 rounded-md object-cover border"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-md bg-muted-foreground/20 flex items-center justify-center">
-                    <Package className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="font-medium text-lg">{selectedItem.title}</div>
-                  <div className="text-sm text-muted-foreground">{selectedItem.brand}</div>
-                  {loadingDetails ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Loading details...
+              <div className="p-4 bg-muted rounded-md space-y-3">
+                <div className="flex items-start gap-4">
+                  {selectedItem.imageUrl ? (
+                    <img 
+                      src={selectedItem.imageUrl} 
+                      alt={selectedItem.title} 
+                      className="w-24 h-24 rounded-md object-contain border bg-white"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-md bg-muted-foreground/20 flex items-center justify-center">
+                      <Package className="h-8 w-8 text-muted-foreground" />
                     </div>
-                  ) : catalogDetails && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary">${catalogDetails.basePrice.toFixed(2)}</Badge>
-                      <Badge variant="secondary">{catalogDetails.colors.length} colors</Badge>
-                      <Badge variant="secondary">{catalogDetails.sizes.length} sizes</Badge>
+                  )}
+                  <div className="flex-1">
+                    <div className="font-medium text-lg flex items-center gap-2">
+                      {selectedItem.title}
+                      {selectedItem.madeInUSA && <span>🇺🇸</span>}
+                    </div>
+                    <div className="text-sm text-muted-foreground">{selectedItem.brand}</div>
+                    {!selectedItem.madeInUSA && selectedItem.otherCountries.length > 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        Ships from: {selectedItem.otherCountries.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {loadingDetails ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading sizes, colors, and pricing...
+                  </div>
+                ) : catalogDetails && (
+                  <div className="space-y-3">
+                    {/* Price and location badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary">${catalogDetails.basePrice.toFixed(2)} base</Badge>
                       {catalogDetails.madeInUSA && (
                         <Badge className="gap-1">
-                          <span className="text-base">🇺🇸</span> Made in USA
+                          <span>🇺🇸</span> Made in USA
                         </Badge>
                       )}
                     </div>
-                  )}
-                </div>
+
+                    {/* Sizes */}
+                    {catalogDetails.sizes.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">SIZES ({catalogDetails.sizes.length})</div>
+                        <div className="flex gap-1 flex-wrap">
+                          {catalogDetails.sizes.slice(0, 12).map((size) => (
+                            <Badge key={size} variant="outline" className="text-xs">
+                              {size}
+                            </Badge>
+                          ))}
+                          {catalogDetails.sizes.length > 12 && (
+                            <Badge variant="outline" className="text-xs">+{catalogDetails.sizes.length - 12} more</Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Colors */}
+                    {catalogDetails.colors.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">COLORS ({catalogDetails.colors.length})</div>
+                        <div className="flex gap-1 flex-wrap">
+                          {catalogDetails.colors.slice(0, 10).map((color) => (
+                            <Badge key={color} variant="outline" className="text-xs">
+                              {color}
+                            </Badge>
+                          ))}
+                          {catalogDetails.colors.length > 10 && (
+                            <Badge variant="outline" className="text-xs">+{catalogDetails.colors.length - 10} more</Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

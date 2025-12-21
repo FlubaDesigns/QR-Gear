@@ -854,7 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get full catalog grouped by category with images
+  // Get full catalog grouped by category with images and provider info
   app.get("/api/admin/printify/catalog", isAdmin, async (req: any, res) => {
     try {
       if (!printify) {
@@ -862,6 +862,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const blueprints = await printify.getCatalogBlueprints();
+      
+      // For each blueprint, get print providers to determine USA vs elsewhere
+      // We'll batch this - get providers for first 50 popular items
+      const popularBlueprintIds = blueprints.slice(0, 100).map(bp => bp.id);
+      
+      // Fetch provider info in parallel (limit to avoid rate limiting)
+      const providerPromises = popularBlueprintIds.map(async (bpId) => {
+        try {
+          const providers = await printify.getPrintProviders(bpId);
+          const usaProviders = providers.filter(p => 
+            p.location?.country === 'US' || p.location?.country === 'USA'
+          );
+          const otherProviders = providers.filter(p => 
+            p.location?.country && p.location.country !== 'US' && p.location.country !== 'USA'
+          );
+          return {
+            blueprintId: bpId,
+            hasUSA: usaProviders.length > 0,
+            usaProviderCount: usaProviders.length,
+            otherCountries: [...new Set(otherProviders.map(p => p.location?.country).filter(Boolean))],
+          };
+        } catch {
+          return { blueprintId: bpId, hasUSA: false, usaProviderCount: 0, otherCountries: [] };
+        }
+      });
+      
+      const providerInfo = await Promise.all(providerPromises);
+      const providerMap = new Map(providerInfo.map(p => [p.blueprintId, p]));
       
       // Categorize blueprints by product type
       const categories: Record<string, any[]> = {
@@ -875,12 +903,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const bp of blueprints) {
         const title = bp.title.toLowerCase();
+        const provInfo = providerMap.get(bp.id) || { hasUSA: false, usaProviderCount: 0, otherCountries: [] };
+        
         const item = {
           id: bp.id,
           title: bp.title,
           brand: bp.brand,
           model: bp.model,
           imageUrl: bp.images?.[0] || null,
+          madeInUSA: provInfo.hasUSA,
+          usaProviderCount: provInfo.usaProviderCount,
+          otherCountries: provInfo.otherCountries,
         };
         
         if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
@@ -901,7 +934,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert to array format, filter empty categories
       const result = Object.entries(categories)
         .filter(([_, items]) => items.length > 0)
-        .map(([name, items]) => ({ name, items, count: items.length }));
+        .map(([name, items]) => ({ 
+          name, 
+          items, 
+          count: items.length,
+          usaCount: items.filter(i => i.madeInUSA).length,
+          otherCount: items.filter(i => !i.madeInUSA).length,
+        }));
       
       res.json(result);
     } catch (error: any) {
