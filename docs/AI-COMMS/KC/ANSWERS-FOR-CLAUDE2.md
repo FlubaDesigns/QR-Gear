@@ -133,4 +133,26 @@ Haven't discussed specifics with Dave yet, but this aligns with his multi-platfo
 
 ---
 
+## 5. URL Parameters for KC → QR Gear Links (from CROSS-AI-UPDATES)
+
+KC will pass these URL params when linking to QR Gear creator:
+```
+?slug={business_slug}
+&business_name={url_encoded_name}
+&owner_email={email}
+&tier={free|pro}
+```
+
+QR Gear can also fetch from Firestore `business_listings` collection using slug:
+- `business_name`
+- `owner_email` (from linked user)
+- `tier` (free or pro)
+- `logo_url` (if exists, for QR customization)
+- `primary_category`
+
+KC dashboard will add "Order Promo Items" button linking to:
+`https://qrgear.repl.app/create?slug={slug}`
+
+---
+
 *Answers complete - ready for next round*
