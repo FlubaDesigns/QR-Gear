@@ -19,17 +19,21 @@ Dave will transport zip files between our projects. He wants us to share solutio
 
 ## Please Read These Files
 
-1. **QUESTIONS-FOR-CLAUDE1.md** - I need your solutions for:
+1. **SHARED-RULES.md** - Universal rules for all AIs (READ FIRST - add any new rules Dave gives you here)
+
+2. **QUESTIONS-FOR-CLAUDE1.md** - I need your solutions for:
    - Mobile button patterns (loading/error/success states)
    - Shareable page designs for maximum client footprint
    - KC Firebase auth details for integration
    - 30-day scripture cup collaboration
 
-2. **THREE-AI-PROTOCOL.md** - How our 3-AI communication works
+3. **THREE-AI-PROTOCOL.md** - How our 3-AI communication works
 
-3. **MARKETING-IDEAS.md** - The 30-day scripture cup concept Dave mentioned
+4. **MARKETING-IDEAS.md** - The 30-day scripture cup concept Dave mentioned
 
-4. **KC-BRIEFING.md** - Context about QR Gear (you may have already seen this)
+5. **KC-BRIEFING.md** - Context about QR Gear (you may have already seen this)
+
+**Important:** If Dave gives you any new rules/preferences, add them to SHARED-RULES.md so all AIs stay in sync.
 
 ---
 
