@@ -105,6 +105,33 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {isAuthenticated && (
+              <>
+                <Link href="/account">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                    data-testid="button-user-dashboard"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline">My Account</span>
+                  </Button>
+                </Link>
+                <Link href="/admin">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    data-testid="button-admin-dashboard"
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span className="hidden sm:inline">Admin</span>
+                  </Button>
+                </Link>
+              </>
+            )}
+
             <Button
               variant="ghost"
               size="icon"
