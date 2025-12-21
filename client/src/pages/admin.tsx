@@ -516,7 +516,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [kcPlacements, setKcPlacements] = useState<string[]>([]);
   
   // KC Business Slug (optional - can be used with any placement)
-  const [kcBusinessSlug, setKcBusinessSlug] = useState<string>("");
+  // Note: kcBusinessSlug removed - business context comes from KC via URL params when they embed/link
   
   // Staging cart - accumulate products before saving
   const [stagedProducts, setStagedProducts] = useState<StagedProduct[]>([]);
@@ -634,9 +634,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       if (stagedProducts.length === 0) throw new Error("No products to save");
       
       // Determine KC business URL if applicable
-      const kcBusinessUrl = selectedSegment === "Kingdom Connects" && kcBusinessSlug.trim()
-        ? `https://kingdomconnects.org/business/${kcBusinessSlug.trim()}.htm`
-        : null;
+      // Business slug comes from KC via URL params when they link to QR Gear, not from admin
+      const kcBusinessUrl = null;
       
       // Save each product
       const results = await Promise.all(
@@ -661,8 +660,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               headerTextEnabled: product.headerEnabled,
               footerTextEnabled: product.footerEnabled,
               kcPlacements: selectedSegment === "Kingdom Connects" ? kcPlacements : null,
-              kcBusinessSlug: kcBusinessSlug.trim() || null,
-              kcBusinessUrl,
             },
           })
         )
@@ -673,7 +670,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       const count = stagedProducts.length;
       toast({ 
         title: "Products Saved!", 
-        description: `${count} product(s) added to ${selectedSegment}${kcBusinessSlug ? ` for ${kcBusinessSlug}` : ""}.` 
+        description: `${count} product(s) added to ${selectedSegment}.` 
       });
       resetForm();
       onSuccess();
@@ -686,7 +683,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   function resetForm() {
     setSelectedSegment("");
     setKcPlacements([]);
-    setKcBusinessSlug("");
     setStagedProducts([]);
     setSelectedCategory("");
     setLocationFilter("all");
@@ -704,7 +700,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     // Clear KC fields when changing away from Kingdom Connects
     if (segment !== "Kingdom Connects") {
       setKcPlacements([]);
-      setKcBusinessSlug("");
     }
   }
   
@@ -816,67 +811,43 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </select>
             </div>
             
-            {/* KC Placement Selection - Checkboxes for multiple placements */}
+            {/* KC Placement Selection - Switches for multiple placements */}
             {selectedSegment === "Kingdom Connects" && (
               <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Where on Kingdom Connects? (Select all that apply)</Label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={kcPlacements.includes("homepage")}
-                        onChange={() => toggleKcPlacement("homepage")}
-                        className="h-4 w-4 rounded border-gray-300"
-                        data-testid="checkbox-kc-homepage"
-                      />
-                      <span className="text-sm">Homepage (General KC Store)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={kcPlacements.includes("dashboard")}
-                        onChange={() => toggleKcPlacement("dashboard")}
-                        className="h-4 w-4 rounded border-gray-300"
-                        data-testid="checkbox-kc-dashboard"
-                      />
-                      <span className="text-sm">Dashboard (User's Dashboard)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={kcPlacements.includes("static_page")}
-                        onChange={() => toggleKcPlacement("static_page")}
-                        className="h-4 w-4 rounded border-gray-300"
-                        data-testid="checkbox-kc-static-page"
-                      />
-                      <span className="text-sm">Static Page (Business/Church Listing)</span>
-                    </label>
+                <Label className="text-sm font-medium">Where on Kingdom Connects?</Label>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="kc-homepage" className="text-sm cursor-pointer">Homepage (General KC Store)</Label>
+                    <Switch
+                      id="kc-homepage"
+                      checked={kcPlacements.includes("homepage")}
+                      onCheckedChange={() => toggleKcPlacement("homepage")}
+                      data-testid="switch-kc-homepage"
+                    />
                   </div>
-                </div>
-                
-                {/* Business Slug - optional, can be used with any placement */}
-                <div className="space-y-2 pt-2 border-t border-blue-200 dark:border-blue-700">
-                  <Label className="text-sm">Business/Church Slug (Optional)</Label>
-                  <Input
-                    value={kcBusinessSlug}
-                    onChange={(e) => setKcBusinessSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                    placeholder="e.g. first-baptist-church"
-                    className="bg-background"
-                    data-testid="input-kc-slug"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {kcBusinessSlug ? (
-                      <>QR links to: <span className="font-mono text-blue-600">kingdomconnects.org/business/{kcBusinessSlug}.htm</span></>
-                    ) : (
-                      <>Leave blank for general KC products, or enter a slug to link to a specific business</>
-                    )}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="kc-dashboard" className="text-sm cursor-pointer">Dashboard (User's Dashboard)</Label>
+                    <Switch
+                      id="kc-dashboard"
+                      checked={kcPlacements.includes("dashboard")}
+                      onCheckedChange={() => toggleKcPlacement("dashboard")}
+                      data-testid="switch-kc-dashboard"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="kc-static" className="text-sm cursor-pointer">Static Page (Business/Church Listing)</Label>
+                    <Switch
+                      id="kc-static"
+                      checked={kcPlacements.includes("static_page")}
+                      onCheckedChange={() => toggleKcPlacement("static_page")}
+                      data-testid="switch-kc-static-page"
+                    />
+                  </div>
                 </div>
                 
                 {/* Selected placements summary */}
                 {kcPlacements.length > 0 && (
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                  <p className="text-xs text-blue-700 dark:text-blue-300 pt-2 border-t border-blue-200 dark:border-blue-700">
                     Product will appear on: {kcPlacements.map(p => 
                       p === "homepage" ? "Homepage" : p === "dashboard" ? "Dashboard" : "Static Pages"
                     ).join(", ")}
@@ -1311,12 +1282,15 @@ function ProductsTab() {
       {/* Add from Printify Panel - simple dropdowns */}
       <AddFromPrintifyPanel onSuccess={() => refetch()} />
 
-      {/* Existing Products Table */}
+      {/* Master Product Catalog */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
           <div>
-            <CardTitle>Store Products</CardTitle>
-            <CardDescription>Enable/disable products and set pricing</CardDescription>
+            <CardTitle>QR Gear Product Catalog</CardTitle>
+            <CardDescription>
+              All products added to QR Gear. Enable/disable and assign tags here. 
+              To add products to a specific partner store (like Kingdom Connects), go to the Partners tab.
+            </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
@@ -2271,7 +2245,9 @@ function PartnerStoresTab() {
         <div>
           <CardTitle>Partner Stores</CardTitle>
           <CardDescription>
-            Configure embeddable mini-stores for partners like Kingdom Connects
+            External partners who can embed QR Gear products on their websites.
+            Each partner gets their own mini-store showing only the products you assign to them.
+            Add products to your catalog first (Products tab), then assign them here.
           </CardDescription>
         </div>
         <Button onClick={openCreateDialog} data-testid="button-add-partner-store">
@@ -2482,9 +2458,13 @@ function PartnerStoresTab() {
             </div>
 
             <div className="space-y-2">
-              <Label>Products Available in Store</Label>
+              <Label>Assign Products to This Partner</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Check the products from your QR Gear catalog that should appear on this partner's embedded store.
+                Only enabled products from the Products tab are shown here.
+              </p>
               <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-                {products && products.length > 0 ? (
+                {products && products.filter(p => p.isEnabled).length > 0 ? (
                   <div className="grid gap-2">
                     {products.filter(p => p.isEnabled).map(product => (
                       <label
@@ -2497,15 +2477,18 @@ function PartnerStoresTab() {
                           data-testid={`checkbox-product-${product.id}`}
                         />
                         <span className="text-sm">{product.name}</span>
+                        <Badge variant="outline" className="text-xs ml-auto">{product.category}</Badge>
                       </label>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No products available</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No products in catalog yet. Add products in the Products tab first.
+                  </p>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                {selectedProducts.length} product(s) selected
+                {selectedProducts.length} product(s) will appear on this partner's store
               </p>
             </div>
           </div>
