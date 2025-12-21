@@ -1067,6 +1067,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // In-memory cache for blueprint details
+  const blueprintDetailsCache = new Map<number, { data: any; timestamp: number }>();
+  const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+  
+  // Batch fetch blueprint details (for efficient loading)
+  app.post("/api/admin/printify/catalog/batch-details", isAdmin, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      
+      const { blueprintIds } = req.body;
+      if (!Array.isArray(blueprintIds) || blueprintIds.length === 0) {
+        return res.status(400).json({ error: "blueprintIds array required" });
+      }
+      
+      // Limit batch size
+      const limitedIds = blueprintIds.slice(0, 20);
+      const results: Record<number, any> = {};
+      
+      for (const blueprintId of limitedIds) {
+        // Check cache first
+        const cached = blueprintDetailsCache.get(blueprintId);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          results[blueprintId] = cached.data;
+          continue;
+        }
+        
+        try {
+          // Fetch blueprint details and providers
+          const [blueprint, providers] = await Promise.all([
+            printify.getBlueprintDetails(blueprintId),
+            printify.getPrintProviders(blueprintId),
+          ]);
+          
+          // Filter for USA providers
+          const usaProviders = providers.filter((p: any) => 
+            p.location?.country === 'US' || p.location?.country === 'USA'
+          );
+          
+          // Get variants from first USA provider (or first available)
+          let variants: any[] = [];
+          const selectedProvider = usaProviders[0] || providers[0];
+          
+          if (selectedProvider) {
+            try {
+              const variantData = await printify.getVariants(blueprintId, selectedProvider.id);
+              variants = variantData.variants || [];
+            } catch {
+              // Provider may not have variants - continue with empty
+            }
+          }
+          
+          // Extract colors and sizes
+          const colors = Array.from(new Set(variants.map((v: any) => v.options?.color).filter(Boolean)));
+          const sizes = Array.from(new Set(variants.map((v: any) => v.options?.size).filter(Boolean)));
+          
+          // Get base price (lowest)
+          const prices = variants.map((v: any) => v.price || 0).filter((p: number) => p > 0);
+          const basePrice = prices.length > 0 ? Math.min(...prices) / 100 : 0;
+          
+          const data = {
+            blueprintId,
+            basePrice,
+            colors,
+            sizes,
+            madeInUSA: usaProviders.length > 0,
+            providerId: selectedProvider?.id,
+            providerName: selectedProvider?.title,
+          };
+          
+          // Cache the result
+          blueprintDetailsCache.set(blueprintId, { data, timestamp: Date.now() });
+          results[blueprintId] = data;
+          
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (err: any) {
+          // Mark this item as having an error but continue
+          results[blueprintId] = { 
+            blueprintId, 
+            error: true, 
+            message: err.message || "Failed to fetch details" 
+          };
+        }
+      }
+      
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get print providers for a blueprint
   app.get("/api/admin/printify/blueprints/:id/providers", isAdmin, async (req: any, res) => {
     try {

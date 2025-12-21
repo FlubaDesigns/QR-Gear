@@ -544,8 +544,15 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   // Image zoom modal
   const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
   
-  // Cache for item prices (so you can see cost even after selecting different items)
-  const [itemPrices, setItemPrices] = useState<Record<number, number>>({});
+  // Cache for item details (prices, colors, sizes)
+  const [itemDetails, setItemDetails] = useState<Record<number, {
+    basePrice: number;
+    colors: string[];
+    sizes: string[];
+    providerId?: number;
+    providerName?: string;
+    error?: boolean;
+  }>>({});
 
   // Fetch categorized catalog with images
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
@@ -570,9 +577,18 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       if (!res.ok) throw new Error("Failed to fetch details");
       const data = await res.json();
       setCatalogDetails(data);
-      // Cache the price for this item so it shows in the grid
+      // Cache the details for this item
       if (data.basePrice) {
-        setItemPrices(prev => ({ ...prev, [itemId]: data.basePrice }));
+        setItemDetails(prev => ({ 
+          ...prev, 
+          [itemId]: {
+            basePrice: data.basePrice,
+            colors: data.colors || [],
+            sizes: data.sizes || [],
+            providerId: data.selectedProvider?.id,
+            providerName: data.selectedProvider?.title,
+          }
+        }));
       }
     } catch (error) {
       toast({ title: "Error", description: "Failed to load product details.", variant: "destructive" });
@@ -580,6 +596,64 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       setLoadingDetails(false);
     }
   }
+
+  // Track loading state for batch fetches
+  const [fetchingBatch, setFetchingBatch] = useState(false);
+  
+  // Auto-fetch details when category changes using batch endpoint
+  useEffect(() => {
+    if (!selectedCategory || allCategoryItems.length === 0) return;
+    
+    // Get items that don't have cached details
+    const itemsToFetch = allCategoryItems.filter(item => !itemDetails[item.id]);
+    
+    if (itemsToFetch.length === 0) return;
+    
+    const fetchBatchDetails = async () => {
+      setFetchingBatch(true);
+      
+      // Fetch in batches of 20 (server limit)
+      const batchSize = 20;
+      for (let i = 0; i < itemsToFetch.length; i += batchSize) {
+        const batch = itemsToFetch.slice(i, i + batchSize);
+        const blueprintIds = batch.map(item => item.id);
+        
+        try {
+          const res = await fetch("/api/admin/printify/catalog/batch-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ blueprintIds }),
+          });
+          
+          if (res.ok) {
+            const results = await res.json();
+            setItemDetails(prev => {
+              const next = { ...prev };
+              for (const [id, data] of Object.entries(results)) {
+                const d = data as any;
+                next[parseInt(id)] = {
+                  basePrice: d.basePrice || 0,
+                  colors: d.colors || [],
+                  sizes: d.sizes || [],
+                  providerId: d.providerId,
+                  providerName: d.providerName,
+                  error: d.error,
+                };
+              }
+              return next;
+            });
+          }
+        } catch {
+          // Silently fail for batch
+        }
+      }
+      
+      setFetchingBatch(false);
+    };
+    
+    fetchBatchDetails();
+  }, [selectedCategory, allCategoryItems.length]);
 
   // Calculate upcharges
   const headerUpcharge = headerEnabled && headerText.trim() ? 2 : 0;
@@ -911,82 +985,115 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Step 4: Item Selection - Visual Grid with Thumbnails */}
+            {/* Step 4: Item Selection - Full Row List with Details */}
             {selectedCategory && (
               <div className="space-y-2">
-                <Label>4. Select Item ({categoryItems.length} available)</Label>
-                <div className="max-h-64 overflow-y-auto border rounded-md p-2 bg-muted/30">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {categoryItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`relative p-2 rounded-md border-2 transition-all ${
-                          selectedItemId === item.id 
-                            ? "border-primary bg-primary/10" 
-                            : "border-transparent bg-background hover-elevate"
-                        }`}
-                        data-testid={`item-card-${item.id}`}
-                      >
-                        {/* Thumbnail - click to zoom */}
-                        <div 
-                          className="relative aspect-square mb-1 cursor-pointer"
-                          onClick={() => {
-                            if (item.imageUrl) {
-                              setZoomedImage({ url: item.imageUrl, title: item.title });
-                            }
-                          }}
+                <div className="flex items-center justify-between">
+                  <Label>4. Select Item ({categoryItems.length} available)</Label>
+                  {fetchingBatch && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading details...
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-96 overflow-y-auto border rounded-md bg-muted/30">
+                  <div className="divide-y">
+                    {categoryItems.map((item) => {
+                      const details = itemDetails[item.id];
+                      const isSelected = selectedItemId === item.id;
+                      
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-start gap-3 p-3 cursor-pointer transition-all ${
+                            isSelected 
+                              ? "bg-primary/10 border-l-4 border-l-primary" 
+                              : "bg-background hover-elevate"
+                          }`}
+                          onClick={() => handleItemChange(String(item.id))}
+                          data-testid={`item-row-${item.id}`}
                         >
-                          {item.imageUrl ? (
-                            <>
+                          {/* Thumbnail */}
+                          <div 
+                            className="relative w-16 h-16 flex-shrink-0 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (item.imageUrl) {
+                                setZoomedImage({ url: item.imageUrl, title: item.title });
+                              }
+                            }}
+                          >
+                            {item.imageUrl ? (
                               <img
                                 src={item.imageUrl}
                                 alt={item.title}
-                                className="w-full h-full object-contain rounded bg-white"
+                                className="w-full h-full object-contain rounded bg-white border"
                               />
-                              {/* Zoom hint overlay */}
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/30 transition-colors rounded">
-                                <ZoomIn className="h-6 w-6 text-white opacity-0 hover:opacity-100 transition-opacity" />
+                            ) : (
+                              <div className="w-full h-full rounded bg-muted flex items-center justify-center border">
+                                <Package className="h-6 w-6 text-muted-foreground" />
                               </div>
-                            </>
-                          ) : (
-                            <div className="w-full h-full rounded bg-muted flex items-center justify-center">
-                              <Package className="h-6 w-6 text-muted-foreground" />
+                            )}
+                            {isSelected && (
+                              <div className="absolute -top-1 -left-1 p-0.5 bg-primary rounded-full">
+                                <Check className="h-3 w-3 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Item Details */}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            {/* Title & Brand */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{item.title}</span>
+                              {item.madeInUSA && <span className="text-xs">🇺🇸</span>}
                             </div>
-                          )}
-                          {/* USA badge */}
-                          {item.madeInUSA && (
-                            <span className="absolute bottom-1 left-1 text-xs">🇺🇸</span>
-                          )}
-                          {/* Selected checkmark */}
-                          {selectedItemId === item.id && (
-                            <div className="absolute top-1 left-1 p-0.5 bg-primary rounded-full">
-                              <Check className="h-3 w-3 text-primary-foreground" />
+                            <div className="text-xs text-muted-foreground">{item.brand}</div>
+                            
+                            {/* Cost */}
+                            <div className="text-sm font-semibold text-primary">
+                              {details?.basePrice 
+                                ? `Our Cost: $${details.basePrice.toFixed(2)}`
+                                : details?.error
+                                  ? "Price unavailable"
+                                  : "Loading..."
+                              }
                             </div>
-                          )}
+                            
+                            {/* Sizes */}
+                            {details?.sizes && details.sizes.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="text-xs text-muted-foreground">Sizes:</span>
+                                {details.sizes.slice(0, 8).map((size) => (
+                                  <Badge key={size} variant="outline" className="text-xs px-1 py-0">
+                                    {size}
+                                  </Badge>
+                                ))}
+                                {details.sizes.length > 8 && (
+                                  <span className="text-xs text-muted-foreground">+{details.sizes.length - 8} more</span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Colors */}
+                            {details?.colors && details.colors.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="text-xs text-muted-foreground">Colors:</span>
+                                {details.colors.slice(0, 6).map((color) => (
+                                  <Badge key={color} variant="secondary" className="text-xs px-1 py-0">
+                                    {color}
+                                  </Badge>
+                                ))}
+                                {details.colors.length > 6 && (
+                                  <span className="text-xs text-muted-foreground">+{details.colors.length - 6} more</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {/* Item info - click to select */}
-                        <div 
-                          className="cursor-pointer"
-                          onClick={() => handleItemChange(String(item.id))}
-                        >
-                          <div className="text-xs font-medium truncate" title={item.title}>
-                            {item.title}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {item.brand}
-                          </div>
-                          {/* Our Cost - shows after item has been selected */}
-                          <div className="text-xs font-medium text-primary mt-1">
-                            {itemPrices[item.id] 
-                              ? `Our Cost: $${itemPrices[item.id].toFixed(2)}`
-                              : selectedItemId === item.id && loadingDetails
-                                ? "Loading..."
-                                : "Tap to see cost"
-                            }
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
