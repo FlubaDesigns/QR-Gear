@@ -7,7 +7,7 @@ import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/wid
 import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants } from "./lib/printify";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { insertHostedImageSchema } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { sendOrderConfirmationEmail } from "./lib/email";
 import { submitOrderToPrintify, checkPrintifyOrderStatus } from "./lib/printify-orders";
 import { startCronJobs } from "./lib/cron-jobs";
@@ -713,7 +713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============ ADMIN ROUTES ============
 
   // Admin Settings
-  app.get("/api/admin/settings", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/settings", isAdmin, async (req: any, res) => {
     try {
       let settings = await storage.getAdminSettings();
       if (!settings) {
@@ -725,7 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/settings", isAuthenticated, async (req: any, res) => {
+  app.put("/api/admin/settings", isAdmin, async (req: any, res) => {
     try {
       const validated = insertAdminSettingsSchema.partial().parse(req.body);
       const settings = await storage.upsertAdminSettings(validated);
@@ -739,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pricing Rules
-  app.get("/api/admin/pricing-rules", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/pricing-rules", isAdmin, async (req: any, res) => {
     try {
       const rules = await storage.getPricingRules();
       res.json(rules);
@@ -748,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/pricing-rules", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/pricing-rules", isAdmin, async (req: any, res) => {
     try {
       const validated = insertPricingRuleSchema.parse(req.body);
       const rule = await storage.createPricingRule(validated);
@@ -761,7 +761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/pricing-rules/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/admin/pricing-rules/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const validated = insertPricingRuleSchema.partial().parse(req.body);
@@ -778,7 +778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/pricing-rules/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/admin/pricing-rules/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deletePricingRule(id);
@@ -789,7 +789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Products - Get all products with admin fields
-  app.get("/api/admin/products", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/products", isAdmin, async (req: any, res) => {
     try {
       const products = await storage.getAllProducts();
       // Enrich products with their assigned category IDs
@@ -809,7 +809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle product enabled/disabled
-  app.patch("/api/admin/products/:id/toggle", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/admin/products/:id/toggle", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { enabled } = req.body;
@@ -824,7 +824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update product admin settings (markup, production cost, etc.)
-  app.patch("/api/admin/products/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/admin/products/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const validated = insertProductSchema.partial().parse(req.body);
@@ -842,7 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Printify Catalog Browsing - Get blueprints
-  app.get("/api/admin/printify/blueprints", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/printify/blueprints", isAdmin, async (req: any, res) => {
     try {
       if (!printify) {
         return res.status(503).json({ error: "Printify API not configured" });
@@ -855,7 +855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get print providers for a blueprint
-  app.get("/api/admin/printify/blueprints/:id/providers", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/printify/blueprints/:id/providers", isAdmin, async (req: any, res) => {
     try {
       if (!printify) {
         return res.status(503).json({ error: "Printify API not configured" });
@@ -869,7 +869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get variants for a blueprint + provider combination
-  app.get("/api/admin/printify/blueprints/:blueprintId/providers/:providerId/variants", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/printify/blueprints/:blueprintId/providers/:providerId/variants", isAdmin, async (req: any, res) => {
     try {
       if (!printify) {
         return res.status(503).json({ error: "Printify API not configured" });
@@ -883,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add product from Printify catalog
-  app.post("/api/admin/products/from-printify", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/products/from-printify", isAdmin, async (req: any, res) => {
     try {
       const { blueprintId, printProviderId, name, description, category, basePrice, imageUrl, manufacturer, madeInUSA, availablePlacements, availableColors, metadata } = req.body;
       
@@ -918,7 +918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync product placements and data from Printify
-  app.post("/api/admin/products/:id/sync-printify", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/products/:id/sync-printify", isAdmin, async (req: any, res) => {
     try {
       const product = await storage.getProduct(req.params.id);
       if (!product) {
@@ -1119,7 +1119,7 @@ ${allPages.map(page => `  <url>
 
   // Get all product categories (public)
   // Admin: Get ALL product categories (including inactive)
-  app.get("/api/admin/product-categories", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/product-categories", isAdmin, async (req: any, res) => {
     try {
       const categories = await storage.getAllProductCategories();
       res.json(categories);
@@ -1166,7 +1166,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Create a category
-  app.post("/api/admin/product-categories", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/product-categories", isAdmin, async (req: any, res) => {
     try {
       const { name, slug, description, taxonomyType, icon, parentId, sortOrder, isActive } = req.body;
       const category = await storage.createProductCategory({
@@ -1186,7 +1186,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Update a category
-  app.put("/api/admin/product-categories/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/admin/product-categories/:id", isAdmin, async (req: any, res) => {
     try {
       const updated = await storage.updateProductCategory(req.params.id, req.body);
       if (!updated) {
@@ -1199,7 +1199,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Delete a category
-  app.delete("/api/admin/product-categories/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/admin/product-categories/:id", isAdmin, async (req: any, res) => {
     try {
       await storage.deleteProductCategory(req.params.id);
       res.json({ success: true });
@@ -1209,7 +1209,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Assign categories to a product
-  app.post("/api/admin/products/:id/categories", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/products/:id/categories", isAdmin, async (req: any, res) => {
     try {
       const { categoryIds } = req.body;
       await storage.syncProductCategories(req.params.id, categoryIds || []);
@@ -1221,7 +1221,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Seed default categories
-  app.post("/api/admin/product-categories/seed", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/product-categories/seed", isAdmin, async (req: any, res) => {
     try {
       const defaultCategories = [
         // Seasons
@@ -1272,7 +1272,7 @@ ${allPages.map(page => `  <url>
   // ============ PARTNER STORE ENDPOINTS ============
 
   // Admin: Get all partner stores
-  app.get("/api/admin/partner-stores", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
     try {
       const stores = await storage.getPartnerStores();
       res.json(stores);
@@ -1282,7 +1282,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Get single partner store with products
-  app.get("/api/admin/partner-stores/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
     try {
       const store = await storage.getPartnerStore(req.params.id);
       if (!store) {
@@ -1296,7 +1296,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Create partner store
-  app.post("/api/admin/partner-stores", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
     try {
       const validated = insertPartnerStoreSchema.parse(req.body);
       const store = await storage.createPartnerStore(validated);
@@ -1310,7 +1310,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Update partner store
-  app.put("/api/admin/partner-stores/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
     try {
       const store = await storage.updatePartnerStore(req.params.id, req.body);
       if (!store) {
@@ -1323,7 +1323,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Delete partner store
-  app.delete("/api/admin/partner-stores/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
     try {
       await storage.deletePartnerStore(req.params.id);
       res.json({ success: true });
@@ -1333,7 +1333,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Get partner store products
-  app.get("/api/admin/partner-stores/:id/products", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/partner-stores/:id/products", isAdmin, async (req: any, res) => {
     try {
       const products = await storage.getPartnerStoreProducts(req.params.id);
       res.json(products);
@@ -1343,7 +1343,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Sync partner store products
-  app.post("/api/admin/partner-stores/:id/products", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/partner-stores/:id/products", isAdmin, async (req: any, res) => {
     try {
       const { productIds } = req.body;
       if (!Array.isArray(productIds)) {
@@ -1636,7 +1636,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Seed default hosting tiers (admin only)
-  app.post("/api/admin/hosting-tiers/seed", isAuthenticated, async (req, res) => {
+  app.post("/api/admin/hosting-tiers/seed", isAdmin, async (req, res) => {
     try {
       const existingTiers = await storage.getHostingTiers();
       if (existingTiers.length > 0) {
@@ -1675,7 +1675,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Get all templates
-  app.get("/api/admin/templates", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/templates", isAdmin, async (req, res) => {
     try {
       const templates = await storage.getQrTemplates();
       res.json(templates);
@@ -1685,7 +1685,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Create template
-  app.post("/api/admin/templates", isAuthenticated, async (req, res) => {
+  app.post("/api/admin/templates", isAdmin, async (req, res) => {
     try {
       const createSchema = z.object({
         name: z.string().min(1),
@@ -1711,7 +1711,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Update template
-  app.put("/api/admin/templates/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/admin/templates/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const updateSchema = z.object({
@@ -1741,7 +1741,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Admin: Delete template
-  app.delete("/api/admin/templates/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/admin/templates/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteQrTemplate(id);

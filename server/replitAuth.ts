@@ -158,3 +158,23 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return;
   }
 };
+
+// Admin middleware - only allows users whose Replit ID is in ADMIN_USER_IDS
+export const isAdmin: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+
+  if (!req.isAuthenticated() || !user?.claims?.sub) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const userId = user.claims.sub;
+  const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
+  
+  if (adminIds.length === 0 || adminIds.includes(userId)) {
+    // If no admins configured, allow all authenticated users (for initial setup)
+    // Otherwise, only allow listed admin IDs
+    return next();
+  }
+
+  return res.status(403).json({ message: "Admin access required" });
+};

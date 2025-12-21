@@ -66,6 +66,7 @@ import {
 } from "@/lib/categories";
 import type { Product, AdminSettings, ProductCategory, PartnerStore } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/useAuth";
 
 const ICON_MAP: Record<string, typeof Tag> = {
   Church,
@@ -1696,6 +1697,15 @@ function PartnerStoresTab() {
 
 export default function Admin() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const copyUserId = () => {
+    if (user?.id) {
+      navigator.clipboard.writeText(user.id);
+      toast({ title: "User ID copied to clipboard" });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -1703,23 +1713,39 @@ export default function Admin() {
       <PageBreadcrumb currentPage="Admin Panel" />
 
       <main className="container max-w-6xl mx-auto py-8 px-4">
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/")}
-            data-testid="button-back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold font-heading" data-testid="text-page-title">
-              Admin Dashboard
-            </h1>
-            <p className="text-muted-foreground">
-              Manage products, pricing, and content
-            </p>
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/")}
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold font-heading" data-testid="text-page-title">
+                Admin Dashboard
+              </h1>
+              <p className="text-muted-foreground">
+                Manage products, pricing, and content
+              </p>
+            </div>
           </div>
+          {user && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Your Admin ID:</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={copyUserId}
+                className="font-mono text-xs"
+                data-testid="button-copy-user-id"
+              >
+                {user.id} (click to copy)
+              </Button>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="products" className="space-y-6">
