@@ -167,6 +167,7 @@ export const partnerStoreProducts = pgTable("partner_store_products", {
   productId: varchar("product_id").notNull().references(() => products.id),
   customPrice: decimal("custom_price", { precision: 10, scale: 2 }),
   customName: text("custom_name"),
+  kcBusinessSlug: text("kc_business_slug"), // Links to specific KC business page, null = standalone store product
   sortOrder: integer("sort_order").default(0),
   isEnabled: boolean("is_enabled").default(true),
 });

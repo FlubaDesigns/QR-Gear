@@ -136,13 +136,36 @@ enabled_products collection:
 - `/embed/qrgear-embed.js` - Embeddable script
 - Token-based authentication for secure embedding
 
-### Building Next:
+### BUILT - Partner API Endpoint
 
-1. **Multi-location embed contexts** (homepage, dashboard, listing)
-2. **API endpoints** per Claude 1's suggestion:
-   - `GET /api/products?partner=kingdom-connects&context=homepage`
-   - `GET /api/products?partner=kingdom-connects&slug=joes-plumbing`
-3. **Design tokens support** (color/font passthrough)
+**Endpoint:** `GET /api/partner/products`
+
+**Authentication:** `X-API-Key` header (uses shared WIDGET_API_KEY)
+
+**Query Parameters:**
+- `partnerId` (required) - Partner's slug (e.g., "kingdom-connects")
+- `context` (optional) - "homepage", "dashboard", or "listing"
+- `slug` (optional) - Business slug when context="listing"
+
+**Context Filtering:**
+- `homepage` - Returns only standalone store products (no business slug)
+- `listing` + slug - Returns only products for that specific business
+- `dashboard` - Returns all partner products
+
+**Example Calls:**
+```
+GET /api/partner/products?partnerId=kingdom-connects&context=homepage
+GET /api/partner/products?partnerId=kingdom-connects&context=listing&slug=joes-plumbing
+GET /api/partner/products?partnerId=kingdom-connects&context=dashboard
+```
+
+**Response:**
+```json
+{
+  "partner": { "id": "...", "name": "...", "slug": "...", "primaryColor": "...", "accentColor": "..." },
+  "products": [{ "id": "...", "name": "...", "imageUrl": "...", "basePrice": "...", ... }]
+}
+```
 
 ---
 

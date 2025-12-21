@@ -132,6 +132,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Partner API - Simple endpoint for partners to fetch their products
+  // Requires X-API-Key header with WIDGET_API_KEY value
+  app.get("/api/partner/products", async (req, res) => {
+    try {
+      const apiKey = req.headers['x-api-key'] as string;
+      const expectedKey = process.env.WIDGET_API_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Invalid or missing API key" });
+      }
+      
+      const { partnerId, context, slug } = req.query;
+      
+      if (!partnerId || typeof partnerId !== 'string') {
+        return res.status(400).json({ error: "partnerId query parameter required" });
+      }
+      
+      // Find partner store by slug (partnerId is their slug)
+      const store = await storage.getPartnerStoreBySlug(partnerId);
+      if (!store || !store.isActive) {
+        return res.status(404).json({ error: "Partner not found or inactive" });
+      }
+      
+      // Get partner's products
+      const storeProducts = await storage.getPartnerStoreProducts(store.id);
+      const enabledProducts = storeProducts.filter(sp => sp.isEnabled);
+      
+      // Fetch actual product details
+      const productDetails = await Promise.all(
+        enabledProducts.map(async (sp) => {
+          const product = await storage.getProduct(sp.productId);
+          if (!product || !product.isEnabled) return null;
+          
+          return {
+            id: product.id,
+            blueprintId: product.blueprintId,
+            name: sp.customName || product.name,
+            description: product.description,
+            imageUrl: product.imageUrl,
+            basePrice: sp.customPrice || product.basePrice,
+            category: product.category,
+            kcBusinessSlug: sp.kcBusinessSlug,
+            sortOrder: sp.sortOrder,
+          };
+        })
+      );
+      
+      let filteredProducts = productDetails.filter(Boolean);
+      
+      // Filter by context
+      if (context === 'listing' && slug && typeof slug === 'string') {
+        // Show only products linked to this specific business
+        filteredProducts = filteredProducts.filter((p: any) => p.kcBusinessSlug === slug);
+      } else if (context === 'homepage') {
+        // Show only products NOT linked to a specific business (standalone store products)
+        filteredProducts = filteredProducts.filter((p: any) => !p.kcBusinessSlug);
+      }
+      // 'dashboard' context shows all products (no filtering)
+      
+      res.json({
+        partner: {
+          id: store.id,
+          name: store.name,
+          slug: store.slug,
+          primaryColor: store.primaryColor,
+          accentColor: store.accentColor,
+        },
+        products: filteredProducts.sort((a: any, b: any) => (a?.sortOrder || 0) - (b?.sortOrder || 0)),
+      });
+    } catch (error: any) {
+      console.error("Partner API error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // QR Code Generation
   app.post("/api/qr/generate", async (req, res) => {
     try {
