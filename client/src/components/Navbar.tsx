@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ShoppingCart, Menu, X, Settings, User, Shield, LogIn, LogOut } from "lucide-react";
+import { ShoppingCart, Menu, X, Settings, User, Shield, LogIn, LogOut, Sun, Moon, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QRButton } from "@/components/QRButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuestCart } from "@/hooks/useGuestCart";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import type { CartItem } from "@shared/schema";
 
 export default function Navbar() {
@@ -15,6 +18,36 @@ export default function Navbar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { user, isAuthenticated, isLoading } = useAuth();
   const { itemCount: guestCartCount } = useGuestCart();
+  
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' || 
+        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
+  
+  const [fontSize, setFontSize] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return parseInt(localStorage.getItem('fontSize') || '16', 10);
+    }
+    return 16;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${fontSize}px`;
+    localStorage.setItem('fontSize', fontSize.toString());
+  }, [fontSize]);
 
   const { data: serverCartItems = [] } = useQuery<CartItem[]>({
     queryKey: ["/api/cart"],
@@ -32,7 +65,6 @@ export default function Navbar() {
     { href: "/", label: "Home" },
     { href: "/creator", label: "Create" },
     { href: "/gallery", label: "Shop" },
-    ...(isAuthenticated ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
   return (
@@ -59,6 +91,17 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+            {isAuthenticated && (
+              <Link
+                href="/admin"
+                className={`text-sm font-medium transition-colors ${
+                  location === "/admin" ? "text-ice" : ""
+                }`}
+                data-testid="nav-admin"
+              >
+                Admin
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-3">
@@ -69,7 +112,7 @@ export default function Navbar() {
                 setSettingsOpen(!settingsOpen);
                 setMenuOpen(false);
               }}
-              aria-label="Settings"
+              aria-label="Site Settings"
               data-testid="button-settings"
             >
               <Settings className="w-4 h-4" />
@@ -98,7 +141,6 @@ export default function Navbar() {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
               onClick={() => {
                 setMenuOpen(!menuOpen);
                 setSettingsOpen(false);
@@ -113,28 +155,74 @@ export default function Navbar() {
 
       {menuOpen && (
         <div 
-          className="md:hidden fixed inset-0 z-40"
+          className="fixed inset-0 z-40"
           onClick={() => setMenuOpen(false)}
         >
           <div 
-            className="absolute top-16 left-0 right-0 border-t glass-card"
+            className="absolute top-16 left-0 right-0 md:left-auto md:right-4 md:w-72 border-t md:border md:rounded-xl glass-card"
             onClick={(e) => e.stopPropagation()}
           >
-            <nav className="container py-4 flex flex-col gap-3">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`py-2 px-4 rounded-lg transition-colors ${
-                    location === link.href ? "text-ice" : ""
-                  }`}
-                  onClick={() => setMenuOpen(false)}
-                  data-testid={`mobile-nav-${link.label.toLowerCase()}`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <Link href="/creator" className="mt-2" onClick={() => setMenuOpen(false)}>
+            <nav className="container md:px-4 py-4 flex flex-col gap-2">
+              <div className="md:hidden flex flex-col gap-2 mb-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`py-2 px-4 rounded-lg transition-colors ${
+                      location === link.href ? "text-ice" : ""
+                    }`}
+                    onClick={() => setMenuOpen(false)}
+                    data-testid={`mobile-nav-${link.label.toLowerCase()}`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+
+              <div className="border-t md:border-t-0 pt-4 md:pt-0">
+                {isAuthenticated ? (
+                  <>
+                    <div className="text-sm text-muted-foreground mb-3 px-4" data-testid="text-username">
+                      Signed in as {user?.firstName || user?.email || 'User'}
+                    </div>
+                    <Link href="/account" onClick={() => setMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-account">
+                        <User className="w-4 h-4" />
+                        My Account
+                      </Button>
+                    </Link>
+                    <Link href="/admin" onClick={() => setMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin">
+                        <Shield className="w-4 h-4" />
+                        Admin Panel
+                      </Button>
+                    </Link>
+                    <a href="/api/logout">
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-logout">
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </Button>
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <a href="/api/login">
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-login-user">
+                        <User className="w-4 h-4" />
+                        Sign In as Customer
+                      </Button>
+                    </a>
+                    <a href="/api/login">
+                      <Button variant="default" className="w-full justify-start gap-2" data-testid="button-login-admin">
+                        <Shield className="w-4 h-4" />
+                        Sign In as Admin
+                      </Button>
+                    </a>
+                  </>
+                )}
+              </div>
+
+              <Link href="/creator" className="mt-4 md:hidden" onClick={() => setMenuOpen(false)}>
                 <QRButton variant="accent" className="w-full" data-testid="mobile-get-started">
                   Get Started
                 </QRButton>
@@ -150,11 +238,11 @@ export default function Navbar() {
           onClick={() => setSettingsOpen(false)}
         >
           <div 
-            className="absolute top-16 right-4 w-64 glass-card card rounded-xl"
+            className="absolute top-16 right-4 w-72 glass-card card rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="card__title mb-4">
-              Menu
+              Site Settings
               <Button 
                 variant="ghost"
                 size="icon"
@@ -163,47 +251,38 @@ export default function Navbar() {
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <div className="flex flex-col gap-2">
-              {isAuthenticated ? (
-                <>
-                  <div className="text-sm text-muted-foreground mb-2" data-testid="text-username">
-                    Signed in as {user?.firstName || user?.email || 'User'}
-                  </div>
-                  <Link href="/account" onClick={() => setSettingsOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-account">
-                      <User className="w-4 h-4" />
-                      My Account
-                    </Button>
-                  </Link>
-                  <Link href="/admin" onClick={() => setSettingsOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin">
-                      <Shield className="w-4 h-4" />
-                      Admin Panel
-                    </Button>
-                  </Link>
-                  <a href="/api/logout">
-                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-logout">
-                      <LogOut className="w-4 h-4" />
-                      Sign Out
-                    </Button>
-                  </a>
-                </>
-              ) : (
-                <>
-                  <a href="/api/login">
-                    <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-login-user">
-                      <User className="w-4 h-4" />
-                      Sign In as Customer
-                    </Button>
-                  </a>
-                  <a href="/api/login">
-                    <Button variant="default" className="w-full justify-start gap-2" data-testid="button-login-admin">
-                      <Shield className="w-4 h-4" />
-                      Sign In as Admin
-                    </Button>
-                  </a>
-                </>
-              )}
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {darkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                  <Label htmlFor="dark-mode">Dark Mode</Label>
+                </div>
+                <Switch
+                  id="dark-mode"
+                  checked={darkMode}
+                  onCheckedChange={setDarkMode}
+                  data-testid="switch-dark-mode"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Type className="w-4 h-4" />
+                  <Label>Font Size: {fontSize}px</Label>
+                </div>
+                <Slider
+                  value={[fontSize]}
+                  onValueChange={(value) => setFontSize(value[0])}
+                  min={12}
+                  max={24}
+                  step={1}
+                  data-testid="slider-font-size"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Small</span>
+                  <span>Large</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
