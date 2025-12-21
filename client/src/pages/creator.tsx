@@ -634,8 +634,8 @@ export default function Creator() {
     <div className="min-h-screen bg-background">
       <SEO 
         title="QR Code Creator | Design Your Custom QR Products | QR Gear"
-        description="Design your custom QR code merchandise. Add text, upload images, or create dynamic QR codes that you can update anytime. USA-made products."
-        keywords="QR code creator, custom QR design, QR merchandise designer, dynamic QR codes"
+        description="Design your custom QR code merchandise. Add text, upload images, or create QR Dynamics - living QR codes you can update anytime. USA-made products."
+        keywords="QR code creator, custom QR design, QR merchandise designer, QR Dynamics, living QR codes, dynamic QR products"
       />
       <Navbar />
       <PageBreadcrumb currentPage="Create" />
@@ -689,7 +689,7 @@ export default function Creator() {
                     </TabsTrigger>
                     <TabsTrigger value="dynamic" data-testid="tab-qr-dynamic" className="flex-shrink-0 px-3 flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" />
-                      Dynamic
+                      QR Dynamics™
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="text" className="space-y-4">
@@ -1061,12 +1061,14 @@ export default function Creator() {
                       <div className="p-4 bg-primary/10 rounded-md border border-primary/20">
                         <div className="flex items-center gap-2 mb-2">
                           <RefreshCw className="w-5 h-5 text-primary" />
-                          <span className="font-semibold text-primary">Dynamic QR Code</span>
+                          <span className="font-semibold text-primary">QR Dynamics™</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Create a QR code that links to a page you control. Change the displayed image anytime - 
-                          today it could be a sunflower, tomorrow a battleship! Your QR code stays the same, 
-                          but the content can change whenever you want.
+                          <strong>"Your shirt is a digital billboard you control from your phone."</strong>
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Buy once, change the content forever. Your QR code stays the same, but the page it links to 
+                          is yours to update anytime - show seasonal specials, event info, photos, videos, or anything else!
                         </p>
                       </div>
                       

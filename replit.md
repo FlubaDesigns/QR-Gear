@@ -45,24 +45,36 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
   - `cartItems`, `orders`, `orderItems`: Shopping flow
   - `adminSettings`, `pricingRules`: Admin pricing controls
 
-### Three QR Product Lines
+### Four QR Product Lines
 
 **Line 1: Simple Text QR**
 - Customer enters URL/text → QR generated → placed on product
 - Optional: Text above QR (20 chars, +$2), text below QR (30 chars, +$2)
 - Available on all Printify products (shirts, hats, bags, mugs)
 
-**Line 2: Pre-designed QR Gifts**
+**Line 2: Featured Collections (Pre-designed Templates)**
 - Admin uploads curated backgrounds (religious, business, sports themes)
+- Examples: "Ten Commandments on a Shirt", "30 Days of Verses Cup"
 - Customer selects template → QR placed on background → printed on products
 - Small/medium/large sizing options
 - QR links to hosted image page (clean display, no expiration shown)
+- Managed via Admin Panel → Templates tab
 
 **Line 3: Fully Custom QR Gifts**
 - Customer uploads own image, adds text overlay with font/color choices
 - QR placed on composite → printed on products
 - Hosting tiers: 1 year (included), 3 years, 5 years, permanent (upcharges)
 - Email reminders: 30 days before, 7 days before, on expiration
+
+**Line 4: QR Dynamics™ (Dave's Unique Innovation)**
+- The "living QR" product - physical item with changeable digital content
+- Customer buys product with QR linking to their personal control panel
+- QR code is PERMANENT on product, but PAGE CONTENT is changeable anytime
+- Customer can swap: images, videos, messages, links from their dashboard
+- Perfect for: seasonal specials, event promotions, rotating content
+- Subscription model: 1 year, 3 years, 5 years, permanent
+- Creates recurring revenue stream
+- Marketing pitch: "Your shirt becomes a digital billboard you control from your phone"
 
 ### Core Features
 - **QR Code Generation**: Server-side QR code creation for text and image content

@@ -58,11 +58,21 @@ QR Gear is a merchandise e-commerce platform that creates personalized apparel a
 - Hosting tiers: 1 year (included), 3 years, 5 years, permanent
 - Email reminders: 30 days before, 7 days before, on expiration
 
-### 4. Dynamic QR (Subscription - Recurring Revenue)
-- Customer buys product with QR linking to dedicated page
-- Customer can change displayed content anytime
-- Same physical product, living digital experience
+### 4. QR Dynamics™ (Subscription - Recurring Revenue)
+**This is Dave's unique innovation - a "living" QR product**
+
+- Customer buys product (shirt, hat, mug) with QR linking to their dedicated page
+- The QR code is PERMANENT on the product, but the PAGE CONTENT is changeable
+- Customer can swap: images, videos, messages, links - anytime they want
+- Same physical product, infinite digital experiences
 - Subscription: 1 year, 3 years, 5 years, permanent
+
+**Use Cases for KC Businesses:**
+- A plumber's shirt QR shows current specials, then switches to holiday greetings
+- A restaurant owner's hat QR displays today's menu, then a charity event
+- A contractor's cap QR shows project portfolio, then switches to hiring announcement
+
+**Marketing Angle:** "Your shirt becomes a digital billboard you control from your phone"
 
 ---
 

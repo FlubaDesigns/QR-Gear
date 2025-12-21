@@ -59,6 +59,46 @@
 
 ---
 
+## QR Dynamics™ - The Game Changer
+
+**Dave's unique concept:** A physical product with a "living" QR code.
+
+### The Pitch
+> "Your shirt is a digital billboard you control from your phone."
+
+### How It's Different
+
+| Traditional QR Products | QR Dynamics™ |
+|------------------------|--------------|
+| QR links to fixed URL | QR links to YOUR control panel |
+| One message forever | Change content anytime |
+| Static marketing | Living, breathing campaigns |
+| "Set it and forget it" | "Always relevant" |
+
+### Perfect For...
+
+1. **Business Seasonal Specials**
+   - Winter: "10% off heating repair"
+   - Summer: "AC tune-up special"
+   - Fall: "Gutter cleaning promo"
+
+2. **Event-Based Updates**
+   - Conference week: Event schedule
+   - After conference: Follow-up resources
+   - Next month: Next event promo
+
+3. **Personal Milestones**
+   - Birthday: Party RSVP page
+   - After party: Photo gallery
+   - Month later: Thank you video
+
+### Revenue Potential
+- Creates RECURRING revenue (annual renewals)
+- Higher perceived value = higher margins
+- Upsell from static QR → Dynamic QR
+
+---
+
 ## Other Marketing Ideas
 
 ### Business Card Replacement

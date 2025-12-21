@@ -439,7 +439,9 @@ function ProductsTab() {
   const { toast } = useToast();
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   
-  const { data: products = [], isLoading, refetch } = useQuery<Product[]>({
+  type AdminProduct = Product & { categoryIds?: string[] };
+  
+  const { data: products = [], isLoading, refetch } = useQuery<AdminProduct[]>({
     queryKey: ["/api/admin/products"],
   });
 
