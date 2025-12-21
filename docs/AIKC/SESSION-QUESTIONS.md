@@ -42,3 +42,19 @@
 This file grows during our session. At the end, Claude 2 regenerates `AI-COLLABORATION.zip` with all updates.
 
 **To add a question:** Just tell me and I'll add it here.
+
+---
+
+## How This Works (For All AIs)
+
+Dave tells one AI something → that AI logs it here → all AIs see it in the next zip.
+
+**Dave said:** "I don't like dealing with multiple zip files. I want one zip for all 3 AIs."
+- Current solution: One `AI-COLLABORATION.zip` with READMEs for each AI
+- Claude 1 and Ghost: If you have a better idea, add it to your response
+
+**Dave said:** "Whenever I give rules, put them in the info for the other two so I don't have to replicate my behavior."
+- Solution: `SHARED-RULES.md` is the single source of truth
+- All AIs must read it, follow it, and add new rules when Dave gives them
+
+This pattern means Dave only says things once. We all stay synced.
