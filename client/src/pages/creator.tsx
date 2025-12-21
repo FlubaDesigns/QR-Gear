@@ -16,7 +16,8 @@ import Navbar from "@/components/Navbar";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
 import type { Product } from "@shared/schema";
@@ -137,6 +138,7 @@ export default function Creator() {
   const [dynamicPageDescription, setDynamicPageDescription] = useState("");
   const [dynamicHostingTier, setDynamicHostingTier] = useState<string>("1_year");
   const [selectedSize, setSelectedSize] = useState("");
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
@@ -476,6 +478,55 @@ export default function Creator() {
 
   const hasTextAbove = textAbove.trim().length > 0;
   const hasTextBelow = textBelow.trim().length > 0;
+
+  const handleShare = async () => {
+    const shareData = {
+      title: selectedProduct ? `My custom ${selectedProduct.name} design` : 'My QR Gear Design',
+      text: `Check out this custom QR code product I'm designing!${textAbove ? ` "${textAbove}"` : ''}${textBelow ? ` "${textBelow}"` : ''}`,
+      url: window.location.href,
+    };
+    
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        toast({ title: "Shared successfully!" });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setShareDialogOpen(true);
+        }
+      }
+    } else {
+      setShareDialogOpen(true);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast({ title: "Link copied to clipboard!" });
+      setShareDialogOpen(false);
+    } catch {
+      toast({ title: "Failed to copy link", variant: "destructive" });
+    }
+  };
+
+  const shareToFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank');
+    setShareDialogOpen(false);
+  };
+
+  const shareToTwitter = () => {
+    const text = `Check out this custom QR code product I'm designing!`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`, '_blank');
+    setShareDialogOpen(false);
+  };
+
+  const shareByEmail = () => {
+    const subject = selectedProduct ? `My custom ${selectedProduct.name} design` : 'My QR Gear Design';
+    const body = `Check out this custom QR code product I'm designing!\n\n${window.location.href}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    setShareDialogOpen(false);
+  };
 
   useEffect(() => {
     if (selectedProduct) {
@@ -1347,8 +1398,44 @@ export default function Creator() {
           <div className="lg:sticky lg:top-24 h-fit space-y-4">
             <Card className="border-2 border-primary/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg sm:text-xl">Your Design Preview</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">See your finished product with QR code</CardDescription>
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg sm:text-xl">Your Design Preview</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">See your finished product with QR code</CardDescription>
+                  </div>
+                  <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        onClick={handleShare}
+                        disabled={!qrCodeImage}
+                        data-testid="button-share-design"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Share Your Design</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid grid-cols-2 gap-3 pt-4">
+                        <Button onClick={copyToClipboard} variant="outline" className="flex items-center gap-2" data-testid="button-copy-link">
+                          <Copy className="h-4 w-4" /> Copy Link
+                        </Button>
+                        <Button onClick={shareByEmail} variant="outline" className="flex items-center gap-2" data-testid="button-share-email">
+                          <Mail className="h-4 w-4" /> Email
+                        </Button>
+                        <Button onClick={shareToFacebook} variant="outline" className="flex items-center gap-2" data-testid="button-share-facebook">
+                          <Facebook className="h-4 w-4" /> Facebook
+                        </Button>
+                        <Button onClick={shareToTwitter} variant="outline" className="flex items-center gap-2" data-testid="button-share-twitter">
+                          <Twitter className="h-4 w-4" /> X / Twitter
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardHeader>
               <CardContent className="p-3 sm:p-6">
                 <ProductMockup

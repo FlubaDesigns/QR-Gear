@@ -235,6 +235,105 @@ export async function getUSAPrintProviders(blueprintId: number): Promise<Printif
   return providers.filter(p => p.location.country === 'US' || p.location.country === 'USA');
 }
 
+// Fetch colors and sizes from Printify for a blueprint/provider combo
+export async function syncProductVariants(blueprintId: number, printProviderId: number): Promise<{
+  colors: Array<{ name: string; hex: string }>;
+  sizes: string[];
+  variants: PrintifyVariant[];
+}> {
+  const result = await printify.getVariants(blueprintId, printProviderId);
+  const variants = result.variants || [];
+  
+  // Extract unique colors with their hex codes
+  const colorMap = new Map<string, string>();
+  const sizeSet = new Set<string>();
+  
+  for (const variant of variants) {
+    if (variant.options?.color) {
+      // Printify color format varies - extract name and try to map hex
+      const colorName = variant.options.color;
+      if (!colorMap.has(colorName)) {
+        // Try to extract hex from variant if available, otherwise use common mapping
+        const hex = getColorHex(colorName);
+        colorMap.set(colorName, hex);
+      }
+    }
+    if (variant.options?.size) {
+      sizeSet.add(variant.options.size);
+    }
+  }
+  
+  // Convert to arrays
+  const colors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+  
+  // Sort sizes in logical order
+  const sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '11oz', '15oz'];
+  const sizes = Array.from(sizeSet).sort((a, b) => {
+    const aIdx = sizeOrder.indexOf(a);
+    const bIdx = sizeOrder.indexOf(b);
+    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    if (aIdx !== -1) return -1;
+    if (bIdx !== -1) return 1;
+    return a.localeCompare(b);
+  });
+  
+  return { colors, sizes, variants };
+}
+
+// Common color name to hex mapping
+function getColorHex(colorName: string): string {
+  const colorMap: Record<string, string> = {
+    'White': '#FFFFFF',
+    'Black': '#000000',
+    'Navy': '#000080',
+    'Navy Blue': '#000080',
+    'Royal Blue': '#4169E1',
+    'Red': '#DC2626',
+    'Heather Gray': '#9CA3AF',
+    'Heather Grey': '#9CA3AF',
+    'Sport Gray': '#6B7280',
+    'Sport Grey': '#6B7280',
+    'Dark Heather': '#374151',
+    'Charcoal': '#36454F',
+    'Natural': '#F5F5DC',
+    'Sand': '#C2B280',
+    'Khaki': '#C2B280',
+    'Brown': '#8B4513',
+    'Forest Green': '#228B22',
+    'Kelly Green': '#4CBB17',
+    'Maroon': '#800000',
+    'Cardinal': '#C41E3A',
+    'Orange': '#FF6B00',
+    'Gold': '#FFD700',
+    'Yellow': '#FFFF00',
+    'Light Blue': '#ADD8E6',
+    'Carolina Blue': '#56A0D3',
+    'Pink': '#FFC0CB',
+    'Light Pink': '#FFB6C1',
+    'Purple': '#800080',
+    'Ash': '#B2BEB5',
+    'Ice Grey': '#D3D3D3',
+    'Irish Green': '#009A44',
+    'Military Green': '#4B5320',
+    'Olive': '#808000',
+    'Sapphire': '#0F52BA',
+    'Indigo': '#4B0082',
+    'Turf Green': '#3C8D0D',
+  };
+  
+  // Try exact match first
+  if (colorMap[colorName]) return colorMap[colorName];
+  
+  // Try case-insensitive match
+  const lowerName = colorName.toLowerCase();
+  for (const [key, value] of Object.entries(colorMap)) {
+    if (key.toLowerCase() === lowerName) return value;
+  }
+  
+  // Default to a neutral gray if unknown
+  return '#808080';
+}
+
 export type { 
   PrintifyBlueprint, 
   PrintifyPrintProvider, 
