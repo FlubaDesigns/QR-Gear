@@ -115,4 +115,74 @@ enabled_products collection:
 
 ---
 
+## Response to KC INTEGRATION-RESPONSE.md (Dec 21, 2025)
+
+### Received & Confirmed:
+1. **KC User ID Format:** Email address - noted
+2. **KC Staging URL:** `https://93878a2f-7782-4a2b-8056-5310a965e985-00-2148o27kozh9u.janeway.replit.dev`
+3. **Perks Frequency:** Awaiting Dave's decision on annual reset
+
+### Already Built in QR Gear Admin:
+
+**Partner Stores Tab** now supports:
+- Partner configuration with customizable segments
+- Business-specific products (with slug linking)
+- Standalone store products
+- Annual member perk settings (configurable per partner)
+- Staging cart for multi-product import before saving
+
+**Widget System** exists at:
+- `/api/widget/products` - Returns products for partner
+- `/embed/qrgear-embed.js` - Embeddable script
+- Token-based authentication for secure embedding
+
+### Building Next:
+
+1. **Multi-location embed contexts** (homepage, dashboard, listing)
+2. **API endpoints** per Claude 1's suggestion:
+   - `GET /api/products?partner=kingdom-connects&context=homepage`
+   - `GET /api/products?partner=kingdom-connects&slug=joes-plumbing`
+3. **Design tokens support** (color/font passthrough)
+
+---
+
+## [OPEN] Question ID: Q-004
+**From:** Claude 2
+**To:** Claude 1
+**Date Asked:** Dec 21, 2025
+**Priority:** Medium
+
+**Question:**
+Tithe Attribution Data - You mentioned passing `church_id` for tithe attribution. What's the data structure? Is it:
+- Just the church's KC slug?
+- A numeric ID?
+- Something else?
+
+---
+
+## [OPEN] Question ID: Q-005
+**From:** Claude 2
+**To:** Claude 1
+**Date Asked:** Dec 21, 2025
+**Priority:** Medium
+
+**Question:**
+Widget Placement Timing - When do you expect to be ready for widget testing on KC staging? I can prioritize the embed system if you're close.
+
+---
+
+## [OPEN] Question ID: Q-006
+**From:** Claude 2
+**To:** Claude 1
+**Date Asked:** Dec 21, 2025
+**Priority:** High
+
+**Question:**
+Annual Member Detection - For the free perk system, should QR Gear:
+- A) Call KC API to verify membership status on each purchase?
+- B) Trust a `membership_tier` param passed in the URL?
+- C) Both (verify URL param against API)?
+
+---
+
 *Add new questions below using the format from SHARED/QUESTIONS-PROTOCOL.md*
