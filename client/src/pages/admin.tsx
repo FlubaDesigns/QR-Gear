@@ -512,7 +512,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   // Step 1: Store Segment
   const [selectedSegment, setSelectedSegment] = useState<string>("");
   
-  // KC Business Slug (when Kingdom Connects selected)
+  // KC Placement (when Kingdom Connects selected)
+  const [kcPlacement, setKcPlacement] = useState<string>("");
+  
+  // KC Business Slug (only when kcPlacement is 'static_page')
   const [kcBusinessSlug, setKcBusinessSlug] = useState<string>("");
   
   // Staging cart - accumulate products before saving
@@ -540,6 +543,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   
   // Image zoom modal
   const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
+  
+  // Cache for item prices (so you can see cost even after selecting different items)
+  const [itemPrices, setItemPrices] = useState<Record<number, number>>({});
 
   // Fetch categorized catalog with images
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
@@ -564,6 +570,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       if (!res.ok) throw new Error("Failed to fetch details");
       const data = await res.json();
       setCatalogDetails(data);
+      // Cache the price for this item so it shows in the grid
+      if (data.basePrice) {
+        setItemPrices(prev => ({ ...prev, [itemId]: data.basePrice }));
+      }
     } catch (error) {
       toast({ title: "Error", description: "Failed to load product details.", variant: "destructive" });
     } finally {
@@ -650,7 +660,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               defaultPlacement: product.placement,
               headerTextEnabled: product.headerEnabled,
               footerTextEnabled: product.footerEnabled,
-              kcBusinessSlug: kcBusinessSlug.trim() || null,
+              kcPlacement: selectedSegment === "Kingdom Connects" ? kcPlacement : null,
+              kcBusinessSlug: kcPlacement === "static_page" ? kcBusinessSlug.trim() : null,
               kcBusinessUrl,
             },
           })
@@ -674,6 +685,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 
   function resetForm() {
     setSelectedSegment("");
+    setKcPlacement("");
     setKcBusinessSlug("");
     setStagedProducts([]);
     setSelectedCategory("");
@@ -689,8 +701,17 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 
   function handleSegmentChange(segment: string) {
     setSelectedSegment(segment);
-    // Clear KC slug when changing away from Kingdom Connects
+    // Clear KC fields when changing away from Kingdom Connects
     if (segment !== "Kingdom Connects") {
+      setKcPlacement("");
+      setKcBusinessSlug("");
+    }
+  }
+  
+  function handleKcPlacementChange(placement: string) {
+    setKcPlacement(placement);
+    // Clear business slug if not static_page
+    if (placement !== "static_page") {
       setKcBusinessSlug("");
     }
   }
@@ -795,29 +816,58 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </select>
             </div>
             
-            {/* KC Business Slug (optional - for linking to specific business) */}
+            {/* KC Placement Selection */}
             {selectedSegment === "Kingdom Connects" && (
-              <div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
-                <Label className="text-sm">Kingdom Connects Business Slug (Optional)</Label>
-                <Input
-                  value={kcBusinessSlug}
-                  onChange={(e) => setKcBusinessSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                  placeholder="e.g. joes-plumbing"
-                  className="bg-background"
-                  data-testid="input-kc-slug"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {kcBusinessSlug ? (
-                    <>QR will link to: <span className="font-mono text-blue-600">kingdomconnects.org/business/{kcBusinessSlug}.htm</span></>
-                  ) : (
-                    <>Leave blank for standalone KC store products (not linked to a specific business)</>
-                  )}
-                </p>
+              <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Where on Kingdom Connects?</Label>
+                  <select
+                    className="w-full p-3 border rounded-md bg-background"
+                    value={kcPlacement}
+                    onChange={(e) => handleKcPlacementChange(e.target.value)}
+                    data-testid="select-kc-placement"
+                  >
+                    <option value="">-- Select placement --</option>
+                    <option value="homepage">Homepage (General KC Store)</option>
+                    <option value="dashboard">Dashboard (User's Dashboard)</option>
+                    <option value="static_page">Static Page (Specific Business/Church)</option>
+                  </select>
+                </div>
+                
+                {/* Business Slug - only for static_page */}
+                {kcPlacement === "static_page" && (
+                  <div className="space-y-2 pt-2 border-t border-blue-200 dark:border-blue-700">
+                    <Label className="text-sm">Business/Church Slug</Label>
+                    <Input
+                      value={kcBusinessSlug}
+                      onChange={(e) => setKcBusinessSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="e.g. first-baptist-church"
+                      className="bg-background"
+                      data-testid="input-kc-slug"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {kcBusinessSlug ? (
+                        <>QR links to: <span className="font-mono text-blue-600">kingdomconnects.org/business/{kcBusinessSlug}.htm</span></>
+                      ) : (
+                        <>Enter the business slug from Kingdom Connects</>
+                      )}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Placement description */}
+                {kcPlacement && (
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    {kcPlacement === "homepage" && "Products will appear on KC's main store page"}
+                    {kcPlacement === "dashboard" && "Products will appear in user dashboards on KC"}
+                    {kcPlacement === "static_page" && "Products will appear on a specific business listing page"}
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Step 2: Product Type */}
-            {selectedSegment && (
+            {/* Step 2: Product Type - show after segment selected (and KC placement if KC) */}
+            {selectedSegment && (selectedSegment !== "Kingdom Connects" || kcPlacement) && (
               <div className="space-y-2">
                 <Label>2. Product Type</Label>
                 <select
@@ -878,16 +928,22 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     {categoryItems.map((item) => (
                       <div
                         key={item.id}
-                        className={`relative p-2 rounded-md border-2 cursor-pointer transition-all ${
+                        className={`relative p-2 rounded-md border-2 transition-all ${
                           selectedItemId === item.id 
                             ? "border-primary bg-primary/10" 
                             : "border-transparent bg-background hover-elevate"
                         }`}
-                        onClick={() => handleItemChange(String(item.id))}
                         data-testid={`item-card-${item.id}`}
                       >
-                        {/* Thumbnail with zoom button */}
-                        <div className="relative aspect-square mb-1">
+                        {/* Thumbnail - click to zoom */}
+                        <div 
+                          className="relative aspect-square mb-1 cursor-pointer"
+                          onClick={() => {
+                            if (item.imageUrl) {
+                              setZoomedImage({ url: item.imageUrl, title: item.title });
+                            }
+                          }}
+                        >
                           {item.imageUrl ? (
                             <>
                               <img
@@ -895,18 +951,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                                 alt={item.title}
                                 className="w-full h-full object-contain rounded bg-white"
                               />
-                              {/* Zoom button - tap to see full size */}
-                              <button
-                                type="button"
-                                className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setZoomedImage({ url: item.imageUrl!, title: item.title });
-                                }}
-                                data-testid={`zoom-${item.id}`}
-                              >
-                                <ZoomIn className="h-3 w-3" />
-                              </button>
+                              {/* Zoom hint overlay */}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/30 transition-colors rounded">
+                                <ZoomIn className="h-6 w-6 text-white opacity-0 hover:opacity-100 transition-opacity" />
+                              </div>
                             </>
                           ) : (
                             <div className="w-full h-full rounded bg-muted flex items-center justify-center">
@@ -924,12 +972,26 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             </div>
                           )}
                         </div>
-                        {/* Item info */}
-                        <div className="text-xs font-medium truncate" title={item.title}>
-                          {item.title}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {item.brand}
+                        {/* Item info - click to select */}
+                        <div 
+                          className="cursor-pointer"
+                          onClick={() => handleItemChange(String(item.id))}
+                        >
+                          <div className="text-xs font-medium truncate" title={item.title}>
+                            {item.title}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {item.brand}
+                          </div>
+                          {/* Our Cost - shows after item has been selected */}
+                          <div className="text-xs font-medium text-primary mt-1">
+                            {itemPrices[item.id] 
+                              ? `Our Cost: $${itemPrices[item.id].toFixed(2)}`
+                              : selectedItemId === item.id && loadingDetails
+                                ? "Loading..."
+                                : "Tap to see cost"
+                            }
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -940,15 +1002,18 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             
             {/* Image Zoom Modal */}
             <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
-              <DialogContent className="max-w-lg p-2">
+              <DialogContent className="max-w-2xl p-4">
                 {zoomedImage && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <img
                       src={zoomedImage.url}
                       alt={zoomedImage.title}
-                      className="w-full h-auto rounded bg-white"
+                      className="w-full h-auto rounded bg-white max-h-[70vh] object-contain"
                     />
-                    <p className="text-center text-sm font-medium">{zoomedImage.title}</p>
+                    <div className="text-center">
+                      <p className="font-medium">{zoomedImage.title}</p>
+                      <p className="text-sm text-muted-foreground">Click outside or X to close</p>
+                    </div>
                   </div>
                 )}
               </DialogContent>

@@ -1124,6 +1124,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sortOrder: 0,
       });
       
+      // If this is a Kingdom Connects product, also create the partner store product entry
+      if (category === "Kingdom Connects" && metadata?.kcPlacement) {
+        // Find the Kingdom Connects partner store
+        const partnerStores = await storage.getPartnerStores();
+        const kcStore = partnerStores.find(p => p.slug === "kingdom-connects");
+        
+        if (kcStore) {
+          await storage.addPartnerStoreProduct({
+            partnerStoreId: kcStore.id,
+            productId: product.id,
+            kcPlacement: metadata.kcPlacement,
+            kcBusinessSlug: metadata.kcBusinessSlug || null,
+            sortOrder: 0,
+            isEnabled: true,
+          });
+        }
+      }
+      
       res.json(product);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

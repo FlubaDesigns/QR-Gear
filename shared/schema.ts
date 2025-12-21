@@ -161,13 +161,15 @@ export const partnerStores = pgTable("partner_stores", {
 });
 
 // Products enabled for each partner store
+// KC Placement values: 'homepage' | 'dashboard' | 'static_page' | null (non-KC)
 export const partnerStoreProducts = pgTable("partner_store_products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   partnerStoreId: varchar("partner_store_id").notNull().references(() => partnerStores.id),
   productId: varchar("product_id").notNull().references(() => products.id),
   customPrice: decimal("custom_price", { precision: 10, scale: 2 }),
   customName: text("custom_name"),
-  kcBusinessSlug: text("kc_business_slug"), // Links to specific KC business page, null = standalone store product
+  kcPlacement: text("kc_placement"), // 'homepage' | 'dashboard' | 'static_page' - where KC product appears
+  kcBusinessSlug: text("kc_business_slug"), // Links to specific KC business page (only for static_page placement)
   sortOrder: integer("sort_order").default(0),
   isEnabled: boolean("is_enabled").default(true),
 });
