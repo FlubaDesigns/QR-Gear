@@ -640,7 +640,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       <Badge variant="secondary">{catalogDetails.sizes.length} sizes</Badge>
                       {catalogDetails.madeInUSA && (
                         <Badge className="gap-1">
-                          <Flag className="h-3 w-3" /> USA
+                          <span className="text-base">🇺🇸</span> Made in USA
                         </Badge>
                       )}
                     </div>
