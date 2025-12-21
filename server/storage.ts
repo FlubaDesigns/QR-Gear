@@ -63,6 +63,7 @@ export interface IStorage {
   // QR Design operations
   getQrDesign(id: string): Promise<QrDesign | undefined>;
   getQrDesignsByUser(userId: string): Promise<QrDesign[]>;
+  getPublicGalleryDesigns(): Promise<QrDesign[]>;
   createQrDesign(design: InsertQrDesign): Promise<QrDesign>;
   updateQrDesign(id: string, design: Partial<InsertQrDesign>): Promise<QrDesign | undefined>;
   deleteQrDesign(id: string): Promise<void>;
@@ -260,6 +261,14 @@ export class DbStorage implements IStorage {
 
   async deleteQrDesign(id: string): Promise<void> {
     await this.db.delete(schema.qrDesigns).where(eq(schema.qrDesigns.id, id));
+  }
+
+  async getPublicGalleryDesigns(): Promise<QrDesign[]> {
+    return this.db
+      .select()
+      .from(schema.qrDesigns)
+      .where(eq(schema.qrDesigns.showInGallery, true))
+      .orderBy(schema.qrDesigns.createdAt);
   }
 
   // Product operations
@@ -869,11 +878,18 @@ class MemStorage implements IStorage {
       manufacturer: design.manufacturer ?? null,
       madeInUSA: design.madeInUSA ?? null,
       previewUrl: design.previewUrl ?? null,
+      showInGallery: design.showInGallery ?? false,
+      galleryTitle: design.galleryTitle ?? null,
+      galleryDescription: design.galleryDescription ?? null,
       createdAt: new Date(), 
       updatedAt: new Date() 
     };
     this.qrDesigns.set(id, newDesign);
     return newDesign;
+  }
+
+  async getPublicGalleryDesigns(): Promise<QrDesign[]> {
+    return Array.from(this.qrDesigns.values()).filter(d => d.showInGallery === true);
   }
 
   async updateQrDesign(id: string, design: Partial<InsertQrDesign>): Promise<QrDesign | undefined> {
@@ -910,6 +926,7 @@ class MemStorage implements IStorage {
       madeInUSA: product.madeInUSA ?? null,
       availablePlacements: product.availablePlacements ?? null,
       availableColors: product.availableColors ?? null,
+      availableSizes: product.availableSizes ?? null,
       metadata: product.metadata ?? null,
       isEnabled: product.isEnabled ?? false,
       markupPercent: product.markupPercent ?? "0",

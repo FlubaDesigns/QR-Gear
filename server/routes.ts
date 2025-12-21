@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
-import { printify, getUSAPrintProviders } from "./lib/printify";
+import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants } from "./lib/printify";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
@@ -912,6 +912,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(product);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sync product placements and data from Printify
+  app.post("/api/admin/products/:id/sync-printify", isAuthenticated, async (req: any, res) => {
+    try {
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      if (!product.blueprintId || !product.printProviderId) {
+        return res.status(400).json({ error: "Product missing Printify blueprint or provider IDs" });
+      }
+      
+      // Fetch placements and mockup image from Printify
+      const { placements, mockupImageUrl } = await syncProductPlacements(
+        product.blueprintId,
+        product.printProviderId
+      );
+      
+      // Fetch colors and sizes
+      const { colors, sizes } = await syncProductVariants(
+        product.blueprintId,
+        product.printProviderId
+      );
+      
+      // Update product with synced data
+      const updatedProduct = await storage.updateProduct(product.id, {
+        availablePlacements: placements.map(p => p.position),
+        availableColors: colors,
+        availableSizes: sizes,
+        imageUrl: mockupImageUrl || product.imageUrl,
+        metadata: {
+          ...(product.metadata as object || {}),
+          placementDetails: placements,
+          lastSyncedAt: new Date().toISOString(),
+        },
+      });
+      
+      res.json({
+        success: true,
+        product: updatedProduct,
+        syncedData: { placements, colors, sizes, mockupImageUrl },
+      });
+    } catch (error: any) {
+      console.error("Product sync error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ PUBLIC GALLERY API ============
+  
+  // Get public gallery designs (opt-in shared designs)
+  app.get("/api/gallery", async (req, res) => {
+    try {
+      const designs = await storage.getPublicGalleryDesigns();
+      
+      // Enrich with product data
+      const enrichedDesigns = await Promise.all(
+        designs.map(async (design) => {
+          const product = design.productId 
+            ? await storage.getProduct(design.productId)
+            : null;
+          return { ...design, product };
+        })
+      );
+      
+      res.json(enrichedDesigns);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ SITEMAP FOR SEO ============
+  
+  // Generate XML sitemap
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const products = await storage.getAllProducts();
+      const enabledProducts = products.filter(p => p.isEnabled);
+      
+      type SitemapPage = { loc: string; priority: string; changefreq: string; lastmod?: string };
+      
+      const staticPages: SitemapPage[] = [
+        { loc: '/', priority: '1.0', changefreq: 'daily' },
+        { loc: '/store', priority: '0.9', changefreq: 'daily' },
+        { loc: '/creator', priority: '0.9', changefreq: 'weekly' },
+        { loc: '/gallery', priority: '0.8', changefreq: 'daily' },
+        { loc: '/cart', priority: '0.5', changefreq: 'weekly' },
+      ];
+      
+      const productPages: SitemapPage[] = enabledProducts.map(p => ({
+        loc: `/store?product=${p.id}`,
+        priority: '0.7',
+        changefreq: 'weekly',
+        lastmod: p.updatedAt?.toISOString().split('T')[0],
+      }));
+      
+      const allPages: SitemapPage[] = [...staticPages, ...productPages];
+      
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allPages.map(page => `  <url>
+    <loc>${baseUrl}${page.loc}</loc>
+    <priority>${page.priority}</priority>
+    <changefreq>${page.changefreq}</changefreq>
+    ${page.lastmod ? `<lastmod>${page.lastmod}</lastmod>` : ''}
+  </url>`).join('\n')}
+</urlset>`;
+      
+      res.set('Content-Type', 'application/xml');
+      res.send(xml);
+    } catch (error: any) {
+      res.status(500).send('Error generating sitemap');
     }
   });
 

@@ -235,6 +235,90 @@ export async function getUSAPrintProviders(blueprintId: number): Promise<Printif
   return providers.filter(p => p.location.country === 'US' || p.location.country === 'USA');
 }
 
+interface PrintArea {
+  position: string;
+  width: number;
+  height: number;
+}
+
+interface PlacementInfo {
+  position: string;
+  label: string;
+  printArea: PrintArea;
+}
+
+// Fetch available print areas/placements for a blueprint/provider combo
+export async function syncProductPlacements(blueprintId: number, printProviderId: number): Promise<{
+  placements: PlacementInfo[];
+  mockupImageUrl: string | null;
+}> {
+  try {
+    const result = await printify.getVariants(blueprintId, printProviderId);
+    const variants = result.variants || [];
+    
+    // Extract unique placements from variant placeholders
+    const placementMap = new Map<string, PlacementInfo>();
+    
+    for (const variant of variants) {
+      if (variant.placeholders) {
+        for (const placeholder of variant.placeholders) {
+          const position = placeholder.position;
+          if (!placementMap.has(position)) {
+            placementMap.set(position, {
+              position,
+              label: formatPlacementLabel(position),
+              printArea: {
+                position,
+                width: placeholder.width,
+                height: placeholder.height,
+              },
+            });
+          }
+        }
+      }
+    }
+    
+    const placements = Array.from(placementMap.values());
+    
+    // Get blueprint details for mockup image
+    const blueprint = await printify.getBlueprintDetails(blueprintId);
+    const mockupImageUrl = blueprint.images?.[0] || null;
+    
+    return { placements, mockupImageUrl };
+  } catch (error) {
+    console.error('Error syncing product placements:', error);
+    return { placements: [], mockupImageUrl: null };
+  }
+}
+
+// Convert Printify position codes to human-readable labels
+function formatPlacementLabel(position: string): string {
+  const labelMap: Record<string, string> = {
+    'front': 'Front',
+    'back': 'Back',
+    'left': 'Left Side',
+    'right': 'Right Side',
+    'front_large': 'Front (Large)',
+    'front_small': 'Front (Small)',
+    'sleeve_left': 'Left Sleeve',
+    'sleeve_right': 'Right Sleeve',
+    'pocket': 'Pocket',
+    'center': 'Center',
+    'front_center': 'Front Center',
+    'back_center': 'Back Center',
+    'side': 'Side',
+    'wraparound': 'Wraparound',
+  };
+  
+  if (labelMap[position]) return labelMap[position];
+  
+  // Auto-format: replace underscores, capitalize words
+  return position
+    .split(/[_-]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 // Fetch colors and sizes from Printify for a blueprint/provider combo
 export async function syncProductVariants(blueprintId: number, printProviderId: number): Promise<{
   colors: Array<{ name: string; hex: string }>;

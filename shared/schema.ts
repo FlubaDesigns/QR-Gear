@@ -45,6 +45,9 @@ export const qrDesigns = pgTable("qr_designs", {
   manufacturer: text("manufacturer"),
   madeInUSA: boolean("made_in_usa").default(false),
   previewUrl: text("preview_url"),
+  showInGallery: boolean("show_in_gallery").default(false),
+  galleryTitle: text("gallery_title"),
+  galleryDescription: text("gallery_description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

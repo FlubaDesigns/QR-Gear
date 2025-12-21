@@ -46,18 +46,38 @@ interface HostingTier {
   sortOrder: number;
 }
 
-const placements = [
-  { value: "front-chest", label: "Front Chest (Large)" },
-  { value: "front-pocket", label: "Front Pocket (Small)" },
-  { value: "back", label: "Back (Large)" },
-  { value: "left-shoulder", label: "Left Shoulder" },
-  { value: "right-shoulder", label: "Right Shoulder" },
-  { value: "left-sleeve", label: "Left Sleeve" },
-  { value: "right-sleeve", label: "Right Sleeve" },
-  { value: "front-center", label: "Front Center" },
-  { value: "side-left", label: "Side Left" },
-  { value: "side-right", label: "Side Right" },
-];
+const placementLabels: Record<string, string> = {
+  "front": "Front",
+  "back": "Back",
+  "front-chest": "Front Chest",
+  "front-pocket": "Front Pocket",
+  "front-center": "Front Center",
+  "back-center": "Back Center",
+  "left": "Left Side",
+  "right": "Right Side",
+  "side": "Side",
+  "side-left": "Left Side",
+  "side-right": "Right Side",
+  "left-shoulder": "Left Shoulder",
+  "right-shoulder": "Right Shoulder",
+  "left-sleeve": "Left Sleeve",
+  "right-sleeve": "Right Sleeve",
+  "sleeve_left": "Left Sleeve",
+  "sleeve_right": "Right Sleeve",
+  "pocket": "Pocket",
+  "center": "Center",
+  "wraparound": "Wraparound",
+  "front_large": "Front (Large)",
+  "front_small": "Front (Small)",
+};
+
+function formatPlacementLabel(position: string): string {
+  if (placementLabels[position]) return placementLabels[position];
+  return position
+    .split(/[_-]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
 const standardSizes = [
   { value: "XS", label: "XS" },
