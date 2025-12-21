@@ -92,8 +92,8 @@ class PrintifyClient {
   private shopId: string;
 
   constructor() {
-    this.apiKey = process.env.PRINTIFY_API_KEY || '';
-    this.shopId = process.env.PRINTIFY_SHOP_ID || '';
+    this.apiKey = (process.env.PRINTIFY_API_KEY || '').trim().replace(/\s+/g, '');
+    this.shopId = (process.env.PRINTIFY_SHOP_ID || '').trim().replace(/\s+/g, '');
   }
 
   private get headers() {
