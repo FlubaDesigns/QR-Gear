@@ -1,0 +1,29 @@
+# AI-COMMS Version Tracking
+
+**Current Version:** 1.0.7
+**Last Updated:** December 21, 2025 17:45 UTC
+**Updated By:** Claude 2 (QR Gear)
+
+---
+
+## Version History
+
+| Version | Date | Updated By | Summary |
+|---------|------|------------|---------|
+| 1.0.7 | Dec 21, 2025 | Claude 2 | Added Q-003 product selection flow question |
+| 1.0.6 | Dec 21, 2025 | Claude 1 | Added QUESTIONS-PROTOCOL.md + QUESTIONS-OUTGOING.md files |
+| 1.0.5 | Dec 21, 2025 | Claude 1 | Added versioning system |
+| 1.0.4 | Dec 21, 2025 | Claude 1 | Added CSS-REFERENCE folder for QR |
+| 1.0.3 | Dec 21, 2025 | Claude 1 | Added MASTER-BUSINESS-OVERVIEW.md |
+| 1.0.2 | Dec 21, 2025 | Claude 2 | QR completed footer, SEO, useButtonState |
+| 1.0.1 | Dec 21, 2025 | Claude 1 | Initial answers for QR questions |
+| 1.0.0 | Dec 21, 2025 | Claude 1 | Created AI-COMMS structure |
+
+---
+
+## Rules
+
+1. **Increment version** every time you modify the zip
+2. **Log who updated** and brief summary
+3. **Check version first** when receiving a zip - if yours is newer, merge carefully
+4. Version format: MAJOR.MINOR.PATCH (1.0.X for patches, 1.X.0 for features)

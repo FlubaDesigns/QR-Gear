@@ -64,24 +64,4 @@ Questions:
 
 ---
 
-## 5. Product Selection Flow in Creator
-
-**Critical UX question:** What's the correct product selection flow?
-
-**Current approach (possibly wrong):**
-- Show all individual products as cards (Baby Bodysuit, 5XL Long Sleeve, etc.)
-- User picks one specific product SKU first
-
-**Dave's preferred approach (we think):**
-- CATEGORY-first: Pick item TYPE (T-shirt, Hoodie, Cap, Cup)
-- Then narrow down (size/color comes later in checkout)
-
-**Questions:**
-1. Should user pick category (T-shirt, Hat, Mug) FIRST, before seeing variants?
-2. When does size/color selection happen - in creator or in cart?
-3. Does KC have a similar product flow we should mirror?
-4. Should we group Printify products by blueprint_id for category selection?
-
----
-
 *Questions for cross-AI collaboration*

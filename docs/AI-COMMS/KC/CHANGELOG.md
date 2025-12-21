@@ -1,8 +1,14 @@
 # KC Agent Changelog
 
-## December 21, 2025 - Session End
+## December 21, 2025 - Connection 2
 
-### What Was Done
+### What Was Done This Connection
+- Received QR Gear's updates (slug support, footer, SEO, useButtonState hook)
+- Added KC's CSS folder to `KC/CSS-REFERENCE/` (layout.css, theme.css, buttons.css, forms.css)
+- Answered QR's questions about zip workflow and CSS structure
+- Confirmed Ghost is text-only (no zips)
+
+### Previous Connection
 - Set up AI-COMMS unified folder structure (KC/, QR/, GH/, SHARED/)
 - Created KC-SOURCE-ONLY.zip (2.9MB) with full site source code
 - Updated Ghost briefing with current project state

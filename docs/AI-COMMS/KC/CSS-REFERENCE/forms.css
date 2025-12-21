@@ -1,0 +1,901 @@
+/* ============================================================
+   Kingdom Connects — FORMS (V6.4, forms-only)
+   Scope: index.html, business.html, submit_business.html
+   Purpose: Unified form fields + compact search input styling
+   ============================================================ */
+
+/* Form container with accent border */
+.form-container {
+  border: 3px solid rgba(64, 156, 255, 0.6);
+  border-radius: 12px;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  box-shadow: 0 4px 12px rgba(64, 156, 255, 0.15);
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Mobile: Reduce form container padding further */
+@media (max-width: 480px) {
+  .form-container {
+    padding: 0.875rem;
+  }
+  
+  /* Fix date/time pickers on mobile - prevent Set button cutoff */
+  input[type="date"],
+  input[type="time"] {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Ensure date/time pickers show calendar icon and work on mobile */
+input[type="date"],
+input[type="time"] {
+  position: relative;
+}
+
+/* Show calendar/clock icon on date/time inputs */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1);
+  opacity: 0.8;
+  padding: 4px;
+}
+
+/* Required field asterisk */
+.required::after,
+label.required::after {
+  content: ' *';
+  color: #ef4444;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+/* Login checkbox row (remember me + forgot password on same line) */
+.login-remember-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.5rem 0;
+}
+
+.login-remember-row label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.login-remember-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.login-remember-row a {
+  font-size: 0.95rem;
+}
+
+/* Mobile: Stack remember row items */
+@media (max-width: 400px) {
+  .login-remember-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+/* Field error messages */
+.field-error,
+.email-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Invalid field styling */
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+/* Tokens (fallbacks; defer to theme.css if defined) */
+:root{
+  --gold-bright: var(--gold, #ffd700);
+  --gold-dark:   #a57c00;
+
+  --text-color:        #e9f2ff;
+  --text-muted:       rgba(255,255,255,.65);
+  --input-bg:    rgba(255,255,255,.08);
+  --input-bg-focus:  rgba(255,255,255,.12);
+  --input-border:      rgba(255,255,255,.25);
+}
+
+/* -------------------- Form wrapper + grid -------------------- */
+.form-wrapper{
+  display: grid;
+  gap: clamp(1rem, 2.5vw, 2rem);
+  color: var(--text-color);
+  max-width: 100%;
+}
+
+/* Mobile: Reduce form wrapper gap */
+@media (max-width: 480px) {
+  .form-wrapper {
+    gap: 0.875rem;
+  }
+}
+
+.form-wrapper .section-title,
+.form-wrapper h3.gold{
+  margin: 2rem 0 1rem;
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: var(--gold-bright);
+}
+
+.form-field{ 
+  display: grid; 
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-field > * {
+  min-width: 0;
+  width: auto;
+}
+
+.form-field.grid-2,
+.form-field.grid-3{ display: grid; gap: 1rem; }
+
+/* Utility for form field spacing */
+.form-group{
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.form-group:last-child{
+  margin-bottom: 0;
+}
+
+/* Radio toggle row for dynamic forms */
+.radio-toggle-row {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.radio-toggle-row label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.radio-toggle-row input[type="radio"] {
+  width: auto;
+}
+
+/* Mobile: Stack radio toggles vertically */
+@media (max-width: 600px) {
+  .radio-toggle-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+/* Form section divider */
+.form-divider {
+  border: 1px solid rgba(255,215,0,0.2);
+  margin: 2rem 0;
+}
+
+/* Helper text */
+.helper-text {
+  opacity: 0.8;
+  margin-bottom: 1rem;
+}
+
+.helper-text-small {
+  opacity: 0.7;
+  display: block;
+  margin-top: 4px;
+  font-size: 0.875rem;
+}
+
+/* Form hint text (for input patterns, validation help) */
+.form-hint {
+  opacity: 0.7;
+  display: block;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* Hidden conditional sections */
+.conditional-fields {
+  display: none;
+}
+
+/* ========== Utility Classes for JavaScript State Management ========== */
+
+/* Text color utilities */
+.text-gold {
+  color: #FFD700;
+}
+
+.text-orange {
+  color: #FFA500;
+}
+
+.text-red {
+  color: #ef4444;
+}
+
+/* Border utilities */
+.error-border {
+  border-color: #ef4444 !important;
+}
+
+/* Clipboard helper */
+.invisible-clipboard {
+  position: fixed;
+  opacity: 0;
+}
+
+/* Category checkbox styling */
+.category-checkbox-wrapper {
+  margin-bottom: 0.5rem;
+}
+
+.category-checkbox-label {
+  margin-left: 0.5rem;
+  cursor: pointer;
+}
+
+/* Status message error (for directory pages) */
+.status-message-error {
+  color: orange;
+  background-color: rgba(255,0,0,0.1);
+  padding: 1.5rem;
+  border: 2px solid red;
+  border-radius: 8px;
+}
+
+/* Card hover effect */
+.card-hover {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+}
+
+/* Plain link styling */
+.link-plain {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.link-plain h2 {
+  margin-bottom: 0.5rem;
+}
+
+/* Description text styling */
+.text-description {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Status messages */
+.status-pending {
+  display: block;
+  padding: 1rem;
+  color: #ccc;
+  background: var(--status-pending-bg);
+  border: 1px solid var(--status-pending-border);
+  border-radius: var(--input-radius);
+  box-shadow: 0 2px 8px rgba(255,215,0,0.15);
+}
+
+.status-success {
+  display: block;
+  padding: 1rem;
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  border-radius: var(--input-radius);
+  box-shadow: 0 2px 8px rgba(16,185,129,0.15);
+}
+
+.status-error {
+  display: block;
+  padding: 1rem;
+  color: var(--status-error-text);
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  border-radius: var(--input-radius);
+  box-shadow: 0 2px 8px rgba(239,68,68,0.15);
+}
+
+/* Enhanced input styling */
+.input-dark, input, input[type="text"], input[type="email"], 
+input[type="password"], input[type="tel"], input[type="url"],
+input[type="number"], select, textarea {
+  border-radius: var(--input-radius);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.input-dark:focus, input:focus, 
+input[type="text"]:focus, input[type="email"]:focus,
+input[type="password"]:focus, input[type="tel"]:focus,
+input[type="url"]:focus, input[type="number"]:focus,
+select:focus, textarea:focus {
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow), inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Button container spacing - DEPRECATED, use .btn-submit in buttons.css */
+.button-container {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+/* Message states with animation */
+.message.success {
+  opacity: 0;
+  color: var(--gold, #FFD700);
+  font-weight: 700;
+  text-align: center;
+  transition: opacity .6s ease;
+}
+
+.message.success.visible {
+  opacity: 1;
+}
+
+.message.error {
+  color: #ff6b6b;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Website preview link styling */
+#websitePreview a {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+#websitePreview a:hover {
+  text-decoration: none;
+}
+
+/* Category checkbox wrapper */
+.category-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.category-checkbox-wrapper:hover {
+  background-color: rgba(255,215,0,0.05);
+}
+
+.category-checkbox-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Homepage search form specific styling */
+.homepage-search-form input[type="search"]:hover {
+  border-color: #999;
+  background: #333;
+  cursor: text;
+}
+
+.homepage-search-form input[type="search"]:focus {
+  border-color: #ffd700;
+  background: #333;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.3);
+}
+
+/* Info card styling */
+.info-card {
+  background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,165,0,0.06)) !important;
+  border: 2px solid rgba(255,215,0,0.6) !important;
+  border-radius: 16px;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  margin: 1.5rem 0;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.08) !important;
+}
+
+.info-card h3 {
+  margin-top: 0;
+}
+
+.info-card-content {
+  display: grid;
+  gap: 12px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.info-card-footer {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,215,0,0.2);
+}
+
+.text-underline {
+  text-decoration: underline;
+}
+
+@media (min-width: 600px){
+  .form-field.grid-2{ grid-template-columns: 1fr 1fr; }
+  .form-field.grid-3{ grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Ensure form fields don't overflow on small screens */
+.form-field.grid-2 > *,
+.form-field.grid-3 > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+label{ font-weight: 700; color: var(--text-color); }
+.help-text{ font-size: .92rem; color: var(--text-muted); }
+.req{ color: var(--gold-bright); font-weight: 800; }
+
+/* -------------------- Inputs (text, select, textarea) -------------------- */
+input,
+textarea,
+select,
+.search-input{
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  color: var(--text-color);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 0.75rem;
+  transition:
+    border-color .22s ease,
+    background-color .22s ease,
+    box-shadow .22s ease;
+  outline: none; /* suppress UA outlines */
+  box-sizing: border-box;
+}
+
+input::placeholder,
+textarea::placeholder,
+.search-input::placeholder{
+  color: var(--text-muted);
+}
+
+/* Hover = dark gold rim */
+input:hover:not(:focus),
+textarea:hover:not(:focus),
+select:hover:not(:focus),
+.search-input:hover:not(:focus){
+  border-color: var(--gold-dark);
+}
+
+/* Focus = bright gold rim + soft glow */
+input:focus,
+textarea:focus,
+select:focus,
+.search-input:focus,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.search-input:focus-visible{
+  background: var(--input-bg-f);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(255,215,0,.35);
+}
+
+/* Select and textarea specifics */
+select{ padding-right: 2.2rem; }
+textarea{ min-height: 120px; resize: vertical; }
+
+/* Disabled */
+input:disabled,
+textarea:disabled,
+select:disabled,
+.search-input:disabled{
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+/* -------------------- Validation (gold system, no red) -------------------- */
+input:invalid,
+textarea:invalid,
+select:invalid,
+.search-input:invalid{
+  border-color: var(--gold-dark);
+  box-shadow: none;
+  outline: none;
+}
+
+input:focus:invalid,
+textarea:focus:invalid,
+select:focus:invalid,
+.search-input:focus:invalid,
+input:focus-visible:invalid,
+textarea:focus-visible:invalid,
+select:focus-visible:invalid,
+.search-input:focus-visible:invalid{
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(255,215,0,.35);
+  outline: none;
+}
+
+/* -------------------- Search field (business.html) -------------------- */
+.search-wrapper{ position: relative; display: block; }
+.search-input{ padding-left: 2.2rem; }
+
+.search-wrapper-icon{
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.95rem;
+  height: 0.95rem;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23a57c00' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l4.99 4.99a1 1 0 001.41-1.41L15.5 14zM10 14a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E");
+}
+
+.search-input:focus ~ .search-wrapper-icon,
+.search-input:focus-visible ~ .search-wrapper-icon{
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23ffd700' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l4.99 4.99a1 1 0 001.41-1.41L15.5 14zM10 14a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E");
+}
+
+/* -------------------- Inline messages (submit page) -------------------- */
+.message{
+  margin-top: .75rem;
+  font-weight: 700;
+  text-align: center;
+}
+.message.success{ color: var(--gold-bright); }
+.message.error{ color: #ff6b6b; }
+
+@media (max-width: 768px){
+  .form-field.grid-2,
+  .form-field.grid-3,
+  .form-row,
+  .form-inline,
+  .field-row {
+    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
+    display: flex !important;
+    gap: 1rem;
+  }
+  
+  .form-field.grid-2 > *,
+  .form-field.grid-3 > *,
+  .form-row > *,
+  .form-inline > *,
+  .field-row > * {
+    width: 100% !important;
+    min-width: 0;
+  }
+  
+  .filters {
+    flex-direction: column !important;
+    gap: 0.75rem;
+  }
+  
+  .filters input,
+  .filters select,
+  .filters button {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+  
+  .button-row {
+    flex-direction: column !important;
+    gap: 0.75rem;
+  }
+  
+  .button-row > * {
+    width: 100% !important;
+  }
+}
+
+/* -------------------- Alternative input styles -------------------- */
+/* Small input variant */
+.input-small {
+  width: auto;
+  min-width: 130px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* Dark input variant (used in admin forms) */
+.input-dark,
+.textarea-dark,
+.select-dark {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.textarea-dark {
+  resize: vertical;
+}
+
+/* Rounded variant (alternative forms) */
+.input-rounded,
+.textarea-rounded,
+.select-rounded {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.textarea-rounded {
+  resize: vertical;
+}
+
+/* List style utilities */
+.list-unstyled {
+  list-style: none;
+  padding: 0;
+}
+
+.list-indent {
+  padding-left: 1.5em;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* Password field with visibility toggle */
+.password-field-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-field-wrapper input[type="password"],
+.password-field-wrapper input[type="text"] {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.password-toggle-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.password-toggle-btn:focus {
+  outline: 2px solid var(--gold-bright, #ffd700);
+  outline-offset: 2px;
+  color: var(--gold-bright, #ffd700);
+}
+
+.password-toggle-btn svg {
+  display: block;
+}
+
+/* Password requirements indicator */
+.password-requirements {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.password-requirement {
+  font-size: 0.875rem;
+  padding: 0.25rem 0;
+  transition: color 0.2s ease;
+}
+
+.password-requirement.unmet {
+  color: #ef4444;
+}
+
+.password-requirement.met {
+  color: #50c878;
+  font-weight: 500;
+}
+
+/* -------------------- Toggle Switch -------------------- */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-label .toggle-switch {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  transition: background-color 0.3s ease;
+  flex-shrink: 0;
+  margin-right: 0.75rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.toggle-label .toggle-switch::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-switch {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  border-color: #ffd700;
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-switch::before {
+  transform: translateX(24px);
+  background: #fff;
+}
+
+.toggle-label input[type="checkbox"]:focus + .toggle-switch {
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.3);
+  outline: none;
+}
+
+.toggle-label input[type="checkbox"]:disabled + .toggle-switch {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-label span {
+  line-height: 1.4;
+}
+
+/* ============================================================
+   Checkbox Group (questionnaires, multiselect)
+   ============================================================ */
+.checkbox-group {
+  padding-left: 0.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.checkbox-label span {
+  line-height: 1.4;
+}
+
+/* ============================================================
+   Category Suggestion Panel (submit_business.html)
+   ============================================================ */
+.category-suggestion-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(64, 156, 255, 0.08);
+  border: 1px solid rgba(64, 156, 255, 0.3);
+  border-radius: 12px;
+  animation: slideDown 0.3s ease;
+}
+
+.category-suggestion-panel .info-box {
+  background: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.category-suggestion-panel h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.category-suggestion-panel .form-field {
+  margin-bottom: 1rem;
+}
+
+.category-suggestion-panel .form-field:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.category-suggestion-panel .flex-gap {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Login form - ensure inputs don't overflow */
+#loginForm input {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* EOF */
+/* QR Code Container - Center on mobile */
+#qrCodeContainer {
+  text-align: center;
+}
+
+#qrCanvas {
+  display: inline-block;
+}
