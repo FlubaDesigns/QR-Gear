@@ -6,6 +6,7 @@ interface SEOProps {
   keywords?: string;
   ogImage?: string;
   ogType?: string;
+  ogUrl?: string;
   canonical?: string;
 }
 
@@ -15,6 +16,7 @@ export default function SEO({
   keywords = "QR code merchandise, custom promotional products, USA made merchandise",
   ogImage = "/og-image.png",
   ogType = "website",
+  ogUrl,
   canonical,
 }: SEOProps) {
   useEffect(() => {
@@ -50,7 +52,11 @@ export default function SEO({
     updateOGMeta("og:description", description);
     updateOGMeta("og:image", ogImage);
     updateOGMeta("og:type", ogType);
+    if (ogUrl) {
+      updateOGMeta("og:url", ogUrl);
+    }
     
+    updateMeta("twitter:card", "summary_large_image");
     updateMeta("twitter:title", title);
     updateMeta("twitter:description", description);
     updateMeta("twitter:image", ogImage);

@@ -64,38 +64,6 @@ When Dave tells you a new preference:
 
 ---
 
-## The Pattern: Tell One AI, All AIs Know
-
-**This is how Dave communicates with all 3 AIs at once:**
-
-1. Dave tells ONE AI something (a rule, question, or preference)
-2. That AI logs it in the appropriate file:
-   - Rules/preferences → `SHARED-RULES.md`
-   - Questions for other AIs → `SESSION-QUESTIONS.md`
-3. At end of session, the zip gets regenerated
-4. Dave delivers the zip to the other AIs
-5. All AIs read the updates and stay synced
-
----
-
-## Terminology
-
-**Connection** = One round of zip exchange between AIs. Dave downloads from one AI, uploads to another.
-
-Example: "In the next connection, send KC's CSS folder" means include it in the next zip Dave delivers.
-
-**Why this matters:**
-- Dave has CIDP and shouldn't repeat himself
-- One conversation = all AIs informed
-- No miscommunication between projects
-
-**Your responsibility as an AI:**
-- When Dave tells you something, LOG IT in the right file
-- When you receive a zip, READ everything for updates
-- If you have a better way to do things, ADD it to your response
-
----
-
 ## Rule Log
 
 | Date | Rule Added | Source |

@@ -16,6 +16,7 @@
 
 ### New Questions This Session
 1. Best way to handle one zip file for all 3 AIs - any improvements to suggest?
+2. **In the next connection, please share KC's CSS folder** - We want to adopt your layout.css/theme.css/buttons.css/forms.css structure. Include the actual CSS files so we can adapt them to QR Gear's palette.
 
 ---
 
