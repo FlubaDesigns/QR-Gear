@@ -568,13 +568,13 @@ export default function Creator() {
       />
       <Navbar />
       <PageBreadcrumb currentPage="Create" />
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <h1 className="font-heading text-4xl font-bold mb-2">QR Code Creator</h1>
-        <p className="text-muted-foreground mb-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
+        <h1 className="font-heading text-2xl sm:text-4xl font-bold mb-2">QR Code Creator</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
           Design your custom QR code product in three easy steps
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Configuration Panel */}
           <div className="space-y-6">
             {/* Step 1: QR Code Content */}
@@ -597,23 +597,27 @@ export default function Creator() {
                     setSelectedTemplate(null);
                   }
                 }}>
-                  <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
-                    <TabsTrigger value="text" data-testid="tab-qr-text">Text</TabsTrigger>
-                    <TabsTrigger value="template" data-testid="tab-qr-template" className="flex items-center gap-1">
-                      <LayoutTemplate className="w-3 h-3 hidden sm:inline" />
+                  <TabsList className="flex w-full overflow-x-auto gap-1 pb-1">
+                    <TabsTrigger value="text" data-testid="tab-qr-text" className="flex-shrink-0 px-3">
+                      Text
+                    </TabsTrigger>
+                    <TabsTrigger value="template" data-testid="tab-qr-template" className="flex-shrink-0 px-3 flex items-center gap-1">
+                      <LayoutTemplate className="w-3 h-3" />
                       Gift
                     </TabsTrigger>
-                    <TabsTrigger value="image" data-testid="tab-qr-image">URL</TabsTrigger>
-                    <TabsTrigger value="upload" data-testid="tab-qr-upload" className="flex items-center gap-1">
-                      <Upload className="w-3 h-3 hidden sm:inline" />
+                    <TabsTrigger value="image" data-testid="tab-qr-image" className="flex-shrink-0 px-3">
+                      URL
+                    </TabsTrigger>
+                    <TabsTrigger value="upload" data-testid="tab-qr-upload" className="flex-shrink-0 px-3 flex items-center gap-1">
+                      <Upload className="w-3 h-3" />
                       Upload
                     </TabsTrigger>
-                    <TabsTrigger value="design" data-testid="tab-qr-design" className="flex items-center gap-1">
-                      <Palette className="w-3 h-3 hidden sm:inline" />
+                    <TabsTrigger value="design" data-testid="tab-qr-design" className="flex-shrink-0 px-3 flex items-center gap-1">
+                      <Palette className="w-3 h-3" />
                       Design
                     </TabsTrigger>
-                    <TabsTrigger value="dynamic" data-testid="tab-qr-dynamic" className="flex items-center gap-1">
-                      <RefreshCw className="w-3 h-3 hidden sm:inline" />
+                    <TabsTrigger value="dynamic" data-testid="tab-qr-dynamic" className="flex-shrink-0 px-3 flex items-center gap-1">
+                      <RefreshCw className="w-3 h-3" />
                       Dynamic
                     </TabsTrigger>
                   </TabsList>
@@ -1108,6 +1112,23 @@ export default function Creator() {
               </CardContent>
             </Card>
 
+            {/* Mobile-only mini preview - shows QR code inline */}
+            {qrCodeImage && (
+              <div className="lg:hidden p-4 bg-muted/50 rounded-lg border border-border" data-testid="mobile-mini-preview">
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0 bg-white p-2 rounded-md">
+                    <img src={qrCodeImage} alt="QR Preview" className="w-20 h-20" data-testid="mobile-qr-preview" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground" data-testid="text-qr-label">Your QR Code</p>
+                    {textAbove && <p className="text-xs text-muted-foreground truncate" data-testid="text-above-preview">"{textAbove}" above</p>}
+                    {textBelow && <p className="text-xs text-muted-foreground truncate" data-testid="text-below-preview">"{textBelow}" below</p>}
+                    <p className="text-xs text-primary mt-1">Scroll down for full preview</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Step 2: Product Selection */}
             <Card>
               <CardHeader>
@@ -1128,7 +1149,7 @@ export default function Creator() {
                 )}
                 
                 {!productsLoading && !productsError && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {products.map((product) => (
                     <Card
                       key={product.id}
@@ -1141,12 +1162,15 @@ export default function Creator() {
                       }}
                       data-testid={`card-product-${product.id}`}
                     >
-                      <CardContent className="p-3">
+                      <CardContent className="p-2 sm:p-3">
                         <div className="aspect-square bg-muted rounded-md mb-2 overflow-hidden relative">
                           <img
                             src={product.imageUrl || ""}
                             alt={product.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = "/assets/generated_images/Product_mockup_white_tee_de332d78.png";
+                            }}
                           />
                           {product.madeInUSA && (
                             <Badge className="absolute top-1 right-1 text-xs gap-1">
@@ -1154,7 +1178,7 @@ export default function Creator() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm font-semibold truncate">{product.name}</p>
+                        <p className="text-xs sm:text-sm font-semibold truncate">{product.name}</p>
                         <p className="text-xs text-muted-foreground">${product.basePrice}</p>
                       </CardContent>
                     </Card>
@@ -1191,18 +1215,19 @@ export default function Creator() {
                   </div>
 
                   <div>
-                    <Label>Product Color</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
+                    <Label className="text-sm font-medium">Product Color</Label>
+                    <div className="flex flex-wrap gap-2 mt-3">
                       {availableColors.map((color: any) => (
                         <Button
                           key={color.name}
                           variant={productColor === color.name ? "default" : "outline"}
-                          className="flex items-center gap-2"
+                          size="sm"
+                          className="flex items-center gap-2 px-3 py-2"
                           onClick={() => setProductColor(color.name)}
                           data-testid={`button-color-${color.name.toLowerCase()}`}
                         >
                           <div
-                            className="w-4 h-4 rounded-full border"
+                            className="w-4 h-4 rounded-full border flex-shrink-0"
                             style={{ backgroundColor: color.hex }}
                           />
                           <span className="text-xs">{color.name}</span>
@@ -1212,12 +1237,14 @@ export default function Creator() {
                   </div>
 
                   <div>
-                    <Label>Size</Label>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
+                    <Label className="text-sm font-medium">Size</Label>
+                    <div className="flex flex-wrap gap-2 mt-3">
                       {availableSizes.map((size) => (
                         <Button
                           key={size.value}
                           variant={selectedSize === size.value ? "default" : "outline"}
+                          size="sm"
+                          className="min-w-[3rem] px-4"
                           onClick={() => setSelectedSize(size.value)}
                           data-testid={`button-size-${size.value.toLowerCase()}`}
                         >
@@ -1318,12 +1345,12 @@ export default function Creator() {
 
           {/* Live Preview Panel */}
           <div className="lg:sticky lg:top-24 h-fit space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Product Preview</CardTitle>
-                <CardDescription>See your design on the actual product</CardDescription>
+            <Card className="border-2 border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg sm:text-xl">Your Design Preview</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">See your finished product with QR code</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 sm:p-6">
                 <ProductMockup
                   product={selectedProduct}
                   qrCodeImage={qrCodeImage}

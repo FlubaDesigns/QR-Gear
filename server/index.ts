@@ -1,5 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import rateLimit from "express-rate-limit";
+import path from "path";
+import { fileURLToPath } from "url";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedProducts } from "./lib/seed-products";
@@ -7,7 +9,12 @@ import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
+
+app.use('/assets', express.static(path.resolve(__dirname, '..', 'attached_assets')));
 
 async function initStripe() {
   const databaseUrl = process.env.DATABASE_URL;
