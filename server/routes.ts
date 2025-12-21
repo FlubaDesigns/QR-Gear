@@ -854,6 +854,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get full catalog grouped by category with images
+  app.get("/api/admin/printify/catalog", isAdmin, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      
+      const blueprints = await printify.getCatalogBlueprints();
+      
+      // Categorize blueprints by product type
+      const categories: Record<string, any[]> = {
+        "T-Shirts": [],
+        "Sweatshirts & Hoodies": [],
+        "Hats & Caps": [],
+        "Drinkware": [],
+        "Bags": [],
+        "Other": [],
+      };
+      
+      for (const bp of blueprints) {
+        const title = bp.title.toLowerCase();
+        const item = {
+          id: bp.id,
+          title: bp.title,
+          brand: bp.brand,
+          model: bp.model,
+          imageUrl: bp.images?.[0] || null,
+        };
+        
+        if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
+          categories["T-Shirts"].push(item);
+        } else if (title.includes('hoodie') || title.includes('sweatshirt') || title.includes('crew') || title.includes('pullover')) {
+          categories["Sweatshirts & Hoodies"].push(item);
+        } else if (title.includes('hat') || title.includes('cap') || title.includes('beanie') || title.includes('visor')) {
+          categories["Hats & Caps"].push(item);
+        } else if (title.includes('mug') || title.includes('tumbler') || title.includes('bottle') || title.includes('cup') || title.includes('glass')) {
+          categories["Drinkware"].push(item);
+        } else if (title.includes('bag') || title.includes('tote') || title.includes('backpack') || title.includes('pouch')) {
+          categories["Bags"].push(item);
+        } else {
+          categories["Other"].push(item);
+        }
+      }
+      
+      // Convert to array format, filter empty categories
+      const result = Object.entries(categories)
+        .filter(([_, items]) => items.length > 0)
+        .map(([name, items]) => ({ name, items, count: items.length }));
+      
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get full catalog item details with USA providers and pricing
   app.get("/api/admin/printify/catalog/:blueprintId", isAdmin, async (req: any, res) => {
     try {

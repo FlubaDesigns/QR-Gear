@@ -436,17 +436,20 @@ function ProductTagEditor({
   );
 }
 
-interface PrintifyBlueprint {
-  id: number;
-  title: string;
-  description: string;
-  brand: string;
-  model: string;
-  images: string[];
+interface CatalogCategory {
+  name: string;
+  items: Array<{
+    id: number;
+    title: string;
+    brand: string;
+    model: string;
+    imageUrl: string | null;
+  }>;
+  count: number;
 }
 
 interface CatalogDetails {
-  blueprint: PrintifyBlueprint;
+  blueprint: { id: number; title: string; brand: string; description: string };
   selectedProvider: { id: number; title: string };
   madeInUSA: boolean;
   colors: string[];
@@ -455,36 +458,41 @@ interface CatalogDetails {
   imageUrl: string | null;
 }
 
-function AddFromPrintifyDialog({ onSuccess }: { onSuccess: () => void }) {
+// Store segments for adding products
+const STORE_SEGMENTS = [
+  "Kingdom Connects",
+  "Holiday", 
+  "Dynamic",
+  "Custom",
+  "Religious",
+  "Business",
+];
+
+function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [selectedBlueprintId, setSelectedBlueprintId] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string>("");
   const [catalogDetails, setCatalogDetails] = useState<CatalogDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
-  // Fetch all blueprints
-  const { data: blueprints = [], isLoading: loadingBlueprints } = useQuery<PrintifyBlueprint[]>({
-    queryKey: ["/api/admin/printify/blueprints"],
-    enabled: open,
+  // Fetch categorized catalog with images
+  const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
+    queryKey: ["/api/admin/printify/catalog"],
   });
 
-  // Fetch store segments/categories
-  const { data: segments = [] } = useQuery<ProductCategory[]>({
-    queryKey: ["/api/admin/product-categories"],
-    enabled: open,
-  });
+  // Get items for selected category
+  const categoryItems = catalog.find(c => c.name === selectedCategory)?.items || [];
+  const selectedItem = categoryItems.find(item => item.id === selectedItemId);
 
-  // Fetch catalog details when blueprint selected
-  async function fetchCatalogDetails(blueprintId: number) {
+  // Fetch details when item selected
+  async function fetchItemDetails(itemId: number) {
     setLoadingDetails(true);
     try {
-      const res = await fetch(`/api/admin/printify/catalog/${blueprintId}`, { credentials: "include" });
+      const res = await fetch(`/api/admin/printify/catalog/${itemId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch details");
       const data = await res.json();
       setCatalogDetails(data);
-      setStep(2);
     } catch (error) {
       toast({ title: "Error", description: "Failed to load product details.", variant: "destructive" });
     } finally {
@@ -495,29 +503,32 @@ function AddFromPrintifyDialog({ onSuccess }: { onSuccess: () => void }) {
   // Add product mutation
   const addProductMutation = useMutation({
     mutationFn: async () => {
-      if (!catalogDetails || !selectedSegment) throw new Error("Missing data");
+      if (!catalogDetails || !selectedSegment || !selectedItem) throw new Error("Missing data");
       return apiRequest("POST", "/api/admin/products/from-printify", {
         blueprintId: catalogDetails.blueprint.id,
         printProviderId: catalogDetails.selectedProvider.id,
-        name: catalogDetails.blueprint.title,
+        name: selectedItem.title,
         description: catalogDetails.blueprint.description || "",
         category: selectedSegment,
         basePrice: catalogDetails.basePrice,
-        imageUrl: catalogDetails.imageUrl,
+        imageUrl: selectedItem.imageUrl || catalogDetails.imageUrl,
         manufacturer: catalogDetails.selectedProvider.title,
         madeInUSA: catalogDetails.madeInUSA,
         availablePlacements: ["front"],
         availableColors: catalogDetails.colors,
         availableSizes: catalogDetails.sizes,
-        metadata: { brand: catalogDetails.blueprint.brand, model: catalogDetails.blueprint.model },
+        metadata: { brand: selectedItem.brand, model: selectedItem.model },
       });
     },
     onSuccess: () => {
       toast({ 
         title: "Product Added!", 
-        description: `${catalogDetails?.blueprint.title} added to ${selectedSegment} segment.` 
+        description: `${selectedItem?.title} added to ${selectedSegment} segment.` 
       });
-      resetDialog();
+      // Reset for next add
+      setSelectedItemId(null);
+      setSelectedSegment("");
+      setCatalogDetails(null);
       onSuccess();
     },
     onError: () => {
@@ -525,194 +536,157 @@ function AddFromPrintifyDialog({ onSuccess }: { onSuccess: () => void }) {
     },
   });
 
-  function resetDialog() {
-    setOpen(false);
-    setStep(1);
-    setSelectedBlueprintId(null);
-    setSelectedSegment("");
+  function handleCategoryChange(category: string) {
+    setSelectedCategory(category);
+    setSelectedItemId(null);
     setCatalogDetails(null);
   }
 
-  function handleBlueprintSelect(blueprintId: string) {
-    const id = parseInt(blueprintId);
-    setSelectedBlueprintId(id);
-    fetchCatalogDetails(id);
+  function handleItemChange(itemId: string) {
+    const id = parseInt(itemId);
+    setSelectedItemId(id);
+    fetchItemDetails(id);
   }
 
-  function handleSegmentSelect(segment: string) {
-    setSelectedSegment(segment);
-    setStep(3);
-  }
-
-  function handleConfirmAdd() {
+  function handleAddProduct() {
     addProductMutation.mutate();
   }
 
+  const canAdd = selectedItem && selectedSegment && catalogDetails && !loadingDetails;
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) resetDialog(); else setOpen(true); }}>
-      <DialogTrigger asChild>
-        <Button data-testid="button-add-from-printify">
-          <Plus className="h-4 w-4 mr-2" />
-          Add from Printify
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {step === 1 && "Step 1: Select Product"}
-            {step === 2 && "Step 2: Choose Store Segment"}
-            {step === 3 && "Step 3: Confirm & Add"}
-          </DialogTitle>
-        </DialogHeader>
-
-        {step === 1 && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Pick a product from the Printify catalog:</p>
-            {loadingBlueprints ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : (
-              <select
-                className="w-full p-3 border rounded-md bg-background"
-                value={selectedBlueprintId || ""}
-                onChange={(e) => handleBlueprintSelect(e.target.value)}
-                disabled={loadingDetails}
-                data-testid="select-printify-blueprint"
-              >
-                <option value="">-- Select a product --</option>
-                {blueprints.map((bp) => (
-                  <option key={bp.id} value={bp.id}>
-                    {bp.title} - {bp.brand}
-                  </option>
-                ))}
-              </select>
-            )}
-            {loadingDetails && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading product details...
-              </div>
-            )}
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Plus className="h-5 w-5" />
+          Add Product from Printify
+        </CardTitle>
+        <CardDescription>Pick a product type, select an item, choose store segment, then add</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loadingCatalog ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading Printify catalog...</span>
           </div>
-        )}
-
-        {step === 2 && catalogDetails && (
+        ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-muted rounded-md">
-              {catalogDetails.imageUrl && (
-                <img src={catalogDetails.imageUrl} alt="" className="w-16 h-16 rounded object-cover" />
-              )}
-              <div className="flex-1">
-                <div className="font-medium flex items-center gap-2">
-                  {catalogDetails.blueprint.title}
-                  {catalogDetails.madeInUSA && (
-                    <Badge variant="outline" className="gap-1">
-                      <Flag className="h-3 w-3 text-red-500" /> USA
-                    </Badge>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  ${catalogDetails.basePrice.toFixed(2)} base • {catalogDetails.colors.length} colors • {catalogDetails.sizes.length} sizes
-                </div>
-              </div>
-            </div>
-
-            <p className="text-sm text-muted-foreground">Which store segment should this product appear in?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {segments.filter(s => s.isActive).map((seg) => (
-                <Button
-                  key={seg.id}
-                  variant={selectedSegment === seg.name ? "default" : "outline"}
-                  className="justify-start"
-                  onClick={() => handleSegmentSelect(seg.name)}
-                  data-testid={`button-segment-${seg.slug}`}
+            {/* Row 1: Category and Item dropdowns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Category Dropdown */}
+              <div className="space-y-2">
+                <Label>Product Type</Label>
+                <select
+                  className="w-full p-3 border rounded-md bg-background"
+                  value={selectedCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  data-testid="select-product-category"
                 >
-                  {seg.name}
-                </Button>
-              ))}
-              <Button
-                variant={selectedSegment === "Kingdom Connects" ? "default" : "outline"}
-                className="justify-start"
-                onClick={() => handleSegmentSelect("Kingdom Connects")}
-                data-testid="button-segment-kingdom-connects"
-              >
-                Kingdom Connects
-              </Button>
-              <Button
-                variant={selectedSegment === "Holiday" ? "default" : "outline"}
-                className="justify-start"
-                onClick={() => handleSegmentSelect("Holiday")}
-                data-testid="button-segment-holiday"
-              >
-                Holiday
-              </Button>
-              <Button
-                variant={selectedSegment === "Dynamic" ? "default" : "outline"}
-                className="justify-start"
-                onClick={() => handleSegmentSelect("Dynamic")}
-                data-testid="button-segment-dynamic"
-              >
-                Dynamic
-              </Button>
-            </div>
-          </div>
-        )}
+                  <option value="">-- Select type --</option>
+                  {catalog.map((cat) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name} ({cat.count} items)
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-        {step === 3 && catalogDetails && (
-          <div className="space-y-4">
-            <div className="p-4 border rounded-md space-y-3">
-              <div className="flex items-start gap-4">
-                {catalogDetails.imageUrl && (
-                  <img src={catalogDetails.imageUrl} alt="" className="w-20 h-20 rounded object-cover" />
+              {/* Item Dropdown with images */}
+              <div className="space-y-2">
+                <Label>Select Item</Label>
+                <select
+                  className="w-full p-3 border rounded-md bg-background"
+                  value={selectedItemId || ""}
+                  onChange={(e) => handleItemChange(e.target.value)}
+                  disabled={!selectedCategory || loadingDetails}
+                  data-testid="select-printify-item"
+                >
+                  <option value="">-- Select item --</option>
+                  {categoryItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title} - {item.brand}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Selected Item Preview with Image */}
+            {selectedItem && (
+              <div className="flex items-center gap-4 p-4 bg-muted rounded-md">
+                {selectedItem.imageUrl ? (
+                  <img 
+                    src={selectedItem.imageUrl} 
+                    alt={selectedItem.title} 
+                    className="w-20 h-20 rounded-md object-cover border"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-md bg-muted-foreground/20 flex items-center justify-center">
+                    <Package className="h-8 w-8 text-muted-foreground" />
+                  </div>
                 )}
                 <div className="flex-1">
-                  <div className="font-medium text-lg">{catalogDetails.blueprint.title}</div>
-                  <div className="text-sm text-muted-foreground">{catalogDetails.blueprint.brand}</div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-muted-foreground">Segment:</span> <strong>{selectedSegment}</strong></div>
-                <div><span className="text-muted-foreground">Base Price:</span> <strong>${catalogDetails.basePrice.toFixed(2)}</strong></div>
-                <div><span className="text-muted-foreground">Colors:</span> {catalogDetails.colors.length}</div>
-                <div><span className="text-muted-foreground">Sizes:</span> {catalogDetails.sizes.length}</div>
-                <div className="col-span-2 flex items-center gap-2">
-                  {catalogDetails.madeInUSA ? (
-                    <Badge className="gap-1"><Flag className="h-3 w-3" /> Made in USA</Badge>
-                  ) : (
-                    <Badge variant="outline">International</Badge>
+                  <div className="font-medium text-lg">{selectedItem.title}</div>
+                  <div className="text-sm text-muted-foreground">{selectedItem.brand}</div>
+                  {loadingDetails ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading details...
+                    </div>
+                  ) : catalogDetails && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary">${catalogDetails.basePrice.toFixed(2)}</Badge>
+                      <Badge variant="secondary">{catalogDetails.colors.length} colors</Badge>
+                      <Badge variant="secondary">{catalogDetails.sizes.length} sizes</Badge>
+                      {catalogDetails.madeInUSA && (
+                        <Badge className="gap-1">
+                          <Flag className="h-3 w-3" /> USA
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
+            )}
 
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-              <Button 
-                onClick={handleConfirmAdd} 
-                disabled={addProductMutation.isPending}
-                data-testid="button-confirm-add-product"
-              >
-                {addProductMutation.isPending ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Adding...</>
-                ) : (
-                  <><Check className="h-4 w-4 mr-2" /> Add to Store</>
-                )}
-              </Button>
-            </DialogFooter>
+            {/* Row 3: Store Segment Dropdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Store Segment</Label>
+                <select
+                  className="w-full p-3 border rounded-md bg-background"
+                  value={selectedSegment}
+                  onChange={(e) => setSelectedSegment(e.target.value)}
+                  disabled={!selectedItem}
+                  data-testid="select-store-segment"
+                >
+                  <option value="">-- Select segment --</option>
+                  {STORE_SEGMENTS.map((seg) => (
+                    <option key={seg} value={seg}>{seg}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Add Button */}
+              <div className="flex items-end">
+                <Button 
+                  onClick={handleAddProduct}
+                  disabled={!canAdd || addProductMutation.isPending}
+                  className="w-full"
+                  data-testid="button-add-product"
+                >
+                  {addProductMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Adding...</>
+                  ) : (
+                    <><Check className="h-4 w-4 mr-2" /> Add to Store</>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
-
-        {step !== 3 && (
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Cancel</Button>
-            </DialogClose>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -758,20 +732,22 @@ function ProductsTab() {
   });
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-        <div>
-          <CardTitle>Store Products</CardTitle>
-          <CardDescription>Enable/disable products and set pricing</CardDescription>
-        </div>
-        <div className="flex gap-2">
-          <AddFromPrintifyDialog onSuccess={() => refetch()} />
+    <div className="space-y-6">
+      {/* Add from Printify Panel - simple dropdowns */}
+      <AddFromPrintifyPanel onSuccess={() => refetch()} />
+
+      {/* Existing Products Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+          <div>
+            <CardTitle>Store Products</CardTitle>
+            <CardDescription>Enable/disable products and set pricing</CardDescription>
+          </div>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-        </div>
-      </CardHeader>
+        </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -839,7 +815,8 @@ function ProductsTab() {
           </Table>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
