@@ -54,6 +54,7 @@ import {
   Store,
   Globe,
   Link,
+  ZoomIn,
 } from "lucide-react";
 import {
   Category,
@@ -485,11 +486,37 @@ const QR_PLACEMENTS = [
   { id: "wrap-around", label: "Wrap Around", icon: "🔄" },
 ];
 
+// Staged product interface for cart
+interface StagedProduct {
+  id: string;
+  blueprintId: number;
+  printProviderId: number;
+  name: string;
+  description: string;
+  basePrice: number;
+  imageUrl: string | null;
+  manufacturer: string;
+  madeInUSA: boolean;
+  placement: string;
+  headerEnabled: boolean;
+  footerEnabled: boolean;
+  colors: string[];
+  sizes: string[];
+  brand: string;
+  model: string;
+}
+
 function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
   
   // Step 1: Store Segment
   const [selectedSegment, setSelectedSegment] = useState<string>("");
+  
+  // KC Business Slug (when Kingdom Connects selected)
+  const [kcBusinessSlug, setKcBusinessSlug] = useState<string>("");
+  
+  // Staging cart - accumulate products before saving
+  const [stagedProducts, setStagedProducts] = useState<StagedProduct[]>([]);
   
   // Step 2: Product Category
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -510,6 +537,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [headerText, setHeaderText] = useState("");
   const [footerEnabled, setFooterEnabled] = useState(false);
   const [footerText, setFooterText] = useState("");
+  
+  // Image zoom modal
+  const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
 
   // Fetch categorized catalog with images
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
@@ -546,48 +576,106 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const footerUpcharge = footerEnabled && footerText.trim() ? 2 : 0;
   const totalUpcharge = headerUpcharge + footerUpcharge;
 
-  // Add product mutation
-  const addProductMutation = useMutation({
+  // Add to staging cart (not saving to DB yet)
+  function addToStagingCart() {
+    if (!catalogDetails || !selectedItem) return;
+    
+    const staged: StagedProduct = {
+      id: `${Date.now()}-${selectedItem.id}`,
+      blueprintId: catalogDetails.blueprint.id,
+      printProviderId: catalogDetails.selectedProvider.id,
+      name: selectedItem.title,
+      description: catalogDetails.blueprint.description || "",
+      basePrice: catalogDetails.basePrice,
+      imageUrl: selectedItem.imageUrl || catalogDetails.imageUrl,
+      manufacturer: catalogDetails.selectedProvider.title,
+      madeInUSA: catalogDetails.madeInUSA,
+      placement: selectedPlacement,
+      headerEnabled,
+      footerEnabled,
+      colors: catalogDetails.colors,
+      sizes: catalogDetails.sizes,
+      brand: selectedItem.brand,
+      model: selectedItem.model,
+    };
+    
+    setStagedProducts(prev => [...prev, staged]);
+    toast({ title: "Added to Cart", description: `${selectedItem.title} added. Keep adding or save all.` });
+    
+    // Reset item selection but keep segment/KC slug
+    setSelectedCategory("");
+    setLocationFilter("all");
+    setSelectedItemId(null);
+    setCatalogDetails(null);
+    setSelectedPlacement("front-chest");
+    setHeaderEnabled(false);
+    setHeaderText("");
+    setFooterEnabled(false);
+    setFooterText("");
+  }
+  
+  function removeFromStagingCart(id: string) {
+    setStagedProducts(prev => prev.filter(p => p.id !== id));
+  }
+
+  // Save all staged products mutation
+  const saveAllMutation = useMutation({
     mutationFn: async () => {
-      if (!catalogDetails || !selectedSegment || !selectedItem) throw new Error("Missing data");
-      return apiRequest("POST", "/api/admin/products/from-printify", {
-        blueprintId: catalogDetails.blueprint.id,
-        printProviderId: catalogDetails.selectedProvider.id,
-        name: selectedItem.title,
-        description: catalogDetails.blueprint.description || "",
-        category: selectedSegment,
-        basePrice: catalogDetails.basePrice,
-        imageUrl: selectedItem.imageUrl || catalogDetails.imageUrl,
-        manufacturer: catalogDetails.selectedProvider.title,
-        madeInUSA: catalogDetails.madeInUSA,
-        availablePlacements: [selectedPlacement],
-        availableColors: catalogDetails.colors,
-        availableSizes: catalogDetails.sizes,
-        metadata: { 
-          brand: selectedItem.brand, 
-          model: selectedItem.model,
-          defaultPlacement: selectedPlacement,
-          headerTextEnabled: headerEnabled,
-          footerTextEnabled: footerEnabled,
-          providerCountry: selectedItem.madeInUSA ? "USA" : selectedItem.otherCountries[0] || "Unknown",
-        },
-      });
+      if (stagedProducts.length === 0) throw new Error("No products to save");
+      
+      // Determine KC business URL if applicable
+      const kcBusinessUrl = selectedSegment === "Kingdom Connects" && kcBusinessSlug.trim()
+        ? `https://kingdomconnects.org/business/${kcBusinessSlug.trim()}.htm`
+        : null;
+      
+      // Save each product
+      const results = await Promise.all(
+        stagedProducts.map(product => 
+          apiRequest("POST", "/api/admin/products/from-printify", {
+            blueprintId: product.blueprintId,
+            printProviderId: product.printProviderId,
+            name: product.name,
+            description: product.description,
+            category: selectedSegment,
+            basePrice: product.basePrice,
+            imageUrl: product.imageUrl,
+            manufacturer: product.manufacturer,
+            madeInUSA: product.madeInUSA,
+            availablePlacements: [product.placement],
+            availableColors: product.colors,
+            availableSizes: product.sizes,
+            metadata: { 
+              brand: product.brand, 
+              model: product.model,
+              defaultPlacement: product.placement,
+              headerTextEnabled: product.headerEnabled,
+              footerTextEnabled: product.footerEnabled,
+              kcBusinessSlug: kcBusinessSlug.trim() || null,
+              kcBusinessUrl,
+            },
+          })
+        )
+      );
+      return results;
     },
     onSuccess: () => {
+      const count = stagedProducts.length;
       toast({ 
-        title: "Product Added!", 
-        description: `${selectedItem?.title} added to ${selectedSegment} segment.` 
+        title: "Products Saved!", 
+        description: `${count} product(s) added to ${selectedSegment}${kcBusinessSlug ? ` for ${kcBusinessSlug}` : ""}.` 
       });
       resetForm();
       onSuccess();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to add product.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to save products.", variant: "destructive" });
     },
   });
 
   function resetForm() {
     setSelectedSegment("");
+    setKcBusinessSlug("");
+    setStagedProducts([]);
     setSelectedCategory("");
     setLocationFilter("all");
     setSelectedItemId(null);
@@ -601,6 +689,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 
   function handleSegmentChange(segment: string) {
     setSelectedSegment(segment);
+    // Clear KC slug when changing away from Kingdom Connects
+    if (segment !== "Kingdom Connects") {
+      setKcBusinessSlug("");
+    }
   }
 
   function handleCategoryChange(category: string) {
@@ -622,11 +714,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     fetchItemDetails(id);
   }
 
-  function handleAddProduct() {
-    addProductMutation.mutate();
-  }
-
-  const canAdd = selectedItem && selectedSegment && catalogDetails && !loadingDetails;
+  const canAddToCart = selectedItem && selectedSegment && catalogDetails && !loadingDetails;
+  const canSaveAll = stagedProducts.length > 0 && selectedSegment;
 
   return (
     <Card className="mb-6">
@@ -645,6 +734,51 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Staging Cart Display */}
+            {stagedProducts.length > 0 && (
+              <div className="p-3 bg-accent/20 rounded-md border space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    Staging Cart ({stagedProducts.length} item{stagedProducts.length !== 1 ? 's' : ''})
+                  </Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStagedProducts([])}
+                    data-testid="clear-staging-cart"
+                  >
+                    <X className="h-3 w-3 mr-1" /> Clear All
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {stagedProducts.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1 bg-background rounded px-2 py-1 text-xs border">
+                      {p.imageUrl && <img src={p.imageUrl} alt="" className="w-6 h-6 rounded object-contain" />}
+                      <span className="truncate max-w-24">{p.name}</span>
+                      <button
+                        onClick={() => removeFromStagingCart(p.id)}
+                        className="text-destructive hover:bg-destructive/10 rounded p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  onClick={() => saveAllMutation.mutate()}
+                  disabled={!canSaveAll || saveAllMutation.isPending}
+                  className="w-full"
+                  data-testid="save-all-products"
+                >
+                  {saveAllMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Check className="h-4 w-4 mr-2" /> Save All to {selectedSegment || "Store"}</>
+                  )}
+                </Button>
+              </div>
+            )}
+
             {/* Step 1: Store Segment */}
             <div className="space-y-2">
               <Label>1. Store Segment</Label>
@@ -660,6 +794,27 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 ))}
               </select>
             </div>
+            
+            {/* KC Business Slug (optional - for linking to specific business) */}
+            {selectedSegment === "Kingdom Connects" && (
+              <div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+                <Label className="text-sm">Kingdom Connects Business Slug (Optional)</Label>
+                <Input
+                  value={kcBusinessSlug}
+                  onChange={(e) => setKcBusinessSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  placeholder="e.g. joes-plumbing"
+                  className="bg-background"
+                  data-testid="input-kc-slug"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {kcBusinessSlug ? (
+                    <>QR will link to: <span className="font-mono text-blue-600">kingdomconnects.org/business/{kcBusinessSlug}.htm</span></>
+                  ) : (
+                    <>Leave blank for standalone KC store products (not linked to a specific business)</>
+                  )}
+                </p>
+              </div>
+            )}
 
             {/* Step 2: Product Type */}
             {selectedSegment && (
@@ -714,26 +869,90 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Step 4: Item Selection */}
+            {/* Step 4: Item Selection - Visual Grid with Thumbnails */}
             {selectedCategory && (
               <div className="space-y-2">
                 <Label>4. Select Item ({categoryItems.length} available)</Label>
-                <select
-                  className="w-full p-3 border rounded-md bg-background"
-                  value={selectedItemId || ""}
-                  onChange={(e) => handleItemChange(e.target.value)}
-                  disabled={loadingDetails}
-                  data-testid="select-printify-item"
-                >
-                  <option value="">-- Select item --</option>
-                  {categoryItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.madeInUSA ? "🇺🇸 " : ""}{item.title} - {item.brand}
-                    </option>
-                  ))}
-                </select>
+                <div className="max-h-64 overflow-y-auto border rounded-md p-2 bg-muted/30">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {categoryItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`relative p-2 rounded-md border-2 cursor-pointer transition-all ${
+                          selectedItemId === item.id 
+                            ? "border-primary bg-primary/10" 
+                            : "border-transparent bg-background hover-elevate"
+                        }`}
+                        onClick={() => handleItemChange(String(item.id))}
+                        data-testid={`item-card-${item.id}`}
+                      >
+                        {/* Thumbnail with zoom button */}
+                        <div className="relative aspect-square mb-1">
+                          {item.imageUrl ? (
+                            <>
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="w-full h-full object-contain rounded bg-white"
+                              />
+                              {/* Zoom button - tap to see full size */}
+                              <button
+                                type="button"
+                                className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setZoomedImage({ url: item.imageUrl!, title: item.title });
+                                }}
+                                data-testid={`zoom-${item.id}`}
+                              >
+                                <ZoomIn className="h-3 w-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <div className="w-full h-full rounded bg-muted flex items-center justify-center">
+                              <Package className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          {/* USA badge */}
+                          {item.madeInUSA && (
+                            <span className="absolute bottom-1 left-1 text-xs">🇺🇸</span>
+                          )}
+                          {/* Selected checkmark */}
+                          {selectedItemId === item.id && (
+                            <div className="absolute top-1 left-1 p-0.5 bg-primary rounded-full">
+                              <Check className="h-3 w-3 text-primary-foreground" />
+                            </div>
+                          )}
+                        </div>
+                        {/* Item info */}
+                        <div className="text-xs font-medium truncate" title={item.title}>
+                          {item.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {item.brand}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
+            
+            {/* Image Zoom Modal */}
+            <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
+              <DialogContent className="max-w-lg p-2">
+                {zoomedImage && (
+                  <div className="space-y-2">
+                    <img
+                      src={zoomedImage.url}
+                      alt={zoomedImage.title}
+                      className="w-full h-auto rounded bg-white"
+                    />
+                    <p className="text-center text-sm font-medium">{zoomedImage.title}</p>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
 
             {/* Row 4: Selected Item Preview with Image, Sizes, Colors */}
             {selectedItem && (
@@ -921,7 +1140,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Price Summary & Add Button */}
+            {/* Price Summary & Add to Cart Button */}
             {selectedItem && catalogDetails && (
               <div className="p-4 bg-primary/5 rounded-md border space-y-3">
                 <div className="flex items-center justify-between">
@@ -943,17 +1162,16 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   </div>
                 </div>
                 <Button 
-                  onClick={handleAddProduct}
-                  disabled={!canAdd || addProductMutation.isPending}
+                  onClick={addToStagingCart}
+                  disabled={!canAddToCart}
                   className="w-full"
-                  data-testid="button-add-product"
+                  data-testid="button-add-to-cart"
                 >
-                  {addProductMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Adding...</>
-                  ) : (
-                    <><Check className="h-4 w-4 mr-2" /> Add to Store</>
-                  )}
+                  <Plus className="h-4 w-4 mr-2" /> Add to Cart
                 </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  Add more items or click "Save All" above when done
+                </p>
               </div>
             )}
           </div>
