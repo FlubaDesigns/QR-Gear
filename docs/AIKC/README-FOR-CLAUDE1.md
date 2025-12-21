@@ -92,3 +92,23 @@ For sales emails and client communication, check:
 - `server/lib/email.ts` - Resend integration with email templates
 - `server/lib/cron-jobs.ts` - Scheduled reminder emails
 - `server/routes.ts` - Order confirmation triggers in POST /api/orders
+
+---
+
+## NEW: Partner Integration Spec (December 21, 2025)
+
+**IMPORTANT:** Read `INTEGRATION-SPEC.md` for the complete integration details:
+
+1. **Business-specific products** - Link products to KC business pages via `?slug={business_slug}`
+2. **Standalone KC store** - General products on QR Gear homepage (no specific business link)
+3. **Annual member perks** - Free T-shirt/hat for annual subscribers
+4. **Store segments** - Configurable per-partner (Religious, Business, Custom, etc.)
+5. **Widget embedding** - Embed QR Gear mini-store on KC site
+6. **API endpoints** - For membership verification and perk claiming
+
+### What KC Needs to Implement:
+- Membership verification API endpoint
+- Dashboard button for annual members to claim perks
+- JWT token generation for secure user identification
+
+See `INTEGRATION-SPEC.md` for full technical details.

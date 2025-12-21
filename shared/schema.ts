@@ -144,11 +144,17 @@ export const partnerStores = pgTable("partner_stores", {
   description: text("description"),
   logoUrl: text("logo_url"),
   websiteUrl: text("website_url"),
+  businessPageUrlPattern: text("business_page_url_pattern"), // e.g. "https://kingdomconnects.org/business/{slug}.htm"
   apiKey: text("api_key").notNull(), // for JWT token generation
   allowedOrigins: text("allowed_origins").array(), // CORS origins
   primaryColor: text("primary_color"),
   accentColor: text("accent_color"),
   commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0"),
+  // Store segments this partner can access
+  availableSegments: text("available_segments").array(), // ['Religious', 'Business', etc.]
+  // Annual member perks - JSON config for free items
+  // Format: { enabled: boolean, products: ['T-Shirt', 'Hat'], maxItems: 2 }
+  annualMemberPerk: jsonb("annual_member_perk"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
