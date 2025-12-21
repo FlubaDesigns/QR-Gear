@@ -17,7 +17,7 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
 import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
 import type { Product } from "@shared/schema";
@@ -1403,18 +1403,16 @@ export default function Creator() {
                     <CardTitle className="text-lg sm:text-xl">Your Design Preview</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">See your finished product with QR code</CardDescription>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={handleShare}
+                    disabled={!qrCodeImage}
+                    data-testid="button-share-design"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
                   <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={handleShare}
-                        disabled={!qrCodeImage}
-                        data-testid="button-share-design"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Share Your Design</DialogTitle>
