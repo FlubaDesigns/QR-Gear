@@ -88,23 +88,23 @@ interface CreateOrderRequest {
 }
 
 class PrintifyClient {
-  private apiKey: string;
-  private shopId: string;
-
-  constructor() {
-    this.apiKey = (process.env.PRINTIFY_API_KEY || '').trim().replace(/\s+/g, '');
-    this.shopId = (process.env.PRINTIFY_SHOP_ID || '').trim().replace(/\s+/g, '');
+  private getApiKey(): string {
+    return (process.env.PRINTIFY_API_KEY || '').trim().replace(/\s+/g, '');
+  }
+  
+  private getShopId(): string {
+    return (process.env.PRINTIFY_SHOP_ID || '').trim().replace(/\s+/g, '');
   }
 
   private get headers() {
     return {
-      'Authorization': `Bearer ${this.apiKey}`,
+      'Authorization': `Bearer ${this.getApiKey()}`,
       'Content-Type': 'application/json',
     };
   }
 
   get isConfigured(): boolean {
-    return Boolean(this.apiKey && this.shopId);
+    return Boolean(this.getApiKey() && this.getShopId());
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -153,11 +153,11 @@ class PrintifyClient {
   }
 
   async getShopProducts(): Promise<{ data: PrintifyProduct[] }> {
-    return this.request(`/shops/${this.shopId}/products.json`);
+    return this.request(`/shops/${this.getShopId()}/products.json`);
   }
 
   async getProduct(productId: string): Promise<PrintifyProduct> {
-    return this.request(`/shops/${this.shopId}/products/${productId}.json`);
+    return this.request(`/shops/${this.getShopId()}/products/${productId}.json`);
   }
 
   async createProduct(productData: {
@@ -180,7 +180,7 @@ class PrintifyClient {
       }>;
     }>;
   }): Promise<PrintifyProduct> {
-    return this.request(`/shops/${this.shopId}/products.json`, {
+    return this.request(`/shops/${this.getShopId()}/products.json`, {
       method: 'POST',
       body: JSON.stringify(productData),
     });
@@ -197,31 +197,31 @@ class PrintifyClient {
   }
 
   async createOrder(orderData: CreateOrderRequest): Promise<{ id: string }> {
-    return this.request(`/shops/${this.shopId}/orders.json`, {
+    return this.request(`/shops/${this.getShopId()}/orders.json`, {
       method: 'POST',
       body: JSON.stringify(orderData),
     });
   }
 
   async submitOrderToProduction(orderId: string): Promise<{ id: string; status: string }> {
-    return this.request(`/shops/${this.shopId}/orders/${orderId}/send_to_production.json`, {
+    return this.request(`/shops/${this.getShopId()}/orders/${orderId}/send_to_production.json`, {
       method: 'POST',
     });
   }
 
   async getOrder(orderId: string): Promise<any> {
-    return this.request(`/shops/${this.shopId}/orders/${orderId}.json`);
+    return this.request(`/shops/${this.getShopId()}/orders/${orderId}.json`);
   }
 
   async getOrders(): Promise<{ data: any[] }> {
-    return this.request(`/shops/${this.shopId}/orders.json`);
+    return this.request(`/shops/${this.getShopId()}/orders.json`);
   }
 
   async calculateShipping(orderData: {
     line_items: Array<{ product_id: string; variant_id: number; quantity: number }>;
     address_to: { country: string; region: string; zip: string };
   }): Promise<{ standard: number; express?: number }> {
-    return this.request(`/shops/${this.shopId}/orders/shipping.json`, {
+    return this.request(`/shops/${this.getShopId()}/orders/shipping.json`, {
       method: 'POST',
       body: JSON.stringify(orderData),
     });
