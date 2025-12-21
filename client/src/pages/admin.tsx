@@ -81,6 +81,52 @@ const ICON_MAP: Record<string, typeof Tag> = {
 
 const ICON_OPTIONS = Object.keys(ICON_MAP);
 
+const COLOR_MAP: Record<string, string> = {
+  white: "#ffffff",
+  black: "#000000",
+  navy: "#001f3f",
+  red: "#e53935",
+  blue: "#1e88e5",
+  green: "#43a047",
+  grey: "#9e9e9e",
+  gray: "#9e9e9e",
+  charcoal: "#36454f",
+  heather: "#b4b4b4",
+  maroon: "#800000",
+  orange: "#ff9800",
+  yellow: "#ffeb3b",
+  pink: "#e91e63",
+  purple: "#9c27b0",
+  tan: "#d2b48c",
+  brown: "#795548",
+  khaki: "#c3b091",
+  cream: "#fffdd0",
+  ivory: "#fffff0",
+  gold: "#ffd700",
+  silver: "#c0c0c0",
+  aqua: "#00bcd4",
+  teal: "#009688",
+  coral: "#ff7f50",
+  mint: "#98ff98",
+  olive: "#808000",
+  burgundy: "#800020",
+  sand: "#c2b280",
+  slate: "#708090",
+  forest: "#228b22",
+  royal: "#4169e1",
+  sky: "#87ceeb",
+  light: "#f5f5f5",
+  dark: "#333333",
+};
+
+function getSwatchColor(colorName: string): string {
+  const lower = colorName.toLowerCase();
+  for (const [key, value] of Object.entries(COLOR_MAP)) {
+    if (lower.includes(key)) return value;
+  }
+  return "#cccccc";
+}
+
 function IconDisplay({ iconName, className }: { iconName: string; className?: string }) {
   const Icon = ICON_MAP[iconName] || Tag;
   return <Icon className={className} />;
@@ -544,6 +590,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   // Image zoom modal
   const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
   
+  // Selected sizes and colors for the current item (admin can toggle which to offer)
+  const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set());
+  const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
+  
   // Cache for item details (prices, colors, sizes)
   const [itemDetails, setItemDetails] = useState<Record<number, {
     basePrice: number;
@@ -589,6 +639,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             providerName: data.selectedProvider?.title,
           }
         }));
+        // Initialize all sizes/colors as enabled by default
+        setEnabledSizes(new Set(data.sizes || []));
+        setEnabledColors(new Set(data.colors || []));
       }
     } catch (error) {
       toast({ title: "Error", description: "Failed to load product details.", variant: "destructive" });
@@ -802,6 +855,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     const id = parseInt(itemId);
     setSelectedItemId(id);
     fetchItemDetails(id);
+    
+    // Initialize enabled sizes/colors from cached details (all enabled by default)
+    const details = itemDetails[id];
+    if (details) {
+      setEnabledSizes(new Set(details.sizes || []));
+      setEnabledColors(new Set(details.colors || []));
+    }
   }
 
   const canAddToCart = selectedItem && selectedSegment && catalogDetails && !loadingDetails;
@@ -990,7 +1050,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>4. Select Item ({categoryItems.length} available)</Label>
-                  {fetchingBatch && (
+                  {fetchingBatch && categoryItems.some(item => !itemDetails[item.id]) && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Loading details...
@@ -1167,36 +1227,114 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       )}
                     </div>
 
-                    {/* Sizes */}
+                    {/* Sizes - Checkboxes */}
                     {catalogDetails.sizes.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">SIZES ({catalogDetails.sizes.length})</div>
-                        <div className="flex gap-1 flex-wrap">
-                          {catalogDetails.sizes.slice(0, 12).map((size) => (
-                            <Badge key={size} variant="outline" className="text-xs">
-                              {size}
-                            </Badge>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-medium text-muted-foreground">
+                            SIZES TO OFFER ({enabledSizes.size} of {catalogDetails.sizes.length})
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs"
+                              onClick={() => setEnabledSizes(new Set(catalogDetails.sizes))}
+                            >
+                              All
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs"
+                              onClick={() => setEnabledSizes(new Set())}
+                            >
+                              None
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          {catalogDetails.sizes.map((size) => (
+                            <label 
+                              key={size} 
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded border cursor-pointer transition-all ${
+                                enabledSizes.has(size) 
+                                  ? "bg-primary/10 border-primary" 
+                                  : "bg-muted/50 border-transparent opacity-50"
+                              }`}
+                            >
+                              <Checkbox 
+                                checked={enabledSizes.has(size)}
+                                onCheckedChange={(checked) => {
+                                  const next = new Set(enabledSizes);
+                                  if (checked) next.add(size);
+                                  else next.delete(size);
+                                  setEnabledSizes(next);
+                                }}
+                              />
+                              <span className="text-sm">{size}</span>
+                            </label>
                           ))}
-                          {catalogDetails.sizes.length > 12 && (
-                            <Badge variant="outline" className="text-xs">+{catalogDetails.sizes.length - 12} more</Badge>
-                          )}
                         </div>
                       </div>
                     )}
 
-                    {/* Colors */}
+                    {/* Colors - Swatches with Checkboxes */}
                     {catalogDetails.colors.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">COLORS ({catalogDetails.colors.length})</div>
-                        <div className="flex gap-1 flex-wrap">
-                          {catalogDetails.colors.slice(0, 10).map((color) => (
-                            <Badge key={color} variant="outline" className="text-xs">
-                              {color}
-                            </Badge>
-                          ))}
-                          {catalogDetails.colors.length > 10 && (
-                            <Badge variant="outline" className="text-xs">+{catalogDetails.colors.length - 10} more</Badge>
-                          )}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-medium text-muted-foreground">
+                            COLORS TO OFFER ({enabledColors.size} of {catalogDetails.colors.length})
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs"
+                              onClick={() => setEnabledColors(new Set(catalogDetails.colors))}
+                            >
+                              All
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs"
+                              onClick={() => setEnabledColors(new Set())}
+                            >
+                              None
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          {catalogDetails.colors.map((color) => {
+                            const swatchColor = getSwatchColor(color);
+                            return (
+                              <label 
+                                key={color} 
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded border cursor-pointer transition-all ${
+                                  enabledColors.has(color) 
+                                    ? "bg-primary/10 border-primary" 
+                                    : "bg-muted/50 border-transparent opacity-50"
+                                }`}
+                                title={color}
+                              >
+                                <Checkbox 
+                                  checked={enabledColors.has(color)}
+                                  onCheckedChange={(checked) => {
+                                    const next = new Set(enabledColors);
+                                    if (checked) next.add(color);
+                                    else next.delete(color);
+                                    setEnabledColors(next);
+                                  }}
+                                />
+                                <div 
+                                  className="w-5 h-5 rounded border border-gray-300"
+                                  style={{ backgroundColor: swatchColor }}
+                                />
+                                <span className="text-xs max-w-20 truncate">{color}</span>
+                              </label>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
