@@ -217,7 +217,22 @@ The widget system allows Kingdom Connects and other trusted partners to embed th
 3. Widget embedding on partner sites
 4. Mobile responsive testing
 
+## Cross-AI Communication
+
+QR Gear uses a cross-AI communication protocol to coordinate with Kingdom Connects:
+- `docs/AIQR/` - Files received FROM Kingdom Connects AI
+- `docs/AIKC/` - Files to send TO Kingdom Connects AI
+- `docs/AIKC-for-claude1.zip` - Zip file for Dave to transport to KC
+
+### KC Integration Points
+- Creator page accepts `?slug={business_slug}` URL param
+- Pre-fills QR destination as `https://kingdomconnects.org/business/{slug}.htm`
+- Shows visual indicator when KC business promo mode is active
+
 ## Recent Changes Log
+- 2025-12-21: Set up cross-AI communication folders and protocol
+- 2025-12-21: Added KC business slug parameter support in creator page
+- 2025-12-21: Created AIKC-for-claude1.zip for KC transport
 - 2025-12-20: Added Partner Stores admin tab with full CRUD
 - 2025-12-20: Fixed IMAGE_HOSTING_UPCHARGE error in Creator page
 - 2025-12-20: Database schema pushed with partner store tables

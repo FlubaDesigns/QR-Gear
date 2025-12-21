@@ -104,6 +104,17 @@ export default function Creator() {
   const { addItem: addGuestItem } = useGuestCart();
   const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design" | "template" | "dynamic">("text");
   const [qrContent, setQrContent] = useState("");
+  const [kcBusinessSlug, setKcBusinessSlug] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const slug = urlParams.get("slug");
+    if (slug) {
+      setKcBusinessSlug(slug);
+      const kcBusinessUrl = `https://kingdomconnects.org/business/${slug}.htm`;
+      setQrContent(kcBusinessUrl);
+    }
+  }, []);
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
   const [qrCodeImage, setQrCodeImage] = useState("");
@@ -608,17 +619,25 @@ export default function Creator() {
                   </TabsList>
                   <TabsContent value="text" className="space-y-4">
                     <div>
+                      {kcBusinessSlug && (
+                        <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-md">
+                          <p className="text-sm font-medium text-primary">Kingdom Connects Business Promo</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Your QR code will link to your Kingdom Connects business page. Customers can scan it to find you!
+                          </p>
+                        </div>
+                      )}
                       <Label htmlFor="qr-text">Your Message</Label>
                       <Textarea
                         id="qr-text"
-                        placeholder="I love QR Gear! Or any message you want..."
+                        placeholder={kcBusinessSlug ? "Your Kingdom Connects business URL is pre-filled..." : "I love QR Gear! Or any message you want..."}
                         value={qrContent}
                         onChange={(e) => setQrContent(e.target.value)}
                         rows={4}
                         data-testid="textarea-qr-content"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Works offline - message embedded in QR code
+                        {kcBusinessSlug ? "This QR links to your KC business listing" : "Works offline - message embedded in QR code"}
                       </p>
                     </div>
                   </TabsContent>
