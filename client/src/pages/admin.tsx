@@ -475,14 +475,41 @@ const STORE_SEGMENTS = [
   "Business",
 ];
 
+// QR Placement options
+const QR_PLACEMENTS = [
+  { id: "front-chest", label: "Front Chest", icon: "👕" },
+  { id: "front-center", label: "Front Center", icon: "🎯" },
+  { id: "back", label: "Back", icon: "🔙" },
+  { id: "left-shoulder", label: "Left Shoulder", icon: "⬅️" },
+  { id: "right-shoulder", label: "Right Shoulder", icon: "➡️" },
+  { id: "wrap-around", label: "Wrap Around", icon: "🔄" },
+];
+
 function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  
+  // Step 1: Store Segment
   const [selectedSegment, setSelectedSegment] = useState<string>("");
+  
+  // Step 2: Product Category
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  
+  // Step 3: Made-in filter
+  const [locationFilter, setLocationFilter] = useState<"all" | "usa" | "other">("all");
+  
+  // Step 4: Item selection
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [catalogDetails, setCatalogDetails] = useState<CatalogDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [locationFilter, setLocationFilter] = useState<"all" | "usa" | "other">("all");
+  
+  // Step 5: QR Placement
+  const [selectedPlacement, setSelectedPlacement] = useState<string>("front-chest");
+  
+  // Step 6: Header/Footer text
+  const [headerEnabled, setHeaderEnabled] = useState(false);
+  const [headerText, setHeaderText] = useState("");
+  const [footerEnabled, setFooterEnabled] = useState(false);
+  const [footerText, setFooterText] = useState("");
 
   // Fetch categorized catalog with images
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
@@ -514,6 +541,11 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     }
   }
 
+  // Calculate upcharges
+  const headerUpcharge = headerEnabled && headerText.trim() ? 2 : 0;
+  const footerUpcharge = footerEnabled && footerText.trim() ? 2 : 0;
+  const totalUpcharge = headerUpcharge + footerUpcharge;
+
   // Add product mutation
   const addProductMutation = useMutation({
     mutationFn: async () => {
@@ -528,10 +560,17 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         imageUrl: selectedItem.imageUrl || catalogDetails.imageUrl,
         manufacturer: catalogDetails.selectedProvider.title,
         madeInUSA: catalogDetails.madeInUSA,
-        availablePlacements: ["front"],
+        availablePlacements: [selectedPlacement],
         availableColors: catalogDetails.colors,
         availableSizes: catalogDetails.sizes,
-        metadata: { brand: selectedItem.brand, model: selectedItem.model },
+        metadata: { 
+          brand: selectedItem.brand, 
+          model: selectedItem.model,
+          defaultPlacement: selectedPlacement,
+          headerTextEnabled: headerEnabled,
+          footerTextEnabled: footerEnabled,
+          providerCountry: selectedItem.madeInUSA ? "USA" : selectedItem.otherCountries[0] || "Unknown",
+        },
       });
     },
     onSuccess: () => {
@@ -539,16 +578,30 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         title: "Product Added!", 
         description: `${selectedItem?.title} added to ${selectedSegment} segment.` 
       });
-      // Reset for next add
-      setSelectedItemId(null);
-      setSelectedSegment("");
-      setCatalogDetails(null);
+      resetForm();
       onSuccess();
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to add product.", variant: "destructive" });
     },
   });
+
+  function resetForm() {
+    setSelectedSegment("");
+    setSelectedCategory("");
+    setLocationFilter("all");
+    setSelectedItemId(null);
+    setCatalogDetails(null);
+    setSelectedPlacement("front-chest");
+    setHeaderEnabled(false);
+    setHeaderText("");
+    setFooterEnabled(false);
+    setFooterText("");
+  }
+
+  function handleSegmentChange(segment: string) {
+    setSelectedSegment(segment);
+  }
 
   function handleCategoryChange(category: string) {
     setSelectedCategory(category);
@@ -592,28 +645,46 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Row 1: Category Dropdown */}
+            {/* Step 1: Store Segment */}
             <div className="space-y-2">
-              <Label>Product Type</Label>
+              <Label>1. Store Segment</Label>
               <select
                 className="w-full p-3 border rounded-md bg-background"
-                value={selectedCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                data-testid="select-product-category"
+                value={selectedSegment}
+                onChange={(e) => handleSegmentChange(e.target.value)}
+                data-testid="select-store-segment"
               >
-                <option value="">-- Select type --</option>
-                {catalog.map((cat) => (
-                  <option key={cat.name} value={cat.name}>
-                    {cat.name} ({cat.count} items)
-                  </option>
+                <option value="">-- Select store segment --</option>
+                {STORE_SEGMENTS.map((seg) => (
+                  <option key={seg} value={seg}>{seg}</option>
                 ))}
               </select>
             </div>
 
-            {/* Row 2: USA/Elsewhere Toggle (shows after category selected) */}
+            {/* Step 2: Product Type */}
+            {selectedSegment && (
+              <div className="space-y-2">
+                <Label>2. Product Type</Label>
+                <select
+                  className="w-full p-3 border rounded-md bg-background"
+                  value={selectedCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  data-testid="select-product-category"
+                >
+                  <option value="">-- Select product type --</option>
+                  {catalog.map((cat) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name} ({cat.count} items)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Step 3: Made-in Filter */}
             {selectedCategory && categoryData && (
               <div className="space-y-2">
-                <Label>Manufacturing Location</Label>
+                <Label>3. Where It's Made</Label>
                 <div className="flex gap-2 flex-wrap">
                   <Button
                     variant={locationFilter === "all" ? "default" : "outline"}
@@ -643,10 +714,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Row 3: Item Dropdown */}
+            {/* Step 4: Item Selection */}
             {selectedCategory && (
               <div className="space-y-2">
-                <Label>Select Item ({categoryItems.length} available)</Label>
+                <Label>4. Select Item ({categoryItems.length} available)</Label>
                 <select
                   className="w-full p-3 border rounded-md bg-background"
                   value={selectedItemId || ""}
@@ -748,26 +819,129 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Row 3: Store Segment Dropdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Step 5: QR Placement */}
+            {selectedItem && catalogDetails && (
               <div className="space-y-2">
-                <Label>Store Segment</Label>
-                <select
-                  className="w-full p-3 border rounded-md bg-background"
-                  value={selectedSegment}
-                  onChange={(e) => setSelectedSegment(e.target.value)}
-                  disabled={!selectedItem}
-                  data-testid="select-store-segment"
-                >
-                  <option value="">-- Select segment --</option>
-                  {STORE_SEGMENTS.map((seg) => (
-                    <option key={seg} value={seg}>{seg}</option>
+                <Label>5. QR Code Placement</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {QR_PLACEMENTS.map((placement) => (
+                    <Button
+                      key={placement.id}
+                      variant={selectedPlacement === placement.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedPlacement(placement.id)}
+                      data-testid={`placement-${placement.id}`}
+                    >
+                      <span className="mr-1">{placement.icon}</span> {placement.label}
+                    </Button>
                   ))}
-                </select>
+                </div>
               </div>
+            )}
 
-              {/* Add Button */}
-              <div className="flex items-end">
+            {/* Step 6: Header Text (Optional) */}
+            {selectedItem && catalogDetails && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>6. Header Text (Optional, +$2)</Label>
+                  {!headerEnabled ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHeaderEnabled(true)}
+                      data-testid="add-header-text"
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add Header
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setHeaderEnabled(false); setHeaderText(""); }}
+                      data-testid="remove-header-text"
+                    >
+                      <X className="h-3 w-3 mr-1" /> Remove
+                    </Button>
+                  )}
+                </div>
+                {headerEnabled && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={headerText}
+                      onChange={(e) => setHeaderText(e.target.value.slice(0, 20))}
+                      placeholder="Text above QR (20 chars max)"
+                      maxLength={20}
+                      className="flex-1"
+                      data-testid="input-header-text"
+                    />
+                    <span className="text-xs text-muted-foreground">{headerText.length}/20</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 7: Footer Text (Optional) */}
+            {selectedItem && catalogDetails && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>7. Footer Text (Optional, +$2)</Label>
+                  {!footerEnabled ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFooterEnabled(true)}
+                      data-testid="add-footer-text"
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add Footer
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setFooterEnabled(false); setFooterText(""); }}
+                      data-testid="remove-footer-text"
+                    >
+                      <X className="h-3 w-3 mr-1" /> Remove
+                    </Button>
+                  )}
+                </div>
+                {footerEnabled && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={footerText}
+                      onChange={(e) => setFooterText(e.target.value.slice(0, 30))}
+                      placeholder="Text below QR (30 chars max)"
+                      maxLength={30}
+                      className="flex-1"
+                      data-testid="input-footer-text"
+                    />
+                    <span className="text-xs text-muted-foreground">{footerText.length}/30</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Price Summary & Add Button */}
+            {selectedItem && catalogDetails && (
+              <div className="p-4 bg-primary/5 rounded-md border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Ready to Add</div>
+                    <div className="text-sm text-muted-foreground">
+                      {selectedItem.title} → {selectedSegment}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold">
+                      ${(catalogDetails.basePrice + totalUpcharge).toFixed(2)}
+                    </div>
+                    {totalUpcharge > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Base ${catalogDetails.basePrice.toFixed(2)} + ${totalUpcharge} text
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <Button 
                   onClick={handleAddProduct}
                   disabled={!canAdd || addProductMutation.isPending}
@@ -781,7 +955,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   )}
                 </Button>
               </div>
-            </div>
+            )}
           </div>
         )}
       </CardContent>

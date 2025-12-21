@@ -881,7 +881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             blueprintId: bpId,
             hasUSA: usaProviders.length > 0,
             usaProviderCount: usaProviders.length,
-            otherCountries: [...new Set(otherProviders.map(p => p.location?.country).filter(Boolean))],
+            otherCountries: Array.from(new Set(otherProviders.map(p => p.location?.country).filter(Boolean))),
           };
         } catch {
           return { blueprintId: bpId, hasUSA: false, usaProviderCount: 0, otherCountries: [] };
@@ -977,8 +977,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extract unique colors and sizes
-      const colors = [...new Set(variants.map(v => v.options?.color).filter(Boolean))];
-      const sizes = [...new Set(variants.map(v => v.options?.size).filter(Boolean))];
+      const colors = Array.from(new Set(variants.map(v => v.options?.color).filter(Boolean)));
+      const sizes = Array.from(new Set(variants.map(v => v.options?.size).filter(Boolean)));
       
       // Get base price from first variant (lowest)
       const prices = variants.map(v => v.price || 0).filter(p => p > 0);
