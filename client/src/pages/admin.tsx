@@ -2787,44 +2787,54 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-      <PageBreadcrumb currentPage="Admin Panel" />
-
-      <main className="container max-w-6xl mx-auto py-8 px-4">
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/")}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold font-heading" data-testid="text-page-title">
-                Admin Dashboard
-              </h1>
-              <p className="text-muted-foreground">
-                Manage products, pricing, and content
-              </p>
-            </div>
-          </div>
-          {user && (
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Your Admin ID:</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={copyUserId}
-                className="font-mono text-xs"
-                data-testid="button-copy-user-id"
+      {/* Admin-specific header - distinct from main site */}
+      <div className="bg-slate-900 dark:bg-slate-950 text-white">
+        <div className="container max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/")}
+                className="text-white hover:bg-white/10"
+                data-testid="button-back"
               >
-                {user.id} (click to copy)
+                <ArrowLeft className="h-5 w-5" />
               </Button>
+              <div className="flex items-center gap-2">
+                <Settings className="h-6 w-6 text-amber-400" />
+                <div>
+                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
+                    QR Gear Admin
+                  </h1>
+                  <p className="text-xs text-slate-400">
+                    Manage products, pricing, and content
+                  </p>
+                </div>
+              </div>
             </div>
-          )}
+            {user && (
+              <div className="flex items-center gap-3">
+                <div className="text-right hidden sm:block">
+                  <p className="text-xs text-slate-400">Logged in as</p>
+                  <p className="text-sm font-medium">{user.email || user.id}</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={copyUserId}
+                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
+                  data-testid="button-copy-user-id"
+                >
+                  Copy ID
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
+      </div>
+
+      <main className="container max-w-6xl mx-auto py-6 px-4">
 
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
