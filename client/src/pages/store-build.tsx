@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -20,10 +19,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   ChevronRight,
   Home,
   Loader2,
-  Save,
+  Plus,
+  Check,
+  X,
 } from "lucide-react";
 
 type ProductConfig = {
@@ -31,24 +45,46 @@ type ProductConfig = {
   enabledColors: string[];
 };
 
+type SavedItem = {
+  productId: string;
+  config: ProductConfig;
+  savedAt: Date;
+};
+
+const PLACEMENTS = [
+  { value: "homepage", label: "Home Page" },
+  { value: "dashboard", label: "Dashboard" },
+  { value: "static_page", label: "Static Page" },
+];
+
 export default function StoreBuildPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
+  const [storeType, setStoreType] = useState<"external" | "internal" | "">("");
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [selectedPlacement, setSelectedPlacement] = useState<string>("");
+  const [usaOnly, setUsaOnly] = useState(false);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [productConfigs, setProductConfigs] = useState<Record<string, ProductConfig>>({});
-  const [configsLoaded, setConfigsLoaded] = useState(false);
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [saveStatus, setSaveStatus] = useState<Record<string, "success" | "error" | null>>({});
+
+  const [addStoreOpen, setAddStoreOpen] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newStoreSlug, setNewStoreSlug] = useState("");
+  const [newStoreType, setNewStoreType] = useState<"external" | "internal">("external");
+  const [enlargedImage, setEnlargedImage] = useState<{ url: string; name: string } | null>(null);
 
   const { data: stores, isLoading: storesLoading } = useQuery<PartnerStore[]>({
     queryKey: ["/api/admin/partner-stores"],
   });
 
-  const { data: products } = useQuery<Product[]>({
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
   });
 
-  const { data: storeProducts, isLoading: productsLoading } = useQuery({
+  const { data: storeProducts } = useQuery({
     queryKey: ["/api/admin/partner-stores", selectedStoreId, "products"],
     queryFn: async () => {
       if (!selectedStoreId) return [];
@@ -58,89 +94,121 @@ export default function StoreBuildPage() {
     enabled: !!selectedStoreId,
   });
 
-  const saveMutation = useMutation({
+  useEffect(() => {
+    if (storeProducts && storeProducts.length > 0) {
+      const items: SavedItem[] = storeProducts
+        .filter((p: any) => p.kcPlacements?.includes(selectedPlacement))
+        .map((p: any) => ({
+          productId: p.productId,
+          config: {
+            enabledSizes: p.enabledSizes || [],
+            enabledColors: p.enabledColors || [],
+          },
+          savedAt: new Date(),
+        }));
+      setSavedItems(items);
+    } else {
+      setSavedItems([]);
+    }
+  }, [storeProducts, selectedPlacement]);
+
+  const createStoreMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedStoreId) return;
-      await apiRequest("POST", `/api/admin/partner-stores/${selectedStoreId}/products`, { 
-        productIds: selectedProducts 
+      const apiKey = crypto.randomUUID();
+      return apiRequest("POST", "/api/admin/partner-stores", {
+        name: newStoreName,
+        slug: newStoreSlug || newStoreName.toLowerCase().replace(/\s+/g, "-"),
+        apiKey,
+        isActive: true,
       });
-      for (const productId of selectedProducts) {
-        const config = productConfigs[productId];
-        if (config) {
-          await apiRequest("PATCH", `/api/admin/partner-stores/${selectedStoreId}/products/${productId}`, {
-            enabledSizes: config.enabledSizes,
-            enabledColors: config.enabledColors,
-          });
-        }
-      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores", selectedStoreId, "products"] });
-      toast({ title: "Saved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+      toast({ title: "Store created successfully" });
+      setAddStoreOpen(false);
+      setNewStoreName("");
+      setNewStoreSlug("");
+    },
+    onError: () => {
+      toast({ title: "Failed to create store", variant: "destructive" });
     },
   });
 
-  if (storeProducts && storeProducts.length > 0 && !configsLoaded) {
-    const ids = storeProducts.map((p: any) => p.productId);
-    const configs: Record<string, ProductConfig> = {};
-    storeProducts.forEach((p: any) => {
-      configs[p.productId] = {
-        enabledSizes: p.enabledSizes || [],
-        enabledColors: p.enabledColors || [],
-      };
+  const saveProductMutation = useMutation({
+    mutationFn: async ({ productId, config }: { productId: string; config: ProductConfig }) => {
+      await apiRequest("POST", `/api/admin/partner-stores/${selectedStoreId}/products`, {
+        productIds: [productId],
+      });
+      await apiRequest("PATCH", `/api/admin/partner-stores/${selectedStoreId}/products/${productId}`, {
+        enabledSizes: config.enabledSizes,
+        enabledColors: config.enabledColors,
+        kcPlacements: [selectedPlacement],
+      });
+    },
+    onSuccess: (_, { productId, config }) => {
+      setSaveStatus(prev => ({ ...prev, [productId]: "success" }));
+      setSavedItems(prev => [...prev.filter(i => i.productId !== productId), {
+        productId,
+        config,
+        savedAt: new Date(),
+      }]);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores", selectedStoreId, "products"] });
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, [productId]: null })), 2000);
+    },
+    onError: (_, { productId }) => {
+      setSaveStatus(prev => ({ ...prev, [productId]: "error" }));
+      setTimeout(() => setSaveStatus(prev => ({ ...prev, [productId]: null })), 2000);
+    },
+  });
+
+  function toggleExpanded(productId: string) {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
     });
-    setSelectedProducts(ids);
-    setProductConfigs(configs);
-    setConfigsLoaded(true);
-  }
-
-  function handleStoreChange(storeId: string) {
-    setSelectedStoreId(storeId);
-    setSelectedProducts([]);
-    setProductConfigs({});
-    setConfigsLoaded(false);
-  }
-
-  function toggleProduct(productId: string) {
-    setSelectedProducts(prev =>
-      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
-    );
   }
 
   function toggleSize(productId: string, size: string, allSizes: string[], allColorNames: string[]) {
     setProductConfigs(prev => {
-      const existingConfig = prev[productId];
-      const currentSizes = existingConfig?.enabledSizes ?? allSizes;
-      const currentColors = existingConfig?.enabledColors ?? allColorNames;
+      const existing = prev[productId];
+      const currentSizes = existing?.enabledSizes ?? allSizes;
+      const currentColors = existing?.enabledColors ?? allColorNames;
       const newSizes = currentSizes.includes(size)
         ? currentSizes.filter(s => s !== size)
         : [...currentSizes, size];
       return {
         ...prev,
-        [productId]: {
-          enabledSizes: newSizes,
-          enabledColors: currentColors,
-        },
+        [productId]: { enabledSizes: newSizes, enabledColors: currentColors },
       };
     });
   }
 
   function toggleColor(productId: string, colorName: string, allSizes: string[], allColorNames: string[]) {
     setProductConfigs(prev => {
-      const existingConfig = prev[productId];
-      const currentSizes = existingConfig?.enabledSizes ?? allSizes;
-      const currentColors = existingConfig?.enabledColors ?? allColorNames;
+      const existing = prev[productId];
+      const currentSizes = existing?.enabledSizes ?? allSizes;
+      const currentColors = existing?.enabledColors ?? allColorNames;
       const newColors = currentColors.includes(colorName)
         ? currentColors.filter(c => c !== colorName)
         : [...currentColors, colorName];
       return {
         ...prev,
-        [productId]: {
-          enabledSizes: currentSizes,
-          enabledColors: newColors,
-        },
+        [productId]: { enabledSizes: currentSizes, enabledColors: newColors },
       };
     });
+  }
+
+  function handleSaveToStore(productId: string, sizes: string[], colors: { name: string; hex: string }[]) {
+    const config = productConfigs[productId] || {
+      enabledSizes: sizes,
+      enabledColors: colors.map(c => c.name),
+    };
+    saveProductMutation.mutate({ productId, config });
   }
 
   if (!user) {
@@ -152,6 +220,11 @@ export default function StoreBuildPage() {
   }
 
   const enabledProducts = products?.filter(p => p.isEnabled) || [];
+  const filteredProducts = usaOnly
+    ? enabledProducts.filter(p => p.madeInUSA)
+    : enabledProducts;
+
+  const externalStores = stores || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -170,161 +243,340 @@ export default function StoreBuildPage() {
       </div>
 
       <div className="container mx-auto p-6 max-w-5xl">
-        <h1 className="text-3xl font-bold mb-6">Build Store Segment</h1>
+        <div className="flex items-center gap-4 mb-8">
+          <h1 className="text-3xl font-bold">Build Store Segment</h1>
+          <Select value={storeType} onValueChange={(v) => { setStoreType(v as any); setSelectedStoreId(""); setSelectedPlacement(""); }}>
+            <SelectTrigger className="h-14 text-lg w-64" data-testid="select-store-type">
+              <SelectValue placeholder="External or Internal?" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="external" className="py-3 text-base">External Store</SelectItem>
+              <SelectItem value="internal" className="py-3 text-base">Internal Store</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-xl">Build Store Segment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="store-select" className="text-base">Select Store</Label>
+        {storeType && (
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <CardTitle className="text-xl">
+                {storeType === "external" ? "Select External Store" : "Select Internal Store"}
+              </CardTitle>
+              <Dialog open={addStoreOpen} onOpenChange={setAddStoreOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" className="h-12" data-testid="button-add-store">
+                    <Plus className="h-5 w-5 mr-2" />
+                    Add New Store
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New {storeType === "external" ? "External" : "Internal"} Store</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label htmlFor="store-name" className="text-base">Store Name</Label>
+                      <Input
+                        id="store-name"
+                        value={newStoreName}
+                        onChange={(e) => setNewStoreName(e.target.value)}
+                        className="h-12 text-lg mt-2"
+                        placeholder="Kingdom Connects"
+                        data-testid="input-store-name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="store-slug" className="text-base">Slug (optional)</Label>
+                      <Input
+                        id="store-slug"
+                        value={newStoreSlug}
+                        onChange={(e) => setNewStoreSlug(e.target.value)}
+                        className="h-12 text-lg mt-2"
+                        placeholder="kingdom-connects"
+                        data-testid="input-store-slug"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={() => createStoreMutation.mutate()}
+                      disabled={!newStoreName || createStoreMutation.isPending}
+                      size="lg"
+                      className="h-12"
+                      data-testid="button-create-store"
+                    >
+                      {createStoreMutation.isPending && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
+                      Create Store
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
               {storesLoading ? (
-                <div className="flex items-center gap-2 py-3">
+                <div className="flex items-center gap-2 py-4">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Loading stores...</span>
                 </div>
               ) : (
-                <Select value={selectedStoreId} onValueChange={handleStoreChange}>
+                <Select value={selectedStoreId} onValueChange={(v) => { setSelectedStoreId(v); setSelectedPlacement(""); }}>
                   <SelectTrigger className="h-14 text-lg" data-testid="select-store">
-                    <SelectValue placeholder="Choose a store segment..." />
+                    <SelectValue placeholder="Choose a store..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {stores?.map(store => (
-                      <SelectItem 
-                        key={store.id} 
-                        value={store.id}
-                        className="py-3 text-base"
-                      >
+                    {externalStores.map(store => (
+                      <SelectItem key={store.id} value={store.id} className="py-3 text-base">
                         {store.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {selectedStoreId && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4">
-              <CardTitle className="text-xl">Product Line</CardTitle>
-              <Button 
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                size="lg"
-                className="h-12 px-6"
-                data-testid="button-save"
-              >
-                {saveMutation.isPending && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
-                <Save className="h-5 w-5 mr-2" />
-                Save Changes
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {productsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {enabledProducts.map(product => {
-                    const isSelected = selectedProducts.includes(product.id);
-                    const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
-                    const colors = Array.isArray(product.availableColors)
-                      ? (product.availableColors as Array<{ name: string; hex: string }>)
-                      : [];
-                    const config = productConfigs[product.id];
-                    const enabledSizes = config?.enabledSizes || sizes;
-                    const enabledColors = config?.enabledColors || colors.map(c => c.name);
-
-                    return (
-                      <div
-                        key={product.id}
-                        className={`p-6 border-2 rounded-xl ${isSelected ? 'border-primary bg-primary/5' : 'border-border'}`}
-                        data-testid={`product-${product.id}`}
-                      >
-                        <div className="flex items-start gap-4 mb-6">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleProduct(product.id)}
-                            className="h-8 w-8 mt-1"
-                            data-testid={`checkbox-${product.id}`}
-                          />
-                          {product.imageUrl && (
-                            <img
-                              src={product.imageUrl}
-                              alt=""
-                              className="w-20 h-20 rounded-lg object-cover"
-                            />
-                          )}
-                          <div className="flex-1">
-                            <div className="text-xl font-semibold">{product.name}</div>
-                            <div className="text-lg text-muted-foreground">${product.basePrice}</div>
-                          </div>
-                        </div>
-
-                        {sizes.length > 0 && (
-                          <div className="mb-6">
-                            <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                              Sizes
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                              {sizes.map(size => (
-                                <div
-                                  key={size}
-                                  className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg"
-                                >
-                                  <Switch
-                                    checked={enabledSizes.includes(size)}
-                                    onCheckedChange={() => toggleSize(product.id, size, sizes, colors.map(c => c.name))}
-                                    className="h-7 w-14"
-                                    data-testid={`switch-size-${product.id}-${size}`}
-                                  />
-                                  <span className="text-base font-medium">{size}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {colors.length > 0 && (
-                          <div>
-                            <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                              Colors
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                              {colors.map(color => (
-                                <div
-                                  key={color.name}
-                                  className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg"
-                                >
-                                  <Switch
-                                    checked={enabledColors.includes(color.name)}
-                                    onCheckedChange={() => toggleColor(product.id, color.name, sizes, colors.map(c => c.name))}
-                                    className="h-7 w-14"
-                                    data-testid={`switch-color-${product.id}-${color.name}`}
-                                  />
-                                  <div
-                                    className="w-8 h-8 rounded-full border-2 border-white shadow-md"
-                                    style={{ backgroundColor: color.hex }}
-                                  />
-                                  <span className="text-base">{color.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
+
+        {selectedStoreId && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-xl">Select Placement</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select value={selectedPlacement} onValueChange={setSelectedPlacement}>
+                <SelectTrigger className="h-14 text-lg" data-testid="select-placement">
+                  <SelectValue placeholder="Choose where to display..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLACEMENTS.map(p => (
+                    <SelectItem key={p.value} value={p.value} className="py-3 text-base">
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        )}
+
+        {selectedPlacement && (
+          <>
+            <div className="flex items-center gap-4 mb-6">
+              <Button
+                variant={usaOnly ? "default" : "outline"}
+                size="lg"
+                className="h-12"
+                onClick={() => setUsaOnly(!usaOnly)}
+                data-testid="button-usa-filter"
+              >
+                🇺🇸 Made in USA Only
+              </Button>
+            </div>
+
+            {productsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredProducts.map(product => {
+                  const isExpanded = expandedProducts.has(product.id);
+                  const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
+                  const colors = Array.isArray(product.availableColors)
+                    ? (product.availableColors as Array<{ name: string; hex: string }>)
+                    : [];
+                  const config = productConfigs[product.id];
+                  const enabledSizes = config?.enabledSizes || sizes;
+                  const enabledColors = config?.enabledColors || colors.map(c => c.name);
+                  const status = saveStatus[product.id];
+
+                  return (
+                    <div
+                      key={product.id}
+                      className="border-2 border-blue-500 rounded-xl p-4 bg-card"
+                      data-testid={`product-card-${product.id}`}
+                    >
+                      <div className="flex gap-4">
+                        {product.imageUrl && (
+                          <button
+                            onClick={() => setEnlargedImage({ url: product.imageUrl!, name: product.name })}
+                            className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
+                            data-testid={`button-enlarge-${product.id}`}
+                          >
+                            <img
+                              src={product.imageUrl}
+                              alt=""
+                              className="w-20 h-20 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                            />
+                          </button>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-lg font-semibold">{product.name}</div>
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span>{product.manufacturer || "Unknown Manufacturer"}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xl cursor-help">
+                                  {product.madeInUSA ? "🇺🇸" : "🌍"}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {product.madeInUSA ? "Made in USA" : "International"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <div className="text-lg font-medium text-primary mt-1">
+                            Cost: ${product.basePrice}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 mt-4">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="h-12"
+                          onClick={() => toggleExpanded(product.id)}
+                          data-testid={`button-options-${product.id}`}
+                        >
+                          {isExpanded ? "Hide Options" : "Change Options"}
+                        </Button>
+                        <Button
+                          size="lg"
+                          className={`h-12 min-w-[140px] transition-colors ${
+                            status === "success" ? "bg-green-600 hover:bg-green-600" :
+                            status === "error" ? "bg-red-600 hover:bg-red-600" : ""
+                          }`}
+                          onClick={() => handleSaveToStore(product.id, sizes, colors)}
+                          disabled={saveProductMutation.isPending}
+                          data-testid={`button-save-${product.id}`}
+                        >
+                          {status === "success" ? (
+                            <><Check className="h-5 w-5 mr-2" /> Saved</>
+                          ) : status === "error" ? (
+                            <><X className="h-5 w-5 mr-2" /> Error</>
+                          ) : saveProductMutation.isPending ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            "Save to Store"
+                          )}
+                        </Button>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="mt-6 space-y-4 border-t pt-4">
+                          {sizes.length > 0 && (
+                            <div>
+                              <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                                Sizes
+                              </div>
+                              <div className="flex flex-wrap gap-3">
+                                {sizes.map(size => (
+                                  <div
+                                    key={size}
+                                    className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg"
+                                  >
+                                    <Switch
+                                      checked={enabledSizes.includes(size)}
+                                      onCheckedChange={() => toggleSize(product.id, size, sizes, colors.map(c => c.name))}
+                                      className="h-7 w-14"
+                                      data-testid={`switch-size-${product.id}-${size}`}
+                                    />
+                                    <span className="text-base font-medium">{size}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {colors.length > 0 && (
+                            <div>
+                              <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                                Colors
+                              </div>
+                              <div className="flex flex-wrap gap-3">
+                                {colors.map(color => (
+                                  <div
+                                    key={color.name}
+                                    className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg"
+                                  >
+                                    <Switch
+                                      checked={enabledColors.includes(color.name)}
+                                      onCheckedChange={() => toggleColor(product.id, color.name, sizes, colors.map(c => c.name))}
+                                      className="h-7 w-14"
+                                      data-testid={`switch-color-${product.id}-${color.name}`}
+                                    />
+                                    <div
+                                      className="w-8 h-8 rounded-full border-2 border-white shadow-md"
+                                      style={{ backgroundColor: color.hex }}
+                                    />
+                                    <span className="text-base">{color.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {savedItems.length > 0 && (
+              <Card className="mt-8">
+                <CardHeader>
+                  <CardTitle className="text-xl">
+                    Saved to {stores?.find(s => s.id === selectedStoreId)?.name} - {PLACEMENTS.find(p => p.value === selectedPlacement)?.label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {savedItems.map(item => {
+                      const product = products?.find(p => p.id === item.productId);
+                      if (!product) return null;
+                      return (
+                        <div
+                          key={item.productId}
+                          className="flex items-center gap-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+                        >
+                          {product.imageUrl && (
+                            <img src={product.imageUrl} alt="" className="w-12 h-12 rounded object-cover" />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {item.config.enabledSizes.length} sizes, {item.config.enabledColors.length} colors
+                            </div>
+                          </div>
+                          <Check className="h-5 w-5 text-green-600" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
       </div>
+
+      <Dialog open={!!enlargedImage} onOpenChange={(open) => !open && setEnlargedImage(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{enlargedImage?.name}</DialogTitle>
+          </DialogHeader>
+          {enlargedImage && (
+            <div className="flex justify-center">
+              <img
+                src={enlargedImage.url}
+                alt={enlargedImage.name}
+                className="max-w-full max-h-[70vh] rounded-lg object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
