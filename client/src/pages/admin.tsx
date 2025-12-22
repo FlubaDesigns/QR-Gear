@@ -2841,12 +2841,14 @@ export default function Admin() {
                 </div>
               </div>
             </div>
-            {user && (
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs text-slate-400">Logged in as</p>
-                  <p className="text-sm font-medium">{user.email || user.id}</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/sales/build">
+                <Button size="lg" className="h-12 px-6 bg-green-600 hover:bg-green-700 text-white font-bold" data-testid="button-store-builder">
+                  <Store className="h-5 w-5 mr-2" />
+                  Build Store Segment
+                </Button>
+              </Link>
+              {user && (
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -2856,8 +2858,8 @@ export default function Admin() {
                 >
                   Copy ID
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2869,15 +2871,6 @@ export default function Admin() {
           <span className="text-muted-foreground mx-2">/</span>
           <span className="text-foreground font-medium" aria-current="page">Admin Dashboard</span>
         </nav>
-
-        <div className="mb-8">
-          <Link href="/admin/sales/build">
-            <Button size="lg" className="h-14 px-8 text-lg" data-testid="button-store-builder">
-              <Store className="h-6 w-6 mr-2" />
-              Build Store Segment
-            </Button>
-          </Link>
-        </div>
 
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
