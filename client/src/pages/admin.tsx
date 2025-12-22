@@ -1559,59 +1559,90 @@ function ProductsTab() {
             <p className="text-sm">Add products from the Printify catalog.</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead className="text-right">Base Price</TableHead>
-                <TableHead className="text-right">Markup %</TableHead>
-                <TableHead className="w-24 text-center">Enabled</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {product.imageUrl && (
-                        <img src={product.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />
-                      )}
+          <div className="space-y-4">
+            {products.map((product) => (
+              <Card key={product.id} className="p-4">
+                <div className="flex items-start gap-4">
+                  {product.imageUrl && (
+                    <img src={product.imageUrl} alt="" className="w-20 h-20 rounded object-cover flex-shrink-0" />
+                  )}
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div>
-                        <div className="font-medium">{product.name}</div>
-                        {product.madeInUSA && (
-                          <Badge variant="outline" className="text-xs">USA Made</Badge>
-                        )}
+                        <div className="font-medium text-lg">{product.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {product.category} {product.madeInUSA && <Badge variant="outline" className="ml-2 text-xs">USA Made</Badge>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">Base Price</div>
+                          <div className="font-medium">${product.basePrice}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">Markup</div>
+                          <div className="font-medium">{product.markupPercent || 0}%</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm">Enabled</Label>
+                          <Switch
+                            checked={product.isEnabled || false}
+                            onCheckedChange={(enabled) => toggleMutation.mutate({ id: product.id, enabled })}
+                            disabled={toggleMutation.isPending}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell>
-                    <ProductTagEditor
-                      productId={product.id}
-                      allCategories={allCategories.filter(c => c.isActive)}
-                      assignedCategoryIds={product.categoryIds || []}
-                      isEditing={editingProductId === product.id}
-                      onEdit={() => setEditingProductId(product.id)}
-                      onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
-                      onCancel={() => setEditingProductId(null)}
-                      isSaving={syncCategoriesMutation.isPending}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">${product.basePrice}</TableCell>
-                  <TableCell className="text-right">{product.markupPercent || 0}%</TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={product.isEnabled || false}
-                      onCheckedChange={(enabled) => toggleMutation.mutate({ id: product.id, enabled })}
-                      disabled={toggleMutation.isPending}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    
+                    {/* Available Sizes */}
+                    {Array.isArray(product.availableSizes) && product.availableSizes.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Available Sizes</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {(product.availableSizes as string[]).map((size) => (
+                            <Badge key={size} variant="secondary" className="text-xs">{size}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Available Colors */}
+                    {Array.isArray(product.availableColors) && product.availableColors.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Available Colors</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {(product.availableColors as Array<{name: string; hex: string}>).map((color) => (
+                            <div key={color.name} className="flex items-center gap-1">
+                              <div 
+                                className="w-4 h-4 rounded-full border" 
+                                style={{ backgroundColor: color.hex }}
+                              />
+                              <span className="text-xs">{color.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Tags */}
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Tags</Label>
+                      <ProductTagEditor
+                        productId={product.id}
+                        allCategories={allCategories.filter(c => c.isActive)}
+                        assignedCategoryIds={product.categoryIds || []}
+                        isEditing={editingProductId === product.id}
+                        onEdit={() => setEditingProductId(product.id)}
+                        onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
+                        onCancel={() => setEditingProductId(null)}
+                        isSaving={syncCategoriesMutation.isPending}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         )}
       </CardContent>
       </Card>
