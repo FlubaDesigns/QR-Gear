@@ -3228,7 +3228,7 @@ function PartnerStoresTab() {
                       return (
                         <div 
                           key={product.id} 
-                          className={`p-4 ${isSelected ? 'bg-primary/5' : ''}`}
+                          className={`p-4 ${isSelected ? 'bg-primary/5 border-l-4 border-primary' : 'opacity-60'}`}
                           data-testid={`row-product-${product.id}`}
                         >
                           <div className="flex items-start gap-3 mb-3">
@@ -3245,10 +3245,10 @@ function PartnerStoresTab() {
                               <div className="font-medium">{product.name}</div>
                               <div className="text-sm text-muted-foreground">${product.basePrice}</div>
                             </div>
+                            {isSelected && <Badge variant="default">Included</Badge>}
                           </div>
                           
-                          {isSelected && (
-                            <div className="ml-7 space-y-3">
+                          <div className="ml-7 space-y-3">
                               {sizes.length > 0 && (
                                 <div>
                                   <div className="text-xs font-medium text-muted-foreground mb-1">Sizes</div>
@@ -3303,7 +3303,6 @@ function PartnerStoresTab() {
                                 </div>
                               )}
                             </div>
-                          )}
                         </div>
                       );
                     })}
