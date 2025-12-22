@@ -460,6 +460,47 @@ function getColorHex(colorName: string): string {
   return '#808080';
 }
 
+// Category detection from product title/brand
+function detectCategory(title: string, brand: string): string {
+  const combined = `${title} ${brand}`.toLowerCase();
+  
+  if (combined.includes('hat') || combined.includes('cap') || combined.includes('beanie')) {
+    return 'hats';
+  }
+  if (combined.includes('mug') || combined.includes('cup') || combined.includes('tumbler')) {
+    return 'drinkware';
+  }
+  if (combined.includes('bag') || combined.includes('tote') || combined.includes('backpack')) {
+    return 'bags';
+  }
+  if (combined.includes('hoodie') || combined.includes('sweatshirt')) {
+    return 'hoodies';
+  }
+  if (combined.includes('tank')) {
+    return 'tanks';
+  }
+  if (combined.includes('polo')) {
+    return 'polos';
+  }
+  if (combined.includes('long sleeve')) {
+    return 'long-sleeves';
+  }
+  if (combined.includes('shirt') || combined.includes('tee') || combined.includes('t-shirt')) {
+    return 't-shirts';
+  }
+  if (combined.includes('sticker') || combined.includes('decal')) {
+    return 'stickers';
+  }
+  if (combined.includes('poster') || combined.includes('print') || combined.includes('canvas')) {
+    return 'wall-art';
+  }
+  if (combined.includes('phone') || combined.includes('case')) {
+    return 'phone-cases';
+  }
+  
+  return 'other';
+}
+
 export type { 
   PrintifyBlueprint, 
   PrintifyPrintProvider, 
@@ -469,3 +510,5 @@ export type {
   PrintifyOrderAddress,
   CreateOrderRequest
 };
+
+export { detectCategory };

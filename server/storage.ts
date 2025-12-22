@@ -44,6 +44,12 @@ import type {
   InsertPartnerStoreProduct,
   ProductVariant,
   InsertProductVariant,
+  PrintifyBlueprint,
+  InsertPrintifyBlueprint,
+  PrintifyPrintProvider,
+  InsertPrintifyPrintProvider,
+  PrintifyCatalogSync,
+  InsertPrintifyCatalogSync,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -194,6 +200,25 @@ export interface IStorage {
   getProductVariants(productId: string): Promise<ProductVariant[]>;
   upsertProductVariant(variant: InsertProductVariant): Promise<ProductVariant>;
   toggleVariantEnabled(id: string, enabled: boolean): Promise<ProductVariant | undefined>;
+
+  // Printify Catalog operations
+  getPrintifyBlueprints(): Promise<PrintifyBlueprint[]>;
+  getPrintifyBlueprint(id: number): Promise<PrintifyBlueprint | undefined>;
+  upsertPrintifyBlueprint(blueprint: InsertPrintifyBlueprint): Promise<PrintifyBlueprint>;
+  deletePrintifyBlueprint(id: number): Promise<void>;
+  clearPrintifyBlueprints(): Promise<void>;
+  
+  // Printify Print Provider operations
+  getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]>;
+  upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider>;
+  deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void>;
+  clearPrintifyPrintProviders(): Promise<void>;
+  
+  // Printify Catalog Sync operations
+  createCatalogSync(sync: InsertPrintifyCatalogSync): Promise<PrintifyCatalogSync>;
+  updateCatalogSync(id: string, sync: Partial<InsertPrintifyCatalogSync>): Promise<PrintifyCatalogSync | undefined>;
+  getLatestCatalogSync(): Promise<PrintifyCatalogSync | undefined>;
+  getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -884,6 +909,121 @@ export class DbStorage implements IStorage {
       .where(eq(schema.productVariants.id, id))
       .returning();
     return updated;
+  }
+
+  // Printify Catalog operations
+  async getPrintifyBlueprints(): Promise<PrintifyBlueprint[]> {
+    return await this.db.select().from(schema.printifyBlueprints);
+  }
+
+  async getPrintifyBlueprint(id: number): Promise<PrintifyBlueprint | undefined> {
+    const [blueprint] = await this.db.select().from(schema.printifyBlueprints)
+      .where(eq(schema.printifyBlueprints.id, id));
+    return blueprint;
+  }
+
+  async upsertPrintifyBlueprint(blueprint: InsertPrintifyBlueprint): Promise<PrintifyBlueprint> {
+    const [result] = await this.db
+      .insert(schema.printifyBlueprints)
+      .values(blueprint)
+      .onConflictDoUpdate({
+        target: schema.printifyBlueprints.id,
+        set: {
+          title: blueprint.title,
+          description: blueprint.description,
+          brand: blueprint.brand,
+          model: blueprint.model,
+          images: blueprint.images,
+          primaryImageUrl: blueprint.primaryImageUrl,
+          category: blueprint.category,
+          lastSyncedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  async deletePrintifyBlueprint(id: number): Promise<void> {
+    await this.db.delete(schema.printifyBlueprints)
+      .where(eq(schema.printifyBlueprints.id, id));
+  }
+
+  async clearPrintifyBlueprints(): Promise<void> {
+    await this.db.delete(schema.printifyBlueprints);
+  }
+
+  // Printify Print Provider operations
+  async getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]> {
+    return await this.db.select().from(schema.printifyPrintProviders)
+      .where(eq(schema.printifyPrintProviders.blueprintId, blueprintId));
+  }
+
+  async upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider> {
+    const existingProviders = await this.db.select().from(schema.printifyPrintProviders)
+      .where(and(
+        eq(schema.printifyPrintProviders.blueprintId, provider.blueprintId),
+        eq(schema.printifyPrintProviders.providerId, provider.providerId)
+      ));
+    
+    if (existingProviders.length > 0) {
+      const [updated] = await this.db
+        .update(schema.printifyPrintProviders)
+        .set({
+          title: provider.title,
+          country: provider.country,
+          isUSA: provider.isUSA,
+          lastSyncedAt: new Date(),
+        })
+        .where(eq(schema.printifyPrintProviders.id, existingProviders[0].id))
+        .returning();
+      return updated;
+    }
+    
+    const [result] = await this.db
+      .insert(schema.printifyPrintProviders)
+      .values(provider)
+      .returning();
+    return result;
+  }
+
+  async deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void> {
+    await this.db.delete(schema.printifyPrintProviders)
+      .where(eq(schema.printifyPrintProviders.blueprintId, blueprintId));
+  }
+
+  async clearPrintifyPrintProviders(): Promise<void> {
+    await this.db.delete(schema.printifyPrintProviders);
+  }
+
+  // Printify Catalog Sync operations
+  async createCatalogSync(sync: InsertPrintifyCatalogSync): Promise<PrintifyCatalogSync> {
+    const [result] = await this.db
+      .insert(schema.printifyCatalogSync)
+      .values(sync)
+      .returning();
+    return result;
+  }
+
+  async updateCatalogSync(id: string, sync: Partial<InsertPrintifyCatalogSync>): Promise<PrintifyCatalogSync | undefined> {
+    const [updated] = await this.db
+      .update(schema.printifyCatalogSync)
+      .set(sync)
+      .where(eq(schema.printifyCatalogSync.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getLatestCatalogSync(): Promise<PrintifyCatalogSync | undefined> {
+    const [sync] = await this.db.select().from(schema.printifyCatalogSync)
+      .orderBy(sql`${schema.printifyCatalogSync.startedAt} DESC`)
+      .limit(1);
+    return sync;
+  }
+
+  async getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]> {
+    return await this.db.select().from(schema.printifyCatalogSync)
+      .orderBy(sql`${schema.printifyCatalogSync.startedAt} DESC`)
+      .limit(20);
   }
 }
 
@@ -1774,6 +1914,101 @@ class MemStorage implements IStorage {
     const updated = { ...existing, isEnabled: enabled };
     this.productVariants.set(id, updated);
     return updated;
+  }
+
+  // Printify Catalog operations (stubs for MemStorage)
+  private printifyBlueprints = new Map<number, PrintifyBlueprint>();
+  private printifyPrintProviders = new Map<string, PrintifyPrintProvider>();
+  private catalogSyncs: PrintifyCatalogSync[] = [];
+
+  async getPrintifyBlueprints(): Promise<PrintifyBlueprint[]> {
+    return Array.from(this.printifyBlueprints.values());
+  }
+
+  async getPrintifyBlueprint(id: number): Promise<PrintifyBlueprint | undefined> {
+    return this.printifyBlueprints.get(id);
+  }
+
+  async upsertPrintifyBlueprint(blueprint: InsertPrintifyBlueprint): Promise<PrintifyBlueprint> {
+    const existing = this.printifyBlueprints.get(blueprint.id);
+    const result: PrintifyBlueprint = {
+      ...blueprint,
+      description: blueprint.description ?? null,
+      brand: blueprint.brand ?? null,
+      model: blueprint.model ?? null,
+      images: blueprint.images ?? null,
+      primaryImageUrl: blueprint.primaryImageUrl ?? null,
+      category: blueprint.category ?? null,
+      lastSyncedAt: new Date(),
+      createdAt: existing?.createdAt || new Date(),
+    };
+    this.printifyBlueprints.set(blueprint.id, result);
+    return result;
+  }
+
+  async deletePrintifyBlueprint(id: number): Promise<void> {
+    this.printifyBlueprints.delete(id);
+  }
+
+  async clearPrintifyBlueprints(): Promise<void> {
+    this.printifyBlueprints.clear();
+  }
+
+  async getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]> {
+    return Array.from(this.printifyPrintProviders.values())
+      .filter(p => p.blueprintId === blueprintId);
+  }
+
+  async upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider> {
+    const id = `pp_${provider.blueprintId}_${provider.providerId}`;
+    const result: PrintifyPrintProvider = {
+      ...provider,
+      id,
+      country: provider.country ?? null,
+      isUSA: provider.isUSA ?? false,
+      lastSyncedAt: new Date(),
+    };
+    this.printifyPrintProviders.set(id, result);
+    return result;
+  }
+
+  async deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void> {
+    Array.from(this.printifyPrintProviders.entries()).forEach(([id, p]) => {
+      if (p.blueprintId === blueprintId) this.printifyPrintProviders.delete(id);
+    });
+  }
+
+  async clearPrintifyPrintProviders(): Promise<void> {
+    this.printifyPrintProviders.clear();
+  }
+
+  async createCatalogSync(sync: InsertPrintifyCatalogSync): Promise<PrintifyCatalogSync> {
+    const result: PrintifyCatalogSync = {
+      ...sync,
+      id: `sync_${Date.now()}`,
+      blueprintsCount: sync.blueprintsCount ?? 0,
+      providersCount: sync.providersCount ?? 0,
+      errorMessage: sync.errorMessage ?? null,
+      startedAt: sync.startedAt ?? new Date(),
+      completedAt: sync.completedAt ?? null,
+    };
+    this.catalogSyncs.unshift(result);
+    return result;
+  }
+
+  async updateCatalogSync(id: string, sync: Partial<InsertPrintifyCatalogSync>): Promise<PrintifyCatalogSync | undefined> {
+    const index = this.catalogSyncs.findIndex(s => s.id === id);
+    if (index === -1) return undefined;
+    this.catalogSyncs[index] = { ...this.catalogSyncs[index], ...sync };
+    return this.catalogSyncs[index];
+  }
+
+  async getLatestCatalogSync(): Promise<PrintifyCatalogSync | undefined> {
+    return this.catalogSyncs[0];
+  }
+
+  async getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]> {
+    return this.catalogSyncs.slice(0, 20);
   }
 }
 

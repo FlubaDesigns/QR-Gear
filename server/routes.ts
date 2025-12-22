@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
-import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants } from "./lib/printify";
+import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants, detectCategory } from "./lib/printify";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
@@ -1256,6 +1256,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ========================================
+  // LOCAL CATALOG SYNC ENDPOINTS
+  // ========================================
+
+  // Get local catalog blueprints (fast, from database)
+  app.get("/api/admin/catalog/blueprints", isAdmin, async (req: any, res) => {
+    try {
+      const blueprints = await storage.getPrintifyBlueprints();
+      const usaFilter = req.query.usaOnly === 'true';
+      const category = req.query.category as string | undefined;
+      
+      // Get providers for filtering
+      let filteredBlueprints = blueprints;
+      
+      if (category) {
+        filteredBlueprints = filteredBlueprints.filter(bp => bp.category === category);
+      }
+      
+      if (usaFilter) {
+        // Get all providers and filter blueprints that have USA providers
+        const blueprintIds = new Set<number>();
+        for (const bp of filteredBlueprints) {
+          const providers = await storage.getPrintifyPrintProviders(bp.id);
+          if (providers.some(p => p.isUSA)) {
+            blueprintIds.add(bp.id);
+          }
+        }
+        filteredBlueprints = filteredBlueprints.filter(bp => blueprintIds.has(bp.id));
+      }
+      
+      res.json({
+        blueprints: filteredBlueprints,
+        total: filteredBlueprints.length,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get local catalog blueprint details
+  app.get("/api/admin/catalog/blueprints/:id", isAdmin, async (req: any, res) => {
+    try {
+      const blueprintId = parseInt(req.params.id);
+      const blueprint = await storage.getPrintifyBlueprint(blueprintId);
+      
+      if (!blueprint) {
+        return res.status(404).json({ error: "Blueprint not found in local catalog" });
+      }
+      
+      const providers = await storage.getPrintifyPrintProviders(blueprintId);
+      
+      res.json({
+        ...blueprint,
+        providers,
+        usaProviders: providers.filter(p => p.isUSA),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get catalog sync status
+  app.get("/api/admin/catalog/sync-status", isAdmin, async (req: any, res) => {
+    try {
+      const latestSync = await storage.getLatestCatalogSync();
+      const totalBlueprints = (await storage.getPrintifyBlueprints()).length;
+      
+      res.json({
+        latestSync,
+        totalBlueprints,
+        isConfigured: printify?.isConfigured || false,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get catalog sync history
+  app.get("/api/admin/catalog/sync-history", isAdmin, async (req: any, res) => {
+    try {
+      const history = await storage.getCatalogSyncHistory();
+      res.json(history);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Start catalog sync from Printify
+  app.post("/api/admin/catalog/sync", isAdmin, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      
+      // Check if sync is already running
+      const latestSync = await storage.getLatestCatalogSync();
+      if (latestSync?.status === 'running') {
+        return res.status(409).json({ error: "Sync already in progress" });
+      }
+      
+      // Create sync record
+      const syncRecord = await storage.createCatalogSync({
+        syncType: 'full',
+        status: 'running',
+        blueprintsCount: 0,
+        providersCount: 0,
+      });
+      
+      // Return immediately, sync runs in background
+      res.json({ syncId: syncRecord.id, status: 'started' });
+      
+      // Run sync in background
+      (async () => {
+        try {
+          console.log('[Catalog Sync] Starting full catalog sync...');
+          
+          // Fetch all blueprints from Printify
+          const blueprints = await printify.getCatalogBlueprints();
+          console.log(`[Catalog Sync] Found ${blueprints.length} blueprints`);
+          
+          let blueprintsCount = 0;
+          let providersCount = 0;
+          
+          for (const bp of blueprints) {
+            try {
+              // Upsert blueprint
+              await storage.upsertPrintifyBlueprint({
+                id: bp.id,
+                title: bp.title,
+                description: bp.description || null,
+                brand: bp.brand || null,
+                model: bp.model || null,
+                images: bp.images || null,
+                primaryImageUrl: bp.images?.[0] || null,
+                category: detectCategory(bp.title, bp.brand || ''),
+              });
+              blueprintsCount++;
+              
+              // Fetch and store providers for this blueprint
+              const providers = await printify.getPrintProviders(bp.id);
+              
+              for (const provider of providers) {
+                const isUSA = provider.location?.country === 'US' || 
+                              provider.location?.country === 'USA';
+                
+                await storage.upsertPrintifyPrintProvider({
+                  blueprintId: bp.id,
+                  providerId: provider.id,
+                  title: provider.title,
+                  country: provider.location?.country || null,
+                  isUSA,
+                });
+                providersCount++;
+              }
+              
+              // Rate limiting - small delay between blueprints
+              await new Promise(r => setTimeout(r, 100));
+              
+            } catch (bpError: any) {
+              console.error(`[Catalog Sync] Error syncing blueprint ${bp.id}:`, bpError.message);
+            }
+          }
+          
+          // Update sync record with completion
+          await storage.updateCatalogSync(syncRecord.id, {
+            status: 'completed',
+            blueprintsCount,
+            providersCount,
+            completedAt: new Date(),
+          });
+          
+          console.log(`[Catalog Sync] Completed. ${blueprintsCount} blueprints, ${providersCount} providers`);
+          
+        } catch (error: any) {
+          console.error('[Catalog Sync] Error:', error.message);
+          await storage.updateCatalogSync(syncRecord.id, {
+            status: 'failed',
+            errorMessage: error.message,
+            completedAt: new Date(),
+          });
+        }
+      })();
+      
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Clear local catalog (for testing/reset)
+  app.delete("/api/admin/catalog/clear", isAdmin, async (req: any, res) => {
+    try {
+      await storage.clearPrintifyPrintProviders();
+      await storage.clearPrintifyBlueprints();
+      res.json({ success: true, message: "Local catalog cleared" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================
+  // END LOCAL CATALOG SYNC ENDPOINTS
+  // ========================================
 
   // Add product from Printify catalog
   app.post("/api/admin/products/from-printify", isAdmin, async (req: any, res) => {
