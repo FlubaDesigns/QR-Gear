@@ -1532,6 +1532,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             {/* Image Zoom Modal */}
             <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
               <DialogContent className="max-w-2xl p-4">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>{zoomedImage?.title || "Image Preview"}</DialogTitle>
+                </DialogHeader>
                 {zoomedImage && (
                   <div 
                     className="space-y-3 cursor-pointer" 

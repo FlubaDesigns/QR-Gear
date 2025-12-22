@@ -1389,9 +1389,9 @@ class MemStorage implements IStorage {
   }
 
   async deleteDynamicPage(id: string): Promise<void> {
-    for (const [assetId, asset] of this.dynamicPageAssets) {
+    Array.from(this.dynamicPageAssets.entries()).forEach(([assetId, asset]) => {
       if (asset.pageId === id) this.dynamicPageAssets.delete(assetId);
-    }
+    });
     this.dynamicPages.delete(id);
   }
 
@@ -1438,11 +1438,11 @@ class MemStorage implements IStorage {
   }
 
   async setActiveAsset(pageId: string, assetId: string): Promise<void> {
-    for (const [id, asset] of this.dynamicPageAssets) {
+    Array.from(this.dynamicPageAssets.entries()).forEach(([id, asset]) => {
       if (asset.pageId === pageId) {
         this.dynamicPageAssets.set(id, { ...asset, isActive: false, activatedAt: null });
       }
-    }
+    });
     const asset = this.dynamicPageAssets.get(assetId);
     if (asset) {
       this.dynamicPageAssets.set(assetId, { ...asset, isActive: true, activatedAt: new Date() });
@@ -1502,9 +1502,9 @@ class MemStorage implements IStorage {
   }
 
   async deleteProductCategory(id: string): Promise<void> {
-    for (const [assignmentId, assignment] of this.productCategoryAssignments) {
+    Array.from(this.productCategoryAssignments.entries()).forEach(([assignmentId, assignment]) => {
       if (assignment.categoryId === id) this.productCategoryAssignments.delete(assignmentId);
-    }
+    });
     this.productCategories.delete(id);
   }
 
@@ -1530,7 +1530,7 @@ class MemStorage implements IStorage {
   }
 
   async removeProductFromCategory(productId: string, categoryId: string): Promise<void> {
-    for (const [id, assignment] of this.productCategoryAssignments) {
+    for (const [id, assignment] of Array.from(this.productCategoryAssignments.entries())) {
       if (assignment.productId === productId && assignment.categoryId === categoryId) {
         this.productCategoryAssignments.delete(id);
         break;
@@ -1539,11 +1539,11 @@ class MemStorage implements IStorage {
   }
 
   async syncProductCategories(productId: string, categoryIds: string[]): Promise<void> {
-    for (const [id, assignment] of this.productCategoryAssignments) {
+    Array.from(this.productCategoryAssignments.entries()).forEach(([id, assignment]) => {
       if (assignment.productId === productId) {
         this.productCategoryAssignments.delete(id);
       }
-    }
+    });
     for (const categoryId of categoryIds) {
       await this.assignProductToCategory({ productId, categoryId });
     }
@@ -1594,9 +1594,9 @@ class MemStorage implements IStorage {
   }
 
   async deletePartnerStore(id: string): Promise<void> {
-    for (const [productId, product] of this.partnerStoreProducts) {
+    Array.from(this.partnerStoreProducts.entries()).forEach(([productId, product]) => {
       if (product.partnerStoreId === id) this.partnerStoreProducts.delete(productId);
-    }
+    });
     this.partnerStores.delete(id);
   }
 
@@ -1650,9 +1650,9 @@ class MemStorage implements IStorage {
   }
 
   async syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void> {
-    for (const [id, product] of this.partnerStoreProducts) {
+    Array.from(this.partnerStoreProducts.entries()).forEach(([id, product]) => {
       if (product.partnerStoreId === partnerStoreId) this.partnerStoreProducts.delete(id);
-    }
+    });
     for (let i = 0; i < productIds.length; i++) {
       await this.addPartnerStoreProduct({ partnerStoreId, productId: productIds[i], sortOrder: i });
     }
