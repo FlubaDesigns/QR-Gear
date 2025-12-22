@@ -97,6 +97,15 @@ export default function StoreBuildPage() {
     enabled: !!selectedStoreId,
   });
 
+  // Track if we've initialized configs for this store to avoid overwriting user edits
+  const [configsInitialized, setConfigsInitialized] = useState(false);
+  
+  // Reset initialization flag when store changes
+  useEffect(() => {
+    setConfigsInitialized(false);
+    setProductConfigs({});
+  }, [selectedStoreId]);
+
   useEffect(() => {
     if (storeProducts && storeProducts.length > 0) {
       const items: SavedItem[] = storeProducts
@@ -111,21 +120,24 @@ export default function StoreBuildPage() {
         }));
       setSavedItems(items);
       
-      // Initialize productConfigs from saved store product data
-      const configs: Record<string, ProductConfig> = {};
-      storeProducts.forEach((sp: any) => {
-        if (sp.enabledSizes?.length > 0 || sp.enabledColors?.length > 0) {
-          configs[sp.productId] = {
-            enabledSizes: sp.enabledSizes || [],
-            enabledColors: sp.enabledColors || [],
-          };
-        }
-      });
-      setProductConfigs(prev => ({ ...prev, ...configs }));
+      // Only initialize productConfigs once per store to avoid overwriting user edits
+      if (!configsInitialized) {
+        const configs: Record<string, ProductConfig> = {};
+        storeProducts.forEach((sp: any) => {
+          if (sp.enabledSizes?.length > 0 || sp.enabledColors?.length > 0) {
+            configs[sp.productId] = {
+              enabledSizes: sp.enabledSizes || [],
+              enabledColors: sp.enabledColors || [],
+            };
+          }
+        });
+        setProductConfigs(configs);
+        setConfigsInitialized(true);
+      }
     } else {
       setSavedItems([]);
     }
-  }, [storeProducts, selectedPlacement]);
+  }, [storeProducts, selectedPlacement, configsInitialized]);
 
   const createStoreMutation = useMutation({
     mutationFn: async () => {
@@ -519,7 +531,7 @@ export default function StoreBuildPage() {
                                     <Switch
                                       checked={enabledSizes.includes(size)}
                                       onCheckedChange={() => toggleSize(product.id, size, sizes, colors.map(c => c.name))}
-                                      className="h-7 w-14"
+                                      className="h-8 w-16"
                                       data-testid={`switch-size-${product.id}-${size}`}
                                     />
                                     <span className="text-base font-medium">{size}</span>
@@ -543,7 +555,7 @@ export default function StoreBuildPage() {
                                     <Switch
                                       checked={enabledColors.includes(color.name)}
                                       onCheckedChange={() => toggleColor(product.id, color.name, sizes, colors.map(c => c.name))}
-                                      className="h-7 w-14"
+                                      className="h-8 w-16"
                                       data-testid={`switch-color-${product.id}-${color.name}`}
                                     />
                                     <div
