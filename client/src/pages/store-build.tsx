@@ -110,6 +110,18 @@ export default function StoreBuildPage() {
           savedAt: new Date(),
         }));
       setSavedItems(items);
+      
+      // Initialize productConfigs from saved store product data
+      const configs: Record<string, ProductConfig> = {};
+      storeProducts.forEach((sp: any) => {
+        if (sp.enabledSizes?.length > 0 || sp.enabledColors?.length > 0) {
+          configs[sp.productId] = {
+            enabledSizes: sp.enabledSizes || [],
+            enabledColors: sp.enabledColors || [],
+          };
+        }
+      });
+      setProductConfigs(prev => ({ ...prev, ...configs }));
     } else {
       setSavedItems([]);
     }

@@ -1,8 +1,56 @@
 import { storage } from '../storage';
 import { sendHostingExpirationReminder } from './email';
 import { syncPrintifyOrderStatuses } from './printify-orders';
+import { printify } from './printify';
 
 const REMINDER_INTERVALS = [30, 7, 0];
+
+// Sync product catalog from Printify in background
+export async function syncPrintifyCatalog(): Promise<void> {
+  console.log('[Cron] Starting Printify catalog sync...');
+  
+  try {
+    if (!printify.isConfigured) {
+      console.log('[Cron] Printify not configured, skipping sync');
+      return;
+    }
+
+    // Get all local products that have Printify IDs
+    const localProducts = await storage.getAllProducts();
+    const printifyProducts = localProducts.filter(p => p.printifyId);
+    
+    console.log(`[Cron] Syncing ${printifyProducts.length} products with Printify...`);
+    
+    for (const product of printifyProducts) {
+      try {
+        // Get fresh data from Printify
+        const blueprintId = parseInt(product.printifyId!);
+        if (isNaN(blueprintId)) continue;
+        
+        const blueprint = await printify.getBlueprintDetails(blueprintId);
+        if (!blueprint) continue;
+        
+        // Update local product with latest Printify data
+        const syncedAt = new Date().toISOString();
+        await storage.updateProduct(product.id, {
+          metadata: {
+            ...(typeof product.metadata === 'object' ? product.metadata : {}),
+            syncedAt,
+            blueprintId,
+          }
+        });
+        
+        console.log(`[Cron] Synced product: ${product.name}`);
+      } catch (err: any) {
+        console.error(`[Cron] Failed to sync product ${product.id}:`, err.message);
+      }
+    }
+    
+    console.log('[Cron] Printify catalog sync complete');
+  } catch (error) {
+    console.error('[Cron] Error syncing Printify catalog:', error);
+  }
+}
 
 export async function checkHostingExpirations(): Promise<void> {
   console.log('[Cron] Checking hosting expirations...');
@@ -68,6 +116,7 @@ export async function runAllCronJobs(): Promise<void> {
   await Promise.allSettled([
     checkHostingExpirations(),
     syncPrintifyOrderStatuses(),
+    syncPrintifyCatalog(),
   ]);
   
   console.log('[Cron] All scheduled jobs completed');
