@@ -39,7 +39,6 @@ import {
 import type { Product, ProductCategory } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
-import usaFlagImage from "@assets/stock_images/american_flag_usa_fl_eafa2eeb.jpg";
 
 const COLOR_MAP: Record<string, string> = {
   white: "#ffffff",
@@ -786,7 +785,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     onClick={() => handleLocationFilterChange("usa")}
                     data-testid="filter-usa"
                   >
-                    <img src={usaFlagImage} alt="USA Flag" className="h-4 w-6 object-cover rounded-sm mr-1" /> Made in USA ({categoryData.usaCount})
+                    <span className="mr-1">🇺🇸</span> Made in USA ({categoryData.usaCount})
                   </Button>
                   <Button
                     variant={locationFilter === "other" ? "default" : "outline"}
