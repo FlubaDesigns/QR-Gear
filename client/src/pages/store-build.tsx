@@ -227,13 +227,17 @@ export default function StoreBuildPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex items-center gap-2 px-6 py-4 border-b text-sm text-muted-foreground">
-        <Link href="/admin" className="hover:text-foreground" data-testid="link-admin">
+      <nav className="flex items-center gap-2 px-6 py-4 border-b text-sm" aria-label="Breadcrumb">
+        <Link href="/" className="text-muted-foreground hover:text-foreground" data-testid="breadcrumb-home">
+          Home
+        </Link>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <Link href="/admin" className="text-muted-foreground hover:text-foreground" data-testid="breadcrumb-admin">
           Admin Dashboard
         </Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">Build Store Segment</span>
-      </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <span className="text-foreground font-medium" aria-current="page">Build Store Segment</span>
+      </nav>
 
       <div className="container mx-auto p-6 max-w-5xl">
         <div className="flex items-center gap-4 mb-8">

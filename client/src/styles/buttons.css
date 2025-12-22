@@ -201,3 +201,71 @@
     display: block;
   }
 }
+
+/* ===== Mouse Track Badge ===== */
+.track-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
+}
+
+.track-badge::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+  pointer-events: none;
+}
+
+.track-badge:hover::before {
+  width: 200%;
+  height: 200%;
+}
+
+.track-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.track-badge:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Track Badge Variants */
+.track-badge--admin {
+  background: linear-gradient(135deg, var(--ice-1) 0%, var(--ice-3) 100%);
+  color: var(--bg-0);
+  border: none;
+  box-shadow: 0 4px 12px rgba(46, 169, 255, 0.3);
+}
+
+.track-badge--admin:hover {
+  box-shadow: 0 8px 24px rgba(46, 169, 255, 0.4);
+}
+
+.track-badge--store {
+  background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
+  color: var(--bg-0);
+  border: none;
+  box-shadow: 0 4px 12px rgba(255, 140, 50, 0.3);
+}
+
+.track-badge--store:hover {
+  box-shadow: 0 8px 24px rgba(255, 140, 50, 0.4);
+}

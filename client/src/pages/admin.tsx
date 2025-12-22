@@ -44,6 +44,7 @@ import {
   Tag,
   ArrowLeft,
   ArrowRight,
+  ChevronRight,
   Loader2,
   RefreshCw,
   Package,
@@ -2862,6 +2863,14 @@ export default function Admin() {
       </div>
 
       <main className="container max-w-6xl mx-auto py-6 px-4">
+
+        <nav className="flex items-center gap-2 mb-6 text-sm" aria-label="Breadcrumb">
+          <Link href="/" className="text-muted-foreground hover:text-foreground" data-testid="breadcrumb-home">
+            Home
+          </Link>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <span className="text-foreground font-medium" aria-current="page">Admin Dashboard</span>
+        </nav>
 
         <div className="mb-6">
           <Link href="/admin/sales/build">
