@@ -39,6 +39,112 @@ import {
 import type { Product, ProductCategory } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
+import { Progress } from "@/components/ui/progress";
+
+interface CatalogSyncStatus {
+  latestSync: {
+    id: string;
+    status: string;
+    syncType: string;
+    blueprintsCount: number;
+    providersCount: number;
+    startedAt: string;
+    completedAt: string | null;
+    errorMessage: string | null;
+  } | null;
+  totalBlueprints: number;
+  isConfigured: boolean;
+}
+
+function CatalogSyncSection() {
+  const { toast } = useToast();
+  
+  const { data: syncStatus, refetch: refetchStatus, isLoading } = useQuery<CatalogSyncStatus>({
+    queryKey: ["/api/admin/catalog/sync-status"],
+    refetchInterval: (query) => {
+      const data = query.state.data as CatalogSyncStatus | undefined;
+      return data?.latestSync?.status === 'running' ? 2000 : false;
+    },
+  });
+  
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/catalog/sync");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sync started", description: "Downloading catalog from Printify..." });
+      refetchStatus();
+    },
+    onError: (error: any) => {
+      toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  const isSyncing = syncStatus?.latestSync?.status === 'running';
+  const lastSync = syncStatus?.latestSync;
+  
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
+  return (
+    <Card className="mb-4">
+      <CardContent className="pt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium">Printify Catalog</h3>
+              {syncStatus?.totalBlueprints ? (
+                <Badge variant="secondary" className="text-xs">
+                  {syncStatus.totalBlueprints} products cached
+                </Badge>
+              ) : null}
+            </div>
+            {lastSync && (
+              <p className="text-xs text-muted-foreground">
+                {lastSync.status === 'running' ? (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Syncing... ({lastSync.blueprintsCount || 0} blueprints)
+                  </span>
+                ) : lastSync.status === 'completed' ? (
+                  <>Last synced: {formatDate(lastSync.completedAt || lastSync.startedAt)}</>
+                ) : lastSync.status === 'failed' ? (
+                  <span className="text-destructive">Last sync failed: {lastSync.errorMessage}</span>
+                ) : null}
+              </p>
+            )}
+            {!lastSync && !isLoading && (
+              <p className="text-xs text-muted-foreground">
+                No catalog synced yet. Click "Sync Now" to download the Printify catalog.
+              </p>
+            )}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncMutation.mutate()}
+            disabled={isSyncing || syncMutation.isPending || !syncStatus?.isConfigured}
+            data-testid="button-sync-catalog"
+          >
+            {isSyncing ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
+            ) : (
+              <><RefreshCw className="h-4 w-4 mr-2" /> Sync Now</>
+            )}
+          </Button>
+        </div>
+        
+        {isSyncing && (
+          <Progress value={undefined} className="mt-3 h-1" />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 const COLOR_MAP: Record<string, string> = {
   white: "#ffffff",
@@ -1063,6 +1169,7 @@ function ProductsContent() {
 
   return (
     <div className="space-y-6">
+      <CatalogSyncSection />
       <AddFromPrintifyPanel onSuccess={() => refetch()} />
 
       <Card>
