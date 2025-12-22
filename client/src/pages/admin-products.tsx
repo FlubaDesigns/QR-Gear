@@ -1016,9 +1016,131 @@ function ProductsContent() {
     },
   });
 
+  const [syncingProductId, setSyncingProductId] = useState<string | null>(null);
+
+  const syncFromPrintify = async (productId: string) => {
+    setSyncingProductId(productId);
+    try {
+      await apiRequest("POST", `/api/admin/products/${productId}/sync-printify`);
+      await refetch();
+      toast({ title: "Success", description: "Synced sizes and colors from Printify." });
+    } catch (error: any) {
+      toast({ title: "Sync failed", description: error.message || "Could not sync with Printify.", variant: "destructive" });
+    } finally {
+      setSyncingProductId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AddFromPrintifyPanel onSuccess={() => refetch()} />
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+          <div>
+            <CardTitle>Local Product Catalog</CardTitle>
+            <CardDescription>
+              Products stored in your database. Use "Sync" to fetch latest sizes/colors from Printify.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} data-testid="button-refresh-catalog">
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No products yet.</p>
+              <p className="text-sm">Add products from the Printify catalog above.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {products.map((product) => (
+                <Card key={product.id} className="p-4" data-testid={`card-product-${product.id}`}>
+                  <div className="flex items-start gap-4">
+                    {product.imageUrl && (
+                      <img src={product.imageUrl} alt="" className="w-20 h-20 rounded object-cover flex-shrink-0" />
+                    )}
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div>
+                          <div className="font-medium text-lg">{product.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {product.category} {product.madeInUSA && <Badge variant="outline" className="ml-2 text-xs">USA Made</Badge>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className="text-sm text-muted-foreground">Base Price</div>
+                            <div className="font-medium">${product.basePrice}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-muted-foreground">Markup</div>
+                            <div className="font-medium">{product.markupPercent || 0}%</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm">Enabled</Label>
+                            <Switch
+                              checked={product.isEnabled || false}
+                              onCheckedChange={(enabled) => toggleMutation.mutate({ id: product.id, enabled })}
+                              disabled={toggleMutation.isPending}
+                              data-testid={`switch-enabled-${product.id}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => syncFromPrintify(product.id)}
+                          disabled={syncingProductId === product.id}
+                          data-testid={`button-sync-${product.id}`}
+                        >
+                          {syncingProductId === product.id ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                          )}
+                          Sync from Printify
+                        </Button>
+                        {(product.metadata as any)?.lastSyncedAt && (
+                          <span className="text-xs text-muted-foreground">
+                            Last synced: {new Date((product.metadata as any).lastSyncedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
+                      
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Tags</Label>
+                        <ProductTagEditor
+                          productId={product.id}
+                          allCategories={allCategories.filter(c => c.isActive)}
+                          assignedCategoryIds={product.categoryIds || []}
+                          isEditing={editingProductId === product.id}
+                          onEdit={() => setEditingProductId(product.id)}
+                          onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
+                          onCancel={() => setEditingProductId(null)}
+                          isSaving={syncCategoriesMutation.isPending}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
