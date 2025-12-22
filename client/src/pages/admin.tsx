@@ -43,6 +43,7 @@ import {
   Palette,
   Tag,
   ArrowLeft,
+  ArrowRight,
   Loader2,
   RefreshCw,
   Package,
@@ -55,6 +56,9 @@ import {
   Globe,
   Link,
   ZoomIn,
+  Shirt,
+  Target,
+  RotateCw,
 } from "lucide-react";
 import {
   Category,
@@ -894,12 +898,12 @@ const STORE_SEGMENTS = [
 
 // QR Placement options
 const QR_PLACEMENTS = [
-  { id: "front-chest", label: "Front Chest", icon: "👕" },
-  { id: "front-center", label: "Front Center", icon: "🎯" },
-  { id: "back", label: "Back", icon: "🔙" },
-  { id: "left-shoulder", label: "Left Shoulder", icon: "⬅️" },
-  { id: "right-shoulder", label: "Right Shoulder", icon: "➡️" },
-  { id: "wrap-around", label: "Wrap Around", icon: "🔄" },
+  { id: "front-chest", label: "Front Chest", Icon: Shirt },
+  { id: "front-center", label: "Front Center", Icon: Target },
+  { id: "back", label: "Back", Icon: ArrowLeft },
+  { id: "left-shoulder", label: "Left Shoulder", Icon: ArrowLeft },
+  { id: "right-shoulder", label: "Right Shoulder", Icon: ArrowRight },
+  { id: "wrap-around", label: "Wrap Around", Icon: RotateCw },
 ];
 
 // Staged product interface for cart
@@ -1401,7 +1405,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     onClick={() => handleLocationFilterChange("usa")}
                     data-testid="filter-usa"
                   >
-                    <span className="mr-1">🇺🇸</span> Made in USA ({categoryData.usaCount})
+                    <Flag className="h-4 w-4 mr-1" /> Made in USA ({categoryData.usaCount})
                   </Button>
                   <Button
                     variant={locationFilter === "other" ? "default" : "outline"}
@@ -1477,7 +1481,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             {/* Title & Brand */}
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-sm">{item.title}</span>
-                              {item.madeInUSA && <span className="text-xs">🇺🇸</span>}
+                              {item.madeInUSA && <Flag className="h-3 w-3 text-primary" />}
                             </div>
                             <div className="text-xs text-muted-foreground">{item.brand}</div>
                             
@@ -1572,7 +1576,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   <div className="flex-1">
                     <div className="font-medium text-lg flex items-center gap-2">
                       {selectedItem.title}
-                      {selectedItem.madeInUSA && <span>🇺🇸</span>}
+                      {selectedItem.madeInUSA && <Flag className="h-4 w-4 text-primary" />}
                     </div>
                     <div className="text-sm text-muted-foreground">{selectedItem.brand}</div>
                     {!selectedItem.madeInUSA && selectedItem.otherCountries.length > 0 && (
@@ -1595,7 +1599,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       <Badge variant="secondary">${catalogDetails.basePrice.toFixed(2)} base</Badge>
                       {catalogDetails.madeInUSA && (
                         <Badge className="gap-1">
-                          <span>🇺🇸</span> Made in USA
+                          <Flag className="h-3 w-3" /> Made in USA
                         </Badge>
                       )}
                     </div>
@@ -1718,17 +1722,20 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               <div className="space-y-2">
                 <Label>5. QR Code Placement</Label>
                 <div className="flex gap-2 flex-wrap">
-                  {QR_PLACEMENTS.map((placement) => (
-                    <Button
-                      key={placement.id}
-                      variant={selectedPlacement === placement.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedPlacement(placement.id)}
-                      data-testid={`placement-${placement.id}`}
-                    >
-                      <span className="mr-1">{placement.icon}</span> {placement.label}
-                    </Button>
-                  ))}
+                  {QR_PLACEMENTS.map((placement) => {
+                    const PlacementIcon = placement.Icon;
+                    return (
+                      <Button
+                        key={placement.id}
+                        variant={selectedPlacement === placement.id ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedPlacement(placement.id)}
+                        data-testid={`placement-${placement.id}`}
+                      >
+                        <PlacementIcon className="h-4 w-4 mr-1" /> {placement.label}
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
             )}
