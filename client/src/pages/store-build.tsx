@@ -67,11 +67,16 @@ export default function StoreBuildPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [selectedPlacement, setSelectedPlacement] = useState<string>("");
   const [usaOnly, setUsaOnly] = useState(false);
-  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [productConfigs, setProductConfigs] = useState<Record<string, ProductConfig>>({});
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [saveStatus, setSaveStatus] = useState<Record<string, "success" | "error" | null>>({});
+  
+  // Track which product's options dialog is open
+  const [optionsDialogProductId, setOptionsDialogProductId] = useState<string | null>(null);
+  // Temp state for dialog editing (so cancel doesn't save)
+  const [dialogSizes, setDialogSizes] = useState<string[]>([]);
+  const [dialogColors, setDialogColors] = useState<string[]>([]);
 
   const [addStoreOpen, setAddStoreOpen] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
@@ -188,16 +193,39 @@ export default function StoreBuildPage() {
     },
   });
 
-  function toggleExpanded(productId: string) {
-    setExpandedProducts(prev => {
-      const next = new Set(prev);
-      if (next.has(productId)) {
-        next.delete(productId);
-      } else {
-        next.add(productId);
-      }
-      return next;
-    });
+  function openOptionsDialog(productId: string, allSizes: string[], allColorNames: string[]) {
+    const config = productConfigs[productId];
+    setDialogSizes(config?.enabledSizes || allSizes);
+    setDialogColors(config?.enabledColors || allColorNames);
+    setOptionsDialogProductId(productId);
+  }
+
+  function closeOptionsDialog() {
+    setOptionsDialogProductId(null);
+    setDialogSizes([]);
+    setDialogColors([]);
+  }
+
+  function saveOptionsDialog() {
+    if (!optionsDialogProductId) return;
+    setProductConfigs(prev => ({
+      ...prev,
+      [optionsDialogProductId]: { enabledSizes: dialogSizes, enabledColors: dialogColors },
+    }));
+    closeOptionsDialog();
+    toast({ title: "Options updated" });
+  }
+
+  function toggleDialogSize(size: string) {
+    setDialogSizes(prev =>
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+    );
+  }
+
+  function toggleDialogColor(colorName: string) {
+    setDialogColors(prev =>
+      prev.includes(colorName) ? prev.filter(c => c !== colorName) : [...prev, colorName]
+    );
   }
 
   function toggleSize(productId: string, size: string, allSizes: string[], allColorNames: string[]) {
@@ -411,7 +439,6 @@ export default function StoreBuildPage() {
             ) : (
               <div className="space-y-4">
                 {filteredProducts.map(product => {
-                  const isExpanded = expandedProducts.has(product.id);
                   const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
                   const colors = Array.isArray(product.availableColors)
                     ? (product.availableColors as Array<{ name: string; hex: string }>)
@@ -465,16 +492,21 @@ export default function StoreBuildPage() {
                             <span>{product.manufacturer || "Unknown Manufacturer"}</span>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="cursor-help">
+                                <span className="cursor-help inline-flex items-center">
                                   {product.madeInUSA ? (
-                                    <Flag className="h-5 w-5 text-blue-600" />
+                                    <img 
+                                      src="https://flagcdn.com/w40/us.png" 
+                                      srcSet="https://flagcdn.com/w80/us.png 2x"
+                                      alt="United States flag"
+                                      className="h-5 w-auto rounded-sm shadow-sm"
+                                    />
                                   ) : (
                                     <Globe2 className="h-5 w-5 text-muted-foreground" />
                                   )}
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent>
-                                {product.madeInUSA ? "Made in USA" : "International"}
+                                {product.madeInUSA ? "United States" : "International"}
                               </TooltipContent>
                             </Tooltip>
                           </div>
@@ -485,13 +517,15 @@ export default function StoreBuildPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-3 mt-4">
-                        <button
-                          className="qr-btn qr-btn--lg qr-btn--outline"
-                          onClick={() => toggleExpanded(product.id)}
-                          data-testid={`button-options-${product.id}`}
-                        >
-                          {isExpanded ? "Hide Options" : "Change Options"}
-                        </button>
+                        {(sizes.length > 0 || colors.length > 0) && (
+                          <button
+                            className="qr-btn qr-btn--lg qr-btn--outline"
+                            onClick={() => openOptionsDialog(product.id, sizes, colors.map(c => c.name))}
+                            data-testid={`button-options-${product.id}`}
+                          >
+                            Change Options
+                          </button>
+                        )}
                         <button
                           className={`qr-btn qr-btn--lg qr-btn--primary ${
                             status === "success" ? "is-success" :
@@ -515,59 +549,12 @@ export default function StoreBuildPage() {
                         </button>
                       </div>
 
-                      {isExpanded && (
-                        <div className="mt-6 space-y-4 border-t pt-4">
-                          {sizes.length > 0 && (
-                            <div>
-                              <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                                Sizes
-                              </div>
-                              <div className="flex flex-wrap gap-3">
-                                {sizes.map(size => (
-                                  <div
-                                    key={size}
-                                    className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg"
-                                  >
-                                    <Switch
-                                      checked={enabledSizes.includes(size)}
-                                      onCheckedChange={() => toggleSize(product.id, size, sizes, colors.map(c => c.name))}
-                                      className="h-8 w-16"
-                                      data-testid={`switch-size-${product.id}-${size}`}
-                                    />
-                                    <span className="text-base font-medium">{size}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {colors.length > 0 && (
-                            <div>
-                              <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                                Colors
-                              </div>
-                              <div className="flex flex-wrap gap-3">
-                                {colors.map(color => (
-                                  <div
-                                    key={color.name}
-                                    className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg"
-                                  >
-                                    <Switch
-                                      checked={enabledColors.includes(color.name)}
-                                      onCheckedChange={() => toggleColor(product.id, color.name, sizes, colors.map(c => c.name))}
-                                      className="h-8 w-16"
-                                      data-testid={`switch-color-${product.id}-${color.name}`}
-                                    />
-                                    <div
-                                      className="w-8 h-8 rounded-full border-2 border-white shadow-md"
-                                      style={{ backgroundColor: color.hex }}
-                                    />
-                                    <span className="text-base">{color.name}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                      {/* Show current selections summary */}
+                      {(enabledSizes.length > 0 || enabledColors.length > 0) && (
+                        <div className="mt-3 text-sm text-muted-foreground">
+                          {enabledSizes.length > 0 && <span>{enabledSizes.length} size(s) selected</span>}
+                          {enabledSizes.length > 0 && enabledColors.length > 0 && <span> · </span>}
+                          {enabledColors.length > 0 && <span>{enabledColors.length} color(s) selected</span>}
                         </div>
                       )}
                     </div>
@@ -628,6 +615,106 @@ export default function StoreBuildPage() {
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Options Dialog for Size/Color Selection */}
+      <Dialog open={!!optionsDialogProductId} onOpenChange={(open) => !open && closeOptionsDialog()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              Configure Options
+            </DialogTitle>
+          </DialogHeader>
+          
+          {optionsDialogProductId && (() => {
+            const product = products?.find(p => p.id === optionsDialogProductId);
+            if (!product) return null;
+            const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
+            const colors = Array.isArray(product.availableColors)
+              ? (product.availableColors as Array<{ name: string; hex: string }>)
+              : [];
+            
+            return (
+              <div className="space-y-6">
+                {sizes.length > 0 && (
+                  <div>
+                    <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                      Sizes
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {sizes.map(size => (
+                        <div
+                          key={size}
+                          className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg min-w-[120px]"
+                        >
+                          <Switch
+                            checked={dialogSizes.includes(size)}
+                            onCheckedChange={() => toggleDialogSize(size)}
+                            className="h-8 w-16"
+                            data-testid={`dialog-switch-size-${size}`}
+                          />
+                          <span className="text-base font-medium">{size}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {colors.length > 0 && (
+                  <div>
+                    <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                      Colors
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {colors.map(color => (
+                        <div
+                          key={color.name}
+                          className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg min-w-[140px]"
+                        >
+                          <Switch
+                            checked={dialogColors.includes(color.name)}
+                            onCheckedChange={() => toggleDialogColor(color.name)}
+                            className="h-8 w-16"
+                            data-testid={`dialog-switch-color-${color.name}`}
+                          />
+                          <div
+                            className="w-8 h-8 rounded-full border-2 border-white shadow-md flex-shrink-0"
+                            style={{ backgroundColor: color.hex }}
+                          />
+                          <span className="text-base">{color.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {sizes.length === 0 && colors.length === 0 && (
+                  <p className="text-muted-foreground text-center py-4">
+                    This product has no size or color options to configure.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="gap-3 mt-6">
+            <button
+              className="qr-btn qr-btn--lg qr-btn--outline"
+              onClick={closeOptionsDialog}
+              data-testid="button-dialog-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              className="qr-btn qr-btn--lg qr-btn--primary"
+              onClick={saveOptionsDialog}
+              data-testid="button-dialog-save"
+            >
+              <Check className="h-5 w-5" />
+              Save Options
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
