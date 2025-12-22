@@ -42,6 +42,8 @@ import type {
   InsertPartnerStore,
   PartnerStoreProduct,
   InsertPartnerStoreProduct,
+  ProductVariant,
+  InsertProductVariant,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -185,6 +187,11 @@ export interface IStorage {
   updatePartnerStoreProduct(id: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined>;
   removePartnerStoreProduct(id: string): Promise<void>;
   syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void>;
+
+  // Product Variant operations
+  getProductVariants(productId: string): Promise<ProductVariant[]>;
+  upsertProductVariant(variant: InsertProductVariant): Promise<ProductVariant>;
+  toggleVariantEnabled(id: string, enabled: boolean): Promise<ProductVariant | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -778,6 +785,39 @@ export class DbStorage implements IStorage {
       }));
       await this.db.insert(schema.partnerStoreProducts).values(products);
     }
+  }
+
+  // Product Variant operations
+  async getProductVariants(productId: string): Promise<ProductVariant[]> {
+    return await this.db.select().from(schema.productVariants)
+      .where(eq(schema.productVariants.productId, productId));
+  }
+
+  async upsertProductVariant(variant: InsertProductVariant): Promise<ProductVariant> {
+    const [result] = await this.db
+      .insert(schema.productVariants)
+      .values(variant)
+      .onConflictDoUpdate({
+        target: [schema.productVariants.productId, schema.productVariants.printifyVariantId],
+        set: {
+          title: variant.title,
+          size: variant.size,
+          color: variant.color,
+          colorHex: variant.colorHex,
+          price: variant.price,
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  async toggleVariantEnabled(id: string, enabled: boolean): Promise<ProductVariant | undefined> {
+    const [updated] = await this.db
+      .update(schema.productVariants)
+      .set({ isEnabled: enabled })
+      .where(eq(schema.productVariants.id, id))
+      .returning();
+    return updated;
   }
 }
 
@@ -1572,6 +1612,36 @@ class MemStorage implements IStorage {
     for (let i = 0; i < productIds.length; i++) {
       await this.addPartnerStoreProduct({ partnerStoreId, productId: productIds[i], sortOrder: i });
     }
+  }
+
+  // Product Variant operations (stub for MemStorage)
+  private productVariants = new Map<string, ProductVariant>();
+
+  async getProductVariants(productId: string): Promise<ProductVariant[]> {
+    return Array.from(this.productVariants.values()).filter(v => v.productId === productId);
+  }
+
+  async upsertProductVariant(variant: InsertProductVariant): Promise<ProductVariant> {
+    const id = `pv_${Date.now()}`;
+    const newVariant: ProductVariant = {
+      ...variant,
+      id,
+      size: variant.size ?? null,
+      color: variant.color ?? null,
+      colorHex: variant.colorHex ?? null,
+      isEnabled: variant.isEnabled ?? true,
+      isInStock: variant.isInStock ?? true,
+    };
+    this.productVariants.set(id, newVariant);
+    return newVariant;
+  }
+
+  async toggleVariantEnabled(id: string, enabled: boolean): Promise<ProductVariant | undefined> {
+    const existing = this.productVariants.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, isEnabled: enabled };
+    this.productVariants.set(id, updated);
+    return updated;
   }
 }
 

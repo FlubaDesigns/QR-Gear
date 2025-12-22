@@ -36,6 +36,8 @@ interface PrintifyVariant {
     height: number;
     width: number;
   }>;
+  price?: number; // Price in cents from Printify catalog
+  is_available?: boolean; // Stock status
 }
 
 interface PrintifyProduct {

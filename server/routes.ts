@@ -916,6 +916,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get product variants
+  app.get("/api/admin/products/:id/variants", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const variants = await storage.getProductVariants(id);
+      res.json(variants);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Toggle variant enabled/disabled
+  app.patch("/api/admin/variants/:id/toggle", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { enabled } = req.body;
+      const variant = await storage.toggleVariantEnabled(id, enabled);
+      if (!variant) {
+        return res.status(404).json({ error: "Variant not found" });
+      }
+      res.json(variant);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Printify Catalog Browsing - Get blueprints
   app.get("/api/admin/printify/blueprints", isAdmin, async (req: any, res) => {
     try {
@@ -1276,10 +1302,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Fetch colors and sizes
-      const { colors, sizes } = await syncProductVariants(
+      const { colors, sizes, variants } = await syncProductVariants(
         product.blueprintId,
         product.printProviderId
       );
+      
+      // Save each variant to the database (defaults to isEnabled=true)
+      for (const variant of variants) {
+        await storage.upsertProductVariant({
+          productId: product.id,
+          printifyVariantId: variant.id,
+          title: variant.title,
+          size: variant.options?.size || null,
+          color: variant.options?.color || null,
+          colorHex: variant.options?.color ? colors.find(c => c.name === variant.options?.color)?.hex || null : null,
+          price: String((variant.price || 0) / 100), // Printify prices are in cents
+          isEnabled: true, // Default all new variants to enabled
+          isInStock: variant.is_available ?? true,
+        });
+      }
       
       // Update product with synced data
       const updatedProduct = await storage.updateProduct(product.id, {
@@ -1297,7 +1338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         product: updatedProduct,
-        syncedData: { placements, colors, sizes, mockupImageUrl },
+        syncedData: { placements, colors, sizes, mockupImageUrl, variantsCount: variants.length },
       });
     } catch (error: any) {
       console.error("Product sync error:", error);

@@ -132,6 +132,155 @@ function IconDisplay({ iconName, className }: { iconName: string; className?: st
   return <Icon className={className} />;
 }
 
+interface ProductVariant {
+  id: string;
+  productId: string;
+  printifyVariantId: number;
+  title: string;
+  size: string | null;
+  color: string | null;
+  colorHex: string | null;
+  price: string;
+  isEnabled: boolean | null;
+  isInStock: boolean | null;
+}
+
+function ProductVariantsSwitches({ productId }: { productId: string }) {
+  const { toast } = useToast();
+  
+  const { data: variants = [], isLoading, refetch } = useQuery<ProductVariant[]>({
+    queryKey: ["/api/admin/products", productId, "variants"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/products/${productId}/variants`);
+      if (!res.ok) throw new Error("Failed to fetch variants");
+      return res.json();
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ variantId, enabled }: { variantId: string; enabled: boolean }) => {
+      const res = await fetch(`/api/admin/variants/${variantId}/toggle`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error("Failed to toggle variant");
+      return res.json();
+    },
+    onSuccess: () => {
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">Loading variants...</div>;
+  }
+
+  if (variants.length === 0) {
+    return <div className="text-sm text-muted-foreground">No variants synced. Sync this product from Printify to get sizes and colors.</div>;
+  }
+
+  // Group variants by size and color
+  const sizeSet = new Set<string>();
+  const colorSet = new Set<string>();
+  variants.forEach(v => {
+    if (v.size) sizeSet.add(v.size);
+    if (v.color) colorSet.add(v.color);
+  });
+  const sizes = Array.from(sizeSet);
+  const colors = Array.from(colorSet);
+  
+  // Get color hex values
+  const colorHexMap: Record<string, string> = {};
+  variants.forEach(v => {
+    if (v.color && v.colorHex) {
+      colorHexMap[v.color] = v.colorHex;
+    }
+  });
+
+  // Check if a size/color is enabled (at least one variant with that size/color is enabled)
+  const sizeEnabled = (size: string) => {
+    const sizeVariants = variants.filter(v => v.size === size);
+    return sizeVariants.some(v => v.isEnabled !== false);
+  };
+
+  const colorEnabled = (color: string) => {
+    const colorVariants = variants.filter(v => v.color === color);
+    return colorVariants.some(v => v.isEnabled !== false);
+  };
+
+  // Toggle all variants with a given size
+  const toggleSize = (size: string, enabled: boolean) => {
+    const sizeVariants = variants.filter(v => v.size === size);
+    sizeVariants.forEach(v => {
+      toggleMutation.mutate({ variantId: v.id, enabled });
+    });
+  };
+
+  // Toggle all variants with a given color
+  const toggleColor = (color: string, enabled: boolean) => {
+    const colorVariants = variants.filter(v => v.color === color);
+    colorVariants.forEach(v => {
+      toggleMutation.mutate({ variantId: v.id, enabled });
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Size Switches */}
+      {sizes.length > 0 && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">Sizes</Label>
+          <div className="flex flex-wrap gap-3">
+            {sizes.map((size) => (
+              <div key={size} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                <Switch
+                  id={`size-${productId}-${size}`}
+                  checked={sizeEnabled(size)}
+                  onCheckedChange={(enabled) => toggleSize(size, enabled)}
+                  disabled={toggleMutation.isPending}
+                />
+                <Label htmlFor={`size-${productId}-${size}`} className="text-sm cursor-pointer">
+                  {size}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Color Switches */}
+      {colors.length > 0 && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">Colors</Label>
+          <div className="flex flex-wrap gap-3">
+            {colors.map((color) => (
+              <div key={color} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                <Switch
+                  id={`color-${productId}-${color}`}
+                  checked={colorEnabled(color)}
+                  onCheckedChange={(enabled) => toggleColor(color, enabled)}
+                  disabled={toggleMutation.isPending}
+                />
+                <div 
+                  className="w-4 h-4 rounded-full border flex-shrink-0" 
+                  style={{ backgroundColor: colorHexMap[color] || getSwatchColor(color) }}
+                />
+                <Label htmlFor={`color-${productId}-${color}`} className="text-sm cursor-pointer">
+                  {color}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CategoriesTab() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -1594,35 +1743,8 @@ function ProductsTab() {
                       </div>
                     </div>
                     
-                    {/* Available Sizes */}
-                    {Array.isArray(product.availableSizes) && product.availableSizes.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Available Sizes</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {(product.availableSizes as string[]).map((size) => (
-                            <Badge key={size} variant="secondary" className="text-xs">{size}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Available Colors */}
-                    {Array.isArray(product.availableColors) && product.availableColors.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Available Colors</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {(product.availableColors as Array<{name: string; hex: string}>).map((color) => (
-                            <div key={color.name} className="flex items-center gap-1">
-                              <div 
-                                className="w-4 h-4 rounded-full border" 
-                                style={{ backgroundColor: color.hex }}
-                              />
-                              <span className="text-xs">{color.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    {/* Variant Switches (Sizes & Colors) */}
+                    <ProductVariantsSwitches productId={product.id} />
                     
                     {/* Tags */}
                     <div>
