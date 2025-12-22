@@ -4,7 +4,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { seedProducts } from "./lib/seed-products";
 import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
@@ -156,8 +155,6 @@ app.use((req, res, next) => {
   // Initialize Stripe
   await initStripe();
   
-  // Seed products on startup
-  await seedProducts();
   
   const server = await registerRoutes(app);
 
