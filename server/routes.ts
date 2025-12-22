@@ -1713,11 +1713,24 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Admin: Get partner store products
+  // Admin: Get partner store products with product details (sizes/colors)
   app.get("/api/admin/partner-stores/:id/products", isAdmin, async (req: any, res) => {
     try {
-      const products = await storage.getPartnerStoreProducts(req.params.id);
-      res.json(products);
+      const storeProducts = await storage.getPartnerStoreProducts(req.params.id);
+      
+      // Fetch full product details for each store product
+      const enrichedProducts = await Promise.all(
+        storeProducts.map(async (sp) => {
+          const product = await storage.getProduct(sp.productId);
+          return {
+            ...sp,
+            availableSizes: product?.availableSizes || [],
+            availableColors: product?.availableColors || [],
+          };
+        })
+      );
+      
+      res.json(enrichedProducts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

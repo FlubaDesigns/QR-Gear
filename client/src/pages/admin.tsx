@@ -3098,51 +3098,42 @@ function PartnerStoresTab() {
                 Check the products from your QR Gear catalog that should appear on this partner's embedded store.
                 Only enabled products from the Products tab are shown here.
               </p>
-              <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+              <div className="border rounded-md p-3 max-h-64 overflow-y-auto">
                 {loadingStoreProducts ? (
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-sm text-muted-foreground">Loading assigned products...</span>
                   </div>
                 ) : products && products.filter(p => p.isEnabled).length > 0 ? (
-                  <div className="grid gap-2">
+                  <div className="grid gap-1">
                     {products.filter(p => p.isEnabled).map(product => {
                       const isSelected = selectedProducts.includes(product.id);
-                      const hasConfig = storeProductConfigs[product.id];
-                      const hasSizes = Array.isArray(product.availableSizes) && product.availableSizes.length > 0;
-                      const hasColors = Array.isArray(product.availableColors) && product.availableColors.length > 0;
-                      const canConfigure = isSelected && editingStore && (hasSizes || hasColors);
                       
                       return (
                         <div
                           key={product.id}
-                          className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded"
+                          className={`flex items-center gap-3 p-2 rounded cursor-pointer ${isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted/50'}`}
+                          onClick={() => {
+                            if (isSelected && editingStore) {
+                              setConfigDialogProduct(product);
+                            } else {
+                              toggleProduct(product.id);
+                            }
+                          }}
+                          data-testid={`row-product-${product.id}`}
                         >
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={() => toggleProduct(product.id)}
+                            onClick={(e) => e.stopPropagation()}
                             data-testid={`checkbox-product-${product.id}`}
                           />
-                          <span className="text-sm flex-1">{product.name}</span>
-                          {canConfigure && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConfigDialogProduct(product);
-                              }}
-                              title="Configure sizes/colors"
-                              data-testid={`button-config-product-${product.id}`}
-                            >
-                              <Settings className="w-3 h-3" />
-                            </Button>
+                          <span className="text-sm font-medium flex-1">{product.name}</span>
+                          <span className="text-xs text-muted-foreground">{product.blueprintId ? 'Printify' : 'Custom'}</span>
+                          <span className="text-sm font-medium">${product.basePrice}</span>
+                          {isSelected && (
+                            <Badge variant="default" className="text-xs">Selected</Badge>
                           )}
-                          {hasConfig && (hasConfig.enabledSizes || hasConfig.enabledColors) && (
-                            <Badge variant="secondary" className="text-xs">Configured</Badge>
-                          )}
-                          <Badge variant="outline" className="text-xs">{product.category}</Badge>
                         </div>
                       );
                     })}
