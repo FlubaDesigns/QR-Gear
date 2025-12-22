@@ -13,6 +13,12 @@ import Account from "@/pages/account";
 import ViewImage from "@/pages/view-image";
 import ViewDynamic from "@/pages/view-dynamic";
 import Admin from "@/pages/admin";
+import AdminProducts from "@/pages/admin-products";
+import AdminPricing from "@/pages/admin-pricing";
+import AdminBackgrounds from "@/pages/admin-backgrounds";
+import AdminCategories from "@/pages/admin-categories";
+import AdminTags from "@/pages/admin-tags";
+import AdminPartners from "@/pages/admin-partners";
 import StoreBuild from "@/pages/store-build";
 import CheckoutSuccess from "@/pages/checkout-success";
 import NotFound from "@/pages/not-found";
@@ -28,6 +34,12 @@ function Router() {
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
       <Route path="/admin" component={Admin} />
+      <Route path="/admin/products" component={AdminProducts} />
+      <Route path="/admin/pricing" component={AdminPricing} />
+      <Route path="/admin/backgrounds" component={AdminBackgrounds} />
+      <Route path="/admin/categories" component={AdminCategories} />
+      <Route path="/admin/tags" component={AdminTags} />
+      <Route path="/admin/partners" component={AdminPartners} />
       <Route path="/admin/sales/build" component={StoreBuild} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />

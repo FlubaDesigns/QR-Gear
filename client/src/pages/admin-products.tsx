@@ -1170,9 +1170,9 @@ export default function AdminProducts() {
 
       <main className="container max-w-6xl mx-auto py-6 px-4">
         <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <Link href="/admin" className="text-muted-foreground hover:text-foreground">Admin</Link>
+          <Link href="/admin" className="text-muted-foreground hover:text-foreground" data-testid="link-breadcrumb-admin">Admin</Link>
           <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page">Products</span>
+          <span className="text-foreground font-medium" aria-current="page" data-testid="text-breadcrumb-current">Products</span>
         </nav>
 
         <ProductsContent />
