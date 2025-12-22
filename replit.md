@@ -246,6 +246,7 @@ Printify API returns intermittent 401 Unauthenticated errors when fetching produ
 - Shows visual indicator when KC business promo mode is active
 
 ## Recent Changes Log
+- 2025-12-22: Redesigned Partner Store product config - inline size switches and color swatches with "Configure" button expansion, replaces separate dialog
 - 2025-12-22: Fixed partner store product sync - configurations (enabledSizes, enabledColors, kcPlacements, customPrice) are now preserved when editing partner stores, and new products auto-populate sizes/colors from source product
 - 2025-12-21: Fixed Printify API connection - added automatic whitespace trimming for API keys
 - 2025-12-21: Redesigned admin product catalog to show one item per row with cost, sizes, colors
