@@ -1097,6 +1097,21 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
+        <DialogContent className="max-w-3xl p-2">
+          {zoomedImage && (
+            <div className="flex flex-col items-center gap-2">
+              <img 
+                src={zoomedImage.url} 
+                alt={zoomedImage.title} 
+                className="max-h-[80vh] w-auto object-contain rounded"
+              />
+              <p className="text-sm text-muted-foreground">{zoomedImage.title}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
