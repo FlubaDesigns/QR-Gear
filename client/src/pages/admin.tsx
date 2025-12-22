@@ -2863,6 +2863,15 @@ export default function Admin() {
 
       <main className="container max-w-6xl mx-auto py-6 px-4">
 
+        <div className="mb-6">
+          <Link href="/admin/sales/build">
+            <Button size="lg" className="h-14 px-8 text-lg" data-testid="button-store-builder">
+              <Store className="h-6 w-6 mr-3" />
+              Build Store Segment
+            </Button>
+          </Link>
+        </div>
+
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="products" className="gap-2">

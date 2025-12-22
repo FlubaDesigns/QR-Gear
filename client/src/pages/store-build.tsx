@@ -33,12 +33,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   ChevronRight,
-  Home,
   Loader2,
   Plus,
   Check,
   X,
-  Shield,
 } from "lucide-react";
 
 type ProductConfig = {
@@ -230,14 +228,11 @@ export default function StoreBuildPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="flex items-center gap-2 px-6 py-4 border-b text-sm text-muted-foreground">
-        <Link href="/admin" className="hover:text-foreground flex items-center gap-2" data-testid="link-admin-shield">
-          <Shield className="h-6 w-6 text-primary" />
-          <span className="font-semibold text-base">Admin Dashboard</span>
+        <Link href="/admin" className="hover:text-foreground" data-testid="link-admin">
+          Admin Dashboard
         </Link>
         <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground">Sales</span>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">Build Product Line</span>
+        <span className="text-foreground font-medium">Build Store Segment</span>
       </div>
 
       <div className="container mx-auto p-6 max-w-5xl">
