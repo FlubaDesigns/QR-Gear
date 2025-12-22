@@ -1738,6 +1738,31 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Admin: Update partner store product options (sizes, colors, placements)
+  app.patch("/api/admin/partner-stores/:storeId/products/:productId", isAdmin, async (req: any, res) => {
+    try {
+      const { storeId, productId } = req.params;
+      const { enabledSizes, enabledColors, kcPlacements, kcBusinessSlug, customPrice, customName, isEnabled } = req.body;
+      
+      const updated = await storage.updatePartnerStoreProductByIds(storeId, productId, {
+        enabledSizes,
+        enabledColors,
+        kcPlacements,
+        kcBusinessSlug,
+        customPrice,
+        customName,
+        isEnabled,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Partner store product not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Public: Get partner store by slug (for widget embedding)
   app.get("/api/widget/stores/:slug", async (req, res) => {
     try {

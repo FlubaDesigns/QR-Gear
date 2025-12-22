@@ -132,149 +132,370 @@ function IconDisplay({ iconName, className }: { iconName: string; className?: st
   return <Icon className={className} />;
 }
 
-interface ProductVariant {
-  id: string;
-  productId: string;
-  printifyVariantId: number;
-  title: string;
-  size: string | null;
-  color: string | null;
-  colorHex: string | null;
-  price: string;
-  isEnabled: boolean | null;
-  isInStock: boolean | null;
+function ColorSwatch({ hex, className = "" }: { hex: string; className?: string }) {
+  return (
+    <div 
+      className={`w-5 h-5 rounded-full border flex-shrink-0 ${className}`}
+      ref={(el) => { if (el) el.style.backgroundColor = hex; }}
+    />
+  );
 }
 
-function ProductVariantsSwitches({ productId }: { productId: string }) {
+interface ProductVariantDialogProps {
+  product: Product;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function ProductVariantDialog({ product, open, onOpenChange }: ProductVariantDialogProps) {
   const { toast } = useToast();
   
-  const { data: variants = [], isLoading, refetch } = useQuery<ProductVariant[]>({
-    queryKey: ["/api/admin/products", productId, "variants"],
-    queryFn: async () => {
-      const res = await fetch(`/api/admin/products/${productId}/variants`);
-      if (!res.ok) throw new Error("Failed to fetch variants");
-      return res.json();
-    },
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: async ({ variantId, enabled }: { variantId: string; enabled: boolean }) => {
-      const res = await fetch(`/api/admin/variants/${variantId}/toggle`, {
+  // Get sizes and colors from product's stored data
+  const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
+  const colors = Array.isArray(product.availableColors) 
+    ? (product.availableColors as Array<{name: string; hex: string}>)
+    : [];
+  
+  // Local state for enabled sizes/colors (defaults to ALL enabled)
+  const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set(sizes));
+  const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set(colors.map(c => c.name)));
+  const [saving, setSaving] = useState(false);
+  
+  // Reset state when dialog opens
+  useEffect(() => {
+    if (open) {
+      // Load from product metadata if saved, otherwise default all ON
+      const savedSizes = (product.metadata as any)?.enabledSizes;
+      const savedColors = (product.metadata as any)?.enabledColors;
+      
+      if (savedSizes && Array.isArray(savedSizes)) {
+        setEnabledSizes(new Set(savedSizes));
+      } else {
+        setEnabledSizes(new Set(sizes));
+      }
+      
+      if (savedColors && Array.isArray(savedColors)) {
+        setEnabledColors(new Set(savedColors));
+      } else {
+        setEnabledColors(new Set(colors.map(c => c.name)));
+      }
+    }
+  }, [open, product, sizes, colors]);
+  
+  const toggleSize = (size: string) => {
+    setEnabledSizes(prev => {
+      const next = new Set(prev);
+      if (next.has(size)) {
+        next.delete(size);
+      } else {
+        next.add(size);
+      }
+      return next;
+    });
+  };
+  
+  const toggleColor = (colorName: string) => {
+    setEnabledColors(prev => {
+      const next = new Set(prev);
+      if (next.has(colorName)) {
+        next.delete(colorName);
+      } else {
+        next.add(colorName);
+      }
+      return next;
+    });
+  };
+  
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({
+          metadata: {
+            ...(product.metadata as object || {}),
+            enabledSizes: Array.from(enabledSizes),
+            enabledColors: Array.from(enabledColors),
+          },
+        }),
       });
-      if (!res.ok) throw new Error("Failed to toggle variant");
-      return res.json();
-    },
-    onSuccess: () => {
-      refetch();
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Loading variants...</div>;
-  }
-
-  if (variants.length === 0) {
-    return <div className="text-sm text-muted-foreground">No variants synced. Sync this product from Printify to get sizes and colors.</div>;
-  }
-
-  // Group variants by size and color
-  const sizeSet = new Set<string>();
-  const colorSet = new Set<string>();
-  variants.forEach(v => {
-    if (v.size) sizeSet.add(v.size);
-    if (v.color) colorSet.add(v.color);
-  });
-  const sizes = Array.from(sizeSet);
-  const colors = Array.from(colorSet);
-  
-  // Get color hex values
-  const colorHexMap: Record<string, string> = {};
-  variants.forEach(v => {
-    if (v.color && v.colorHex) {
-      colorHexMap[v.color] = v.colorHex;
+      if (!res.ok) throw new Error("Failed to save");
+      toast({ title: "Success", description: "Product options saved." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      onOpenChange(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save options.", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-  });
-
-  // Check if a size/color is enabled (at least one variant with that size/color is enabled)
-  const sizeEnabled = (size: string) => {
-    const sizeVariants = variants.filter(v => v.size === size);
-    return sizeVariants.some(v => v.isEnabled !== false);
   };
-
-  const colorEnabled = (color: string) => {
-    const colorVariants = variants.filter(v => v.color === color);
-    return colorVariants.some(v => v.isEnabled !== false);
-  };
-
-  // Toggle all variants with a given size
-  const toggleSize = (size: string, enabled: boolean) => {
-    const sizeVariants = variants.filter(v => v.size === size);
-    sizeVariants.forEach(v => {
-      toggleMutation.mutate({ variantId: v.id, enabled });
-    });
-  };
-
-  // Toggle all variants with a given color
-  const toggleColor = (color: string, enabled: boolean) => {
-    const colorVariants = variants.filter(v => v.color === color);
-    colorVariants.forEach(v => {
-      toggleMutation.mutate({ variantId: v.id, enabled });
-    });
-  };
-
+  
   return (
-    <div className="space-y-3">
-      {/* Size Switches */}
-      {sizes.length > 0 && (
-        <div>
-          <Label className="text-sm font-medium mb-2 block">Sizes</Label>
-          <div className="flex flex-wrap gap-3">
-            {sizes.map((size) => (
-              <div key={size} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
-                <Switch
-                  id={`size-${productId}-${size}`}
-                  checked={sizeEnabled(size)}
-                  onCheckedChange={(enabled) => toggleSize(size, enabled)}
-                  disabled={toggleMutation.isPending}
-                />
-                <Label htmlFor={`size-${productId}-${size}`} className="text-sm cursor-pointer">
-                  {size}
-                </Label>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Configure {product.name}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6 py-4">
+          {/* Size Switches */}
+          {sizes.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Available Sizes</Label>
+              <div className="flex flex-wrap gap-3">
+                {sizes.map((size) => (
+                  <div key={size} className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded">
+                    <Switch
+                      id={`dlg-size-${product.id}-${size}`}
+                      checked={enabledSizes.has(size)}
+                      onCheckedChange={() => toggleSize(size)}
+                    />
+                    <Label htmlFor={`dlg-size-${product.id}-${size}`} className="text-sm cursor-pointer">
+                      {size}
+                    </Label>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+          
+          {/* Color Switches */}
+          {colors.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Available Colors</Label>
+              <div className="flex flex-wrap gap-3">
+                {colors.map((color) => (
+                  <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded">
+                    <Switch
+                      id={`dlg-color-${product.id}-${color.name}`}
+                      checked={enabledColors.has(color.name)}
+                      onCheckedChange={() => toggleColor(color.name)}
+                    />
+                    <ColorSwatch hex={color.hex || getSwatchColor(color.name)} />
+                    <Label htmlFor={`dlg-color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
+                      {color.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {sizes.length === 0 && colors.length === 0 && (
+            <div className="text-center text-muted-foreground py-4">
+              No sizes or colors available. Sync this product from Printify first.
+            </div>
+          )}
+        </div>
+        
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Save Options
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface PartnerStoreProductVariantDialogProps {
+  product: Product;
+  partnerStoreId: string;
+  partnerStoreName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  existingConfig?: { enabledSizes?: string[] | null; enabledColors?: string[] | null };
+}
+
+function PartnerStoreProductVariantDialog({ 
+  product, 
+  partnerStoreId, 
+  partnerStoreName,
+  open, 
+  onOpenChange,
+  existingConfig
+}: PartnerStoreProductVariantDialogProps) {
+  const { toast } = useToast();
+  
+  const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
+  const colors = Array.isArray(product.availableColors) 
+    ? (product.availableColors as Array<{name: string; hex: string}>)
+    : [];
+  
+  const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set(sizes));
+  const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set(colors.map(c => c.name)));
+  const [saving, setSaving] = useState(false);
+  
+  useEffect(() => {
+    if (open) {
+      if (existingConfig?.enabledSizes && Array.isArray(existingConfig.enabledSizes)) {
+        setEnabledSizes(new Set(existingConfig.enabledSizes));
+      } else {
+        setEnabledSizes(new Set(sizes));
+      }
+      
+      if (existingConfig?.enabledColors && Array.isArray(existingConfig.enabledColors)) {
+        setEnabledColors(new Set(existingConfig.enabledColors));
+      } else {
+        setEnabledColors(new Set(colors.map(c => c.name)));
+      }
+    }
+  }, [open, existingConfig, sizes, colors]);
+  
+  const toggleSize = (size: string) => {
+    setEnabledSizes(prev => {
+      const next = new Set(prev);
+      if (next.has(size)) next.delete(size);
+      else next.add(size);
+      return next;
+    });
+  };
+  
+  const toggleColor = (colorName: string) => {
+    setEnabledColors(prev => {
+      const next = new Set(prev);
+      if (next.has(colorName)) next.delete(colorName);
+      else next.add(colorName);
+      return next;
+    });
+  };
+  
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/partner-stores/${partnerStoreId}/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabledSizes: Array.from(enabledSizes),
+          enabledColors: Array.from(enabledColors),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      toast({ title: "Success", description: `Product options saved for ${partnerStoreName}.` });
+      onOpenChange(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save options.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Configure {product.name}</DialogTitle>
+          <p className="text-sm text-muted-foreground">For: {partnerStoreName}</p>
+        </DialogHeader>
+        
+        <div className="space-y-6 py-4">
+          {sizes.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Available Sizes</Label>
+              <div className="flex flex-wrap gap-3">
+                {sizes.map((size) => (
+                  <div key={size} className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded">
+                    <Switch
+                      id={`ps-size-${product.id}-${size}`}
+                      checked={enabledSizes.has(size)}
+                      onCheckedChange={() => toggleSize(size)}
+                    />
+                    <Label htmlFor={`ps-size-${product.id}-${size}`} className="text-sm cursor-pointer">
+                      {size}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {colors.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Available Colors</Label>
+              <div className="flex flex-wrap gap-3">
+                {colors.map((color) => (
+                  <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded">
+                    <Switch
+                      id={`ps-color-${product.id}-${color.name}`}
+                      checked={enabledColors.has(color.name)}
+                      onCheckedChange={() => toggleColor(color.name)}
+                    />
+                    <ColorSwatch hex={color.hex || getSwatchColor(color.name)} />
+                    <Label htmlFor={`ps-color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
+                      {color.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {sizes.length === 0 && colors.length === 0 && (
+            <div className="text-center text-muted-foreground py-4">
+              No sizes or colors available. Sync this product from Printify first.
+            </div>
+          )}
+        </div>
+        
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={handleSave} disabled={saving} data-testid="button-save-partner-product-options">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Save Options
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProductOptionsDisplay({ product }: { product: Product }) {
+  const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
+  const colors = Array.isArray(product.availableColors) 
+    ? (product.availableColors as Array<{name: string; hex: string}>)
+    : [];
+  
+  const enabledSizes = (product.metadata as any)?.enabledSizes as string[] | undefined;
+  const enabledColors = (product.metadata as any)?.enabledColors as string[] | undefined;
+  
+  // If no saved preferences, show all as enabled
+  const activeSizes = enabledSizes || sizes;
+  const activeColors = enabledColors || colors.map(c => c.name);
+  
+  const colorHexMap: Record<string, string> = {};
+  colors.forEach(c => { colorHexMap[c.name] = c.hex; });
+  
+  if (sizes.length === 0 && colors.length === 0) {
+    return <div className="text-sm text-muted-foreground">No sizes/colors - sync from Printify</div>;
+  }
+  
+  return (
+    <div className="space-y-2">
+      {activeSizes.length > 0 && (
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="text-xs text-muted-foreground mr-1">Sizes:</span>
+          {activeSizes.map(size => (
+            <Badge key={size} variant="secondary" className="text-xs">{size}</Badge>
+          ))}
         </div>
       )}
-      
-      {/* Color Switches */}
-      {colors.length > 0 && (
-        <div>
-          <Label className="text-sm font-medium mb-2 block">Colors</Label>
-          <div className="flex flex-wrap gap-3">
-            {colors.map((color) => (
-              <div key={color} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
-                <Switch
-                  id={`color-${productId}-${color}`}
-                  checked={colorEnabled(color)}
-                  onCheckedChange={(enabled) => toggleColor(color, enabled)}
-                  disabled={toggleMutation.isPending}
-                />
-                <div 
-                  className="w-4 h-4 rounded-full border flex-shrink-0" 
-                  style={{ backgroundColor: colorHexMap[color] || getSwatchColor(color) }}
-                />
-                <Label htmlFor={`color-${productId}-${color}`} className="text-sm cursor-pointer">
-                  {color}
-                </Label>
-              </div>
-            ))}
-          </div>
+      {activeColors.length > 0 && (
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="text-xs text-muted-foreground mr-1">Colors:</span>
+          {activeColors.map(colorName => (
+            <div key={colorName} className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-xs">
+              <ColorSwatch hex={colorHexMap[colorName] || getSwatchColor(colorName)} className="w-3 h-3" />
+              {colorName}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -1476,10 +1697,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                                 }}
                               >
                                 <Checkbox checked={isEnabled} />
-                                <div 
-                                  className="w-5 h-5 rounded border border-gray-300"
-                                  style={{ backgroundColor: swatchColor }}
-                                />
+                                <ColorSwatch hex={swatchColor} />
                                 <span className="text-xs max-w-20 truncate">{color}</span>
                               </div>
                             );
@@ -1638,6 +1856,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 function ProductsTab() {
   const { toast } = useToast();
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [configProductId, setConfigProductId] = useState<string | null>(null);
   
   type AdminProduct = Product & { categoryIds?: string[] };
   
@@ -1743,8 +1962,8 @@ function ProductsTab() {
                       </div>
                     </div>
                     
-                    {/* Variant Switches (Sizes & Colors) */}
-                    <ProductVariantsSwitches productId={product.id} />
+                    {/* Sizes & Colors Display - tap to edit */}
+                    <ProductOptionsDisplay product={product} />
                     
                     {/* Tags */}
                     <div>
@@ -2493,6 +2712,8 @@ function PartnerStoresTab() {
   const [editingStore, setEditingStore] = useState<PartnerStore | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [loadingStoreProducts, setLoadingStoreProducts] = useState(false);
+  const [storeProductConfigs, setStoreProductConfigs] = useState<Record<string, { enabledSizes?: string[] | null; enabledColors?: string[] | null }>>({});
+  const [configDialogProduct, setConfigDialogProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -2603,12 +2824,18 @@ function PartnerStoresTab() {
       isActive: store.isActive ?? true,
     });
     setSelectedProducts([]);
+    setStoreProductConfigs({});
     setLoadingStoreProducts(true);
     setIsDialogOpen(true);
     try {
       const res = await fetch(`/api/admin/partner-stores/${store.id}/products`);
       const storeProducts = await res.json();
       setSelectedProducts(storeProducts.map((p: { productId: string }) => p.productId));
+      const configs: Record<string, { enabledSizes?: string[] | null; enabledColors?: string[] | null }> = {};
+      storeProducts.forEach((p: { productId: string; enabledSizes?: string[] | null; enabledColors?: string[] | null }) => {
+        configs[p.productId] = { enabledSizes: p.enabledSizes, enabledColors: p.enabledColors };
+      });
+      setStoreProductConfigs(configs);
     } catch {
       setSelectedProducts([]);
     } finally {
@@ -2879,20 +3106,46 @@ function PartnerStoresTab() {
                   </div>
                 ) : products && products.filter(p => p.isEnabled).length > 0 ? (
                   <div className="grid gap-2">
-                    {products.filter(p => p.isEnabled).map(product => (
-                      <label
-                        key={product.id}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
-                      >
-                        <Checkbox
-                          checked={selectedProducts.includes(product.id)}
-                          onCheckedChange={() => toggleProduct(product.id)}
-                          data-testid={`checkbox-product-${product.id}`}
-                        />
-                        <span className="text-sm">{product.name}</span>
-                        <Badge variant="outline" className="text-xs ml-auto">{product.category}</Badge>
-                      </label>
-                    ))}
+                    {products.filter(p => p.isEnabled).map(product => {
+                      const isSelected = selectedProducts.includes(product.id);
+                      const hasConfig = storeProductConfigs[product.id];
+                      const hasSizes = Array.isArray(product.availableSizes) && product.availableSizes.length > 0;
+                      const hasColors = Array.isArray(product.availableColors) && product.availableColors.length > 0;
+                      const canConfigure = isSelected && editingStore && (hasSizes || hasColors);
+                      
+                      return (
+                        <div
+                          key={product.id}
+                          className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded"
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleProduct(product.id)}
+                            data-testid={`checkbox-product-${product.id}`}
+                          />
+                          <span className="text-sm flex-1">{product.name}</span>
+                          {canConfigure && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfigDialogProduct(product);
+                              }}
+                              title="Configure sizes/colors"
+                              data-testid={`button-config-product-${product.id}`}
+                            >
+                              <Settings className="w-3 h-3" />
+                            </Button>
+                          )}
+                          {hasConfig && (hasConfig.enabledSizes || hasConfig.enabledColors) && (
+                            <Badge variant="secondary" className="text-xs">Configured</Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs">{product.category}</Badge>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">
@@ -2922,6 +3175,19 @@ function PartnerStoresTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {configDialogProduct && editingStore && (
+        <PartnerStoreProductVariantDialog
+          product={configDialogProduct}
+          partnerStoreId={editingStore.id}
+          partnerStoreName={editingStore.name}
+          open={!!configDialogProduct}
+          onOpenChange={(open) => {
+            if (!open) setConfigDialogProduct(null);
+          }}
+          existingConfig={storeProductConfigs[configDialogProduct.id]}
+        />
+      )}
     </Card>
   );
 }

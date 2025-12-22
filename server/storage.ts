@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -183,8 +183,10 @@ export interface IStorage {
 
   // Partner Store Product operations
   getPartnerStoreProducts(partnerStoreId: string): Promise<PartnerStoreProduct[]>;
+  getPartnerStoreProduct(partnerStoreId: string, productId: string): Promise<PartnerStoreProduct | undefined>;
   addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct>;
   updatePartnerStoreProduct(id: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined>;
+  updatePartnerStoreProductByIds(partnerStoreId: string, productId: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined>;
   removePartnerStoreProduct(id: string): Promise<void>;
   syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void>;
 
@@ -757,6 +759,15 @@ export class DbStorage implements IStorage {
       .where(eq(schema.partnerStoreProducts.partnerStoreId, partnerStoreId));
   }
 
+  async getPartnerStoreProduct(partnerStoreId: string, productId: string): Promise<PartnerStoreProduct | undefined> {
+    const [result] = await this.db.select().from(schema.partnerStoreProducts)
+      .where(and(
+        eq(schema.partnerStoreProducts.partnerStoreId, partnerStoreId),
+        eq(schema.partnerStoreProducts.productId, productId)
+      ));
+    return result;
+  }
+
   async addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct> {
     const [newProduct] = await this.db.insert(schema.partnerStoreProducts).values(product).returning();
     return newProduct;
@@ -767,6 +778,18 @@ export class DbStorage implements IStorage {
       .update(schema.partnerStoreProducts)
       .set(product)
       .where(eq(schema.partnerStoreProducts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updatePartnerStoreProductByIds(partnerStoreId: string, productId: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined> {
+    const [updated] = await this.db
+      .update(schema.partnerStoreProducts)
+      .set(product)
+      .where(and(
+        eq(schema.partnerStoreProducts.partnerStoreId, partnerStoreId),
+        eq(schema.partnerStoreProducts.productId, productId)
+      ))
       .returning();
     return updated;
   }
@@ -1547,9 +1570,12 @@ class MemStorage implements IStorage {
       description: store.description ?? null,
       logoUrl: store.logoUrl ?? null,
       websiteUrl: store.websiteUrl ?? null,
+      businessPageUrlPattern: store.businessPageUrlPattern ?? null,
       allowedOrigins: store.allowedOrigins ?? null,
       primaryColor: store.primaryColor ?? null,
       accentColor: store.accentColor ?? null,
+      availableSegments: store.availableSegments ?? null,
+      annualMemberPerk: store.annualMemberPerk ?? null,
       commissionPercent: store.commissionPercent ?? "0",
       isActive: store.isActive ?? true,
       createdAt: new Date(),
@@ -1579,6 +1605,12 @@ class MemStorage implements IStorage {
     return Array.from(this.partnerStoreProducts.values()).filter(p => p.partnerStoreId === partnerStoreId);
   }
 
+  async getPartnerStoreProduct(partnerStoreId: string, productId: string): Promise<PartnerStoreProduct | undefined> {
+    return Array.from(this.partnerStoreProducts.values()).find(
+      p => p.partnerStoreId === partnerStoreId && p.productId === productId
+    );
+  }
+
   async addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct> {
     const id = `psp_${Date.now()}`;
     const newProduct: PartnerStoreProduct = {
@@ -1586,6 +1618,10 @@ class MemStorage implements IStorage {
       id,
       customPrice: product.customPrice ?? null,
       customName: product.customName ?? null,
+      kcPlacements: product.kcPlacements ?? null,
+      kcBusinessSlug: product.kcBusinessSlug ?? null,
+      enabledSizes: product.enabledSizes ?? null,
+      enabledColors: product.enabledColors ?? null,
       sortOrder: product.sortOrder ?? 0,
       isEnabled: product.isEnabled ?? true,
     };
@@ -1598,6 +1634,14 @@ class MemStorage implements IStorage {
     if (!existing) return undefined;
     const updated = { ...existing, ...product };
     this.partnerStoreProducts.set(id, updated);
+    return updated;
+  }
+
+  async updatePartnerStoreProductByIds(partnerStoreId: string, productId: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined> {
+    const existing = await this.getPartnerStoreProduct(partnerStoreId, productId);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...product };
+    this.partnerStoreProducts.set(existing.id, updated);
     return updated;
   }
 
