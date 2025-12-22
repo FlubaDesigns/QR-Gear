@@ -2865,10 +2865,10 @@ export default function Admin() {
 
         <div className="mb-6">
           <Link href="/admin/sales/build">
-            <Button size="lg" className="h-14 px-8 text-lg" data-testid="button-store-builder">
-              <Store className="h-6 w-6 mr-3" />
+            <button className="qr-btn qr-btn--lg qr-btn--primary" data-testid="button-store-builder">
+              <Store className="h-6 w-6" />
               Build Store Segment
-            </Button>
+            </button>
           </Link>
         </div>
 

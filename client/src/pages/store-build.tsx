@@ -257,10 +257,10 @@ export default function StoreBuildPage() {
               </CardTitle>
               <Dialog open={addStoreOpen} onOpenChange={setAddStoreOpen}>
                 <DialogTrigger asChild>
-                  <Button size="lg" className="h-12" data-testid="button-add-store">
-                    <Plus className="h-5 w-5 mr-2" />
+                  <button className="qr-btn qr-btn--lg qr-btn--accent" data-testid="button-add-store">
+                    <Plus className="h-5 w-5" />
                     Add New Store
-                  </Button>
+                  </button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -291,16 +291,15 @@ export default function StoreBuildPage() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button
+                    <button
+                      className={`qr-btn qr-btn--lg qr-btn--primary ${createStoreMutation.isPending ? 'is-loading' : ''}`}
                       onClick={() => createStoreMutation.mutate()}
                       disabled={!newStoreName || createStoreMutation.isPending}
-                      size="lg"
-                      className="h-12"
                       data-testid="button-create-store"
                     >
-                      {createStoreMutation.isPending && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
+                      {createStoreMutation.isPending && <Loader2 className="h-5 w-5 animate-spin" />}
                       Create Store
-                    </Button>
+                    </button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -354,15 +353,13 @@ export default function StoreBuildPage() {
         {selectedPlacement && (
           <>
             <div className="flex items-center gap-4 mb-6">
-              <Button
-                variant={usaOnly ? "default" : "outline"}
-                size="lg"
-                className="h-12"
+              <button
+                className={`qr-btn qr-btn--lg ${usaOnly ? 'qr-btn--primary' : 'qr-btn--outline'}`}
                 onClick={() => setUsaOnly(!usaOnly)}
                 data-testid="button-usa-filter"
               >
                 🇺🇸 Made in USA Only
-              </Button>
+              </button>
             </div>
 
             {productsLoading ? (
@@ -424,35 +421,34 @@ export default function StoreBuildPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-3 mt-4">
-                        <Button
-                          variant="outline"
-                          size="lg"
-                          className="h-12"
+                        <button
+                          className="qr-btn qr-btn--lg qr-btn--outline"
                           onClick={() => toggleExpanded(product.id)}
                           data-testid={`button-options-${product.id}`}
                         >
                           {isExpanded ? "Hide Options" : "Change Options"}
-                        </Button>
-                        <Button
-                          size="lg"
-                          className={`h-12 min-w-[140px] transition-colors ${
-                            status === "success" ? "bg-green-600 hover:bg-green-600" :
-                            status === "error" ? "bg-red-600 hover:bg-red-600" : ""
+                        </button>
+                        <button
+                          className={`qr-btn qr-btn--lg qr-btn--primary ${
+                            status === "success" ? "is-success" :
+                            status === "error" ? "is-error" :
+                            saveProductMutation.isPending ? "is-loading" : ""
                           }`}
                           onClick={() => handleSaveToStore(product.id, sizes, colors)}
                           disabled={saveProductMutation.isPending}
                           data-testid={`button-save-${product.id}`}
+                          style={{ minWidth: '140px' }}
                         >
                           {status === "success" ? (
-                            <><Check className="h-5 w-5 mr-2" /> Saved</>
+                            <><Check className="h-5 w-5" /> Saved</>
                           ) : status === "error" ? (
-                            <><X className="h-5 w-5 mr-2" /> Error</>
+                            <><X className="h-5 w-5" /> Error</>
                           ) : saveProductMutation.isPending ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
                             "Save to Store"
                           )}
-                        </Button>
+                        </button>
                       </div>
 
                       {isExpanded && (
