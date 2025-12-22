@@ -151,7 +151,7 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
   };
   
   if (sizes.length === 0 && colors.length === 0) {
-    return <div className="text-sm text-muted-foreground">No sizes/colors - sync from Printify</div>;
+    return <div className="text-sm text-muted-foreground">Waiting for auto-sync...</div>;
   }
   
   return (
@@ -184,21 +184,25 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
           <Label className="text-sm font-medium mb-2 block">
             Colors {saving && <Loader2 className="w-3 h-3 inline animate-spin ml-1" />}
           </Label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {colors.map(color => (
-              <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
-                <Switch
-                  id={`color-${product.id}-${color.name}`}
-                  checked={enabledColors.has(color.name)}
-                  onCheckedChange={() => toggleColor(color.name)}
-                  disabled={saving}
-                  data-testid={`switch-color-${product.id}-${color.name}`}
-                />
-                <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-4 h-4" />
-                <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
-                  {color.name}
-                </Label>
-              </div>
+              <button
+                key={color.name}
+                type="button"
+                onClick={() => toggleColor(color.name)}
+                disabled={saving}
+                className={`p-1 rounded-full transition-all ${
+                  enabledColors.has(color.name) 
+                    ? "ring-2 ring-primary ring-offset-2" 
+                    : "opacity-40 hover:opacity-70"
+                }`}
+                title={color.name}
+                aria-label={`${color.name} ${enabledColors.has(color.name) ? "(enabled)" : "(disabled)"}`}
+                aria-pressed={enabledColors.has(color.name)}
+                data-testid={`button-color-${product.id}-${color.name}`}
+              >
+                <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-6 h-6" />
+              </button>
             ))}
           </div>
         </div>
@@ -1016,20 +1020,46 @@ function ProductsContent() {
     },
   });
 
-  const [syncingProductId, setSyncingProductId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set());
 
-  const syncFromPrintify = async (productId: string) => {
-    setSyncingProductId(productId);
-    try {
-      await apiRequest("POST", `/api/admin/products/${productId}/sync-printify`);
-      await refetch();
-      toast({ title: "Success", description: "Synced sizes and colors from Printify." });
-    } catch (error: any) {
-      toast({ title: "Sync failed", description: error.message || "Could not sync with Printify.", variant: "destructive" });
-    } finally {
-      setSyncingProductId(null);
-    }
-  };
+  // Auto-sync products in the background on page load
+  useEffect(() => {
+    if (products.length === 0 || isLoading || isSyncing) return;
+    
+    const syncStaleProducts = async () => {
+      // Find products that haven't been synced recently (older than 24 hours) and haven't been synced this session
+      const staleProducts = products.filter(p => {
+        if (syncedIds.has(p.id)) return false;
+        const lastSync = (p.metadata as any)?.lastSyncedAt;
+        if (!lastSync) return true;
+        const hoursSinceSync = (Date.now() - new Date(lastSync).getTime()) / (1000 * 60 * 60);
+        return hoursSinceSync > 24;
+      });
+      
+      if (staleProducts.length === 0) return;
+      
+      setIsSyncing(true);
+      const newSyncedIds = new Set(syncedIds);
+      
+      // Sync all stale products sequentially to avoid overwhelming the API
+      for (const product of staleProducts) {
+        try {
+          await apiRequest("POST", `/api/admin/products/${product.id}/sync-printify`);
+          newSyncedIds.add(product.id);
+        } catch {
+          // Mark as synced to avoid retrying failed products
+          newSyncedIds.add(product.id);
+        }
+      }
+      
+      setSyncedIds(newSyncedIds);
+      setIsSyncing(false);
+      refetch();
+    };
+    
+    syncStaleProducts();
+  }, [products, isLoading, isSyncing, syncedIds]);
 
   return (
     <div className="space-y-6">
@@ -1038,9 +1068,16 @@ function ProductsContent() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
           <div>
-            <CardTitle>Local Product Catalog</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Local Product Catalog
+              {isSyncing && (
+                <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> syncing...
+                </span>
+              )}
+            </CardTitle>
             <CardDescription>
-              Products stored in your database. Use "Sync" to fetch latest sizes/colors from Printify.
+              Products stored in your database. Sizes and colors sync automatically from Printify.
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} data-testid="button-refresh-catalog">
@@ -1094,28 +1131,6 @@ function ProductsContent() {
                             />
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => syncFromPrintify(product.id)}
-                          disabled={syncingProductId === product.id}
-                          data-testid={`button-sync-${product.id}`}
-                        >
-                          {syncingProductId === product.id ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                          )}
-                          Sync from Printify
-                        </Button>
-                        {(product.metadata as any)?.lastSyncedAt && (
-                          <span className="text-xs text-muted-foreground">
-                            Last synced: {new Date((product.metadata as any).lastSyncedAt).toLocaleDateString()}
-                          </span>
-                        )}
                       </div>
                       
                       <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
