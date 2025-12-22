@@ -3228,7 +3228,7 @@ function PartnerStoresTab() {
                       return (
                         <div 
                           key={product.id} 
-                          className={`p-4 ${isSelected ? 'bg-primary/5 border-l-4 border-primary' : 'opacity-60'}`}
+                          className={`p-4 border-l-4 ${isSelected ? 'bg-primary/5 border-primary' : 'border-transparent'}`}
                           data-testid={`row-product-${product.id}`}
                         >
                           <div className="flex items-start gap-3 mb-3">
