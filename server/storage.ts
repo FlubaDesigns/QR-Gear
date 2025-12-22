@@ -799,14 +799,57 @@ export class DbStorage implements IStorage {
   }
 
   async syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void> {
+    // Get existing configurations before deletion to preserve them
+    const existingProducts = await this.db.select().from(schema.partnerStoreProducts)
+      .where(eq(schema.partnerStoreProducts.partnerStoreId, partnerStoreId));
+    
+    // Create a map of existing configurations by productId
+    const existingConfigs = new Map<string, typeof existingProducts[0]>();
+    existingProducts.forEach(p => existingConfigs.set(p.productId, p));
+    
+    // Delete all existing
     await this.db.delete(schema.partnerStoreProducts).where(eq(schema.partnerStoreProducts.partnerStoreId, partnerStoreId));
+    
     if (productIds.length > 0) {
-      const products = productIds.map((productId, index) => ({
-        partnerStoreId,
-        productId,
-        sortOrder: index,
+      // For each product, try to restore existing config or fetch source product data
+      const productsToInsert = await Promise.all(productIds.map(async (productId, index) => {
+        const existingConfig = existingConfigs.get(productId);
+        
+        if (existingConfig) {
+          // Preserve existing configuration
+          return {
+            partnerStoreId,
+            productId,
+            sortOrder: index,
+            enabledSizes: existingConfig.enabledSizes,
+            enabledColors: existingConfig.enabledColors,
+            kcPlacements: existingConfig.kcPlacements,
+            kcBusinessSlug: existingConfig.kcBusinessSlug,
+            customPrice: existingConfig.customPrice,
+            customName: existingConfig.customName,
+            isEnabled: existingConfig.isEnabled,
+          };
+        } else {
+          // New product - auto-populate from source product
+          const sourceProduct = await this.getProduct(productId);
+          const availableSizes = Array.isArray(sourceProduct?.availableSizes) 
+            ? sourceProduct.availableSizes as string[] 
+            : null;
+          const availableColors = Array.isArray(sourceProduct?.availableColors)
+            ? (sourceProduct.availableColors as Array<{name: string; hex: string}>).map(c => c.name)
+            : null;
+          
+          return {
+            partnerStoreId,
+            productId,
+            sortOrder: index,
+            enabledSizes: availableSizes,
+            enabledColors: availableColors,
+          };
+        }
       }));
-      await this.db.insert(schema.partnerStoreProducts).values(products);
+      
+      await this.db.insert(schema.partnerStoreProducts).values(productsToInsert);
     }
   }
 
@@ -1650,11 +1693,56 @@ class MemStorage implements IStorage {
   }
 
   async syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void> {
+    // Get existing configurations before deletion to preserve them
+    const existingProducts = Array.from(this.partnerStoreProducts.values())
+      .filter(p => p.partnerStoreId === partnerStoreId);
+    
+    // Create a map of existing configurations by productId
+    const existingConfigs = new Map<string, typeof existingProducts[0]>();
+    existingProducts.forEach(p => existingConfigs.set(p.productId, p));
+    
+    // Delete all existing
     Array.from(this.partnerStoreProducts.entries()).forEach(([id, product]) => {
       if (product.partnerStoreId === partnerStoreId) this.partnerStoreProducts.delete(id);
     });
+    
+    // Add products with preserved or auto-populated configurations
     for (let i = 0; i < productIds.length; i++) {
-      await this.addPartnerStoreProduct({ partnerStoreId, productId: productIds[i], sortOrder: i });
+      const productId = productIds[i];
+      const existingConfig = existingConfigs.get(productId);
+      
+      if (existingConfig) {
+        // Preserve existing configuration
+        await this.addPartnerStoreProduct({
+          partnerStoreId,
+          productId,
+          sortOrder: i,
+          enabledSizes: existingConfig.enabledSizes,
+          enabledColors: existingConfig.enabledColors,
+          kcPlacements: existingConfig.kcPlacements,
+          kcBusinessSlug: existingConfig.kcBusinessSlug,
+          customPrice: existingConfig.customPrice,
+          customName: existingConfig.customName,
+          isEnabled: existingConfig.isEnabled,
+        });
+      } else {
+        // New product - auto-populate from source product
+        const sourceProduct = this.products.get(productId);
+        const availableSizes = Array.isArray(sourceProduct?.availableSizes) 
+          ? sourceProduct.availableSizes as string[] 
+          : null;
+        const availableColors = Array.isArray(sourceProduct?.availableColors)
+          ? (sourceProduct.availableColors as Array<{name: string; hex: string}>).map(c => c.name)
+          : null;
+        
+        await this.addPartnerStoreProduct({
+          partnerStoreId,
+          productId,
+          sortOrder: i,
+          enabledSizes: availableSizes,
+          enabledColors: availableColors,
+        });
+      }
     }
   }
 
