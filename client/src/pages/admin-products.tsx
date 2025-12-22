@@ -59,12 +59,14 @@ interface CatalogSyncStatus {
 function CatalogSyncSection() {
   const { toast } = useToast();
   
-  const { data: syncStatus, refetch: refetchStatus, isLoading } = useQuery<CatalogSyncStatus>({
+  const { data: syncStatus, refetch: refetchStatus, isLoading, isError, error } = useQuery<CatalogSyncStatus>({
     queryKey: ["/api/admin/catalog/sync-status"],
     refetchInterval: (query) => {
       const data = query.state.data as CatalogSyncStatus | undefined;
+      if (query.state.status === 'error') return 5000;
       return data?.latestSync?.status === 'running' ? 2000 : false;
     },
+    retry: 2,
   });
   
   const syncMutation = useMutation({
@@ -102,7 +104,21 @@ function CatalogSyncSection() {
                 </Badge>
               ) : null}
             </div>
-            {lastSync && (
+            {isLoading && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Loading sync status...
+              </p>
+            )}
+            {isError && (
+              <p className="text-xs text-destructive flex items-center gap-2">
+                Failed to load status
+                <Button variant="ghost" size="sm" className="h-5 px-2 text-xs" onClick={() => refetchStatus()}>
+                  Retry
+                </Button>
+              </p>
+            )}
+            {!isLoading && !isError && lastSync && (
               <p className="text-xs text-muted-foreground">
                 {lastSync.status === 'running' ? (
                   <span className="flex items-center gap-1">
@@ -116,7 +132,7 @@ function CatalogSyncSection() {
                 ) : null}
               </p>
             )}
-            {!lastSync && !isLoading && (
+            {!isLoading && !isError && !lastSync && (
               <p className="text-xs text-muted-foreground">
                 No catalog synced yet. Click "Sync Now" to download the Printify catalog.
               </p>
@@ -127,7 +143,7 @@ function CatalogSyncSection() {
             variant="outline"
             size="sm"
             onClick={() => syncMutation.mutate()}
-            disabled={isSyncing || syncMutation.isPending || !syncStatus?.isConfigured}
+            disabled={isSyncing || syncMutation.isPending}
             data-testid="button-sync-catalog"
           >
             {isSyncing ? (
