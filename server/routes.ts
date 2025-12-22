@@ -898,6 +898,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update product size/color options (stored in metadata)
+  app.patch("/api/admin/products/:id/options", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { enabledSizes, enabledColors } = req.body;
+      
+      // Get current product to preserve other metadata
+      const currentProduct = await storage.getProduct(id);
+      if (!currentProduct) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      // Merge with existing metadata
+      const existingMetadata = (currentProduct.metadata as Record<string, unknown>) || {};
+      const newMetadata = {
+        ...existingMetadata,
+        enabledSizes,
+        enabledColors,
+      };
+      
+      const product = await storage.updateProduct(id, { metadata: newMetadata });
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Update product admin settings (markup, production cost, etc.)
   app.patch("/api/admin/products/:id", isAdmin, async (req: any, res) => {
     try {

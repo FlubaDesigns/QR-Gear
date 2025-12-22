@@ -461,45 +461,116 @@ function PartnerStoreProductVariantDialog({
   );
 }
 
-function ProductOptionsDisplay({ product }: { product: Product }) {
+function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdate: () => void }) {
+  const { toast } = useToast();
   const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
   const colors = Array.isArray(product.availableColors) 
     ? (product.availableColors as Array<{name: string; hex: string}>)
     : [];
   
-  const enabledSizes = (product.metadata as any)?.enabledSizes as string[] | undefined;
-  const enabledColors = (product.metadata as any)?.enabledColors as string[] | undefined;
+  const savedEnabledSizes = (product.metadata as any)?.enabledSizes as string[] | undefined;
+  const savedEnabledColors = (product.metadata as any)?.enabledColors as string[] | undefined;
   
-  // If no saved preferences, show all as enabled
-  const activeSizes = enabledSizes || sizes;
-  const activeColors = enabledColors || colors.map(c => c.name);
+  // Default: all sizes and colors ON
+  const [enabledSizes, setEnabledSizes] = useState<Set<string>>(
+    new Set(savedEnabledSizes || sizes)
+  );
+  const [enabledColors, setEnabledColors] = useState<Set<string>>(
+    new Set(savedEnabledColors || colors.map(c => c.name))
+  );
+  const [saving, setSaving] = useState(false);
   
   const colorHexMap: Record<string, string> = {};
   colors.forEach(c => { colorHexMap[c.name] = c.hex; });
+  
+  const toggleSize = async (size: string) => {
+    const newSizes = new Set(enabledSizes);
+    if (newSizes.has(size)) {
+      newSizes.delete(size);
+    } else {
+      newSizes.add(size);
+    }
+    setEnabledSizes(newSizes);
+    await saveChanges(Array.from(newSizes), Array.from(enabledColors));
+  };
+  
+  const toggleColor = async (colorName: string) => {
+    const newColors = new Set(enabledColors);
+    if (newColors.has(colorName)) {
+      newColors.delete(colorName);
+    } else {
+      newColors.add(colorName);
+    }
+    setEnabledColors(newColors);
+    await saveChanges(Array.from(enabledSizes), Array.from(newColors));
+  };
+  
+  const saveChanges = async (newSizes: string[], newColors: string[]) => {
+    setSaving(true);
+    try {
+      await apiRequest("PATCH", `/api/admin/products/${product.id}/options`, {
+        enabledSizes: newSizes,
+        enabledColors: newColors,
+      });
+      onUpdate();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
   
   if (sizes.length === 0 && colors.length === 0) {
     return <div className="text-sm text-muted-foreground">No sizes/colors - sync from Printify</div>;
   }
   
   return (
-    <div className="space-y-2">
-      {activeSizes.length > 0 && (
-        <div className="flex flex-wrap gap-1 items-center">
-          <span className="text-xs text-muted-foreground mr-1">Sizes:</span>
-          {activeSizes.map(size => (
-            <Badge key={size} variant="secondary" className="text-xs">{size}</Badge>
-          ))}
+    <div className="space-y-3">
+      {sizes.length > 0 && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">
+            Sizes {saving && <Loader2 className="w-3 h-3 inline animate-spin ml-1" />}
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {sizes.map(size => (
+              <div key={size} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                <Switch
+                  id={`size-${product.id}-${size}`}
+                  checked={enabledSizes.has(size)}
+                  onCheckedChange={() => toggleSize(size)}
+                  disabled={saving}
+                  data-testid={`switch-size-${product.id}-${size}`}
+                />
+                <Label htmlFor={`size-${product.id}-${size}`} className="text-sm cursor-pointer">
+                  {size}
+                </Label>
+              </div>
+            ))}
+          </div>
         </div>
       )}
-      {activeColors.length > 0 && (
-        <div className="flex flex-wrap gap-1 items-center">
-          <span className="text-xs text-muted-foreground mr-1">Colors:</span>
-          {activeColors.map(colorName => (
-            <div key={colorName} className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-xs">
-              <ColorSwatch hex={colorHexMap[colorName] || getSwatchColor(colorName)} className="w-3 h-3" />
-              {colorName}
-            </div>
-          ))}
+      {colors.length > 0 && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">
+            Colors {saving && <Loader2 className="w-3 h-3 inline animate-spin ml-1" />}
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {colors.map(color => (
+              <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                <Switch
+                  id={`color-${product.id}-${color.name}`}
+                  checked={enabledColors.has(color.name)}
+                  onCheckedChange={() => toggleColor(color.name)}
+                  disabled={saving}
+                  data-testid={`switch-color-${product.id}-${color.name}`}
+                />
+                <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-4 h-4" />
+                <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
+                  {color.name}
+                </Label>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1972,8 +2043,8 @@ function ProductsTab() {
                       </div>
                     </div>
                     
-                    {/* Sizes & Colors Display - tap to edit */}
-                    <ProductOptionsDisplay product={product} />
+                    {/* Sizes & Colors with Switches */}
+                    <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
                     
                     {/* Tags */}
                     <div>
