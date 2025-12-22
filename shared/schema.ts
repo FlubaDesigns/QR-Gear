@@ -461,6 +461,49 @@ export const insertProductCategoryAssignmentSchema = createInsertSchema(productC
   createdAt: true,
 });
 
+// Printify Catalog Cache Tables
+export const printifyBlueprints = pgTable("printify_blueprints", {
+  id: integer("id").primaryKey(), // Printify blueprint ID
+  title: text("title").notNull(),
+  description: text("description"),
+  brand: text("brand"),
+  model: text("model"),
+  images: text("images").array(), // Array of image URLs
+  primaryImageUrl: text("primary_image_url"),
+  category: text("category"), // Derived category (t-shirts, hats, mugs, etc.)
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const printifyPrintProviders = pgTable("printify_print_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  blueprintId: integer("blueprint_id").notNull().references(() => printifyBlueprints.id),
+  providerId: integer("provider_id").notNull(),
+  title: text("title").notNull(),
+  country: text("country"),
+  isUSA: boolean("is_usa").default(false),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+});
+
+export const printifyCatalogSync = pgTable("printify_catalog_sync", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  syncType: text("sync_type").notNull(), // 'full' or 'incremental'
+  status: text("status").notNull(), // 'running', 'completed', 'failed'
+  blueprintsCount: integer("blueprints_count").default(0),
+  providersCount: integer("providers_count").default(0),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertPrintifyBlueprintSchema = createInsertSchema(printifyBlueprints);
+export const insertPrintifyPrintProviderSchema = createInsertSchema(printifyPrintProviders).omit({
+  id: true,
+});
+export const insertPrintifyCatalogSyncSchema = createInsertSchema(printifyCatalogSync).omit({
+  id: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -529,3 +572,12 @@ export type ProductCategoryAssignment = typeof productCategoryAssignments.$infer
 export type InsertProductCategoryAssignment = z.infer<typeof insertProductCategoryAssignmentSchema>;
 
 export type UpsertUser = typeof users.$inferInsert;
+
+export type PrintifyBlueprint = typeof printifyBlueprints.$inferSelect;
+export type InsertPrintifyBlueprint = z.infer<typeof insertPrintifyBlueprintSchema>;
+
+export type PrintifyPrintProvider = typeof printifyPrintProviders.$inferSelect;
+export type InsertPrintifyPrintProvider = z.infer<typeof insertPrintifyPrintProviderSchema>;
+
+export type PrintifyCatalogSync = typeof printifyCatalogSync.$inferSelect;
+export type InsertPrintifyCatalogSync = z.infer<typeof insertPrintifyCatalogSyncSchema>;
