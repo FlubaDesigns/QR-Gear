@@ -2864,20 +2864,18 @@ export default function Admin() {
 
       <main className="container max-w-6xl mx-auto py-6 px-4">
 
-        <nav className="flex items-center gap-2 mb-6 text-sm" aria-label="Breadcrumb">
-          <Link href="/" className="text-muted-foreground hover:text-foreground" data-testid="breadcrumb-home">
-            Home
-          </Link>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
+          <span className="text-muted-foreground">Home</span>
+          <span className="text-muted-foreground mx-2">/</span>
           <span className="text-foreground font-medium" aria-current="page">Admin Dashboard</span>
         </nav>
 
-        <div className="mb-6">
+        <div className="mb-8">
           <Link href="/admin/sales/build">
-            <button className="qr-btn qr-btn--lg qr-btn--primary" data-testid="button-store-builder">
-              <Store className="h-6 w-6" />
+            <Button size="lg" className="h-14 px-8 text-lg" data-testid="button-store-builder">
+              <Store className="h-6 w-6 mr-2" />
               Build Store Segment
-            </button>
+            </Button>
           </Link>
         </div>
 
