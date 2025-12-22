@@ -3177,38 +3177,137 @@ function PartnerStoresTab() {
             <div className="space-y-2">
               <Label>Assign Products to This Partner</Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Select products, then click "Configure" to set which sizes and colors to offer.
-                All sizes and colors are enabled by default - turn OFF the ones you don't want.
+                Check products to include. Toggle sizes and colors ON/OFF directly.
               </p>
-              <div className="border rounded-md p-3 max-h-[400px] overflow-y-auto space-y-2">
+              <div className="border rounded-md max-h-[500px] overflow-y-auto">
                 {loadingStoreProducts ? (
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-sm text-muted-foreground">Loading assigned products...</span>
                   </div>
                 ) : products && products.filter(p => p.isEnabled).length > 0 ? (
-                  products.filter(p => p.isEnabled).map(product => {
-                    const isSelected = selectedProducts.includes(product.id);
-                    const isExpanded = expandedProductId === product.id;
-                    
-                    return (
-                      <PartnerProductConfigurator
-                        key={product.id}
-                        product={product}
-                        isSelected={isSelected}
-                        isExpanded={isExpanded}
-                        onToggleSelect={() => toggleProduct(product.id)}
-                        onExpand={() => setExpandedProductId(isExpanded ? null : product.id)}
-                        existingConfig={storeProductConfigs[product.id]}
-                        onConfigChange={(productId, config) => {
-                          setStoreProductConfigs(prev => ({
-                            ...prev,
-                            [productId]: config,
-                          }));
-                        }}
-                      />
-                    );
-                  })
+                  <div className="divide-y">
+                    {products.filter(p => p.isEnabled).map(product => {
+                      const isSelected = selectedProducts.includes(product.id);
+                      const config = storeProductConfigs[product.id];
+                      const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
+                      const colors = Array.isArray(product.availableColors) 
+                        ? (product.availableColors as Array<{name: string; hex: string}>)
+                        : [];
+                      
+                      // Get enabled sizes/colors from config, default ALL on
+                      const enabledSizesArr = config?.enabledSizes || sizes;
+                      const enabledColorsArr = config?.enabledColors || colors.map(c => c.name);
+                      
+                      const toggleSize = (size: string) => {
+                        const current = new Set(enabledSizesArr);
+                        if (current.has(size)) current.delete(size);
+                        else current.add(size);
+                        setStoreProductConfigs(prev => ({
+                          ...prev,
+                          [product.id]: {
+                            enabledSizes: Array.from(current),
+                            enabledColors: enabledColorsArr,
+                          },
+                        }));
+                      };
+                      
+                      const toggleColor = (colorName: string) => {
+                        const current = new Set(enabledColorsArr);
+                        if (current.has(colorName)) current.delete(colorName);
+                        else current.add(colorName);
+                        setStoreProductConfigs(prev => ({
+                          ...prev,
+                          [product.id]: {
+                            enabledSizes: enabledSizesArr,
+                            enabledColors: Array.from(current),
+                          },
+                        }));
+                      };
+                      
+                      return (
+                        <div 
+                          key={product.id} 
+                          className={`p-4 ${isSelected ? 'bg-primary/5' : ''}`}
+                          data-testid={`row-product-${product.id}`}
+                        >
+                          <div className="flex items-start gap-3 mb-3">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleProduct(product.id)}
+                              className="mt-1"
+                              data-testid={`checkbox-product-${product.id}`}
+                            />
+                            {product.imageUrl && (
+                              <img src={product.imageUrl} alt="" className="w-12 h-12 rounded object-cover" />
+                            )}
+                            <div className="flex-1">
+                              <div className="font-medium">{product.name}</div>
+                              <div className="text-sm text-muted-foreground">${product.basePrice}</div>
+                            </div>
+                          </div>
+                          
+                          {isSelected && (
+                            <div className="ml-7 space-y-3">
+                              {sizes.length > 0 && (
+                                <div>
+                                  <div className="text-xs font-medium text-muted-foreground mb-1">Sizes</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {sizes.map(size => (
+                                      <div 
+                                        key={size} 
+                                        className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded text-sm"
+                                      >
+                                        <Switch
+                                          id={`sz-${product.id}-${size}`}
+                                          checked={enabledSizesArr.includes(size)}
+                                          onCheckedChange={() => toggleSize(size)}
+                                          className="scale-75"
+                                          data-testid={`switch-size-${product.id}-${size}`}
+                                        />
+                                        <Label htmlFor={`sz-${product.id}-${size}`} className="cursor-pointer text-xs">
+                                          {size}
+                                        </Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {colors.length > 0 && (
+                                <div>
+                                  <div className="text-xs font-medium text-muted-foreground mb-1">Colors</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {colors.map(color => (
+                                      <div 
+                                        key={color.name} 
+                                        className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded text-sm"
+                                      >
+                                        <Switch
+                                          id={`clr-${product.id}-${color.name}`}
+                                          checked={enabledColorsArr.includes(color.name)}
+                                          onCheckedChange={() => toggleColor(color.name)}
+                                          className="scale-75"
+                                          data-testid={`switch-color-${product.id}-${color.name}`}
+                                        />
+                                        <div 
+                                          className="w-4 h-4 rounded-full border border-white/30" 
+                                          style={{ backgroundColor: color.hex || getSwatchColor(color.name) }}
+                                        />
+                                        <Label htmlFor={`clr-${product.id}-${color.name}`} className="cursor-pointer text-xs">
+                                          {color.name}
+                                        </Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No products in catalog yet. Add products in the Products tab first.
