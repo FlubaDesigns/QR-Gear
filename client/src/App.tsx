@@ -13,6 +13,7 @@ import Account from "@/pages/account";
 import ViewImage from "@/pages/view-image";
 import ViewDynamic from "@/pages/view-dynamic";
 import Admin from "@/pages/admin";
+import PartnerStores from "@/pages/partner-stores";
 import CheckoutSuccess from "@/pages/checkout-success";
 import NotFound from "@/pages/not-found";
 
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
       <Route path="/admin" component={Admin} />
+      <Route path="/admin/partner-stores" component={PartnerStores} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />

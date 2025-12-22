@@ -13,6 +13,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "Bella+Canvas",
     madeInUSA: true,
     availablePlacements: ["front-chest", "front-pocket", "back", "left-shoulder", "right-shoulder"],
+    availableSizes: ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
     availableColors: [
       { name: "White", hex: "#FFFFFF" },
       { name: "Black", hex: "#000000" },
@@ -33,6 +34,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "Gildan",
     madeInUSA: true,
     availablePlacements: ["front-chest", "front-pocket", "back", "left-shoulder", "right-shoulder"],
+    availableSizes: ["S", "M", "L", "XL", "2XL", "3XL"],
     availableColors: [
       { name: "White", hex: "#FFFFFF" },
       { name: "Black", hex: "#000000" },
@@ -52,6 +54,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "OTTO Cap",
     madeInUSA: true,
     availablePlacements: ["front-center", "side-left", "side-right", "back"],
+    availableSizes: ["One Size"],
     availableColors: [
       { name: "Black/White", hex: "#000000" },
       { name: "Navy/White", hex: "#000080" },
@@ -71,6 +74,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "ValuCap",
     madeInUSA: true,
     availablePlacements: ["front-center"],
+    availableSizes: ["One Size"],
     availableColors: [
       { name: "Black", hex: "#000000" },
       { name: "Navy", hex: "#000080" },
@@ -90,6 +94,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "Generic",
     madeInUSA: true,
     availablePlacements: ["wrap-around", "front-center"],
+    availableSizes: ["11oz"],
     availableColors: [
       { name: "White", hex: "#FFFFFF" },
     ],
@@ -106,6 +111,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "Generic",
     madeInUSA: true,
     availablePlacements: ["wrap-around", "front-center"],
+    availableSizes: ["15oz"],
     availableColors: [
       { name: "White", hex: "#FFFFFF" },
     ],
@@ -122,6 +128,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "Generic",
     madeInUSA: true,
     availablePlacements: ["front-center", "back"],
+    availableSizes: ["One Size"],
     availableColors: [
       { name: "Natural", hex: "#F5F5DC" },
       { name: "Black", hex: "#000000" },
@@ -140,6 +147,7 @@ const sampleProducts: InsertProduct[] = [
     manufacturer: "Generic",
     madeInUSA: true,
     availablePlacements: ["front-center"],
+    availableSizes: ["One Size"],
     availableColors: [
       { name: "Black", hex: "#000000" },
       { name: "White", hex: "#FFFFFF" },
