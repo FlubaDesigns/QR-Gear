@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 
 interface PrintifyBlueprint {
@@ -89,7 +92,21 @@ interface CreateOrderRequest {
 
 class PrintifyClient {
   private getApiKey(): string {
-    return (process.env.PRINTIFY_API_KEY || '').trim().replace(/\s+/g, '');
+    // Try env var first, then fallback to file
+    let key = (process.env.PRINTIFY_API_KEY || '').trim().replace(/\s+/g, '');
+    
+    // If env var looks like it has garbage, try file
+    if (!key || !key.startsWith('eyJ')) {
+      try {
+        const tokenPath = path.join(process.cwd(), 'server', 'printify-token.txt');
+        if (fs.existsSync(tokenPath)) {
+          key = fs.readFileSync(tokenPath, 'utf-8').trim().replace(/\s+/g, '');
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return key;
   }
   
   private getShopId(): string {
