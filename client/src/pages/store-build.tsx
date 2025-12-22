@@ -37,7 +37,10 @@ import {
   Plus,
   Check,
   X,
+  Flag,
+  Globe2,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type ProductConfig = {
   enabledSizes: string[];
@@ -65,6 +68,7 @@ export default function StoreBuildPage() {
   const [selectedPlacement, setSelectedPlacement] = useState<string>("");
   const [usaOnly, setUsaOnly] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [productConfigs, setProductConfigs] = useState<Record<string, ProductConfig>>({});
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [saveStatus, setSaveStatus] = useState<Record<string, "success" | "error" | null>>({});
@@ -223,7 +227,8 @@ export default function StoreBuildPage() {
     ? enabledProducts.filter(p => p.madeInUSA)
     : enabledProducts;
 
-  const externalStores = stores || [];
+  // External stores are partner stores, internal stores are QR Gear's own (not yet implemented)
+  const filteredStores = storeType === "external" ? (stores || []) : [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -314,13 +319,21 @@ export default function StoreBuildPage() {
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Loading stores...</span>
                 </div>
+              ) : storeType === "internal" ? (
+                <div className="p-4 text-center text-muted-foreground bg-muted rounded-lg">
+                  Internal stores coming soon. Use External for partner stores like Kingdom Connects.
+                </div>
+              ) : filteredStores.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground bg-muted rounded-lg">
+                  No stores available. Click "Add New Store" above to create one.
+                </div>
               ) : (
                 <Select value={selectedStoreId} onValueChange={(v) => { setSelectedStoreId(v); setSelectedPlacement(""); }}>
                   <SelectTrigger className="h-14 text-lg" data-testid="select-store">
                     <SelectValue placeholder="Choose a store..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {externalStores.map(store => (
+                    {filteredStores.map(store => (
                       <SelectItem key={store.id} value={store.id} className="py-3 text-base">
                         {store.name}
                       </SelectItem>
@@ -362,7 +375,8 @@ export default function StoreBuildPage() {
                 onClick={() => setUsaOnly(!usaOnly)}
                 data-testid="button-usa-filter"
               >
-                🇺🇸 Made in USA Only
+                <Flag className="h-5 w-5" />
+                Made in USA Only
               </button>
             </div>
 
@@ -390,6 +404,24 @@ export default function StoreBuildPage() {
                       data-testid={`product-card-${product.id}`}
                     >
                       <div className="flex gap-4">
+                        <div className="flex items-start pt-1">
+                          <Checkbox
+                            checked={selectedProducts.has(product.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedProducts(prev => {
+                                const next = new Set(prev);
+                                if (checked) {
+                                  next.add(product.id);
+                                } else {
+                                  next.delete(product.id);
+                                }
+                                return next;
+                              });
+                            }}
+                            className="h-11 w-11"
+                            data-testid={`checkbox-select-${product.id}`}
+                          />
+                        </div>
                         {product.imageUrl && (
                           <button
                             onClick={() => setEnlargedImage({ url: product.imageUrl!, name: product.name })}
@@ -409,8 +441,12 @@ export default function StoreBuildPage() {
                             <span>{product.manufacturer || "Unknown Manufacturer"}</span>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="text-xl cursor-help">
-                                  {product.madeInUSA ? "🇺🇸" : "🌍"}
+                                <span className="cursor-help">
+                                  {product.madeInUSA ? (
+                                    <Flag className="h-5 w-5 text-blue-600" />
+                                  ) : (
+                                    <Globe2 className="h-5 w-5 text-muted-foreground" />
+                                  )}
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent>
