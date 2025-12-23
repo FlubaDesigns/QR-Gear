@@ -268,6 +268,65 @@ class PrintifyClient {
       body: JSON.stringify(orderData),
     });
   }
+
+  async deleteProduct(productId: string): Promise<void> {
+    await this.request(`/shops/${this.getShopId()}/products/${productId}.json`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Create a minimal placeholder product to extract production costs.
+   * Returns the product with variant costs, which can then be cached locally.
+   */
+  async createPlaceholderProduct(
+    blueprintId: number,
+    printProviderId: number,
+    variantIds: number[]
+  ): Promise<PrintifyProduct> {
+    // Create a minimal product with all variants enabled at $0 price
+    // This lets us read the production cost from the returned product
+    const productData = {
+      title: `[COST_SYNC] Blueprint ${blueprintId}`,
+      description: 'Temporary product for cost extraction - will be deleted',
+      blueprint_id: blueprintId,
+      print_provider_id: printProviderId,
+      variants: variantIds.map(id => ({
+        id,
+        price: 0, // We just need to read the cost, price doesn't matter
+        is_enabled: true,
+      })),
+      print_areas: [], // No print areas needed for cost extraction
+    };
+
+    return this.request(`/shops/${this.getShopId()}/products.json`, {
+      method: 'POST',
+      body: JSON.stringify(productData),
+    });
+  }
+
+  /**
+   * Extract production costs from a product's variants.
+   * Returns min/max costs in cents.
+   */
+  extractCostsFromProduct(product: PrintifyProduct): { minCost: number; maxCost: number } {
+    const costs: number[] = [];
+    
+    for (const variant of product.variants || []) {
+      if (typeof variant.cost === 'number' && variant.cost > 0) {
+        costs.push(variant.cost);
+      }
+    }
+
+    if (costs.length === 0) {
+      return { minCost: 0, maxCost: 0 };
+    }
+
+    return {
+      minCost: Math.min(...costs),
+      maxCost: Math.max(...costs),
+    };
+  }
 }
 
 export const printify = new PrintifyClient();
