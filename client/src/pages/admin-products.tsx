@@ -980,10 +980,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               )}
                             </div>
                             
-                            {/* Right: Title, Brand, Price */}
+                            {/* Right: Title, Brand+Flag, Price */}
                             <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                               <div className="font-medium text-sm leading-tight line-clamp-2">{item.title}</div>
-                              <div className="text-xs text-muted-foreground">{item.brand}</div>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <span>{item.brand}</span>
+                                <span>{item.madeInUSA ? "🇺🇸" : "🌍"}</span>
+                              </div>
                               {details && !details.error ? (
                                 <div className="text-lg font-semibold text-green-600">
                                   ${details.basePrice.toFixed(2)}
@@ -996,20 +999,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             </div>
                           </div>
                           
-                          {/* Row 2: Made in USA badge on its own line */}
-                          <div className="mt-3">
-                            {item.madeInUSA ? (
-                              <Badge variant="outline" className="gap-1" data-testid={`badge-usa-${item.id}`}>
-                                <span>🇺🇸</span> Made in USA
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="gap-1" data-testid={`badge-imported-${item.id}`}>
-                                <span>🌍</span> Imported
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          {/* Row 3: Configure button */}
+                          {/* Row 2: Configure button */}
                           <div className="mt-3">
                             <Button 
                               variant={isSelected ? "default" : "outline"}
@@ -1022,7 +1012,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             </Button>
                           </div>
                           
-                          {/* Row 4: Save to Store button */}
+                          {/* Row 3: Save to Store button */}
                           <div className="mt-2">
                             <Button 
                               variant="secondary"
