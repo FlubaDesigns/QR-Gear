@@ -236,10 +236,14 @@ class PrintifyClient {
     
     // Find a placement that covers ALL variants
     const totalVariants = allVariantIds.length;
+    const MAX_VARIANTS = 100; // Printify limit: maximum 100 variants per product
+    
     for (const [placement, variantSet] of placementToVariants) {
       if (variantSet.size === totalVariants) {
-        console.log(`[Printify] Found common placement '${placement}' for all ${totalVariants} variants`);
-        return { placement, variantIds: allVariantIds };
+        // Cap at MAX_VARIANTS to avoid Printify's "Too many variants" error
+        const limitedIds = allVariantIds.slice(0, MAX_VARIANTS);
+        console.log(`[Printify] Found common placement '${placement}' for ${limitedIds.length}/${totalVariants} variants (capped at ${MAX_VARIANTS})`);
+        return { placement, variantIds: limitedIds };
       }
     }
     
@@ -252,12 +256,13 @@ class PrintifyClient {
       if (variantSet.size > bestCoverage) {
         bestCoverage = variantSet.size;
         bestPlacement = placement;
-        bestVariantIds = Array.from(variantSet);
+        // Cap at MAX_VARIANTS
+        bestVariantIds = Array.from(variantSet).slice(0, MAX_VARIANTS);
       }
     }
     
     if (bestPlacement && bestCoverage > 0) {
-      console.log(`[Printify] Best placement '${bestPlacement}' covers ${bestCoverage}/${totalVariants} variants`);
+      console.log(`[Printify] Best placement '${bestPlacement}' covers ${Math.min(bestCoverage, MAX_VARIANTS)}/${totalVariants} variants`);
       return { placement: bestPlacement, variantIds: bestVariantIds };
     }
     
@@ -386,7 +391,7 @@ class PrintifyClient {
       print_provider_id: printProviderId,
       variants: variantIds.map(id => ({
         id,
-        price: 0,
+        price: 100, // Printify requires price > 0 (100 cents = $1.00 placeholder)
         is_enabled: true,
       })),
       print_areas,

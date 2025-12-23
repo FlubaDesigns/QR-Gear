@@ -144,7 +144,7 @@ async function runWeeklyCostSync(): Promise<void> {
   }
 }
 
-export function startCronJobs(): void {
+export async function startCronJobs(): Promise<void> {
   if (cronInterval) {
     console.log('[Cron] Jobs already running');
     return;
@@ -161,6 +161,22 @@ export function startCronJobs(): void {
   
   console.log('[Cron] Jobs scheduled to run every hour');
   console.log('[Cron] Cost sync scheduled to run weekly');
+  
+  // Initial cost sync at startup if database has no costs
+  // This seeds the database with production costs so pricing displays immediately
+  setTimeout(async () => {
+    try {
+      const status = await getCostSyncStatus();
+      if (!status.isRunning) {
+        console.log('[Cron] Checking if initial cost sync is needed...');
+        // forceRefresh: false means it will skip providers that already have costs
+        await startCostSync({ forceRefresh: false });
+        console.log('[Cron] Initial cost sync started in background');
+      }
+    } catch (error) {
+      console.error('[Cron] Error starting initial cost sync:', error);
+    }
+  }, 5000); // Wait 5 seconds for server to fully initialize
 }
 
 export function stopCronJobs(): void {
