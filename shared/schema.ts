@@ -529,11 +529,28 @@ export const printifyCatalogSync = pgTable("printify_catalog_sync", {
   completedAt: timestamp("completed_at"),
 });
 
+export const printifyCostSync = pgTable("printify_cost_sync", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  status: text("status").notNull(), // 'running', 'completed', 'failed', 'paused'
+  totalProviders: integer("total_providers").default(0),
+  processedCount: integer("processed_count").default(0),
+  successCount: integer("success_count").default(0),
+  failedCount: integer("failed_count").default(0),
+  skippedCount: integer("skipped_count").default(0), // Already had costs
+  lastProcessedProviderId: text("last_processed_provider_id"), // For resume capability
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
 export const insertPrintifyBlueprintSchema = createInsertSchema(printifyBlueprints);
 export const insertPrintifyPrintProviderSchema = createInsertSchema(printifyPrintProviders).omit({
   id: true,
 });
 export const insertPrintifyCatalogSyncSchema = createInsertSchema(printifyCatalogSync).omit({
+  id: true,
+});
+export const insertPrintifyCostSyncSchema = createInsertSchema(printifyCostSync).omit({
   id: true,
 });
 
@@ -614,3 +631,6 @@ export type InsertPrintifyPrintProvider = z.infer<typeof insertPrintifyPrintProv
 
 export type PrintifyCatalogSync = typeof printifyCatalogSync.$inferSelect;
 export type InsertPrintifyCatalogSync = z.infer<typeof insertPrintifyCatalogSyncSchema>;
+
+export type PrintifyCostSync = typeof printifyCostSync.$inferSelect;
+export type InsertPrintifyCostSync = z.infer<typeof insertPrintifyCostSyncSchema>;

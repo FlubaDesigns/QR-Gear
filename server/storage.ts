@@ -50,6 +50,8 @@ import type {
   InsertPrintifyPrintProvider,
   PrintifyCatalogSync,
   InsertPrintifyCatalogSync,
+  PrintifyCostSync,
+  InsertPrintifyCostSync,
   CustomDesign,
   InsertCustomDesign,
 } from "@shared/schema";
@@ -225,6 +227,14 @@ export interface IStorage {
   updateCatalogSync(id: string, sync: Partial<InsertPrintifyCatalogSync>): Promise<PrintifyCatalogSync | undefined>;
   getLatestCatalogSync(): Promise<PrintifyCatalogSync | undefined>;
   getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]>;
+
+  // Printify Cost Sync operations
+  createCostSync(sync: InsertPrintifyCostSync): Promise<PrintifyCostSync>;
+  updateCostSync(id: string, sync: Partial<InsertPrintifyCostSync>): Promise<PrintifyCostSync | undefined>;
+  getLatestCostSync(): Promise<PrintifyCostSync | undefined>;
+  getActiveCostSync(): Promise<PrintifyCostSync | undefined>;
+  getCostSyncHistory(): Promise<PrintifyCostSync[]>;
+  getProviderCostStats(): Promise<{ total: number; withCosts: number; stale: number }>;
 
   // Custom Design operations
   getCustomDesign(id: string): Promise<CustomDesign | undefined>;
@@ -1072,6 +1082,65 @@ export class DbStorage implements IStorage {
     return await this.db.select().from(schema.printifyCatalogSync)
       .orderBy(sql`${schema.printifyCatalogSync.startedAt} DESC`)
       .limit(20);
+  }
+
+  // Printify Cost Sync operations
+  async createCostSync(sync: InsertPrintifyCostSync): Promise<PrintifyCostSync> {
+    const [result] = await this.db
+      .insert(schema.printifyCostSync)
+      .values(sync)
+      .returning();
+    return result;
+  }
+
+  async updateCostSync(id: string, sync: Partial<InsertPrintifyCostSync>): Promise<PrintifyCostSync | undefined> {
+    const [updated] = await this.db
+      .update(schema.printifyCostSync)
+      .set(sync)
+      .where(eq(schema.printifyCostSync.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getLatestCostSync(): Promise<PrintifyCostSync | undefined> {
+    const [sync] = await this.db.select().from(schema.printifyCostSync)
+      .orderBy(sql`${schema.printifyCostSync.startedAt} DESC`)
+      .limit(1);
+    return sync;
+  }
+
+  async getActiveCostSync(): Promise<PrintifyCostSync | undefined> {
+    const [sync] = await this.db.select().from(schema.printifyCostSync)
+      .where(eq(schema.printifyCostSync.status, 'running'))
+      .orderBy(sql`${schema.printifyCostSync.startedAt} DESC`)
+      .limit(1);
+    return sync;
+  }
+
+  async getCostSyncHistory(): Promise<PrintifyCostSync[]> {
+    return await this.db.select().from(schema.printifyCostSync)
+      .orderBy(sql`${schema.printifyCostSync.startedAt} DESC`)
+      .limit(20);
+  }
+
+  async getProviderCostStats(): Promise<{ total: number; withCosts: number; stale: number }> {
+    const providers = await this.db.select().from(schema.printifyPrintProviders);
+    const now = Date.now();
+    const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
+    
+    let withCosts = 0;
+    let stale = 0;
+    
+    for (const p of providers) {
+      if (p.minCost && p.minCost > 0) {
+        withCosts++;
+        if (p.costsFetchedAt && now - new Date(p.costsFetchedAt).getTime() > staleThreshold) {
+          stale++;
+        }
+      }
+    }
+    
+    return { total: providers.length, withCosts, stale };
   }
 
   // Custom Design operations
@@ -2121,6 +2190,66 @@ class MemStorage implements IStorage {
 
   async getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]> {
     return this.catalogSyncs.slice(0, 20);
+  }
+
+  // Printify Cost Sync operations (MemStorage)
+  private costSyncs: PrintifyCostSync[] = [];
+
+  async createCostSync(sync: InsertPrintifyCostSync): Promise<PrintifyCostSync> {
+    const result: PrintifyCostSync = {
+      ...sync,
+      id: `cost_sync_${Date.now()}`,
+      totalProviders: sync.totalProviders ?? 0,
+      processedCount: sync.processedCount ?? 0,
+      successCount: sync.successCount ?? 0,
+      failedCount: sync.failedCount ?? 0,
+      skippedCount: sync.skippedCount ?? 0,
+      lastProcessedProviderId: sync.lastProcessedProviderId ?? null,
+      errorMessage: sync.errorMessage ?? null,
+      startedAt: sync.startedAt ?? new Date(),
+      completedAt: sync.completedAt ?? null,
+    };
+    this.costSyncs.unshift(result);
+    return result;
+  }
+
+  async updateCostSync(id: string, sync: Partial<InsertPrintifyCostSync>): Promise<PrintifyCostSync | undefined> {
+    const index = this.costSyncs.findIndex(s => s.id === id);
+    if (index === -1) return undefined;
+    this.costSyncs[index] = { ...this.costSyncs[index], ...sync };
+    return this.costSyncs[index];
+  }
+
+  async getLatestCostSync(): Promise<PrintifyCostSync | undefined> {
+    return this.costSyncs[0];
+  }
+
+  async getActiveCostSync(): Promise<PrintifyCostSync | undefined> {
+    return this.costSyncs.find(s => s.status === 'running');
+  }
+
+  async getCostSyncHistory(): Promise<PrintifyCostSync[]> {
+    return this.costSyncs.slice(0, 20);
+  }
+
+  async getProviderCostStats(): Promise<{ total: number; withCosts: number; stale: number }> {
+    const providers = Array.from(this.printifyPrintProviders.values());
+    const now = Date.now();
+    const staleThreshold = 24 * 60 * 60 * 1000;
+    
+    let withCosts = 0;
+    let stale = 0;
+    
+    for (const p of providers) {
+      if (p.minCost && p.minCost > 0) {
+        withCosts++;
+        if (p.costsFetchedAt && now - new Date(p.costsFetchedAt).getTime() > staleThreshold) {
+          stale++;
+        }
+      }
+    }
+    
+    return { total: providers.length, withCosts, stale };
   }
 
   // Custom Design operations (MemStorage)
