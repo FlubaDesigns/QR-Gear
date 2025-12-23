@@ -1210,18 +1210,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const colors = Array.from(new Set(variants.map((v: any) => v.options?.color).filter(Boolean)));
           const sizes = Array.from(new Set(variants.map((v: any) => v.options?.size).filter(Boolean)));
           
-          // Get base price (lowest) - check multiple price fields
-          // Printify may use 'price', 'cost', or nested pricing
-          console.log(`[Batch] Blueprint ${blueprintId}: ${variants.length} variants, sample:`, 
-            variants[0] ? JSON.stringify(variants[0]).slice(0, 300) : 'none');
+          // Get base price (lowest) - Printify uses 'cost' field in cents
+          const costs = variants.map((v: any) => v.cost || 0).filter((c: number) => c > 0);
+          const basePrice = costs.length > 0 ? Math.min(...costs) / 100 : 0;
           
-          const prices = variants.map((v: any) => {
-            // Try different price field names
-            return v.price || v.cost || v.variant_price || 0;
-          }).filter((p: number) => p > 0);
-          const basePrice = prices.length > 0 ? Math.min(...prices) / 100 : 0;
-          
-          console.log(`[Batch] Blueprint ${blueprintId}: prices found = ${prices.length}, basePrice = ${basePrice}`);
+          if (basePrice === 0 && variants.length > 0) {
+            console.log(`[Batch] Blueprint ${blueprintId}: No costs in ${variants.length} variants. Sample keys:`, 
+              variants[0] ? Object.keys(variants[0]) : 'none');
+          }
           
           const data = {
             blueprintId,
