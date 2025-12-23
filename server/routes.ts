@@ -2652,7 +2652,7 @@ ${allPages.map(page => `  <url>
         productId: validatedData.productId,
         productName: validatedData.productName,
         productImage: validatedData.productImage || null,
-        placement: validatedData.placements.join(","),
+        placements: validatedData.placements,
         backgroundImageUrl: validatedData.backgroundImage || null,
         topText: validatedData.topText || null,
         bottomText: validatedData.bottomText || null,

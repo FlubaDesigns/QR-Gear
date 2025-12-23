@@ -144,7 +144,7 @@ export const customDesigns = pgTable("custom_designs", {
   productId: integer("product_id").notNull(),
   productName: text("product_name").notNull(),
   productImage: text("product_image"),
-  placement: text("placement").notNull(),
+  placements: text("placements").array().notNull(),
   backgroundImageUrl: text("background_image_url"),
   topText: jsonb("top_text"), // {text, fontFamily, fontSize}
   bottomText: jsonb("bottom_text"), // {text, fontFamily, fontSize}
