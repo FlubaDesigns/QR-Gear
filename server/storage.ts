@@ -2265,7 +2265,8 @@ class MemStorage implements IStorage {
   }
 
   async createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign> {
-    const id = `custom_${Date.now()}`;
+    // Use provided id (slug) or fallback to timestamp-based id
+    const id = design.id || `custom_${Date.now()}`;
     const newDesign: CustomDesign = {
       ...design,
       id,
@@ -2286,7 +2287,7 @@ class MemStorage implements IStorage {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    this.customDesigns.set(id, newDesign);
+    this.customDesigns.set(newDesign.id, newDesign);
     return newDesign;
   }
 

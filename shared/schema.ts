@@ -139,8 +139,9 @@ export const qrTemplates = pgTable("qr_templates", {
 });
 
 // Custom designs created by admin (QR codes linking to /customs/[id])
+// ID format: storename-segment-producttype-date (e.g., "mystore-homepage-hat-dec2024")
 export const customDesigns = pgTable("custom_designs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(), // Custom slug, no auto-generate
   productId: integer("product_id").notNull(),
   productName: text("product_name").notNull(),
   productImage: text("product_image"),
@@ -162,7 +163,7 @@ export const customDesigns = pgTable("custom_designs", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertCustomDesignSchema = createInsertSchema(customDesigns).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCustomDesignSchema = createInsertSchema(customDesigns).omit({ createdAt: true, updatedAt: true });
 export type InsertCustomDesign = z.infer<typeof insertCustomDesignSchema>;
 export type CustomDesign = typeof customDesigns.$inferSelect;
 

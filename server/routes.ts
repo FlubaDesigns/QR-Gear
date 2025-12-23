@@ -2641,14 +2641,37 @@ ${allPages.map(page => `  <url>
       
       const validatedData = createSchema.parse(req.body);
       
+      // Generate descriptive slug: storename-segment-producttype-date
+      const slugify = (str: string) => str?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || '';
+      const now = new Date();
+      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const dateSlug = `${monthNames[now.getMonth()]}${now.getFullYear()}`;
+      
+      // Extract product type from product name (e.g., "Premium Hat" -> "hat")
+      const productType = slugify(validatedData.productName.split(' ').pop() || 'product');
+      const storePart = slugify(validatedData.storeName || 'custom');
+      const segmentPart = slugify(validatedData.segment || 'general');
+      
+      // Build the slug: mystore-homepage-hat-dec2024
+      let baseSlug = `${storePart}-${segmentPart}-${productType}-${dateSlug}`;
+      
+      // Check for uniqueness and add counter if needed
+      let designId = baseSlug;
+      let counter = 1;
+      while (await storage.getCustomDesign(designId)) {
+        designId = `${baseSlug}-${counter}`;
+        counter++;
+      }
+      
       // Generate QR code pointing to the /customs/:id URL
       const QRCode = require("qrcode");
       const baseUrl = process.env.REPLIT_DOMAINS 
         ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
         : "http://localhost:5000";
       
-      // Create the design first to get the ID
+      // Create the design with descriptive ID
       const designData = {
+        id: designId,
         productId: validatedData.productId,
         productName: validatedData.productName,
         productImage: validatedData.productImage || null,

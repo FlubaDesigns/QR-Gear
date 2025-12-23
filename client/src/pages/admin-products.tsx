@@ -41,6 +41,8 @@ import {
   FolderOpen,
   Store,
   QrCode,
+  ImageIcon,
+  ExternalLink,
 } from "lucide-react";
 import type { Product, ProductCategory } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -670,6 +672,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [textUpcharge, setTextUpcharge] = useState("2.00");
   const [customLocationFilter, setCustomLocationFilter] = useState<"all" | "usa" | "other">("all");
   const [savingCustom, setSavingCustom] = useState(false);
+  const [lastSavedDesign, setLastSavedDesign] = useState<{id: string; printifyCompositeUrl?: string} | null>(null);
   const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set());
   const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
@@ -1192,12 +1195,18 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       
       const result = await res.json();
       
-      toast({ 
-        title: "Custom Design Created!", 
-        description: `Saved to ${saveTarget === "both" ? "Library & Store" : saveTarget}. QR code generated at /customs/${result.id}` 
+      // Store the saved design for viewing print image
+      setLastSavedDesign({
+        id: result.id,
+        printifyCompositeUrl: result.printifyCompositeUrl,
       });
       
-      // Reset custom builder fields
+      toast({ 
+        title: "Custom Design Created!", 
+        description: `Saved as "${result.id}". View the generated print image below.` 
+      });
+      
+      // Reset custom builder fields but keep lastSavedDesign visible
       setBackgroundImage(null);
       setBackgroundPreview("");
       setHeaderEnabled(false);
@@ -1902,6 +1911,51 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       >
                         {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
                         Save to Both Library & Store
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Last Saved Design - View Print Image */}
+                {lastSavedDesign && (
+                  <div className="space-y-3 pt-4 border-t bg-green-50 dark:bg-green-950/30 rounded-lg p-4 -mx-2">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-5 w-5 text-green-600" />
+                      <Label className="font-semibold text-green-700 dark:text-green-400">Design Saved Successfully!</Label>
+                    </div>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Design ID:</span>{" "}
+                      <code className="bg-muted px-2 py-0.5 rounded text-xs">{lastSavedDesign.id}</code>
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {lastSavedDesign.printifyCompositeUrl && (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => window.open(lastSavedDesign.printifyCompositeUrl, '_blank')}
+                          data-testid="button-view-print-image"
+                        >
+                          <ImageIcon className="h-4 w-4 mr-2" />
+                          View Print-Ready Image
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => window.open(`/customs/${lastSavedDesign.id}`, '_blank')}
+                        data-testid="button-view-qr-page"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View QR Landing Page
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLastSavedDesign(null)}
+                        className="text-muted-foreground"
+                        data-testid="button-dismiss-saved"
+                      >
+                        Dismiss
                       </Button>
                     </div>
                   </div>
