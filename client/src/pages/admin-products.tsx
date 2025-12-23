@@ -1142,13 +1142,35 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setSavingCustom(true);
     
     try {
-      // Prepare design data
+      // Upload background image first if exists (before creating design data)
+      // This prevents sending large base64 data in the JSON payload
+      let uploadedImageUrl: string | null = null;
+      if (backgroundImage) {
+        const formData = new FormData();
+        formData.append("file", backgroundImage);
+        formData.append("type", "custom-design");
+        
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          uploadedImageUrl = uploadData.url;
+        } else {
+          throw new Error("Failed to upload background image");
+        }
+      }
+      
+      // Prepare design data with only the uploaded URL (not the base64 preview)
       const designData = {
         productId: selectedItemId,
         productName: catalogDetails.blueprint?.title || "Custom Product",
         productImage: catalogDetails.imageUrl || "",
         placements: Array.from(selectedPlacements),
-        backgroundImage: backgroundPreview || null,
+        backgroundImage: uploadedImageUrl,
         topText: headerEnabled ? {
           text: headerText,
           fontFamily: headerFontFamily,
@@ -1166,26 +1188,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         isFeatured,
         isSeasonalPromo,
       };
-      
-      // Upload background image if exists
-      let uploadedImageUrl = null;
-      if (backgroundImage) {
-        const formData = new FormData();
-        formData.append("file", backgroundImage);
-        formData.append("type", "custom-design");
-        
-        const uploadRes = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
-        
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          uploadedImageUrl = uploadData.url;
-          designData.backgroundImage = uploadedImageUrl;
-        }
-      }
       
       // Save custom design and get QR code
       const res = await apiRequest("POST", "/api/admin/custom-designs", {

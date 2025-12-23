@@ -2,6 +2,7 @@ import { storage } from '../storage';
 import { sendHostingExpirationReminder } from './email';
 import { syncPrintifyOrderStatuses } from './printify-orders';
 import { printify } from './printify';
+import { startCostSync, getCostSyncStatus } from './printify-cost-sync';
 
 const REMINDER_INTERVALS = [30, 7, 0];
 
@@ -123,6 +124,25 @@ export async function runAllCronJobs(): Promise<void> {
 }
 
 let cronInterval: NodeJS.Timeout | null = null;
+let costSyncInterval: NodeJS.Timeout | null = null;
+
+// Weekly cost sync - extracts real production costs from Printify and stores in database
+async function runWeeklyCostSync(): Promise<void> {
+  console.log('[Cron] Starting weekly Printify cost sync...');
+  
+  try {
+    const status = await getCostSyncStatus();
+    if (status.isRunning) {
+      console.log('[Cron] Cost sync already running, skipping');
+      return;
+    }
+    
+    await startCostSync({ forceRefresh: false });
+    console.log('[Cron] Weekly cost sync started in background');
+  } catch (error) {
+    console.error('[Cron] Error starting weekly cost sync:', error);
+  }
+}
 
 export function startCronJobs(): void {
   if (cronInterval) {
@@ -132,9 +152,15 @@ export function startCronJobs(): void {
 
   runAllCronJobs();
 
+  // Hourly jobs (hosting checks, order sync, catalog sync)
   cronInterval = setInterval(runAllCronJobs, 60 * 60 * 1000);
   
+  // Weekly cost sync (every 7 days) - runs in background to extract Printify production costs
+  // and store them in our local database for pricing display
+  costSyncInterval = setInterval(runWeeklyCostSync, 7 * 24 * 60 * 60 * 1000);
+  
   console.log('[Cron] Jobs scheduled to run every hour');
+  console.log('[Cron] Cost sync scheduled to run weekly');
 }
 
 export function stopCronJobs(): void {
