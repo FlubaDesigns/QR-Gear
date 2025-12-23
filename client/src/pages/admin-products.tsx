@@ -63,9 +63,11 @@ function CatalogSyncSection() {
   
   const { data: syncStatus, refetch: refetchStatus, isLoading, isError, error } = useQuery<CatalogSyncStatus>({
     queryKey: ["/api/admin/catalog/sync-status"],
-    refetchInterval: isSyncRunning ? 3000 : false,
+    refetchInterval: isSyncRunning ? 5000 : false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
     retry: 2,
-    staleTime: 30000,
+    staleTime: 60000,
   });
   
   useEffect(() => {
