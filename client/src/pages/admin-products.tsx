@@ -771,6 +771,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     mutationFn: async () => {
       if (stagedProducts.length === 0) throw new Error("No products to save");
       
+      const categoryPath = selectedArea ? `${selectedSegment}/${selectedArea}` : selectedSegment;
+      
       const results = await Promise.all(
         stagedProducts.map(product => 
           apiRequest("POST", "/api/admin/products/from-printify", {
@@ -778,7 +780,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             printProviderId: product.printProviderId,
             name: product.name,
             description: product.description,
-            category: selectedSegment,
+            category: categoryPath,
             basePrice: product.basePrice,
             imageUrl: product.imageUrl,
             manufacturer: product.manufacturer,
@@ -833,12 +835,14 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         throw new Error("Please select at least one size or color");
       }
       
+      const categoryPath = selectedArea ? `${selectedSegment}/${selectedArea}` : selectedSegment;
+      
       return apiRequest("POST", "/api/admin/products/from-printify", {
         blueprintId: item.id,
         printProviderId: details.providerId,
         name: item.title,
         description: item.brand + " " + item.model,
-        category: selectedSegment,
+        category: categoryPath,
         basePrice: details.basePrice,
         imageUrl: item.imageUrl,
         manufacturer: details.providerName || "Printify",
