@@ -61,6 +61,26 @@ interface CatalogSyncStatus {
   isConfigured: boolean;
 }
 
+interface CostSyncStatusData {
+  isRunning: boolean;
+  currentSync?: {
+    id: string;
+    status: string;
+    totalProviders: number;
+    processedCount: number;
+    successCount: number;
+    failedCount: number;
+    skippedCount: number;
+    startedAt: string;
+    completedAt?: string;
+  };
+  stats: {
+    total: number;
+    withCosts: number;
+    stale: number;
+  };
+}
+
 function CatalogSyncSection() {
   const { toast } = useToast();
   const [isSyncRunning, setIsSyncRunning] = useState(false);
@@ -74,6 +94,19 @@ function CatalogSyncSection() {
     retry: 2,
     staleTime: 60000,
   });
+
+  const { data: costSyncStatus, refetch: refetchCostStatus } = useQuery<CostSyncStatusData>({
+    queryKey: ["/api/admin/catalog/cost-sync-status"],
+    refetchInterval: isCostSyncRunning ? 3000 : false,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+  });
+
+  useEffect(() => {
+    if (costSyncStatus?.isRunning !== undefined) {
+      setIsCostSyncRunning(costSyncStatus.isRunning);
+    }
+  }, [costSyncStatus?.isRunning]);
   
   useEffect(() => {
     const running = syncStatus?.latestSync?.status === 'running';
@@ -109,13 +142,11 @@ function CatalogSyncSection() {
         title: "Cost sync started", 
         description: `Fetching costs for ${data.totalProviders || 'all'} products in background...` 
       });
+      refetchCostStatus();
     },
     onError: (error: any) => {
       toast({ title: "Cost sync failed", description: error.message, variant: "destructive" });
       setIsCostSyncRunning(false);
-    },
-    onSettled: () => {
-      setTimeout(() => setIsCostSyncRunning(false), 5000);
     },
   });
   
@@ -174,6 +205,27 @@ function CatalogSyncSection() {
               </p>
             )}
           </div>
+
+          {costSyncStatus?.stats && (
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5 text-green-600" />
+                <span className="text-muted-foreground">
+                  {costSyncStatus.stats.withCosts}/{costSyncStatus.stats.total} with costs
+                </span>
+              </div>
+              {costSyncStatus.stats.stale > 0 && (
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                  {costSyncStatus.stats.stale} stale (&gt;24h)
+                </Badge>
+              )}
+              {isCostSyncRunning && costSyncStatus.currentSync && (
+                <span className="text-muted-foreground">
+                  {costSyncStatus.currentSync.processedCount}/{costSyncStatus.currentSync.totalProviders} processed
+                </span>
+              )}
+            </div>
+          )}
           
           <div className="flex gap-2">
             <Button
@@ -205,8 +257,19 @@ function CatalogSyncSection() {
           </div>
         </div>
         
-        {(isSyncing || isCostSyncRunning) && (
+        {isSyncing && (
           <Progress value={undefined} className="mt-3 h-1" />
+        )}
+        {isCostSyncRunning && costSyncStatus?.currentSync && (
+          <div className="mt-3 space-y-1">
+            <Progress 
+              value={(costSyncStatus.currentSync.processedCount / costSyncStatus.currentSync.totalProviders) * 100} 
+              className="h-1" 
+            />
+            <p className="text-xs text-muted-foreground">
+              Syncing costs: {costSyncStatus.currentSync.successCount} success, {costSyncStatus.currentSync.failedCount} failed, {costSyncStatus.currentSync.skippedCount} skipped
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>
