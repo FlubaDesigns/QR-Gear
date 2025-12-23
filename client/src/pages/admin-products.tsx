@@ -1823,6 +1823,49 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   </div>
                 )}
                 
+                {/* Pricing Summary */}
+                {selectedItemId && catalogDetails && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label className="font-semibold text-base">Pricing Summary</Label>
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Base Production Cost:</span>
+                        <span className="font-medium">
+                          {catalogDetails.basePrice > 0 ? `$${catalogDetails.basePrice.toFixed(2)}` : "Sync costs to view"}
+                        </span>
+                      </div>
+                      {headerEnabled && headerText && (
+                        <div className="flex justify-between text-sm">
+                          <span>Header Text Upcharge:</span>
+                          <span className="font-medium">+${parseFloat(textUpcharge || "2").toFixed(2)}</span>
+                        </div>
+                      )}
+                      {footerEnabled && footerText && (
+                        <div className="flex justify-between text-sm">
+                          <span>Footer Text Upcharge:</span>
+                          <span className="font-medium">+${parseFloat(textUpcharge || "2").toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 mt-2 flex justify-between text-base font-bold">
+                        <span>Estimated Total Cost:</span>
+                        <span className="text-green-600">
+                          {catalogDetails.basePrice > 0 ? (
+                            `$${(catalogDetails.basePrice + 
+                              (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
+                              (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0)
+                            ).toFixed(2)}`
+                          ) : (
+                            "—"
+                          )}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Final retail price = cost + your markup. Set markup in Admin Settings.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
                 {/* 6. Save Buttons */}
                 {selectedItemId && (
                   <div className="space-y-3 pt-4 border-t">
