@@ -37,6 +37,9 @@ import {
   ZoomIn,
   Settings,
   DollarSign,
+  Upload,
+  FolderOpen,
+  Store,
 } from "lucide-react";
 import type { Product, ProductCategory } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -525,6 +528,21 @@ const QR_PLACEMENTS = [
   { id: "wrap-around", label: "Wrap Around", Icon: RotateCw },
 ];
 
+const FONT_FAMILIES = [
+  "Arial",
+  "Helvetica",
+  "Times New Roman",
+  "Georgia",
+  "Verdana",
+  "Courier New",
+  "Impact",
+  "Comic Sans MS",
+  "Trebuchet MS",
+  "Palatino Linotype",
+];
+
+const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
+
 interface StagedProduct {
   id: string;
   blueprintId: number;
@@ -579,6 +597,15 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [headerText, setHeaderText] = useState("");
   const [footerEnabled, setFooterEnabled] = useState(false);
   const [footerText, setFooterText] = useState("");
+  const [headerFontFamily, setHeaderFontFamily] = useState("Arial");
+  const [headerFontSize, setHeaderFontSize] = useState("16");
+  const [footerFontFamily, setFooterFontFamily] = useState("Arial");
+  const [footerFontSize, setFooterFontSize] = useState("14");
+  const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
+  const [backgroundPreview, setBackgroundPreview] = useState<string>("");
+  const [textUpcharge, setTextUpcharge] = useState("2.00");
+  const [customLocationFilter, setCustomLocationFilter] = useState<"all" | "usa" | "other">("all");
+  const [savingCustom, setSavingCustom] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set());
   const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
@@ -1005,6 +1032,91 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     toast({ title: "Store Created", description: `${newStore.name} with ${filteredAreas.length} area(s)` });
   }
   
+  async function handleSaveCustomDesign(saveTarget: "library" | "store" | "both") {
+    if (!selectedItemId || !catalogDetails) {
+      toast({ title: "Error", description: "Please select a product first", variant: "destructive" });
+      return;
+    }
+    
+    setSavingCustom(true);
+    
+    try {
+      // Prepare design data
+      const designData = {
+        productId: selectedItemId,
+        productName: catalogDetails.blueprint?.title || "Custom Product",
+        productImage: catalogDetails.imageUrl || "",
+        placement: selectedPlacement,
+        backgroundImage: backgroundPreview || null,
+        topText: headerEnabled ? {
+          text: headerText,
+          fontFamily: headerFontFamily,
+          fontSize: headerFontSize,
+        } : null,
+        bottomText: footerEnabled ? {
+          text: footerText,
+          fontFamily: footerFontFamily,
+          fontSize: footerFontSize,
+        } : null,
+        textUpcharge: parseFloat(textUpcharge) || 2.00,
+        storeType,
+        storeName: selectedStore,
+        segment: selectedSegment,
+        isFeatured,
+        isSeasonalPromo,
+      };
+      
+      // Upload background image if exists
+      let uploadedImageUrl = null;
+      if (backgroundImage) {
+        const formData = new FormData();
+        formData.append("file", backgroundImage);
+        formData.append("type", "custom-design");
+        
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          uploadedImageUrl = uploadData.url;
+          designData.backgroundImage = uploadedImageUrl;
+        }
+      }
+      
+      // Save custom design and get QR code
+      const res = await apiRequest("POST", "/api/admin/custom-designs", {
+        ...designData,
+        saveTarget,
+      });
+      
+      const result = await res.json();
+      
+      toast({ 
+        title: "Custom Design Created!", 
+        description: `Saved to ${saveTarget === "both" ? "Library & Store" : saveTarget}. QR code generated at /customs/${result.id}` 
+      });
+      
+      // Reset custom builder fields
+      setBackgroundImage(null);
+      setBackgroundPreview("");
+      setHeaderEnabled(false);
+      setHeaderText("");
+      setFooterEnabled(false);
+      setFooterText("");
+      setSelectedItemId(null);
+      setCatalogDetails(null);
+      
+      onSuccess();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to save custom design", variant: "destructive" });
+    } finally {
+      setSavingCustom(false);
+    }
+  }
+  
   function addAreaField() {
     setNewStoreAreas([...newStoreAreas, ""]);
   }
@@ -1195,14 +1307,12 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         checked={selectedSegment === segment || (!!selectedSegment && selectedSegment.split(",").includes(segment))}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            // Add to selected segments (comma-separated for multiple)
                             const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
                             if (!current.includes(segment)) {
                               current.push(segment);
                             }
                             handleSegmentSelect(current.join(","));
                           } else {
-                            // Remove from selected segments
                             const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
                             const updated = current.filter(s => s !== segment);
                             handleSegmentSelect(updated.join(",") || "");
@@ -1218,64 +1328,66 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   )}
                 </div>
                 
-                {/* Additional Settings - Featured & Seasonal */}
-                {selectedSegment && (
-                  <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
-                    <Label className="text-sm font-semibold text-primary">Additional Settings</Label>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="sw-featured" className="text-sm cursor-pointer font-medium">Featured Product</Label>
-                        <Switch
-                          id="sw-featured"
-                          checked={isFeatured}
-                          onCheckedChange={setIsFeatured}
-                          data-testid="switch-featured"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="sw-seasonal" className="text-sm cursor-pointer font-medium">Seasonal Promo</Label>
-                        <Switch
-                          id="sw-seasonal"
-                          checked={isSeasonalPromo}
-                          onCheckedChange={setIsSeasonalPromo}
-                          data-testid="switch-seasonal"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
                 {!selectedSegment && (
                   <p className="text-xs text-destructive">Select at least one location</p>
                 )}
               </div>
             )}
 
-            {/* Step 4: Product Source (Library/Custom) */}
+            {/* Step 4: Store Occasion */}
+            {selectedSegment && (
+              <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
+                <Label className="text-lg font-bold">Step 4: Store Occasion</Label>
+                <p className="text-sm text-muted-foreground">Optional: Mark as featured or seasonal</p>
+                
+                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="sw-featured" className="text-sm cursor-pointer font-medium">Featured Product</Label>
+                    <Switch
+                      id="sw-featured"
+                      checked={isFeatured}
+                      onCheckedChange={setIsFeatured}
+                      data-testid="switch-featured"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="sw-seasonal" className="text-sm cursor-pointer font-medium">Seasonal Promo</Label>
+                    <Switch
+                      id="sw-seasonal"
+                      checked={isSeasonalPromo}
+                      onCheckedChange={setIsSeasonalPromo}
+                      data-testid="switch-seasonal"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Product Source (Library/Custom) */}
             {canProceedToProduct && (
-              <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 4: Product Source</Label>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
+                <Label className="text-lg font-bold">Step 5: Product Source</Label>
+                <div className="flex flex-col gap-4">
                   <Button
                     variant={productSource === "Library" ? "default" : "outline"}
-                    className="h-16 text-base"
+                    className="h-20 text-lg w-full"
                     onClick={() => setProductSource("Library")}
                     data-testid="button-source-library"
                   >
                     <div className="text-center">
-                      <div className="font-bold">Library</div>
-                      <div className="text-xs opacity-80">Pick from catalog</div>
+                      <div className="font-bold text-xl">Library</div>
+                      <div className="text-sm opacity-80">Pick from Printify catalog</div>
                     </div>
                   </Button>
                   <Button
                     variant={productSource === "Custom" ? "default" : "outline"}
-                    className="h-16 text-base"
+                    className="h-20 text-lg w-full"
                     onClick={() => setProductSource("Custom")}
                     data-testid="button-source-custom"
                   >
                     <div className="text-center">
-                      <div className="font-bold">Custom</div>
-                      <div className="text-xs opacity-80">Build from scratch</div>
+                      <div className="font-bold text-xl">Custom</div>
+                      <div className="text-sm opacity-80">Build your own design</div>
                     </div>
                   </Button>
                 </div>
@@ -1285,7 +1397,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             {/* Library: Product Category Selection */}
             {productSource === "Library" && (
               <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 5: Product Type</Label>
+                <Label className="text-lg font-bold">Step 6: Product Type</Label>
                 <select
                   className="w-full p-3 border rounded-md bg-background text-base"
                   value={selectedCategory}
@@ -1307,29 +1419,94 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               <div className="space-y-4 p-4 border-2 border-accent/50 rounded-lg bg-accent/5">
                 <Label className="text-lg font-bold">Custom Product Builder</Label>
                 <p className="text-sm text-muted-foreground">
-                  Create a fully custom product. Select a base from the catalog, then configure sizes, colors, and QR placement.
+                  Build a custom design, upload a background, add text, and create a QR code that links to your hosted design.
                 </p>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>Base Product Type</Label>
-                    <select
-                      className="w-full p-3 border rounded-md bg-background"
-                      value={selectedCategory}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                      data-testid="select-custom-category"
+                
+                {/* 1. Location Filter (US/Other) */}
+                <div className="space-y-2">
+                  <Label className="font-semibold">Made In</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={customLocationFilter === "usa" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCustomLocationFilter("usa")}
+                      data-testid="custom-filter-usa"
                     >
-                      <option value="">-- Select base product --</option>
-                      {catalog.map((cat) => (
-                        <option key={cat.name} value={cat.name}>
-                          {cat.name} ({cat.count})
-                        </option>
-                      ))}
-                    </select>
+                      <span className="mr-1">🇺🇸</span> USA Only
+                    </Button>
+                    <Button
+                      variant={customLocationFilter === "other" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCustomLocationFilter("other")}
+                      data-testid="custom-filter-other"
+                    >
+                      <span className="mr-1">🌍</span> Elsewhere
+                    </Button>
+                    <Button
+                      variant={customLocationFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCustomLocationFilter("all")}
+                      data-testid="custom-filter-all"
+                    >
+                      All Products
+                    </Button>
                   </div>
+                </div>
+
+                {/* 2. Select Product from Catalog */}
+                <div className="space-y-2">
+                  <Label className="font-semibold">Select Product</Label>
+                  <select
+                    className="w-full p-3 border rounded-md bg-background"
+                    value={selectedCategory}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    data-testid="select-custom-category"
+                  >
+                    <option value="">-- Select product type --</option>
+                    {catalog.map((cat) => (
+                      <option key={cat.name} value={cat.name}>
+                        {cat.name} ({cat.count})
+                      </option>
+                    ))}
+                  </select>
                   
-                  {/* QR Placement for custom */}
+                  {/* Product List - scrollable */}
+                  {selectedCategory && categoryData && (
+                    <div className="max-h-48 overflow-y-auto border rounded-md p-2 bg-background space-y-1">
+                      {(() => {
+                        const items = customLocationFilter === "usa" 
+                          ? categoryData.items.filter(i => i.madeInUSA)
+                          : customLocationFilter === "other"
+                          ? categoryData.items.filter(i => !i.madeInUSA)
+                          : categoryData.items;
+                        return items.length > 0 ? items.map((item) => (
+                          <div
+                            key={item.id}
+                            className={`p-2 rounded cursor-pointer flex items-center gap-2 ${selectedItemId === item.id ? "bg-primary/20 border border-primary" : "hover-elevate"}`}
+                            onClick={() => {
+                              setSelectedItemId(item.id);
+                              fetchItemDetails(item.id);
+                            }}
+                            data-testid={`custom-item-${item.id}`}
+                          >
+                            <img src={item.imageUrl || ""} alt={item.title} className="w-10 h-10 rounded object-cover" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{item.title}</div>
+                              <div className="text-xs text-muted-foreground">{item.brand} {item.madeInUSA && "🇺🇸"}</div>
+                            </div>
+                          </div>
+                        )) : (
+                          <p className="text-sm text-muted-foreground p-2">No products match this filter</p>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+                
+                {/* 3. Print Placement Options (after product selected) */}
+                {selectedItemId && (
                   <div className="space-y-2">
-                    <Label>QR Code Placement</Label>
+                    <Label className="font-semibold">Print Placement</Label>
                     <div className="flex flex-wrap gap-2">
                       {QR_PLACEMENTS.map(({ id, label, Icon }) => (
                         <Button
@@ -1345,48 +1522,220 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       ))}
                     </div>
                   </div>
-                  
-                  {/* Text Options */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="header-enabled">Header Text (+$2)</Label>
-                      <Switch
-                        id="header-enabled"
-                        checked={headerEnabled}
-                        onCheckedChange={setHeaderEnabled}
-                        data-testid="switch-header-text"
-                      />
+                )}
+                
+                {/* 4. Background Image Upload */}
+                {selectedItemId && (
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Background Image</Label>
+                    <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                      {backgroundPreview ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={backgroundPreview} 
+                            alt="Background preview" 
+                            className="max-h-32 mx-auto rounded"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setBackgroundImage(null);
+                              setBackgroundPreview("");
+                            }}
+                            data-testid="button-remove-background"
+                          >
+                            <X className="h-4 w-4 mr-1" /> Remove
+                          </Button>
+                        </div>
+                      ) : (
+                        <label className="cursor-pointer block">
+                          <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                          <span className="text-sm text-muted-foreground">Click to upload background image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setBackgroundImage(file);
+                                setBackgroundPreview(URL.createObjectURL(file));
+                              }
+                            }}
+                            data-testid="input-background-upload"
+                          />
+                        </label>
+                      )}
                     </div>
-                    {headerEnabled && (
-                      <Input
-                        placeholder="Header text (max 20 chars)"
-                        value={headerText}
-                        onChange={(e) => setHeaderText(e.target.value.slice(0, 20))}
-                        maxLength={20}
-                        data-testid="input-header-text"
-                      />
-                    )}
-                    
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="footer-enabled">Footer Text (+$2)</Label>
-                      <Switch
-                        id="footer-enabled"
-                        checked={footerEnabled}
-                        onCheckedChange={setFooterEnabled}
-                        data-testid="switch-footer-text"
-                      />
-                    </div>
-                    {footerEnabled && (
-                      <Input
-                        placeholder="Footer text (max 30 chars)"
-                        value={footerText}
-                        onChange={(e) => setFooterText(e.target.value.slice(0, 30))}
-                        maxLength={30}
-                        data-testid="input-footer-text"
-                      />
-                    )}
                   </div>
-                </div>
+                )}
+                
+                {/* 5. Text Options with Font Selection */}
+                {selectedItemId && (
+                  <div className="space-y-4">
+                    {/* Top Text */}
+                    <div className="space-y-2 p-3 bg-background rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="header-enabled" className="font-semibold">Top Text</Label>
+                        <Switch
+                          id="header-enabled"
+                          checked={headerEnabled}
+                          onCheckedChange={setHeaderEnabled}
+                          data-testid="switch-header-text"
+                        />
+                      </div>
+                      {headerEnabled && (
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Enter top text (max 20 chars)"
+                            value={headerText}
+                            onChange={(e) => setHeaderText(e.target.value.slice(0, 20))}
+                            maxLength={20}
+                            data-testid="input-header-text"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Font</Label>
+                              <select
+                                className="w-full p-2 border rounded text-sm"
+                                value={headerFontFamily}
+                                onChange={(e) => setHeaderFontFamily(e.target.value)}
+                                data-testid="select-header-font"
+                              >
+                                {FONT_FAMILIES.map((font) => (
+                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Size</Label>
+                              <select
+                                className="w-full p-2 border rounded text-sm"
+                                value={headerFontSize}
+                                onChange={(e) => setHeaderFontSize(e.target.value)}
+                                data-testid="select-header-size"
+                              >
+                                {FONT_SIZES.map((size) => (
+                                  <option key={size} value={size}>{size}px</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Bottom Text */}
+                    <div className="space-y-2 p-3 bg-background rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="footer-enabled" className="font-semibold">Bottom Text</Label>
+                        <Switch
+                          id="footer-enabled"
+                          checked={footerEnabled}
+                          onCheckedChange={setFooterEnabled}
+                          data-testid="switch-footer-text"
+                        />
+                      </div>
+                      {footerEnabled && (
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Enter bottom text (max 30 chars)"
+                            value={footerText}
+                            onChange={(e) => setFooterText(e.target.value.slice(0, 30))}
+                            maxLength={30}
+                            data-testid="input-footer-text"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Font</Label>
+                              <select
+                                className="w-full p-2 border rounded text-sm"
+                                value={footerFontFamily}
+                                onChange={(e) => setFooterFontFamily(e.target.value)}
+                                data-testid="select-footer-font"
+                              >
+                                {FONT_FAMILIES.map((font) => (
+                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Size</Label>
+                              <select
+                                className="w-full p-2 border rounded text-sm"
+                                value={footerFontSize}
+                                onChange={(e) => setFooterFontSize(e.target.value)}
+                                data-testid="select-footer-size"
+                              >
+                                {FONT_SIZES.map((size) => (
+                                  <option key={size} value={size}>{size}px</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Text Upcharge Field */}
+                    <div className="space-y-2">
+                      <Label className="font-semibold">Text Upcharge ($)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={textUpcharge}
+                        onChange={(e) => setTextUpcharge(e.target.value)}
+                        placeholder="2.00"
+                        className="w-32"
+                        data-testid="input-text-upcharge"
+                      />
+                      <p className="text-xs text-muted-foreground">Amount added per text line</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 6. Save Buttons */}
+                {selectedItemId && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label className="font-semibold">Save Custom Design</Label>
+                    <p className="text-xs text-muted-foreground">
+                      This will create a hosted page at /customs/[id] with your design and generate a QR code linking to it.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        className="w-full h-12"
+                        variant="outline"
+                        disabled={savingCustom}
+                        onClick={() => handleSaveCustomDesign("library")}
+                        data-testid="button-save-library"
+                      >
+                        {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderOpen className="h-4 w-4 mr-2" />}
+                        Save to Library Only
+                      </Button>
+                      <Button
+                        className="w-full h-12"
+                        variant="outline"
+                        disabled={savingCustom}
+                        onClick={() => handleSaveCustomDesign("store")}
+                        data-testid="button-save-store"
+                      >
+                        {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Store className="h-4 w-4 mr-2" />}
+                        Save to Store Only
+                      </Button>
+                      <Button
+                        className="w-full h-12"
+                        disabled={savingCustom}
+                        onClick={() => handleSaveCustomDesign("both")}
+                        data-testid="button-save-both"
+                      >
+                        {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                        Save to Both Library & Store
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             

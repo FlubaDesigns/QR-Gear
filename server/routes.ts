@@ -2633,6 +2633,122 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ CUSTOM DESIGNS ENDPOINTS ============
+  
+  // Public: Get custom design by ID (for /customs/:id page)
+  app.get("/api/customs/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const design = await storage.getCustomDesign(id);
+      if (!design) {
+        return res.status(404).json({ error: "Custom design not found" });
+      }
+      res.json(design);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Admin: Create custom design
+  app.post("/api/admin/custom-designs", isAdmin, async (req, res) => {
+    try {
+      const createSchema = z.object({
+        productId: z.number(),
+        productName: z.string(),
+        productImage: z.string().nullable().optional(),
+        placement: z.string(),
+        backgroundImage: z.string().nullable().optional(),
+        topText: z.object({
+          text: z.string(),
+          fontFamily: z.string(),
+          fontSize: z.string(),
+        }).nullable().optional(),
+        bottomText: z.object({
+          text: z.string(),
+          fontFamily: z.string(),
+          fontSize: z.string(),
+        }).nullable().optional(),
+        textUpcharge: z.number().optional().default(2.00),
+        storeType: z.string().nullable().optional(),
+        storeName: z.string().nullable().optional(),
+        segment: z.string().nullable().optional(),
+        isFeatured: z.boolean().optional().default(false),
+        isSeasonalPromo: z.boolean().optional().default(false),
+        saveTarget: z.enum(["library", "store", "both"]),
+      });
+      
+      const validatedData = createSchema.parse(req.body);
+      
+      // Generate QR code pointing to the /customs/:id URL
+      const QRCode = require("qrcode");
+      const baseUrl = process.env.REPLIT_DOMAINS 
+        ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+        : "http://localhost:5000";
+      
+      // Create the design first to get the ID
+      const designData = {
+        productId: validatedData.productId,
+        productName: validatedData.productName,
+        productImage: validatedData.productImage || null,
+        placement: validatedData.placement,
+        backgroundImageUrl: validatedData.backgroundImage || null,
+        topText: validatedData.topText || null,
+        bottomText: validatedData.bottomText || null,
+        textUpcharge: String(validatedData.textUpcharge),
+        storeType: validatedData.storeType || null,
+        storeName: validatedData.storeName || null,
+        segment: validatedData.segment || null,
+        isFeatured: validatedData.isFeatured,
+        isSeasonalPromo: validatedData.isSeasonalPromo,
+        savedToLibrary: validatedData.saveTarget === "library" || validatedData.saveTarget === "both",
+        savedToStore: validatedData.saveTarget === "store" || validatedData.saveTarget === "both",
+      };
+      
+      const design = await storage.createCustomDesign(designData);
+      
+      // Generate QR code
+      const qrUrl = `${baseUrl}/customs/${design.id}`;
+      const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+        width: 256,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+      
+      // Update design with QR code
+      const updatedDesign = await storage.updateCustomDesign(design.id, {
+        qrCodeUrl: qrCodeDataUrl,
+      });
+      
+      res.json(updatedDesign);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Admin: Get all custom designs
+  app.get("/api/admin/custom-designs", isAdmin, async (req, res) => {
+    try {
+      const designs = await storage.getCustomDesigns();
+      res.json(designs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Admin: Delete custom design
+  app.delete("/api/admin/custom-designs/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteCustomDesign(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ PRICING QUOTE ENDPOINT ============
   
   // Calculate final price for a product with customizations (supports all 4 product lines)

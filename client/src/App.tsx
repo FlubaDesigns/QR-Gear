@@ -21,6 +21,7 @@ import AdminTags from "@/pages/admin-tags";
 import AdminPartners from "@/pages/admin-partners";
 import StoreBuild from "@/pages/store-build";
 import CheckoutSuccess from "@/pages/checkout-success";
+import Customs from "@/pages/customs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />
+      <Route path="/customs/:id" component={Customs} />
       <Route component={NotFound} />
     </Switch>
   );

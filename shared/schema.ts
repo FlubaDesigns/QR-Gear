@@ -138,6 +138,33 @@ export const qrTemplates = pgTable("qr_templates", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Custom designs created by admin (QR codes linking to /customs/[id])
+export const customDesigns = pgTable("custom_designs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: integer("product_id").notNull(),
+  productName: text("product_name").notNull(),
+  productImage: text("product_image"),
+  placement: text("placement").notNull(),
+  backgroundImageUrl: text("background_image_url"),
+  topText: jsonb("top_text"), // {text, fontFamily, fontSize}
+  bottomText: jsonb("bottom_text"), // {text, fontFamily, fontSize}
+  textUpcharge: decimal("text_upcharge", { precision: 10, scale: 2 }).default("2.00"),
+  storeType: text("store_type"), // 'Internal' or 'External'
+  storeName: text("store_name"),
+  segment: text("segment"),
+  isFeatured: boolean("is_featured").default(false),
+  isSeasonalPromo: boolean("is_seasonal_promo").default(false),
+  qrCodeUrl: text("qr_code_url"),
+  savedToLibrary: boolean("saved_to_library").default(false),
+  savedToStore: boolean("saved_to_store").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCustomDesignSchema = createInsertSchema(customDesigns).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCustomDesign = z.infer<typeof insertCustomDesignSchema>;
+export type CustomDesign = typeof customDesigns.$inferSelect;
+
 // Partner stores for embeddable widgets (Kingdom Connects, etc.)
 export const partnerStores = pgTable("partner_stores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

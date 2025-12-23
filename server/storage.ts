@@ -50,6 +50,8 @@ import type {
   InsertPrintifyPrintProvider,
   PrintifyCatalogSync,
   InsertPrintifyCatalogSync,
+  CustomDesign,
+  InsertCustomDesign,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -223,6 +225,13 @@ export interface IStorage {
   updateCatalogSync(id: string, sync: Partial<InsertPrintifyCatalogSync>): Promise<PrintifyCatalogSync | undefined>;
   getLatestCatalogSync(): Promise<PrintifyCatalogSync | undefined>;
   getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]>;
+
+  // Custom Design operations
+  getCustomDesign(id: string): Promise<CustomDesign | undefined>;
+  getCustomDesigns(): Promise<CustomDesign[]>;
+  createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign>;
+  updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined>;
+  deleteCustomDesign(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -1063,6 +1072,35 @@ export class DbStorage implements IStorage {
     return await this.db.select().from(schema.printifyCatalogSync)
       .orderBy(sql`${schema.printifyCatalogSync.startedAt} DESC`)
       .limit(20);
+  }
+
+  // Custom Design operations
+  async getCustomDesign(id: string): Promise<CustomDesign | undefined> {
+    const [design] = await this.db.select().from(schema.customDesigns).where(eq(schema.customDesigns.id, id));
+    return design;
+  }
+
+  async getCustomDesigns(): Promise<CustomDesign[]> {
+    return await this.db.select().from(schema.customDesigns)
+      .orderBy(sql`${schema.customDesigns.createdAt} DESC`);
+  }
+
+  async createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign> {
+    const [newDesign] = await this.db.insert(schema.customDesigns).values(design).returning();
+    return newDesign;
+  }
+
+  async updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined> {
+    const [updated] = await this.db
+      .update(schema.customDesigns)
+      .set({ ...design, updatedAt: new Date() })
+      .where(eq(schema.customDesigns.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCustomDesign(id: string): Promise<void> {
+    await this.db.delete(schema.customDesigns).where(eq(schema.customDesigns.id, id));
   }
 }
 
@@ -2083,6 +2121,59 @@ class MemStorage implements IStorage {
 
   async getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]> {
     return this.catalogSyncs.slice(0, 20);
+  }
+
+  // Custom Design operations (MemStorage)
+  private customDesigns = new Map<string, CustomDesign>();
+
+  async getCustomDesign(id: string): Promise<CustomDesign | undefined> {
+    return this.customDesigns.get(id);
+  }
+
+  async getCustomDesigns(): Promise<CustomDesign[]> {
+    return Array.from(this.customDesigns.values())
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign> {
+    const id = `custom_${Date.now()}`;
+    const newDesign: CustomDesign = {
+      ...design,
+      id,
+      productImage: design.productImage ?? null,
+      backgroundImageUrl: design.backgroundImageUrl ?? null,
+      topText: design.topText ?? null,
+      bottomText: design.bottomText ?? null,
+      textUpcharge: design.textUpcharge ?? "2.00",
+      storeType: design.storeType ?? null,
+      storeName: design.storeName ?? null,
+      segment: design.segment ?? null,
+      isFeatured: design.isFeatured ?? false,
+      isSeasonalPromo: design.isSeasonalPromo ?? false,
+      qrCodeUrl: design.qrCodeUrl ?? null,
+      savedToLibrary: design.savedToLibrary ?? false,
+      savedToStore: design.savedToStore ?? false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.customDesigns.set(id, newDesign);
+    return newDesign;
+  }
+
+  async updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined> {
+    const existing = this.customDesigns.get(id);
+    if (!existing) return undefined;
+    const updated: CustomDesign = {
+      ...existing,
+      ...design,
+      updatedAt: new Date(),
+    };
+    this.customDesigns.set(id, updated);
+    return updated;
+  }
+
+  async deleteCustomDesign(id: string): Promise<void> {
+    this.customDesigns.delete(id);
   }
 }
 
