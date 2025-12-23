@@ -40,6 +40,7 @@ import {
   Upload,
   FolderOpen,
   Store,
+  QrCode,
 } from "lucide-react";
 import type { Product, ProductCategory } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -661,9 +662,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [footerEnabled, setFooterEnabled] = useState(false);
   const [footerText, setFooterText] = useState("");
   const [headerFontFamily, setHeaderFontFamily] = useState("Arial");
-  const [headerFontSize, setHeaderFontSize] = useState("16");
+  const [headerFontSize, setHeaderFontSize] = useState("18");
   const [footerFontFamily, setFooterFontFamily] = useState("Arial");
-  const [footerFontSize, setFooterFontSize] = useState("14");
+  const [footerFontSize, setFooterFontSize] = useState("16");
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundPreview, setBackgroundPreview] = useState<string>("");
   const [textUpcharge, setTextUpcharge] = useState("2.00");
@@ -1622,9 +1623,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 {selectedItemId && (
                   <div className="space-y-4">
                     {/* Top Text */}
-                    <div className="space-y-2 p-3 bg-background rounded-lg border">
+                    <div className="space-y-3 p-4 bg-background rounded-lg border">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="header-enabled" className="font-semibold">Top Text</Label>
+                        <Label htmlFor="header-enabled" className="font-semibold text-base">Top Text (Header)</Label>
                         <Switch
                           id="header-enabled"
                           checked={headerEnabled}
@@ -1633,40 +1634,34 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         />
                       </div>
                       {headerEnabled && (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <Input
                             placeholder="Enter top text (max 20 chars)"
                             value={headerText}
                             onChange={(e) => setHeaderText(e.target.value.slice(0, 20))}
                             maxLength={20}
+                            className="text-base h-11"
                             data-testid="input-header-text"
                           />
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs">Font</Label>
-                              <div className="space-y-1">
-                                <select
-                                  className="w-full p-2 border rounded text-sm"
-                                  value={headerFontFamily}
-                                  onChange={(e) => setHeaderFontFamily(e.target.value)}
-                                  data-testid="select-header-font"
-                                >
-                                  {FONT_FAMILIES.map((font) => (
-                                    <option key={font.name} value={font.name}>{font.name}</option>
-                                  ))}
-                                </select>
-                                <div 
-                                  className="p-2 bg-muted rounded text-lg border"
-                                  style={{ fontFamily: headerFontFamily }}
-                                >
-                                  {FONT_FAMILIES.find(f => f.name === headerFontFamily)?.sample || "ABC abc 123"}
-                                </div>
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-xs">Size</Label>
+                          <div className="flex gap-3">
+                            <div className="flex-1">
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Font Style</Label>
                               <select
-                                className="w-full p-2 border rounded text-sm"
+                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+                                value={headerFontFamily}
+                                onChange={(e) => setHeaderFontFamily(e.target.value)}
+                                style={{ fontFamily: headerFontFamily }}
+                                data-testid="select-header-font"
+                              >
+                                {FONT_FAMILIES.map((font) => (
+                                  <option key={font.name} value={font.name} style={{ fontFamily: font.name }}>{font.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="w-24">
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
+                              <select
+                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
                                 value={headerFontSize}
                                 onChange={(e) => setHeaderFontSize(e.target.value)}
                                 data-testid="select-header-size"
@@ -1677,14 +1672,22 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               </select>
                             </div>
                           </div>
+                          {headerText && (
+                            <div 
+                              className="p-3 bg-muted/50 rounded-md border text-center"
+                              style={{ fontFamily: headerFontFamily, fontSize: `${parseInt(headerFontSize) * 0.9}px` }}
+                            >
+                              {headerText}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                     
                     {/* Bottom Text */}
-                    <div className="space-y-2 p-3 bg-background rounded-lg border">
+                    <div className="space-y-3 p-4 bg-background rounded-lg border">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="footer-enabled" className="font-semibold">Bottom Text</Label>
+                        <Label htmlFor="footer-enabled" className="font-semibold text-base">Bottom Text (Footer)</Label>
                         <Switch
                           id="footer-enabled"
                           checked={footerEnabled}
@@ -1693,40 +1696,34 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         />
                       </div>
                       {footerEnabled && (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <Input
                             placeholder="Enter bottom text (max 30 chars)"
                             value={footerText}
                             onChange={(e) => setFooterText(e.target.value.slice(0, 30))}
                             maxLength={30}
+                            className="text-base h-11"
                             data-testid="input-footer-text"
                           />
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs">Font</Label>
-                              <div className="space-y-1">
-                                <select
-                                  className="w-full p-2 border rounded text-sm"
-                                  value={footerFontFamily}
-                                  onChange={(e) => setFooterFontFamily(e.target.value)}
-                                  data-testid="select-footer-font"
-                                >
-                                  {FONT_FAMILIES.map((font) => (
-                                    <option key={font.name} value={font.name}>{font.name}</option>
-                                  ))}
-                                </select>
-                                <div 
-                                  className="p-2 bg-muted rounded text-lg border"
-                                  style={{ fontFamily: footerFontFamily }}
-                                >
-                                  {FONT_FAMILIES.find(f => f.name === footerFontFamily)?.sample || "ABC abc 123"}
-                                </div>
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-xs">Size</Label>
+                          <div className="flex gap-3">
+                            <div className="flex-1">
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Font Style</Label>
                               <select
-                                className="w-full p-2 border rounded text-sm"
+                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+                                value={footerFontFamily}
+                                onChange={(e) => setFooterFontFamily(e.target.value)}
+                                style={{ fontFamily: footerFontFamily }}
+                                data-testid="select-footer-font"
+                              >
+                                {FONT_FAMILIES.map((font) => (
+                                  <option key={font.name} value={font.name} style={{ fontFamily: font.name }}>{font.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="w-24">
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
+                              <select
+                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
                                 value={footerFontSize}
                                 onChange={(e) => setFooterFontSize(e.target.value)}
                                 data-testid="select-footer-size"
@@ -1737,6 +1734,14 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               </select>
                             </div>
                           </div>
+                          {footerText && (
+                            <div 
+                              className="p-3 bg-muted/50 rounded-md border text-center"
+                              style={{ fontFamily: footerFontFamily, fontSize: `${parseInt(footerFontSize) * 0.9}px` }}
+                            >
+                              {footerText}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1755,6 +1760,65 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         data-testid="input-text-upcharge"
                       />
                       <p className="text-xs text-muted-foreground">Amount added per text line</p>
+                    </div>
+                    
+                    {/* Design Preview - What will be printed */}
+                    <div className="space-y-3 pt-4 border-t">
+                      <Label className="font-semibold text-base">Print Design Preview</Label>
+                      <p className="text-xs text-muted-foreground">
+                        This shows what will be printed on the physical product (header + QR code + footer on white background).
+                      </p>
+                      <div 
+                        className="border-2 border-dashed rounded-lg bg-white p-6 mx-auto max-w-xs"
+                        style={{ aspectRatio: "2/3" }}
+                        data-testid="design-preview"
+                      >
+                        <div className="h-full flex flex-col items-center justify-center gap-4">
+                          {headerEnabled && headerText && (
+                            <div 
+                              className="text-center text-black font-bold px-2"
+                              style={{ 
+                                fontFamily: headerFontFamily, 
+                                fontSize: `${Math.min(parseInt(headerFontSize), 24)}px` 
+                              }}
+                            >
+                              {headerText}
+                            </div>
+                          )}
+                          <div className="flex-shrink-0 w-24 h-24 bg-gray-200 border-2 border-gray-300 rounded flex items-center justify-center">
+                            <div className="text-center text-gray-500 text-xs">
+                              <QrCode className="h-12 w-12 mx-auto mb-1 text-gray-400" />
+                              QR Code
+                            </div>
+                          </div>
+                          {footerEnabled && footerText && (
+                            <div 
+                              className="text-center text-black font-bold px-2"
+                              style={{ 
+                                fontFamily: footerFontFamily, 
+                                fontSize: `${Math.min(parseInt(footerFontSize), 20)}px` 
+                              }}
+                            >
+                              {footerText}
+                            </div>
+                          )}
+                          {!headerEnabled && !footerEnabled && (
+                            <p className="text-xs text-gray-400 text-center mt-2">
+                              Enable text above to see preview
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {backgroundPreview && (
+                        <div className="space-y-2">
+                          <Label className="text-sm text-muted-foreground">Background (shown on webpage only, not printed):</Label>
+                          <img 
+                            src={backgroundPreview} 
+                            alt="Background preview" 
+                            className="w-full max-w-xs mx-auto rounded-lg border opacity-60"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

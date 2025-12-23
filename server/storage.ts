@@ -2280,6 +2280,7 @@ class MemStorage implements IStorage {
       isFeatured: design.isFeatured ?? false,
       isSeasonalPromo: design.isSeasonalPromo ?? false,
       qrCodeUrl: design.qrCodeUrl ?? null,
+      printifyCompositeUrl: design.printifyCompositeUrl ?? null,
       savedToLibrary: design.savedToLibrary ?? false,
       savedToStore: design.savedToStore ?? false,
       createdAt: new Date(),
