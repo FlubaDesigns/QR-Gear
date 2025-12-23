@@ -11,7 +11,13 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 ## CRITICAL Rules
 - **NEVER remove existing features without explicit user request.** User pays for agent time - removing and re-adding features wastes money.
 - Always confirm back what user said BEFORE starting work on changes.
-- Segment selection step is required in the product flow: Store Type → Store → Segment → Product Source.
+- Product flow steps are LOCKED and must not be changed:
+  1. Store Type (Internal/External)
+  2. Select Store
+  3. Store Locations (switches for each segment)
+  4. Store Occasion (Featured/Seasonal switches)
+  5. Product Source (Library/Custom)
+  6. Product Type (for Library) or Custom Builder (for Custom)
 
 ## System Architecture
 
