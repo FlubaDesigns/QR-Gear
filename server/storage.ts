@@ -209,6 +209,7 @@ export interface IStorage {
   clearPrintifyBlueprints(): Promise<void>;
   
   // Printify Print Provider operations
+  getAllPrintifyProviders(): Promise<PrintifyPrintProvider[]>;
   getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]>;
   getPrintifyPrintProvider(blueprintId: number, providerId: number): Promise<PrintifyPrintProvider | undefined>;
   upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider>;
@@ -955,6 +956,10 @@ export class DbStorage implements IStorage {
   }
 
   // Printify Print Provider operations
+  async getAllPrintifyProviders(): Promise<PrintifyPrintProvider[]> {
+    return await this.db.select().from(schema.printifyPrintProviders);
+  }
+
   async getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]> {
     return await this.db.select().from(schema.printifyPrintProviders)
       .where(eq(schema.printifyPrintProviders.blueprintId, blueprintId));
@@ -1980,6 +1985,10 @@ class MemStorage implements IStorage {
 
   async clearPrintifyBlueprints(): Promise<void> {
     this.printifyBlueprints.clear();
+  }
+
+  async getAllPrintifyProviders(): Promise<PrintifyPrintProvider[]> {
+    return Array.from(this.printifyPrintProviders.values());
   }
 
   async getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]> {

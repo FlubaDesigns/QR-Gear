@@ -1590,7 +1590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get all cached providers from the database
-      const providers = await storage.getPrintifyPrintProviders();
+      const providers = await storage.getAllPrintifyProviders();
       
       if (providers.length === 0) {
         return res.status(400).json({ error: "No providers cached. Run catalog sync first." });
