@@ -72,4 +72,5 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 -   `express-rate-limit`: API rate limiting.
 
 ## Recent Changes
+- 2025-12-23: Added cost extraction system for Printify products - printifyPrintProviders table now stores minCost/maxCost fields. Backend endpoint `/api/admin/catalog/fetch-costs` creates temporary placeholder products in Printify to extract real production costs (since Printify catalog API doesn't expose costs). Batch-details endpoint prioritizes cached costs from database.
 - 2025-12-22: Added Printify catalog sync feature with local caching (printifyBlueprints, printifyPrintProviders tables), on-demand sync from admin products page, real-time status updates

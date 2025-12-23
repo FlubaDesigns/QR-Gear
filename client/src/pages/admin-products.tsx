@@ -59,16 +59,21 @@ interface CatalogSyncStatus {
 
 function CatalogSyncSection() {
   const { toast } = useToast();
+  const [isSyncRunning, setIsSyncRunning] = useState(false);
   
   const { data: syncStatus, refetch: refetchStatus, isLoading, isError, error } = useQuery<CatalogSyncStatus>({
     queryKey: ["/api/admin/catalog/sync-status"],
-    refetchInterval: (query) => {
-      const data = query.state.data as CatalogSyncStatus | undefined;
-      if (query.state.status === 'error') return 5000;
-      return data?.latestSync?.status === 'running' ? 2000 : false;
-    },
+    refetchInterval: isSyncRunning ? 3000 : false,
     retry: 2,
+    staleTime: 30000,
   });
+  
+  useEffect(() => {
+    const running = syncStatus?.latestSync?.status === 'running';
+    if (running !== isSyncRunning) {
+      setIsSyncRunning(running || false);
+    }
+  }, [syncStatus?.latestSync?.status, isSyncRunning]);
   
   const syncMutation = useMutation({
     mutationFn: async () => {
@@ -1032,35 +1037,18 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                                 <span>{item.madeInUSA ? "🇺🇸" : "🌍"}</span>
                               </div>
                               {details && !details.error ? (
-                                details.costsAvailable ? (
-                                  <div className="text-lg font-semibold text-green-600">
-                                    ${details.basePrice.toFixed(2)}
-                                    {details.maxPrice && details.maxPrice > details.basePrice && (
-                                      <span className="text-sm font-normal"> - ${details.maxPrice.toFixed(2)}</span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    disabled={fetchingCostFor === item.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (details.providerId) {
-                                        fetchCostForItem(item.id, details.providerId);
-                                      }
-                                    }}
-                                    data-testid={`button-fetch-cost-${item.id}`}
-                                  >
-                                    {fetchingCostFor === item.id ? (
-                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    ) : (
-                                      <DollarSign className="h-3 w-3 mr-1" />
-                                    )}
-                                    Fetch Cost
-                                  </Button>
-                                )
+                                <div className="text-lg font-semibold text-green-600">
+                                  {details.basePrice > 0 ? (
+                                    <>
+                                      ${details.basePrice.toFixed(2)}
+                                      {details.maxPrice && details.maxPrice > details.basePrice && (
+                                        <span className="text-sm font-normal"> - ${details.maxPrice.toFixed(2)}</span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm font-normal">Cost TBD</span>
+                                  )}
+                                </div>
                               ) : fetchingBatch ? (
                                 <div className="text-sm text-muted-foreground">Loading...</div>
                               ) : (
@@ -1116,31 +1104,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     <div className="text-sm text-muted-foreground">
                       Provider: {catalogDetails.selectedProvider.title}
                     </div>
-                    {catalogDetails.basePrice > 0 ? (
-                      <div className="text-lg font-bold text-green-600">
-                        ${catalogDetails.basePrice.toFixed(2)}
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        disabled={fetchingCostFor === selectedItem?.id}
-                        onClick={() => {
-                          if (selectedItem && catalogDetails.selectedProvider) {
-                            fetchCostForItem(selectedItem.id, catalogDetails.selectedProvider.id);
-                          }
-                        }}
-                        data-testid="button-fetch-cost-detail"
-                      >
-                        {fetchingCostFor === selectedItem?.id ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <DollarSign className="h-3 w-3 mr-1" />
-                        )}
-                        Fetch Production Cost
-                      </Button>
-                    )}
+                    <div className="text-lg font-bold text-green-600">
+                      {catalogDetails.basePrice > 0 ? (
+                        `$${catalogDetails.basePrice.toFixed(2)}`
+                      ) : (
+                        <span className="text-muted-foreground text-sm font-normal">Cost TBD</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
