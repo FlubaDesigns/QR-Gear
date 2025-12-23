@@ -1143,9 +1143,11 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     
     try {
       // Upload background image first if exists (before creating design data)
-      // This prevents sending large base64 data in the JSON payload
-      let uploadedImageUrl: string | null = null;
+      // This prevents sending blob URLs or large data in the JSON payload
+      let finalBackgroundUrl: string | null = null;
+      
       if (backgroundImage) {
+        // New file uploaded - upload to server first
         const formData = new FormData();
         formData.append("file", backgroundImage);
         formData.append("type", "custom-design");
@@ -1158,19 +1160,22 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
-          uploadedImageUrl = uploadData.url;
+          finalBackgroundUrl = uploadData.url;
         } else {
           throw new Error("Failed to upload background image");
         }
+      } else if (backgroundPreview && !backgroundPreview.startsWith("blob:")) {
+        // Existing URL (not a blob URL) - preserve it
+        finalBackgroundUrl = backgroundPreview;
       }
       
-      // Prepare design data with only the uploaded URL (not the base64 preview)
+      // Prepare design data with only the uploaded URL (not the blob preview)
       const designData = {
         productId: selectedItemId,
         productName: catalogDetails.blueprint?.title || "Custom Product",
         productImage: catalogDetails.imageUrl || "",
         placements: Array.from(selectedPlacements),
-        backgroundImage: uploadedImageUrl,
+        backgroundImage: finalBackgroundUrl,
         topText: headerEnabled ? {
           text: headerText,
           fontFamily: headerFontFamily,
