@@ -7,7 +7,8 @@ import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/wid
 import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants, detectCategory } from "./lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
 import { generatePrintifyComposite } from "./lib/composite-image-generator";
-import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
+import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
+import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { sendOrderConfirmationEmail } from "./lib/email";
@@ -327,6 +328,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error: any) {
       console.error("Printify products error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // File upload API for multipart form data (custom designs, etc.)
+  app.post("/api/upload", async (req, res) => {
+    try {
+      const chunks: Buffer[] = [];
+      let fileName = "upload";
+      let mimeType = "image/png";
+      let boundary = "";
+      
+      const contentType = req.headers["content-type"] || "";
+      const boundaryMatch = contentType.match(/boundary=(.+)/);
+      if (boundaryMatch) {
+        boundary = boundaryMatch[1];
+      }
+      
+      // Collect raw body data
+      const rawBody = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+        req.on("error", reject);
+      });
+      
+      // Parse multipart form data manually
+      const boundaryBuffer = Buffer.from(`--${boundary}`);
+      const parts = [];
+      let start = 0;
+      
+      while (true) {
+        const boundaryIndex = rawBody.indexOf(boundaryBuffer, start);
+        if (boundaryIndex === -1) break;
+        
+        if (start > 0) {
+          parts.push(rawBody.slice(start, boundaryIndex - 2)); // -2 for CRLF
+        }
+        start = boundaryIndex + boundaryBuffer.length + 2; // +2 for CRLF
+      }
+      
+      let fileBuffer: Buffer | null = null;
+      
+      for (const part of parts) {
+        const headerEnd = part.indexOf("\r\n\r\n");
+        if (headerEnd === -1) continue;
+        
+        const headers = part.slice(0, headerEnd).toString();
+        const body = part.slice(headerEnd + 4);
+        
+        const filenameMatch = headers.match(/filename="([^"]+)"/);
+        const contentTypeMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+        
+        if (filenameMatch) {
+          fileName = filenameMatch[1];
+          if (contentTypeMatch) {
+            mimeType = contentTypeMatch[1].trim();
+          }
+          fileBuffer = body;
+        }
+      }
+      
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const uploadResult = await uploadImageFromBuffer(fileBuffer, fileName, mimeType);
+      
+      res.json({ url: uploadResult.publicUrl });
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve uploaded files from object storage
+  app.get("/api/files/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      const storageClient = new ObjectStorageClient();
+      
+      // Try custom-designs folder first
+      const filePath = `custom-designs/${filename}`;
+      const { ok, value } = await storageClient.downloadAsBytes(filePath);
+      
+      if (!ok || !value) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      const extension = filename.split(".").pop() || "png";
+      const mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
+      
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      res.send(value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array));
+    } catch (error: any) {
+      console.error("File serve error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -1140,9 +1238,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const colors = Array.from(new Set(variants.map(v => v.options?.color).filter(Boolean)));
       const sizes = Array.from(new Set(variants.map(v => v.options?.size).filter(Boolean)));
       
-      // Get base price from first variant (lowest)
-      const prices = variants.map(v => v.price || 0).filter(p => p > 0);
-      const basePrice = prices.length > 0 ? Math.min(...prices) / 100 : 0;
+      // First try to get costs from local database (cached from cost sync)
+      let basePrice = 0;
+      let maxPrice = 0;
+      let costsFromDatabase = false;
+      
+      if (selectedProvider) {
+        const storedProvider = await storage.getPrintifyPrintProvider(blueprintId, selectedProvider.id);
+        if (storedProvider?.minCost && storedProvider.minCost > 0) {
+          basePrice = storedProvider.minCost / 100;
+          maxPrice = (storedProvider.maxCost || storedProvider.minCost) / 100;
+          costsFromDatabase = true;
+        }
+      }
+      
+      // Fallback: try variant costs from Printify API (usually returns 0 for catalog items)
+      if (basePrice === 0) {
+        const costs = variants.map(v => v.cost || v.price || 0).filter((c: number) => c > 0);
+        basePrice = costs.length > 0 ? Math.min(...costs) / 100 : 0;
+        maxPrice = costs.length > 0 ? Math.max(...costs) / 100 : 0;
+      }
       
       const responseData = {
         blueprint,
@@ -1153,6 +1268,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         colors,
         sizes,
         basePrice,
+        maxPrice,
+        costsFromDatabase,
+        costsAvailable: basePrice > 0,
         imageUrl: blueprint.images?.[0] || null,
       };
       

@@ -96,4 +96,37 @@ export async function deleteImage(fileName: string): Promise<boolean> {
   }
 }
 
+// Upload from raw buffer (for multipart form uploads)
+export async function uploadImageFromBuffer(
+  buffer: Buffer,
+  originalName: string,
+  mimeType: string
+): Promise<UploadResult> {
+  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+    throw new Error(`Invalid file type: ${mimeType}. Allowed: ${ALLOWED_MIME_TYPES.join(", ")}`);
+  }
+
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+  }
+
+  const extension = mimeType.split("/")[1] || "jpg";
+  const uniqueId = crypto.randomBytes(8).toString("hex");
+  const fileName = `custom-designs/${uniqueId}.${extension}`;
+
+  const { ok, error } = await getObjectStorage().uploadFromBytes(fileName, buffer);
+
+  if (!ok) {
+    throw new Error(`Failed to upload image: ${error}`);
+  }
+
+  return {
+    fileName,
+    storageUrl: fileName,
+    publicUrl: `/api/files/${uniqueId}.${extension}`,
+    sizeBytes: buffer.length,
+    mimeType,
+  };
+}
+
 export { ALLOWED_MIME_TYPES, MAX_FILE_SIZE };
