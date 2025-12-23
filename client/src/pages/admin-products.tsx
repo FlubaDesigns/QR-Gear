@@ -1305,8 +1305,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     </span>
                   )}
                 </div>
-                <div className="max-h-96 overflow-y-auto border rounded-md bg-muted/30">
-                  <div className="divide-y">
+                <div className="max-h-[500px] overflow-y-auto">
+                  <div className="space-y-4 p-2">
                     {categoryItems.map((item) => {
                       const details = itemDetails[item.id];
                       const isSelected = selectedItemId === item.id;
@@ -1314,10 +1314,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       return (
                         <div
                           key={item.id}
-                          className={`p-2 transition-all rounded-md ${
+                          className={`p-4 transition-all rounded-lg border-2 ${
                             isSelected 
-                              ? "bg-primary/10 ring-2 ring-primary" 
-                              : "bg-background hover-elevate"
+                              ? "bg-primary/10 border-primary" 
+                              : "bg-card border-primary/40 hover:border-primary"
                           }`}
                           data-testid={`item-row-${item.id}`}
                         >
@@ -1917,14 +1917,14 @@ function ProductsContent() {
               <p className="text-sm">{products.length === 0 ? "Add products from the Printify catalog above." : "Try selecting a different store or area."}</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-5">
               {filteredProducts.map((product) => (
-                <Card key={product.id} className="p-3" data-testid={`card-product-${product.id}`}>
-                  {/* Row 1: Image+Active | Name/Category | Price/Markup | Delete */}
-                  <div className="flex gap-3">
-                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                <Card key={product.id} className="p-4 border-2 border-primary/40" data-testid={`card-product-${product.id}`}>
+                  {/* Row 1: Image+Active | Name/Category | Price/Markup */}
+                  <div className="flex gap-4">
+                    <div className="flex flex-col items-center gap-2 flex-shrink-0">
                       {product.imageUrl && (
-                        <img src={product.imageUrl} alt="" className="w-16 h-16 rounded object-cover" />
+                        <img src={product.imageUrl} alt="" className="w-20 h-20 rounded object-cover" />
                       )}
                       <div className="flex items-center gap-1">
                         <Switch
@@ -1933,52 +1933,36 @@ function ProductsContent() {
                           disabled={toggleMutation.isPending}
                           data-testid={`switch-enabled-${product.id}`}
                         />
-                        <Label className="text-[10px] text-muted-foreground">Active</Label>
+                        <Label className="text-xs text-muted-foreground">Active</Label>
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0 flex items-start justify-between gap-3 flex-wrap">
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm leading-tight">{product.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                          <span>{product.category}</span>
-                          {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
-                        </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm leading-tight">{product.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                        <span>{product.category}</span>
+                        {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
                       </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="text-right">
+                      <div className="flex items-center gap-4 mt-3">
+                        <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Base</div>
                           <div className="text-sm font-semibold text-green-600">${product.basePrice}</div>
                         </div>
-                        <div className="text-right">
+                        <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
                           <div className="text-sm font-medium">{product.markupPercent || 0}%</div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            if (confirm(`Remove "${product.name}" from catalog?`)) {
-                              deleteMutation.mutate(product.id);
-                            }
-                          }}
-                          disabled={deleteMutation.isPending}
-                          data-testid={`button-delete-${product.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   </div>
                   
                   {/* Row 2: Full width sizes/colors */}
-                  <div className="mt-3 pt-3 border-t">
+                  <div className="mt-4 pt-4 border-t">
                     <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
                   </div>
                   
                   {/* Row 3: Tags */}
-                  <div className="mt-3 pt-3 border-t">
-                    <Label className="text-xs font-medium mb-1.5 block">Tags</Label>
+                  <div className="mt-4 pt-4 border-t">
+                    <Label className="text-xs font-medium mb-2 block">Tags</Label>
                     <ProductTagEditor
                       productId={product.id}
                       allCategories={allCategories.filter(c => c.isActive)}
@@ -1989,6 +1973,25 @@ function ProductsContent() {
                       onCancel={() => setEditingProductId(null)}
                       isSaving={syncCategoriesMutation.isPending}
                     />
+                  </div>
+                  
+                  {/* Row 4: Delete button - bottom right */}
+                  <div className="mt-4 pt-4 border-t flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                      onClick={() => {
+                        if (confirm(`Remove "${product.name}" from catalog?`)) {
+                          deleteMutation.mutate(product.id);
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                      data-testid={`button-delete-${product.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
                   </div>
                 </Card>
               ))}
