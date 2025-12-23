@@ -72,5 +72,14 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 -   `express-rate-limit`: API rate limiting.
 
 ## Recent Changes
+- 2025-12-23: Fixed external store creation - now properly saves to PostgreSQL via POST /api/admin/partner-stores with auto-generated API key and unique slug. External stores appear immediately in dropdown after creation. Fixed switch component visibility with border-border class.
 - 2025-12-23: Added cost extraction system for Printify products - printifyPrintProviders table now stores minCost/maxCost fields. Backend endpoint `/api/admin/catalog/fetch-costs` creates temporary placeholder products in Printify to extract real production costs (since Printify catalog API doesn't expose costs). Batch-details endpoint prioritizes cached costs from database.
 - 2025-12-22: Added Printify catalog sync feature with local caching (printifyBlueprints, printifyPrintProviders tables), on-demand sync from admin products page, real-time status updates
+
+## Next Priority: Printify Pricing Automation
+Plan to implement automated cost fetching from Printify:
+1. Background job module (lib/printify-cost-sync.ts) that creates temp products to extract costs, with throttling to avoid rate limits
+2. Store cheapest single-print cost as minCost in printifyPrintProviders table
+3. Run on schedule (nightly cron) plus on-demand trigger from admin
+4. Show cost data in admin UI with staleness indicators (>24h badge)
+5. Track sync status (timestamps, lastBlueprintId, errors) for resume capability
