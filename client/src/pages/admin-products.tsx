@@ -977,10 +977,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               )}
                             </div>
                             
-                            {/* Right: Title, Make, Price */}
+                            {/* Right: Title, Brand+Flag, Price */}
                             <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                               <div className="font-medium text-sm leading-tight line-clamp-2">{item.title}</div>
-                              <div className="text-xs text-muted-foreground">{item.brand}</div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>{item.brand}</span>
+                                {item.madeInUSA ? <span className="text-base">🇺🇸</span> : <span className="text-base">🌍</span>}
+                              </div>
                               {details && !details.error ? (
                                 <div className="text-lg font-semibold text-green-600">
                                   ${details.basePrice.toFixed(2)}
@@ -993,21 +996,21 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             </div>
                           </div>
                           
-                          {/* Row 2: Made in USA */}
-                          <div className="mt-2">
+                          {/* Row 2: Made in USA badge on its own line */}
+                          <div className="mt-3">
                             {item.madeInUSA ? (
-                              <Badge variant="outline" className="gap-1">
+                              <Badge variant="outline" className="gap-1" data-testid={`badge-usa-${item.id}`}>
                                 <span>🇺🇸</span> Made in USA
                               </Badge>
                             ) : (
-                              <Badge variant="secondary" className="gap-1">
+                              <Badge variant="secondary" className="gap-1" data-testid={`badge-imported-${item.id}`}>
                                 <span>🌍</span> Imported
                               </Badge>
                             )}
                           </div>
                           
-                          {/* Row 3 & 4: Buttons */}
-                          <div className="flex flex-col gap-2 mt-2">
+                          {/* Row 3: Configure button */}
+                          <div className="mt-3">
                             <Button 
                               variant={isSelected ? "default" : "outline"}
                               className="w-full"
@@ -1017,12 +1020,15 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               <Settings className="h-4 w-4 mr-2" />
                               Configure
                             </Button>
+                          </div>
+                          
+                          {/* Row 4: Save to Store button */}
+                          <div className="mt-2">
                             <Button 
                               variant="secondary"
                               className="w-full"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Quick save with defaults - to be implemented
                                 toast({ title: "Coming soon", description: "Quick save functionality" });
                               }}
                               data-testid={`button-save-store-${item.id}`}
