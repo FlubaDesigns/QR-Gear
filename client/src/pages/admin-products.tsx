@@ -258,7 +258,7 @@ function getSwatchColor(colorName: string): string {
 function ColorSwatch({ hex, className = "" }: { hex: string; className?: string }) {
   return (
     <div 
-      className={`w-5 h-5 rounded-full border flex-shrink-0 ${className}`}
+      className={`w-5 h-5 rounded-sm border flex-shrink-0 ${className}`}
       ref={(el) => { if (el) el.style.backgroundColor = hex; }}
     />
   );
@@ -365,9 +365,9 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
                 type="button"
                 onClick={() => toggleColor(color.name)}
                 disabled={saving}
-                className={`p-1 rounded-full transition-all ${
+                className={`p-0.5 rounded transition-all ${
                   enabledColors.has(color.name) 
-                    ? "ring-2 ring-primary ring-offset-2" 
+                    ? "ring-2 ring-primary ring-offset-1" 
                     : "opacity-40 hover:opacity-70"
                 }`}
                 title={color.name}
@@ -375,7 +375,7 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
                 aria-pressed={enabledColors.has(color.name)}
                 data-testid={`button-color-${product.id}-${color.name}`}
               >
-                <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-6 h-6" />
+                <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-5 h-5" />
               </button>
             ))}
           </div>
@@ -1518,7 +1518,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               data-testid={`switch-color-${color}`}
                             />
                             <div 
-                              className="w-6 h-6 rounded-full border flex-shrink-0"
+                              className="w-6 h-6 rounded-sm border flex-shrink-0"
                               style={{ backgroundColor: getSwatchColor(color) }}
                             />
                             <span className="text-sm">{color}</span>
@@ -1690,32 +1690,33 @@ function ProductsContent() {
               <p className="text-sm">Add products from the Printify catalog above.</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {products.map((product) => (
-                <Card key={product.id} className="p-4" data-testid={`card-product-${product.id}`}>
-                  <div className="flex items-start gap-4">
+                <Card key={product.id} className="p-3" data-testid={`card-product-${product.id}`}>
+                  <div className="flex gap-3">
                     {product.imageUrl && (
-                      <img src={product.imageUrl} alt="" className="w-20 h-20 rounded object-cover flex-shrink-0" />
+                      <img src={product.imageUrl} alt="" className="w-16 h-16 rounded object-cover flex-shrink-0" />
                     )}
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center justify-between gap-4 flex-wrap">
-                        <div>
-                          <div className="font-medium text-lg">{product.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {product.category} {product.madeInUSA && <Badge variant="outline" className="ml-2 text-xs">USA Made</Badge>}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm leading-tight">{product.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                            <span>{product.category}</span>
+                            {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 flex-shrink-0">
                           <div className="text-right">
-                            <div className="text-sm text-muted-foreground">Base Price</div>
-                            <div className="font-medium">${product.basePrice}</div>
+                            <div className="text-[10px] text-muted-foreground uppercase">Base</div>
+                            <div className="text-sm font-semibold text-green-600">${product.basePrice}</div>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm text-muted-foreground">Markup</div>
-                            <div className="font-medium">{product.markupPercent || 0}%</div>
+                            <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
+                            <div className="text-sm font-medium">{product.markupPercent || 0}%</div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Label className="text-sm">Enabled</Label>
+                          <div className="flex items-center gap-1.5 pl-2 border-l">
+                            <Label className="text-xs">Active</Label>
                             <Switch
                               checked={product.isEnabled || false}
                               onCheckedChange={(enabled) => toggleMutation.mutate({ id: product.id, enabled })}
@@ -1726,20 +1727,22 @@ function ProductsContent() {
                         </div>
                       </div>
                       
-                      <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
-                      
-                      <div>
-                        <Label className="text-sm font-medium mb-2 block">Tags</Label>
-                        <ProductTagEditor
-                          productId={product.id}
-                          allCategories={allCategories.filter(c => c.isActive)}
-                          assignedCategoryIds={product.categoryIds || []}
-                          isEditing={editingProductId === product.id}
-                          onEdit={() => setEditingProductId(product.id)}
-                          onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
-                          onCancel={() => setEditingProductId(null)}
-                          isSaving={syncCategoriesMutation.isPending}
-                        />
+                      <div className="mt-3 pt-3 border-t space-y-3">
+                        <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
+                        
+                        <div>
+                          <Label className="text-xs font-medium mb-1.5 block">Tags</Label>
+                          <ProductTagEditor
+                            productId={product.id}
+                            allCategories={allCategories.filter(c => c.isActive)}
+                            assignedCategoryIds={product.categoryIds || []}
+                            isEditing={editingProductId === product.id}
+                            onEdit={() => setEditingProductId(product.id)}
+                            onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
+                            onCancel={() => setEditingProductId(null)}
+                            isSaving={syncCategoriesMutation.isPending}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
