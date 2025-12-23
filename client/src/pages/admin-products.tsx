@@ -892,30 +892,33 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             {selectedCategory && categoryData && (
               <div className="space-y-2">
                 <Label>3. Where It's Made</Label>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant={locationFilter === "all" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleLocationFilterChange("all")}
-                    data-testid="filter-all"
-                  >
-                    All ({allCategoryItems.length})
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button
+                      variant={locationFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleLocationFilterChange("all")}
+                      data-testid="filter-all"
+                    >
+                      All ({allCategoryItems.length})
+                    </Button>
+                    <Button
+                      variant={locationFilter === "other" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleLocationFilterChange("other")}
+                      data-testid="filter-other"
+                    >
+                      Made Elsewhere ({categoryData.otherCount})
+                    </Button>
+                  </div>
                   <Button
                     variant={locationFilter === "usa" ? "default" : "outline"}
                     size="sm"
+                    className="w-fit"
                     onClick={() => handleLocationFilterChange("usa")}
                     data-testid="filter-usa"
                   >
                     <span className="mr-1">🇺🇸</span> Made in USA ({categoryData.usaCount})
-                  </Button>
-                  <Button
-                    variant={locationFilter === "other" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleLocationFilterChange("other")}
-                    data-testid="filter-other"
-                  >
-                    Made Elsewhere ({categoryData.otherCount})
                   </Button>
                 </div>
               </div>
