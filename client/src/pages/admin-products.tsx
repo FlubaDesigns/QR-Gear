@@ -616,7 +616,7 @@ interface StagedProduct {
   imageUrl: string | null;
   manufacturer: string;
   madeInUSA: boolean;
-  placement: string;
+  placements: string[];
   headerEnabled: boolean;
   footerEnabled: boolean;
   colors: string[];
@@ -655,7 +655,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [catalogDetails, setCatalogDetails] = useState<CatalogDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [selectedPlacement, setSelectedPlacement] = useState<string>("front-chest");
+  const [selectedPlacements, setSelectedPlacements] = useState<Set<string>>(new Set(["front-chest"]));
   const [headerEnabled, setHeaderEnabled] = useState(false);
   const [headerText, setHeaderText] = useState("");
   const [footerEnabled, setFooterEnabled] = useState(false);
@@ -884,7 +884,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       imageUrl: selectedItem.imageUrl || catalogDetails.imageUrl,
       manufacturer: catalogDetails.selectedProvider.title,
       madeInUSA: catalogDetails.madeInUSA,
-      placement: selectedPlacement,
+      placements: Array.from(selectedPlacements),
       headerEnabled,
       footerEnabled,
       colors: catalogDetails.colors,
@@ -900,7 +900,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setLocationFilter("all");
     setSelectedItemId(null);
     setCatalogDetails(null);
-    setSelectedPlacement("front-chest");
+    setSelectedPlacements(new Set(["front-chest"]));
     setHeaderEnabled(false);
     setHeaderText("");
     setFooterEnabled(false);
@@ -939,13 +939,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             imageUrl: product.imageUrl,
             manufacturer: product.manufacturer,
             madeInUSA: product.madeInUSA,
-            availablePlacements: [product.placement],
+            availablePlacements: product.placements || ["front-chest"],
             availableColors: product.colors,
             availableSizes: product.sizes,
             metadata: { 
               brand: product.brand, 
               model: product.model,
-              defaultPlacement: product.placement,
+              defaultPlacement: (product.placements || ["front-chest"])[0],
               headerTextEnabled: product.headerEnabled,
               footerTextEnabled: product.footerEnabled,
               storeType,
@@ -1014,13 +1014,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         imageUrl: item.imageUrl,
         manufacturer: details.providerName || "Printify",
         madeInUSA: item.madeInUSA,
-        availablePlacements: [selectedPlacement],
+        availablePlacements: Array.from(selectedPlacements),
         availableColors: selectedColors,
         availableSizes: selectedSizes,
         metadata: { 
           brand: item.brand, 
           model: item.model,
-          defaultPlacement: selectedPlacement,
+          defaultPlacement: Array.from(selectedPlacements)[0] || "front-chest",
           storeType,
           storeName: selectedStore,
           segment: selectedSegment,
@@ -1058,7 +1058,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setLocationFilter("all");
     setSelectedItemId(null);
     setCatalogDetails(null);
-    setSelectedPlacement("front-chest");
+    setSelectedPlacements(new Set(["front-chest"]));
     setHeaderEnabled(false);
     setHeaderText("");
     setFooterEnabled(false);
@@ -1143,7 +1143,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         productId: selectedItemId,
         productName: catalogDetails.blueprint?.title || "Custom Product",
         productImage: catalogDetails.imageUrl || "",
-        placement: selectedPlacement,
+        placements: Array.from(selectedPlacements),
         backgroundImage: backgroundPreview || null,
         topText: headerEnabled ? {
           text: headerText,
@@ -1611,17 +1611,25 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   </div>
                 )}
                 
-                {/* 3. Print Placement Options (after product selected) */}
+                {/* 3. Print Placement Options (after product selected) - Multi-select */}
                 {selectedItemId && (
                   <div className="space-y-2">
-                    <Label className="font-semibold">Print Placement</Label>
+                    <Label className="font-semibold">Print Placements (select one or more)</Label>
                     <div className="flex flex-wrap gap-2">
                       {QR_PLACEMENTS.map(({ id, label, Icon }) => (
                         <Button
                           key={id}
-                          variant={selectedPlacement === id ? "default" : "outline"}
+                          variant={selectedPlacements.has(id) ? "default" : "outline"}
                           size="sm"
-                          onClick={() => setSelectedPlacement(id)}
+                          onClick={() => {
+                            const newSet = new Set(selectedPlacements);
+                            if (newSet.has(id)) {
+                              if (newSet.size > 1) newSet.delete(id);
+                            } else {
+                              newSet.add(id);
+                            }
+                            setSelectedPlacements(newSet);
+                          }}
                           data-testid={`placement-${id}`}
                         >
                           <Icon className="h-4 w-4 mr-1" />
@@ -1629,6 +1637,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         </Button>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Selected: {Array.from(selectedPlacements).join(", ")}
+                    </p>
                   </div>
                 )}
                 
@@ -2104,14 +2115,22 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>5. QR Placement</Label>
+                  <Label>5. QR Placements (select one or more)</Label>
                   <div className="flex flex-wrap gap-2">
                     {QR_PLACEMENTS.map(({ id, label, Icon }) => (
                       <Button
                         key={id}
-                        variant={selectedPlacement === id ? "default" : "outline"}
+                        variant={selectedPlacements.has(id) ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setSelectedPlacement(id)}
+                        onClick={() => {
+                          const newSet = new Set(selectedPlacements);
+                          if (newSet.has(id)) {
+                            if (newSet.size > 1) newSet.delete(id);
+                          } else {
+                            newSet.add(id);
+                          }
+                          setSelectedPlacements(newSet);
+                        }}
                         data-testid={`placement-${id}`}
                       >
                         <Icon className="h-4 w-4 mr-1" />
@@ -2119,6 +2138,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       </Button>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {Array.from(selectedPlacements).join(", ")}
+                  </p>
                 </div>
 
                 <div className="space-y-3">
