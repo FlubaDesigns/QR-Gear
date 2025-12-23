@@ -941,60 +941,87 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       return (
                         <div
                           key={item.id}
-                          className={`flex items-start gap-3 p-3 cursor-pointer transition-all ${
+                          className={`p-3 transition-all rounded-md ${
                             isSelected 
-                              ? "bg-primary/10 border-l-4 border-l-primary" 
+                              ? "bg-primary/10 ring-2 ring-primary" 
                               : "bg-background hover-elevate"
                           }`}
-                          onClick={() => handleItemChange(String(item.id))}
                           data-testid={`item-row-${item.id}`}
                         >
-                          <div 
-                            className="relative w-16 h-16 flex-shrink-0 cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (item.imageUrl) {
-                                setZoomedImage({ url: item.imageUrl, title: item.title });
-                              }
-                            }}
-                          >
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.title}
-                                className="w-full h-full object-contain rounded bg-white border"
-                              />
-                            ) : (
-                              <div className="w-full h-full rounded bg-muted flex items-center justify-center border">
-                                <Package className="h-6 w-6 text-muted-foreground" />
-                              </div>
-                            )}
-                            {isSelected && (
-                              <div className="absolute -top-1 -left-1 p-0.5 bg-primary rounded-full">
-                                <Check className="h-3 w-3 text-primary-foreground" />
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{item.title}</span>
-                              {item.madeInUSA && (
-                                <Badge variant="outline" className="text-xs gap-1">
-                                  <Flag className="h-3 w-3" /> USA
-                                </Badge>
+                          {/* Row 1: Image + Info */}
+                          <div className="flex items-stretch gap-3">
+                            {/* Left: Thumbnail */}
+                            <div 
+                              className="relative w-20 h-20 flex-shrink-0 cursor-pointer"
+                              onClick={() => {
+                                if (item.imageUrl) {
+                                  setZoomedImage({ url: item.imageUrl, title: item.title });
+                                }
+                              }}
+                            >
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.title}
+                                  className="w-full h-full object-contain rounded bg-white border"
+                                />
+                              ) : (
+                                <div className="w-full h-full rounded bg-muted flex items-center justify-center border">
+                                  <Package className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                              )}
+                              {isSelected && (
+                                <div className="absolute -top-1 -left-1 p-0.5 bg-primary rounded-full">
+                                  <Check className="h-3 w-3 text-primary-foreground" />
+                                </div>
                               )}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {item.brand} - {item.model}
-                            </div>
-                            {details && !details.error && (
-                              <div className="flex items-center gap-3 text-xs">
-                                <span className="font-medium text-green-600">${details.basePrice.toFixed(2)}</span>
-                                <span className="text-muted-foreground">{details.sizes.length} sizes</span>
-                                <span className="text-muted-foreground">{details.colors.length} colors</span>
+                            
+                            {/* Right: Title, Make, Price */}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                              <div className="font-medium text-sm leading-tight line-clamp-2">{item.title}</div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>{item.brand}</span>
+                                {item.madeInUSA ? (
+                                  <span className="text-base">🇺🇸</span>
+                                ) : (
+                                  <span className="text-base">🌍</span>
+                                )}
                               </div>
-                            )}
+                              {details && !details.error ? (
+                                <div className="text-lg font-semibold text-green-600">
+                                  ${details.basePrice.toFixed(2)}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-muted-foreground">Loading...</div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Row 2 & 3: Buttons */}
+                          <div className="flex flex-col gap-2 mt-3">
+                            <Button 
+                              variant={isSelected ? "default" : "outline"}
+                              className="w-full"
+                              onClick={() => handleItemChange(String(item.id))}
+                              data-testid={`button-configure-${item.id}`}
+                            >
+                              <Settings className="h-4 w-4 mr-2" />
+                              Configure
+                            </Button>
+                            <Button 
+                              variant="secondary"
+                              className="w-full"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Quick save with defaults - to be implemented
+                                toast({ title: "Coming soon", description: "Quick save functionality" });
+                              }}
+                              data-testid={`button-save-store-${item.id}`}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Save to Store
+                            </Button>
                           </div>
                         </div>
                       );
