@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, decimal, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, decimal, timestamp, integer, boolean, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -113,7 +113,9 @@ export const productVariants = pgTable("product_variants", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   isEnabled: boolean("is_enabled").default(true),
   isInStock: boolean("is_in_stock").default(true),
-});
+}, (table) => ({
+  productVariantUnique: unique().on(table.productId, table.printifyVariantId),
+}));
 
 // Pre-designed QR templates (curated backgrounds like "John 3:16")
 export const qrTemplates = pgTable("qr_templates", {
