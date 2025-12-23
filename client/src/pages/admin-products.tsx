@@ -267,9 +267,14 @@ function ColorSwatch({ hex, className = "" }: { hex: string; className?: string 
 function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdate: () => void }) {
   const { toast } = useToast();
   const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
-  const colors = Array.isArray(product.availableColors) 
-    ? (product.availableColors as Array<{name: string; hex: string}>)
-    : [];
+  
+  const rawColors = Array.isArray(product.availableColors) ? product.availableColors : [];
+  const colors: Array<{name: string; hex: string}> = rawColors.map((c: any) => {
+    if (typeof c === 'string') {
+      return { name: c, hex: getSwatchColor(c) };
+    }
+    return { name: c.name || '', hex: c.hex || getSwatchColor(c.name || '') };
+  });
   
   const savedEnabledSizes = (product.metadata as any)?.enabledSizes as string[] | undefined;
   const savedEnabledColors = (product.metadata as any)?.enabledColors as string[] | undefined;
