@@ -1210,18 +1210,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const colors = Array.from(new Set(variants.map((v: any) => v.options?.color).filter(Boolean)));
           const sizes = Array.from(new Set(variants.map((v: any) => v.options?.size).filter(Boolean)));
           
-          // Get base price (lowest) - Printify uses 'cost' field in cents
-          const costs = variants.map((v: any) => v.cost || 0).filter((c: number) => c > 0);
-          const basePrice = costs.length > 0 ? Math.min(...costs) / 100 : 0;
+          // First try to get costs from local database (cached from placeholder products)
+          let basePrice = 0;
+          let maxPrice = 0;
+          let costsFromDatabase = false;
           
-          if (basePrice === 0 && variants.length > 0) {
-            console.log(`[Batch] Blueprint ${blueprintId}: No costs in ${variants.length} variants. Sample keys:`, 
-              variants[0] ? Object.keys(variants[0]) : 'none');
+          if (selectedProvider) {
+            const storedProvider = await storage.getPrintifyPrintProvider(blueprintId, selectedProvider.id);
+            if (storedProvider?.minCost && storedProvider.minCost > 0) {
+              basePrice = storedProvider.minCost / 100;
+              maxPrice = (storedProvider.maxCost || storedProvider.minCost) / 100;
+              costsFromDatabase = true;
+            }
+          }
+          
+          // Fallback: try Printify API (usually returns 0 for catalog items)
+          if (basePrice === 0) {
+            const costs = variants.map((v: any) => v.cost || 0).filter((c: number) => c > 0);
+            basePrice = costs.length > 0 ? Math.min(...costs) / 100 : 0;
+            maxPrice = costs.length > 0 ? Math.max(...costs) / 100 : 0;
           }
           
           const data = {
             blueprintId,
             basePrice,
+            maxPrice,
+            costsAvailable: basePrice > 0,
+            costsFromDatabase,
             colors,
             sizes,
             madeInUSA: usaProviders.length > 0,
@@ -1474,6 +1489,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.clearPrintifyBlueprints();
       res.json({ success: true, message: "Local catalog cleared" });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Fetch production costs for a specific blueprint/provider combo
+  // Creates a placeholder product in Printify to extract costs, then stores them locally
+  app.post("/api/admin/catalog/fetch-costs", isAdmin, async (req: any, res) => {
+    try {
+      const { blueprintId, providerId, deleteAfter = true } = req.body;
+      
+      if (!blueprintId || !providerId) {
+        return res.status(400).json({ error: "blueprintId and providerId are required" });
+      }
+      
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      
+      console.log(`[Cost Fetch] Fetching costs for blueprint ${blueprintId}, provider ${providerId}...`);
+      
+      // First, get the variants for this blueprint/provider
+      const variantsResult = await printify.getVariants(blueprintId, providerId);
+      const variantIds = variantsResult.variants.map(v => v.id);
+      
+      if (variantIds.length === 0) {
+        return res.status(404).json({ error: "No variants found for this blueprint/provider combo" });
+      }
+      
+      console.log(`[Cost Fetch] Found ${variantIds.length} variants, creating placeholder product...`);
+      
+      // Create a placeholder product to get costs
+      const placeholderProduct = await printify.createPlaceholderProduct(
+        blueprintId,
+        providerId,
+        variantIds
+      );
+      
+      console.log(`[Cost Fetch] Created placeholder product ${placeholderProduct.id}, extracting costs...`);
+      
+      // Extract costs from the product
+      const costs = printify.extractCostsFromProduct(placeholderProduct);
+      
+      console.log(`[Cost Fetch] Extracted costs: min=$${(costs.minCost / 100).toFixed(2)}, max=$${(costs.maxCost / 100).toFixed(2)}`);
+      
+      // Store costs in the local database
+      const updatedProvider = await storage.updatePrintifyProviderCosts(
+        blueprintId,
+        providerId,
+        {
+          minCost: costs.minCost,
+          maxCost: costs.maxCost,
+          placeholderProductId: deleteAfter ? undefined : placeholderProduct.id,
+        }
+      );
+      
+      // Optionally delete the placeholder product
+      if (deleteAfter) {
+        try {
+          await printify.deleteProduct(placeholderProduct.id);
+          console.log(`[Cost Fetch] Deleted placeholder product ${placeholderProduct.id}`);
+        } catch (deleteError: any) {
+          console.warn(`[Cost Fetch] Could not delete placeholder product: ${deleteError.message}`);
+        }
+      }
+      
+      res.json({
+        success: true,
+        blueprintId,
+        providerId,
+        minCost: costs.minCost,
+        maxCost: costs.maxCost,
+        minCostFormatted: `$${(costs.minCost / 100).toFixed(2)}`,
+        maxCostFormatted: `$${(costs.maxCost / 100).toFixed(2)}`,
+        variantsChecked: variantIds.length,
+        placeholderDeleted: deleteAfter,
+      });
+      
+    } catch (error: any) {
+      console.error('[Cost Fetch] Error:', error.message);
       res.status(500).json({ error: error.message });
     }
   });
