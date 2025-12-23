@@ -1099,7 +1099,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       </CardContent>
 
       <Dialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
-        <DialogContent className="max-w-3xl p-2">
+        <DialogContent className="max-w-3xl p-2" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">{zoomedImage?.title || "Product Image"}</DialogTitle>
           {zoomedImage && (
             <div 
               className="flex flex-col items-center gap-2 cursor-pointer"
