@@ -600,7 +600,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     };
     
     fetchBatchDetails();
-  }, [selectedCategory, allCategoryItems.length]);
+  }, [selectedCategory, JSON.stringify(allCategoryItems.map(i => i.id))]);
 
   const headerUpcharge = headerEnabled && headerText.trim() ? 2 : 0;
   const footerUpcharge = footerEnabled && footerText.trim() ? 2 : 0;
@@ -980,26 +980,31 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             {/* Right: Title, Make, Price */}
                             <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                               <div className="font-medium text-sm leading-tight line-clamp-2">{item.title}</div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>{item.brand}</span>
-                                {item.madeInUSA ? (
-                                  <span className="text-base">🇺🇸</span>
-                                ) : (
-                                  <span className="text-base">🌍</span>
-                                )}
-                              </div>
+                              <div className="text-xs text-muted-foreground">{item.brand}</div>
                               {details && !details.error ? (
                                 <div className="text-lg font-semibold text-green-600">
                                   ${details.basePrice.toFixed(2)}
                                 </div>
+                              ) : fetchingBatch ? (
+                                <div className="text-sm text-muted-foreground">Loading price...</div>
                               ) : (
-                                <div className="text-sm text-muted-foreground">Loading...</div>
+                                <div className="text-sm text-muted-foreground">-</div>
                               )}
                             </div>
                           </div>
                           
-                          {/* Row 2 & 3: Buttons */}
+                          {/* Row 2, 3, 4: Buttons */}
                           <div className="flex flex-col gap-2 mt-3">
+                            {/* Made in USA button */}
+                            {item.madeInUSA ? (
+                              <Button variant="outline" className="w-full justify-center gap-2" disabled>
+                                <span>🇺🇸</span> Made in USA
+                              </Button>
+                            ) : (
+                              <Button variant="secondary" className="w-full justify-center gap-2" disabled>
+                                <span>🌍</span> Imported
+                              </Button>
+                            )}
                             <Button 
                               variant={isSelected ? "default" : "outline"}
                               className="w-full"
