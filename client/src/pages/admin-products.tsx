@@ -35,6 +35,7 @@ import {
   RotateCw,
   ZoomIn,
   Settings,
+  DollarSign,
 } from "lucide-react";
 import type { Product, ProductCategory } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -502,6 +503,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
   const [itemDetails, setItemDetails] = useState<Record<number, {
     basePrice: number;
+    maxPrice?: number;
+    costsAvailable?: boolean;
+    costsFromDatabase?: boolean;
     colors: string[];
     sizes: string[];
     providerId?: number;
@@ -509,6 +513,43 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     error?: boolean;
   }>>({});
   const [fetchingBatch, setFetchingBatch] = useState(false);
+  const [fetchingCostFor, setFetchingCostFor] = useState<number | null>(null);
+
+  async function fetchCostForItem(blueprintId: number, providerId: number) {
+    setFetchingCostFor(blueprintId);
+    try {
+      const res = await fetch("/api/admin/catalog/fetch-costs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ blueprintId, providerId }),
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to fetch costs");
+      }
+      
+      const data = await res.json();
+      
+      setItemDetails(prev => ({
+        ...prev,
+        [blueprintId]: {
+          ...prev[blueprintId],
+          basePrice: data.minCost / 100,
+          maxPrice: data.maxCost / 100,
+          costsAvailable: true,
+          costsFromDatabase: true,
+        }
+      }));
+      
+      toast({ title: "Success", description: `Cost: $${(data.minCost / 100).toFixed(2)} - $${(data.maxCost / 100).toFixed(2)}` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setFetchingCostFor(null);
+    }
+  }
 
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/admin/printify/catalog"],
@@ -582,6 +623,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 const d = data as any;
                 next[parseInt(id)] = {
                   basePrice: d.basePrice || 0,
+                  maxPrice: d.maxPrice || 0,
+                  costsAvailable: d.costsAvailable || false,
+                  costsFromDatabase: d.costsFromDatabase || false,
                   colors: d.colors || [],
                   sizes: d.sizes || [],
                   providerId: d.providerId,
@@ -988,11 +1032,37 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                                 <span>{item.madeInUSA ? "🇺🇸" : "🌍"}</span>
                               </div>
                               {details && !details.error ? (
-                                <div className="text-lg font-semibold text-green-600">
-                                  ${details.basePrice.toFixed(2)}
-                                </div>
+                                details.costsAvailable ? (
+                                  <div className="text-lg font-semibold text-green-600">
+                                    ${details.basePrice.toFixed(2)}
+                                    {details.maxPrice && details.maxPrice > details.basePrice && (
+                                      <span className="text-sm font-normal"> - ${details.maxPrice.toFixed(2)}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={fetchingCostFor === item.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (details.providerId) {
+                                        fetchCostForItem(item.id, details.providerId);
+                                      }
+                                    }}
+                                    data-testid={`button-fetch-cost-${item.id}`}
+                                  >
+                                    {fetchingCostFor === item.id ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <DollarSign className="h-3 w-3 mr-1" />
+                                    )}
+                                    Fetch Cost
+                                  </Button>
+                                )
                               ) : fetchingBatch ? (
-                                <div className="text-sm text-muted-foreground">Loading price...</div>
+                                <div className="text-sm text-muted-foreground">Loading...</div>
                               ) : (
                                 <div className="text-sm text-muted-foreground">-</div>
                               )}
@@ -1046,9 +1116,31 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     <div className="text-sm text-muted-foreground">
                       Provider: {catalogDetails.selectedProvider.title}
                     </div>
-                    <div className="text-lg font-bold text-green-600">
-                      ${catalogDetails.basePrice.toFixed(2)}
-                    </div>
+                    {catalogDetails.basePrice > 0 ? (
+                      <div className="text-lg font-bold text-green-600">
+                        ${catalogDetails.basePrice.toFixed(2)}
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={fetchingCostFor === selectedItem?.id}
+                        onClick={() => {
+                          if (selectedItem && catalogDetails.selectedProvider) {
+                            fetchCostForItem(selectedItem.id, catalogDetails.selectedProvider.id);
+                          }
+                        }}
+                        data-testid="button-fetch-cost-detail"
+                      >
+                        {fetchingCostFor === selectedItem?.id ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <DollarSign className="h-3 w-3 mr-1" />
+                        )}
+                        Fetch Production Cost
+                      </Button>
+                    )}
                   </div>
                 </div>
 
