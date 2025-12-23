@@ -415,15 +415,37 @@ class PrintifyClient {
       return PrintifyClient.placeholderImageId;
     }
 
-    // Upload a simple placeholder image (a public 100x100 PNG)
-    const result = await this.uploadImage(
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/QR_code_for_mobile_English_Wikipedia.svg/100px-QR_code_for_mobile_English_Wikipedia.svg.png',
-      'qr-placeholder.png'
+    // Upload a programmatically generated QR code PNG
+    const base64Png = await this.createSimplePng();
+    
+    const result = await this.request<{ id: string; file_name: string; height: number; width: number }>(
+      `/uploads/images.json`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          file_name: 'qr-placeholder.png',
+          contents: base64Png,
+        }),
+      }
     );
     
     PrintifyClient.placeholderImageId = result.id;
     console.log(`[Printify] Uploaded placeholder image: ${result.id}`);
     return result.id;
+  }
+
+  /**
+   * Create a placeholder QR code image as base64 PNG
+   */
+  private async createSimplePng(): Promise<string> {
+    const QRCode = await import('qrcode');
+    // Generate a simple QR code as PNG buffer
+    const buffer = await QRCode.toBuffer('PLACEHOLDER', {
+      width: 200,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+    return buffer.toString('base64');
   }
 
   /**

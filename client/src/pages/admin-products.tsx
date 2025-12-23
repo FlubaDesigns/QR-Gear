@@ -60,6 +60,7 @@ interface CatalogSyncStatus {
 function CatalogSyncSection() {
   const { toast } = useToast();
   const [isSyncRunning, setIsSyncRunning] = useState(false);
+  const [isCostSyncRunning, setIsCostSyncRunning] = useState(false);
   
   const { data: syncStatus, refetch: refetchStatus, isLoading, isError, error } = useQuery<CatalogSyncStatus>({
     queryKey: ["/api/admin/catalog/sync-status"],
@@ -88,6 +89,29 @@ function CatalogSyncSection() {
     },
     onError: (error: any) => {
       toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const costSyncMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/catalog/sync-all-costs");
+      return res.json();
+    },
+    onMutate: () => {
+      setIsCostSyncRunning(true);
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Cost sync started", 
+        description: `Fetching costs for ${data.totalProviders || 'all'} products in background...` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Cost sync failed", description: error.message, variant: "destructive" });
+      setIsCostSyncRunning(false);
+    },
+    onSettled: () => {
+      setTimeout(() => setIsCostSyncRunning(false), 5000);
     },
   });
   
@@ -147,22 +171,37 @@ function CatalogSyncSection() {
             )}
           </div>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => syncMutation.mutate()}
-            disabled={isSyncing || syncMutation.isPending}
-            data-testid="button-sync-catalog"
-          >
-            {isSyncing ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
-            ) : (
-              <><RefreshCw className="h-4 w-4 mr-2" /> Sync Now</>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncMutation.mutate()}
+              disabled={isSyncing || syncMutation.isPending}
+              data-testid="button-sync-catalog"
+            >
+              {isSyncing ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Sync Catalog</>
+              )}
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => costSyncMutation.mutate()}
+              disabled={isCostSyncRunning || costSyncMutation.isPending || !syncStatus?.totalBlueprints}
+              data-testid="button-sync-costs"
+            >
+              {isCostSyncRunning ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing Costs...</>
+              ) : (
+                <><DollarSign className="h-4 w-4 mr-2" /> Sync Costs</>
+              )}
+            </Button>
+          </div>
         </div>
         
-        {isSyncing && (
+        {(isSyncing || isCostSyncRunning) && (
           <Progress value={undefined} className="mt-3 h-1" />
         )}
       </CardContent>
@@ -508,7 +547,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set());
   const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
-  const [itemDetails, setItemDetails] = useState<Record<number, {
+  type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
     costsAvailable?: boolean;
@@ -518,7 +557,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     providerId?: number;
     providerName?: string;
     error?: boolean;
-  }>>({});
+  };
+  const [itemDetails, setItemDetails] = useState<Record<number, ItemDetails>>({});
   const [fetchingBatch, setFetchingBatch] = useState(false);
   const [fetchingCostFor, setFetchingCostFor] = useState<number | null>(null);
 
@@ -609,6 +649,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     const fetchBatchDetails = async () => {
       setFetchingBatch(true);
       
+      // Track all results to pass to cost fetching
+      const accumulatedResults: Record<number, ItemDetails> = {};
+      
       const batchSize = 20;
       for (let i = 0; i < itemsToFetch.length; i += batchSize) {
         const batch = itemsToFetch.slice(i, i + batchSize);
@@ -628,7 +671,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               const next = { ...prev };
               for (const [id, data] of Object.entries(results)) {
                 const d = data as any;
-                next[parseInt(id)] = {
+                const detail: ItemDetails = {
                   basePrice: d.basePrice || 0,
                   maxPrice: d.maxPrice || 0,
                   costsAvailable: d.costsAvailable || false,
@@ -639,6 +682,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   providerName: d.providerName,
                   error: d.error,
                 };
+                next[parseInt(id)] = detail;
+                accumulatedResults[parseInt(id)] = detail;
               }
               return next;
             });
@@ -648,63 +693,12 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       }
       
       setFetchingBatch(false);
-      
-      // After batch details loaded, auto-fetch costs for items missing them
-      // This happens in background, one at a time to avoid rate limits
-      autoFetchMissingCosts();
+      // Costs are now read from database only - no auto-fetching
+      // Admin can trigger a manual sync from the catalog sync section
     };
     
     fetchBatchDetails();
   }, [selectedCategory, JSON.stringify(allCategoryItems.map(i => i.id))]);
-
-  // Auto-fetch costs for items that don't have them (runs sequentially to avoid rate limits)
-  const [autoFetchingCosts, setAutoFetchingCosts] = useState(false);
-  
-  async function autoFetchMissingCosts() {
-    // Find items that have details but no costs
-    const itemsNeedingCosts = Object.entries(itemDetails)
-      .filter(([_, d]) => d && !d.error && !d.costsAvailable && d.providerId)
-      .slice(0, 5); // Limit to 5 at a time
-    
-    if (itemsNeedingCosts.length === 0) return;
-    
-    setAutoFetchingCosts(true);
-    
-    for (const [blueprintIdStr, details] of itemsNeedingCosts) {
-      const blueprintId = parseInt(blueprintIdStr);
-      if (!details.providerId) continue;
-      
-      try {
-        const res = await fetch("/api/admin/catalog/fetch-costs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ blueprintId, providerId: details.providerId }),
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setItemDetails(prev => ({
-            ...prev,
-            [blueprintId]: {
-              ...prev[blueprintId],
-              basePrice: data.minCost / 100,
-              maxPrice: data.maxCost / 100,
-              costsAvailable: true,
-              costsFromDatabase: true,
-            }
-          }));
-        }
-        
-        // Small delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch {
-        // Continue to next item on error
-      }
-    }
-    
-    setAutoFetchingCosts(false);
-  }
 
   const headerUpcharge = headerEnabled && headerText.trim() ? 2 : 0;
   const footerUpcharge = footerEnabled && footerText.trim() ? 2 : 0;
@@ -1101,9 +1095,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                                       )}
                                     </>
                                   ) : (
-                                    <span className="text-muted-foreground text-sm font-normal flex items-center gap-1">
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                      Fetching...
+                                    <span className="text-muted-foreground text-xs font-normal">
+                                      Run cost sync
                                     </span>
                                   )}
                                 </div>

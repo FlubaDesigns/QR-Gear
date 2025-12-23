@@ -1582,6 +1582,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync ALL costs in background - runs through all cached providers
+  app.post("/api/admin/catalog/sync-all-costs", isAdmin, async (req: any, res) => {
+    try {
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      
+      // Get all cached providers from the database
+      const providers = await storage.getPrintifyPrintProviders();
+      
+      if (providers.length === 0) {
+        return res.status(400).json({ error: "No providers cached. Run catalog sync first." });
+      }
+      
+      // Respond immediately - sync runs in background
+      res.json({ 
+        success: true, 
+        message: "Cost sync started in background",
+        totalProviders: providers.length,
+      });
+      
+      // Run the sync in background (don't await)
+      (async () => {
+        console.log(`[Cost Sync] Starting background sync for ${providers.length} providers...`);
+        
+        let synced = 0;
+        let failed = 0;
+        
+        // Upload placeholder image once
+        let imageId: string | null = null;
+        try {
+          imageId = await printify.getOrCreatePlaceholderImage();
+          console.log(`[Cost Sync] Using placeholder image: ${imageId}`);
+        } catch (err: any) {
+          console.error(`[Cost Sync] Failed to upload placeholder image:`, err.message);
+          return;
+        }
+        
+        for (const provider of providers) {
+          // Skip if already has costs
+          if (provider.minCost && provider.minCost > 0) {
+            console.log(`[Cost Sync] Skipping ${provider.blueprintId}/${provider.id} - already has cost $${(provider.minCost / 100).toFixed(2)}`);
+            synced++;
+            continue;
+          }
+          
+          try {
+            // Get placement and variants
+            const { placement, variantIds } = await printify.getCommonPlacement(provider.blueprintId, provider.id);
+            
+            // Create placeholder product
+            const placeholderProduct = await printify.createPlaceholderProduct(
+              provider.blueprintId,
+              provider.id,
+              variantIds,
+              imageId,
+              placement
+            );
+            
+            // Extract costs
+            const costs = printify.extractCostsFromProduct(placeholderProduct);
+            
+            // Save to database
+            await storage.updatePrintifyProviderCosts(provider.blueprintId, provider.id, {
+              minCost: costs.minCost,
+              maxCost: costs.maxCost,
+            });
+            
+            // Delete placeholder product
+            try {
+              await printify.deleteProduct(placeholderProduct.id);
+            } catch {}
+            
+            console.log(`[Cost Sync] ${provider.blueprintId}/${provider.id}: $${(costs.minCost / 100).toFixed(2)} - $${(costs.maxCost / 100).toFixed(2)}`);
+            synced++;
+            
+            // Rate limit: wait 3 seconds between requests
+            await new Promise(r => setTimeout(r, 3000));
+            
+          } catch (err: any) {
+            console.error(`[Cost Sync] Failed for ${provider.blueprintId}/${provider.id}:`, err.message);
+            failed++;
+            // Continue to next provider
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+        
+        console.log(`[Cost Sync] Complete! Synced: ${synced}, Failed: ${failed}`);
+      })();
+      
+    } catch (error: any) {
+      console.error('[Cost Sync] Error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========================================
   // END LOCAL CATALOG SYNC ENDPOINTS
   // ========================================
