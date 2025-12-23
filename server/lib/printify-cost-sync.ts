@@ -36,26 +36,44 @@ export async function startCostSync(options: CostSyncOptions = {}): Promise<Prin
     return null;
   }
 
-  const providers = await storage.getAllPrintifyProviders();
+  const allProviders = await storage.getAllPrintifyProviders();
   
-  if (providers.length === 0) {
+  if (allProviders.length === 0) {
     console.log("[Cost Sync] No providers cached. Run catalog sync first.");
     return null;
   }
 
+  let providers = allProviders;
+  let previousSync = await storage.getLatestCostSync();
+  let startingCounts = { processedCount: 0, successCount: 0, failedCount: 0, skippedCount: 0 };
+
+  if (previousSync?.status === 'paused' && previousSync.lastProcessedProviderId) {
+    const lastIdx = allProviders.findIndex(p => p.id === previousSync.lastProcessedProviderId);
+    if (lastIdx >= 0 && lastIdx < allProviders.length - 1) {
+      providers = allProviders.slice(lastIdx + 1);
+      startingCounts = {
+        processedCount: previousSync.processedCount ?? 0,
+        successCount: previousSync.successCount ?? 0,
+        failedCount: previousSync.failedCount ?? 0,
+        skippedCount: previousSync.skippedCount ?? 0,
+      };
+      console.log(`[Cost Sync] Resuming from provider ${lastIdx + 1}/${allProviders.length}`);
+    }
+  }
+
   const costSync = await storage.createCostSync({
     status: "running",
-    totalProviders: providers.length,
-    processedCount: 0,
-    successCount: 0,
-    failedCount: 0,
-    skippedCount: 0,
+    totalProviders: allProviders.length,
+    processedCount: startingCounts.processedCount,
+    successCount: startingCounts.successCount,
+    failedCount: startingCounts.failedCount,
+    skippedCount: startingCounts.skippedCount,
   });
 
   activeSyncId = costSync.id;
   isSyncRunning = true;
 
-  runCostSyncBackground(costSync.id, providers, { forceRefresh, delayBetweenRequests });
+  runCostSyncBackground(costSync.id, providers, { forceRefresh, delayBetweenRequests, startingCounts });
 
   return costSync;
 }
@@ -63,16 +81,21 @@ export async function startCostSync(options: CostSyncOptions = {}): Promise<Prin
 async function runCostSyncBackground(
   syncId: string,
   providers: PrintifyPrintProvider[],
-  options: { forceRefresh: boolean; delayBetweenRequests: number }
+  options: { 
+    forceRefresh: boolean; 
+    delayBetweenRequests: number;
+    startingCounts?: { processedCount: number; successCount: number; failedCount: number; skippedCount: number };
+  }
 ): Promise<void> {
-  const { forceRefresh, delayBetweenRequests } = options;
+  const { forceRefresh, delayBetweenRequests, startingCounts } = options;
   
   console.log(`[Cost Sync] Starting background sync for ${providers.length} providers...`);
   
-  let processedCount = 0;
-  let successCount = 0;
-  let failedCount = 0;
-  let skippedCount = 0;
+  let processedCount = startingCounts?.processedCount ?? 0;
+  let successCount = startingCounts?.successCount ?? 0;
+  let failedCount = startingCounts?.failedCount ?? 0;
+  let skippedCount = startingCounts?.skippedCount ?? 0;
+  let lastCompletedProviderId: string | null = null;
 
   let imageId: string | null = null;
   try {
@@ -99,7 +122,7 @@ async function runCostSyncBackground(
         successCount,
         failedCount,
         skippedCount,
-        lastProcessedProviderId: provider.id,
+        lastProcessedProviderId: lastCompletedProviderId,
       });
       activeSyncId = null;
       return;
@@ -109,9 +132,11 @@ async function runCostSyncBackground(
       console.log(`[Cost Sync] Skipping ${provider.blueprintId}/${provider.providerId} - already has cost $${(provider.minCost / 100).toFixed(2)}`);
       skippedCount++;
       processedCount++;
+      lastCompletedProviderId = provider.id;
       continue;
     }
 
+    let tempProductId: string | null = null;
     try {
       const { placement, variantIds } = await printify.getCommonPlacement(provider.blueprintId, provider.providerId);
       
@@ -122,6 +147,7 @@ async function runCostSyncBackground(
         imageId,
         placement
       );
+      tempProductId = placeholderProduct.id;
 
       const costs = printify.extractCostsFromProduct(placeholderProduct);
 
@@ -131,19 +157,22 @@ async function runCostSyncBackground(
         placeholderProductId: placeholderProduct.id,
       });
 
-      try {
-        await printify.deleteProduct(placeholderProduct.id);
-      } catch {}
-
       console.log(`[Cost Sync] ${provider.blueprintId}/${provider.providerId}: $${(costs.minCost / 100).toFixed(2)} - $${(costs.maxCost / 100).toFixed(2)}`);
       successCount++;
 
     } catch (err: any) {
       console.error(`[Cost Sync] Failed for ${provider.blueprintId}/${provider.providerId}:`, err.message);
       failedCount++;
+    } finally {
+      if (tempProductId) {
+        try {
+          await printify.deleteProduct(tempProductId);
+        } catch {}
+      }
     }
 
     processedCount++;
+    lastCompletedProviderId = provider.id;
 
     if (processedCount % 10 === 0) {
       await storage.updateCostSync(syncId, {
@@ -151,7 +180,7 @@ async function runCostSyncBackground(
         successCount,
         failedCount,
         skippedCount,
-        lastProcessedProviderId: provider.id,
+        lastProcessedProviderId: lastCompletedProviderId,
       });
     }
 
