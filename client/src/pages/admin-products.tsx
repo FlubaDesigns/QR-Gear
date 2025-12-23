@@ -547,6 +547,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [zoomedImage, setZoomedImage] = useState<{url: string; title: string} | null>(null);
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set());
   const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [configuringItem, setConfiguringItem] = useState<CatalogItem | null>(null);
   type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
@@ -845,6 +847,65 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     }
   }
 
+  function openConfigDialog(item: CatalogItem) {
+    const details = itemDetails[item.id];
+    setConfiguringItem(item);
+    if (details) {
+      setEnabledSizes(new Set(details.sizes || []));
+      setEnabledColors(new Set(details.colors || []));
+    }
+    setConfigDialogOpen(true);
+    if (!details) {
+      fetchItemDetails(item.id);
+    }
+  }
+
+  function toggleSize(size: string) {
+    setEnabledSizes(prev => {
+      const next = new Set(prev);
+      if (next.has(size)) {
+        next.delete(size);
+      } else {
+        next.add(size);
+      }
+      return next;
+    });
+  }
+
+  function toggleColor(color: string) {
+    setEnabledColors(prev => {
+      const next = new Set(prev);
+      if (next.has(color)) {
+        next.delete(color);
+      } else {
+        next.add(color);
+      }
+      return next;
+    });
+  }
+
+  function selectAllSizes() {
+    const details = configuringItem ? itemDetails[configuringItem.id] : null;
+    if (details) {
+      setEnabledSizes(new Set(details.sizes || []));
+    }
+  }
+
+  function deselectAllSizes() {
+    setEnabledSizes(new Set());
+  }
+
+  function selectAllColors() {
+    const details = configuringItem ? itemDetails[configuringItem.id] : null;
+    if (details) {
+      setEnabledColors(new Set(details.colors || []));
+    }
+  }
+
+  function deselectAllColors() {
+    setEnabledColors(new Set());
+  }
+
   const canAddToCart = selectedItem && selectedSegment && catalogDetails && !loadingDetails;
   const kcPlacementValid = selectedSegment !== "Kingdom Connects" || kcPlacements.length > 0;
   const canSaveAll = stagedProducts.length > 0 && selectedSegment && kcPlacementValid;
@@ -1113,7 +1174,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             <Button 
                               variant={isSelected ? "default" : "outline"}
                               className="w-full"
-                              onClick={() => handleItemChange(String(item.id))}
+                              onClick={() => openConfigDialog(item)}
                               data-testid={`button-configure-${item.id}`}
                             >
                               <Settings className="h-4 w-4 mr-2" />
@@ -1260,6 +1321,157 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               />
               <p className="text-sm text-muted-foreground">{zoomedImage.title}</p>
               <p className="text-xs text-muted-foreground md:hidden">Tap image to close</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configure Product
+            </DialogTitle>
+          </DialogHeader>
+          
+          {configuringItem && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                {configuringItem.imageUrl && (
+                  <img 
+                    src={configuringItem.imageUrl} 
+                    alt="" 
+                    className="w-16 h-16 rounded object-cover"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm line-clamp-2">{configuringItem.title}</div>
+                  <div className="text-xs text-muted-foreground">{configuringItem.brand}</div>
+                </div>
+              </div>
+
+              {(() => {
+                const details = itemDetails[configuringItem.id];
+                if (!details) {
+                  return (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="ml-2 text-sm">Loading options...</span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold">Sizes</Label>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={selectAllSizes}
+                            data-testid="button-select-all-sizes"
+                          >
+                            All
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={deselectAllSizes}
+                            data-testid="button-deselect-all-sizes"
+                          >
+                            None
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(details.sizes || []).map((size) => (
+                          <div 
+                            key={size}
+                            className="flex items-center gap-2 p-2 border rounded-lg"
+                          >
+                            <Switch
+                              checked={enabledSizes.has(size)}
+                              onCheckedChange={() => toggleSize(size)}
+                              data-testid={`switch-size-${size}`}
+                            />
+                            <span className="text-sm font-medium">{size}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {enabledSizes.size} of {details.sizes?.length || 0} sizes selected
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold">Colors</Label>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={selectAllColors}
+                            data-testid="button-select-all-colors"
+                          >
+                            All
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={deselectAllColors}
+                            data-testid="button-deselect-all-colors"
+                          >
+                            None
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                        {(details.colors || []).map((color) => (
+                          <div 
+                            key={color}
+                            className="flex items-center gap-2 p-2 border rounded-lg"
+                          >
+                            <Switch
+                              checked={enabledColors.has(color)}
+                              onCheckedChange={() => toggleColor(color)}
+                              data-testid={`switch-color-${color}`}
+                            />
+                            <span className="text-sm truncate">{color}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {enabledColors.size} of {details.colors?.length || 0} colors selected
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+
+              <DialogFooter className="flex gap-2">
+                <DialogClose asChild>
+                  <Button variant="outline" data-testid="button-cancel-config">
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button 
+                  onClick={() => {
+                    setSelectedItemId(configuringItem.id);
+                    setConfigDialogOpen(false);
+                    toast({ 
+                      title: "Configuration saved", 
+                      description: `${enabledSizes.size} sizes, ${enabledColors.size} colors selected` 
+                    });
+                  }}
+                  data-testid="button-save-config"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Apply
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
