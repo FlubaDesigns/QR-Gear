@@ -1000,13 +1000,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ];
 
   // Get full catalog grouped by category with images and provider info
+  // Loads from local DB for speed, prices come from Printify on-demand
   app.get("/api/admin/printify/catalog", isAdmin, async (req: any, res) => {
     try {
-      if (!printify) {
-        return res.status(503).json({ error: "Printify API not configured" });
-      }
+      // First try to load from local database (fast!)
+      const localBlueprints = await storage.getPrintifyBlueprints();
       
-      const blueprints = await printify.getCatalogBlueprints();
+      let blueprints: any[];
+      
+      if (localBlueprints.length > 0) {
+        // Use local cache - much faster!
+        blueprints = localBlueprints.map(bp => ({
+          id: bp.id,
+          title: bp.title,
+          brand: bp.brand,
+          model: bp.model,
+          images: bp.images || [],
+        }));
+      } else {
+        // Fall back to Printify API if no local data
+        if (!printify) {
+          return res.status(503).json({ error: "Printify API not configured. Please sync catalog first." });
+        }
+        blueprints = await printify.getCatalogBlueprints();
+      }
       
       // Categorize blueprints by product type
       const categories: Record<string, any[]> = {
