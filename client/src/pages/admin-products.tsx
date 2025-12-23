@@ -497,14 +497,24 @@ interface CatalogDetails {
   imageUrl: string | null;
 }
 
-const STORE_SEGMENTS = [
-  "Kingdom Connects",
-  "Holiday", 
-  "Dynamic",
-  "Custom",
-  "Religious",
-  "Business",
+// Store type definitions
+const STORE_TYPES = ["Internal", "External"] as const;
+type StoreType = typeof STORE_TYPES[number];
+
+// Predefined stores by type
+const INTERNAL_STORES = [
+  { name: "QR Gear Main", segments: ["Homepage", "Dashboard", "Featured", "Seasonal"] },
+  { name: "Holiday Shop", segments: ["Homepage", "Christmas", "Easter", "Thanksgiving"] },
+  { name: "Religious Store", segments: ["Homepage", "Scripture", "Church", "Faith"] },
 ];
+
+const EXTERNAL_STORES = [
+  { name: "Kingdom Connects", segments: ["Homepage", "Dashboard", "Member Page", "Static Page"] },
+];
+
+// Product source types
+const PRODUCT_SOURCES = ["Library", "Custom"] as const;
+type ProductSource = typeof PRODUCT_SOURCES[number];
 
 const QR_PLACEMENTS = [
   { id: "front-chest", label: "Front Chest", Icon: Shirt },
@@ -536,15 +546,28 @@ interface StagedProduct {
 
 interface StoreWithAreas {
   name: string;
-  areas: string[];
+  areas?: string[];
+  segments?: string[];
 }
 
 function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
   
+  // New stepped flow state
+  const [storeType, setStoreType] = useState<StoreType | "">("");
+  const [selectedStore, setSelectedStore] = useState<string>("");
   const [selectedSegment, setSelectedSegment] = useState<string>("");
-  const [selectedArea, setSelectedArea] = useState<string>("");
-  const [kcPlacements, setKcPlacements] = useState<string[]>([]);
+  const [productSource, setProductSource] = useState<ProductSource | "">("");
+  
+  // Segment configuration switches
+  const [showOnHomepage, setShowOnHomepage] = useState(true);
+  const [showOnDashboard, setShowOnDashboard] = useState(false);
+  const [showOnMemberPage, setShowOnMemberPage] = useState(false);
+  const [showOnStaticPage, setShowOnStaticPage] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isSeasonalPromo, setIsSeasonalPromo] = useState(false);
+  
+  // Legacy state for compatibility
   const [stagedProducts, setStagedProducts] = useState<StagedProduct[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [locationFilter, setLocationFilter] = useState<"all" | "usa" | "other">("all");
@@ -570,6 +593,24 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     const saved = localStorage.getItem("qrgear-custom-stores");
     return saved ? JSON.parse(saved) : [];
   });
+  
+  // Derive available stores based on store type
+  const availableStores = storeType === "Internal" 
+    ? [...INTERNAL_STORES, ...customStores.filter(s => s.name.startsWith("Internal:"))]
+    : storeType === "External"
+    ? [...EXTERNAL_STORES, ...customStores.filter(s => s.name.startsWith("External:"))]
+    : [];
+  
+  // Find current store's segments
+  const allStores: Array<{ name: string; segments?: string[]; areas?: string[] }> = [
+    ...INTERNAL_STORES, 
+    ...EXTERNAL_STORES, 
+    ...customStores
+  ];
+  const currentStoreData = allStores.find(
+    (s) => s.name === selectedStore || s.name === selectedStore.replace(/^(Internal:|External:)/, "")
+  );
+  const availableSegments: string[] = currentStoreData?.segments || currentStoreData?.areas || [];
   type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
@@ -771,7 +812,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     mutationFn: async () => {
       if (stagedProducts.length === 0) throw new Error("No products to save");
       
-      const categoryPath = selectedArea ? `${selectedSegment}/${selectedArea}` : selectedSegment;
+      const saveCategoryPath = `${storeType}/${selectedStore}/${selectedSegment}`;
       
       const results = await Promise.all(
         stagedProducts.map(product => 
@@ -780,7 +821,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             printProviderId: product.printProviderId,
             name: product.name,
             description: product.description,
-            category: categoryPath,
+            category: saveCategoryPath,
             basePrice: product.basePrice,
             imageUrl: product.imageUrl,
             manufacturer: product.manufacturer,
@@ -794,8 +835,13 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               defaultPlacement: product.placement,
               headerTextEnabled: product.headerEnabled,
               footerTextEnabled: product.footerEnabled,
-              storeArea: selectedArea || null,
-              kcPlacements: selectedSegment === "Kingdom Connects" ? kcPlacements : null,
+              storeType,
+              storeName: selectedStore,
+              segment: selectedSegment,
+              placements: { showOnHomepage, showOnDashboard, showOnMemberPage, showOnStaticPage },
+              isFeatured,
+              isSeasonalPromo,
+              productSource,
             },
           })
         )
@@ -806,7 +852,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       const count = stagedProducts.length;
       toast({ 
         title: "Products Saved!", 
-        description: `${count} product(s) added to ${selectedSegment}${selectedArea ? ` / ${selectedArea}` : ""}.` 
+        description: `${count} product(s) added to ${selectedStore} / ${selectedSegment}.` 
       });
       resetForm();
       onSuccess();
@@ -818,10 +864,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 
   const saveItemMutation = useMutation({
     mutationFn: async (item: CatalogItem) => {
-      if (!selectedSegment) throw new Error("Please select a store segment first");
-      if (selectedSegment === "Kingdom Connects" && kcPlacements.length === 0) {
-        throw new Error("Please select Kingdom Connects placement(s) first");
-      }
+      if (!selectedStore || !selectedSegment) throw new Error("Please complete all steps first");
+      if (!hasValidPlacements) throw new Error("Please select at least one placement");
       
       const details = itemDetails[item.id];
       const config = itemConfigurations[item.id];
@@ -835,27 +879,32 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         throw new Error("Please select at least one size or color");
       }
       
-      const categoryPath = selectedArea ? `${selectedSegment}/${selectedArea}` : selectedSegment;
+      const saveCategoryPath = `${storeType}/${selectedStore}/${selectedSegment}`;
       
       return apiRequest("POST", "/api/admin/products/from-printify", {
         blueprintId: item.id,
         printProviderId: details.providerId,
         name: item.title,
         description: item.brand + " " + item.model,
-        category: categoryPath,
+        category: saveCategoryPath,
         basePrice: details.basePrice,
         imageUrl: item.imageUrl,
         manufacturer: details.providerName || "Printify",
         madeInUSA: item.madeInUSA,
-        availablePlacements: ["front"],
+        availablePlacements: [selectedPlacement],
         availableColors: selectedColors,
         availableSizes: selectedSizes,
         metadata: { 
           brand: item.brand, 
           model: item.model,
-          defaultPlacement: "front",
-          storeArea: selectedArea || null,
-          kcPlacements: selectedSegment === "Kingdom Connects" ? kcPlacements : null,
+          defaultPlacement: selectedPlacement,
+          storeType,
+          storeName: selectedStore,
+          segment: selectedSegment,
+          placements: { showOnHomepage, showOnDashboard, showOnMemberPage, showOnStaticPage },
+          isFeatured,
+          isSeasonalPromo,
+          productSource,
         },
       });
     },
@@ -865,7 +914,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       const colorsCount = config?.colors.size || 0;
       toast({ 
         title: "Product Saved!", 
-        description: `${item.title} added to ${selectedSegment} with ${sizesCount} sizes, ${colorsCount} colors.` 
+        description: `${item.title} added to ${selectedStore} / ${selectedSegment} with ${sizesCount} sizes, ${colorsCount} colors.` 
       });
       onSuccess();
     },
@@ -875,8 +924,16 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   });
 
   function resetForm() {
+    setStoreType("");
+    setSelectedStore("");
     setSelectedSegment("");
-    setKcPlacements([]);
+    setProductSource("");
+    setShowOnHomepage(true);
+    setShowOnDashboard(false);
+    setShowOnMemberPage(false);
+    setShowOnStaticPage(false);
+    setIsFeatured(false);
+    setIsSeasonalPromo(false);
     setStagedProducts([]);
     setSelectedCategory("");
     setLocationFilter("all");
@@ -888,17 +945,27 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setFooterEnabled(false);
     setFooterText("");
   }
-
-  function handleSegmentChange(segment: string) {
-    if (segment === "__add_new__") {
+  
+  function handleStoreTypeChange(type: StoreType | "") {
+    setStoreType(type);
+    setSelectedStore("");
+    setSelectedSegment("");
+    setProductSource("");
+  }
+  
+  function handleStoreChange(store: string) {
+    if (store === "__add_new__") {
       setAddStoreDialogOpen(true);
       return;
     }
+    setSelectedStore(store);
+    setSelectedSegment("");
+    setProductSource("");
+  }
+  
+  function handleSegmentSelect(segment: string) {
     setSelectedSegment(segment);
-    setSelectedArea("");
-    if (segment !== "Kingdom Connects") {
-      setKcPlacements([]);
-    }
+    setProductSource("");
   }
   
   function saveNewStore() {
@@ -935,17 +1002,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   function removeAreaField(index: number) {
     if (newStoreAreas.length <= 1) return;
     setNewStoreAreas(newStoreAreas.filter((_, i) => i !== index));
-  }
-  
-  const currentStoreAreas = customStores.find(s => s.name === selectedSegment)?.areas || 
-    (selectedSegment === "Kingdom Connects" ? ["Homepage", "Dashboard", "Static Page"] : []);
-  
-  function toggleKcPlacement(placement: string) {
-    setKcPlacements(prev => 
-      prev.includes(placement) 
-        ? prev.filter(p => p !== placement)
-        : [...prev, placement]
-    );
   }
 
   function handleCategoryChange(category: string) {
@@ -1032,163 +1088,317 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setEnabledColors(new Set());
   }
 
-  const areaRequired = currentStoreAreas.length > 0;
-  const areaValid = !areaRequired || selectedArea;
-  const kcPlacementValid = selectedSegment !== "Kingdom Connects" || kcPlacements.length > 0;
-  const canAddToCart = selectedItem && selectedSegment && areaValid && catalogDetails && !loadingDetails;
-  const canSaveAll = stagedProducts.length > 0 && selectedSegment && areaValid && kcPlacementValid;
+  // Build category path for saving
+  const categoryPath = selectedStore && selectedSegment 
+    ? `${storeType}/${selectedStore}/${selectedSegment}` 
+    : selectedStore || "";
+  
+  // Validate flow
+  const hasValidPlacements = showOnHomepage || showOnDashboard || showOnMemberPage || showOnStaticPage;
+  const canProceedToProduct = storeType && selectedStore && selectedSegment && hasValidPlacements;
+  const canSaveAll = stagedProducts.length > 0 && canProceedToProduct;
 
   return (
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="h-5 w-5" />
-          Add Product from Printify
+          Add Product
         </CardTitle>
-        <CardDescription>Pick a product type, select an item, choose store segment, then add</CardDescription>
+        <CardDescription>Internal/External → Store → Segment → Library or Custom</CardDescription>
       </CardHeader>
       <CardContent>
         {loadingCatalog ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="ml-2">Loading Printify catalog...</span>
+            <span className="ml-2">Loading catalog...</span>
           </div>
         ) : (
-          <div className="space-y-4">
-            {stagedProducts.length > 0 && (
-              <div className="p-3 bg-accent/20 rounded-md border space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">
-                    Staging Cart ({stagedProducts.length} item{stagedProducts.length !== 1 ? 's' : ''})
-                  </Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setStagedProducts([])}
-                    data-testid="clear-staging-cart"
-                  >
-                    <X className="h-3 w-3 mr-1" /> Clear All
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {stagedProducts.map((p) => (
-                    <div key={p.id} className="flex items-center gap-1 bg-background rounded px-2 py-1 text-xs border">
-                      {p.imageUrl && <img src={p.imageUrl} alt="" className="w-6 h-6 rounded object-contain" />}
-                      <span className="truncate max-w-24">{p.name}</span>
-                      <button
-                        onClick={() => removeFromStagingCart(p.id)}
-                        className="text-destructive hover:bg-destructive/10 rounded p-0.5"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+          <div className="space-y-6">
+            {/* Step 1: Store Type (Internal/External) */}
+            <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
+              <Label className="text-lg font-bold">Step 1: Store Type</Label>
+              <div className="grid grid-cols-2 gap-3">
                 <Button
-                  onClick={() => saveAllMutation.mutate()}
-                  disabled={!canSaveAll || saveAllMutation.isPending}
-                  className="w-full"
-                  data-testid="save-all-products"
+                  variant={storeType === "Internal" ? "default" : "outline"}
+                  className="h-16 text-base"
+                  onClick={() => handleStoreTypeChange("Internal")}
+                  data-testid="button-store-type-internal"
                 >
-                  {saveAllMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
-                  ) : (
-                    <><Check className="h-4 w-4 mr-2" /> Save All to {selectedSegment || "Store"}</>
-                  )}
+                  <div className="text-center">
+                    <div className="font-bold">Internal</div>
+                    <div className="text-xs opacity-80">Our Site</div>
+                  </div>
+                </Button>
+                <Button
+                  variant={storeType === "External" ? "default" : "outline"}
+                  className="h-16 text-base"
+                  onClick={() => handleStoreTypeChange("External")}
+                  data-testid="button-store-type-external"
+                >
+                  <div className="text-center">
+                    <div className="font-bold">External</div>
+                    <div className="text-xs opacity-80">Partner Sites</div>
+                  </div>
                 </Button>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>1. Store Segment</Label>
-              <select
-                className="w-full p-3 border rounded-md bg-background"
-                value={selectedSegment}
-                onChange={(e) => handleSegmentChange(e.target.value)}
-                data-testid="select-store-segment"
-              >
-                <option value="">-- Select store segment --</option>
-                <option value="__add_new__" className="font-semibold">+ Add New Store...</option>
-                <optgroup label="Default Stores">
-                  {STORE_SEGMENTS.map((seg) => (
-                    <option key={seg} value={seg}>{seg}</option>
-                  ))}
-                </optgroup>
-                {customStores.length > 0 && (
-                  <optgroup label="Custom Stores">
-                    {customStores.map((store) => (
-                      <option key={store.name} value={store.name}>{store.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
             </div>
-            
-            {selectedSegment && currentStoreAreas.length > 0 && (
-              <div className="space-y-2">
-                <Label>1b. Area</Label>
+
+            {/* Step 2: Store Selection */}
+            {storeType && (
+              <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
+                <Label className="text-lg font-bold">Step 2: Select Store</Label>
                 <select
-                  className="w-full p-3 border rounded-md bg-background"
-                  value={selectedArea}
-                  onChange={(e) => setSelectedArea(e.target.value)}
-                  data-testid="select-store-area"
+                  className="w-full p-3 border rounded-md bg-background text-base"
+                  value={selectedStore}
+                  onChange={(e) => handleStoreChange(e.target.value)}
+                  data-testid="select-store"
                 >
-                  <option value="">-- Select area --</option>
-                  {currentStoreAreas.map((area) => (
-                    <option key={area} value={area}>{area}</option>
+                  <option value="">-- Select a store --</option>
+                  <option value="__add_new__" className="font-semibold">+ Add New Store...</option>
+                  {availableStores.map((store) => (
+                    <option key={store.name} value={store.name}>{store.name}</option>
                   ))}
                 </select>
               </div>
             )}
-            
-            {selectedSegment === "Kingdom Connects" && selectedArea && (
-              <div className="space-y-3 p-3 bg-card/50 rounded-md border border-border">
-                <Label className="text-lg font-bold text-[var(--accent)]">Kingdom Connects Placements</Label>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="kc-homepage" className="text-sm cursor-pointer">Homepage (General KC Store)</Label>
-                    <Switch
-                      id="kc-homepage"
-                      checked={kcPlacements.includes("homepage")}
-                      onCheckedChange={() => toggleKcPlacement("homepage")}
-                      data-testid="switch-kc-homepage"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="kc-dashboard" className="text-sm cursor-pointer">Dashboard (User's Dashboard)</Label>
-                    <Switch
-                      id="kc-dashboard"
-                      checked={kcPlacements.includes("dashboard")}
-                      onCheckedChange={() => toggleKcPlacement("dashboard")}
-                      data-testid="switch-kc-dashboard"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="kc-static" className="text-sm cursor-pointer">Static Page (Business/Church Listing)</Label>
-                    <Switch
-                      id="kc-static"
-                      checked={kcPlacements.includes("static_page")}
-                      onCheckedChange={() => toggleKcPlacement("static_page")}
-                      data-testid="switch-kc-static-page"
-                    />
-                  </div>
-                </div>
+
+            {/* Step 3: Segment/Page with Configuration Switches */}
+            {selectedStore && (
+              <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
+                <Label className="text-lg font-bold">Step 3: Segment/Page</Label>
                 
-                {kcPlacements.length > 0 && (
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                    Product will appear on: {kcPlacements.map(p => 
-                      p === "homepage" ? "Homepage" : p === "dashboard" ? "Dashboard" : "Static Pages"
-                    ).join(", ")}
-                  </p>
+                {/* Segment Selection */}
+                <select
+                  className="w-full p-3 border rounded-md bg-background text-base"
+                  value={selectedSegment}
+                  onChange={(e) => handleSegmentSelect(e.target.value)}
+                  data-testid="select-segment"
+                >
+                  <option value="">-- Select segment/page --</option>
+                  {availableSegments.map((seg) => (
+                    <option key={seg} value={seg}>{seg}</option>
+                  ))}
+                </select>
+                
+                {/* Configuration Switches - appear after segment selected */}
+                {selectedSegment && (
+                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                    <Label className="text-sm font-semibold text-primary">Placement Settings</Label>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sw-homepage" className="text-sm cursor-pointer">Show on Homepage</Label>
+                        <Switch
+                          id="sw-homepage"
+                          checked={showOnHomepage}
+                          onCheckedChange={setShowOnHomepage}
+                          data-testid="switch-homepage"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sw-dashboard" className="text-sm cursor-pointer">Show on Dashboard</Label>
+                        <Switch
+                          id="sw-dashboard"
+                          checked={showOnDashboard}
+                          onCheckedChange={setShowOnDashboard}
+                          data-testid="switch-dashboard"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sw-member" className="text-sm cursor-pointer">Show on Member Page</Label>
+                        <Switch
+                          id="sw-member"
+                          checked={showOnMemberPage}
+                          onCheckedChange={setShowOnMemberPage}
+                          data-testid="switch-member-page"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sw-static" className="text-sm cursor-pointer">Show on Static Page</Label>
+                        <Switch
+                          id="sw-static"
+                          checked={showOnStaticPage}
+                          onCheckedChange={setShowOnStaticPage}
+                          data-testid="switch-static-page"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="border-t pt-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sw-featured" className="text-sm cursor-pointer font-medium">Featured Product</Label>
+                        <Switch
+                          id="sw-featured"
+                          checked={isFeatured}
+                          onCheckedChange={setIsFeatured}
+                          data-testid="switch-featured"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sw-seasonal" className="text-sm cursor-pointer font-medium">Seasonal Promo</Label>
+                        <Switch
+                          id="sw-seasonal"
+                          checked={isSeasonalPromo}
+                          onCheckedChange={setIsSeasonalPromo}
+                          data-testid="switch-seasonal"
+                        />
+                      </div>
+                    </div>
+                    
+                    {!hasValidPlacements && (
+                      <p className="text-xs text-destructive">Select at least one placement</p>
+                    )}
+                  </div>
                 )}
               </div>
             )}
+
+            {/* Step 4: Product Source (Library/Custom) */}
+            {canProceedToProduct && (
+              <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
+                <Label className="text-lg font-bold">Step 4: Product Source</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant={productSource === "Library" ? "default" : "outline"}
+                    className="h-16 text-base"
+                    onClick={() => setProductSource("Library")}
+                    data-testid="button-source-library"
+                  >
+                    <div className="text-center">
+                      <div className="font-bold">Library</div>
+                      <div className="text-xs opacity-80">Pick from catalog</div>
+                    </div>
+                  </Button>
+                  <Button
+                    variant={productSource === "Custom" ? "default" : "outline"}
+                    className="h-16 text-base"
+                    onClick={() => setProductSource("Custom")}
+                    data-testid="button-source-custom"
+                  >
+                    <div className="text-center">
+                      <div className="font-bold">Custom</div>
+                      <div className="text-xs opacity-80">Build from scratch</div>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Library: Product Category Selection */}
+            {productSource === "Library" && (
+              <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
+                <Label className="text-lg font-bold">Step 5: Product Type</Label>
+                <select
+                  className="w-full p-3 border rounded-md bg-background text-base"
+                  value={selectedCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  data-testid="select-product-category"
+                >
+                  <option value="">-- Select product type --</option>
+                  {catalog.map((cat) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name} ({cat.count} items)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Custom: Build Module */}
+            {productSource === "Custom" && (
+              <div className="space-y-4 p-4 border-2 border-accent/50 rounded-lg bg-accent/5">
+                <Label className="text-lg font-bold">Custom Product Builder</Label>
+                <p className="text-sm text-muted-foreground">
+                  Create a fully custom product. Select a base from the catalog, then configure sizes, colors, and QR placement.
+                </p>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Base Product Type</Label>
+                    <select
+                      className="w-full p-3 border rounded-md bg-background"
+                      value={selectedCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      data-testid="select-custom-category"
+                    >
+                      <option value="">-- Select base product --</option>
+                      {catalog.map((cat) => (
+                        <option key={cat.name} value={cat.name}>
+                          {cat.name} ({cat.count})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* QR Placement for custom */}
+                  <div className="space-y-2">
+                    <Label>QR Code Placement</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {QR_PLACEMENTS.map(({ id, label, Icon }) => (
+                        <Button
+                          key={id}
+                          variant={selectedPlacement === id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSelectedPlacement(id)}
+                          data-testid={`placement-${id}`}
+                        >
+                          <Icon className="h-4 w-4 mr-1" />
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Text Options */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="header-enabled">Header Text (+$2)</Label>
+                      <Switch
+                        id="header-enabled"
+                        checked={headerEnabled}
+                        onCheckedChange={setHeaderEnabled}
+                        data-testid="switch-header-text"
+                      />
+                    </div>
+                    {headerEnabled && (
+                      <Input
+                        placeholder="Header text (max 20 chars)"
+                        value={headerText}
+                        onChange={(e) => setHeaderText(e.target.value.slice(0, 20))}
+                        maxLength={20}
+                        data-testid="input-header-text"
+                      />
+                    )}
+                    
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="footer-enabled">Footer Text (+$2)</Label>
+                      <Switch
+                        id="footer-enabled"
+                        checked={footerEnabled}
+                        onCheckedChange={setFooterEnabled}
+                        data-testid="switch-footer-text"
+                      />
+                    </div>
+                    {footerEnabled && (
+                      <Input
+                        placeholder="Footer text (max 30 chars)"
+                        value={footerText}
+                        onChange={(e) => setFooterText(e.target.value.slice(0, 30))}
+                        maxLength={30}
+                        data-testid="input-footer-text"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             
+            {/* Add Store Dialog */}
             <Dialog open={addStoreDialogOpen} onOpenChange={setAddStoreDialogOpen}>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Create New Store</DialogTitle>
-                  <DialogDescription>Add a new store with one or more areas.</DialogDescription>
+                  <DialogTitle>Create New {storeType || ""} Store</DialogTitle>
+                  <DialogDescription>Add a new store with segments/pages.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -1201,11 +1411,11 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Areas</Label>
+                    <Label>Segments/Pages</Label>
                     {newStoreAreas.map((area, index) => (
                       <div key={index} className="flex gap-2">
                         <Input
-                          placeholder={`Area ${index + 1} (e.g., Homepage)`}
+                          placeholder={`Segment ${index + 1} (e.g., Homepage)`}
                           value={area}
                           onChange={(e) => updateAreaField(index, e.target.value)}
                           data-testid={`input-area-${index}`}
@@ -1229,7 +1439,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       className="w-full"
                       data-testid="button-add-area"
                     >
-                      <Plus className="h-4 w-4 mr-2" /> Add Another Area
+                      <Plus className="h-4 w-4 mr-2" /> Add Another Segment
                     </Button>
                   </div>
                 </div>
@@ -1240,24 +1450,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </DialogContent>
             </Dialog>
 
-            {selectedSegment && areaValid && kcPlacementValid && (
-              <div className="space-y-2">
-                <Label>2. Product Type</Label>
-                <select
-                  className="w-full p-3 border rounded-md bg-background"
-                  value={selectedCategory}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  data-testid="select-product-category"
-                >
-                  <option value="">-- Select product type --</option>
-                  {catalog.map((cat) => (
-                    <option key={cat.name} value={cat.name}>
-                      {cat.name} ({cat.count} items)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {selectedCategory && categoryData && (
               <div className="space-y-2">
@@ -1519,7 +1711,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 
                 <Button 
                   onClick={addToStagingCart}
-                  disabled={!canAddToCart}
+                  disabled={!selectedItem || !catalogDetails || loadingDetails}
                   className="w-full"
                   data-testid="button-add-to-cart"
                 >
@@ -1870,12 +2062,23 @@ function ProductsContent() {
               data-testid="filter-store-segment"
             >
               <option value="">All Stores</option>
-              {STORE_SEGMENTS.map((seg) => (
-                <option key={seg} value={seg}>{seg}</option>
-              ))}
-              {customStores.map((store) => (
-                <option key={store.name} value={store.name}>{store.name}</option>
-              ))}
+              <optgroup label="Internal Stores">
+                {INTERNAL_STORES.map((store) => (
+                  <option key={store.name} value={store.name}>{store.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="External Stores">
+                {EXTERNAL_STORES.map((store) => (
+                  <option key={store.name} value={store.name}>{store.name}</option>
+                ))}
+              </optgroup>
+              {customStores.length > 0 && (
+                <optgroup label="Custom Stores">
+                  {customStores.map((store) => (
+                    <option key={store.name} value={store.name}>{store.name}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             {filterStoreAreas.length > 0 && (
               <select
