@@ -1230,11 +1230,11 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             </div>
                           </div>
                           
-                          {/* Row 2: Configure button */}
+                          {/* Row 2: Configure button - prominent border */}
                           <div className="mt-3">
                             <Button 
-                              variant={isSelected ? "default" : "outline"}
-                              className="w-full"
+                              variant="outline"
+                              className="w-full border-2 border-primary font-semibold"
                               onClick={() => openConfigDialog(item)}
                               data-testid={`button-configure-${item.id}`}
                             >
@@ -1243,10 +1243,16 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             </Button>
                           </div>
                           
-                          {/* Row 3: Save to Store button */}
+                          {itemConfigurations[item.id] && (
+                            <div className="mt-1 text-xs text-muted-foreground text-center">
+                              {itemConfigurations[item.id].sizes.size} sizes, {itemConfigurations[item.id].colors.size} colors selected
+                            </div>
+                          )}
+                          
+                          {/* Row 3: Save to Store button - always below Configure */}
                           <div className="mt-2">
                             <Button 
-                              variant="secondary"
+                              variant="default"
                               className="w-full"
                               disabled={!selectedSegment || saveItemMutation.isPending}
                               onClick={(e) => {
@@ -1269,12 +1275,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               )}
                             </Button>
                           </div>
-                          
-                          {itemConfigurations[item.id] && (
-                            <div className="mt-1 text-xs text-muted-foreground text-center">
-                              {itemConfigurations[item.id].sizes.size} sizes, {itemConfigurations[item.id].colors.size} colors selected
-                            </div>
-                          )}
                         </div>
                       );
                     })}
