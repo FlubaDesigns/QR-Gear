@@ -72,14 +72,23 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 -   `express-rate-limit`: API rate limiting.
 
 ## Recent Changes
+- 2025-12-23: Implemented automated Printify cost sync system - background job module (server/lib/printify-cost-sync.ts) creates temp products to extract real production costs. Features: printifyCostSync table tracks sync progress, resume capability from paused syncs, finally block cleanup prevents orphaned Printify products, 3s rate limiting between requests, staleness indicators (>24h badge) in admin UI with real-time progress display.
 - 2025-12-23: Fixed external store creation - now properly saves to PostgreSQL via POST /api/admin/partner-stores with auto-generated API key and unique slug. External stores appear immediately in dropdown after creation. Fixed switch component visibility with border-border class.
 - 2025-12-23: Added cost extraction system for Printify products - printifyPrintProviders table now stores minCost/maxCost fields. Backend endpoint `/api/admin/catalog/fetch-costs` creates temporary placeholder products in Printify to extract real production costs (since Printify catalog API doesn't expose costs). Batch-details endpoint prioritizes cached costs from database.
 - 2025-12-22: Added Printify catalog sync feature with local caching (printifyBlueprints, printifyPrintProviders tables), on-demand sync from admin products page, real-time status updates
 
-## Next Priority: Printify Pricing Automation
-Plan to implement automated cost fetching from Printify:
-1. Background job module (lib/printify-cost-sync.ts) that creates temp products to extract costs, with throttling to avoid rate limits
-2. Store cheapest single-print cost as minCost in printifyPrintProviders table
-3. Run on schedule (nightly cron) plus on-demand trigger from admin
-4. Show cost data in admin UI with staleness indicators (>24h badge)
-5. Track sync status (timestamps, lastBlueprintId, errors) for resume capability
+## Printify Cost Sync System
+The cost sync system extracts real production costs from Printify by creating temporary placeholder products (since Printify's catalog API doesn't expose costs):
+
+**Key Components:**
+- `server/lib/printify-cost-sync.ts`: Background job module with rate limiting and resume capability
+- `printifyCostSync` table: Tracks sync progress (status, counts, lastProcessedProviderId)
+- Admin endpoints: `/api/admin/catalog/sync-all-costs`, `/api/admin/catalog/cost-sync-status`, `/api/admin/catalog/cancel-cost-sync`
+
+**Features:**
+- Creates temp products with placeholder image to extract variant costs
+- Stores minCost/maxCost in printifyPrintProviders table
+- Resume from paused syncs using lastProcessedProviderId
+- Finally block cleanup prevents orphaned Printify products
+- 3s delay between requests to avoid rate limits
+- Staleness threshold: 24 hours (amber badge in admin UI)
