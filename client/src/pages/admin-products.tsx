@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -533,10 +534,16 @@ interface StagedProduct {
   model: string;
 }
 
+interface StoreWithAreas {
+  name: string;
+  areas: string[];
+}
+
 function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
   
   const [selectedSegment, setSelectedSegment] = useState<string>("");
+  const [selectedArea, setSelectedArea] = useState<string>("");
   const [kcPlacements, setKcPlacements] = useState<string[]>([]);
   const [stagedProducts, setStagedProducts] = useState<StagedProduct[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -555,6 +562,14 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [configuringItem, setConfiguringItem] = useState<CatalogItem | null>(null);
   const [itemConfigurations, setItemConfigurations] = useState<Record<number, { sizes: Set<string>; colors: Set<string> }>>({});
+  
+  const [addStoreDialogOpen, setAddStoreDialogOpen] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newStoreAreas, setNewStoreAreas] = useState<string[]>([""]);
+  const [customStores, setCustomStores] = useState<StoreWithAreas[]>(() => {
+    const saved = localStorage.getItem("qrgear-custom-stores");
+    return saved ? JSON.parse(saved) : [];
+  });
   type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
@@ -777,6 +792,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               defaultPlacement: product.placement,
               headerTextEnabled: product.headerEnabled,
               footerTextEnabled: product.footerEnabled,
+              storeArea: selectedArea || null,
               kcPlacements: selectedSegment === "Kingdom Connects" ? kcPlacements : null,
             },
           })
@@ -788,7 +804,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       const count = stagedProducts.length;
       toast({ 
         title: "Products Saved!", 
-        description: `${count} product(s) added to ${selectedSegment}.` 
+        description: `${count} product(s) added to ${selectedSegment}${selectedArea ? ` / ${selectedArea}` : ""}.` 
       });
       resetForm();
       onSuccess();
@@ -834,6 +850,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
           brand: item.brand, 
           model: item.model,
           defaultPlacement: "front",
+          storeArea: selectedArea || null,
           kcPlacements: selectedSegment === "Kingdom Connects" ? kcPlacements : null,
         },
       });
@@ -869,11 +886,55 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   }
 
   function handleSegmentChange(segment: string) {
+    if (segment === "__add_new__") {
+      setAddStoreDialogOpen(true);
+      return;
+    }
     setSelectedSegment(segment);
+    setSelectedArea("");
     if (segment !== "Kingdom Connects") {
       setKcPlacements([]);
     }
   }
+  
+  function saveNewStore() {
+    if (!newStoreName.trim()) {
+      toast({ title: "Error", description: "Please enter a store name", variant: "destructive" });
+      return;
+    }
+    const filteredAreas = newStoreAreas.filter(a => a.trim());
+    if (filteredAreas.length === 0) {
+      toast({ title: "Error", description: "Please add at least one area", variant: "destructive" });
+      return;
+    }
+    const newStore: StoreWithAreas = { name: newStoreName.trim(), areas: filteredAreas };
+    const updated = [...customStores, newStore];
+    setCustomStores(updated);
+    localStorage.setItem("qrgear-custom-stores", JSON.stringify(updated));
+    setAddStoreDialogOpen(false);
+    setNewStoreName("");
+    setNewStoreAreas([""]);
+    setSelectedSegment(newStore.name);
+    toast({ title: "Store Created", description: `${newStore.name} with ${filteredAreas.length} area(s)` });
+  }
+  
+  function addAreaField() {
+    setNewStoreAreas([...newStoreAreas, ""]);
+  }
+  
+  function updateAreaField(index: number, value: string) {
+    const updated = [...newStoreAreas];
+    updated[index] = value;
+    setNewStoreAreas(updated);
+  }
+  
+  function removeAreaField(index: number) {
+    if (newStoreAreas.length <= 1) return;
+    setNewStoreAreas(newStoreAreas.filter((_, i) => i !== index));
+  }
+  
+  const currentStoreAreas = customStores.find(s => s.name === selectedSegment)?.areas || 
+    (selectedSegment === "Kingdom Connects" ? ["Homepage", "Dashboard", "Static Page"] : []);
   
   function toggleKcPlacement(placement: string) {
     setKcPlacements(prev => 
@@ -967,9 +1028,11 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setEnabledColors(new Set());
   }
 
-  const canAddToCart = selectedItem && selectedSegment && catalogDetails && !loadingDetails;
+  const areaRequired = currentStoreAreas.length > 0;
+  const areaValid = !areaRequired || selectedArea;
   const kcPlacementValid = selectedSegment !== "Kingdom Connects" || kcPlacements.length > 0;
-  const canSaveAll = stagedProducts.length > 0 && selectedSegment && kcPlacementValid;
+  const canAddToCart = selectedItem && selectedSegment && areaValid && catalogDetails && !loadingDetails;
+  const canSaveAll = stagedProducts.length > 0 && selectedSegment && areaValid && kcPlacementValid;
 
   return (
     <Card className="mb-6">
@@ -1041,15 +1104,42 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 data-testid="select-store-segment"
               >
                 <option value="">-- Select store segment --</option>
-                {STORE_SEGMENTS.map((seg) => (
-                  <option key={seg} value={seg}>{seg}</option>
-                ))}
+                <option value="__add_new__" className="font-semibold">+ Add New Store...</option>
+                <optgroup label="Default Stores">
+                  {STORE_SEGMENTS.map((seg) => (
+                    <option key={seg} value={seg}>{seg}</option>
+                  ))}
+                </optgroup>
+                {customStores.length > 0 && (
+                  <optgroup label="Custom Stores">
+                    {customStores.map((store) => (
+                      <option key={store.name} value={store.name}>{store.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
             
-            {selectedSegment === "Kingdom Connects" && (
+            {selectedSegment && currentStoreAreas.length > 0 && (
+              <div className="space-y-2">
+                <Label>1b. Area</Label>
+                <select
+                  className="w-full p-3 border rounded-md bg-background"
+                  value={selectedArea}
+                  onChange={(e) => setSelectedArea(e.target.value)}
+                  data-testid="select-store-area"
+                >
+                  <option value="">-- Select area --</option>
+                  {currentStoreAreas.map((area) => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {selectedSegment === "Kingdom Connects" && selectedArea && (
               <div className="space-y-3 p-3 bg-card/50 rounded-md border border-border">
-                <Label className="text-lg font-bold text-[var(--accent)]">Where on Kingdom Connects?</Label>
+                <Label className="text-lg font-bold text-[var(--accent)]">Kingdom Connects Placements</Label>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="kc-homepage" className="text-sm cursor-pointer">Homepage (General KC Store)</Label>
@@ -1089,8 +1179,64 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 )}
               </div>
             )}
+            
+            <Dialog open={addStoreDialogOpen} onOpenChange={setAddStoreDialogOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Create New Store</DialogTitle>
+                  <DialogDescription>Add a new store with one or more areas.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Store Name</Label>
+                    <Input
+                      placeholder="e.g., My Business Store"
+                      value={newStoreName}
+                      onChange={(e) => setNewStoreName(e.target.value)}
+                      data-testid="input-new-store-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Areas</Label>
+                    {newStoreAreas.map((area, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          placeholder={`Area ${index + 1} (e.g., Homepage)`}
+                          value={area}
+                          onChange={(e) => updateAreaField(index, e.target.value)}
+                          data-testid={`input-area-${index}`}
+                        />
+                        {newStoreAreas.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeAreaField(index)}
+                            data-testid={`button-remove-area-${index}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addAreaField}
+                      className="w-full"
+                      data-testid="button-add-area"
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add Another Area
+                    </Button>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAddStoreDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={saveNewStore} data-testid="button-save-store">Create Store</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-            {selectedSegment && (selectedSegment !== "Kingdom Connects" || kcPlacements.length > 0) && (
+            {selectedSegment && areaValid && kcPlacementValid && (
               <div className="space-y-2">
                 <Label>2. Product Type</Label>
                 <select
@@ -1574,11 +1720,32 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
 function ProductsContent() {
   const { toast } = useToast();
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [filterSegment, setFilterSegment] = useState<string>("");
+  const [filterArea, setFilterArea] = useState<string>("");
+  
+  const customStores: StoreWithAreas[] = (() => {
+    const saved = localStorage.getItem("qrgear-custom-stores");
+    return saved ? JSON.parse(saved) : [];
+  })();
   
   type AdminProduct = Product & { categoryIds?: string[] };
   
   const { data: products = [], isLoading, refetch } = useQuery<AdminProduct[]>({
     queryKey: ["/api/admin/products"],
+  });
+  
+  const filterStoreAreas = customStores.find(s => s.name === filterSegment)?.areas || 
+    (filterSegment === "Kingdom Connects" ? ["Homepage", "Dashboard", "Static Page"] : []);
+  
+  const filteredProducts = products.filter(product => {
+    if (!filterSegment) return true;
+    if (product.category !== filterSegment) return false;
+    if (!filterArea) return true;
+    const meta = product.metadata as any;
+    if (meta?.storeArea === filterArea) return true;
+    const kcPlacements = meta?.kcPlacements || [];
+    const areaKey = filterArea === "Homepage" ? "homepage" : filterArea === "Dashboard" ? "dashboard" : filterArea === "Static Page" ? "static_page" : filterArea.toLowerCase();
+    return kcPlacements.includes(areaKey) || kcPlacements.includes(filterArea);
   });
 
   const { data: allCategories = [] } = useQuery<ProductCategory[]>({
@@ -1659,92 +1826,139 @@ function ProductsContent() {
       <AddFromPrintifyPanel onSuccess={() => refetch()} />
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              Local Product Catalog
-              {isSyncing && (
-                <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> syncing...
-                </span>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Products stored in your database. Sizes and colors sync automatically from Printify.
-            </CardDescription>
+        <CardHeader className="space-y-3">
+          <div className="flex flex-row items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                Local Product Catalog
+                {isSyncing && (
+                  <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> syncing...
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Products stored in your database. Sizes and colors sync automatically from Printify.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} data-testid="button-refresh-catalog">
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} data-testid="button-refresh-catalog">
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <select
+              className="p-2 border rounded-md bg-background text-sm"
+              value={filterSegment}
+              onChange={(e) => { setFilterSegment(e.target.value); setFilterArea(""); }}
+              data-testid="filter-store-segment"
+            >
+              <option value="">All Stores</option>
+              {STORE_SEGMENTS.map((seg) => (
+                <option key={seg} value={seg}>{seg}</option>
+              ))}
+              {customStores.map((store) => (
+                <option key={store.name} value={store.name}>{store.name}</option>
+              ))}
+            </select>
+            {filterStoreAreas.length > 0 && (
+              <select
+                className="p-2 border rounded-md bg-background text-sm"
+                value={filterArea}
+                onChange={(e) => setFilterArea(e.target.value)}
+                data-testid="filter-store-area"
+              >
+                <option value="">All Areas</option>
+                {filterStoreAreas.map((area) => (
+                  <option key={area} value={area}>{area}</option>
+                ))}
+              </select>
+            )}
+            {(filterSegment || filterArea) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => { setFilterSegment(""); setFilterArea(""); }}
+                data-testid="button-clear-filter"
+              >
+                <X className="h-3 w-3 mr-1" /> Clear
+              </Button>
+            )}
+            <span className="text-sm text-muted-foreground self-center">
+              {filteredProducts.length} of {products.length} products
+            </span>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : products.length === 0 ? (
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No products yet.</p>
-              <p className="text-sm">Add products from the Printify catalog above.</p>
+              <p>{products.length === 0 ? "No products yet." : "No products match this filter."}</p>
+              <p className="text-sm">{products.length === 0 ? "Add products from the Printify catalog above." : "Try selecting a different store or area."}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <Card key={product.id} className="p-3" data-testid={`card-product-${product.id}`}>
+                  {/* Row 1: Image+Active | Name/Category | Price/Markup */}
                   <div className="flex gap-3">
-                    {product.imageUrl && (
-                      <img src={product.imageUrl} alt="" className="w-16 h-16 rounded object-cover flex-shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3 flex-wrap">
-                        <div className="min-w-0">
-                          <div className="font-medium text-sm leading-tight">{product.name}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                            <span>{product.category}</span>
-                            {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <div className="text-right">
-                            <div className="text-[10px] text-muted-foreground uppercase">Base</div>
-                            <div className="text-sm font-semibold text-green-600">${product.basePrice}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
-                            <div className="text-sm font-medium">{product.markupPercent || 0}%</div>
-                          </div>
-                          <div className="flex items-center gap-1.5 pl-2 border-l">
-                            <Label className="text-xs">Active</Label>
-                            <Switch
-                              checked={product.isEnabled || false}
-                              onCheckedChange={(enabled) => toggleMutation.mutate({ id: product.id, enabled })}
-                              disabled={toggleMutation.isPending}
-                              data-testid={`switch-enabled-${product.id}`}
-                            />
-                          </div>
+                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                      {product.imageUrl && (
+                        <img src={product.imageUrl} alt="" className="w-16 h-16 rounded object-cover" />
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Switch
+                          checked={product.isEnabled || false}
+                          onCheckedChange={(enabled) => toggleMutation.mutate({ id: product.id, enabled })}
+                          disabled={toggleMutation.isPending}
+                          data-testid={`switch-enabled-${product.id}`}
+                        />
+                        <Label className="text-[10px] text-muted-foreground">Active</Label>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm leading-tight">{product.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                          <span>{product.category}</span>
+                          {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
                         </div>
                       </div>
-                      
-                      <div className="mt-3 pt-3 border-t space-y-3">
-                        <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
-                        
-                        <div>
-                          <Label className="text-xs font-medium mb-1.5 block">Tags</Label>
-                          <ProductTagEditor
-                            productId={product.id}
-                            allCategories={allCategories.filter(c => c.isActive)}
-                            assignedCategoryIds={product.categoryIds || []}
-                            isEditing={editingProductId === product.id}
-                            onEdit={() => setEditingProductId(product.id)}
-                            onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
-                            onCancel={() => setEditingProductId(null)}
-                            isSaving={syncCategoriesMutation.isPending}
-                          />
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <div className="text-[10px] text-muted-foreground uppercase">Base</div>
+                          <div className="text-sm font-semibold text-green-600">${product.basePrice}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
+                          <div className="text-sm font-medium">{product.markupPercent || 0}%</div>
                         </div>
                       </div>
                     </div>
+                  </div>
+                  
+                  {/* Row 2: Full width sizes/colors */}
+                  <div className="mt-3 pt-3 border-t">
+                    <ProductOptionsEditor product={product} onUpdate={() => refetch()} />
+                  </div>
+                  
+                  {/* Row 3: Tags */}
+                  <div className="mt-3 pt-3 border-t">
+                    <Label className="text-xs font-medium mb-1.5 block">Tags</Label>
+                    <ProductTagEditor
+                      productId={product.id}
+                      allCategories={allCategories.filter(c => c.isActive)}
+                      assignedCategoryIds={product.categoryIds || []}
+                      isEditing={editingProductId === product.id}
+                      onEdit={() => setEditingProductId(product.id)}
+                      onSave={(categoryIds) => syncCategoriesMutation.mutate({ productId: product.id, categoryIds })}
+                      onCancel={() => setEditingProductId(null)}
+                      isSaving={syncCategoriesMutation.isPending}
+                    />
                   </div>
                 </Card>
               ))}
