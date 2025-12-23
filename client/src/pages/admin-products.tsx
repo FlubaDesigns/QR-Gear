@@ -621,18 +621,31 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     return saved ? JSON.parse(saved) : [];
   });
   
+  // Fetch partner stores from database for External store type
+  type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null };
+  const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
+    queryKey: ["/api/admin/partner-stores"],
+  });
+  
   // Derive available stores based on store type
+  // For External, include partner stores from database
+  const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
+    name: ps.name,
+    areas: ps.availableSegments || [],
+  }));
+  
   const availableStores = storeType === "Internal" 
     ? [...INTERNAL_STORES, ...customStores.filter(s => s.name.startsWith("Internal:"))]
     : storeType === "External"
-    ? [...EXTERNAL_STORES, ...customStores.filter(s => s.name.startsWith("External:"))]
+    ? [...EXTERNAL_STORES, ...dbPartnerStores]
     : [];
   
   // Find current store's segments
   const allStores: Array<{ name: string; segments?: string[]; areas?: string[] }> = [
     ...INTERNAL_STORES, 
     ...EXTERNAL_STORES, 
-    ...customStores
+    ...customStores,
+    ...dbPartnerStores,
   ];
   const currentStoreData = allStores.find(
     (s) => s.name === selectedStore || s.name === selectedStore.replace(/^(Internal:|External:)/, "")
@@ -692,7 +705,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/admin/printify/catalog"],
   });
-
+  
   const categoryData = catalog.find(c => c.name === selectedCategory);
   const allCategoryItems = categoryData?.items || [];
   const categoryItems = allCategoryItems.filter(item => {
@@ -1011,7 +1024,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setProductSource("");
   }
   
-  function saveNewStore() {
+  async function saveNewStore() {
     if (!newStoreName.trim()) {
       toast({ title: "Error", description: "Please enter a store name", variant: "destructive" });
       return;
@@ -1021,15 +1034,36 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       toast({ title: "Error", description: "Please add at least one area", variant: "destructive" });
       return;
     }
-    const newStore: StoreWithAreas = { name: newStoreName.trim(), areas: filteredAreas };
-    const updated = [...customStores, newStore];
-    setCustomStores(updated);
-    localStorage.setItem("qrgear-custom-stores", JSON.stringify(updated));
-    setAddStoreDialogOpen(false);
-    setNewStoreName("");
-    setNewStoreAreas([""]);
-    setSelectedSegment(newStore.name);
-    toast({ title: "Store Created", description: `${newStore.name} with ${filteredAreas.length} area(s)` });
+    
+    try {
+      // Generate unique slug with timestamp to avoid duplicates
+      const baseSlug = newStoreName.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const uniqueSlug = `${baseSlug}-${Date.now()}`;
+      
+      // Save to database via API (apiRequest throws on non-2xx status)
+      const response = await apiRequest("POST", "/api/admin/partner-stores", {
+        name: newStoreName.trim(),
+        slug: uniqueSlug,
+        availableSegments: filteredAreas,
+        isActive: true,
+      });
+      const savedStore = await response.json();
+      
+      // Close dialog and reset form immediately
+      setAddStoreDialogOpen(false);
+      setNewStoreName("");
+      setNewStoreAreas([""]);
+      
+      // Refetch partner stores and wait for completion
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
+      
+      // Set selected store from the saved store data after refetch completes
+      setSelectedStore(savedStore.name || newStoreName.trim());
+      toast({ title: "Store Created", description: `${savedStore.name} with ${filteredAreas.length} area(s) saved` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create store", variant: "destructive" });
+    }
   }
   
   async function handleSaveCustomDesign(saveTarget: "library" | "store" | "both") {
@@ -1422,40 +1456,9 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   Build a custom design, upload a background, add text, and create a QR code that links to your hosted design.
                 </p>
                 
-                {/* 1. Location Filter (US/Other) */}
+                {/* Step 1: Select Product Type (Category) */}
                 <div className="space-y-2">
-                  <Label className="font-semibold">Made In</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={customLocationFilter === "usa" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCustomLocationFilter("usa")}
-                      data-testid="custom-filter-usa"
-                    >
-                      <span className="mr-1">🇺🇸</span> USA Only
-                    </Button>
-                    <Button
-                      variant={customLocationFilter === "other" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCustomLocationFilter("other")}
-                      data-testid="custom-filter-other"
-                    >
-                      <span className="mr-1">🌍</span> Elsewhere
-                    </Button>
-                    <Button
-                      variant={customLocationFilter === "all" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCustomLocationFilter("all")}
-                      data-testid="custom-filter-all"
-                    >
-                      All Products
-                    </Button>
-                  </div>
-                </div>
-
-                {/* 2. Select Product from Catalog */}
-                <div className="space-y-2">
-                  <Label className="font-semibold">Select Product</Label>
+                  <Label className="font-semibold">Step 1: Product Type</Label>
                   <select
                     className="w-full p-3 border rounded-md bg-background"
                     value={selectedCategory}
@@ -1469,9 +1472,51 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       </option>
                     ))}
                   </select>
-                  
-                  {/* Product List - scrollable */}
-                  {selectedCategory && categoryData && (
+                </div>
+
+                {/* Step 2: Location Filter (US/Other) - Only show after category selected */}
+                {selectedCategory && categoryData && (
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Step 2: Made In</Label>
+                    {(() => {
+                      const usaCount = categoryData.items.filter(i => i.madeInUSA).length;
+                      const otherCount = categoryData.items.filter(i => !i.madeInUSA).length;
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant={customLocationFilter === "usa" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCustomLocationFilter("usa")}
+                            data-testid="custom-filter-usa"
+                          >
+                            USA Only ({usaCount})
+                          </Button>
+                          <Button
+                            variant={customLocationFilter === "other" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCustomLocationFilter("other")}
+                            data-testid="custom-filter-other"
+                          >
+                            Elsewhere ({otherCount})
+                          </Button>
+                          <Button
+                            variant={customLocationFilter === "all" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCustomLocationFilter("all")}
+                            data-testid="custom-filter-all"
+                          >
+                            All ({categoryData.items.length})
+                          </Button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Step 3: Select Product from filtered list */}
+                {selectedCategory && categoryData && (
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Step 3: Select Product</Label>
                     <div className="max-h-48 overflow-y-auto border rounded-md p-2 bg-background space-y-1">
                       {(() => {
                         const items = customLocationFilter === "usa" 
@@ -1500,8 +1545,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         );
                       })()}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 
                 {/* 3. Print Placement Options (after product selected) */}
                 {selectedItemId && (
