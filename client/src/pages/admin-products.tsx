@@ -1398,10 +1398,28 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Step 3: Product Source (Library/Custom) */}
-            {selectedStore && (
+            {/* Step 3: Select Segment */}
+            {selectedStore && availableSegments.length > 0 && (
+              <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
+                <Label className="text-lg font-bold">Step 3: Select Segment</Label>
+                <select
+                  className="w-full p-3 border rounded-md bg-background text-base"
+                  value={selectedSegment}
+                  onChange={(e) => handleSegmentSelect(e.target.value)}
+                  data-testid="select-segment"
+                >
+                  <option value="">-- Select a segment --</option>
+                  {availableSegments.map((seg) => (
+                    <option key={seg} value={seg}>{seg}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Step 4: Product Source (Library/Custom) */}
+            {selectedStore && (availableSegments.length === 0 || selectedSegment) && (
               <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 3: Product Source</Label>
+                <Label className="text-lg font-bold">Step {availableSegments.length > 0 ? "4" : "3"}: Product Source</Label>
                 <div className="flex flex-col gap-4">
                   <Button
                     variant={productSource === "Library" ? "default" : "outline"}
@@ -1432,7 +1450,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             {/* Library: Product Category Selection */}
             {productSource === "Library" && (
               <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 4: Product Type</Label>
+                <Label className="text-lg font-bold">Step {availableSegments.length > 0 ? "5" : "4"}: Product Type</Label>
                 <select
                   className="w-full p-3 border rounded-md bg-background text-base"
                   value={selectedCategory}
