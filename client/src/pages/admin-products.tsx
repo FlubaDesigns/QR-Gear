@@ -1388,82 +1388,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Step 3: Store Locations (Switches) */}
+            {/* Step 3: Product Source (Library/Custom) */}
             {selectedStore && (
               <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 3: Store Locations</Label>
-                <p className="text-sm text-muted-foreground">Select where this product will appear</p>
-                
-                {/* Location Switches based on store's segments/areas */}
-                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
-                  {availableSegments.map((segment) => (
-                    <div key={segment} className="flex items-center justify-between">
-                      <Label htmlFor={`sw-loc-${segment}`} className="text-sm cursor-pointer">{segment}</Label>
-                      <Switch
-                        id={`sw-loc-${segment}`}
-                        checked={selectedSegment === segment || (!!selectedSegment && selectedSegment.split(",").includes(segment))}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
-                            if (!current.includes(segment)) {
-                              current.push(segment);
-                            }
-                            handleSegmentSelect(current.join(","));
-                          } else {
-                            const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
-                            const updated = current.filter(s => s !== segment);
-                            handleSegmentSelect(updated.join(",") || "");
-                          }
-                        }}
-                        data-testid={`switch-location-${segment.toLowerCase().replace(/\s+/g, "-")}`}
-                      />
-                    </div>
-                  ))}
-                  
-                  {availableSegments.length === 0 && (
-                    <p className="text-sm text-muted-foreground italic">No locations configured for this store</p>
-                  )}
-                </div>
-                
-                {!selectedSegment && (
-                  <p className="text-xs text-destructive">Select at least one location</p>
-                )}
-              </div>
-            )}
-
-            {/* Step 4: Store Occasion */}
-            {selectedSegment && (
-              <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 4: Store Occasion</Label>
-                <p className="text-sm text-muted-foreground">Optional: Mark as featured or seasonal</p>
-                
-                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="sw-featured" className="text-sm cursor-pointer font-medium">Featured Product</Label>
-                    <Switch
-                      id="sw-featured"
-                      checked={isFeatured}
-                      onCheckedChange={setIsFeatured}
-                      data-testid="switch-featured"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="sw-seasonal" className="text-sm cursor-pointer font-medium">Seasonal Promo</Label>
-                    <Switch
-                      id="sw-seasonal"
-                      checked={isSeasonalPromo}
-                      onCheckedChange={setIsSeasonalPromo}
-                      data-testid="switch-seasonal"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Product Source (Library/Custom) */}
-            {canProceedToProduct && (
-              <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 5: Product Source</Label>
+                <Label className="text-lg font-bold">Step 3: Product Source</Label>
                 <div className="flex flex-col gap-4">
                   <Button
                     variant={productSource === "Library" ? "default" : "outline"}
@@ -1494,7 +1422,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
             {/* Library: Product Category Selection */}
             {productSource === "Library" && (
               <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 6: Product Type</Label>
+                <Label className="text-lg font-bold">Step 4: Product Type</Label>
                 <select
                   className="w-full p-3 border rounded-md bg-background text-base"
                   value={selectedCategory}

@@ -2617,7 +2617,7 @@ ${allPages.map(page => `  <url>
         productId: z.number(),
         productName: z.string(),
         productImage: z.string().nullable().optional(),
-        placement: z.string(),
+        placements: z.array(z.string()).min(1),
         backgroundImage: z.string().nullable().optional(),
         topText: z.object({
           text: z.string(),
@@ -2651,7 +2651,7 @@ ${allPages.map(page => `  <url>
         productId: validatedData.productId,
         productName: validatedData.productName,
         productImage: validatedData.productImage || null,
-        placement: validatedData.placement,
+        placement: validatedData.placements.join(","),
         backgroundImageUrl: validatedData.backgroundImage || null,
         topText: validatedData.topText || null,
         bottomText: validatedData.bottomText || null,
