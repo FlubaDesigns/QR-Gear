@@ -941,7 +941,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       return (
                         <div
                           key={item.id}
-                          className={`p-3 transition-all rounded-md ${
+                          className={`p-2 transition-all rounded-md ${
                             isSelected 
                               ? "bg-primary/10 ring-2 ring-primary" 
                               : "bg-background hover-elevate"
@@ -949,10 +949,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                           data-testid={`item-row-${item.id}`}
                         >
                           {/* Row 1: Image + Info */}
-                          <div className="flex items-stretch gap-3">
+                          <div className="flex items-stretch gap-2">
                             {/* Left: Thumbnail */}
                             <div 
-                              className="relative w-20 h-20 flex-shrink-0 cursor-pointer"
+                              className="relative w-24 h-24 flex-shrink-0 cursor-pointer"
                               onClick={() => {
                                 if (item.imageUrl) {
                                   setZoomedImage({ url: item.imageUrl, title: item.title });
