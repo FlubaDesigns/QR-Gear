@@ -977,13 +977,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               )}
                             </div>
                             
-                            {/* Right: Title, Brand+Flag, Price */}
+                            {/* Right: Title, Brand, Price */}
                             <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                               <div className="font-medium text-sm leading-tight line-clamp-2">{item.title}</div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>{item.brand}</span>
-                                {item.madeInUSA ? <span className="text-base">🇺🇸</span> : <span className="text-base">🌍</span>}
-                              </div>
+                              <div className="text-xs text-muted-foreground">{item.brand}</div>
                               {details && !details.error ? (
                                 <div className="text-lg font-semibold text-green-600">
                                   ${details.basePrice.toFixed(2)}
