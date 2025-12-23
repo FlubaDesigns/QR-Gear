@@ -549,6 +549,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [configuringItem, setConfiguringItem] = useState<CatalogItem | null>(null);
+  const [itemConfigurations, setItemConfigurations] = useState<Record<number, { sizes: Set<string>; colors: Set<string> }>>({});
   type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
@@ -789,6 +790,61 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to save products.", variant: "destructive" });
+    },
+  });
+
+  const saveItemMutation = useMutation({
+    mutationFn: async (item: CatalogItem) => {
+      if (!selectedSegment) throw new Error("Please select a store segment first");
+      if (selectedSegment === "Kingdom Connects" && kcPlacements.length === 0) {
+        throw new Error("Please select Kingdom Connects placement(s) first");
+      }
+      
+      const details = itemDetails[item.id];
+      const config = itemConfigurations[item.id];
+      
+      if (!details) throw new Error("Product details not loaded - click Configure first");
+      
+      const selectedColors = config ? Array.from(config.colors) : details.colors;
+      const selectedSizes = config ? Array.from(config.sizes) : details.sizes;
+      
+      if (selectedColors.length === 0 && selectedSizes.length === 0) {
+        throw new Error("Please select at least one size or color");
+      }
+      
+      return apiRequest("POST", "/api/admin/products/from-printify", {
+        blueprintId: item.id,
+        printProviderId: details.providerId,
+        name: item.title,
+        description: item.brand + " " + item.model,
+        category: selectedSegment,
+        basePrice: details.basePrice,
+        imageUrl: item.imageUrl,
+        manufacturer: details.providerName || "Printify",
+        madeInUSA: item.madeInUSA,
+        availablePlacements: ["front"],
+        availableColors: selectedColors,
+        availableSizes: selectedSizes,
+        metadata: { 
+          brand: item.brand, 
+          model: item.model,
+          defaultPlacement: "front",
+          kcPlacements: selectedSegment === "Kingdom Connects" ? kcPlacements : null,
+        },
+      });
+    },
+    onSuccess: (_, item) => {
+      const config = itemConfigurations[item.id];
+      const sizesCount = config?.sizes.size || 0;
+      const colorsCount = config?.colors.size || 0;
+      toast({ 
+        title: "Product Saved!", 
+        description: `${item.title} added to ${selectedSegment} with ${sizesCount} sizes, ${colorsCount} colors.` 
+      });
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1187,16 +1243,33 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                             <Button 
                               variant="secondary"
                               className="w-full"
+                              disabled={!selectedSegment || saveItemMutation.isPending}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toast({ title: "Coming soon", description: "Quick save functionality" });
+                                if (!selectedSegment) {
+                                  toast({ title: "Select Segment", description: "Please select a store segment first", variant: "destructive" });
+                                  return;
+                                }
+                                saveItemMutation.mutate(item);
                               }}
                               data-testid={`button-save-store-${item.id}`}
                             >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Save to Store
+                              {saveItemMutation.isPending ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+                              ) : (
+                                <>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Save to {selectedSegment || "Store"}
+                                </>
+                              )}
                             </Button>
                           </div>
+                          
+                          {itemConfigurations[item.id] && (
+                            <div className="mt-1 text-xs text-muted-foreground text-center">
+                              {itemConfigurations[item.id].sizes.size} sizes, {itemConfigurations[item.id].colors.size} colors selected
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1459,7 +1532,16 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                 </DialogClose>
                 <Button 
                   onClick={() => {
-                    setSelectedItemId(configuringItem.id);
+                    if (configuringItem) {
+                      setItemConfigurations(prev => ({
+                        ...prev,
+                        [configuringItem.id]: {
+                          sizes: new Set(enabledSizes),
+                          colors: new Set(enabledColors),
+                        }
+                      }));
+                      setSelectedItemId(configuringItem.id);
+                    }
                     setConfigDialogOpen(false);
                     toast({ 
                       title: "Configuration saved", 
