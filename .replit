@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["unzip", "jq", "zip"]
+packages = ["unzip", "jq", "zip", "libuuid"]
 
 [deployment]
 deploymentTarget = "autoscale"

@@ -592,16 +592,16 @@ const QR_PLACEMENTS = [
 ];
 
 const FONT_FAMILIES = [
-  "Arial",
-  "Helvetica",
-  "Times New Roman",
-  "Georgia",
-  "Verdana",
-  "Courier New",
-  "Impact",
-  "Comic Sans MS",
-  "Trebuchet MS",
-  "Palatino Linotype",
+  { name: "Arial", sample: "ABC abc 123" },
+  { name: "Helvetica", sample: "ABC abc 123" },
+  { name: "Times New Roman", sample: "ABC abc 123" },
+  { name: "Georgia", sample: "ABC abc 123" },
+  { name: "Verdana", sample: "ABC abc 123" },
+  { name: "Courier New", sample: "ABC abc 123" },
+  { name: "Impact", sample: "ABC abc 123" },
+  { name: "Comic Sans MS", sample: "ABC abc 123" },
+  { name: "Trebuchet MS", sample: "ABC abc 123" },
+  { name: "Palatino Linotype", sample: "ABC abc 123" },
 ];
 
 const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
@@ -1644,16 +1644,24 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label className="text-xs">Font</Label>
-                              <select
-                                className="w-full p-2 border rounded text-sm"
-                                value={headerFontFamily}
-                                onChange={(e) => setHeaderFontFamily(e.target.value)}
-                                data-testid="select-header-font"
-                              >
-                                {FONT_FAMILIES.map((font) => (
-                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
-                                ))}
-                              </select>
+                              <div className="space-y-1">
+                                <select
+                                  className="w-full p-2 border rounded text-sm"
+                                  value={headerFontFamily}
+                                  onChange={(e) => setHeaderFontFamily(e.target.value)}
+                                  data-testid="select-header-font"
+                                >
+                                  {FONT_FAMILIES.map((font) => (
+                                    <option key={font.name} value={font.name}>{font.name}</option>
+                                  ))}
+                                </select>
+                                <div 
+                                  className="p-2 bg-muted rounded text-lg border"
+                                  style={{ fontFamily: headerFontFamily }}
+                                >
+                                  {FONT_FAMILIES.find(f => f.name === headerFontFamily)?.sample || "ABC abc 123"}
+                                </div>
+                              </div>
                             </div>
                             <div>
                               <Label className="text-xs">Size</Label>
@@ -1696,16 +1704,24 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label className="text-xs">Font</Label>
-                              <select
-                                className="w-full p-2 border rounded text-sm"
-                                value={footerFontFamily}
-                                onChange={(e) => setFooterFontFamily(e.target.value)}
-                                data-testid="select-footer-font"
-                              >
-                                {FONT_FAMILIES.map((font) => (
-                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
-                                ))}
-                              </select>
+                              <div className="space-y-1">
+                                <select
+                                  className="w-full p-2 border rounded text-sm"
+                                  value={footerFontFamily}
+                                  onChange={(e) => setFooterFontFamily(e.target.value)}
+                                  data-testid="select-footer-font"
+                                >
+                                  {FONT_FAMILIES.map((font) => (
+                                    <option key={font.name} value={font.name}>{font.name}</option>
+                                  ))}
+                                </select>
+                                <div 
+                                  className="p-2 bg-muted rounded text-lg border"
+                                  style={{ fontFamily: footerFontFamily }}
+                                >
+                                  {FONT_FAMILIES.find(f => f.name === footerFontFamily)?.sample || "ABC abc 123"}
+                                </div>
+                              </div>
                             </div>
                             <div>
                               <Label className="text-xs">Size</Label>

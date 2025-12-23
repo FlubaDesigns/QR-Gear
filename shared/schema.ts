@@ -155,6 +155,7 @@ export const customDesigns = pgTable("custom_designs", {
   isFeatured: boolean("is_featured").default(false),
   isSeasonalPromo: boolean("is_seasonal_promo").default(false),
   qrCodeUrl: text("qr_code_url"),
+  printifyCompositeUrl: text("printify_composite_url"),
   savedToLibrary: boolean("saved_to_library").default(false),
   savedToStore: boolean("saved_to_store").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),

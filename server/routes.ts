@@ -6,6 +6,7 @@ import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOr
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants, detectCategory } from "./lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
+import { generatePrintifyComposite } from "./lib/composite-image-generator";
 import { uploadImage, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
@@ -2667,7 +2668,7 @@ ${allPages.map(page => `  <url>
       
       const design = await storage.createCustomDesign(designData);
       
-      // Generate QR code
+      // Generate QR code URL that points to the hosted page
       const qrUrl = `${baseUrl}/customs/${design.id}`;
       const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
         width: 256,
@@ -2675,9 +2676,20 @@ ${allPages.map(page => `  <url>
         color: { dark: "#000000", light: "#ffffff" },
       });
       
-      // Update design with QR code
+      // Generate print-ready composite image (header + QR + footer) for Printify
+      // This is a CLEAN image with just text and QR - no background
+      const printifyCompositeUrl = await generatePrintifyComposite(
+        qrUrl,
+        validatedData.topText || null,
+        validatedData.bottomText || null,
+        1200, // width in pixels (print quality)
+        1800  // height in pixels (print quality)
+      );
+      
+      // Update design with QR code and composite image
       const updatedDesign = await storage.updateCustomDesign(design.id, {
         qrCodeUrl: qrCodeDataUrl,
+        printifyCompositeUrl: printifyCompositeUrl,
       });
       
       res.json(updatedDesign);
