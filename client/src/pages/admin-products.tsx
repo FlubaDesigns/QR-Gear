@@ -1101,13 +1101,17 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       <Dialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
         <DialogContent className="max-w-3xl p-2">
           {zoomedImage && (
-            <div className="flex flex-col items-center gap-2">
+            <div 
+              className="flex flex-col items-center gap-2 cursor-pointer"
+              onClick={() => setZoomedImage(null)}
+            >
               <img 
                 src={zoomedImage.url} 
                 alt={zoomedImage.title} 
                 className="max-h-[80vh] w-auto object-contain rounded"
               />
               <p className="text-sm text-muted-foreground">{zoomedImage.title}</p>
+              <p className="text-xs text-muted-foreground md:hidden">Tap image to close</p>
             </div>
           )}
         </DialogContent>
