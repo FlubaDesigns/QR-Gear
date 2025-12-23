@@ -814,6 +814,16 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       
       const saveCategoryPath = `${storeType}/${selectedStore}/${selectedSegment}`;
       
+      // Derive placements from selected segments
+      const selectedLocations = selectedSegment.split(",").filter(Boolean);
+      const derivedPlacements = {
+        showOnHomepage: selectedLocations.includes("Homepage"),
+        showOnDashboard: selectedLocations.includes("Dashboard"),
+        showOnMemberPage: selectedLocations.includes("Member Page"),
+        showOnStaticPage: selectedLocations.includes("Static Page"),
+        locations: selectedLocations,
+      };
+      
       const results = await Promise.all(
         stagedProducts.map(product => 
           apiRequest("POST", "/api/admin/products/from-printify", {
@@ -838,7 +848,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               storeType,
               storeName: selectedStore,
               segment: selectedSegment,
-              placements: { showOnHomepage, showOnDashboard, showOnMemberPage, showOnStaticPage },
+              placements: derivedPlacements,
               isFeatured,
               isSeasonalPromo,
               productSource,
@@ -865,7 +875,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const saveItemMutation = useMutation({
     mutationFn: async (item: CatalogItem) => {
       if (!selectedStore || !selectedSegment) throw new Error("Please complete all steps first");
-      if (!hasValidPlacements) throw new Error("Please select at least one placement");
+      if (!hasValidPlacements) throw new Error("Please select at least one location");
       
       const details = itemDetails[item.id];
       const config = itemConfigurations[item.id];
@@ -880,6 +890,16 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       }
       
       const saveCategoryPath = `${storeType}/${selectedStore}/${selectedSegment}`;
+      
+      // Derive placements from selected segments
+      const selectedLocations = selectedSegment.split(",").filter(Boolean);
+      const derivedPlacements = {
+        showOnHomepage: selectedLocations.includes("Homepage"),
+        showOnDashboard: selectedLocations.includes("Dashboard"),
+        showOnMemberPage: selectedLocations.includes("Member Page"),
+        showOnStaticPage: selectedLocations.includes("Static Page"),
+        locations: selectedLocations,
+      };
       
       return apiRequest("POST", "/api/admin/products/from-printify", {
         blueprintId: item.id,
@@ -901,7 +921,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
           storeType,
           storeName: selectedStore,
           segment: selectedSegment,
-          placements: { showOnHomepage, showOnDashboard, showOnMemberPage, showOnStaticPage },
+          placements: derivedPlacements,
           isFeatured,
           isSeasonalPromo,
           productSource,
@@ -928,10 +948,6 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setSelectedStore("");
     setSelectedSegment("");
     setProductSource("");
-    setShowOnHomepage(true);
-    setShowOnDashboard(false);
-    setShowOnMemberPage(false);
-    setShowOnStaticPage(false);
     setIsFeatured(false);
     setIsSeasonalPromo(false);
     setStagedProducts([]);
@@ -1094,8 +1110,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     : selectedStore || "";
   
   // Validate flow
-  const hasValidPlacements = showOnHomepage || showOnDashboard || showOnMemberPage || showOnStaticPage;
-  const canProceedToProduct = storeType && selectedStore && selectedSegment && hasValidPlacements;
+  const hasValidPlacements = !!selectedSegment && selectedSegment.length > 0;
+  const canProceedToProduct = storeType && selectedStore && hasValidPlacements;
   const canSaveAll = stagedProducts.length > 0 && canProceedToProduct;
 
   return (
@@ -1163,69 +1179,50 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
               </div>
             )}
 
-            {/* Step 3: Segment/Page with Configuration Switches */}
+            {/* Step 3: Store Locations (Switches) */}
             {selectedStore && (
               <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 3: Segment/Page</Label>
+                <Label className="text-lg font-bold">Step 3: Store Locations</Label>
+                <p className="text-sm text-muted-foreground">Select where this product will appear</p>
                 
-                {/* Segment Selection */}
-                <select
-                  className="w-full p-3 border rounded-md bg-background text-base"
-                  value={selectedSegment}
-                  onChange={(e) => handleSegmentSelect(e.target.value)}
-                  data-testid="select-segment"
-                >
-                  <option value="">-- Select segment/page --</option>
-                  {availableSegments.map((seg) => (
-                    <option key={seg} value={seg}>{seg}</option>
-                  ))}
-                </select>
-                
-                {/* Configuration Switches - appear after segment selected */}
-                {selectedSegment && (
-                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
-                    <Label className="text-sm font-semibold text-primary">Placement Settings</Label>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="sw-homepage" className="text-sm cursor-pointer">Show on Homepage</Label>
-                        <Switch
-                          id="sw-homepage"
-                          checked={showOnHomepage}
-                          onCheckedChange={setShowOnHomepage}
-                          data-testid="switch-homepage"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="sw-dashboard" className="text-sm cursor-pointer">Show on Dashboard</Label>
-                        <Switch
-                          id="sw-dashboard"
-                          checked={showOnDashboard}
-                          onCheckedChange={setShowOnDashboard}
-                          data-testid="switch-dashboard"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="sw-member" className="text-sm cursor-pointer">Show on Member Page</Label>
-                        <Switch
-                          id="sw-member"
-                          checked={showOnMemberPage}
-                          onCheckedChange={setShowOnMemberPage}
-                          data-testid="switch-member-page"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="sw-static" className="text-sm cursor-pointer">Show on Static Page</Label>
-                        <Switch
-                          id="sw-static"
-                          checked={showOnStaticPage}
-                          onCheckedChange={setShowOnStaticPage}
-                          data-testid="switch-static-page"
-                        />
-                      </div>
+                {/* Location Switches based on store's segments/areas */}
+                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                  {availableSegments.map((segment) => (
+                    <div key={segment} className="flex items-center justify-between">
+                      <Label htmlFor={`sw-loc-${segment}`} className="text-sm cursor-pointer">{segment}</Label>
+                      <Switch
+                        id={`sw-loc-${segment}`}
+                        checked={selectedSegment === segment || (!!selectedSegment && selectedSegment.split(",").includes(segment))}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            // Add to selected segments (comma-separated for multiple)
+                            const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
+                            if (!current.includes(segment)) {
+                              current.push(segment);
+                            }
+                            handleSegmentSelect(current.join(","));
+                          } else {
+                            // Remove from selected segments
+                            const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
+                            const updated = current.filter(s => s !== segment);
+                            handleSegmentSelect(updated.join(",") || "");
+                          }
+                        }}
+                        data-testid={`switch-location-${segment.toLowerCase().replace(/\s+/g, "-")}`}
+                      />
                     </div>
-                    
-                    <div className="border-t pt-3 space-y-3">
+                  ))}
+                  
+                  {availableSegments.length === 0 && (
+                    <p className="text-sm text-muted-foreground italic">No locations configured for this store</p>
+                  )}
+                </div>
+                
+                {/* Additional Settings - Featured & Seasonal */}
+                {selectedSegment && (
+                  <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+                    <Label className="text-sm font-semibold text-primary">Additional Settings</Label>
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="sw-featured" className="text-sm cursor-pointer font-medium">Featured Product</Label>
                         <Switch
@@ -1245,11 +1242,11 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                         />
                       </div>
                     </div>
-                    
-                    {!hasValidPlacements && (
-                      <p className="text-xs text-destructive">Select at least one placement</p>
-                    )}
                   </div>
+                )}
+                
+                {!selectedSegment && (
+                  <p className="text-xs text-destructive">Select at least one location</p>
                 )}
               </div>
             )}
