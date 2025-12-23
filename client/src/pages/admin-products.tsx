@@ -646,10 +646,63 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       }
       
       setFetchingBatch(false);
+      
+      // After batch details loaded, auto-fetch costs for items missing them
+      // This happens in background, one at a time to avoid rate limits
+      autoFetchMissingCosts();
     };
     
     fetchBatchDetails();
   }, [selectedCategory, JSON.stringify(allCategoryItems.map(i => i.id))]);
+
+  // Auto-fetch costs for items that don't have them (runs sequentially to avoid rate limits)
+  const [autoFetchingCosts, setAutoFetchingCosts] = useState(false);
+  
+  async function autoFetchMissingCosts() {
+    // Find items that have details but no costs
+    const itemsNeedingCosts = Object.entries(itemDetails)
+      .filter(([_, d]) => d && !d.error && !d.costsAvailable && d.providerId)
+      .slice(0, 5); // Limit to 5 at a time
+    
+    if (itemsNeedingCosts.length === 0) return;
+    
+    setAutoFetchingCosts(true);
+    
+    for (const [blueprintIdStr, details] of itemsNeedingCosts) {
+      const blueprintId = parseInt(blueprintIdStr);
+      if (!details.providerId) continue;
+      
+      try {
+        const res = await fetch("/api/admin/catalog/fetch-costs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ blueprintId, providerId: details.providerId }),
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setItemDetails(prev => ({
+            ...prev,
+            [blueprintId]: {
+              ...prev[blueprintId],
+              basePrice: data.minCost / 100,
+              maxPrice: data.maxCost / 100,
+              costsAvailable: true,
+              costsFromDatabase: true,
+            }
+          }));
+        }
+        
+        // Small delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch {
+        // Continue to next item on error
+      }
+    }
+    
+    setAutoFetchingCosts(false);
+  }
 
   const headerUpcharge = headerEnabled && headerText.trim() ? 2 : 0;
   const footerUpcharge = footerEnabled && footerText.trim() ? 2 : 0;
@@ -1046,7 +1099,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                                       )}
                                     </>
                                   ) : (
-                                    <span className="text-muted-foreground text-sm font-normal">Cost TBD</span>
+                                    <span className="text-muted-foreground text-sm font-normal flex items-center gap-1">
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      Fetching...
+                                    </span>
                                   )}
                                 </div>
                               ) : fetchingBatch ? (
@@ -1108,7 +1164,10 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                       {catalogDetails.basePrice > 0 ? (
                         `$${catalogDetails.basePrice.toFixed(2)}`
                       ) : (
-                        <span className="text-muted-foreground text-sm font-normal">Cost TBD</span>
+                        <span className="text-muted-foreground text-sm font-normal flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Fetching cost...
+                        </span>
                       )}
                     </div>
                   </div>
