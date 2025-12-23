@@ -1506,18 +1506,22 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                           </Button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
                         {(details.colors || []).map((color) => (
                           <div 
                             key={color}
-                            className="flex items-center gap-2 p-2 border rounded-lg"
+                            className="flex items-center gap-3 p-2 border rounded-lg"
                           >
                             <Switch
                               checked={enabledColors.has(color)}
                               onCheckedChange={() => toggleColor(color)}
                               data-testid={`switch-color-${color}`}
                             />
-                            <span className="text-sm truncate">{color}</span>
+                            <div 
+                              className="w-6 h-6 rounded-full border flex-shrink-0"
+                              style={{ backgroundColor: getSwatchColor(color) }}
+                            />
+                            <span className="text-sm">{color}</span>
                           </div>
                         ))}
                       </div>
