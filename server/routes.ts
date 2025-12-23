@@ -2142,7 +2142,12 @@ ${allPages.map(page => `  <url>
   // Admin: Create partner store
   app.post("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
     try {
-      const validated = insertPartnerStoreSchema.parse(req.body);
+      // Auto-generate apiKey if not provided
+      const dataWithApiKey = {
+        ...req.body,
+        apiKey: req.body.apiKey || `ps_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
+      };
+      const validated = insertPartnerStoreSchema.parse(dataWithApiKey);
       const store = await storage.createPartnerStore(validated);
       res.json(store);
     } catch (error: any) {
