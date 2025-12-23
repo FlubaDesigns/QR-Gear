@@ -1210,9 +1210,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const colors = Array.from(new Set(variants.map((v: any) => v.options?.color).filter(Boolean)));
           const sizes = Array.from(new Set(variants.map((v: any) => v.options?.size).filter(Boolean)));
           
-          // Get base price (lowest)
-          const prices = variants.map((v: any) => v.price || 0).filter((p: number) => p > 0);
+          // Get base price (lowest) - check multiple price fields
+          // Printify may use 'price', 'cost', or nested pricing
+          console.log(`[Batch] Blueprint ${blueprintId}: ${variants.length} variants, sample:`, 
+            variants[0] ? JSON.stringify(variants[0]).slice(0, 300) : 'none');
+          
+          const prices = variants.map((v: any) => {
+            // Try different price field names
+            return v.price || v.cost || v.variant_price || 0;
+          }).filter((p: number) => p > 0);
           const basePrice = prices.length > 0 ? Math.min(...prices) / 100 : 0;
+          
+          console.log(`[Batch] Blueprint ${blueprintId}: prices found = ${prices.length}, basePrice = ${basePrice}`);
           
           const data = {
             blueprintId,
