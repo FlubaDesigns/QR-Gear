@@ -1743,13 +1743,25 @@ function ProductsContent() {
   
   const filteredProducts = products.filter(product => {
     if (!filterSegment) return true;
-    if (product.category !== filterSegment) return false;
+    const categoryParts = product.category.split("/");
+    const productStore = categoryParts[0];
+    const productArea = categoryParts[1] || null;
+    if (productStore !== filterSegment) return false;
     if (!filterArea) return true;
-    const meta = product.metadata as any;
-    if (meta?.storeArea === filterArea) return true;
-    const kcPlacements = meta?.kcPlacements || [];
-    const areaKey = filterArea === "Homepage" ? "homepage" : filterArea === "Dashboard" ? "dashboard" : filterArea === "Static Page" ? "static_page" : filterArea.toLowerCase();
-    return kcPlacements.includes(areaKey) || kcPlacements.includes(filterArea);
+    return productArea === filterArea;
+  });
+  
+  const deleteMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      return apiRequest("DELETE", `/api/admin/products/${productId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      toast({ title: "Product Deleted", description: "Product removed from catalog." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete product.", variant: "destructive" });
+    },
   });
 
   const { data: allCategories = [] } = useQuery<ProductCategory[]>({
@@ -1908,7 +1920,7 @@ function ProductsContent() {
             <div className="space-y-3">
               {filteredProducts.map((product) => (
                 <Card key={product.id} className="p-3" data-testid={`card-product-${product.id}`}>
-                  {/* Row 1: Image+Active | Name/Category | Price/Markup */}
+                  {/* Row 1: Image+Active | Name/Category | Price/Markup | Delete */}
                   <div className="flex gap-3">
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
                       {product.imageUrl && (
@@ -1941,6 +1953,20 @@ function ProductsContent() {
                           <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
                           <div className="text-sm font-medium">{product.markupPercent || 0}%</div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            if (confirm(`Remove "${product.name}" from catalog?`)) {
+                              deleteMutation.mutate(product.id);
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                          data-testid={`button-delete-${product.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>

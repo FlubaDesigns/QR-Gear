@@ -81,6 +81,7 @@ export interface IStorage {
   getAllProducts(): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<void>;
 
   // Cart operations
   getCartItemsByUser(userId: string): Promise<CartItem[]>;
@@ -330,6 +331,11 @@ export class DbStorage implements IStorage {
       .where(eq(schema.products.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await this.db.delete(schema.productCategoryAssignments).where(eq(schema.productCategoryAssignments.productId, id));
+    await this.db.delete(schema.products).where(eq(schema.products.id, id));
   }
 
   // Cart operations
@@ -1227,6 +1233,13 @@ class MemStorage implements IStorage {
     const updated = { ...existing, ...product, updatedAt: new Date() };
     this.products.set(id, updated);
     return updated;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    Array.from(this.productCategoryAssignments.entries()).forEach(([assignmentId, assignment]) => {
+      if (assignment.productId === id) this.productCategoryAssignments.delete(assignmentId);
+    });
+    this.products.delete(id);
   }
 
   async getCartItemsByUser(userId: string): Promise<CartItem[]> {

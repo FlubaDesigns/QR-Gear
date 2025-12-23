@@ -943,6 +943,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete product from catalog
+  app.delete("/api/admin/products/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProduct(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get product variants
   app.get("/api/admin/products/:id/variants", isAdmin, async (req: any, res) => {
     try {
