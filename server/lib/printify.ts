@@ -194,6 +194,77 @@ class PrintifyClient {
     return this.request(`/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/variants.json`);
   }
 
+  /**
+   * Get print areas (placements) available for a blueprint/provider combo.
+   * Returns position names like 'front', 'back', 'left', 'right', etc.
+   */
+  async getPrintAreas(blueprintId: number, printProviderId: number): Promise<{ placeholders: Array<{ position: string; width: number; height: number }> }> {
+    return this.request(`/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/shipping.json`)
+      .catch(() => {
+        // Fallback: try the print_areas endpoint format
+        return this.request(`/catalog/print_providers/${printProviderId}/shipping.json`);
+      });
+  }
+
+  /**
+   * Get a placement that works for ALL variants (intersection).
+   * Returns the placement name and the variant IDs that support it.
+   * Throws if no common placement exists.
+   */
+  async getCommonPlacement(blueprintId: number, printProviderId: number): Promise<{ placement: string; variantIds: number[] }> {
+    const variantsData = await this.request<{ variants: any[] }>(
+      `/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/variants.json`
+    );
+    
+    // Build a map: placement -> set of variant IDs that support it
+    const placementToVariants = new Map<string, Set<number>>();
+    const allVariantIds: number[] = [];
+    
+    for (const variant of variantsData.variants) {
+      allVariantIds.push(variant.id);
+      if (variant.placeholders && variant.placeholders.length > 0) {
+        for (const placeholder of variant.placeholders) {
+          if (placeholder.position) {
+            if (!placementToVariants.has(placeholder.position)) {
+              placementToVariants.set(placeholder.position, new Set());
+            }
+            placementToVariants.get(placeholder.position)!.add(variant.id);
+          }
+        }
+      }
+    }
+    
+    // Find a placement that covers ALL variants
+    const totalVariants = allVariantIds.length;
+    for (const [placement, variantSet] of placementToVariants) {
+      if (variantSet.size === totalVariants) {
+        console.log(`[Printify] Found common placement '${placement}' for all ${totalVariants} variants`);
+        return { placement, variantIds: allVariantIds };
+      }
+    }
+    
+    // No placement covers all variants - find the best one (most coverage)
+    let bestPlacement = '';
+    let bestCoverage = 0;
+    let bestVariantIds: number[] = [];
+    
+    for (const [placement, variantSet] of placementToVariants) {
+      if (variantSet.size > bestCoverage) {
+        bestCoverage = variantSet.size;
+        bestPlacement = placement;
+        bestVariantIds = Array.from(variantSet);
+      }
+    }
+    
+    if (bestPlacement && bestCoverage > 0) {
+      console.log(`[Printify] Best placement '${bestPlacement}' covers ${bestCoverage}/${totalVariants} variants`);
+      return { placement: bestPlacement, variantIds: bestVariantIds };
+    }
+    
+    // No placements found at all
+    throw new Error(`No valid print placements found for blueprint ${blueprintId}. Cannot extract real production costs.`);
+  }
+
   async getShopProducts(): Promise<{ data: PrintifyProduct[] }> {
     return this.request(`/shops/${this.getShopId()}/products.json`);
   }
@@ -276,16 +347,38 @@ class PrintifyClient {
   }
 
   /**
-   * Create a minimal placeholder product to extract production costs.
-   * Returns the product with variant costs, which can then be cached locally.
+   * Create a placeholder product WITH ONE PRINT to get the true minimum cost.
+   * REQUIRES an image ID - will NOT fall back to blank garment cost.
+   * 
+   * @param blueprintId - The blueprint ID
+   * @param printProviderId - The print provider ID  
+   * @param variantIds - Array of variant IDs to enable
+   * @param imageId - Printify image ID (REQUIRED)
+   * @param placement - The print position to use (from getFirstAvailablePlacement)
    */
   async createPlaceholderProduct(
     blueprintId: number,
     printProviderId: number,
-    variantIds: number[]
+    variantIds: number[],
+    imageId: string,
+    placement: string
   ): Promise<PrintifyProduct> {
-    // Create a minimal product with all variants enabled at $0 price
-    // This lets us read the production cost from the returned product
+    if (!imageId) {
+      throw new Error('Image ID is required to get real production costs');
+    }
+    
+    const print_areas = [
+      {
+        variant_ids: variantIds,
+        placeholders: [
+          {
+            position: placement,
+            images: [{ id: imageId, x: 0.5, y: 0.5, scale: 1, angle: 0 }]
+          }
+        ]
+      }
+    ];
+    
     const productData = {
       title: `[COST_SYNC] Blueprint ${blueprintId}`,
       description: 'Temporary product for cost extraction - will be deleted',
@@ -293,16 +386,44 @@ class PrintifyClient {
       print_provider_id: printProviderId,
       variants: variantIds.map(id => ({
         id,
-        price: 0, // We just need to read the cost, price doesn't matter
+        price: 0,
         is_enabled: true,
       })),
-      print_areas: [], // No print areas needed for cost extraction
+      print_areas,
     };
 
-    return this.request(`/shops/${this.getShopId()}/products.json`, {
-      method: 'POST',
-      body: JSON.stringify(productData),
-    });
+    console.log(`[Printify] Creating placeholder product with '${placement}' placement for real cost...`);
+    
+    const result = await this.request<PrintifyProduct>(
+      `/shops/${this.getShopId()}/products.json`,
+      { method: 'POST', body: JSON.stringify(productData) }
+    );
+    
+    console.log(`[Printify] Created placeholder product ${result.id} with '${placement}' placement`);
+    return result;
+  }
+
+  // Static placeholder image ID - cached after first upload
+  private static placeholderImageId: string | null = null;
+
+  /**
+   * Get or create a placeholder image for cost extraction.
+   * Uses a simple 100x100 QR placeholder image.
+   */
+  async getOrCreatePlaceholderImage(): Promise<string> {
+    if (PrintifyClient.placeholderImageId) {
+      return PrintifyClient.placeholderImageId;
+    }
+
+    // Upload a simple placeholder image (a public 100x100 PNG)
+    const result = await this.uploadImage(
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/QR_code_for_mobile_English_Wikipedia.svg/100px-QR_code_for_mobile_English_Wikipedia.svg.png',
+      'qr-placeholder.png'
+    );
+    
+    PrintifyClient.placeholderImageId = result.id;
+    console.log(`[Printify] Uploaded placeholder image: ${result.id}`);
+    return result.id;
   }
 
   /**

@@ -1517,13 +1517,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No variants found for this blueprint/provider combo" });
       }
       
-      console.log(`[Cost Fetch] Found ${variantIds.length} variants, creating placeholder product...`);
+      // Get a placement that works for these variants (finds common placement)
+      const { placement, variantIds: compatibleVariantIds } = await printify.getCommonPlacement(blueprintId, providerId);
+      console.log(`[Cost Fetch] Using placement '${placement}' with ${compatibleVariantIds.length} compatible variants`);
       
-      // Create a placeholder product to get costs
+      // Upload a placeholder image to Printify (cached after first upload)
+      const imageId = await printify.getOrCreatePlaceholderImage();
+      console.log(`[Cost Fetch] Using placeholder image: ${imageId}`);
+      
+      // Create a placeholder product WITH the image to get real costs (item + one print)
       const placeholderProduct = await printify.createPlaceholderProduct(
         blueprintId,
         providerId,
-        variantIds
+        compatibleVariantIds,
+        imageId,
+        placement
       );
       
       console.log(`[Cost Fetch] Created placeholder product ${placeholderProduct.id}, extracting costs...`);
@@ -1558,12 +1566,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         blueprintId,
         providerId,
+        placement,
         minCost: costs.minCost,
         maxCost: costs.maxCost,
         minCostFormatted: `$${(costs.minCost / 100).toFixed(2)}`,
         maxCostFormatted: `$${(costs.maxCost / 100).toFixed(2)}`,
-        variantsChecked: variantIds.length,
+        variantsChecked: compatibleVariantIds.length,
         placeholderDeleted: deleteAfter,
+        note: `Cost includes: blank item + one print on '${placement}' position`,
       });
       
     } catch (error: any) {
