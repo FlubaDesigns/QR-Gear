@@ -437,7 +437,7 @@ export default function StoreBuildPage() {
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="flex flex-col items-center gap-3">
                 {filteredProducts.map(product => {
                   const sizes = Array.isArray(product.availableSizes) ? product.availableSizes as string[] : [];
                   const colors = Array.isArray(product.availableColors)
@@ -451,11 +451,12 @@ export default function StoreBuildPage() {
                   return (
                     <div
                       key={product.id}
-                      className="border-2 border-blue-500 rounded-xl p-4 bg-card"
+                      className="w-full max-w-3xl border-2 border-blue-500 rounded-xl p-4 bg-card"
                       data-testid={`product-card-${product.id}`}
                     >
-                      <div className="flex gap-4">
-                        <div className="flex items-start pt-1">
+                      {/* Row 1: Image (left) + Name/Manufacturer/Flag (right) */}
+                      <div className="flex gap-4 items-start">
+                        <div className="flex items-start gap-3">
                           <Checkbox
                             checked={selectedProducts.has(product.id)}
                             onCheckedChange={(checked) => {
@@ -469,27 +470,27 @@ export default function StoreBuildPage() {
                                 return next;
                               });
                             }}
-                            className="h-11 w-11"
+                            className="h-11 w-11 mt-2"
                             data-testid={`checkbox-select-${product.id}`}
                           />
+                          {product.imageUrl && (
+                            <button
+                              onClick={() => setEnlargedImage({ url: product.imageUrl!, name: product.name })}
+                              className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
+                              data-testid={`button-enlarge-${product.id}`}
+                            >
+                              <img
+                                src={product.imageUrl}
+                                alt=""
+                                className="w-28 h-28 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity border-2 border-blue-400"
+                              />
+                            </button>
+                          )}
                         </div>
-                        {product.imageUrl && (
-                          <button
-                            onClick={() => setEnlargedImage({ url: product.imageUrl!, name: product.name })}
-                            className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
-                            data-testid={`button-enlarge-${product.id}`}
-                          >
-                            <img
-                              src={product.imageUrl}
-                              alt=""
-                              className="w-20 h-20 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                            />
-                          </button>
-                        )}
                         <div className="flex-1 min-w-0">
-                          <div className="text-lg font-semibold">{product.name}</div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <span>{product.manufacturer || "Unknown Manufacturer"}</span>
+                          <div className="text-xl font-semibold">{product.name}</div>
+                          <div className="flex items-center gap-2 text-muted-foreground mt-1">
+                            <span className="text-base">{product.manufacturer || "Unknown Manufacturer"}</span>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span className="cursor-help inline-flex items-center">
@@ -498,10 +499,10 @@ export default function StoreBuildPage() {
                                       src="https://flagcdn.com/w40/us.png" 
                                       srcSet="https://flagcdn.com/w80/us.png 2x"
                                       alt="United States flag"
-                                      className="h-5 w-auto rounded-sm shadow-sm"
+                                      className="h-6 w-auto rounded-sm shadow-sm"
                                     />
                                   ) : (
-                                    <Globe2 className="h-5 w-5 text-muted-foreground" />
+                                    <Globe2 className="h-6 w-6 text-muted-foreground" />
                                   )}
                                 </span>
                               </TooltipTrigger>
@@ -510,12 +511,63 @@ export default function StoreBuildPage() {
                               </TooltipContent>
                             </Tooltip>
                           </div>
-                          <div className="text-lg font-medium text-primary mt-1">
-                            Cost: ${product.basePrice}
-                          </div>
                         </div>
                       </div>
 
+                      {/* Row 2: Pricing (full width) */}
+                      <div className="mt-4 py-3 px-4 bg-primary/10 rounded-lg border-2 border-primary/30">
+                        <div className="text-lg font-semibold text-primary">
+                          Production Cost: ${product.basePrice}
+                        </div>
+                      </div>
+
+                      {/* Row 3: Available Sizes (full width) */}
+                      {sizes.length > 0 && (
+                        <div className="mt-3 py-2 px-4 bg-muted/50 rounded-lg border-2 border-border">
+                          <div className="text-sm font-medium text-muted-foreground mb-2">Available Sizes:</div>
+                          <div className="flex flex-wrap gap-2">
+                            {sizes.map((size, idx) => (
+                              <span
+                                key={idx}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md border-2 ${
+                                  enabledSizes.includes(size)
+                                    ? 'bg-primary/20 border-primary text-primary'
+                                    : 'bg-muted border-muted-foreground/30 text-muted-foreground'
+                                }`}
+                              >
+                                {size}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Row 4: Color Swatches (full width) */}
+                      {colors.length > 0 && (
+                        <div className="mt-3 py-2 px-4 bg-muted/50 rounded-lg border-2 border-border">
+                          <div className="text-sm font-medium text-muted-foreground mb-2">Available Colors:</div>
+                          <div className="flex flex-wrap gap-2">
+                            {colors.map((color, idx) => (
+                              <Tooltip key={idx}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={`w-8 h-8 rounded-md border-2 cursor-pointer ${
+                                      enabledColors.includes(color.name)
+                                        ? 'ring-2 ring-primary ring-offset-2'
+                                        : 'border-muted-foreground/30'
+                                    }`}
+                                    style={{ backgroundColor: color.hex || '#ccc' }}
+                                    data-testid={`color-swatch-${product.id}-${idx}`}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>{color.name}</TooltipContent>
+                              </Tooltip>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
                       <div className="flex flex-wrap gap-3 mt-4">
                         {(sizes.length > 0 || colors.length > 0) && (
                           <button
@@ -548,15 +600,6 @@ export default function StoreBuildPage() {
                           )}
                         </button>
                       </div>
-
-                      {/* Show current selections summary */}
-                      {(enabledSizes.length > 0 || enabledColors.length > 0) && (
-                        <div className="mt-3 text-sm text-muted-foreground">
-                          {enabledSizes.length > 0 && <span>{enabledSizes.length} size(s) selected</span>}
-                          {enabledSizes.length > 0 && enabledColors.length > 0 && <span> · </span>}
-                          {enabledColors.length > 0 && <span>{enabledColors.length} color(s) selected</span>}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -602,18 +645,25 @@ export default function StoreBuildPage() {
       </div>
 
       <Dialog open={!!enlargedImage} onOpenChange={(open) => !open && setEnlargedImage(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl p-2">
+          <DialogHeader className="sr-only">
             <DialogTitle>{enlargedImage?.name}</DialogTitle>
           </DialogHeader>
           {enlargedImage && (
-            <div className="flex justify-center">
+            <button
+              onClick={() => setEnlargedImage(null)}
+              className="flex justify-center w-full cursor-pointer focus:outline-none"
+              data-testid="button-close-enlarged-image"
+            >
               <img
                 src={enlargedImage.url}
                 alt={enlargedImage.name}
-                className="max-w-full max-h-[70vh] rounded-lg object-contain"
+                className="max-w-full max-h-[80vh] rounded-lg object-contain"
               />
-            </div>
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm">
+                Tap to close
+              </div>
+            </button>
           )}
         </DialogContent>
       </Dialog>
