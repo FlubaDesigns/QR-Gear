@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface QrTemplate {
@@ -36,6 +38,30 @@ interface QrTemplate {
   createdAt: string;
 }
 
+interface LibraryAsset {
+  id: string;
+  ownerType: string;
+  userId: string | null;
+  assetType: string;
+  mediaType: string;
+  name: string;
+  originalName: string;
+  description: string | null;
+  fileName: string;
+  storageUrl: string;
+  publicUrl: string;
+  category: string | null;
+  season: string | null;
+  event: string | null;
+  tags: string | null;
+  sortOrder: number;
+  usageCount: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const TEMPLATE_CATEGORIES = [
   { value: "religious", label: "Religious" },
   { value: "business", label: "Business" },
@@ -45,7 +71,32 @@ const TEMPLATE_CATEGORIES = [
   { value: "custom", label: "Custom" },
 ];
 
-function BackgroundsContent() {
+const SEASONS = [
+  { value: "", label: "No Season" },
+  { value: "spring", label: "Spring" },
+  { value: "summer", label: "Summer" },
+  { value: "fall", label: "Fall" },
+  { value: "winter", label: "Winter" },
+];
+
+const EVENTS = [
+  { value: "", label: "No Event" },
+  { value: "christmas", label: "Christmas" },
+  { value: "easter", label: "Easter" },
+  { value: "thanksgiving", label: "Thanksgiving" },
+  { value: "valentines", label: "Valentine's Day" },
+  { value: "mothers-day", label: "Mother's Day" },
+  { value: "fathers-day", label: "Father's Day" },
+  { value: "independence-day", label: "Independence Day" },
+  { value: "new-year", label: "New Year" },
+  { value: "halloween", label: "Halloween" },
+  { value: "graduation", label: "Graduation" },
+  { value: "birthday", label: "Birthday" },
+  { value: "wedding", label: "Wedding" },
+  { value: "anniversary", label: "Anniversary" },
+];
+
+function TemplatesContent() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<QrTemplate | null>(null);
@@ -232,87 +283,92 @@ function BackgroundsContent() {
     updateMutation.mutate({ id: template.id, data: { isActive: !template.isActive } });
   };
 
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+    <>
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <CardTitle>Pre-designed Templates</CardTitle>
-          <CardDescription>Curated backgrounds for QR Gift designs (Line 2)</CardDescription>
+          <h2 className="text-lg font-semibold">Pre-designed Templates</h2>
+          <p className="text-sm text-muted-foreground">Curated backgrounds for QR Gift designs (Featured Collection)</p>
         </div>
         <Button size="sm" onClick={handleOpenCreate} data-testid="button-add-template">
           <Plus className="h-4 w-4 mr-2" />
           Add Template
         </Button>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="text-center py-12">
-            <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
-          </div>
-        ) : templates.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
+      </div>
+
+      {templates.length === 0 ? (
+        <Card className="text-center py-12">
+          <CardContent>
             <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No templates uploaded yet.</p>
-            <p className="text-sm">Upload beautiful backgrounds for customer gift designs.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {templates.map((template) => (
-              <Card key={template.id} className={`overflow-hidden ${!template.isActive ? "opacity-50" : ""}`}>
-                <div className="aspect-square relative">
-                  <img
-                    src={template.thumbnailUrl}
-                    alt={template.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {template.isFeatured && (
-                    <Badge className="absolute top-2 left-2">Featured</Badge>
-                  )}
-                  {!template.isActive && (
-                    <Badge variant="secondary" className="absolute top-2 right-2">Inactive</Badge>
+            <p className="text-muted-foreground">No templates uploaded yet.</p>
+            <p className="text-sm text-muted-foreground">Upload beautiful backgrounds for customer gift designs.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {templates.map((template) => (
+            <Card key={template.id} className={`overflow-hidden ${!template.isActive ? "opacity-50" : ""}`} data-testid={`card-template-${template.id}`}>
+              <div className="aspect-square relative">
+                <img
+                  src={template.thumbnailUrl}
+                  alt={template.name}
+                  className="w-full h-full object-cover"
+                />
+                {template.isFeatured && (
+                  <Badge className="absolute top-2 left-2">Featured</Badge>
+                )}
+                {!template.isActive && (
+                  <Badge variant="secondary" className="absolute top-2 right-2">Inactive</Badge>
+                )}
+              </div>
+              <CardContent className="p-3">
+                <p className="font-medium truncate">{template.name}</p>
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <Badge variant="outline" className="text-xs">{template.category}</Badge>
+                  {parseFloat(template.priceUpcharge) > 0 && (
+                    <span className="text-xs text-muted-foreground">+${template.priceUpcharge}</span>
                   )}
                 </div>
-                <CardContent className="p-3">
-                  <p className="font-medium truncate">{template.name}</p>
-                  <div className="flex items-center justify-between gap-2 mt-1">
-                    <Badge variant="outline" className="text-xs">{template.category}</Badge>
-                    {parseFloat(template.priceUpcharge) > 0 && (
-                      <span className="text-xs text-muted-foreground">+${template.priceUpcharge}</span>
-                    )}
-                  </div>
-                  <div className="flex gap-1 mt-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => handleOpenEdit(template)}
-                      data-testid={`button-edit-template-${template.id}`}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={template.isActive ? "default" : "secondary"}
-                      onClick={() => handleToggleActive(template)}
-                      data-testid={`button-toggle-active-${template.id}`}
-                    >
-                      {template.isActive ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => deleteMutation.mutate(template.id)}
-                      data-testid={`button-delete-template-${template.id}`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </CardContent>
+                <div className="flex gap-1 mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleOpenEdit(template)}
+                    data-testid={`button-edit-template-${template.id}`}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={template.isActive ? "default" : "secondary"}
+                    onClick={() => handleToggleActive(template)}
+                    data-testid={`button-toggle-active-${template.id}`}
+                  >
+                    {template.isActive ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteMutation.mutate(template.id)}
+                    data-testid={`button-delete-template-${template.id}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md">
@@ -425,7 +481,443 @@ function BackgroundsContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
+  );
+}
+
+function LibraryBackgroundsContent() {
+  const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<LibraryAsset | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    category: "",
+    season: "",
+    event: "",
+    isActive: true,
+    isFeatured: false,
+  });
+  const [uploading, setUploading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [filterSeason, setFilterSeason] = useState("");
+  const [filterEvent, setFilterEvent] = useState("");
+
+  const { data: assets = [], isLoading } = useQuery<LibraryAsset[]>({
+    queryKey: ["/api/admin/library/admin", { assetType: "background", mediaType: "image" }],
+    queryFn: async () => {
+      const params = new URLSearchParams({ assetType: "background", mediaType: "image" });
+      const response = await fetch(`/api/admin/library/admin?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch backgrounds");
+      return response.json();
+    },
+  });
+
+  const filteredAssets = assets.filter((asset) => {
+    if (filterSeason && asset.season !== filterSeason) return false;
+    if (filterEvent && asset.event !== filterEvent) return false;
+    return true;
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PUT", `/api/admin/library/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Background updated successfully." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
+      handleCloseDialog();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update background.", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/library/${id}`, {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Background deleted successfully." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete background.", variant: "destructive" });
+    },
+  });
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingAsset(null);
+    setFormData({
+      name: "",
+      description: "",
+      category: "",
+      season: "",
+      event: "",
+      isActive: true,
+      isFeatured: false,
+    });
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingAsset(null);
+    setFormData({
+      name: "",
+      description: "",
+      category: "",
+      season: "",
+      event: "",
+      isActive: true,
+      isFeatured: false,
+    });
+    setImageFile(null);
+    setImagePreview(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleOpenEdit = (asset: LibraryAsset) => {
+    setEditingAsset(asset);
+    setFormData({
+      name: asset.name,
+      description: asset.description || "",
+      category: asset.category || "",
+      season: asset.season || "",
+      event: asset.event || "",
+      isActive: asset.isActive,
+      isFeatured: asset.isFeatured,
+    });
+    setImagePreview(asset.publicUrl);
+    setIsDialogOpen(true);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast({ title: "Error", description: "Please select an image file.", variant: "destructive" });
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!editingAsset && !imageFile) {
+      toast({ title: "Error", description: "Please upload an image.", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      if (editingAsset) {
+        await updateMutation.mutateAsync({
+          id: editingAsset.id,
+          data: {
+            name: formData.name,
+            description: formData.description || null,
+            category: formData.category || null,
+            season: formData.season || null,
+            event: formData.event || null,
+            isActive: formData.isActive,
+            isFeatured: formData.isFeatured,
+          },
+        });
+      } else if (imageFile) {
+        const formDataObj = new FormData();
+        formDataObj.append("file", imageFile);
+        formDataObj.append("name", formData.name);
+        formDataObj.append("description", formData.description);
+        formDataObj.append("assetType", "background");
+        formDataObj.append("mediaType", "image");
+        formDataObj.append("category", formData.category);
+        formDataObj.append("season", formData.season);
+        formDataObj.append("event", formData.event);
+
+        const response = await fetch("/api/admin/library/upload", {
+          method: "POST",
+          body: formDataObj,
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to upload background");
+        }
+
+        toast({ title: "Success", description: "Background uploaded successfully." });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
+        handleCloseDialog();
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to save background.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold">Library Backgrounds</h2>
+          <p className="text-sm text-muted-foreground">Organized by season and event for custom products</p>
+        </div>
+        <Button size="sm" onClick={handleOpenCreate} data-testid="button-add-library-background">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Background
+        </Button>
+      </div>
+
+      <Card className="mb-4">
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="w-48">
+              <Label>Filter by Season</Label>
+              <Select value={filterSeason} onValueChange={setFilterSeason}>
+                <SelectTrigger data-testid="select-filter-season">
+                  <SelectValue placeholder="All Seasons" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Seasons</SelectItem>
+                  {SEASONS.filter(s => s.value).map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-48">
+              <Label>Filter by Event</Label>
+              <Select value={filterEvent} onValueChange={setFilterEvent}>
+                <SelectTrigger data-testid="select-filter-event">
+                  <SelectValue placeholder="All Events" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Events</SelectItem>
+                  {EVENTS.filter(e => e.value).map((e) => (
+                    <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {filteredAssets.length === 0 ? (
+        <Card className="text-center py-12">
+          <CardContent>
+            <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-muted-foreground">
+              {assets.length === 0 
+                ? "No library backgrounds uploaded yet."
+                : "No backgrounds match the current filters."}
+            </p>
+            {assets.length === 0 && (
+              <Button className="mt-4" onClick={handleOpenCreate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Background
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredAssets.map((asset) => (
+            <Card key={asset.id} className={`overflow-hidden ${!asset.isActive ? "opacity-50" : ""}`} data-testid={`card-library-bg-${asset.id}`}>
+              <div className="aspect-square relative">
+                <img
+                  src={asset.publicUrl}
+                  alt={asset.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 right-2 flex gap-1 flex-wrap justify-end">
+                  {asset.season && <Badge variant="secondary">{asset.season}</Badge>}
+                  {asset.event && <Badge variant="outline">{asset.event}</Badge>}
+                </div>
+                {asset.isFeatured && (
+                  <Badge className="absolute top-2 left-2">Featured</Badge>
+                )}
+              </div>
+              <CardContent className="p-3">
+                <p className="font-medium truncate">{asset.name}</p>
+                {asset.description && (
+                  <p className="text-xs text-muted-foreground truncate">{asset.description}</p>
+                )}
+                <div className="flex items-center justify-between mt-2">
+                  <Badge variant={asset.isActive ? "default" : "secondary"}>
+                    {asset.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">Used {asset.usageCount}x</span>
+                </div>
+                <div className="flex gap-1 mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleOpenEdit(asset)}
+                    data-testid={`button-edit-library-bg-${asset.id}`}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteMutation.mutate(asset.id)}
+                    data-testid={`button-delete-library-bg-${asset.id}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingAsset ? "Edit Background" : "Add Library Background"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!editingAsset && (
+              <div className="space-y-2">
+                <Label htmlFor="library-bg-image">Background Image</Label>
+                {imagePreview && (
+                  <div className="aspect-video rounded-md overflow-hidden mb-2">
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <Input
+                  id="library-bg-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  data-testid="input-library-bg-image"
+                />
+              </div>
+            )}
+
+            {editingAsset && imagePreview && (
+              <div className="aspect-video rounded-md overflow-hidden">
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="library-bg-name">Name</Label>
+              <Input
+                id="library-bg-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Background name"
+                data-testid="input-library-bg-name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="library-bg-description">Description</Label>
+              <Textarea
+                id="library-bg-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Optional description..."
+                rows={2}
+                data-testid="input-library-bg-description"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Season</Label>
+                <Select
+                  value={formData.season}
+                  onValueChange={(value) => setFormData({ ...formData, season: value })}
+                >
+                  <SelectTrigger data-testid="select-library-bg-season">
+                    <SelectValue placeholder="Select season" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEASONS.map((s) => (
+                      <SelectItem key={s.value || "none"} value={s.value || " "}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Event</Label>
+                <Select
+                  value={formData.event}
+                  onValueChange={(value) => setFormData({ ...formData, event: value })}
+                >
+                  <SelectTrigger data-testid="select-library-bg-event">
+                    <SelectValue placeholder="Select event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EVENTS.map((e) => (
+                      <SelectItem key={e.value || "none"} value={e.value || " "}>{e.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="library-bg-active"
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                />
+                <Label htmlFor="library-bg-active">Active</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="library-bg-featured"
+                  checked={formData.isFeatured}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isFeatured: checked })}
+                />
+                <Label htmlFor="library-bg-featured">Featured</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSubmit}
+              disabled={uploading || updateMutation.isPending || !formData.name}
+              data-testid="button-save-library-bg"
+            >
+              {(uploading || updateMutation.isPending) && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              {editingAsset ? "Update" : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -463,7 +955,7 @@ export default function AdminBackgrounds() {
                     Backgrounds
                   </h1>
                   <p className="text-xs text-slate-400">
-                    Manage background templates
+                    Manage background images
                   </p>
                 </div>
               </div>
@@ -496,7 +988,24 @@ export default function AdminBackgrounds() {
           <span className="text-foreground font-medium" aria-current="page" data-testid="text-breadcrumb-current">Backgrounds</span>
         </nav>
 
-        <BackgroundsContent />
+        <Tabs defaultValue="templates" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="templates" data-testid="tab-templates">
+              <Image className="h-4 w-4 mr-2" />
+              Templates
+            </TabsTrigger>
+            <TabsTrigger value="library" data-testid="tab-library">
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Library
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="templates">
+            <TemplatesContent />
+          </TabsContent>
+          <TabsContent value="library">
+            <LibraryBackgroundsContent />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
