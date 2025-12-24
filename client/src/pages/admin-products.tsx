@@ -2337,9 +2337,24 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                     </Button>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setAddStoreDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={saveNewStore} data-testid="button-save-store">Create Store</Button>
+                <DialogFooter className="flex gap-3 sm:justify-between">
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    className="flex-1"
+                    onClick={() => setAddStoreDialogOpen(false)}
+                    data-testid="button-back-dialog"
+                  >
+                    ← Back
+                  </Button>
+                  <Button 
+                    size="lg"
+                    className="flex-1"
+                    onClick={saveNewStore} 
+                    data-testid="button-save-store"
+                  >
+                    Create Store
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
