@@ -1,57 +1,47 @@
 # Agent Issues Report - December 24, 2024
 
-## Critical Problem Summary
+## CORRECTION: User confirmed working on `/admin/products` (admin-products.tsx)
 
-The previous agent repeatedly edited the WRONG FILE for size/color toggle switches.
+### Current State
 
-### What User Requested
-- Inline toggle switches for sizes and colors in the **Store Builder** page
-- Toggles should appear BEFORE saving a product (not in a dialog)
-- Should show production costs with "(cached)" indicator
-- User views on MOBILE - needs large, accessible UI
+The inline size/color toggle switches ARE in admin-products.tsx at lines 1868-1954.
 
-### What Agent Did Wrong
+The code exists and renders when:
+1. User is at Step 3 (Custom Product Builder)
+2. User has selected a specific product by tapping on it
+3. `selectedItemId` is set AND `categoryData` exists AND `itemDetails[selectedItemId]` has data
 
-1. **Edited wrong file repeatedly**: Agent worked on `client/src/pages/admin-products.tsx` (route: `/admin/products`)
-2. **User was viewing different page**: User is on `client/src/pages/store-build.tsx` (route: `/admin/sales/build`)
-3. **Agent did not verify location**: Despite user saying "store page" and "store div", agent assumed it was admin-products.tsx
-4. **Changes invisible to user**: All work done was on a page the user wasn't looking at
+### Possible Issues
 
-### Correct File Locations
+1. **Toggles only appear after product selection** - User must tap a product card first
+2. **Details must load** - The `itemDetails[selectedItemId]` must contain sizes/colors data
+3. **Scroll position** - On mobile, user may need to scroll down to see the toggles section
 
-| User Reference | Correct File | Route |
-|----------------|--------------|-------|
-| "Store page" / "Store div" | `client/src/pages/store-build.tsx` | `/admin/sales/build` |
-| Admin products | `client/src/pages/admin-products.tsx` | `/admin/products` |
-| Customer store | `client/src/pages/store.tsx` | `/store` |
+### Code Location
 
-### What Needs To Be Done
+File: `client/src/pages/admin-products.tsx`
+Lines: 1868-1954
+Condition: `{selectedItemId && categoryData && (() => { ... })()}`
 
-1. Open `client/src/pages/store-build.tsx`
-2. Find Step 3 product selection area
-3. Add INLINE Switch toggles for each size and color (not a button that opens a dialog)
-4. Show production cost with "(cached)" indicator from printifyPrintProviders table
-5. Use same ProductOptionsEditor logic but render switches directly in the card, not in a dialog
+### What the Code Does
+
+- Shows "Production Cost" with price range and "(cached)" indicator
+- Shows "Sizes" section with Switch toggle for each size
+- Shows "Colors" section with Switch toggle and color swatch for each color
+- Uses `enabledSizes` and `enabledColors` state Sets
+- Uses `toggleSize()` and `toggleColor()` functions
 
 ### User Preferences (CRITICAL)
 
 From replit.md:
 - User has CIDP (limited hand mobility) - agent must be fully autonomous
 - **NEVER remove existing features without explicit request**
-- Always confirm which file/page before making changes
 - User views primarily on MOBILE - layouts must be mobile-first
+- Always confirm understanding before making changes
 
-### Files Changed (in wrong location)
+### For Next Agent
 
-The following changes were made to `admin-products.tsx` but should have been in `store-build.tsx`:
-- Added inline size/color toggle section around line 1871-1957
-- Uses `enabledSizes`, `enabledColors` state with Switch components
-- Shows production cost range with "(cached)" indicator
-
-### Recommended Fix
-
-Copy the inline toggle logic from admin-products.tsx lines 1871-1957 to store-build.tsx Step 3 product cards area.
-
----
-
-**Note to Next Agent**: ALWAYS verify which file/page the user is looking at before making changes. Ask for the URL or page name if unclear. User frustration was caused by repeated work in the wrong location.
+1. Verify the toggles appear when a product is selected
+2. Check that `itemDetails` is being populated correctly with sizes/colors
+3. Ensure the section is visible on mobile without excessive scrolling
+4. The toggles ARE in the correct file (admin-products.tsx) for `/admin/products` route
