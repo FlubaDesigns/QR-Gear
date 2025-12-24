@@ -54,6 +54,8 @@ import type {
   InsertPrintifyCostSync,
   CustomDesign,
   InsertCustomDesign,
+  LibraryAsset,
+  InsertLibraryAsset,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -242,6 +244,16 @@ export interface IStorage {
   createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign>;
   updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined>;
   deleteCustomDesign(id: string): Promise<void>;
+
+  // Library Asset operations
+  getLibraryAsset(id: string): Promise<LibraryAsset | undefined>;
+  getLibraryAssets(filters?: { ownerType?: string; assetType?: string; mediaType?: string; userId?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]>;
+  getAdminLibraryAssets(filters?: { assetType?: string; mediaType?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]>;
+  getUserLibraryAssets(userId: string, filters?: { assetType?: string; mediaType?: string }): Promise<LibraryAsset[]>;
+  createLibraryAsset(asset: InsertLibraryAsset): Promise<LibraryAsset>;
+  updateLibraryAsset(id: string, asset: Partial<InsertLibraryAsset>): Promise<LibraryAsset | undefined>;
+  deleteLibraryAsset(id: string): Promise<void>;
+  incrementLibraryAssetUsage(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -1170,6 +1182,69 @@ export class DbStorage implements IStorage {
 
   async deleteCustomDesign(id: string): Promise<void> {
     await this.db.delete(schema.customDesigns).where(eq(schema.customDesigns.id, id));
+  }
+
+  // Library Asset operations
+  async getLibraryAsset(id: string): Promise<LibraryAsset | undefined> {
+    const [asset] = await this.db.select().from(schema.libraryAssets).where(eq(schema.libraryAssets.id, id));
+    return asset;
+  }
+
+  async getLibraryAssets(filters?: { ownerType?: string; assetType?: string; mediaType?: string; userId?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
+    let query = this.db.select().from(schema.libraryAssets).where(eq(schema.libraryAssets.isActive, true));
+    
+    const conditions = [eq(schema.libraryAssets.isActive, true)];
+    if (filters?.ownerType) conditions.push(eq(schema.libraryAssets.ownerType, filters.ownerType));
+    if (filters?.assetType) conditions.push(eq(schema.libraryAssets.assetType, filters.assetType));
+    if (filters?.mediaType) conditions.push(eq(schema.libraryAssets.mediaType, filters.mediaType));
+    if (filters?.userId) conditions.push(eq(schema.libraryAssets.userId, filters.userId));
+    if (filters?.category) conditions.push(eq(schema.libraryAssets.category, filters.category));
+    if (filters?.season) conditions.push(eq(schema.libraryAssets.season, filters.season));
+    if (filters?.event) conditions.push(eq(schema.libraryAssets.event, filters.event));
+    
+    return this.db.select().from(schema.libraryAssets).where(and(...conditions)).orderBy(schema.libraryAssets.sortOrder);
+  }
+
+  async getAdminLibraryAssets(filters?: { assetType?: string; mediaType?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
+    const conditions = [eq(schema.libraryAssets.ownerType, 'admin'), eq(schema.libraryAssets.isActive, true)];
+    if (filters?.assetType) conditions.push(eq(schema.libraryAssets.assetType, filters.assetType));
+    if (filters?.mediaType) conditions.push(eq(schema.libraryAssets.mediaType, filters.mediaType));
+    if (filters?.category) conditions.push(eq(schema.libraryAssets.category, filters.category));
+    if (filters?.season) conditions.push(eq(schema.libraryAssets.season, filters.season));
+    if (filters?.event) conditions.push(eq(schema.libraryAssets.event, filters.event));
+    
+    return this.db.select().from(schema.libraryAssets).where(and(...conditions)).orderBy(schema.libraryAssets.sortOrder);
+  }
+
+  async getUserLibraryAssets(userId: string, filters?: { assetType?: string; mediaType?: string }): Promise<LibraryAsset[]> {
+    const conditions = [eq(schema.libraryAssets.userId, userId), eq(schema.libraryAssets.ownerType, 'user'), eq(schema.libraryAssets.isActive, true)];
+    if (filters?.assetType) conditions.push(eq(schema.libraryAssets.assetType, filters.assetType));
+    if (filters?.mediaType) conditions.push(eq(schema.libraryAssets.mediaType, filters.mediaType));
+    
+    return this.db.select().from(schema.libraryAssets).where(and(...conditions)).orderBy(schema.libraryAssets.createdAt);
+  }
+
+  async createLibraryAsset(asset: InsertLibraryAsset): Promise<LibraryAsset> {
+    const [newAsset] = await this.db.insert(schema.libraryAssets).values(asset).returning();
+    return newAsset;
+  }
+
+  async updateLibraryAsset(id: string, asset: Partial<InsertLibraryAsset>): Promise<LibraryAsset | undefined> {
+    const [updated] = await this.db.update(schema.libraryAssets)
+      .set({ ...asset, updatedAt: new Date() })
+      .where(eq(schema.libraryAssets.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteLibraryAsset(id: string): Promise<void> {
+    await this.db.delete(schema.libraryAssets).where(eq(schema.libraryAssets.id, id));
+  }
+
+  async incrementLibraryAssetUsage(id: string): Promise<void> {
+    await this.db.update(schema.libraryAssets)
+      .set({ usageCount: sql`${schema.libraryAssets.usageCount} + 1` })
+      .where(eq(schema.libraryAssets.id, id));
   }
 }
 
@@ -2305,6 +2380,66 @@ class MemStorage implements IStorage {
 
   async deleteCustomDesign(id: string): Promise<void> {
     this.customDesigns.delete(id);
+  }
+
+  // Library Asset operations (MemStorage)
+  private libraryAssets = new Map<string, LibraryAsset>();
+  
+  async getLibraryAsset(id: string): Promise<LibraryAsset | undefined> {
+    return this.libraryAssets.get(id);
+  }
+
+  async getLibraryAssets(filters?: { ownerType?: string; assetType?: string; mediaType?: string; userId?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
+    let assets = Array.from(this.libraryAssets.values()).filter(a => a.isActive);
+    if (filters?.ownerType) assets = assets.filter(a => a.ownerType === filters.ownerType);
+    if (filters?.assetType) assets = assets.filter(a => a.assetType === filters.assetType);
+    if (filters?.mediaType) assets = assets.filter(a => a.mediaType === filters.mediaType);
+    if (filters?.userId) assets = assets.filter(a => a.userId === filters.userId);
+    if (filters?.category) assets = assets.filter(a => a.category === filters.category);
+    if (filters?.season) assets = assets.filter(a => a.season === filters.season);
+    if (filters?.event) assets = assets.filter(a => a.event === filters.event);
+    return assets.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  async getAdminLibraryAssets(filters?: { assetType?: string; mediaType?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
+    return this.getLibraryAssets({ ...filters, ownerType: 'admin' });
+  }
+
+  async getUserLibraryAssets(userId: string, filters?: { assetType?: string; mediaType?: string }): Promise<LibraryAsset[]> {
+    return this.getLibraryAssets({ ...filters, ownerType: 'user', userId });
+  }
+
+  async createLibraryAsset(asset: InsertLibraryAsset): Promise<LibraryAsset> {
+    const id = crypto.randomUUID();
+    const newAsset: LibraryAsset = {
+      ...asset,
+      id,
+      usageCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.libraryAssets.set(id, newAsset);
+    return newAsset;
+  }
+
+  async updateLibraryAsset(id: string, asset: Partial<InsertLibraryAsset>): Promise<LibraryAsset | undefined> {
+    const existing = this.libraryAssets.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...asset, updatedAt: new Date() };
+    this.libraryAssets.set(id, updated);
+    return updated;
+  }
+
+  async deleteLibraryAsset(id: string): Promise<void> {
+    this.libraryAssets.delete(id);
+  }
+
+  async incrementLibraryAssetUsage(id: string): Promise<void> {
+    const asset = this.libraryAssets.get(id);
+    if (asset) {
+      asset.usageCount = (asset.usageCount || 0) + 1;
+      this.libraryAssets.set(id, asset);
+    }
   }
 }
 
