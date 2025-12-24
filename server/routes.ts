@@ -2284,8 +2284,21 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Admin: Update partner store
+  // Admin: Update partner store (PUT for full replacement)
   app.put("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
+    try {
+      const store = await storage.updatePartnerStore(req.params.id, req.body);
+      if (!store) {
+        return res.status(404).json({ error: "Partner store not found" });
+      }
+      res.json(store);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Partial update partner store (PATCH for adding segments etc.)
+  app.patch("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
     try {
       const store = await storage.updatePartnerStore(req.params.id, req.body);
       if (!store) {
