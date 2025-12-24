@@ -378,6 +378,36 @@ export const dynamicPageAssets = pgTable("dynamic_page_assets", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Library Assets - unified storage for backgrounds (images/videos) with ownership tracking
+// Supports: admin backgrounds, user personal libraries, seasonal/event categorization
+export const libraryAssets = pgTable("library_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id), // null = admin asset
+  ownerType: text("owner_type").notNull(), // 'admin' or 'user'
+  assetType: text("asset_type").notNull(), // 'background' or 'design'
+  mediaType: text("media_type").notNull(), // 'image' or 'video'
+  name: text("name").notNull(),
+  description: text("description"),
+  fileName: text("file_name").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  storageUrl: text("storage_url").notNull(), // path in object storage
+  publicUrl: text("public_url").notNull(), // serving URL
+  thumbnailUrl: text("thumbnail_url"), // for videos, generated thumbnail
+  duration: integer("duration"), // for videos, duration in seconds
+  category: text("category"), // 'general', 'seasonal', 'events', etc.
+  season: text("season"), // 'christmas', 'easter', 'summer', etc.
+  event: text("event"), // 'birthday', 'wedding', 'graduation', etc.
+  tags: text("tags").array(), // additional searchable tags
+  isActive: boolean("is_active").default(true),
+  isFeatured: boolean("is_featured").default(false),
+  sortOrder: integer("sort_order").default(0),
+  usageCount: integer("usage_count").default(0), // track how often this is used
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -480,6 +510,13 @@ export const insertDynamicPageSchema = createInsertSchema(dynamicPages).omit({
 export const insertDynamicPageAssetSchema = createInsertSchema(dynamicPageAssets).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertLibraryAssetSchema = createInsertSchema(libraryAssets).omit({
+  id: true,
+  usageCount: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertProductCategorySchema = createInsertSchema(productCategories).omit({
@@ -616,6 +653,9 @@ export type InsertDynamicPage = z.infer<typeof insertDynamicPageSchema>;
 
 export type DynamicPageAsset = typeof dynamicPageAssets.$inferSelect;
 export type InsertDynamicPageAsset = z.infer<typeof insertDynamicPageAssetSchema>;
+
+export type LibraryAsset = typeof libraryAssets.$inferSelect;
+export type InsertLibraryAsset = z.infer<typeof insertLibraryAssetSchema>;
 
 export type ProductCategory = typeof productCategories.$inferSelect;
 export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
