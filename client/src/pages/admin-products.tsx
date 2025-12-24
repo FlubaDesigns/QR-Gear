@@ -1722,6 +1722,65 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     })()}
                   </div>
                 )}
+
+                {/* Step 3: Select Product from filtered list */}
+                {selectedCategory && categoryData && (
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Step 3: Select Product</Label>
+                    <div className="max-h-48 overflow-y-auto border rounded-md p-2 bg-background space-y-1">
+                      {(() => {
+                        const items = customLocationFilter === "usa" 
+                          ? categoryData.items.filter(i => i.madeInUSA)
+                          : customLocationFilter === "other"
+                          ? categoryData.items.filter(i => !i.madeInUSA)
+                          : categoryData.items;
+                        return items.length > 0 ? items.map((item) => {
+                          const details = itemDetails[item.id];
+                          return (
+                            <div
+                              key={item.id}
+                              className={`p-2 rounded cursor-pointer ${selectedItemId === item.id ? "bg-primary/20 border border-primary" : "hover-elevate"}`}
+                              onClick={() => {
+                                setSelectedItemId(item.id);
+                                fetchItemDetails(item.id);
+                              }}
+                              data-testid={`custom-item-${item.id}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <img src={item.imageUrl || ""} alt={item.title} className="w-10 h-10 rounded object-cover" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium truncate">{item.title}</div>
+                                  <div className="text-xs text-muted-foreground">{item.brand} {item.madeInUSA && "🇺🇸"}</div>
+                                </div>
+                              </div>
+                              {/* Price on new row */}
+                              <div className="mt-1 text-center">
+                                {details && !details.error ? (
+                                  <span className="text-xl font-bold text-green-600">
+                                    {details.basePrice > 0 ? (
+                                      <>
+                                        ${details.basePrice.toFixed(2)}
+                                        {details.maxPrice && details.maxPrice > details.basePrice && (
+                                          <span className="text-sm font-semibold"> - ${details.maxPrice.toFixed(2)}</span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-muted-foreground text-xs font-normal">Sync costs</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }) : (
+                          <p className="text-sm text-muted-foreground p-2">No products match this filter</p>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
                 
                 {/* 3. Print Placement Options (after product selected) - Multi-select */}
                 {selectedItemId && (
