@@ -705,6 +705,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [addStoreDialogOpen, setAddStoreDialogOpen] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreAreas, setNewStoreAreas] = useState<string[]>([""]);
+  const [newSegmentName, setNewSegmentName] = useState("");
+  const [addingSegment, setAddingSegment] = useState(false);
   const [customStores, setCustomStores] = useState<StoreWithAreas[]>(() => {
     const saved = localStorage.getItem("qrgear-custom-stores");
     return saved ? JSON.parse(saved) : [];
@@ -788,6 +790,60 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setFetchingCostFor(null);
+    }
+  }
+
+  // Add new segment to existing store
+  async function handleAddSegmentToStore() {
+    if (!newSegmentName.trim() || !selectedStore) return;
+    
+    setAddingSegment(true);
+    try {
+      // Find the current store in partner stores
+      const currentPartnerStore = partnerStoresData.find(ps => ps.name === selectedStore);
+      if (currentPartnerStore) {
+        // Update partner store in database
+        const currentSegments = currentPartnerStore.availableSegments || [];
+        const updatedSegments = [...currentSegments, newSegmentName.trim()];
+        
+        const res = await fetch(`/api/admin/partner-stores/${currentPartnerStore.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ availableSegments: updatedSegments }),
+        });
+        
+        if (!res.ok) throw new Error("Failed to update store");
+        
+        // Invalidate query to refresh
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+        toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
+      } else {
+        // For internal/custom stores, update localStorage
+        const storeIndex = customStores.findIndex(s => s.name === selectedStore);
+        if (storeIndex >= 0) {
+          const updated = [...customStores];
+          const currentAreas = updated[storeIndex].areas || [];
+          updated[storeIndex].areas = [...currentAreas, newSegmentName.trim()];
+          setCustomStores(updated);
+          localStorage.setItem("qrgear-custom-stores", JSON.stringify(updated));
+        } else {
+          // Add to INTERNAL/EXTERNAL predefined stores via custom stores
+          const newStore: StoreWithAreas = {
+            name: selectedStore,
+            areas: [newSegmentName.trim()],
+          };
+          const updated = [...customStores, newStore];
+          setCustomStores(updated);
+          localStorage.setItem("qrgear-custom-stores", JSON.stringify(updated));
+        }
+        toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
+      }
+      setNewSegmentName("");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setAddingSegment(false);
     }
   }
 
@@ -1482,6 +1538,28 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                   {availableSegments.length === 0 && (
                     <p className="text-sm text-muted-foreground italic">No locations configured for this store</p>
                   )}
+                  
+                  {/* Add New Segment to existing store */}
+                  <div className="pt-3 border-t mt-3">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="New segment name..."
+                        value={newSegmentName}
+                        onChange={(e) => setNewSegmentName(e.target.value)}
+                        className="flex-1"
+                        data-testid="input-new-segment"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddSegmentToStore}
+                        disabled={!newSegmentName.trim() || addingSegment}
+                        data-testid="button-add-segment"
+                      >
+                        {addingSegment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
                 
                 {!selectedSegment && (
@@ -1646,23 +1724,47 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                           : customLocationFilter === "other"
                           ? categoryData.items.filter(i => !i.madeInUSA)
                           : categoryData.items;
-                        return items.length > 0 ? items.map((item) => (
-                          <div
-                            key={item.id}
-                            className={`p-2 rounded cursor-pointer flex items-center gap-2 ${selectedItemId === item.id ? "bg-primary/20 border border-primary" : "hover-elevate"}`}
-                            onClick={() => {
-                              setSelectedItemId(item.id);
-                              fetchItemDetails(item.id);
-                            }}
-                            data-testid={`custom-item-${item.id}`}
-                          >
-                            <img src={item.imageUrl || ""} alt={item.title} className="w-10 h-10 rounded object-cover" />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{item.title}</div>
-                              <div className="text-xs text-muted-foreground">{item.brand} {item.madeInUSA && "🇺🇸"}</div>
+                        return items.length > 0 ? items.map((item) => {
+                          const details = itemDetails[item.id];
+                          return (
+                            <div
+                              key={item.id}
+                              className={`p-2 rounded cursor-pointer ${selectedItemId === item.id ? "bg-primary/20 border border-primary" : "hover-elevate"}`}
+                              onClick={() => {
+                                setSelectedItemId(item.id);
+                                fetchItemDetails(item.id);
+                              }}
+                              data-testid={`custom-item-${item.id}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <img src={item.imageUrl || ""} alt={item.title} className="w-10 h-10 rounded object-cover" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium truncate">{item.title}</div>
+                                  <div className="text-xs text-muted-foreground">{item.brand} {item.madeInUSA && "🇺🇸"}</div>
+                                </div>
+                              </div>
+                              {/* Price on new row */}
+                              <div className="mt-1 text-center">
+                                {details && !details.error ? (
+                                  <span className="text-xl font-bold text-green-600">
+                                    {details.basePrice > 0 ? (
+                                      <>
+                                        ${details.basePrice.toFixed(2)}
+                                        {details.maxPrice && details.maxPrice > details.basePrice && (
+                                          <span className="text-sm font-semibold"> - ${details.maxPrice.toFixed(2)}</span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-muted-foreground text-xs font-normal">Sync costs</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )) : (
+                          );
+                        }) : (
                           <p className="text-sm text-muted-foreground p-2">No products match this filter</p>
                         );
                       })()}
@@ -2333,34 +2435,38 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               )}
                             </div>
                             
-                            {/* Right: Title, Brand+Flag, Price */}
-                            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                            {/* Right: Title, Brand+Flag */}
+                            <div className="flex-1 min-w-0 flex flex-col justify-center py-0.5">
                               <div className="font-medium text-sm leading-tight line-clamp-2">{item.title}</div>
                               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <span>{item.brand}</span>
                                 <span>{item.madeInUSA ? "🇺🇸" : "🌍"}</span>
                               </div>
-                              {details && !details.error ? (
-                                <div className="text-lg font-semibold text-green-600">
-                                  {details.basePrice > 0 ? (
-                                    <>
-                                      ${details.basePrice.toFixed(2)}
-                                      {details.maxPrice && details.maxPrice > details.basePrice && (
-                                        <span className="text-sm font-normal"> - ${details.maxPrice.toFixed(2)}</span>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs font-normal">
-                                      Run cost sync
-                                    </span>
-                                  )}
-                                </div>
-                              ) : fetchingBatch ? (
-                                <div className="text-sm text-muted-foreground">Loading...</div>
-                              ) : (
-                                <div className="text-sm text-muted-foreground">-</div>
-                              )}
                             </div>
+                          </div>
+                          
+                          {/* Row 2: Price - Large and Green */}
+                          <div className="mt-2">
+                            {details && !details.error ? (
+                              <div className="text-2xl font-bold text-green-600 text-center">
+                                {details.basePrice > 0 ? (
+                                  <>
+                                    ${details.basePrice.toFixed(2)}
+                                    {details.maxPrice && details.maxPrice > details.basePrice && (
+                                      <span className="text-lg font-semibold"> - ${details.maxPrice.toFixed(2)}</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm font-normal">
+                                    Run cost sync
+                                  </span>
+                                )}
+                              </div>
+                            ) : fetchingBatch ? (
+                              <div className="text-sm text-muted-foreground text-center">Loading price...</div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground text-center">-</div>
+                            )}
                           </div>
                           
                           {/* Row 2: Configure button - prominent border */}
