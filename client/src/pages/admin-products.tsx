@@ -733,7 +733,15 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const availableStores = storeType === "Internal" 
     ? [...INTERNAL_STORES, ...customStores.filter(s => s.name.startsWith("Internal:"))]
     : storeType === "External"
-    ? [...EXTERNAL_STORES, ...dbPartnerStores]
+    ? (() => {
+        const combined = [...EXTERNAL_STORES, ...dbPartnerStores];
+        const seen = new Set<string>();
+        return combined.filter(s => {
+          if (seen.has(s.name)) return false;
+          seen.add(s.name);
+          return true;
+        });
+      })()
     : [];
   
   // Find current store's segments - prioritize customStores and dbPartnerStores (with segments) over predefined stores
@@ -2569,14 +2577,39 @@ function ProductsContent() {
     return saved ? JSON.parse(saved) : [];
   })();
   
+  type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null };
+  const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
+    queryKey: ["/api/admin/partner-stores"],
+  });
+  
+  const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
+    name: ps.name,
+    areas: ps.availableSegments || [],
+  }));
+  
+  const allExternalStores = (() => {
+    const combined = [...EXTERNAL_STORES, ...dbPartnerStores, ...customStores];
+    const seen = new Set<string>();
+    return combined.filter(s => {
+      if (seen.has(s.name)) return false;
+      seen.add(s.name);
+      return true;
+    });
+  })();
+  
   type AdminProduct = Product & { categoryIds?: string[] };
   
   const { data: products = [], isLoading, refetch } = useQuery<AdminProduct[]>({
     queryKey: ["/api/admin/products"],
   });
   
-  const filterStoreAreas = customStores.find(s => s.name === filterSegment)?.areas || 
-    (filterSegment === "Kingdom Connects" ? ["Homepage", "Dashboard", "Static Page"] : []);
+  const selectedExternalStore = allExternalStores.find(s => s.name === filterSegment);
+  const selectedInternalStore = INTERNAL_STORES.find(s => s.name === filterSegment);
+  const filterStoreAreas: string[] = 
+    (selectedExternalStore && 'areas' in selectedExternalStore ? selectedExternalStore.areas : undefined) ||
+    (selectedExternalStore && 'segments' in selectedExternalStore ? selectedExternalStore.segments : undefined) ||
+    selectedInternalStore?.segments || 
+    [];
   
   const filteredProducts = products.filter(product => {
     if (!filterSegment) return true;
@@ -2719,17 +2752,10 @@ function ProductsContent() {
                 ))}
               </optgroup>
               <optgroup label="External Stores">
-                {EXTERNAL_STORES.map((store) => (
+                {allExternalStores.map((store) => (
                   <option key={store.name} value={store.name}>{store.name}</option>
                 ))}
               </optgroup>
-              {customStores.length > 0 && (
-                <optgroup label="Custom Stores">
-                  {customStores.map((store) => (
-                    <option key={store.name} value={store.name}>{store.name}</option>
-                  ))}
-                </optgroup>
-              )}
             </select>
             {filterStoreAreas.length > 0 && (
               <select
