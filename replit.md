@@ -83,9 +83,11 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 -   `express-rate-limit`: API rate limiting.
 
 ## Cross-Project Coordination
-- **AI_com.md / AI_com.zip**: Documentation for Kingdom Connects agent coordination
-- Contains: Widget integration API, library asset system, planned features
-- Update this file when making changes that affect KC integration
+- **docs/AIKC/**: Files TO send to Kingdom Connects agent
+- **docs/AIQR/**: Files received FROM Kingdom Connects agent
+- **docs/AIKC-for-claude1.zip**: One-click zip for Dave to upload to KC project
+- Protocol: Follow format in `docs/AIKC/CROSS-AI-UPDATES.md`
+- After making KC-relevant changes, update CROSS-AI-UPDATES.md and regenerate zip
 
 ## Recent Changes
 - 2025-12-24: Added library asset system with backgrounds/videos, season/event categorization, admin UI tabs
