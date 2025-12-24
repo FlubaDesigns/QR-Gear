@@ -609,6 +609,18 @@ const FONT_FAMILIES = [
 ];
 
 const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
+const FONTS = [
+  "Arial",
+  "Georgia",
+  "Times New Roman",
+  "Courier New",
+  "Verdana",
+  "Impact",
+  "Comic Sans MS",
+  "Trebuchet MS",
+  "Palatino Linotype",
+  "Lucida Console",
+];
 
 interface StagedProduct {
   id: string;
