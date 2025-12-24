@@ -1751,87 +1751,100 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           return (
                             <div
                               key={item.id}
-                              className={`p-3 rounded-lg cursor-pointer border-2 transition-all ${selectedItemId === item.id ? "bg-primary/10 border-primary shadow-sm" : "border-border hover:border-primary/50 hover:bg-muted/50"}`}
+                              className={`rounded-lg cursor-pointer border-2 transition-all overflow-hidden ${selectedItemId === item.id ? "bg-primary/10 border-primary shadow-sm" : "border-border hover:border-primary/50 hover:bg-muted/50"}`}
                               onClick={() => {
                                 setSelectedItemId(item.id);
                                 fetchItemDetails(item.id);
                               }}
                               data-testid={`custom-item-${item.id}`}
                             >
-                              {/* Row 1: Image + Title + Price */}
-                              <div className="flex items-start gap-3">
-                                <img src={item.imageUrl || ""} alt={item.title} className="w-14 h-14 rounded-lg object-cover border border-border flex-shrink-0" />
+                              {/* Row 1: Image (left) + Name/Manufacturer/Flag (right) */}
+                              <div className="flex items-start gap-3 p-3">
+                                <img src={item.imageUrl || ""} alt={item.title} className="w-20 h-20 rounded-lg object-cover border-2 border-blue-400 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-semibold leading-tight">{item.title}</div>
-                                  <div className="text-xs text-muted-foreground mt-0.5">{item.brand} {item.madeInUSA && <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">USA</Badge>}</div>
-                                  {/* Price */}
-                                  <div className="mt-2">
-                                    {details && !details.error ? (
-                                      <div className="flex items-baseline gap-2">
-                                        <span className="text-lg font-bold text-green-600">
-                                          {details.basePrice > 0 ? `$${details.basePrice.toFixed(2)}` : "-"}
-                                        </span>
-                                        {details.maxPrice && details.maxPrice > details.basePrice && (
-                                          <span className="text-sm text-muted-foreground">to ${details.maxPrice.toFixed(2)}</span>
-                                        )}
-                                        {details.costsFromDatabase && details.basePrice > 0 && (
-                                          <span className="text-[10px] text-green-600">(cached)</span>
-                                        )}
-                                        {details.basePrice === 0 && (
-                                          <span className="text-xs text-amber-600">Sync costs needed</span>
-                                        )}
-                                      </div>
+                                  <div className="text-base font-semibold leading-tight">{item.title}</div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-sm text-muted-foreground">{item.brand}</span>
+                                    {item.madeInUSA ? (
+                                      <img 
+                                        src="https://flagcdn.com/w40/us.png" 
+                                        srcSet="https://flagcdn.com/w80/us.png 2x"
+                                        alt="Made in USA"
+                                        className="h-5 w-auto rounded-sm shadow-sm"
+                                      />
                                     ) : (
-                                      <span className="text-xs text-muted-foreground">Loading...</span>
+                                      <span className="text-xs text-muted-foreground">(International)</span>
                                     )}
                                   </div>
                                 </div>
                               </div>
                               
-                              {/* Row 2: Colors and Sizes (only show when details loaded) */}
-                              {details && !details.error && (details.colors.length > 0 || details.sizes.length > 0) && (
-                                <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                                  {/* Color Swatches */}
-                                  {details.colors.length > 0 && (
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-xs text-muted-foreground font-medium">
-                                        Colors{details.colorsFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
-                                      </span>
-                                      <div className="flex gap-1 flex-wrap">
-                                        {details.colors.slice(0, 8).map((color, idx) => {
-                                          const colorName = typeof color === 'object' ? color.name : color;
-                                          const colorHex = typeof color === 'object' ? color.hex : getSwatchColor(color);
-                                          return (
-                                            <div
-                                              key={colorName || idx}
-                                              className="w-5 h-5 rounded-full border border-border shadow-sm"
-                                              style={{ backgroundColor: colorHex || getSwatchColor(colorName) }}
-                                              title={colorName}
-                                            />
-                                          );
-                                        })}
-                                        {details.colors.length > 8 && (
-                                          <span className="text-xs text-muted-foreground self-center">+{details.colors.length - 8}</span>
-                                        )}
-                                      </div>
+                              {/* Row 2: Pricing (full width edge-to-edge) */}
+                              <div className="py-3 px-3 bg-primary/10 border-y-2 border-primary/30">
+                                {details && !details.error ? (
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-lg font-bold text-primary">
+                                      {details.basePrice > 0 ? `$${details.basePrice.toFixed(2)}` : "-"}
+                                    </span>
+                                    {details.maxPrice && details.maxPrice > details.basePrice && (
+                                      <span className="text-sm text-muted-foreground">to ${details.maxPrice.toFixed(2)}</span>
+                                    )}
+                                    {details.costsFromDatabase && details.basePrice > 0 && (
+                                      <span className="text-xs text-green-600">(cached)</span>
+                                    )}
+                                    {details.basePrice === 0 && (
+                                      <span className="text-xs text-amber-600">Sync costs needed</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">Loading price...</span>
+                                )}
+                              </div>
+                              
+                              {/* Row 3: Sizes (full width) */}
+                              {details && !details.error && details.sizes.length > 0 && (
+                                <div className="py-2 px-3 border-b border-border/50">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                      Sizes{details.sizesFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
+                                    </span>
+                                    <div className="flex gap-1 flex-wrap">
+                                      {details.sizes.slice(0, 8).map((size) => (
+                                        <Badge key={size} variant="secondary" className="text-xs px-2 py-0.5">{size}</Badge>
+                                      ))}
+                                      {details.sizes.length > 8 && (
+                                        <span className="text-xs text-muted-foreground">+{details.sizes.length - 8}</span>
+                                      )}
                                     </div>
-                                  )}
-                                  {/* Sizes */}
-                                  {details.sizes.length > 0 && (
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-xs text-muted-foreground font-medium">
-                                        Sizes{details.sizesFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
-                                      </span>
-                                      <div className="flex gap-1 flex-wrap">
-                                        {details.sizes.slice(0, 6).map((size) => (
-                                          <Badge key={size} variant="secondary" className="text-[10px] px-1.5 py-0">{size}</Badge>
-                                        ))}
-                                        {details.sizes.length > 6 && (
-                                          <span className="text-xs text-muted-foreground">+{details.sizes.length - 6}</span>
-                                        )}
-                                      </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Row 4: Color Swatches (full width) */}
+                              {details && !details.error && details.colors.length > 0 && (
+                                <div className="py-2 px-3">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                      Colors{details.colorsFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
+                                    </span>
+                                    <div className="flex gap-1.5 flex-wrap">
+                                      {details.colors.slice(0, 12).map((color, idx) => {
+                                        const colorName = typeof color === 'object' ? color.name : color;
+                                        const colorHex = typeof color === 'object' ? color.hex : getSwatchColor(color);
+                                        return (
+                                          <div
+                                            key={colorName || idx}
+                                            className="w-6 h-6 rounded-md border-2 border-border shadow-sm"
+                                            style={{ backgroundColor: colorHex || getSwatchColor(colorName) }}
+                                            title={colorName}
+                                          />
+                                        );
+                                      })}
+                                      {details.colors.length > 12 && (
+                                        <span className="text-xs text-muted-foreground self-center">+{details.colors.length - 12}</span>
+                                      )}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               )}
                             </div>
