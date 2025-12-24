@@ -3196,6 +3196,46 @@ ${allPages.map(page => `  <url>
         printifyCompositeUrl: printifyCompositeUrl,
       });
       
+      // If saving to store, also create a product catalog entry with StoreName/Segment category
+      if (designData.savedToStore && designData.storeName) {
+        const categoryPath = designData.segment 
+          ? `${designData.storeName}/${designData.segment}`
+          : designData.storeName;
+        
+        const productId = `custom_${design.id}`;
+        
+        // Check if product already exists
+        const existingProduct = await storage.getProduct(productId);
+        
+        if (existingProduct) {
+          // Update existing product
+          await storage.updateProduct(productId, {
+            name: validatedData.productName,
+            description: `Custom QR design for ${categoryPath}`,
+            category: categoryPath,
+            imageUrl: validatedData.productImage || null,
+            blueprintId: validatedData.productId ? parseInt(validatedData.productId) : null,
+            isEnabled: true,
+            metadata: { customDesignId: design.id, source: "custom" },
+          });
+        } else {
+          // Create new product entry for the catalog
+          await storage.createProduct({
+            id: productId,
+            name: validatedData.productName,
+            description: `Custom QR design for ${categoryPath}`,
+            basePrice: "0",
+            category: categoryPath,
+            imageUrl: validatedData.productImage || null,
+            blueprintId: validatedData.productId ? parseInt(validatedData.productId) : null,
+            isEnabled: true,
+            metadata: { customDesignId: design.id, source: "custom" },
+          });
+        }
+        
+        console.log(`[Custom Design] Created/updated product catalog entry: ${productId} in category: ${categoryPath}`);
+      }
+      
       res.json(updatedDesign);
     } catch (error: any) {
       console.error("[Custom Design Save] Error:", error);
