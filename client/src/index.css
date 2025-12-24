@@ -22,13 +22,13 @@
   /* Tailwind HSL format tokens */
   --background: 211 76% 8%;
   --foreground: 202 100% 95%;
-  --border: 210 25% 16%;
+  --border: 207 60% 40%;
   --card: 210 28% 10%;
   --card-foreground: 190 60% 95%;
-  --card-border: 210 25% 18%;
+  --card-border: 207 60% 45%;
   --popover: 210 28% 10%;
   --popover-foreground: 190 60% 95%;
-  --popover-border: 210 25% 18%;
+  --popover-border: 207 60% 45%;
   --primary: 207 100% 59%;
   --primary-foreground: 210 30% 6%;
   --secondary: 210 25% 18%;
@@ -39,13 +39,13 @@
   --accent-foreground: 210 30% 6%;
   --destructive: 0 84% 45%;
   --destructive-foreground: 0 0% 98%;
-  --input: 210 25% 18%;
+  --input: 207 50% 35%;
   --ring: 207 100% 59%;
   --radius: 0.75rem;
 
   --sidebar: 210 30% 8%;
   --sidebar-foreground: 190 60% 95%;
-  --sidebar-border: 210 25% 14%;
+  --sidebar-border: 207 60% 38%;
   --sidebar-primary: 207 100% 59%;
   --sidebar-primary-foreground: 210 30% 6%;
   --sidebar-accent: 210 28% 16%;
@@ -71,6 +71,23 @@
   *::after {
     border-color: hsl(var(--border));
   }
+
+  /* Thicker borders globally for accessibility */
+  .border,
+  [class*="border-"] {
+    border-width: 2px;
+  }
+  
+  .border-t,
+  .border-b,
+  .border-l,
+  .border-r {
+    border-width: 0;
+  }
+  .border-t { border-top-width: 2px; }
+  .border-b { border-bottom-width: 2px; }
+  .border-l { border-left-width: 2px; }
+  .border-r { border-right-width: 2px; }
 
 
   /* Light "tech grid" texture (subtle) */

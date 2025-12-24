@@ -34,7 +34,7 @@ html[data-theme="dark"] {
 
   /* Panels & Cards */
   --panel-bg: rgba(255, 255, 255, 0.08);
-  --card-border: rgba(255, 255, 255, 0.18);
+  --card-border: rgba(46, 169, 255, 0.45);
   --card-shadow: rgba(0, 0, 0, 0.35);
   --card-hover-shadow: rgba(0, 0, 0, 0.45);
 
@@ -56,7 +56,7 @@ html[data-theme="dark"] {
   /* Form Elements */
   --input-bg: rgba(255, 255, 255, 0.06);
   --input-bg-focus: rgba(255, 255, 255, 0.10);
-  --input-border: rgba(255, 255, 255, 0.16);
+  --input-border: rgba(46, 169, 255, 0.40);
   --input-focus-border: var(--ice-2);
   --input-focus-shadow: rgba(46, 169, 255, 0.25);
   --input-radius: 14px;
@@ -74,8 +74,8 @@ html[data-theme="dark"] {
   /* Glass system */
   --glass-bg: rgba(255, 255, 255, 0.08);
   --glass-bg-2: rgba(255, 255, 255, 0.12);
-  --glass-stroke: rgba(255, 255, 255, 0.18);
-  --glass-stroke-2: rgba(255, 255, 255, 0.26);
+  --glass-stroke: rgba(46, 169, 255, 0.40);
+  --glass-stroke-2: rgba(46, 169, 255, 0.55);
 
   /* Shadow & glow */
   --shadow-0: 0 14px 40px rgba(0, 0, 0, 0.45);
@@ -116,7 +116,7 @@ html[data-theme="light"] {
   --header-fg: var(--text-0);
 
   --panel-bg: #ffffff;
-  --card-border: rgba(0, 0, 0, 0.08);
+  --card-border: rgba(27, 126, 214, 0.35);
   --card-shadow: rgba(0, 0, 0, 0.08);
   --card-hover-shadow: rgba(0, 0, 0, 0.12);
 
@@ -131,11 +131,11 @@ html[data-theme="light"] {
   --footer-fg: var(--text-1);
 
   --input-bg: #ffffff;
-  --input-border: rgba(0, 0, 0, 0.15);
+  --input-border: rgba(27, 126, 214, 0.40);
   --input-focus-shadow: rgba(46, 169, 255, 0.3);
 
   --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-stroke: rgba(0, 0, 0, 0.08);
+  --glass-stroke: rgba(27, 126, 214, 0.35);
 
   --social-bg: var(--ice-2);
   --social-fg: #ffffff;
