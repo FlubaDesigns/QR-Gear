@@ -6,6 +6,7 @@ import {
   Package,
   DollarSign,
   Image,
+  Video,
   Tag,
   Store,
   Settings,
@@ -28,9 +29,15 @@ const adminSections = [
   },
   {
     title: "Backgrounds",
-    description: "Upload and manage QR background templates",
+    description: "Upload and manage QR background images",
     icon: Image,
     href: "/admin/backgrounds",
+  },
+  {
+    title: "Videos",
+    description: "Upload and manage video backgrounds for QR pages",
+    icon: Video,
+    href: "/admin/videos",
   },
   {
     title: "Templates",

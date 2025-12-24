@@ -16,6 +16,7 @@ import Admin from "@/pages/admin";
 import AdminProducts from "@/pages/admin-products";
 import AdminPricing from "@/pages/admin-pricing";
 import AdminBackgrounds from "@/pages/admin-backgrounds";
+import AdminVideos from "@/pages/admin-videos";
 import AdminCategories from "@/pages/admin-categories";
 import AdminTags from "@/pages/admin-tags";
 import AdminPartners from "@/pages/admin-partners";
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/admin/products" component={AdminProducts} />
       <Route path="/admin/pricing" component={AdminPricing} />
       <Route path="/admin/backgrounds" component={AdminBackgrounds} />
+      <Route path="/admin/videos" component={AdminVideos} />
       <Route path="/admin/categories" component={AdminCategories} />
       <Route path="/admin/tags" component={AdminTags} />
       <Route path="/admin/partners" component={AdminPartners} />
