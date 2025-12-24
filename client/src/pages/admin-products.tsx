@@ -807,7 +807,7 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         const updatedSegments = [...currentSegments, newSegmentName.trim()];
         
         const res = await fetch(`/api/admin/partner-stores/${currentPartnerStore.id}`, {
-          method: "PATCH",
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ availableSegments: updatedSegments }),
