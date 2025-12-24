@@ -1,13 +1,12 @@
-import { Client } from "@replit/object-storage";
+import { objectStorageClient } from "../replit_integrations/object_storage";
 import crypto from "crypto";
 
-let objectStorageClient: Client | null = null;
-
-function getObjectStorage(): Client {
-  if (!objectStorageClient) {
-    objectStorageClient = new Client();
+function getBucketName(): string {
+  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+  if (!bucketId) {
+    throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set. Please set up object storage.");
   }
-  return objectStorageClient;
+  return bucketId;
 }
 
 const ALLOWED_MIME_TYPES = [
@@ -52,19 +51,21 @@ export async function uploadImage(
 
   const extension = mimeType.split("/")[1] || "jpg";
   const uniqueId = crypto.randomBytes(8).toString("hex");
-  const fileName = `hosted-images/${uniqueId}.${extension}`;
+  const objectName = `hosted-images/${uniqueId}.${extension}`;
 
-  const { ok, error } = await getObjectStorage().uploadFromBytes(fileName, buffer);
+  const bucketName = getBucketName();
+  const bucket = objectStorageClient.bucket(bucketName);
+  const file = bucket.file(objectName);
 
-  if (!ok) {
-    throw new Error(`Failed to upload image: ${error}`);
-  }
-
-  const publicUrl = `https://${process.env.REPL_SLUG}.${process.env.REPLIT_DEV_DOMAIN?.replace('https://', '') || 'replit.dev'}/api/images/${uniqueId}`;
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+    },
+  });
 
   return {
-    fileName,
-    storageUrl: fileName,
+    fileName: objectName,
+    storageUrl: objectName,
     publicUrl: `/api/images/${uniqueId}`,
     sizeBytes: buffer.length,
     mimeType,
@@ -73,16 +74,21 @@ export async function uploadImage(
 
 export async function getImageBuffer(fileName: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
   try {
-    const { ok, value } = await getObjectStorage().downloadAsBytes(fileName);
-    if (!ok || !value) {
+    const bucketName = getBucketName();
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(fileName);
+    
+    const [exists] = await file.exists();
+    if (!exists) {
       return null;
     }
     
+    const [contents] = await file.download();
     const extension = fileName.split(".").pop() || "jpg";
     const mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
     
     return {
-      buffer: value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array),
+      buffer: contents,
       mimeType,
     };
   } catch (error) {
@@ -93,15 +99,18 @@ export async function getImageBuffer(fileName: string): Promise<{ buffer: Buffer
 
 export async function deleteImage(fileName: string): Promise<boolean> {
   try {
-    const { ok } = await getObjectStorage().delete(fileName);
-    return ok;
+    const bucketName = getBucketName();
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(fileName);
+    
+    await file.delete();
+    return true;
   } catch (error) {
     console.error("Error deleting image:", error);
     return false;
   }
 }
 
-// Upload from raw buffer (for multipart form uploads)
 export async function uploadImageFromBuffer(
   buffer: Buffer,
   originalName: string,
@@ -119,17 +128,21 @@ export async function uploadImageFromBuffer(
   const extension = mimeType.split("/")[1] || "jpg";
   const uniqueId = crypto.randomBytes(8).toString("hex");
   const folder = folderPath || "custom-designs";
-  const fileName = `${folder}/${uniqueId}.${extension}`;
+  const objectName = `${folder}/${uniqueId}.${extension}`;
 
-  const { ok, error } = await getObjectStorage().uploadFromBytes(fileName, buffer);
+  const bucketName = getBucketName();
+  const bucket = objectStorageClient.bucket(bucketName);
+  const file = bucket.file(objectName);
 
-  if (!ok) {
-    throw new Error(`Failed to upload image: ${error}`);
-  }
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+    },
+  });
 
   return {
-    fileName,
-    storageUrl: fileName,
+    fileName: objectName,
+    storageUrl: objectName,
     publicUrl: `/api/files/${uniqueId}.${extension}`,
     sizeBytes: buffer.length,
     mimeType,
