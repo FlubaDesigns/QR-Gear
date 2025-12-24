@@ -815,7 +815,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         
         if (!res.ok) throw new Error("Failed to update store");
         
-        // Refetch query to get updated data immediately
+        // Invalidate and refetch to get updated data immediately
+        await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
         await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
         toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
       } else {
