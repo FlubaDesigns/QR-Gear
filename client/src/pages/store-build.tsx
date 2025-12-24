@@ -489,21 +489,25 @@ export default function StoreBuildPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xl font-semibold">{product.name}</div>
-                          <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-2 mt-2 whitespace-nowrap">
                             <span className="text-base text-muted-foreground">{product.manufacturer || "Unknown Manufacturer"}</span>
-                            <img 
-                              src={product.madeInUSA ? "https://flagcdn.com/w40/us.png" : "https://flagcdn.com/w40/un.png"}
-                              srcSet={product.madeInUSA ? "https://flagcdn.com/w80/us.png 2x" : "https://flagcdn.com/w80/un.png 2x"}
-                              alt={product.madeInUSA ? "Made in USA" : "International"}
-                              className="h-8 w-auto rounded-sm shadow-sm border border-muted"
-                            />
+                            {product.madeInUSA ? (
+                              <img 
+                                src="https://flagcdn.com/w40/us.png" 
+                                srcSet="https://flagcdn.com/w80/us.png 2x"
+                                alt="Made in USA"
+                                className="h-6 w-auto rounded-sm shadow-sm"
+                              />
+                            ) : (
+                              <Globe2 className="h-6 w-6 text-muted-foreground" />
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Row 2: Pricing (full width) */}
-                      <div className="w-full mt-4 py-4 px-4 bg-primary/15 rounded-lg border-2 border-primary/40">
-                        <div className="text-xl font-bold text-primary text-center">
+                      {/* Row 2: Pricing (full width edge-to-edge) */}
+                      <div className="-mx-4 mt-4 py-4 px-4 bg-primary/15 border-y-2 border-primary/40">
+                        <div className="text-xl font-bold text-primary">
                           Production Cost: ${product.basePrice}
                         </div>
                       </div>
