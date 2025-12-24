@@ -391,7 +391,7 @@ function TemplatesContent() {
                 title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality"
                 data-testid="input-template-image"
               />
-              <p className="text-xs text-muted-foreground">Recommended: 4500 × 5400 px, 300 DPI</p>
+              <p className="text-xs text-muted-foreground">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
             </div>
 
             <div className="space-y-2">
@@ -821,7 +821,7 @@ function LibraryBackgroundsContent() {
                   title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality"
                   data-testid="input-library-bg-image"
                 />
-                <p className="text-xs text-muted-foreground">Recommended: 4500 × 5400 px, 300 DPI</p>
+                <p className="text-xs text-muted-foreground">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
               </div>
             )}
 

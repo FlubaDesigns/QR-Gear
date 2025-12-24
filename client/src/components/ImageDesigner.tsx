@@ -377,7 +377,7 @@ export default function ImageDesigner({ onImageReady, isUploading = false }: Ima
               <Upload className="w-4 h-4 mr-2" />
               {customBackground ? "Change Background" : "Upload Image"}
             </Button>
-            <p className="text-xs text-muted-foreground mt-1">Recommended: 4500 × 5400 px, 300 DPI</p>
+            <p className="text-xs text-muted-foreground mt-1">Print: 4500×5400px, 300 DPI, PNG, transparent bg</p>
           </div>
 
           <div className="border-t pt-4">

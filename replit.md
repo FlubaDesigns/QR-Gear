@@ -101,6 +101,35 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - 2025-12-23: Added cost extraction system for Printify products - printifyPrintProviders table now stores minCost/maxCost fields. Backend endpoint `/api/admin/catalog/fetch-costs` creates temporary placeholder products in Printify to extract real production costs (since Printify catalog API doesn't expose costs). Batch-details endpoint prioritizes cached costs from database.
 - 2025-12-22: Added Printify catalog sync feature with local caching (printifyBlueprints, printifyPrintProviders tables), on-demand sync from admin products page, real-time status updates
 
+## Printify Design Specifications
+
+### Print-Ready File Requirements
+- **Format**: PNG with transparent background (REQUIRED)
+- **Dimensions**: 4500 × 5400 px (portrait) for apparel
+- **Resolution**: 300 DPI
+- **Color Mode**: RGB (sRGB safest) - NOT CMYK
+- **Background**: Transparent - let Printify apply garment color
+
+### QR Code Rules
+- **Minimum size**: 3" × 3" preferred (2.5" × 2.5" absolute minimum)
+- **Design**: Pure black on transparent, no gradients, no thin strokes
+- **Error correction**: Level H (High)
+- **Quiet zone**: 4 modules minimum clear margin around QR
+- **No stylized/distressed QR codes or rounded modules for apparel**
+
+### Text Rules
+- **Minimum height**: 14-16 px at final print size
+- **Font weight**: Medium or bold (thin fonts disappear on fabric)
+- **Orbitron**: Only works well at bold weights
+
+### Landing Page Images (Digital Display)
+- **Dimensions**: 1080 × 1920 px (9:16 portrait)
+- **For**: Background images shown on /customs/:id when QR is scanned
+- **Optimized for mobile viewing**
+
+### File Checklist
+✔ PNG ✔ Transparent background ✔ 300 DPI ✔ 4500×5400 px ✔ RGB ✔ QR ≥ 3" ✔ Clean margins
+
 ## Printify Cost Sync System
 The cost sync system extracts real production costs, colors, and sizes from Printify by creating temporary placeholder products (since Printify's catalog API doesn't expose this data):
 
