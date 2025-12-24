@@ -27,7 +27,6 @@ function PricingContent() {
     globalQrProductionCost: "2",
     textAboveUpcharge: "2",
     textBelowUpcharge: "2",
-    imageHostingUpcharge: "5",
     showPricesBeforeCustomization: false,
   });
 
@@ -39,7 +38,6 @@ function PricingContent() {
         globalQrProductionCost: settings.globalQrProductionCost || "2",
         textAboveUpcharge: settings.textAboveUpcharge || "2",
         textBelowUpcharge: settings.textBelowUpcharge || "2",
-        imageHostingUpcharge: settings.imageHostingUpcharge || "5",
         showPricesBeforeCustomization: settings.showPricesBeforeCustomization || false,
       });
     }
@@ -121,7 +119,7 @@ function PricingContent() {
           <CardDescription>Additional charges for premium customization options</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="textAbove">Text Above QR ($)</Label>
               <Input
@@ -142,17 +140,10 @@ function PricingContent() {
               />
               <p className="text-xs text-muted-foreground">Max 30 characters</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="imageHosting">Image Hosting ($)</Label>
-              <Input
-                id="imageHosting"
-                type="number"
-                value={formData.imageHostingUpcharge}
-                onChange={(e) => setFormData({ ...formData, imageHostingUpcharge: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">For custom image QR codes</p>
-            </div>
           </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            Image hosting fees are managed in the Server Space Hosting Tiers section below.
+          </p>
         </CardContent>
       </Card>
 
@@ -179,14 +170,14 @@ function PricingContent() {
         </CardContent>
       </Card>
 
+      <HostingTiersSection />
+
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Save Pricing Settings
         </Button>
       </div>
-
-      <HostingTiersSection />
     </div>
   );
 }
@@ -282,12 +273,12 @@ function HostingTiersSection() {
             {tiers.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((tier) => (
               <div 
                 key={tier.id} 
-                className="flex items-center justify-between p-4 rounded-lg border-2 border-border bg-muted/30"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border-2 border-border bg-muted/30"
                 data-testid={`tier-${tier.code}`}
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 min-w-[100px]">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                     <span className="font-semibold text-lg">{tier.name}</span>
                   </div>
                   <Badge variant="secondary" className="text-sm">
@@ -298,7 +289,7 @@ function HostingTiersSection() {
                   )}
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   {editingTier === tier.id ? (
                     <>
                       <div className="flex items-center gap-1">
@@ -307,12 +298,12 @@ function HostingTiersSection() {
                           type="number"
                           value={editPrice}
                           onChange={(e) => setEditPrice(e.target.value)}
-                          className="w-20 text-lg font-bold"
+                          className="w-24 h-12 text-lg font-bold"
                           data-testid={`input-price-${tier.code}`}
                         />
                       </div>
                       <Button 
-                        size="sm" 
+                        className="h-12"
                         onClick={() => saveEdit(tier.id)}
                         disabled={updateMutation.isPending}
                         data-testid={`button-save-${tier.code}`}
@@ -320,7 +311,7 @@ function HostingTiersSection() {
                         Save
                       </Button>
                       <Button 
-                        size="sm" 
+                        className="h-12"
                         variant="outline" 
                         onClick={() => setEditingTier(null)}
                         data-testid={`button-cancel-${tier.code}`}
@@ -330,11 +321,11 @@ function HostingTiersSection() {
                     </>
                   ) : (
                     <>
-                      <span className="text-2xl font-bold text-primary">
+                      <span className="text-2xl font-bold text-primary min-w-[60px]">
                         ${tier.priceUpcharge || "0"}
                       </span>
                       <Button 
-                        size="sm" 
+                        className="h-12"
                         variant="outline"
                         onClick={() => startEdit(tier)}
                         data-testid={`button-edit-${tier.code}`}

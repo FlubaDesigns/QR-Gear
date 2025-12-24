@@ -45,7 +45,14 @@ import {
   ImageIcon,
   ExternalLink,
 } from "lucide-react";
-import type { Product, ProductCategory } from "@shared/schema";
+import type { Product, ProductCategory, HostingTier, AdminSettings } from "@shared/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { Progress } from "@/components/ui/progress";
@@ -697,6 +704,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundPreview, setBackgroundPreview] = useState<string>("");
   const [textUpcharge, setTextUpcharge] = useState("2.00");
+  const [selectedHostingTier, setSelectedHostingTier] = useState<string>("1_year");
   const [customLocationFilter, setCustomLocationFilter] = useState<"all" | "usa" | "other">("all");
   const [savingCustom, setSavingCustom] = useState(false);
   const [lastSavedDesign, setLastSavedDesign] = useState<{id: string; printifyCompositeUrl?: string} | null>(null);
@@ -722,6 +730,27 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
     queryKey: ["/api/admin/partner-stores"],
   });
+  
+  // Fetch hosting tiers for pricing
+  const { data: hostingTiers = [] } = useQuery<HostingTier[]>({
+    queryKey: ["/api/hosting-tiers"],
+  });
+  
+  // Fetch admin settings for markup calculation
+  const { data: adminSettings } = useQuery<AdminSettings>({
+    queryKey: ["/api/admin/settings"],
+  });
+  
+  // Get selected hosting tier price (default to $5 for 1 year if not loaded)
+  const selectedTier = hostingTiers.find(t => t.code === selectedHostingTier);
+  const defaultTierPrices: Record<string, number> = { "1_year": 5, "2_year": 8, "3_year": 10 };
+  const hostingPrice = selectedTier 
+    ? parseFloat(selectedTier.priceUpcharge || "0")
+    : (defaultTierPrices[selectedHostingTier] || 5);
+  
+  // Calculate markup percentage and fixed
+  const markupPercent = parseFloat(adminSettings?.globalMarkupPercent || "25");
+  const markupFixed = parseFloat(adminSettings?.globalMarkupFixed || "0");
   
   // Derive available stores based on store type
   // For External, include partner stores from database
@@ -2252,6 +2281,38 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 {selectedItemId && catalogDetails && (
                   <div className="space-y-3 pt-4 border-t">
                     <Label className="font-semibold text-base">Pricing Summary</Label>
+                    
+                    {/* Hosting Tier Selection */}
+                    <div className="space-y-2">
+                      <Label className="text-sm">Server Hosting Duration</Label>
+                      <Select value={selectedHostingTier} onValueChange={setSelectedHostingTier}>
+                        <SelectTrigger className="w-full h-12" data-testid="select-hosting-tier">
+                          <SelectValue placeholder="Select hosting duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {hostingTiers.filter(t => t.code && t.code.trim() !== "").length > 0 ? (
+                            hostingTiers
+                              .filter(t => t.code && t.code.trim() !== "")
+                              .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                              .map((tier) => (
+                                <SelectItem key={tier.code} value={tier.code} data-testid={`tier-option-${tier.code}`}>
+                                  {tier.name} - ${tier.priceUpcharge || "0"}
+                                </SelectItem>
+                              ))
+                          ) : (
+                            <>
+                              <SelectItem value="1_year">1 Year - $5</SelectItem>
+                              <SelectItem value="2_year">2 Years - $8</SelectItem>
+                              <SelectItem value="3_year">3 Years - $10</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        How long the QR content will be hosted online
+                      </p>
+                    </div>
+                    
                     <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Base Production Cost:</span>
@@ -2271,22 +2332,41 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           <span className="font-medium">+${parseFloat(textUpcharge || "2").toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="border-t pt-2 mt-2 flex justify-between text-base font-bold">
-                        <span>Estimated Total Cost:</span>
-                        <span className="text-green-600">
-                          {catalogDetails.basePrice > 0 ? (
-                            `$${(catalogDetails.basePrice + 
-                              (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
-                              (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0)
-                            ).toFixed(2)}`
-                          ) : (
-                            "—"
-                          )}
-                        </span>
+                      <div className="flex justify-between text-sm">
+                        <span>Hosting ({selectedTier?.name || {"1_year": "1 Year", "2_year": "2 Years", "3_year": "3 Years"}[selectedHostingTier] || "1 Year"}):</span>
+                        <span className="font-medium">+${hostingPrice.toFixed(2)}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Final retail price = cost + your markup. Set markup in Admin Settings.
-                      </p>
+                      
+                      {(() => {
+                        const baseCost = catalogDetails.basePrice + 
+                          (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
+                          (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0) +
+                          hostingPrice;
+                        const retailPrice = baseCost * (1 + markupPercent / 100) + markupFixed;
+                        
+                        return (
+                          <>
+                            <div className="border-t pt-2 mt-2 flex justify-between text-sm">
+                              <span>Total Cost:</span>
+                              <span className="font-medium">
+                                {catalogDetails.basePrice > 0 ? `$${baseCost.toFixed(2)}` : "—"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm text-muted-foreground">
+                              <span>+ Markup ({markupPercent}% + ${markupFixed.toFixed(2)}):</span>
+                              <span className="font-medium">
+                                {catalogDetails.basePrice > 0 ? `$${(retailPrice - baseCost).toFixed(2)}` : "—"}
+                              </span>
+                            </div>
+                            <div className="border-t pt-2 mt-2 flex justify-between text-lg font-bold">
+                              <span>Customer Price:</span>
+                              <span className="text-green-600">
+                                {catalogDetails.basePrice > 0 ? `$${retailPrice.toFixed(2)}` : "—"}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
