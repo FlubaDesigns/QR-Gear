@@ -1865,6 +1865,63 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
+                {/* Configure Sizes & Colors (after product selected) */}
+                {selectedItemId && categoryData && (() => {
+                  const selectedItem = categoryData.items.find(i => i.id === selectedItemId);
+                  const details = itemDetails[selectedItemId];
+                  if (!selectedItem || !details) return null;
+                  
+                  return (
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-lg border-2 border-primary/30">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-lg font-semibold">Configure Sizes & Colors</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfiguringItem(selectedItem);
+                            if (details.sizes) {
+                              setEnabledSizes(new Set(details.sizes));
+                            }
+                            if (details.colors) {
+                              const colorNames = details.colors.map((c: any) => typeof c === 'string' ? c : c.name);
+                              setEnabledColors(new Set(colorNames));
+                            }
+                            setConfigDialogOpen(true);
+                          }}
+                          data-testid="button-configure-options"
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          Edit Options
+                        </Button>
+                      </div>
+                      
+                      {/* Show current selections */}
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-medium">{enabledSizes.size}</span> sizes and <span className="font-medium">{enabledColors.size}</span> colors selected
+                      </div>
+                      
+                      {/* Show pricing summary */}
+                      <div className="flex gap-6 pt-2 border-t border-border">
+                        <div>
+                          <div className="text-xs text-muted-foreground uppercase">Production Cost</div>
+                          <div className="text-xl font-bold text-primary">
+                            {details.basePrice > 0 
+                              ? (details.maxPrice && details.maxPrice > details.basePrice 
+                                  ? `$${details.basePrice.toFixed(2)} – $${details.maxPrice.toFixed(2)}`
+                                  : `$${details.basePrice.toFixed(2)}`)
+                              : "—"}
+                          </div>
+                          {details.costsFromDatabase && details.basePrice > 0 && (
+                            <div className="text-xs text-green-600">(cached)</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* 3. Print Placement Options (after product selected) - Multi-select */}
                 {selectedItemId && (
                   <div className="space-y-2">
