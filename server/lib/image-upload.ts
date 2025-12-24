@@ -128,7 +128,7 @@ export async function uploadImageFromBuffer(
   return {
     fileName,
     storageUrl: fileName,
-    publicUrl: `/api/library-files/${uniqueId}.${extension}`,
+    publicUrl: `/api/files/${uniqueId}.${extension}`,
     sizeBytes: buffer.length,
     mimeType,
   };
