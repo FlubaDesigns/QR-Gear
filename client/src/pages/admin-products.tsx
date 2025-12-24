@@ -1951,9 +1951,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           </Button>
                         </div>
                       ) : (
-                        <label className="cursor-pointer block">
+                        <label className="cursor-pointer block" title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality">
                           <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                           <span className="text-sm text-muted-foreground">Click to upload background image</span>
+                          <p className="text-xs text-muted-foreground mt-1">Recommended: 4500 × 5400 px, 300 DPI</p>
                           <input
                             type="file"
                             accept="image/*"

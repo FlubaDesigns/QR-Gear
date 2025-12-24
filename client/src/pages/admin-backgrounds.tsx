@@ -388,8 +388,10 @@ function TemplatesContent() {
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
+                title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality"
                 data-testid="input-template-image"
               />
+              <p className="text-xs text-muted-foreground">Recommended: 4500 × 5400 px, 300 DPI</p>
             </div>
 
             <div className="space-y-2">
@@ -816,8 +818,10 @@ function LibraryBackgroundsContent() {
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
+                  title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality"
                   data-testid="input-library-bg-image"
                 />
+                <p className="text-xs text-muted-foreground">Recommended: 4500 × 5400 px, 300 DPI</p>
               </div>
             )}
 

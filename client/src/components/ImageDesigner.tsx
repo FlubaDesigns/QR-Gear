@@ -371,11 +371,13 @@ export default function ImageDesigner({ onImageReady, isUploading = false }: Ima
               size="sm"
               onClick={() => fileInputRef.current?.click()}
               className="w-full"
+              title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality"
               data-testid="button-upload-background"
             >
               <Upload className="w-4 h-4 mr-2" />
               {customBackground ? "Change Background" : "Upload Image"}
             </Button>
+            <p className="text-xs text-muted-foreground mt-1">Recommended: 4500 × 5400 px, 300 DPI</p>
           </div>
 
           <div className="border-t pt-4">
