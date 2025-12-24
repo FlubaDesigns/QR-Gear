@@ -83,15 +83,15 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 -   `express-rate-limit`: API rate limiting.
 
 ## Cross-Project Coordination
-- **docs/AIKC/**: Files TO send to Kingdom Connects agent
-- **docs/AIQR/**: Files received FROM Kingdom Connects agent
-- **docs/AIKC-for-claude1.zip**: One-click zip for Dave to upload to KC project
-- Protocol: Follow format in `docs/AIKC/CROSS-AI-UPDATES.md`
-- After making KC-relevant changes, update CROSS-AI-UPDATES.md and regenerate zip
+- **docs/AI-COMMS.zip**: Single zip containing all cross-AI communication
+  - `AI-COMMS/QR/` - Files FROM QR Gear (this project)
+  - `AI-COMMS/KC/` - Files FROM Kingdom Connects
+  - `AI-COMMS/SHARED/` - Shared protocol docs
+- After making KC-relevant changes, update files in AI-COMMS/ and regenerate zip
 
 ## Recent Changes
 - 2025-12-24: Added library asset system with backgrounds/videos, season/event categorization, admin UI tabs
-- 2025-12-24: Created AI_com.md/zip for Kingdom Connects agent coordination
+- 2025-12-24: Updated AI-COMMS.zip with QR Gear responses to KC questions
 - 2025-12-24: Documented planned text overlay feature for QR landing pages
 - 2025-12-23: Restored segment selection step in product flow (Store Type → Store → Segment → Product Source). Segment dropdown now appears after store selection.
 - 2025-12-23: Custom Product Builder improvements - (1) Font preview: each font selection now shows a live sample of how that font looks. (2) Composite image generator: server-side generation of print-ready images (header + QR + footer on white background) stored in `printifyCompositeUrl` for Printify submission. (3) Multi-placement support: `placements` stored as text array in database.
