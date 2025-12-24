@@ -1758,43 +1758,43 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               }}
                               data-testid={`custom-item-${item.id}`}
                             >
-                              {/* Row 1: Image (left) + Name/Manufacturer/Flag (right) */}
-                              <div className="grid grid-cols-[auto_1fr] gap-5 p-5">
+                              {/* Row 1: Image + Name/Manufacturer/Flag - stacked on mobile, side-by-side on larger */}
+                              <div className="flex flex-col sm:flex-row gap-4 p-4">
                                 <div 
-                                  className="relative group cursor-pointer"
+                                  className="relative group cursor-pointer mx-auto sm:mx-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setZoomedImage({ url: item.imageUrl || "", title: item.title });
                                   }}
                                 >
-                                  <img src={item.imageUrl || ""} alt={item.title} className="w-24 h-24 rounded-lg object-cover border-2 border-blue-400" />
+                                  <img src={item.imageUrl || ""} alt={item.title} className="w-28 h-28 rounded-lg object-cover border-2 border-blue-400" />
                                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                    <ZoomIn className="w-6 h-6 text-white" />
+                                    <ZoomIn className="w-8 h-8 text-white" />
                                   </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <div className="text-lg font-semibold leading-snug">{item.title}</div>
-                                  <div className="flex items-center gap-4">
-                                    <span className="text-base text-muted-foreground">{item.brand}</span>
+                                <div className="space-y-3 text-center sm:text-left">
+                                  <div className="text-xl font-semibold leading-snug">{item.title}</div>
+                                  <div className="flex items-center justify-center sm:justify-start gap-4">
+                                    <span className="text-lg text-muted-foreground">{item.brand}</span>
                                     {item.madeInUSA ? (
                                       <img 
                                         src="https://flagcdn.com/w40/us.png" 
                                         srcSet="https://flagcdn.com/w80/us.png 2x"
                                         alt="Made in USA"
-                                        className="h-6 w-auto rounded-sm shadow-sm"
+                                        className="h-7 w-auto rounded-sm shadow-sm"
                                       />
                                     ) : (
-                                      <span className="text-sm text-muted-foreground">(International)</span>
+                                      <span className="text-base text-muted-foreground">(International)</span>
                                     )}
                                   </div>
                                 </div>
                               </div>
                               
                               {/* Row 2: Pricing (full width edge-to-edge) */}
-                              <div className="py-4 px-5 bg-primary/10 border-y-2 border-primary/30">
+                              <div className="py-5 px-4 bg-primary/10 border-y-2 border-primary/30">
                                 {details && !details.error ? (
                                   <div>
-                                    <span className="text-xl font-bold text-primary">
+                                    <span className="text-2xl font-bold text-primary">
                                       {details.basePrice > 0 
                                         ? (details.maxPrice && details.maxPrice > details.basePrice 
                                             ? `$${details.basePrice.toFixed(2)} – $${details.maxPrice.toFixed(2)}`
@@ -1802,60 +1802,56 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                         : "—"}
                                     </span>
                                     {details.basePrice === 0 && (
-                                      <span className="text-sm text-amber-600 ml-3">Sync costs needed</span>
+                                      <div className="text-base text-amber-600 mt-2">Sync costs needed</div>
                                     )}
                                     {details.costsFromDatabase && details.basePrice > 0 && (
-                                      <div className="text-sm text-green-600 mt-1">(cached)</div>
+                                      <div className="text-base text-green-600 mt-2">(cached)</div>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-base text-muted-foreground">Loading price...</span>
+                                  <span className="text-lg text-muted-foreground">Loading price...</span>
                                 )}
                               </div>
                               
                               {/* Row 3: Sizes (full width) */}
                               {details && !details.error && details.sizes.length > 0 && (
-                                <div className="py-3 px-4 border-b border-border/50">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs text-muted-foreground font-medium">
-                                      Sizes{details.sizesFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
-                                    </span>
-                                    <div className="flex gap-1 flex-wrap">
-                                      {details.sizes.slice(0, 8).map((size) => (
-                                        <Badge key={size} variant="secondary" className="text-xs px-2 py-0.5">{size}</Badge>
-                                      ))}
-                                      {details.sizes.length > 8 && (
-                                        <span className="text-xs text-muted-foreground">+{details.sizes.length - 8}</span>
-                                      )}
-                                    </div>
+                                <div className="py-4 px-4 border-b border-border/50">
+                                  <div className="text-base text-muted-foreground font-medium mb-2">
+                                    Sizes{details.sizesFromDatabase && <span className="text-green-600 ml-2">(cached)</span>}
+                                  </div>
+                                  <div className="flex gap-2 flex-wrap">
+                                    {details.sizes.slice(0, 8).map((size) => (
+                                      <Badge key={size} variant="secondary" className="text-sm px-3 py-1">{size}</Badge>
+                                    ))}
+                                    {details.sizes.length > 8 && (
+                                      <span className="text-sm text-muted-foreground self-center">+{details.sizes.length - 8}</span>
+                                    )}
                                   </div>
                                 </div>
                               )}
                               
                               {/* Row 4: Color Swatches (full width) */}
                               {details && !details.error && details.colors.length > 0 && (
-                                <div className="py-3 px-4">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs text-muted-foreground font-medium">
-                                      Colors{details.colorsFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
-                                    </span>
-                                    <div className="flex gap-1.5 flex-wrap">
-                                      {details.colors.slice(0, 12).map((color, idx) => {
-                                        const colorName = typeof color === 'object' ? color.name : color;
-                                        const colorHex = typeof color === 'object' ? color.hex : getSwatchColor(color);
-                                        return (
-                                          <div
-                                            key={colorName || idx}
-                                            className="w-6 h-6 rounded-md border-2 border-border shadow-sm"
-                                            style={{ backgroundColor: colorHex || getSwatchColor(colorName) }}
-                                            title={colorName}
-                                          />
-                                        );
-                                      })}
-                                      {details.colors.length > 12 && (
-                                        <span className="text-xs text-muted-foreground self-center">+{details.colors.length - 12}</span>
-                                      )}
-                                    </div>
+                                <div className="py-4 px-4">
+                                  <div className="text-base text-muted-foreground font-medium mb-2">
+                                    Colors{details.colorsFromDatabase && <span className="text-green-600 ml-2">(cached)</span>}
+                                  </div>
+                                  <div className="flex gap-2 flex-wrap">
+                                    {details.colors.slice(0, 12).map((color, idx) => {
+                                      const colorName = typeof color === 'object' ? color.name : color;
+                                      const colorHex = typeof color === 'object' ? color.hex : getSwatchColor(color);
+                                      return (
+                                        <div
+                                          key={colorName || idx}
+                                          className="w-8 h-8 rounded-md border-2 border-border shadow-sm"
+                                          style={{ backgroundColor: colorHex || getSwatchColor(colorName) }}
+                                          title={colorName}
+                                        />
+                                      );
+                                    })}
+                                    {details.colors.length > 12 && (
+                                      <span className="text-sm text-muted-foreground self-center">+{details.colors.length - 12}</span>
+                                    )}
                                   </div>
                                 </div>
                               )}
