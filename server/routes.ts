@@ -429,6 +429,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Serve library files from object storage (supports multiple folder structures)
+  app.get("/api/library-files/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      const storageClient = new ObjectStorageClient();
+      
+      // Library files can be in various nested folders - search common locations
+      const possiblePaths = [
+        `library/admin/backgrounds/${filename}`,
+        `library/admin/designs/${filename}`,
+        `library/admin/videos/${filename}`,
+      ];
+      
+      let foundData: Buffer | null = null;
+      for (const path of possiblePaths) {
+        const { ok, value } = await storageClient.downloadAsBytes(path);
+        if (ok && value) {
+          foundData = value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array);
+          break;
+        }
+      }
+      
+      // If not found in standard locations, try searching library folder recursively
+      if (!foundData) {
+        const { ok, value } = await storageClient.downloadAsBytes(`library/${filename}`);
+        if (ok && value) {
+          foundData = value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array);
+        }
+      }
+      
+      if (!foundData) {
+        return res.status(404).json({ error: "Library file not found" });
+      }
+      
+      const extension = filename.split(".").pop() || "png";
+      let mimeType: string;
+      if (["mp4", "webm", "mov"].includes(extension)) {
+        mimeType = `video/${extension === "mov" ? "quicktime" : extension}`;
+      } else {
+        mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
+      }
+      
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      res.send(foundData);
+    } catch (error: any) {
+      console.error("Library file serve error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Hosted Images API
   app.post("/api/images/upload", async (req, res) => {
     try {
@@ -2315,6 +2366,308 @@ ${allPages.map(page => `  <url>
       }
       res.json(updated);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ LIBRARY ASSET ENDPOINTS ============
+
+  // Admin: Get all library assets with optional filters
+  app.get("/api/admin/library", isAdmin, async (req: any, res) => {
+    try {
+      const { ownerType, assetType, mediaType, category, season, event } = req.query;
+      const assets = await storage.getLibraryAssets({ 
+        ownerType, assetType, mediaType, category, season, event 
+      });
+      res.json(assets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get admin-owned library assets
+  app.get("/api/admin/library/admin", isAdmin, async (req: any, res) => {
+    try {
+      const { assetType, mediaType, category, season, event } = req.query;
+      const assets = await storage.getAdminLibraryAssets({ 
+        assetType, mediaType, category, season, event 
+      });
+      res.json(assets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Create library asset
+  app.post("/api/admin/library", isAdmin, async (req: any, res) => {
+    try {
+      const asset = await storage.createLibraryAsset(req.body);
+      res.json(asset);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update library asset
+  app.put("/api/admin/library/:id", isAdmin, async (req: any, res) => {
+    try {
+      const updated = await storage.updateLibraryAsset(req.params.id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Library asset not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Delete library asset
+  app.delete("/api/admin/library/:id", isAdmin, async (req: any, res) => {
+    try {
+      await storage.deleteLibraryAsset(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Upload library asset to organized folder structure
+  app.post("/api/admin/library/upload", isAdmin, async (req: any, res) => {
+    try {
+      const chunks: Buffer[] = [];
+      let fileName = "upload";
+      let mimeType = "image/png";
+      let boundary = "";
+      let assetType = "background";
+      let mediaType = "image";
+      let category = "";
+      let season = "";
+      let event = "";
+      let name = "";
+      let description = "";
+      
+      const contentType = req.headers["content-type"] || "";
+      const boundaryMatch = contentType.match(/boundary=(.+)/);
+      if (boundaryMatch) {
+        boundary = boundaryMatch[1];
+      }
+      
+      const rawBody = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+        req.on("error", reject);
+      });
+      
+      const boundaryBuffer = Buffer.from(`--${boundary}`);
+      const parts: Buffer[] = [];
+      let start = 0;
+      
+      while (true) {
+        const boundaryIndex = rawBody.indexOf(boundaryBuffer, start);
+        if (boundaryIndex === -1) break;
+        
+        if (start > 0) {
+          parts.push(rawBody.slice(start, boundaryIndex - 2));
+        }
+        start = boundaryIndex + boundaryBuffer.length + 2;
+      }
+      
+      let fileBuffer: Buffer | null = null;
+      
+      for (const part of parts) {
+        const headerEnd = part.indexOf("\r\n\r\n");
+        if (headerEnd === -1) continue;
+        
+        const headers = part.slice(0, headerEnd).toString();
+        const body = part.slice(headerEnd + 4);
+        
+        const nameMatch = headers.match(/name="([^"]+)"/);
+        const filenameMatch = headers.match(/filename="([^"]+)"/);
+        const contentTypeMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+        
+        if (filenameMatch) {
+          fileName = filenameMatch[1];
+          if (contentTypeMatch) {
+            mimeType = contentTypeMatch[1].trim();
+          }
+          fileBuffer = body;
+        } else if (nameMatch) {
+          const fieldName = nameMatch[1];
+          const fieldValue = body.toString().trim();
+          if (fieldName === "assetType") assetType = fieldValue;
+          else if (fieldName === "mediaType") mediaType = fieldValue;
+          else if (fieldName === "category") category = fieldValue;
+          else if (fieldName === "season") season = fieldValue;
+          else if (fieldName === "event") event = fieldValue;
+          else if (fieldName === "name") name = fieldValue;
+          else if (fieldName === "description") description = fieldValue;
+        }
+      }
+      
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      // Determine folder path based on asset type and categorization
+      let folderPath = "library/admin";
+      if (assetType === "background") {
+        folderPath += "/backgrounds";
+        if (season) folderPath += `/seasonal/${season}`;
+        else if (event) folderPath += `/events/${event}`;
+        else if (category) folderPath += `/${category}`;
+      } else if (assetType === "design") {
+        folderPath += "/designs";
+        if (category) folderPath += `/${category}`;
+      } else if (assetType === "video") {
+        folderPath += "/videos";
+        if (season) folderPath += `/seasonal/${season}`;
+        else if (event) folderPath += `/events/${event}`;
+      }
+      
+      // Upload to object storage
+      const uploadResult = await uploadImageFromBuffer(fileBuffer, fileName, mimeType, folderPath);
+      
+      // Create library asset record
+      const asset = await storage.createLibraryAsset({
+        ownerType: "admin",
+        userId: null,
+        assetType,
+        mediaType: mimeType.startsWith("video") ? "video" : "image",
+        name: name || fileName,
+        originalName: fileName,
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        description: description || null,
+        fileName: uploadResult.fileName,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: uploadResult.publicUrl,
+        category: category || null,
+        season: season || null,
+        event: event || null,
+        tags: null,
+        sortOrder: 0,
+        isActive: true,
+      });
+      
+      res.json(asset);
+    } catch (error: any) {
+      console.error("Library upload error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // User: Get own library assets
+  app.get("/api/library/my", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { assetType, mediaType } = req.query;
+      const assets = await storage.getUserLibraryAssets(userId, { assetType, mediaType });
+      res.json(assets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // User: Upload own library asset
+  app.post("/api/library/upload", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const chunks: Buffer[] = [];
+      let fileName = "upload";
+      let mimeType = "image/png";
+      let boundary = "";
+      let assetType = "background";
+      let name = "";
+      
+      const contentType = req.headers["content-type"] || "";
+      const boundaryMatch = contentType.match(/boundary=(.+)/);
+      if (boundaryMatch) {
+        boundary = boundaryMatch[1];
+      }
+      
+      const rawBody = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+        req.on("error", reject);
+      });
+      
+      const boundaryBuffer = Buffer.from(`--${boundary}`);
+      const parts: Buffer[] = [];
+      let start = 0;
+      
+      while (true) {
+        const boundaryIndex = rawBody.indexOf(boundaryBuffer, start);
+        if (boundaryIndex === -1) break;
+        
+        if (start > 0) {
+          parts.push(rawBody.slice(start, boundaryIndex - 2));
+        }
+        start = boundaryIndex + boundaryBuffer.length + 2;
+      }
+      
+      let fileBuffer: Buffer | null = null;
+      
+      for (const part of parts) {
+        const headerEnd = part.indexOf("\r\n\r\n");
+        if (headerEnd === -1) continue;
+        
+        const headers = part.slice(0, headerEnd).toString();
+        const body = part.slice(headerEnd + 4);
+        
+        const nameMatch = headers.match(/name="([^"]+)"/);
+        const filenameMatch = headers.match(/filename="([^"]+)"/);
+        const contentTypeMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+        
+        if (filenameMatch) {
+          fileName = filenameMatch[1];
+          if (contentTypeMatch) {
+            mimeType = contentTypeMatch[1].trim();
+          }
+          fileBuffer = body;
+        } else if (nameMatch) {
+          const fieldName = nameMatch[1];
+          const fieldValue = body.toString().trim();
+          if (fieldName === "assetType") assetType = fieldValue;
+          else if (fieldName === "name") name = fieldValue;
+        }
+      }
+      
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      // User folder structure
+      const folderPath = `library/users/${userId}/${assetType}s`;
+      
+      const uploadResult = await uploadImageFromBuffer(fileBuffer, fileName, mimeType, folderPath);
+      
+      const asset = await storage.createLibraryAsset({
+        ownerType: "user",
+        userId,
+        assetType,
+        mediaType: mimeType.startsWith("video") ? "video" : "image",
+        name: name || fileName,
+        originalName: fileName,
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        description: null,
+        fileName: uploadResult.fileName,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: uploadResult.publicUrl,
+        category: null,
+        season: null,
+        event: null,
+        tags: null,
+        sortOrder: 0,
+        isActive: true,
+      });
+      
+      res.json(asset);
+    } catch (error: any) {
+      console.error("User library upload error:", error);
       res.status(500).json({ error: error.message });
     }
   });

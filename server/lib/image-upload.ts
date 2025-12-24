@@ -15,6 +15,9 @@ const ALLOWED_MIME_TYPES = [
   "image/png",
   "image/gif",
   "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -100,7 +103,8 @@ export async function deleteImage(fileName: string): Promise<boolean> {
 export async function uploadImageFromBuffer(
   buffer: Buffer,
   originalName: string,
-  mimeType: string
+  mimeType: string,
+  folderPath?: string
 ): Promise<UploadResult> {
   if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
     throw new Error(`Invalid file type: ${mimeType}. Allowed: ${ALLOWED_MIME_TYPES.join(", ")}`);
@@ -112,7 +116,8 @@ export async function uploadImageFromBuffer(
 
   const extension = mimeType.split("/")[1] || "jpg";
   const uniqueId = crypto.randomBytes(8).toString("hex");
-  const fileName = `custom-designs/${uniqueId}.${extension}`;
+  const folder = folderPath || "custom-designs";
+  const fileName = `${folder}/${uniqueId}.${extension}`;
 
   const { ok, error } = await getObjectStorage().uploadFromBytes(fileName, buffer);
 
@@ -123,7 +128,7 @@ export async function uploadImageFromBuffer(
   return {
     fileName,
     storageUrl: fileName,
-    publicUrl: `/api/files/${uniqueId}.${extension}`,
+    publicUrl: `/api/library-files/${uniqueId}.${extension}`,
     sizeBytes: buffer.length,
     mimeType,
   };
