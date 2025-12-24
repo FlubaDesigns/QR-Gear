@@ -731,12 +731,12 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     ? [...EXTERNAL_STORES, ...dbPartnerStores]
     : [];
   
-  // Find current store's segments
+  // Find current store's segments - prioritize customStores and dbPartnerStores (with segments) over predefined stores
   const allStores: Array<{ name: string; segments?: string[]; areas?: string[] }> = [
-    ...INTERNAL_STORES, 
+    ...dbPartnerStores,  // Partner stores from DB first (have segments)
+    ...customStores,     // Custom stores with added segments second
+    ...INTERNAL_STORES,  // Predefined stores last (no segments)
     ...EXTERNAL_STORES, 
-    ...customStores,
-    ...dbPartnerStores,
   ];
   const currentStoreData = allStores.find(
     (s) => s.name === selectedStore || s.name === selectedStore.replace(/^(Internal:|External:)/, "")
@@ -815,8 +815,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         
         if (!res.ok) throw new Error("Failed to update store");
         
-        // Invalidate query to refresh
-        queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+        // Refetch query to get updated data immediately
+        await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
         toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
       } else {
         // For internal/custom stores, update localStorage
