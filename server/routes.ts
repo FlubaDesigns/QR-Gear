@@ -3054,10 +3054,9 @@ ${allPages.map(page => `  <url>
       }
 
       const defaultTiers = [
-        { code: "1_year", name: "1 Year Hosting", description: "Included with purchase", durationDays: 365, isIncluded: true, priceUpcharge: "0", sortOrder: 1 },
-        { code: "3_year", name: "3 Year Hosting", description: "Extended hosting for 3 years", durationDays: 1095, isIncluded: false, priceUpcharge: "10", sortOrder: 2 },
-        { code: "5_year", name: "5 Year Hosting", description: "Extended hosting for 5 years", durationDays: 1825, isIncluded: false, priceUpcharge: "20", sortOrder: 3 },
-        { code: "permanent", name: "Permanent Hosting", description: "Lifetime hosting - never expires", durationDays: 36500, isIncluded: false, priceUpcharge: "50", sortOrder: 4 },
+        { code: "1_year", name: "1 Year", description: "Standard hosting", durationDays: 365, isIncluded: false, priceUpcharge: "5", sortOrder: 1 },
+        { code: "2_year", name: "2 Years", description: "Save with 2-year commitment", durationDays: 730, isIncluded: false, priceUpcharge: "8", sortOrder: 2 },
+        { code: "3_year", name: "3 Years", description: "Best value - 3-year hosting", durationDays: 1095, isIncluded: false, priceUpcharge: "10", sortOrder: 3 },
       ];
 
       const createdTiers = [];
@@ -3067,6 +3066,46 @@ ${allPages.map(page => `  <url>
       }
 
       res.json({ message: "Default hosting tiers created", tiers: createdTiers });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update hosting tier (admin only)
+  app.put("/api/admin/hosting-tiers/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateSchema = z.object({
+        name: z.string().optional(),
+        description: z.string().nullable().optional(),
+        durationDays: z.number().optional(),
+        priceUpcharge: z.string().optional(),
+        isIncluded: z.boolean().optional(),
+        isActive: z.boolean().optional(),
+        sortOrder: z.number().optional(),
+      });
+      
+      const validatedData = updateSchema.parse(req.body);
+      const updated = await storage.updateHostingTier(id, validatedData);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Hosting tier not found" });
+      }
+      
+      res.json(updated);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all hosting tiers (admin - includes inactive)
+  app.get("/api/admin/hosting-tiers", isAdmin, async (req, res) => {
+    try {
+      const tiers = await storage.getHostingTiers();
+      res.json(tiers);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

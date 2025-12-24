@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Loader2, DollarSign } from "lucide-react";
-import type { AdminSettings } from "@shared/schema";
+import { ArrowLeft, Loader2, DollarSign, Clock, Server } from "lucide-react";
+import type { AdminSettings, HostingTier } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
 function PricingContent() {
@@ -184,7 +185,175 @@ function PricingContent() {
           Save Pricing Settings
         </Button>
       </div>
+
+      <HostingTiersSection />
     </div>
+  );
+}
+
+function HostingTiersSection() {
+  const { toast } = useToast();
+  const [editingTier, setEditingTier] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState("");
+
+  const { data: tiers, isLoading, refetch } = useQuery<HostingTier[]>({
+    queryKey: ["/api/admin/hosting-tiers"],
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/hosting-tiers/seed"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/hosting-tiers"] });
+      toast({ title: "Success", description: "Hosting tiers created." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create hosting tiers.", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, priceUpcharge }: { id: string; priceUpcharge: string }) =>
+      apiRequest("PUT", `/api/admin/hosting-tiers/${id}`, { priceUpcharge }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/hosting-tiers"] });
+      setEditingTier(null);
+      toast({ title: "Success", description: "Price updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update price.", variant: "destructive" });
+    },
+  });
+
+  function startEdit(tier: HostingTier) {
+    setEditingTier(tier.id);
+    setEditPrice(tier.priceUpcharge || "0");
+  }
+
+  function saveEdit(id: string) {
+    updateMutation.mutate({ id, priceUpcharge: editPrice });
+  }
+
+  function formatDuration(days: number): string {
+    if (days >= 365) {
+      const years = Math.floor(days / 365);
+      return `${years} year${years > 1 ? "s" : ""}`;
+    }
+    return `${days} days`;
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Server className="h-5 w-5 text-primary" />
+          <CardTitle>Server Space Hosting Tiers</CardTitle>
+        </div>
+        <CardDescription>
+          Set pricing for QR content hosting (images, landing pages). Customers select a tier when ordering products that need hosted content.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!tiers || tiers.length === 0 ? (
+          <div className="text-center py-8 space-y-4">
+            <p className="text-muted-foreground">No hosting tiers configured yet.</p>
+            <Button 
+              onClick={() => seedMutation.mutate()} 
+              disabled={seedMutation.isPending}
+              data-testid="button-seed-tiers"
+            >
+              {seedMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create Default Tiers
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {tiers.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((tier) => (
+              <div 
+                key={tier.id} 
+                className="flex items-center justify-between p-4 rounded-lg border-2 border-border bg-muted/30"
+                data-testid={`tier-${tier.code}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 min-w-[100px]">
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-semibold text-lg">{tier.name}</span>
+                  </div>
+                  <Badge variant="secondary" className="text-sm">
+                    {formatDuration(tier.durationDays || 365)}
+                  </Badge>
+                  {tier.isIncluded && (
+                    <Badge variant="default" className="bg-green-600">Included</Badge>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {editingTier === tier.id ? (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <span className="text-lg font-bold">$</span>
+                        <Input
+                          type="number"
+                          value={editPrice}
+                          onChange={(e) => setEditPrice(e.target.value)}
+                          className="w-20 text-lg font-bold"
+                          data-testid={`input-price-${tier.code}`}
+                        />
+                      </div>
+                      <Button 
+                        size="sm" 
+                        onClick={() => saveEdit(tier.id)}
+                        disabled={updateMutation.isPending}
+                        data-testid={`button-save-${tier.code}`}
+                      >
+                        Save
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => setEditingTier(null)}
+                        data-testid={`button-cancel-${tier.code}`}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl font-bold text-primary">
+                        ${tier.priceUpcharge || "0"}
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => startEdit(tier)}
+                        data-testid={`button-edit-${tier.code}`}
+                      >
+                        Edit
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            <p className="text-sm text-muted-foreground mt-4">
+              These prices are added to the product total when customers select extended hosting for Custom QR Gifts or QR Dynamics products.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
