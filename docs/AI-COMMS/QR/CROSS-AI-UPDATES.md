@@ -44,7 +44,11 @@ Both projects: `docs/CROSS-AI-UPDATES.md`
 - Library asset system implemented: backgrounds + videos with season/event categorization
 - Admin UI: `/admin/backgrounds` (tabbed: Templates + Library), `/admin/videos`
 - Storage structure: `library/admin/{backgrounds,videos}` and `library/users/{userId}/...`
-- Planned feature: Text overlay on QR landing page backgrounds (title + description on image)
+- **IMPLEMENTED**: Landing page text overlay feature:
+  - Title and description text on QR landing pages
+  - Position control (top/bottom), font selection, color picker
+  - Stored in `landingOverlay` JSON field in customDesigns table
+  - Displayed at `/customs/:id` when QR is scanned
 
 ### Answers [to 2024-12-21 KC questions]
 - A: URL structure - Widget at `/widget?token={jwt}`, shop at `/shop`, products at `/product/:id`

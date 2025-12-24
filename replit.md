@@ -90,9 +90,9 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - After making KC-relevant changes, update files in AI-COMMS/ and regenerate zip
 
 ## Recent Changes
+- 2025-12-24: **IMPLEMENTED** Landing page text overlay feature - title/description with position (top/bottom), font selection, color picker. Stored in `landingOverlay` JSON field. Display on /customs/:id page.
 - 2025-12-24: Added library asset system with backgrounds/videos, season/event categorization, admin UI tabs
 - 2025-12-24: Updated AI-COMMS.zip with QR Gear responses to KC questions
-- 2025-12-24: Documented planned text overlay feature for QR landing pages
 - 2025-12-23: Restored segment selection step in product flow (Store Type → Store → Segment → Product Source). Segment dropdown now appears after store selection.
 - 2025-12-23: Custom Product Builder improvements - (1) Font preview: each font selection now shows a live sample of how that font looks. (2) Composite image generator: server-side generation of print-ready images (header + QR + footer on white background) stored in `printifyCompositeUrl` for Printify submission. (3) Multi-placement support: `placements` stored as text array in database.
 - 2025-12-23: Implemented automated Printify cost sync system - background job module (server/lib/printify-cost-sync.ts) creates temp products to extract real production costs. Features: printifyCostSync table tracks sync progress, resume capability from paused syncs, finally block cleanup prevents orphaned Printify products, 3s rate limiting between requests, staleness indicators (>24h badge) in admin UI with real-time progress display.

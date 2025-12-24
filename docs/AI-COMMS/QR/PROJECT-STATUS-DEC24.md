@@ -165,12 +165,15 @@ Costs older than 24 hours show amber "Stale" badge in admin UI.
 
 ---
 
-## Planned Features
+## Recently Implemented Features
 
-### Text Overlay (Coming Soon)
-- Title and description text on top of background images
-- For QR landing pages when scanned
-- Not printed on physical products
+### Text Overlay (IMPLEMENTED Dec 24)
+- Title and description text overlay on QR landing pages
+- Position control: top or bottom of page
+- Font family selection from available fonts
+- Color picker for text color
+- Admin UI section in Custom Builder for configuration
+- NOT printed on physical products - only displayed when QR scanned
 
 ### Widget Integration (For KC)
 - JWT-based iframe embedding
