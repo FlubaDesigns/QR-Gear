@@ -69,6 +69,14 @@ export default function CustomsPage() {
 
   const topText = design.topText as { text: string; fontFamily: string; fontSize: string } | null;
   const bottomText = design.bottomText as { text: string; fontFamily: string; fontSize: string } | null;
+  const landingOverlay = design.landingOverlay as { 
+    enabled: boolean; 
+    title?: string; 
+    description?: string; 
+    position: "top" | "bottom"; 
+    fontFamily: string; 
+    color: string; 
+  } | null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 py-8 px-4">
@@ -96,35 +104,35 @@ export default function CustomsPage() {
                 </div>
               )}
               
-              {/* Text overlays */}
-              <div className="absolute inset-0 flex flex-col justify-between p-6 pointer-events-none">
-                {topText && (
+              {/* Landing page overlay - displayed when QR is scanned */}
+              {landingOverlay?.enabled && (
+                <div 
+                  className={`absolute inset-x-0 p-6 pointer-events-none ${
+                    landingOverlay.position === "top" ? "top-0" : "bottom-0"
+                  }`}
+                  data-testid="landing-overlay"
+                >
                   <div 
-                    className="text-center"
+                    className="text-center space-y-2"
                     style={{
-                      fontFamily: topText.fontFamily,
-                      fontSize: `${topText.fontSize}px`,
-                      textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
-                      color: "white",
+                      fontFamily: landingOverlay.fontFamily,
+                      color: landingOverlay.color,
+                      textShadow: "2px 2px 4px rgba(0,0,0,0.7)",
                     }}
                   >
-                    {topText.text}
+                    {landingOverlay.title && (
+                      <h2 className="text-2xl font-bold" data-testid="text-landing-title">
+                        {landingOverlay.title}
+                      </h2>
+                    )}
+                    {landingOverlay.description && (
+                      <p className="text-lg" data-testid="text-landing-description">
+                        {landingOverlay.description}
+                      </p>
+                    )}
                   </div>
-                )}
-                {bottomText && (
-                  <div 
-                    className="text-center"
-                    style={{
-                      fontFamily: bottomText.fontFamily,
-                      fontSize: `${bottomText.fontSize}px`,
-                      textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
-                      color: "white",
-                    }}
-                  >
-                    {bottomText.text}
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             
             {/* Design Info */}
@@ -145,7 +153,7 @@ export default function CustomsPage() {
                   </span>
                 )}
                 <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
-                  {design.placement}
+                  {design.placements?.[0] || "Custom"}
                 </span>
               </div>
               

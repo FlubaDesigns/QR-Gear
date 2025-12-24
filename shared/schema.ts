@@ -147,9 +147,12 @@ export const customDesigns = pgTable("custom_designs", {
   productImage: text("product_image"),
   placements: text("placements").array().notNull(),
   backgroundImageUrl: text("background_image_url"),
-  topText: jsonb("top_text"), // {text, fontFamily, fontSize}
-  bottomText: jsonb("bottom_text"), // {text, fontFamily, fontSize}
+  topText: jsonb("top_text"), // {text, fontFamily, fontSize} - for PHYSICAL PRINT
+  bottomText: jsonb("bottom_text"), // {text, fontFamily, fontSize} - for PHYSICAL PRINT
   textUpcharge: decimal("text_upcharge", { precision: 10, scale: 2 }).default("2.00"),
+  // Landing page overlay - displayed when QR is scanned (not printed)
+  // Format: { enabled, title, description, position: 'top'|'bottom', fontFamily, color }
+  landingOverlay: jsonb("landing_overlay"),
   storeType: text("store_type"), // 'Internal' or 'External'
   storeName: text("store_name"),
   segment: text("segment"),

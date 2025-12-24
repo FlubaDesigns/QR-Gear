@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -667,6 +668,15 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
   const [headerFontSize, setHeaderFontSize] = useState("18");
   const [footerFontFamily, setFooterFontFamily] = useState("Arial");
   const [footerFontSize, setFooterFontSize] = useState("16");
+  
+  // Landing page overlay state (displayed when QR is scanned, not printed)
+  const [landingOverlayEnabled, setLandingOverlayEnabled] = useState(false);
+  const [landingTitle, setLandingTitle] = useState("");
+  const [landingDescription, setLandingDescription] = useState("");
+  const [landingPosition, setLandingPosition] = useState<"top" | "bottom">("top");
+  const [landingFontFamily, setLandingFontFamily] = useState("Arial");
+  const [landingColor, setLandingColor] = useState("#FFFFFF");
+  
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundPreview, setBackgroundPreview] = useState<string>("");
   const [textUpcharge, setTextUpcharge] = useState("2.00");
@@ -1152,6 +1162,8 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         formData.append("file", backgroundImage);
         formData.append("type", "custom-design");
         
+        console.log("[Upload] Starting file upload:", backgroundImage.name, backgroundImage.size);
+        
         const uploadRes = await fetch("/api/upload", {
           method: "POST",
           body: formData,
@@ -1160,9 +1172,12 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
         
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
+          console.log("[Upload] Success:", uploadData);
           finalBackgroundUrl = uploadData.url;
         } else {
-          throw new Error("Failed to upload background image");
+          const errorText = await uploadRes.text();
+          console.error("[Upload] Failed:", uploadRes.status, errorText);
+          throw new Error(`Failed to upload background image: ${errorText}`);
         }
       } else if (backgroundPreview && !backgroundPreview.startsWith("blob:")) {
         // Existing URL (not a blob URL) - preserve it
@@ -1185,6 +1200,15 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
           text: footerText,
           fontFamily: footerFontFamily,
           fontSize: footerFontSize,
+        } : null,
+        // Landing page overlay - displayed when QR is scanned (not printed)
+        landingOverlay: landingOverlayEnabled ? {
+          enabled: true,
+          title: landingTitle,
+          description: landingDescription,
+          position: landingPosition,
+          fontFamily: landingFontFamily,
+          color: landingColor,
         } : null,
         textUpcharge: parseFloat(textUpcharge) || 2.00,
         storeType,
@@ -1220,6 +1244,12 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
       setHeaderText("");
       setFooterEnabled(false);
       setFooterText("");
+      setLandingOverlayEnabled(false);
+      setLandingTitle("");
+      setLandingDescription("");
+      setLandingPosition("top");
+      setLandingFontFamily("Arial");
+      setLandingColor("#FFFFFF");
       setSelectedItemId(null);
       setCatalogDetails(null);
       
@@ -1828,6 +1858,106 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
                               style={{ fontFamily: footerFontFamily, fontSize: `${parseInt(footerFontSize) * 0.9}px` }}
                             >
                               {footerText}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Landing Page Overlay - Text shown when QR is scanned */}
+                    <div className="space-y-4 pt-4 border-t">
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={landingOverlayEnabled}
+                          onCheckedChange={setLandingOverlayEnabled}
+                          data-testid="switch-landing-overlay"
+                        />
+                        <Label className="font-semibold">Landing Page Text Overlay</Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Add text that appears over the background when the QR code is scanned (not printed on product).
+                      </p>
+                      
+                      {landingOverlayEnabled && (
+                        <div className="space-y-4 pl-4 border-l-2 border-primary/20">
+                          <div className="space-y-2">
+                            <Label>Title</Label>
+                            <Input
+                              value={landingTitle}
+                              onChange={(e) => setLandingTitle(e.target.value)}
+                              placeholder="Welcome!"
+                              data-testid="input-landing-title"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Description</Label>
+                            <Textarea
+                              value={landingDescription}
+                              onChange={(e) => setLandingDescription(e.target.value)}
+                              placeholder="Scan to see more..."
+                              rows={2}
+                              data-testid="input-landing-description"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-2">
+                              <Label className="text-xs">Position</Label>
+                              <select
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={landingPosition}
+                                onChange={(e) => setLandingPosition(e.target.value as "top" | "bottom")}
+                                data-testid="select-landing-position"
+                              >
+                                <option value="top">Top</option>
+                                <option value="bottom">Bottom</option>
+                              </select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label className="text-xs">Font</Label>
+                              <select
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={landingFontFamily}
+                                onChange={(e) => setLandingFontFamily(e.target.value)}
+                                data-testid="select-landing-font"
+                              >
+                                {FONTS.map((font) => (
+                                  <option key={font} value={font}>{font}</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label className="text-xs">Text Color</Label>
+                              <Input
+                                type="color"
+                                value={landingColor}
+                                onChange={(e) => setLandingColor(e.target.value)}
+                                className="h-10 p-1 cursor-pointer"
+                                data-testid="input-landing-color"
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Landing overlay preview */}
+                          {(landingTitle || landingDescription) && (
+                            <div 
+                              className="p-4 rounded-md border bg-gradient-to-b from-gray-800 to-gray-900 relative overflow-hidden"
+                              style={{ minHeight: "100px" }}
+                            >
+                              <div 
+                                className={`text-center space-y-1 ${landingPosition === "bottom" ? "absolute bottom-4 left-4 right-4" : ""}`}
+                                style={{ 
+                                  fontFamily: landingFontFamily, 
+                                  color: landingColor,
+                                  textShadow: "2px 2px 4px rgba(0,0,0,0.7)"
+                                }}
+                              >
+                                {landingTitle && <h3 className="text-lg font-bold">{landingTitle}</h3>}
+                                {landingDescription && <p className="text-sm">{landingDescription}</p>}
+                              </div>
                             </div>
                           )}
                         </div>

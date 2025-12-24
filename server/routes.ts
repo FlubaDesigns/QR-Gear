@@ -3101,6 +3101,15 @@ ${allPages.map(page => `  <url>
           fontFamily: z.string(),
           fontSize: z.string(),
         }).nullable().optional(),
+        // Landing page overlay - displayed when QR is scanned (not printed)
+        landingOverlay: z.object({
+          enabled: z.boolean(),
+          title: z.string().optional(),
+          description: z.string().optional(),
+          position: z.enum(["top", "bottom"]),
+          fontFamily: z.string(),
+          color: z.string(),
+        }).nullable().optional(),
         textUpcharge: z.number().optional().default(2.00),
         storeType: z.string().nullable().optional(),
         storeName: z.string().nullable().optional(),
@@ -3150,6 +3159,7 @@ ${allPages.map(page => `  <url>
         backgroundImageUrl: validatedData.backgroundImage || null,
         topText: validatedData.topText || null,
         bottomText: validatedData.bottomText || null,
+        landingOverlay: validatedData.landingOverlay || null,
         textUpcharge: String(validatedData.textUpcharge),
         storeType: validatedData.storeType || null,
         storeName: validatedData.storeName || null,
@@ -3188,8 +3198,10 @@ ${allPages.map(page => `  <url>
       
       res.json(updatedDesign);
     } catch (error: any) {
+      console.error("[Custom Design Save] Error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
+        console.error("[Custom Design Save] Zod validation errors:", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
       }
       res.status(500).json({ error: error.message });
     }
