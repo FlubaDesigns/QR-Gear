@@ -647,7 +647,12 @@ interface StoreWithAreas {
   segments?: string[];
 }
 
-function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
+interface AddFromPrintifyPanelProps {
+  onSuccess: () => void;
+  onFilterChange?: (store: string, segment: string) => void;
+}
+
+function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPanelProps) {
   const { toast } = useToast();
   
   // New stepped flow state
@@ -1163,11 +1168,15 @@ function AddFromPrintifyPanel({ onSuccess }: { onSuccess: () => void }) {
     setSelectedStore(store);
     setSelectedSegment("");
     setProductSource("");
+    // Update saved items filter to this store
+    onFilterChange?.(store, "");
   }
   
   function handleSegmentSelect(segment: string) {
     setSelectedSegment(segment);
     setProductSource("");
+    // Update saved items filter to this store+segment
+    onFilterChange?.(selectedStore, segment);
   }
   
   async function saveNewStore() {
@@ -2955,7 +2964,13 @@ function ProductsContent() {
   return (
     <div className="space-y-6">
       <CatalogSyncSection />
-      <AddFromPrintifyPanel onSuccess={() => refetch()} />
+      <AddFromPrintifyPanel 
+        onSuccess={() => refetch()} 
+        onFilterChange={(store, segment) => {
+          setFilterSegment(store);
+          setFilterArea(segment);
+        }}
+      />
 
       <Card>
         <CardHeader className="space-y-3">
