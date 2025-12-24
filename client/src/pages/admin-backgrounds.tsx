@@ -72,7 +72,7 @@ const TEMPLATE_CATEGORIES = [
 ];
 
 const SEASONS = [
-  { value: "", label: "No Season" },
+  { value: "none", label: "No Season" },
   { value: "spring", label: "Spring" },
   { value: "summer", label: "Summer" },
   { value: "fall", label: "Fall" },
@@ -80,7 +80,7 @@ const SEASONS = [
 ];
 
 const EVENTS = [
-  { value: "", label: "No Event" },
+  { value: "none", label: "No Event" },
   { value: "christmas", label: "Christmas" },
   { value: "easter", label: "Easter" },
   { value: "thanksgiving", label: "Thanksgiving" },
@@ -493,16 +493,16 @@ function LibraryBackgroundsContent() {
     name: "",
     description: "",
     category: "",
-    season: "",
-    event: "",
+    season: "none",
+    event: "none",
     isActive: true,
     isFeatured: false,
   });
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [filterSeason, setFilterSeason] = useState("");
-  const [filterEvent, setFilterEvent] = useState("");
+  const [filterSeason, setFilterSeason] = useState("all");
+  const [filterEvent, setFilterEvent] = useState("all");
 
   const { data: assets = [], isLoading } = useQuery<LibraryAsset[]>({
     queryKey: ["/api/admin/library/admin", { assetType: "background", mediaType: "image" }],
@@ -515,8 +515,8 @@ function LibraryBackgroundsContent() {
   });
 
   const filteredAssets = assets.filter((asset) => {
-    if (filterSeason && asset.season !== filterSeason) return false;
-    if (filterEvent && asset.event !== filterEvent) return false;
+    if (filterSeason !== "all" && asset.season !== filterSeason) return false;
+    if (filterEvent !== "all" && asset.event !== filterEvent) return false;
     return true;
   });
 
@@ -556,8 +556,8 @@ function LibraryBackgroundsContent() {
       name: "",
       description: "",
       category: "",
-      season: "",
-      event: "",
+      season: "none",
+      event: "none",
       isActive: true,
       isFeatured: false,
     });
@@ -571,8 +571,8 @@ function LibraryBackgroundsContent() {
       name: "",
       description: "",
       category: "",
-      season: "",
-      event: "",
+      season: "none",
+      event: "none",
       isActive: true,
       isFeatured: false,
     });
@@ -587,8 +587,8 @@ function LibraryBackgroundsContent() {
       name: asset.name,
       description: asset.description || "",
       category: asset.category || "",
-      season: asset.season || "",
-      event: asset.event || "",
+      season: asset.season || "none",
+      event: asset.event || "none",
       isActive: asset.isActive,
       isFeatured: asset.isFeatured,
     });
@@ -621,6 +621,10 @@ function LibraryBackgroundsContent() {
     setUploading(true);
 
     try {
+      // Convert "none" back to null/empty for database storage
+      const seasonValue = formData.season === "none" ? null : formData.season;
+      const eventValue = formData.event === "none" ? null : formData.event;
+      
       if (editingAsset) {
         await updateMutation.mutateAsync({
           id: editingAsset.id,
@@ -628,8 +632,8 @@ function LibraryBackgroundsContent() {
             name: formData.name,
             description: formData.description || null,
             category: formData.category || null,
-            season: formData.season || null,
-            event: formData.event || null,
+            season: seasonValue,
+            event: eventValue,
             isActive: formData.isActive,
             isFeatured: formData.isFeatured,
           },
@@ -642,8 +646,8 @@ function LibraryBackgroundsContent() {
         formDataObj.append("assetType", "background");
         formDataObj.append("mediaType", "image");
         formDataObj.append("category", formData.category);
-        formDataObj.append("season", formData.season);
-        formDataObj.append("event", formData.event);
+        formDataObj.append("season", seasonValue || "");
+        formDataObj.append("event", eventValue || "");
 
         const response = await fetch("/api/admin/library/upload", {
           method: "POST",
@@ -697,8 +701,8 @@ function LibraryBackgroundsContent() {
                   <SelectValue placeholder="All Seasons" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Seasons</SelectItem>
-                  {SEASONS.filter(s => s.value).map((s) => (
+                  <SelectItem value="all">All Seasons</SelectItem>
+                  {SEASONS.filter(s => s.value !== "none").map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -711,8 +715,8 @@ function LibraryBackgroundsContent() {
                   <SelectValue placeholder="All Events" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Events</SelectItem>
-                  {EVENTS.filter(e => e.value).map((e) => (
+                  <SelectItem value="all">All Events</SelectItem>
+                  {EVENTS.filter(e => e.value !== "none").map((e) => (
                     <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -858,7 +862,7 @@ function LibraryBackgroundsContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {SEASONS.map((s) => (
-                      <SelectItem key={s.value || "none"} value={s.value || " "}>{s.label}</SelectItem>
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -874,7 +878,7 @@ function LibraryBackgroundsContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {EVENTS.map((e) => (
-                      <SelectItem key={e.value || "none"} value={e.value || " "}>{e.label}</SelectItem>
+                      <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
