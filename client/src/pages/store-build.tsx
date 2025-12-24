@@ -451,7 +451,7 @@ export default function StoreBuildPage() {
                   return (
                     <div
                       key={product.id}
-                      className="w-full max-w-3xl border-2 border-blue-500 rounded-xl p-4 bg-card"
+                      className="w-full max-w-3xl border-2 border-blue-500 rounded-xl p-4 bg-card overflow-hidden"
                       data-testid={`product-card-${product.id}`}
                     >
                       {/* Row 1: Image (left) + Name/Manufacturer/Flag (right) */}
