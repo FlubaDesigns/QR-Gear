@@ -1820,7 +1820,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                     Sizes{details.sizesFromDatabase && <span className="text-green-600 ml-2">(cached)</span>}
                                   </div>
                                   <div className="flex gap-2 flex-wrap">
-                                    {details.sizes.slice(0, 8).map((size) => (
+                                    {details.sizes.slice(0, 8).map((size: string) => (
                                       <Badge key={size} variant="secondary" className="text-sm px-3 py-1">{size}</Badge>
                                     ))}
                                     {details.sizes.length > 8 && (
@@ -1837,7 +1837,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                     Colors{details.colorsFromDatabase && <span className="text-green-600 ml-2">(cached)</span>}
                                   </div>
                                   <div className="flex gap-2 flex-wrap">
-                                    {details.colors.slice(0, 12).map((color, idx) => {
+                                    {details.colors.slice(0, 12).map((color: any, idx: number) => {
                                       const colorName = typeof color === 'object' ? color.name : color;
                                       const colorHex = typeof color === 'object' ? color.hex : getSwatchColor(color);
                                       return (
@@ -1865,94 +1865,6 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* Configure Sizes & Colors (after product selected) */}
-                {selectedItemId && categoryData && (() => {
-                  const selectedItem = categoryData.items.find(i => i.id === selectedItemId);
-                  const details = itemDetails[selectedItemId];
-                  if (!selectedItem || !details) return null;
-                  
-                  return (
-                    <div className="space-y-5 p-4 bg-muted/30 rounded-lg border-2 border-primary/30">
-                      {/* Pricing summary at top */}
-                      <div>
-                        <div className="text-sm text-muted-foreground uppercase mb-1">Production Cost</div>
-                        <div className="text-2xl font-bold text-primary">
-                          {details.basePrice > 0 
-                            ? (details.maxPrice && details.maxPrice > details.basePrice 
-                                ? `$${details.basePrice.toFixed(2)} – $${details.maxPrice.toFixed(2)}`
-                                : `$${details.basePrice.toFixed(2)}`)
-                            : "—"}
-                        </div>
-                        {details.costsFromDatabase && details.basePrice > 0 && (
-                          <div className="text-sm text-green-600">(cached)</div>
-                        )}
-                      </div>
-                      
-                      {/* Sizes with inline toggles */}
-                      {details.sizes && details.sizes.length > 0 && (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-lg font-semibold">Sizes</Label>
-                            <span className="text-sm text-muted-foreground">
-                              {enabledSizes.size} of {details.sizes.length} selected
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-3">
-                            {details.sizes.map((size: string) => (
-                              <div 
-                                key={size}
-                                className="flex items-center gap-2 p-2 bg-background rounded-lg border-2 border-border min-w-[80px]"
-                              >
-                                <Switch
-                                  checked={enabledSizes.has(size)}
-                                  onCheckedChange={() => toggleSize(size)}
-                                  data-testid={`switch-size-inline-${size}`}
-                                />
-                                <span className="text-base font-medium">{size}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Colors with inline toggles */}
-                      {details.colors && details.colors.length > 0 && (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-lg font-semibold">Colors</Label>
-                            <span className="text-sm text-muted-foreground">
-                              {enabledColors.size} of {details.colors.length} selected
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-3">
-                            {details.colors.map((color: any, idx: number) => {
-                              const colorName = typeof color === 'string' ? color : color.name;
-                              const colorHex = typeof color === 'string' ? getSwatchColor(color) : (color.hex || getSwatchColor(color.name));
-                              return (
-                                <div 
-                                  key={colorName || idx}
-                                  className="flex items-center gap-2 p-2 bg-background rounded-lg border-2 border-border"
-                                >
-                                  <Switch
-                                    checked={enabledColors.has(colorName)}
-                                    onCheckedChange={() => toggleColor(colorName)}
-                                    data-testid={`switch-color-inline-${colorName}`}
-                                  />
-                                  <div 
-                                    className="w-7 h-7 rounded-md border-2 border-border shadow-sm"
-                                    style={{ backgroundColor: colorHex }}
-                                  />
-                                  <span className="text-sm">{colorName}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
                 {/* 3. Print Placement Options (after product selected) - Multi-select */}
                 {selectedItemId && (
                   <div className="space-y-2">
