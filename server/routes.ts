@@ -15,6 +15,7 @@ import { sendOrderConfirmationEmail } from "./lib/email";
 import { submitOrderToPrintify, checkPrintifyOrderStatus } from "./lib/printify-orders";
 import { startCronJobs } from "./lib/cron-jobs";
 import { z } from "zod";
+import QRCode from "qrcode";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth
@@ -3144,7 +3145,6 @@ ${allPages.map(page => `  <url>
       }
       
       // Generate QR code pointing to the /customs/:id URL
-      const QRCode = require("qrcode");
       const baseUrl = process.env.REPLIT_DOMAINS 
         ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
         : "http://localhost:5000";
