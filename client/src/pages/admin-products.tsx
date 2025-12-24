@@ -1991,10 +1991,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       {headerEnabled && (
                         <div className="space-y-3">
                           <Input
-                            placeholder="Enter top text (max 20 chars)"
+                            placeholder="Enter top text (max 35 chars)"
                             value={headerText}
-                            onChange={(e) => setHeaderText(e.target.value.slice(0, 20))}
-                            maxLength={20}
+                            onChange={(e) => setHeaderText(e.target.value.slice(0, 35))}
+                            maxLength={35}
                             className="text-base h-11"
                             data-testid="input-header-text"
                           />
@@ -2053,10 +2053,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       {footerEnabled && (
                         <div className="space-y-3">
                           <Input
-                            placeholder="Enter bottom text (max 30 chars)"
+                            placeholder="Enter bottom text (max 40 chars)"
                             value={footerText}
-                            onChange={(e) => setFooterText(e.target.value.slice(0, 30))}
-                            maxLength={30}
+                            onChange={(e) => setFooterText(e.target.value.slice(0, 40))}
+                            maxLength={40}
                             className="text-base h-11"
                             data-testid="input-footer-text"
                           />
