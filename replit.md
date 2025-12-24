@@ -90,6 +90,7 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - After making KC-relevant changes, update files in AI-COMMS/ and regenerate zip
 
 ## Recent Changes
+- 2025-12-24: **ENHANCED** Cost sync now also caches availableColors (JSONB) and availableSizes (text array) in printifyPrintProviders table. Frontend shows "(cached)" indicators when data comes from database. API endpoints return colorsFromDatabase/sizesFromDatabase flags.
 - 2025-12-24: **IMPLEMENTED** Landing page text overlay feature - title/description with position (top/bottom), font selection, color picker. Stored in `landingOverlay` JSON field. Display on /customs/:id page.
 - 2025-12-24: Added library asset system with backgrounds/videos, season/event categorization, admin UI tabs
 - 2025-12-24: Updated AI-COMMS.zip with QR Gear responses to KC questions
@@ -101,7 +102,7 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - 2025-12-22: Added Printify catalog sync feature with local caching (printifyBlueprints, printifyPrintProviders tables), on-demand sync from admin products page, real-time status updates
 
 ## Printify Cost Sync System
-The cost sync system extracts real production costs from Printify by creating temporary placeholder products (since Printify's catalog API doesn't expose costs):
+The cost sync system extracts real production costs, colors, and sizes from Printify by creating temporary placeholder products (since Printify's catalog API doesn't expose this data):
 
 **Key Components:**
 - `server/lib/printify-cost-sync.ts`: Background job module with rate limiting and resume capability
@@ -109,9 +110,10 @@ The cost sync system extracts real production costs from Printify by creating te
 - Admin endpoints: `/api/admin/catalog/sync-all-costs`, `/api/admin/catalog/cost-sync-status`, `/api/admin/catalog/cancel-cost-sync`
 
 **Features:**
-- Creates temp products with placeholder image to extract variant costs
-- Stores minCost/maxCost in printifyPrintProviders table
+- Creates temp products with placeholder image to extract variant costs, colors, and sizes
+- Stores minCost/maxCost, availableColors (JSONB), availableSizes (text array) in printifyPrintProviders table
 - Resume from paused syncs using lastProcessedProviderId
 - Finally block cleanup prevents orphaned Printify products
 - 3s delay between requests to avoid rate limits
 - Staleness threshold: 24 hours (amber badge in admin UI)
+- Frontend shows "(cached)" indicators when data comes from database vs live API

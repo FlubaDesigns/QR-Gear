@@ -1290,10 +1290,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const colors = Array.from(new Set(variants.map(v => v.options?.color).filter(Boolean)));
       const sizes = Array.from(new Set(variants.map(v => v.options?.size).filter(Boolean)));
       
-      // First try to get costs from local database (cached from cost sync)
+      // First try to get costs and colors/sizes from local database (cached from cost sync)
       let basePrice = 0;
       let maxPrice = 0;
       let costsFromDatabase = false;
+      let cachedColors: any[] | null = null;
+      let cachedSizes: string[] | null = null;
       
       if (selectedProvider) {
         const storedProvider = await storage.getPrintifyPrintProvider(blueprintId, selectedProvider.id);
@@ -1301,6 +1303,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           basePrice = storedProvider.minCost / 100;
           maxPrice = (storedProvider.maxCost || storedProvider.minCost) / 100;
           costsFromDatabase = true;
+        }
+        // Use cached colors/sizes if available
+        if (storedProvider?.availableColors && Array.isArray(storedProvider.availableColors)) {
+          cachedColors = storedProvider.availableColors as any[];
+        }
+        if (storedProvider?.availableSizes && Array.isArray(storedProvider.availableSizes)) {
+          cachedSizes = storedProvider.availableSizes as string[];
         }
       }
       
@@ -1311,17 +1320,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         maxPrice = costs.length > 0 ? Math.max(...costs) / 100 : 0;
       }
       
+      // Use cached colors/sizes if available, otherwise use live extracted ones
+      const finalColors = cachedColors || colors;
+      const finalSizes = cachedSizes || sizes;
+      
       const responseData = {
         blueprint,
         providers: usaProviders.length > 0 ? usaProviders : providers,
         selectedProvider,
         madeInUSA: usaProviders.length > 0,
         variants,
-        colors,
-        sizes,
+        colors: finalColors,
+        sizes: finalSizes,
         basePrice,
         maxPrice,
         costsFromDatabase,
+        colorsFromDatabase: cachedColors !== null,
+        sizesFromDatabase: cachedSizes !== null,
         costsAvailable: basePrice > 0,
         imageUrl: blueprint.images?.[0] || null,
       };
@@ -1389,14 +1404,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          // Extract colors and sizes
-          const colors = Array.from(new Set(variants.map((v: any) => v.options?.color).filter(Boolean)));
-          const sizes = Array.from(new Set(variants.map((v: any) => v.options?.size).filter(Boolean)));
+          // Extract colors and sizes from live API
+          const liveColors = Array.from(new Set(variants.map((v: any) => v.options?.color).filter(Boolean)));
+          const liveSizes = Array.from(new Set(variants.map((v: any) => v.options?.size).filter(Boolean)));
           
-          // First try to get costs from local database (cached from placeholder products)
+          // First try to get costs and colors/sizes from local database (cached from cost sync)
           let basePrice = 0;
           let maxPrice = 0;
           let costsFromDatabase = false;
+          let cachedColors: any[] | null = null;
+          let cachedSizes: string[] | null = null;
           
           if (selectedProvider) {
             const storedProvider = await storage.getPrintifyPrintProvider(blueprintId, selectedProvider.id);
@@ -1404,6 +1421,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               basePrice = storedProvider.minCost / 100;
               maxPrice = (storedProvider.maxCost || storedProvider.minCost) / 100;
               costsFromDatabase = true;
+            }
+            // Use cached colors/sizes if available
+            if (storedProvider?.availableColors && Array.isArray(storedProvider.availableColors)) {
+              cachedColors = storedProvider.availableColors as any[];
+            }
+            if (storedProvider?.availableSizes && Array.isArray(storedProvider.availableSizes)) {
+              cachedSizes = storedProvider.availableSizes as string[];
             }
           }
           
@@ -1414,14 +1438,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             maxPrice = costs.length > 0 ? Math.max(...costs) / 100 : 0;
           }
           
+          // Use cached colors/sizes if available, otherwise use live extracted ones
+          const finalColors = cachedColors || liveColors;
+          const finalSizes = cachedSizes || liveSizes;
+          
           const data = {
             blueprintId,
             basePrice,
             maxPrice,
             costsAvailable: basePrice > 0,
             costsFromDatabase,
-            colors,
-            sizes,
+            colors: finalColors,
+            sizes: finalSizes,
+            colorsFromDatabase: cachedColors !== null,
+            sizesFromDatabase: cachedSizes !== null,
             madeInUSA: usaProviders.length > 0,
             providerId: selectedProvider?.id,
             providerName: selectedProvider?.title,
@@ -1527,11 +1557,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const providers = await storage.getPrintifyPrintProviders(blueprintId);
+      const usaProviders = providers.filter(p => p.isUSA);
+      
+      // Get first USA provider's cached data for colors/sizes/costs
+      const selectedProvider = usaProviders[0] || providers[0];
+      let colors: any[] = [];
+      let sizes: string[] = [];
+      let basePrice = 0;
+      let maxPrice = 0;
+      
+      if (selectedProvider) {
+        if (selectedProvider.availableColors && Array.isArray(selectedProvider.availableColors)) {
+          colors = selectedProvider.availableColors as any[];
+        }
+        if (selectedProvider.availableSizes && Array.isArray(selectedProvider.availableSizes)) {
+          sizes = selectedProvider.availableSizes as string[];
+        }
+        if (selectedProvider.minCost) {
+          basePrice = selectedProvider.minCost / 100;
+          maxPrice = (selectedProvider.maxCost || selectedProvider.minCost) / 100;
+        }
+      }
       
       res.json({
         ...blueprint,
         providers,
-        usaProviders: providers.filter(p => p.isUSA),
+        usaProviders,
+        selectedProvider,
+        colors,
+        sizes,
+        basePrice,
+        maxPrice,
+        costsAvailable: basePrice > 0,
+        colorsFromDatabase: colors.length > 0,
+        sizesFromDatabase: sizes.length > 0,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get provider details with colors/sizes from local cache
+  app.get("/api/admin/catalog/providers/:blueprintId/:providerId", isAdmin, async (req: any, res) => {
+    try {
+      const blueprintId = parseInt(req.params.blueprintId);
+      const providerId = parseInt(req.params.providerId);
+      
+      const provider = await storage.getPrintifyPrintProvider(blueprintId, providerId);
+      
+      if (!provider) {
+        return res.status(404).json({ error: "Provider not found in local catalog" });
+      }
+      
+      // Parse colors and sizes from provider record
+      const colors = provider.availableColors && Array.isArray(provider.availableColors) 
+        ? provider.availableColors as any[] 
+        : [];
+      const sizes = provider.availableSizes && Array.isArray(provider.availableSizes) 
+        ? provider.availableSizes as string[] 
+        : [];
+      
+      res.json({
+        ...provider,
+        colors,
+        sizes,
+        basePrice: provider.minCost ? provider.minCost / 100 : 0,
+        maxPrice: provider.maxCost ? provider.maxCost / 100 : (provider.minCost ? provider.minCost / 100 : 0),
+        costsAvailable: provider.minCost !== null && provider.minCost > 0,
+        colorsFromDatabase: colors.length > 0,
+        sizesFromDatabase: sizes.length > 0,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

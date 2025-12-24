@@ -555,6 +555,8 @@ export const printifyPrintProviders = pgTable("printify_print_providers", {
   isUSA: boolean("is_usa").default(false),
   minCost: integer("min_cost"), // Minimum production cost in cents across variants
   maxCost: integer("max_cost"), // Maximum production cost in cents across variants
+  availableColors: jsonb("available_colors"), // Array of {name: string, hex?: string}
+  availableSizes: text("available_sizes").array(), // Array of size strings
   placeholderProductId: text("placeholder_product_id"), // Printify product ID used to fetch costs
   costsFetchedAt: timestamp("costs_fetched_at"), // When costs were last retrieved
   lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),

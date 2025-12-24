@@ -475,6 +475,63 @@ class PrintifyClient {
       maxCost: Math.max(...costs),
     };
   }
+
+  /**
+   * Extract unique colors and sizes from a product's variants.
+   * Returns arrays of color objects and size strings.
+   */
+  extractColorsAndSizes(product: PrintifyProduct): { 
+    colors: Array<{ name: string; hex?: string }>; 
+    sizes: string[] 
+  } {
+    const colorMap = new Map<string, { name: string; hex?: string }>();
+    const sizeSet = new Set<string>();
+    
+    for (const variant of product.variants || []) {
+      // Extract color from variant options or title
+      if (variant.options) {
+        for (const opt of variant.options) {
+          if (opt.type === 'color' || opt.name?.toLowerCase().includes('color')) {
+            const colorName = opt.value || opt.title || '';
+            if (colorName && !colorMap.has(colorName.toLowerCase())) {
+              colorMap.set(colorName.toLowerCase(), { 
+                name: colorName,
+                hex: opt.hex || undefined
+              });
+            }
+          }
+          if (opt.type === 'size' || opt.name?.toLowerCase().includes('size')) {
+            const sizeName = opt.value || opt.title || '';
+            if (sizeName) sizeSet.add(sizeName);
+          }
+        }
+      }
+      
+      // Fallback: parse from variant title (e.g., "S / White")
+      if (variant.title) {
+        const parts = variant.title.split('/').map((p: string) => p.trim());
+        if (parts.length >= 1 && parts[0]) {
+          // First part is usually size
+          const potentialSize = parts[0].toUpperCase();
+          if (['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'XXL', 'XXXL', 'ONE SIZE'].includes(potentialSize)) {
+            sizeSet.add(parts[0]);
+          }
+        }
+        if (parts.length >= 2 && parts[1]) {
+          // Second part is usually color
+          const colorName = parts[1];
+          if (!colorMap.has(colorName.toLowerCase())) {
+            colorMap.set(colorName.toLowerCase(), { name: colorName });
+          }
+        }
+      }
+    }
+
+    return {
+      colors: Array.from(colorMap.values()),
+      sizes: Array.from(sizeSet),
+    };
+  }
 }
 
 export const printify = new PrintifyClient();

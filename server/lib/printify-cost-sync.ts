@@ -150,14 +150,17 @@ async function runCostSyncBackground(
       tempProductId = placeholderProduct.id;
 
       const costs = printify.extractCostsFromProduct(placeholderProduct);
+      const colorsAndSizes = printify.extractColorsAndSizes(placeholderProduct);
 
       await storage.updatePrintifyProviderCosts(provider.blueprintId, provider.providerId, {
         minCost: costs.minCost,
         maxCost: costs.maxCost,
         placeholderProductId: placeholderProduct.id,
+        availableColors: colorsAndSizes.colors,
+        availableSizes: colorsAndSizes.sizes,
       });
 
-      console.log(`[Cost Sync] ${provider.blueprintId}/${provider.providerId}: $${(costs.minCost / 100).toFixed(2)} - $${(costs.maxCost / 100).toFixed(2)}`);
+      console.log(`[Cost Sync] ${provider.blueprintId}/${provider.providerId}: $${(costs.minCost / 100).toFixed(2)} - $${(costs.maxCost / 100).toFixed(2)}, ${colorsAndSizes.colors.length} colors, ${colorsAndSizes.sizes.length} sizes`);
       successCount++;
 
     } catch (err: any) {

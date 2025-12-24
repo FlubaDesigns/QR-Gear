@@ -760,7 +760,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     maxPrice?: number;
     costsAvailable?: boolean;
     costsFromDatabase?: boolean;
-    colors: string[];
+    colorsFromDatabase?: boolean;
+    sizesFromDatabase?: boolean;
+    colors: any[];
     sizes: string[];
     providerId?: number;
     providerName?: string;
@@ -939,6 +941,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   maxPrice: d.maxPrice || 0,
                   costsAvailable: d.costsAvailable || false,
                   costsFromDatabase: d.costsFromDatabase || false,
+                  colorsFromDatabase: d.colorsFromDatabase || false,
+                  sizesFromDatabase: d.sizesFromDatabase || false,
                   colors: d.colors || [],
                   sizes: d.sizes || [],
                   providerId: d.providerId,
@@ -1735,7 +1739,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 {selectedCategory && categoryData && (
                   <div className="space-y-2">
                     <Label className="font-semibold">Step 3: Select Product</Label>
-                    <div className="max-h-48 overflow-y-auto border rounded-md p-2 bg-background space-y-1">
+                    <div className="max-h-64 overflow-y-auto border-2 border-border rounded-lg p-3 bg-background space-y-3">
                       {(() => {
                         const items = customLocationFilter === "usa" 
                           ? categoryData.items.filter(i => i.madeInUSA)
@@ -1747,43 +1751,93 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           return (
                             <div
                               key={item.id}
-                              className={`p-2 rounded cursor-pointer ${selectedItemId === item.id ? "bg-primary/20 border border-primary" : "hover-elevate"}`}
+                              className={`p-3 rounded-lg cursor-pointer border-2 transition-all ${selectedItemId === item.id ? "bg-primary/10 border-primary shadow-sm" : "border-border hover:border-primary/50 hover:bg-muted/50"}`}
                               onClick={() => {
                                 setSelectedItemId(item.id);
                                 fetchItemDetails(item.id);
                               }}
                               data-testid={`custom-item-${item.id}`}
                             >
-                              <div className="flex items-center gap-2">
-                                <img src={item.imageUrl || ""} alt={item.title} className="w-10 h-10 rounded object-cover" />
+                              {/* Row 1: Image + Title + Price */}
+                              <div className="flex items-start gap-3">
+                                <img src={item.imageUrl || ""} alt={item.title} className="w-14 h-14 rounded-lg object-cover border border-border flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium truncate">{item.title}</div>
-                                  <div className="text-xs text-muted-foreground">{item.brand} {item.madeInUSA && "🇺🇸"}</div>
+                                  <div className="text-sm font-semibold leading-tight">{item.title}</div>
+                                  <div className="text-xs text-muted-foreground mt-0.5">{item.brand} {item.madeInUSA && <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">USA</Badge>}</div>
+                                  {/* Price */}
+                                  <div className="mt-2">
+                                    {details && !details.error ? (
+                                      <div className="flex items-baseline gap-2">
+                                        <span className="text-lg font-bold text-green-600">
+                                          {details.basePrice > 0 ? `$${details.basePrice.toFixed(2)}` : "-"}
+                                        </span>
+                                        {details.maxPrice && details.maxPrice > details.basePrice && (
+                                          <span className="text-sm text-muted-foreground">to ${details.maxPrice.toFixed(2)}</span>
+                                        )}
+                                        {details.costsFromDatabase && details.basePrice > 0 && (
+                                          <span className="text-[10px] text-green-600">(cached)</span>
+                                        )}
+                                        {details.basePrice === 0 && (
+                                          <span className="text-xs text-amber-600">Sync costs needed</span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">Loading...</span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                              {/* Price on new row */}
-                              <div className="mt-1 text-center">
-                                {details && !details.error ? (
-                                  <span className="text-xl font-bold text-green-600">
-                                    {details.basePrice > 0 ? (
-                                      <>
-                                        ${details.basePrice.toFixed(2)}
-                                        {details.maxPrice && details.maxPrice > details.basePrice && (
-                                          <span className="text-sm font-semibold"> - ${details.maxPrice.toFixed(2)}</span>
+                              
+                              {/* Row 2: Colors and Sizes (only show when details loaded) */}
+                              {details && !details.error && (details.colors.length > 0 || details.sizes.length > 0) && (
+                                <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                                  {/* Color Swatches */}
+                                  {details.colors.length > 0 && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs text-muted-foreground font-medium">
+                                        Colors{details.colorsFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
+                                      </span>
+                                      <div className="flex gap-1 flex-wrap">
+                                        {details.colors.slice(0, 8).map((color, idx) => {
+                                          const colorName = typeof color === 'object' ? color.name : color;
+                                          const colorHex = typeof color === 'object' ? color.hex : getSwatchColor(color);
+                                          return (
+                                            <div
+                                              key={colorName || idx}
+                                              className="w-5 h-5 rounded-full border border-border shadow-sm"
+                                              style={{ backgroundColor: colorHex || getSwatchColor(colorName) }}
+                                              title={colorName}
+                                            />
+                                          );
+                                        })}
+                                        {details.colors.length > 8 && (
+                                          <span className="text-xs text-muted-foreground self-center">+{details.colors.length - 8}</span>
                                         )}
-                                      </>
-                                    ) : (
-                                      <span className="text-muted-foreground text-xs font-normal">Sync costs</span>
-                                    )}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">-</span>
-                                )}
-                              </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Sizes */}
+                                  {details.sizes.length > 0 && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs text-muted-foreground font-medium">
+                                        Sizes{details.sizesFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
+                                      </span>
+                                      <div className="flex gap-1 flex-wrap">
+                                        {details.sizes.slice(0, 6).map((size) => (
+                                          <Badge key={size} variant="secondary" className="text-[10px] px-1.5 py-0">{size}</Badge>
+                                        ))}
+                                        {details.sizes.length > 6 && (
+                                          <span className="text-xs text-muted-foreground">+{details.sizes.length - 6}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         }) : (
-                          <p className="text-sm text-muted-foreground p-2">No products match this filter</p>
+                          <p className="text-sm text-muted-foreground p-4 text-center">No products match this filter</p>
                         );
                       })()}
                     </div>

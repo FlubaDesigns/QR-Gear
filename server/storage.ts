@@ -220,7 +220,7 @@ export interface IStorage {
   getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]>;
   getPrintifyPrintProvider(blueprintId: number, providerId: number): Promise<PrintifyPrintProvider | undefined>;
   upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider>;
-  updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string }): Promise<PrintifyPrintProvider | undefined>;
+  updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string; availableColors?: any[]; availableSizes?: string[] }): Promise<PrintifyPrintProvider | undefined>;
   deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void>;
   clearPrintifyPrintProviders(): Promise<void>;
   
@@ -1039,15 +1039,22 @@ export class DbStorage implements IStorage {
     return result;
   }
 
-  async updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string }): Promise<PrintifyPrintProvider | undefined> {
+  async updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string; availableColors?: any[]; availableSizes?: string[] }): Promise<PrintifyPrintProvider | undefined> {
+    const updateData: any = {
+      minCost: costs.minCost,
+      maxCost: costs.maxCost,
+      placeholderProductId: costs.placeholderProductId ?? null,
+      costsFetchedAt: new Date(),
+    };
+    if (costs.availableColors !== undefined) {
+      updateData.availableColors = costs.availableColors;
+    }
+    if (costs.availableSizes !== undefined) {
+      updateData.availableSizes = costs.availableSizes;
+    }
     const [updated] = await this.db
       .update(schema.printifyPrintProviders)
-      .set({
-        minCost: costs.minCost,
-        maxCost: costs.maxCost,
-        placeholderProductId: costs.placeholderProductId ?? null,
-        costsFetchedAt: new Date(),
-      })
+      .set(updateData)
       .where(and(
         eq(schema.printifyPrintProviders.blueprintId, blueprintId),
         eq(schema.printifyPrintProviders.providerId, providerId)
@@ -2205,6 +2212,8 @@ class MemStorage implements IStorage {
       isUSA: provider.isUSA ?? false,
       minCost: null,
       maxCost: null,
+      availableColors: null,
+      availableSizes: null,
       placeholderProductId: null,
       costsFetchedAt: null,
       lastSyncedAt: new Date(),
@@ -2213,17 +2222,23 @@ class MemStorage implements IStorage {
     return result;
   }
 
-  async updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string }): Promise<PrintifyPrintProvider | undefined> {
+  async updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string; availableColors?: any[]; availableSizes?: string[] }): Promise<PrintifyPrintProvider | undefined> {
     const id = `pp_${blueprintId}_${providerId}`;
     const existing = this.printifyPrintProviders.get(id);
     if (!existing) return undefined;
-    const updated = {
+    const updated: any = {
       ...existing,
       minCost: costs.minCost,
       maxCost: costs.maxCost,
       placeholderProductId: costs.placeholderProductId ?? null,
       costsFetchedAt: new Date(),
     };
+    if (costs.availableColors !== undefined) {
+      updated.availableColors = costs.availableColors;
+    }
+    if (costs.availableSizes !== undefined) {
+      updated.availableSizes = costs.availableSizes;
+    }
     this.printifyPrintProviders.set(id, updated);
     return updated;
   }
