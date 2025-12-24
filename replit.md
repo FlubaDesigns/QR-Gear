@@ -124,8 +124,11 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 
 ### Landing Page Images (Digital Display)
 - **Dimensions**: 1080 × 1920 px (9:16 portrait)
+- **Format**: JPG @ 80-85% quality, ≤300 KB
 - **For**: Background images shown on /customs/:id when QR is scanned
-- **Optimized for mobile viewing**
+- **Safe zones**: Top/bottom 15% may be hidden by browser UI - keep key content in center third
+- **Contrast**: Use dark overlay (rgba(0,0,0,0.4)) or light overlay (rgba(255,255,255,0.25)) for text readability
+- **Performance**: Must load in <1 second on mobile - QR users are impatient
 
 ### File Checklist
 ✔ PNG ✔ Transparent background ✔ 300 DPI ✔ 4500×5400 px ✔ RGB ✔ QR ≥ 3" ✔ Clean margins
