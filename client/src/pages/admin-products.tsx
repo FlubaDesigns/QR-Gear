@@ -1759,9 +1759,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               data-testid={`custom-item-${item.id}`}
                             >
                               {/* Row 1: Image (left) + Name/Manufacturer/Flag (right) */}
-                              <div className="flex items-start gap-4 p-4">
+                              <div className="grid grid-cols-[auto_1fr] gap-5 p-5">
                                 <div 
-                                  className="relative group cursor-pointer flex-shrink-0"
+                                  className="relative group cursor-pointer"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setZoomedImage({ url: item.imageUrl || "", title: item.title });
@@ -1772,45 +1772,44 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                     <ZoomIn className="w-6 h-6 text-white" />
                                   </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-base font-semibold leading-tight">{item.title}</div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-sm text-muted-foreground">{item.brand}</span>
+                                <div className="space-y-2">
+                                  <div className="text-lg font-semibold leading-snug">{item.title}</div>
+                                  <div className="flex items-center gap-4">
+                                    <span className="text-base text-muted-foreground">{item.brand}</span>
                                     {item.madeInUSA ? (
                                       <img 
                                         src="https://flagcdn.com/w40/us.png" 
                                         srcSet="https://flagcdn.com/w80/us.png 2x"
                                         alt="Made in USA"
-                                        className="h-5 w-auto rounded-sm shadow-sm"
+                                        className="h-6 w-auto rounded-sm shadow-sm"
                                       />
                                     ) : (
-                                      <span className="text-xs text-muted-foreground">(International)</span>
+                                      <span className="text-sm text-muted-foreground">(International)</span>
                                     )}
                                   </div>
                                 </div>
                               </div>
                               
                               {/* Row 2: Pricing (full width edge-to-edge) */}
-                              <div className="py-4 px-4 bg-primary/10 border-y-2 border-primary/30">
+                              <div className="py-4 px-5 bg-primary/10 border-y-2 border-primary/30">
                                 {details && !details.error ? (
-                                  <div className="flex flex-col">
-                                    <div className="flex items-baseline gap-2">
-                                      <span className="text-lg font-bold text-primary">
-                                        {details.basePrice > 0 ? `$${details.basePrice.toFixed(2)}` : "-"}
-                                      </span>
-                                      {details.maxPrice && details.maxPrice > details.basePrice && (
-                                        <span className="text-sm text-muted-foreground">to ${details.maxPrice.toFixed(2)}</span>
-                                      )}
-                                      {details.basePrice === 0 && (
-                                        <span className="text-xs text-amber-600">Sync costs needed</span>
-                                      )}
-                                    </div>
+                                  <div>
+                                    <span className="text-xl font-bold text-primary">
+                                      {details.basePrice > 0 
+                                        ? (details.maxPrice && details.maxPrice > details.basePrice 
+                                            ? `$${details.basePrice.toFixed(2)} – $${details.maxPrice.toFixed(2)}`
+                                            : `$${details.basePrice.toFixed(2)}`)
+                                        : "—"}
+                                    </span>
+                                    {details.basePrice === 0 && (
+                                      <span className="text-sm text-amber-600 ml-3">Sync costs needed</span>
+                                    )}
                                     {details.costsFromDatabase && details.basePrice > 0 && (
-                                      <span className="text-xs text-green-600">(cached)</span>
+                                      <div className="text-sm text-green-600 mt-1">(cached)</div>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-sm text-muted-foreground">Loading price...</span>
+                                  <span className="text-base text-muted-foreground">Loading price...</span>
                                 )}
                               </div>
                               
