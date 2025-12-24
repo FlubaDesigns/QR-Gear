@@ -1759,8 +1759,19 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               data-testid={`custom-item-${item.id}`}
                             >
                               {/* Row 1: Image (left) + Name/Manufacturer/Flag (right) */}
-                              <div className="flex items-start gap-3 p-3">
-                                <img src={item.imageUrl || ""} alt={item.title} className="w-20 h-20 rounded-lg object-cover border-2 border-blue-400 flex-shrink-0" />
+                              <div className="flex items-start gap-4 p-4">
+                                <div 
+                                  className="relative group cursor-pointer flex-shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setZoomedImage({ url: item.imageUrl || "", title: item.title });
+                                  }}
+                                >
+                                  <img src={item.imageUrl || ""} alt={item.title} className="w-24 h-24 rounded-lg object-cover border-2 border-blue-400" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                    <ZoomIn className="w-6 h-6 text-white" />
+                                  </div>
+                                </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="text-base font-semibold leading-tight">{item.title}</div>
                                   <div className="flex items-center gap-2 mt-1">
@@ -1780,20 +1791,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               </div>
                               
                               {/* Row 2: Pricing (full width edge-to-edge) */}
-                              <div className="py-3 px-3 bg-primary/10 border-y-2 border-primary/30">
+                              <div className="py-4 px-4 bg-primary/10 border-y-2 border-primary/30">
                                 {details && !details.error ? (
-                                  <div className="flex items-baseline gap-2">
-                                    <span className="text-lg font-bold text-primary">
-                                      {details.basePrice > 0 ? `$${details.basePrice.toFixed(2)}` : "-"}
-                                    </span>
-                                    {details.maxPrice && details.maxPrice > details.basePrice && (
-                                      <span className="text-sm text-muted-foreground">to ${details.maxPrice.toFixed(2)}</span>
-                                    )}
+                                  <div className="flex flex-col">
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="text-lg font-bold text-primary">
+                                        {details.basePrice > 0 ? `$${details.basePrice.toFixed(2)}` : "-"}
+                                      </span>
+                                      {details.maxPrice && details.maxPrice > details.basePrice && (
+                                        <span className="text-sm text-muted-foreground">to ${details.maxPrice.toFixed(2)}</span>
+                                      )}
+                                      {details.basePrice === 0 && (
+                                        <span className="text-xs text-amber-600">Sync costs needed</span>
+                                      )}
+                                    </div>
                                     {details.costsFromDatabase && details.basePrice > 0 && (
                                       <span className="text-xs text-green-600">(cached)</span>
-                                    )}
-                                    {details.basePrice === 0 && (
-                                      <span className="text-xs text-amber-600">Sync costs needed</span>
                                     )}
                                   </div>
                                 ) : (
@@ -1803,7 +1816,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               
                               {/* Row 3: Sizes (full width) */}
                               {details && !details.error && details.sizes.length > 0 && (
-                                <div className="py-2 px-3 border-b border-border/50">
+                                <div className="py-3 px-4 border-b border-border/50">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-xs text-muted-foreground font-medium">
                                       Sizes{details.sizesFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
@@ -1822,7 +1835,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               
                               {/* Row 4: Color Swatches (full width) */}
                               {details && !details.error && details.colors.length > 0 && (
-                                <div className="py-2 px-3">
+                                <div className="py-3 px-4">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-xs text-muted-foreground font-medium">
                                       Colors{details.colorsFromDatabase && <span className="text-green-600 ml-1">(cached)</span>}:
