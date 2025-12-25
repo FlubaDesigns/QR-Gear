@@ -690,7 +690,13 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [catalogDetails, setCatalogDetails] = useState<CatalogDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [selectedPlacements, setSelectedPlacements] = useState<Set<string>>(new Set(["front-chest"]));
+  // Placement configs: map of placement ID to mode ('full' = header+QR+footer, 'qr-only' = just QR)
+  type PlacementMode = 'full' | 'qr-only';
+  const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementMode>>({
+    "front-chest": "full"
+  });
+  // Helper to get selected placements as array (for compatibility)
+  const selectedPlacements = Object.keys(placementConfigs);
   const [headerEnabled, setHeaderEnabled] = useState(false);
   const [headerText, setHeaderText] = useState("");
   const [footerEnabled, setFooterEnabled] = useState(false);
@@ -1167,7 +1173,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     setLocationFilter("all");
     setSelectedItemId(null);
     setCatalogDetails(null);
-    setSelectedPlacements(new Set(["front-chest"]));
+    setPlacementConfigs({"front-chest": "full"});
     setHeaderEnabled(false);
     setHeaderText("");
     setHeaderFontFamily("Arial");
@@ -1339,7 +1345,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     setLocationFilter("all");
     setSelectedItemId(null);
     setCatalogDetails(null);
-    setSelectedPlacements(new Set(["front-chest"]));
+    setPlacementConfigs({"front-chest": "full"});
     setHeaderEnabled(false);
     setHeaderText("");
     setHeaderFontFamily("Arial");
@@ -2159,35 +2165,97 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* 3. Print Placement Options (after product selected) - Multi-select */}
+                {/* 3. Print Placement Options with Mode Toggle */}
                 {selectedItemId && (
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Print Placements (select one or more)</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {QR_PLACEMENTS.map(({ id, label, Icon }) => (
-                        <Button
-                          key={id}
-                          variant={selectedPlacements.has(id) ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            const newSet = new Set(selectedPlacements);
-                            if (newSet.has(id)) {
-                              if (newSet.size > 1) newSet.delete(id);
-                            } else {
-                              newSet.add(id);
-                            }
-                            setSelectedPlacements(newSet);
-                          }}
-                          data-testid={`placement-${id}`}
-                        >
-                          <Icon className="h-4 w-4 mr-1" />
-                          {label}
-                        </Button>
-                      ))}
+                  <div className="space-y-4">
+                    <Label className="font-semibold">Print Placements</Label>
+                    <p className="text-sm text-muted-foreground">Select placements and choose artwork type for each</p>
+                    
+                    <div className="space-y-3">
+                      {QR_PLACEMENTS.map(({ id, label, Icon }) => {
+                        const isSelected = id in placementConfigs;
+                        const mode = placementConfigs[id] || "full";
+                        
+                        return (
+                          <div 
+                            key={id}
+                            className={`p-3 rounded-lg border-2 transition-colors ${isSelected ? "border-primary bg-primary/5" : "border-border"}`}
+                          >
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                              {/* Placement Selection */}
+                              <Button
+                                variant={isSelected ? "default" : "outline"}
+                                className="h-12 min-w-[140px] flex-1"
+                                onClick={() => {
+                                  const newConfigs = { ...placementConfigs };
+                                  if (isSelected) {
+                                    // Don't allow removing last placement
+                                    if (Object.keys(newConfigs).length > 1) {
+                                      delete newConfigs[id];
+                                    }
+                                  } else {
+                                    newConfigs[id] = "full";
+                                  }
+                                  setPlacementConfigs(newConfigs);
+                                }}
+                                data-testid={`placement-${id}`}
+                              >
+                                <Icon className="h-5 w-5 mr-2" />
+                                {label}
+                              </Button>
+                              
+                              {/* Mode Toggle - only show when selected */}
+                              {isSelected && (
+                                <div className="flex gap-1 bg-muted rounded-md p-1">
+                                  <Button
+                                    variant={mode === "full" ? "default" : "ghost"}
+                                    size="sm"
+                                    className="h-10 px-3 text-xs"
+                                    onClick={() => {
+                                      setPlacementConfigs({
+                                        ...placementConfigs,
+                                        [id]: "full"
+                                      });
+                                    }}
+                                    data-testid={`placement-${id}-full`}
+                                  >
+                                    Full Artwork
+                                  </Button>
+                                  <Button
+                                    variant={mode === "qr-only" ? "default" : "ghost"}
+                                    size="sm"
+                                    className="h-10 px-3 text-xs"
+                                    onClick={() => {
+                                      setPlacementConfigs({
+                                        ...placementConfigs,
+                                        [id]: "qr-only"
+                                      });
+                                    }}
+                                    data-testid={`placement-${id}-qr-only`}
+                                  >
+                                    QR Only
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Selected: {Array.from(selectedPlacements).join(", ")}
-                    </p>
+                    
+                    {/* Summary */}
+                    <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                      <div className="font-medium mb-1">Selected Placements:</div>
+                      {Object.entries(placementConfigs).map(([id, mode]) => {
+                        const placement = QR_PLACEMENTS.find(p => p.id === id);
+                        return (
+                          <div key={id} className="flex justify-between text-muted-foreground">
+                            <span>{placement?.label || id}</span>
+                            <span className="text-xs">{mode === "full" ? "Full Artwork" : "QR Only"}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 
@@ -3484,7 +3552,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         
                         // Placements (if available, otherwise use default)
                         if (template.placements && template.placements.length > 0) {
-                          setSelectedPlacements(new Set(template.placements));
+                          const newConfigs: Record<string, 'full' | 'qr-only'> = {};
+                          template.placements.forEach((p: string) => { newConfigs[p] = "full"; });
+                          setPlacementConfigs(newConfigs);
                         }
                         
                         // Header text - always reset to template values or clear
