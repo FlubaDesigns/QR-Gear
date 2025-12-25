@@ -154,6 +154,13 @@ export const customDesigns = pgTable("custom_designs", {
   // Landing page overlay - displayed when QR is scanned (not printed)
   // Format: { enabled, title, description, position: 'top'|'bottom', fontFamily, color }
   landingOverlay: jsonb("landing_overlay"),
+  // QR Type variants: determines what the QR code contains and how landing page behaves
+  // 'plain-text' = QR contains actual text (offline readable, up to ~2000 chars)
+  // 'url' = QR links to hosted landing page with static content (image/text)
+  // 'dynamics' = QR links to landing page showing cycling content based on schedule
+  templateVariant: text("template_variant").default("url"), // 'plain-text', 'url', 'dynamics'
+  // For dynamics variant: links to content set for cycling content
+  dynamicContentSetId: varchar("dynamic_content_set_id"),
   storeType: text("store_type"), // 'Internal' or 'External'
   storeName: text("store_name"),
   segment: text("segment"),
