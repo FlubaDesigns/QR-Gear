@@ -726,7 +726,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [addingSegment, setAddingSegment] = useState(false);
   
   // Fetch partner stores from database for External store type
-  type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null };
+  type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
   const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
     queryKey: ["/api/admin/partner-stores"],
   });
@@ -753,17 +753,27 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const markupFixed = parseFloat(adminSettings?.globalMarkupFixed || "0");
   
   // Derive available stores based on store type
-  // For External, include partner stores from database
-  const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
-    name: ps.name,
-    areas: ps.availableSegments || [],
-  }));
+  // Include partner stores from database filtered by isInternal
+  const dbInternalStores: StoreWithAreas[] = partnerStoresData
+    .filter(ps => ps.isInternal)
+    .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
+  const dbExternalStores: StoreWithAreas[] = partnerStoresData
+    .filter(ps => !ps.isInternal)
+    .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
   
   const availableStores = storeType === "Internal" 
-    ? [...INTERNAL_STORES]
+    ? (() => {
+        const combined = [...INTERNAL_STORES, ...dbInternalStores];
+        const seen = new Set<string>();
+        return combined.filter(s => {
+          if (seen.has(s.name)) return false;
+          seen.add(s.name);
+          return true;
+        });
+      })()
     : storeType === "External"
     ? (() => {
-        const combined = [...EXTERNAL_STORES, ...dbPartnerStores];
+        const combined = [...EXTERNAL_STORES, ...dbExternalStores];
         const seen = new Set<string>();
         return combined.filter(s => {
           if (seen.has(s.name)) return false;
@@ -772,6 +782,12 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         });
       })()
     : [];
+  
+  // All DB stores for segment lookup
+  const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
+    name: ps.name,
+    areas: ps.availableSegments || [],
+  }));
   
   // Find current store's segments - prioritize dbPartnerStores (with segments) over predefined stores
   const allStores: Array<{ name: string; segments?: string[]; areas?: string[] }> = [
@@ -1242,6 +1258,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         slug: uniqueSlug,
         availableSegments: filteredAreas,
         isActive: true,
+        isInternal: storeType === "Internal",
       });
       const savedStore = await response.json();
       
@@ -2718,7 +2735,7 @@ function ProductsContent() {
   const [filterProductCategory, setFilterProductCategory] = useState<string>("");
   const [deleteStoreId, setDeleteStoreId] = useState<string | null>(null);
   const [deleteSegmentInfo, setDeleteSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
-  type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null };
+  type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
   const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
     queryKey: ["/api/admin/partner-stores"],
   });

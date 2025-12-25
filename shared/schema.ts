@@ -186,6 +186,8 @@ export const partnerStores = pgTable("partner_stores", {
   commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0"),
   // Store segments this partner can access
   availableSegments: text("available_segments").array(), // ['Religious', 'Business', etc.]
+  // Whether this is an internal store (our site) vs external (partner sites)
+  isInternal: boolean("is_internal").default(false),
   // Annual member perks - JSON config for free items
   // Format: { enabled: boolean, products: ['T-Shirt', 'Hat'], maxItems: 2 }
   annualMemberPerk: jsonb("annual_member_perk"),
