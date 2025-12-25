@@ -2570,6 +2570,62 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ TEMPLATE CATEGORY ENDPOINTS ============
+
+  // Admin: Get all template categories (hierarchical)
+  app.get("/api/admin/template-categories", isAdmin, async (req: any, res) => {
+    try {
+      const categories = await storage.getTemplateCategories();
+      res.json(categories);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get template categories by parent (null for top-level)
+  app.get("/api/admin/template-categories/by-parent", isAdmin, async (req: any, res) => {
+    try {
+      const { parentId } = req.query;
+      const categories = await storage.getTemplateCategoriesByParent(parentId || null);
+      res.json(categories);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Create template category
+  app.post("/api/admin/template-categories", isAdmin, async (req: any, res) => {
+    try {
+      const category = await storage.createTemplateCategory(req.body);
+      res.json(category);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update template category
+  app.put("/api/admin/template-categories/:id", isAdmin, async (req: any, res) => {
+    try {
+      const updated = await storage.updateTemplateCategory(req.params.id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Template category not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Delete template category (soft delete)
+  app.delete("/api/admin/template-categories/:id", isAdmin, async (req: any, res) => {
+    try {
+      await storage.deleteTemplateCategory(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Create library asset
   app.post("/api/admin/library", isAdmin, async (req: any, res) => {
     try {

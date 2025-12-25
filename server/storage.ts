@@ -72,6 +72,8 @@ import type {
   InsertGiftCode,
   GiftRedemption,
   InsertGiftRedemption,
+  TemplateCategory,
+  InsertTemplateCategory,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -263,6 +265,13 @@ export interface IStorage {
   createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign>;
   updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined>;
   deleteCustomDesign(id: string): Promise<void>;
+
+  // Template Category operations
+  getTemplateCategories(): Promise<TemplateCategory[]>;
+  getTemplateCategoriesByParent(parentId: string | null): Promise<TemplateCategory[]>;
+  createTemplateCategory(category: InsertTemplateCategory): Promise<TemplateCategory>;
+  updateTemplateCategory(id: string, category: Partial<InsertTemplateCategory>): Promise<TemplateCategory | undefined>;
+  deleteTemplateCategory(id: string): Promise<void>;
 
   // Library Asset operations
   getLibraryAsset(id: string): Promise<LibraryAsset | undefined>;
@@ -1300,6 +1309,41 @@ export class DbStorage implements IStorage {
 
   async deleteCustomDesign(id: string): Promise<void> {
     await this.db.delete(schema.customDesigns).where(eq(schema.customDesigns.id, id));
+  }
+
+  // Template Category operations
+  async getTemplateCategories(): Promise<TemplateCategory[]> {
+    return await this.db.select().from(schema.templateCategories)
+      .where(eq(schema.templateCategories.isActive, true))
+      .orderBy(schema.templateCategories.sortOrder);
+  }
+
+  async getTemplateCategoriesByParent(parentId: string | null): Promise<TemplateCategory[]> {
+    const condition = parentId === null 
+      ? sql`${schema.templateCategories.parentId} IS NULL`
+      : eq(schema.templateCategories.parentId, parentId);
+    return await this.db.select().from(schema.templateCategories)
+      .where(and(condition, eq(schema.templateCategories.isActive, true)))
+      .orderBy(schema.templateCategories.sortOrder);
+  }
+
+  async createTemplateCategory(category: InsertTemplateCategory): Promise<TemplateCategory> {
+    const [newCategory] = await this.db.insert(schema.templateCategories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateTemplateCategory(id: string, category: Partial<InsertTemplateCategory>): Promise<TemplateCategory | undefined> {
+    const [updated] = await this.db.update(schema.templateCategories)
+      .set(category)
+      .where(eq(schema.templateCategories.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteTemplateCategory(id: string): Promise<void> {
+    await this.db.update(schema.templateCategories)
+      .set({ isActive: false })
+      .where(eq(schema.templateCategories.id, id));
   }
 
   // Library Asset operations
@@ -2779,6 +2823,50 @@ class MemStorage implements IStorage {
 
   async deleteCustomDesign(id: string): Promise<void> {
     this.customDesigns.delete(id);
+  }
+
+  // Template Category operations (MemStorage)
+  private templateCategories = new Map<string, TemplateCategory>();
+
+  async getTemplateCategories(): Promise<TemplateCategory[]> {
+    return Array.from(this.templateCategories.values())
+      .filter(c => c.isActive)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  async getTemplateCategoriesByParent(parentId: string | null): Promise<TemplateCategory[]> {
+    return Array.from(this.templateCategories.values())
+      .filter(c => c.isActive && c.parentId === parentId)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  async createTemplateCategory(category: InsertTemplateCategory): Promise<TemplateCategory> {
+    const id = crypto.randomUUID();
+    const newCategory: TemplateCategory = {
+      id,
+      name: category.name,
+      parentId: category.parentId ?? null,
+      sortOrder: category.sortOrder ?? 0,
+      isActive: category.isActive ?? true,
+      createdAt: new Date(),
+    };
+    this.templateCategories.set(id, newCategory);
+    return newCategory;
+  }
+
+  async updateTemplateCategory(id: string, category: Partial<InsertTemplateCategory>): Promise<TemplateCategory | undefined> {
+    const existing = this.templateCategories.get(id);
+    if (!existing) return undefined;
+    const updated: TemplateCategory = { ...existing, ...category };
+    this.templateCategories.set(id, updated);
+    return updated;
+  }
+
+  async deleteTemplateCategory(id: string): Promise<void> {
+    const existing = this.templateCategories.get(id);
+    if (existing) {
+      this.templateCategories.set(id, { ...existing, isActive: false });
+    }
   }
 
   // Library Asset operations (MemStorage)
