@@ -4148,6 +4148,95 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ==================== AUTO-ROUTING ENDPOINTS ====================
+
+  // Route an order to optimal provider
+  app.post("/api/admin/orchestration/routing/route", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRouter } = await import("./services/auto-router");
+      const { blueprintId, prioritize = "balanced", requireUSA, maxCostCents, excludeProviders } = req.body;
+      
+      if (!blueprintId) {
+        return res.status(400).json({ error: "blueprintId is required" });
+      }
+      
+      const result = await autoRouter.routeOrder({
+        blueprintId: parseInt(blueprintId),
+        prioritize,
+        requireUSA,
+        maxCostCents,
+        excludeProviders
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get recommendations for a blueprint (cheapest, fastest, balanced)
+  app.get("/api/admin/orchestration/routing/recommendations/:blueprintId", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRouter } = await import("./services/auto-router");
+      const blueprintId = parseInt(req.params.blueprintId);
+      const recommendations = await autoRouter.getRecommendations(blueprintId);
+      res.json(recommendations);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get routing statistics
+  app.get("/api/admin/orchestration/routing/stats", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRouter } = await import("./services/auto-router");
+      const stats = autoRouter.getStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get recent routing history
+  app.get("/api/admin/orchestration/routing/history", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRouter } = await import("./services/auto-router");
+      const limit = parseInt(req.query.limit as string) || 20;
+      const history = autoRouter.getRecentRoutings(limit);
+      res.json(history);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Batch route multiple blueprints
+  app.post("/api/admin/orchestration/routing/batch", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRouter } = await import("./services/auto-router");
+      const { blueprintIds, prioritize = "balanced", requireUSA, maxCostCents } = req.body;
+      
+      if (!blueprintIds || !Array.isArray(blueprintIds)) {
+        return res.status(400).json({ error: "blueprintIds array is required" });
+      }
+      
+      const results = await autoRouter.routeBatch(blueprintIds, {
+        prioritize,
+        requireUSA,
+        maxCostCents
+      });
+      
+      // Convert Map to object for JSON response
+      const resultsObj: Record<number, any> = {};
+      for (const [id, result] of results) {
+        resultsObj[id] = result;
+      }
+      
+      res.json(resultsObj);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
