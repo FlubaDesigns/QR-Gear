@@ -1946,7 +1946,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   <div className="flex flex-col gap-2">
                     <Button
                       variant={qrContentType === "plain_text" ? "default" : "outline"}
-                      className={`h-14 text-base w-full ${qrContentType === "plain_text" ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                      className={`h-14 text-base w-full justify-center border-2 ${qrContentType === "plain_text" ? "ring-2 ring-primary ring-offset-2 border-primary-foreground/30" : "border-border"}`}
                       onClick={() => {
                         setQrContentType("plain_text");
                         // Clear all rich-media state since plain text doesn't need it
@@ -1967,14 +1967,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       }}
                       data-testid="button-qr-plain-text"
                     >
-                      <div className="text-left flex-1">
+                      <div className="text-center">
                         <div className="font-bold">Plain Text QR</div>
                         <div className="text-xs opacity-80">Offline scannable text or URL - no hosting needed</div>
                       </div>
                     </Button>
                     <Button
                       variant={qrContentType === "rich_media" ? "default" : "outline"}
-                      className={`h-14 text-base w-full ${qrContentType === "rich_media" ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                      className={`h-14 text-base w-full justify-center border-2 ${qrContentType === "rich_media" ? "ring-2 ring-primary ring-offset-2 border-primary-foreground/30" : "border-border"}`}
                       onClick={() => {
                         setQrContentType("rich_media");
                         // Set default hosting tier if not already set (1 year free included)
@@ -1984,7 +1984,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       }}
                       data-testid="button-qr-rich-media"
                     >
-                      <div className="text-left flex-1">
+                      <div className="text-center">
                         <div className="font-bold">Image / Video QR</div>
                         <div className="text-xs opacity-80">Hosted landing page with background - 1 year free</div>
                       </div>
