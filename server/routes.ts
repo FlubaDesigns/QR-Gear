@@ -3227,6 +3227,41 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Create new hosting tier (admin only)
+  app.post("/api/admin/hosting-tiers", isAdmin, async (req, res) => {
+    try {
+      const createSchema = z.object({
+        code: z.string().min(1),
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        durationDays: z.number().min(1),
+        priceUpcharge: z.string().optional().default("0"),
+        isIncluded: z.boolean().optional().default(false),
+        isActive: z.boolean().optional().default(true),
+        sortOrder: z.number().optional().default(0),
+      });
+      const validated = createSchema.parse(req.body);
+      const tier = await storage.createHostingTier(validated);
+      res.json(tier);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete hosting tier (admin only)
+  app.delete("/api/admin/hosting-tiers/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteHostingTier(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ QR TEMPLATES ENDPOINTS ============
   
   // Get active templates for customers
