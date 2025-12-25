@@ -2501,7 +2501,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             
             {/* Add Store Dialog */}
             <Dialog open={addStoreDialogOpen} onOpenChange={setAddStoreDialogOpen}>
-              <DialogContent className="max-w-[90vw] sm:max-w-md">
+              <DialogContent className="w-[calc(100vw-2rem)] max-w-sm mx-4">
                 <DialogHeader>
                   <DialogTitle>Create New {storeType || ""} Store</DialogTitle>
                   <DialogDescription>Add a new store with segments/pages.</DialogDescription>
