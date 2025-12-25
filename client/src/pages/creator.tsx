@@ -122,6 +122,7 @@ export default function Creator() {
   const [textAbove, setTextAbove] = useState("");
   const [textBelow, setTextBelow] = useState("");
   const [uploadedImage, setUploadedImage] = useState<{ id: string; url: string; preview: string } | null>(null);
+  const [isVideoContent, setIsVideoContent] = useState(false);
   const [imageTitle, setImageTitle] = useState("");
   const [imageDescription, setImageDescription] = useState("");
   const [priceQuote, setPriceQuote] = useState<PriceQuote | null>(null);
@@ -234,45 +235,49 @@ export default function Creator() {
 
   const uploadImageMutation = useMutation({
     mutationFn: async (file: File) => {
-      const reader = new FileReader();
-      return new Promise<{ id: string; publicUrl: string; landingUrl: string }>((resolve, reject) => {
-        reader.onload = async () => {
-          try {
-            const base64 = (reader.result as string).split(",")[1];
-            const response = await apiRequest("POST", "/api/images/upload", {
-              imageData: base64,
-              originalName: file.name,
-              mimeType: file.type,
-              title: imageTitle || null,
-              description: imageDescription || null,
-            });
-            const data = await response.json();
-            resolve(data);
-          } catch (error) {
-            reject(error);
-          }
-        };
-        reader.onerror = () => reject(new Error("Failed to read file"));
-        reader.readAsDataURL(file);
+      const isVideo = file.type.startsWith("video/");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("assetType", isVideo ? "video" : "background");
+      formData.append("name", imageTitle || file.name);
+      
+      const response = await fetch("/api/library/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
       });
+      
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      
+      const asset = await response.json();
+      return {
+        id: asset.id,
+        publicUrl: asset.publicUrl,
+        landingUrl: `/i/${asset.id}`,
+        mediaType: asset.mediaType,
+      };
     },
     onSuccess: (data) => {
+      const isVideo = data.mediaType === "video";
       const fullUrl = `${window.location.origin}${data.landingUrl}`;
       setUploadedImage({
         id: data.id,
         url: fullUrl,
         preview: data.publicUrl,
       });
+      setIsVideoContent(isVideo);
       setQrContent(fullUrl);
       toast({
-        title: "Image uploaded",
-        description: "Your image is now hosted and ready for QR code generation",
+        title: isVideo ? "Video uploaded" : "Image uploaded",
+        description: `Your ${isVideo ? "video" : "image"} is now hosted and ready for QR code generation`,
       });
     },
     onError: () => {
       toast({
         title: "Upload failed",
-        description: "Failed to upload image. Please try again.",
+        description: "Failed to upload. Please try again.",
         variant: "destructive",
       });
     },
@@ -281,22 +286,31 @@ export default function Creator() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
+      const isVideo = file.type.startsWith("video/");
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024; // 100MB for video, 10MB for image
+      
+      if (file.size > maxSize) {
         toast({
           title: "File too large",
-          description: "Please select an image under 10MB",
+          description: isVideo ? "Please select a video under 100MB" : "Please select an image under 10MB",
           variant: "destructive",
         });
         return;
       }
-      if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)) {
+      
+      const validImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+      const validVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
+      
+      if (!validImageTypes.includes(file.type) && !validVideoTypes.includes(file.type)) {
         toast({
           title: "Invalid file type",
-          description: "Please select a JPEG, PNG, GIF, or WebP image",
+          description: "Please select an image (JPEG, PNG, GIF, WebP) or video (MP4, WebM, MOV)",
           variant: "destructive",
         });
         return;
       }
+      
+      setIsVideoContent(isVideo);
       uploadImageMutation.mutate(file);
     }
   };
@@ -697,9 +711,11 @@ export default function Creator() {
                   if (v === "upload" || v === "design" || v === "dynamic") {
                     setQrContent("");
                     setUploadedImage(null);
+                    setIsVideoContent(false);
                   } else if (v === "text") {
                     setQrContent("");
                     setUploadedImage(null);
+                    setIsVideoContent(false);
                   }
                   if (v !== "template") {
                     setSelectedTemplate(null);
@@ -886,7 +902,7 @@ export default function Creator() {
                       type="file"
                       ref={fileInputRef}
                       onChange={handleFileSelect}
-                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
                       className="hidden"
                       data-testid="input-file-upload"
                     />
@@ -973,6 +989,7 @@ export default function Creator() {
                             size="sm"
                             onClick={() => {
                               setUploadedImage(null);
+                              setIsVideoContent(false);
                               setQrContent("");
                               setQrCodeImage("");
                               setOverlayText("");
@@ -1043,41 +1060,52 @@ export default function Creator() {
                         <div className="space-y-3 p-3 border rounded-md">
                           <h4 className="text-sm font-medium">Hosting Duration</h4>
                           <p className="text-xs text-muted-foreground">
-                            Your image will be hosted online and accessible via QR code for the selected duration.
+                            Your {isVideoContent ? "video" : "image"} will be hosted online and accessible via QR code for the selected duration.
+                            {isVideoContent && <span className="text-orange-600 dark:text-orange-400"> Video hosting costs more than image hosting.</span>}
                           </p>
                           <div className="grid grid-cols-2 gap-2">
-                            {hostingTiers.filter(t => t.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((tier) => (
-                              <button
-                                key={tier.id}
-                                type="button"
-                                onClick={() => setSelectedHostingTier(tier.code)}
-                                className={`p-3 rounded-md border text-left transition-colors ${
-                                  selectedHostingTier === tier.code 
-                                    ? "border-primary bg-primary/5" 
-                                    : "hover-elevate"
-                                }`}
-                                data-testid={`button-hosting-tier-${tier.code}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium text-sm">{tier.name}</span>
-                                  {selectedHostingTier === tier.code && (
-                                    <Check className="w-4 h-4 text-primary" />
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  {tier.isIncluded ? (
-                                    <Badge variant="outline" className="text-xs">Included</Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge || "0").toFixed(0)}</Badge>
-                                  )}
-                                </div>
-                              </button>
-                            ))}
+                            {hostingTiers.filter(t => t.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((tier) => {
+                              const price = isVideoContent 
+                                ? parseFloat(tier.videoPriceUpcharge || tier.priceUpcharge || "0")
+                                : parseFloat(tier.priceUpcharge || "0");
+                              return (
+                                <button
+                                  key={tier.id}
+                                  type="button"
+                                  onClick={() => setSelectedHostingTier(tier.code)}
+                                  className={`p-3 rounded-md border text-left transition-colors ${
+                                    selectedHostingTier === tier.code 
+                                      ? "border-primary bg-primary/5" 
+                                      : "hover-elevate"
+                                  }`}
+                                  data-testid={`button-hosting-tier-${tier.code}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium text-sm">{tier.name}</span>
+                                    {selectedHostingTier === tier.code && (
+                                      <Check className="w-4 h-4 text-primary" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {tier.isIncluded ? (
+                                      <Badge variant="outline" className="text-xs">Included</Badge>
+                                    ) : (
+                                      <Badge 
+                                        variant="secondary" 
+                                        className={`text-xs ${isVideoContent ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" : ""}`}
+                                      >
+                                        +${price.toFixed(0)}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
                         <p className="text-xs text-muted-foreground">
-                          Your image is now hosted. The QR code will link to a branded landing page showing your image.
+                          Your {isVideoContent ? "video" : "image"} is now hosted. The QR code will link to a branded landing page showing your {isVideoContent ? "video" : "image"}.
                         </p>
                       </div>
                     )}
@@ -1101,6 +1129,7 @@ export default function Creator() {
                             size="sm"
                             onClick={() => {
                               setUploadedImage(null);
+                              setIsVideoContent(false);
                               setQrContent("");
                               setQrCodeImage("");
                             }}
@@ -1160,36 +1189,48 @@ export default function Creator() {
                       <div className="space-y-2">
                         <Label>Hosting Duration</Label>
                         <p className="text-xs text-muted-foreground mb-2">
-                          How long should your dynamic page remain active?
+                          How long should your dynamic page remain active? Prices shown are for images. Video hosting costs more.
                         </p>
                         <div className="grid grid-cols-2 gap-2">
-                          {hostingTiers.filter(t => t.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((tier) => (
-                            <button
-                              key={tier.id}
-                              type="button"
-                              className={`p-3 rounded-md border text-left transition-all hover-elevate ${
-                                dynamicHostingTier === tier.code 
-                                  ? "border-primary bg-primary/5" 
-                                  : "border-border"
-                              }`}
-                              onClick={() => setDynamicHostingTier(tier.code)}
-                              data-testid={`button-dynamic-tier-${tier.code}`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-sm">{tier.name}</span>
-                                {dynamicHostingTier === tier.code && (
-                                  <Check className="w-4 h-4 text-primary" />
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                {tier.isIncluded ? (
-                                  <Badge variant="outline" className="text-xs">Included</Badge>
-                                ) : (
-                                  <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge || "0").toFixed(0)}</Badge>
-                                )}
-                              </div>
-                            </button>
-                          ))}
+                          {hostingTiers.filter(t => t.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((tier) => {
+                            const imagePrice = parseFloat(tier.priceUpcharge || "0");
+                            const videoPrice = parseFloat(tier.videoPriceUpcharge || tier.priceUpcharge || "0");
+                            const hasVideoUpcharge = videoPrice > imagePrice;
+                            return (
+                              <button
+                                key={tier.id}
+                                type="button"
+                                className={`p-3 rounded-md border text-left transition-all hover-elevate ${
+                                  dynamicHostingTier === tier.code 
+                                    ? "border-primary bg-primary/5" 
+                                    : "border-border"
+                                }`}
+                                onClick={() => setDynamicHostingTier(tier.code)}
+                                data-testid={`button-dynamic-tier-${tier.code}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-sm">{tier.name}</span>
+                                  {dynamicHostingTier === tier.code && (
+                                    <Check className="w-4 h-4 text-primary" />
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1 mt-1">
+                                  {tier.isIncluded ? (
+                                    <Badge variant="outline" className="text-xs w-fit">Included</Badge>
+                                  ) : (
+                                    <>
+                                      <Badge variant="secondary" className="text-xs w-fit">+${imagePrice.toFixed(0)} img</Badge>
+                                      {hasVideoUpcharge && (
+                                        <Badge className="text-xs w-fit bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                          +${videoPrice.toFixed(0)} video
+                                        </Badge>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -1211,8 +1252,8 @@ export default function Creator() {
                       </div>
 
                       <p className="text-xs text-muted-foreground">
-                        After purchase, you can upload and swap images anytime from your account dashboard.
-                        The QR code on your product will always show whatever image you have set as active.
+                        After purchase, you can upload and swap images or videos anytime from your account dashboard.
+                        The QR code on your product will always show whatever content you have set as active.
                       </p>
                     </div>
                   </TabsContent>
