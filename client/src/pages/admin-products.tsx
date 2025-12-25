@@ -3634,7 +3634,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
                   {filteredBackgrounds.map((bg) => (
                     <div
                       key={bg.id}
@@ -3644,7 +3644,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       <AccessibleIconButton
                         variant="destructive"
                         aria-label={`Delete background ${bg.name}`}
-                        className="absolute top-1 right-1 z-10"
+                        className="absolute top-2 right-2 z-10"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm(`Delete background "${bg.name}"?`)) {
@@ -3668,19 +3668,19 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           });
                         }}
                       >
-                        <div className="aspect-square relative">
+                        <div className="aspect-[4/3] relative">
                           <img
                             src={bg.publicUrl}
                             alt={bg.name}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                            <p className="text-white text-sm font-medium truncate">{bg.name}</p>
-                          </div>
                         </div>
-                        <div className="p-2 flex flex-wrap gap-1 min-h-[36px]">
-                          {bg.season && <Badge variant="secondary" className="text-xs">{bg.season}</Badge>}
-                          {bg.event && <Badge variant="outline" className="text-xs">{bg.event}</Badge>}
+                        <div className="p-3 bg-card">
+                          <p className="text-base font-semibold truncate">{bg.name}</p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {bg.season && <Badge variant="secondary">{bg.season}</Badge>}
+                            {bg.event && <Badge variant="outline">{bg.event}</Badge>}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3700,7 +3700,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
                   {libraryTemplates.map((template) => (
                     <div
                       key={template.id}
@@ -3710,7 +3710,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       <AccessibleIconButton
                         variant="destructive"
                         aria-label={`Delete template ${template.productName}`}
-                        className="absolute top-1 right-1 z-10"
+                        className="absolute top-2 right-2 z-10"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm(`Delete template "${template.productName}"?`)) {
@@ -3832,7 +3832,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         });
                       }}
                     >
-                      <div className="aspect-square relative bg-muted">
+                      <div className="aspect-[4/3] relative bg-muted">
                         {template.printifyCompositeUrl ? (
                           <img
                             src={template.printifyCompositeUrl}
@@ -3853,22 +3853,20 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <ImageIcon className="h-12 w-12 opacity-30" />
+                            <ImageIcon className="h-16 w-16 opacity-30" />
                           </div>
                         )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                          <p className="text-white text-sm font-medium truncate">{template.productName}</p>
-                        </div>
                       </div>
-                      <div className="p-2">
-                        <div className="flex flex-wrap gap-1 min-h-[28px]">
+                      <div className="p-3 bg-card">
+                        <p className="text-base font-semibold truncate">{template.productName}</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
                           {template.topText?.text && (
-                            <Badge variant="secondary" className="text-xs truncate max-w-full">
-                              {template.topText.text.substring(0, 20)}{template.topText.text.length > 20 ? "..." : ""}
+                            <Badge variant="secondary">
+                              {template.topText.text.substring(0, 25)}{template.topText.text.length > 25 ? "..." : ""}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                        <p className="text-sm text-muted-foreground mt-2">
                           {template.storeName || "No store"} {template.segment ? `• ${template.segment}` : ""}
                         </p>
                       </div>
