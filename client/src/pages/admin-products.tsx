@@ -2128,7 +2128,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* 4. Background Image - Inline Picker */}
+                {/* 4. Background Image - Two Buttons Stacked */}
                 {selectedItemId && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -2160,19 +2160,55 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       </div>
                     )}
                     
-                    {/* Add Background Button - expands picker */}
-                    <Button
-                      variant={bgPickerExpanded ? "secondary" : "outline"}
-                      className="w-full h-12 text-base"
-                      onClick={() => setBgPickerExpanded(!bgPickerExpanded)}
-                      data-testid="button-add-background"
-                    >
-                      <ImageIcon className="h-5 w-5 mr-2" />
-                      {backgroundPreview ? "Change Background" : "Add Background"}
-                      <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${bgPickerExpanded ? "rotate-180" : ""}`} />
-                    </Button>
+                    {/* Two stacked buttons: Library + Upload */}
+                    <div className="flex flex-col gap-2">
+                      {/* Library Backgrounds Button */}
+                      <Button
+                        variant={bgPickerExpanded ? "default" : "outline"}
+                        className="w-full h-12 text-base"
+                        onClick={() => setBgPickerExpanded(!bgPickerExpanded)}
+                        data-testid="button-library-backgrounds"
+                      >
+                        <FolderOpen className="h-5 w-5 mr-2" />
+                        Library Backgrounds
+                        <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${bgPickerExpanded ? "rotate-180" : ""}`} />
+                      </Button>
+                      
+                      {/* Upload Button */}
+                      <label className="cursor-pointer block">
+                        <Button
+                          variant="outline"
+                          className="w-full h-12 text-base pointer-events-none"
+                          asChild
+                        >
+                          <span>
+                            <Upload className="h-5 w-5 mr-2" />
+                            Upload Background
+                          </span>
+                        </Button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setBackgroundImage(file);
+                              setBackgroundPreview(URL.createObjectURL(file));
+                              setBgPickerExpanded(false);
+                              toast({
+                                title: "Background Uploaded",
+                                description: file.name,
+                                duration: 2000,
+                              });
+                            }
+                          }}
+                          data-testid="input-background-upload"
+                        />
+                      </label>
+                    </div>
                     
-                    {/* Expanded Picker Panel */}
+                    {/* Expanded Library Picker Panel */}
                     {bgPickerExpanded && (
                       <div className="space-y-3 p-3 border-2 border-primary/30 rounded-lg bg-background">
                         {/* Season/Event Filters */}
@@ -2255,43 +2291,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           </ScrollArea>
                         </div>
                         
-                        {/* Upload Option */}
-                        <div className="border-t pt-3">
-                          <label className="cursor-pointer block">
-                            <Button
-                              variant="outline"
-                              className="w-full h-12 text-base pointer-events-none"
-                              asChild
-                            >
-                              <span>
-                                <Upload className="h-5 w-5 mr-2" />
-                                Upload New Background
-                              </span>
-                            </Button>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  setBackgroundImage(file);
-                                  setBackgroundPreview(URL.createObjectURL(file));
-                                  setBgPickerExpanded(false);
-                                  toast({
-                                    title: "Background Uploaded",
-                                    description: file.name,
-                                    duration: 2000,
-                                  });
-                                }
-                              }}
-                              data-testid="input-background-upload"
-                            />
-                          </label>
-                          <p className="text-xs text-muted-foreground mt-2 text-center">
-                            Recommended: 4500×5400px, 300 DPI, PNG, RGB
-                          </p>
-                        </div>
+                        <p className="text-xs text-muted-foreground text-center">
+                          Tap to select • Scroll for more
+                        </p>
                       </div>
                     )}
                   </div>
