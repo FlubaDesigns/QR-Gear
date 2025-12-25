@@ -2501,35 +2501,38 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             
             {/* Add Store Dialog */}
             <Dialog open={addStoreDialogOpen} onOpenChange={setAddStoreDialogOpen}>
-              <DialogContent className="w-[calc(100vw-2rem)] max-w-sm mx-4">
+              <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm">
                 <DialogHeader>
                   <DialogTitle>Create New {storeType || ""} Store</DialogTitle>
                   <DialogDescription>Add a new store with segments/pages.</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
+                <div className="space-y-4 w-full">
+                  <div className="space-y-2 w-full">
                     <Label>Store Name</Label>
                     <Input
                       placeholder="e.g., My Business Store"
                       value={newStoreName}
                       onChange={(e) => setNewStoreName(e.target.value)}
+                      className="w-full"
                       data-testid="input-new-store-name"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     <Label>Segments/Pages</Label>
                     {newStoreAreas.map((area, index) => (
-                      <div key={index} className="flex gap-2">
+                      <div key={index} className="flex gap-2 w-full">
                         <Input
-                          placeholder={`Segment ${index + 1} (e.g., Homepage)`}
+                          placeholder={`Segment ${index + 1}`}
                           value={area}
                           onChange={(e) => updateAreaField(index, e.target.value)}
+                          className="flex-1 min-w-0"
                           data-testid={`input-area-${index}`}
                         />
                         {newStoreAreas.length > 1 && (
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="flex-shrink-0"
                             onClick={() => removeAreaField(index)}
                             data-testid={`button-remove-area-${index}`}
                           >
@@ -2545,29 +2548,27 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       className="w-full"
                       data-testid="button-add-area"
                     >
-                      <Plus className="h-4 w-4 mr-2" /> Add Another Segment
+                      <Plus className="h-4 w-4 mr-2" /> Add Segment
                     </Button>
                   </div>
                 </div>
-                <DialogFooter className="flex flex-row gap-3 w-full">
+                <div className="flex flex-col sm:flex-row gap-2 w-full pt-4">
                   <Button 
                     variant="outline" 
-                    size="lg"
-                    className="flex-1 min-w-[100px]"
+                    className="w-full sm:flex-1"
                     onClick={() => setAddStoreDialogOpen(false)}
                     data-testid="button-back-dialog"
                   >
                     ← Back
                   </Button>
                   <Button 
-                    size="lg"
-                    className="flex-1 min-w-[100px]"
+                    className="w-full sm:flex-1"
                     onClick={saveNewStore} 
                     data-testid="button-save-store"
                   >
                     Create Store
                   </Button>
-                </DialogFooter>
+                </div>
               </DialogContent>
             </Dialog>
           </div>
