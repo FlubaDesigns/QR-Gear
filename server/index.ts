@@ -7,6 +7,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
+import { webhookRouter } from './webhooks';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,6 +91,8 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+
+app.use("/webhooks", webhookRouter);
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
