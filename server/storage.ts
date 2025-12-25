@@ -437,7 +437,13 @@ export class DbStorage implements IStorage {
   }
 
   async deleteProduct(id: string): Promise<void> {
+    // Delete related records first (foreign key constraints)
     await this.db.delete(schema.productCategoryAssignments).where(eq(schema.productCategoryAssignments.productId, id));
+    await this.db.delete(schema.productVariants).where(eq(schema.productVariants.productId, id));
+    await this.db.delete(schema.partnerStoreProducts).where(eq(schema.partnerStoreProducts.productId, id));
+    await this.db.delete(schema.cartItems).where(eq(schema.cartItems.productId, id));
+    // Note: orderItems are preserved for historical order data - they will block delete if orders exist
+    // To delete products with orders, handle orderItems separately or disallow deletion
     await this.db.delete(schema.products).where(eq(schema.products.id, id));
   }
 
