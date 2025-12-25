@@ -687,6 +687,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [libraryFilterEvent, setLibraryFilterEvent] = useState<string>("all");
   // Track which source button was clicked: templates, backgrounds, or custom
   const [librarySourceType, setLibrarySourceType] = useState<"templates" | "backgrounds" | "custom" | null>(null);
+  const [loadedFromTemplate, setLoadedFromTemplate] = useState(false); // Persists when template is loaded
   // SVG preview state
   const [svgPreviewUrl, setSvgPreviewUrl] = useState<string>("");
   const [generatingPng, setGeneratingPng] = useState(false);
@@ -764,6 +765,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     isFeatured: boolean | null;
     isSeasonalPromo: boolean | null;
     landingOverlay: { enabled: boolean; title: string; description: string; position: string; fontFamily: string; color: string } | null;
+    qrContentType: "plain_text" | "rich_media" | "external_url" | null;
+    plainTextQrContent: string | null;
+    externalUrl: string | null;
     createdAt: string;
   }
   const { data: libraryTemplates = [], refetch: refetchTemplates } = useQuery<LibraryTemplate[]>({
@@ -1856,8 +1860,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
               </div>
             )}
 
-            {/* Step 5: Product Source (Templates/Custom) */}
-            {selectedSegment && (
+            {/* Step 5: Product Source (Templates/Custom) - Hide once choice is made */}
+            {selectedSegment && productSource !== "Custom" && (
               <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
                 <Label className="text-lg font-bold">Step 5: Product Source</Label>
                 <p className="text-sm text-muted-foreground">Choose how to start your design</p>
@@ -1886,6 +1890,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     onClick={() => {
                       setLibrarySourceType("custom");
                       setProductSource("Custom");
+                      setLoadedFromTemplate(false); // Starting fresh, not from template
                       setQrContentType(null); // Reset QR type selection
                       setPlainTextQrContent(""); // Reset plain text content
                       toast({
@@ -1914,7 +1919,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   Build a custom design with QR code for your products.
                 </p>
                 
-                {/* QR Content Type Selection */}
+                {/* QR Content Type Selection - Hide if loaded from template (already set) */}
+                {!loadedFromTemplate && (
                 <div className="space-y-3">
                   <Label className="font-semibold">QR Type</Label>
                   <p className="text-sm text-muted-foreground">Choose what your QR code will contain</p>
@@ -1986,6 +1992,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     </Button>
                   </div>
                 </div>
+                )}
                 
                 {/* Step 1: Select Product Type (Category) - Only show after QR type selected */}
                 {qrContentType && (
@@ -3831,10 +3838,43 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         setIsFeatured(template.isFeatured || false);
                         setIsSeasonalPromo(template.isSeasonalPromo || false);
                         
+                        // QR content type and related data
+                        if (template.qrContentType) {
+                          setQrContentType(template.qrContentType);
+                        } else {
+                          // Default to rich_media if template has background, else external_url if has URL
+                          if (template.backgroundImageUrl) {
+                            setQrContentType("rich_media");
+                          } else if (template.externalUrl) {
+                            setQrContentType("external_url");
+                          } else {
+                            setQrContentType("plain_text");
+                          }
+                        }
+                        
+                        // External URL
+                        if (template.externalUrl) {
+                          setExternalUrl(template.externalUrl);
+                        } else {
+                          setExternalUrl("");
+                        }
+                        
+                        // Plain text content
+                        if (template.plainTextQrContent) {
+                          setPlainTextQrContent(template.plainTextQrContent);
+                        } else {
+                          setPlainTextQrContent("");
+                        }
+                        
+                        // Set productSource to Custom so the builder shows
+                        setProductSource("Custom");
+                        setLibrarySourceType("templates");
+                        setLoadedFromTemplate(true); // Mark as loaded from template to hide QR type buttons
+                        
                         setLibraryPickerOpen(false);
                         toast({ 
                           title: "Template Loaded", 
-                          description: `"${template.productName}" design loaded. Select a product and customize below.`,
+                          description: `"${template.productName}" design loaded. Customize and save as new.`,
                           duration: 4000,
                         });
                       }}
