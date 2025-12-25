@@ -3054,7 +3054,7 @@ export default function AdminProducts() {
   return (
     <div className="min-h-screen">
       <div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
+        <div className="container max-w-6xl mx-auto px-2 sm:px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Button
@@ -3099,7 +3099,7 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      <main className="container max-w-6xl mx-auto py-6 px-4">
+      <main className="container max-w-6xl mx-auto py-6 px-2 sm:px-4">
         <nav className="mb-4 text-sm" aria-label="Breadcrumb">
           <Link href="/admin" className="text-muted-foreground hover:text-foreground" data-testid="link-breadcrumb-admin">Admin</Link>
           <span className="text-muted-foreground mx-2">/</span>
