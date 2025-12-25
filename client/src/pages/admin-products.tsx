@@ -36,6 +36,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronRight,
+  ChevronDown,
   Loader2,
   RefreshCw,
   Package,
@@ -55,6 +56,7 @@ import {
   ImageIcon,
   ExternalLink,
 } from "lucide-react";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import type { Product, ProductCategory, HostingTier, AdminSettings } from "@shared/schema";
 import {
   Select,
@@ -748,6 +750,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   // SVG preview state
   const [svgPreviewUrl, setSvgPreviewUrl] = useState<string>("");
   const [generatingPng, setGeneratingPng] = useState(false);
+  // Inline background picker state (in Custom Builder)
+  const [bgPickerExpanded, setBgPickerExpanded] = useState(false);
   
   // Fetch render config (fonts and warp presets) for SVG text warp system
   interface RenderConfig {
@@ -1866,7 +1870,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
               </div>
             )}
 
-            {/* Step 5: Product Source (Templates/Backgrounds/Custom) */}
+            {/* Step 5: Product Source (Templates/Custom) */}
             {selectedSegment && (
               <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
                 <Label className="text-lg font-bold">Step 5: Product Source</Label>
@@ -1886,22 +1890,6 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     <div className="text-center">
                       <div className="font-bold text-lg">Templates</div>
                       <div className="text-xs opacity-80">Load a saved design to edit</div>
-                    </div>
-                  </Button>
-                  <Button
-                    variant={librarySourceType === "backgrounds" ? "default" : "outline"}
-                    className={`h-16 text-lg w-full ${librarySourceType === "backgrounds" ? "ring-2 ring-primary ring-offset-2" : ""}`}
-                    onClick={() => {
-                      setLibrarySourceType("backgrounds");
-                      setLibraryPickerTab("backgrounds");
-                      setLibraryPickerOpen(true);
-                      setProductSource("Custom");
-                    }}
-                    data-testid="button-source-backgrounds"
-                  >
-                    <div className="text-center">
-                      <div className="font-bold text-lg">Backgrounds</div>
-                      <div className="text-xs opacity-80">Pick landing page background</div>
                     </div>
                   </Button>
                   <Button
@@ -2140,36 +2128,146 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* 4. Background Image Upload */}
+                {/* 4. Background Image - Inline Picker */}
                 {selectedItemId && (
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Background Image</Label>
-                    <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                      {backgroundPreview ? (
-                        <div className="space-y-2">
-                          <img 
-                            src={backgroundPreview} 
-                            alt="Background preview" 
-                            className="max-h-32 mx-auto rounded"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setBackgroundImage(null);
-                              setBackgroundPreview("");
-                            }}
-                            data-testid="button-remove-background"
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-semibold">Background Image</Label>
+                      {backgroundPreview && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setBackgroundImage(null);
+                            setBackgroundPreview("");
+                          }}
+                          data-testid="button-remove-background"
+                        >
+                          <X className="h-4 w-4 mr-1" /> Remove
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Current Selection Preview */}
+                    {backgroundPreview && (
+                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                        <img 
+                          src={backgroundPreview} 
+                          alt="Selected background" 
+                          className="h-16 w-auto rounded object-cover"
+                        />
+                        <span className="text-sm text-muted-foreground">Background selected</span>
+                      </div>
+                    )}
+                    
+                    {/* Add Background Button - expands picker */}
+                    <Button
+                      variant={bgPickerExpanded ? "secondary" : "outline"}
+                      className="w-full h-12 text-base"
+                      onClick={() => setBgPickerExpanded(!bgPickerExpanded)}
+                      data-testid="button-add-background"
+                    >
+                      <ImageIcon className="h-5 w-5 mr-2" />
+                      {backgroundPreview ? "Change Background" : "Add Background"}
+                      <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${bgPickerExpanded ? "rotate-180" : ""}`} />
+                    </Button>
+                    
+                    {/* Expanded Picker Panel */}
+                    {bgPickerExpanded && (
+                      <div className="space-y-3 p-3 border-2 border-primary/30 rounded-lg bg-background">
+                        {/* Season/Event Filters */}
+                        <div className="flex flex-wrap gap-2">
+                          <select
+                            className="h-10 px-3 border rounded-md text-sm bg-background flex-1 min-w-[120px]"
+                            value={libraryFilterSeason}
+                            onChange={(e) => setLibraryFilterSeason(e.target.value)}
+                            data-testid="select-bg-filter-season"
                           >
-                            <X className="h-4 w-4 mr-1" /> Remove
-                          </Button>
+                            <option value="all">All Seasons</option>
+                            <option value="spring">Spring</option>
+                            <option value="summer">Summer</option>
+                            <option value="fall">Fall</option>
+                            <option value="winter">Winter</option>
+                          </select>
+                          <select
+                            className="h-10 px-3 border rounded-md text-sm bg-background flex-1 min-w-[120px]"
+                            value={libraryFilterEvent}
+                            onChange={(e) => setLibraryFilterEvent(e.target.value)}
+                            data-testid="select-bg-filter-event"
+                          >
+                            <option value="all">All Events</option>
+                            <option value="christmas">Christmas</option>
+                            <option value="easter">Easter</option>
+                            <option value="valentines">Valentine's</option>
+                            <option value="mothers_day">Mother's Day</option>
+                            <option value="fathers_day">Father's Day</option>
+                            <option value="graduation">Graduation</option>
+                            <option value="birthday">Birthday</option>
+                            <option value="wedding">Wedding</option>
+                            <option value="general">General</option>
+                          </select>
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <label className="cursor-pointer block" title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality">
-                            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                            <span className="text-sm text-muted-foreground">Click to upload background image</span>
-                            <p className="text-xs text-muted-foreground mt-1">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
+                        
+                        {/* Horizontal Scroll - 2 items visible at a time */}
+                        <div className="relative">
+                          <ScrollArea className="w-full" type="scroll">
+                            <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
+                              {filteredBackgrounds.length > 0 ? (
+                                filteredBackgrounds.map((bg) => (
+                                  <div
+                                    key={bg.id}
+                                    className={`flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] cursor-pointer rounded-lg border-2 overflow-hidden transition-all ${
+                                      backgroundPreview === bg.imageUrl 
+                                        ? "border-primary ring-2 ring-primary ring-offset-2" 
+                                        : "border-border hover:border-primary/50"
+                                    }`}
+                                    onClick={() => {
+                                      setBackgroundPreview(bg.imageUrl);
+                                      setBackgroundImage(null);
+                                      setBgPickerExpanded(false);
+                                      toast({
+                                        title: "Background Selected",
+                                        description: bg.name,
+                                        duration: 2000,
+                                      });
+                                    }}
+                                    data-testid={`bg-card-${bg.id}`}
+                                  >
+                                    <div className="aspect-[9/16] relative">
+                                      <img 
+                                        src={bg.imageUrl} 
+                                        alt={bg.name} 
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <div className="p-2 text-center">
+                                      <span className="text-xs font-medium truncate block">{bg.name}</span>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="w-full text-center py-8 text-sm text-muted-foreground">
+                                  No backgrounds match your filters
+                                </div>
+                              )}
+                            </div>
+                            <ScrollBar orientation="horizontal" />
+                          </ScrollArea>
+                        </div>
+                        
+                        {/* Upload Option */}
+                        <div className="border-t pt-3">
+                          <label className="cursor-pointer block">
+                            <Button
+                              variant="outline"
+                              className="w-full h-12 text-base pointer-events-none"
+                              asChild
+                            >
+                              <span>
+                                <Upload className="h-5 w-5 mr-2" />
+                                Upload New Background
+                              </span>
+                            </Button>
                             <input
                               type="file"
                               accept="image/*"
@@ -2179,26 +2277,23 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                 if (file) {
                                   setBackgroundImage(file);
                                   setBackgroundPreview(URL.createObjectURL(file));
+                                  setBgPickerExpanded(false);
+                                  toast({
+                                    title: "Background Uploaded",
+                                    description: file.name,
+                                    duration: 2000,
+                                  });
                                 }
                               }}
                               data-testid="input-background-upload"
                             />
                           </label>
-                          <div className="text-xs text-muted-foreground">— or —</div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setLibraryPickerTab("backgrounds");
-                              setLibraryPickerOpen(true);
-                            }}
-                            data-testid="button-pick-from-library"
-                          >
-                            <FolderOpen className="h-4 w-4 mr-1" /> Pick from Library
-                          </Button>
+                          <p className="text-xs text-muted-foreground mt-2 text-center">
+                            Recommended: 4500×5400px, 300 DPI, PNG, RGB
+                          </p>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 

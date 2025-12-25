@@ -16,8 +16,8 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
   2. Select Store
   3. Store Locations (switches for each segment)
   4. Store Occasion (Featured/Seasonal switches)
-  5. Product Source (Library/Custom)
-  6. Product Type (for Library) or Custom Builder (for Custom)
+  5. Product Source (Templates/Custom) - two buttons only
+  6. Custom Builder (includes inline background picker with 2-item scroll)
 
 ## System Architecture
 
