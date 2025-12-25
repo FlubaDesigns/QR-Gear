@@ -724,6 +724,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [newStoreAreas, setNewStoreAreas] = useState<string[]>([""]);
   const [newSegmentName, setNewSegmentName] = useState("");
   const [addingSegment, setAddingSegment] = useState(false);
+  const [deleteWizardStoreId, setDeleteWizardStoreId] = useState<string | null>(null);
+  const [deleteWizardSegmentInfo, setDeleteWizardSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
   
   // Fetch partner stores from database for External store type
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
@@ -1557,18 +1559,35 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             {storeType && (
               <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
                 <Label className="text-lg font-bold">Step 2: Select Store</Label>
-                <select
-                  className="w-full p-3 border rounded-md bg-background text-base"
-                  value={selectedStore}
-                  onChange={(e) => handleStoreChange(e.target.value)}
-                  data-testid="select-store"
-                >
-                  <option value="">-- Select a store --</option>
-                  <option value="__add_new__" className="font-semibold">+ Add New Store...</option>
-                  {availableStores.map((store) => (
-                    <option key={store.name} value={store.name}>{store.name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="flex-1 p-3 border rounded-md bg-background text-base"
+                    value={selectedStore}
+                    onChange={(e) => handleStoreChange(e.target.value)}
+                    data-testid="select-store"
+                  >
+                    <option value="">-- Select a store --</option>
+                    <option value="__add_new__" className="font-semibold">+ Add New Store...</option>
+                    {availableStores.map((store) => (
+                      <option key={store.name} value={store.name}>{store.name}</option>
+                    ))}
+                  </select>
+                  {selectedStore && selectedStore !== "__add_new__" && (() => {
+                    const storeToDelete = partnerStoresData.find(s => s.name === selectedStore);
+                    return storeToDelete ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 text-destructive hover:bg-destructive/10 flex-shrink-0"
+                        onClick={() => setDeleteWizardStoreId(storeToDelete.id)}
+                        title="Delete this store"
+                        data-testid="button-delete-wizard-store"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    ) : null;
+                  })()}
+                </div>
               </div>
             )}
 
@@ -1581,26 +1600,43 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 {/* Location Switches based on store's segments/areas */}
                 <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
                   {availableSegments.map((segment) => (
-                    <div key={segment} className="flex items-center justify-between">
-                      <Label htmlFor={`sw-loc-${segment}`} className="text-sm cursor-pointer">{segment}</Label>
-                      <Switch
-                        id={`sw-loc-${segment}`}
-                        checked={selectedSegment === segment || (!!selectedSegment && selectedSegment.split(",").includes(segment))}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
-                            if (!current.includes(segment)) {
-                              current.push(segment);
+                    <div key={segment} className="flex items-center justify-between gap-2">
+                      <Label htmlFor={`sw-loc-${segment}`} className="text-sm cursor-pointer flex-1">{segment}</Label>
+                      <div className="flex items-center gap-1">
+                        <Switch
+                          id={`sw-loc-${segment}`}
+                          checked={selectedSegment === segment || (!!selectedSegment && selectedSegment.split(",").includes(segment))}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
+                              if (!current.includes(segment)) {
+                                current.push(segment);
+                              }
+                              handleSegmentSelect(current.join(","));
+                            } else {
+                              const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
+                              const updated = current.filter(s => s !== segment);
+                              handleSegmentSelect(updated.join(",") || "");
                             }
-                            handleSegmentSelect(current.join(","));
-                          } else {
-                            const current = selectedSegment ? selectedSegment.split(",").filter(Boolean) : [];
-                            const updated = current.filter(s => s !== segment);
-                            handleSegmentSelect(updated.join(",") || "");
-                          }
-                        }}
-                        data-testid={`switch-location-${segment.toLowerCase().replace(/\s+/g, "-")}`}
-                      />
+                          }}
+                          data-testid={`switch-location-${segment.toLowerCase().replace(/\s+/g, "-")}`}
+                        />
+                        {(() => {
+                          const storeData = partnerStoresData.find(s => s.name === selectedStore);
+                          return storeData ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteWizardSegmentInfo({ storeId: storeData.id, segment })}
+                              title="Delete this segment"
+                              data-testid={`button-delete-segment-${segment.toLowerCase().replace(/\s+/g, "-")}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null;
+                        })()}
+                      </div>
                     </div>
                   ))}
                   
@@ -2721,6 +2757,87 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Wizard Store Confirmation Dialog */}
+      <AlertDialog open={!!deleteWizardStoreId} onOpenChange={(open) => !open && setDeleteWizardStoreId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Store</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this store? This will remove the store and all its segments.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-wizard-store">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (deleteWizardStoreId) {
+                  try {
+                    await apiRequest("DELETE", `/api/admin/partner-stores/${deleteWizardStoreId}`);
+                    await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+                    setSelectedStore("");
+                    setSelectedSegment("");
+                    toast({ title: "Store Deleted", description: "Store removed successfully." });
+                  } catch (error) {
+                    toast({ title: "Error", description: "Failed to delete store.", variant: "destructive" });
+                  }
+                  setDeleteWizardStoreId(null);
+                }
+              }}
+              data-testid="button-confirm-delete-wizard-store"
+            >
+              Delete Store
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Wizard Segment Confirmation Dialog */}
+      <AlertDialog open={!!deleteWizardSegmentInfo} onOpenChange={(open) => !open && setDeleteWizardSegmentInfo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Segment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the "{deleteWizardSegmentInfo?.segment}" segment from this store?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-wizard-segment">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (deleteWizardSegmentInfo) {
+                  try {
+                    const storeData = partnerStoresData.find(s => s.id === deleteWizardSegmentInfo.storeId);
+                    if (storeData) {
+                      const updatedSegments = (storeData.availableSegments || []).filter(
+                        s => s !== deleteWizardSegmentInfo.segment
+                      );
+                      await apiRequest("PATCH", `/api/admin/partner-stores/${deleteWizardSegmentInfo.storeId}`, {
+                        availableSegments: updatedSegments
+                      });
+                      await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+                      // Clear segment if it was selected
+                      if (selectedSegment.includes(deleteWizardSegmentInfo.segment)) {
+                        const updatedSelected = selectedSegment.split(",").filter(s => s !== deleteWizardSegmentInfo.segment).join(",");
+                        setSelectedSegment(updatedSelected);
+                      }
+                      toast({ title: "Segment Deleted", description: "Segment removed from store." });
+                    }
+                  } catch (error) {
+                    toast({ title: "Error", description: "Failed to delete segment.", variant: "destructive" });
+                  }
+                  setDeleteWizardSegmentInfo(null);
+                }
+              }}
+              data-testid="button-confirm-delete-wizard-segment"
+            >
+              Delete Segment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
