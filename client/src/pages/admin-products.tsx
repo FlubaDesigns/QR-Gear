@@ -656,7 +656,7 @@ interface StoreWithAreas {
 
 interface AddFromPrintifyPanelProps {
   onSuccess: () => void;
-  onFilterChange?: (store: string, segment: string) => void;
+  onFilterChange?: (store: string, segment: string, productSource?: string, productCategory?: string) => void;
 }
 
 function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPanelProps) {
@@ -1210,14 +1210,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     setSelectedSegment("");
     setProductSource("");
     // Update saved items filter to this store
-    onFilterChange?.(store, "");
+    onFilterChange?.(store, "", productSource, selectedCategory);
   }
   
   function handleSegmentSelect(segment: string) {
     setSelectedSegment(segment);
     setProductSource("");
     // Update saved items filter to this store+segment
-    onFilterChange?.(selectedStore, segment);
+    onFilterChange?.(selectedStore, segment, productSource, selectedCategory);
   }
   
   async function saveNewStore() {
@@ -1400,6 +1400,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     setSelectedItemId(null);
     setCatalogDetails(null);
     setLocationFilter("all");
+    onFilterChange?.(selectedStore, selectedSegment, productSource, category);
   }
 
   function handleLocationFilterChange(filter: "all" | "usa" | "other") {
@@ -2712,6 +2713,8 @@ function ProductsContent() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [filterSegment, setFilterSegment] = useState<string>("");
   const [filterArea, setFilterArea] = useState<string>("");
+  const [filterProductSource, setFilterProductSource] = useState<string>("");
+  const [filterProductCategory, setFilterProductCategory] = useState<string>("");
   
   const customStores: StoreWithAreas[] = (() => {
     const saved = localStorage.getItem("qrgear-custom-stores");
@@ -2753,13 +2756,32 @@ function ProductsContent() {
     [];
   
   const filteredProducts = products.filter(product => {
-    if (!filterSegment) return true;
-    const categoryParts = product.category.split("/");
-    const productStore = categoryParts[0];
-    const productArea = categoryParts[1] || null;
-    if (productStore !== filterSegment) return false;
-    if (!filterArea) return true;
-    return productArea === filterArea;
+    // Filter by store/area
+    if (filterSegment) {
+      const categoryParts = product.category.split("/");
+      const productStore = categoryParts[0];
+      const productArea = categoryParts[1] || null;
+      if (productStore !== filterSegment) return false;
+      if (filterArea && productArea !== filterArea) return false;
+    }
+    
+    // Filter by product type when Library category is selected
+    if (filterProductSource === "Library" && filterProductCategory) {
+      const productName = product.name.toLowerCase();
+      if (filterProductCategory === "T-Shirts") {
+        return productName.includes('t-shirt') || productName.includes('tee') || productName.includes('tank');
+      } else if (filterProductCategory === "Sweatshirts & Hoodies") {
+        return productName.includes('hoodie') || productName.includes('sweatshirt') || productName.includes('crew') || productName.includes('pullover');
+      } else if (filterProductCategory === "Hats & Caps") {
+        return productName.includes('hat') || productName.includes('cap') || productName.includes('beanie') || productName.includes('visor');
+      } else if (filterProductCategory === "Drinkware") {
+        return productName.includes('mug') || productName.includes('tumbler') || productName.includes('bottle') || productName.includes('cup') || productName.includes('glass');
+      } else if (filterProductCategory === "Bags") {
+        return productName.includes('bag') || productName.includes('tote') || productName.includes('backpack') || productName.includes('pouch');
+      }
+    }
+    
+    return true;
   });
   
   const deleteMutation = useMutation({
@@ -2852,9 +2874,11 @@ function ProductsContent() {
       <CatalogSyncSection />
       <AddFromPrintifyPanel 
         onSuccess={() => refetch()} 
-        onFilterChange={(store, segment) => {
+        onFilterChange={(store, segment, source, category) => {
           setFilterSegment(store);
           setFilterArea(segment);
+          setFilterProductSource(source || "");
+          setFilterProductCategory(category || "");
         }}
       />
 
