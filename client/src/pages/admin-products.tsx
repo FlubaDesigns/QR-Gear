@@ -171,7 +171,7 @@ function CatalogSyncSection() {
   
   return (
     <Card className="mb-4">
-      <CardContent className="pt-4">
+      <CardContent className="pt-4 px-3 sm:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -1491,14 +1491,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
 
   return (
     <Card className="mb-6">
-      <CardHeader>
+      <CardHeader className="px-3 sm:px-6">
         <CardTitle className="flex items-center gap-2">
           <Plus className="h-5 w-5" />
           Add Product
         </CardTitle>
         <CardDescription>Internal/External → Store → Segment → Library or Custom</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         {loadingCatalog ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -2874,7 +2874,7 @@ function ProductsContent() {
       />
 
       <Card>
-        <CardHeader className="space-y-3">
+        <CardHeader className="space-y-3 px-3 sm:px-6">
           <div className="flex flex-row items-center justify-between gap-4 flex-wrap">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -2941,7 +2941,7 @@ function ProductsContent() {
             </span>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
