@@ -254,7 +254,7 @@ function VideosContent() {
     <div className="container mx-auto py-6 px-4 max-w-6xl">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/admin">
-          <Button variant="ghost" size="icon" data-testid="button-back">
+          <Button variant="ghost" size="icon" className="h-12 w-12" data-testid="button-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
@@ -353,18 +353,20 @@ function VideosContent() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-12 w-12"
                     onClick={() => handleOpenEdit(asset)}
                     data-testid={`button-edit-video-${asset.id}`}
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-5 w-5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-12 w-12"
                     onClick={() => deleteMutation.mutate(asset.id)}
                     data-testid={`button-delete-video-${asset.id}`}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-5 w-5" />
                   </Button>
                 </div>
               </div>

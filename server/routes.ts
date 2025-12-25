@@ -5263,6 +5263,86 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // =====================================
+  // ADMIN PARTNER STORE ENDPOINTS
+  // =====================================
+
+  // List all partner stores
+  app.get("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
+    try {
+      const stores = await storage.getPartnerStores();
+      res.json(stores);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single partner store
+  app.get("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
+    try {
+      const store = await storage.getPartnerStore(req.params.id);
+      if (!store) return res.status(404).json({ error: "Partner store not found" });
+      res.json(store);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create partner store
+  app.post("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
+    try {
+      // Generate API key if not provided
+      const apiKey = req.body.apiKey || `qrg_${crypto.randomUUID().replace(/-/g, '')}`;
+      const store = await storage.createPartnerStore({ ...req.body, apiKey });
+      res.json(store);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update partner store
+  app.patch("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
+    try {
+      const store = await storage.updatePartnerStore(req.params.id, req.body);
+      if (!store) return res.status(404).json({ error: "Partner store not found" });
+      res.json(store);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete partner store
+  app.delete("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
+    try {
+      await storage.deletePartnerStore(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Regenerate API key for partner store
+  app.post("/api/admin/partner-stores/:id/regenerate-key", isAdmin, async (req: any, res) => {
+    try {
+      const newApiKey = `qrg_${crypto.randomUUID().replace(/-/g, '')}`;
+      const store = await storage.updatePartnerStore(req.params.id, { apiKey: newApiKey });
+      if (!store) return res.status(404).json({ error: "Partner store not found" });
+      res.json({ apiKey: newApiKey });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get partner store products
+  app.get("/api/admin/partner-stores/:id/products", isAdmin, async (req: any, res) => {
+    try {
+      const storeProducts = await storage.getPartnerStoreProducts(req.params.id);
+      res.json(storeProducts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 

@@ -75,12 +75,13 @@ function ProductTagsContent() {
         <Button
           onClick={() => seedMutation.mutate()}
           disabled={seedMutation.isPending}
+          className="h-12 px-6"
           data-testid="button-seed-categories"
         >
           {seedMutation.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            <Loader2 className="w-5 h-5 animate-spin mr-2" />
           ) : (
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-5 h-5 mr-2" />
           )}
           Seed Defaults
         </Button>
@@ -107,11 +108,11 @@ function ProductTagsContent() {
                       <Badge
                         key={cat.id}
                         variant={cat.isActive ? "default" : "outline"}
-                        className="gap-2 px-3 py-1.5 cursor-pointer"
+                        className="gap-2 px-4 py-3 cursor-pointer text-base min-h-[48px] flex items-center"
                         onClick={() => toggleMutation.mutate({ id: cat.id, isActive: !cat.isActive })}
                         data-testid={`badge-category-${cat.slug}`}
                       >
-                        {cat.isActive ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                        {cat.isActive ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                         {cat.name}
                       </Badge>
                     ))}
@@ -148,7 +149,7 @@ export default function AdminTags() {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10"
+                className="text-white hover:bg-white/10 h-12 w-12"
                 data-testid="button-back"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -173,9 +174,8 @@ export default function AdminTags() {
                 </div>
                 <Button 
                   variant="outline" 
-                  size="sm" 
                   onClick={copyUserId}
-                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
+                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 h-12 px-4"
                   data-testid="button-copy-user-id"
                 >
                   Copy ID

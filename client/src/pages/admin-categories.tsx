@@ -180,20 +180,20 @@ function CategoriesContent() {
           <CardTitle data-testid="text-categories-title">Product Categories</CardTitle>
           <CardDescription>Manage product categories from Firestore</CardDescription>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={loadCategories} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" className="h-12 px-4" onClick={loadCategories} disabled={loading}>
+            <RefreshCw className={`h-5 w-5 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
           {categories.length === 0 && !loading && (
-            <Button variant="outline" size="sm" onClick={handleSeedDefaults} disabled={saving}>
+            <Button variant="outline" className="h-12 px-4" onClick={handleSeedDefaults} disabled={saving}>
               Seed Defaults
             </Button>
           )}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" onClick={openCreateDialog}>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button className="h-12 px-4" onClick={openCreateDialog}>
+                <Plus className="h-5 w-5 mr-2" />
                 Add
               </Button>
             </DialogTrigger>
@@ -228,9 +228,10 @@ function CategoriesContent() {
                         type="button"
                         variant={formData.icon === iconName ? "default" : "outline"}
                         size="icon"
+                        className="h-12 w-12"
                         onClick={() => setFormData({ ...formData, icon: iconName })}
                       >
-                        <IconDisplay iconName={iconName} className="h-4 w-4" />
+                        <IconDisplay iconName={iconName} className="h-5 w-5" />
                       </Button>
                     ))}
                   </div>
@@ -298,16 +299,16 @@ function CategoriesContent() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(category)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-12 w-12" onClick={() => openEditDialog(category)}>
+                        <Pencil className="h-5 w-5" />
                       </Button>
                       <Dialog
                         open={deleteConfirmId === category.id}
                         onOpenChange={(open) => setDeleteConfirmId(open ? category.id : null)}
                       >
                         <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                          <Button variant="ghost" size="icon" className="h-12 w-12">
+                            <Trash2 className="h-5 w-5 text-destructive" />
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -360,7 +361,7 @@ export default function AdminCategories() {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10"
+                className="text-white hover:bg-white/10 h-12 w-12"
                 data-testid="button-back"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -385,9 +386,8 @@ export default function AdminCategories() {
                 </div>
                 <Button 
                   variant="outline" 
-                  size="sm" 
                   onClick={copyUserId}
-                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
+                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 h-12 px-4"
                   data-testid="button-copy-user-id"
                 >
                   Copy ID
