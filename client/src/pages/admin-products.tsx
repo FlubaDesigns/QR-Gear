@@ -2992,11 +2992,53 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       key={template.id}
                       className="border-2 rounded-lg overflow-hidden cursor-pointer hover-elevate active-elevate-2 transition-transform"
                       onClick={() => {
-                        // TODO Phase 2: Apply template - load design into builder fields
-                        // For now, show coming soon message
+                        // Load template data into form fields
+                        // Header text
+                        if (template.topText?.text) {
+                          setHeaderEnabled(true);
+                          setHeaderText(template.topText.text);
+                          setHeaderFontFamily(template.topText.fontFamily || "Arial");
+                          setHeaderFontSize(template.topText.fontSize || "18");
+                        } else {
+                          setHeaderEnabled(false);
+                          setHeaderText("");
+                        }
+                        // Footer text
+                        if (template.bottomText?.text) {
+                          setFooterEnabled(true);
+                          setFooterText(template.bottomText.text);
+                          setFooterFontFamily(template.bottomText.fontFamily || "Arial");
+                          setFooterFontSize(template.bottomText.fontSize || "16");
+                        } else {
+                          setFooterEnabled(false);
+                          setFooterText("");
+                        }
+                        // Background
+                        if (template.backgroundImageUrl) {
+                          setBackgroundImage(null);
+                          setBackgroundPreview(template.backgroundImageUrl);
+                        }
+                        // Store/segment (optional - set if matching)
+                        if (template.storeType) {
+                          setStoreType(template.storeType as StoreType);
+                        }
+                        if (template.storeName) {
+                          const matchingStore = partnerStoresData.find(s => s.name === template.storeName);
+                          if (matchingStore) {
+                            setSelectedStore(matchingStore.id);
+                          }
+                        }
+                        if (template.segment) {
+                          setSelectedSegment(template.segment);
+                        }
+                        // Featured/Seasonal flags
+                        setIsFeatured(template.isFeatured || false);
+                        setIsSeasonalPromo(template.isSeasonalPromo || false);
+                        
+                        setLibraryPickerOpen(false);
                         toast({ 
-                          title: "Template Preview", 
-                          description: `"${template.productName}" - Template apply feature coming in Phase 2.`,
+                          title: "Template Loaded", 
+                          description: `"${template.productName}" loaded. Edit the fields below and save as new template.`,
                           duration: 4000,
                         });
                       }}
