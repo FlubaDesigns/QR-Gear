@@ -355,6 +355,26 @@ export const hostingTiers = pgTable("hosting_tiers", {
   sortOrder: integer("sort_order").default(0),
 });
 
+// Coupons / Discount codes - synced with Stripe promotion codes
+export const coupons = pgTable("coupons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(), // Customer-facing code like "SUMMER20"
+  name: text("name").notNull(), // Internal name for admin
+  discountType: text("discount_type").notNull(), // 'percent' or 'fixed'
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(), // Percentage (e.g., 20) or dollar amount (e.g., 5.00)
+  currency: text("currency").default("usd"), // For fixed amount discounts
+  minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }), // Minimum order value required
+  maxRedemptions: integer("max_redemptions"), // Total times this coupon can be used (null = unlimited)
+  redemptionCount: integer("redemption_count").default(0), // How many times it's been used
+  validFrom: timestamp("valid_from"), // Start date (null = immediately valid)
+  validUntil: timestamp("valid_until"), // End date (null = no expiration)
+  stripeCouponId: text("stripe_coupon_id"), // Stripe coupon ID
+  stripePromotionCodeId: text("stripe_promotion_code_id"), // Stripe promotion code ID
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const customGifts = pgTable("custom_gifts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
@@ -514,6 +534,13 @@ export const insertGiftBackgroundSchema = createInsertSchema(giftBackgrounds).om
 
 export const insertHostingTierSchema = createInsertSchema(hostingTiers).omit({
   id: true,
+});
+
+export const insertCouponSchema = createInsertSchema(coupons).omit({
+  id: true,
+  redemptionCount: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertCustomGiftSchema = createInsertSchema(customGifts).omit({
@@ -1219,6 +1246,9 @@ export type InsertGiftBackground = z.infer<typeof insertGiftBackgroundSchema>;
 
 export type HostingTier = typeof hostingTiers.$inferSelect;
 export type InsertHostingTier = z.infer<typeof insertHostingTierSchema>;
+
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;
 
 export type CustomGift = typeof customGifts.$inferSelect;
 export type InsertCustomGift = z.infer<typeof insertCustomGiftSchema>;

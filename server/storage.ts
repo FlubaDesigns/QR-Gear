@@ -28,6 +28,8 @@ import type {
   InsertAdminSettings,
   HostingTier,
   InsertHostingTier,
+  Coupon,
+  InsertCoupon,
   QrTemplate,
   InsertQrTemplate,
   DynamicPage,
@@ -161,6 +163,16 @@ export interface IStorage {
   createHostingTier(tier: InsertHostingTier): Promise<HostingTier>;
   updateHostingTier(id: string, tier: Partial<InsertHostingTier>): Promise<HostingTier | undefined>;
   deleteHostingTier(id: string): Promise<void>;
+
+  // Coupon operations
+  getCoupons(): Promise<Coupon[]>;
+  getActiveCoupons(): Promise<Coupon[]>;
+  getCoupon(id: string): Promise<Coupon | undefined>;
+  getCouponByCode(code: string): Promise<Coupon | undefined>;
+  createCoupon(coupon: InsertCoupon): Promise<Coupon>;
+  updateCoupon(id: string, coupon: Partial<InsertCoupon>): Promise<Coupon | undefined>;
+  deleteCoupon(id: string): Promise<void>;
+  incrementCouponRedemption(id: string): Promise<void>;
 
   // QR Template operations
   getQrTemplates(): Promise<QrTemplate[]>;
@@ -672,6 +684,54 @@ export class DbStorage implements IStorage {
 
   async deleteHostingTier(id: string): Promise<void> {
     await this.db.delete(schema.hostingTiers).where(eq(schema.hostingTiers.id, id));
+  }
+
+  // Coupon operations
+  async getCoupons(): Promise<Coupon[]> {
+    return this.db.select().from(schema.coupons);
+  }
+
+  async getActiveCoupons(): Promise<Coupon[]> {
+    return this.db.select().from(schema.coupons).where(eq(schema.coupons.isActive, true));
+  }
+
+  async getCoupon(id: string): Promise<Coupon | undefined> {
+    const [coupon] = await this.db.select().from(schema.coupons).where(eq(schema.coupons.id, id));
+    return coupon;
+  }
+
+  async getCouponByCode(code: string): Promise<Coupon | undefined> {
+    const [coupon] = await this.db.select().from(schema.coupons).where(eq(schema.coupons.code, code.toUpperCase()));
+    return coupon;
+  }
+
+  async createCoupon(coupon: InsertCoupon): Promise<Coupon> {
+    const [newCoupon] = await this.db.insert(schema.coupons).values({
+      ...coupon,
+      code: coupon.code.toUpperCase(),
+    }).returning();
+    return newCoupon;
+  }
+
+  async updateCoupon(id: string, coupon: Partial<InsertCoupon>): Promise<Coupon | undefined> {
+    const updateData = coupon.code ? { ...coupon, code: coupon.code.toUpperCase(), updatedAt: new Date() } : { ...coupon, updatedAt: new Date() };
+    const [updated] = await this.db
+      .update(schema.coupons)
+      .set(updateData)
+      .where(eq(schema.coupons.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCoupon(id: string): Promise<void> {
+    await this.db.delete(schema.coupons).where(eq(schema.coupons.id, id));
+  }
+
+  async incrementCouponRedemption(id: string): Promise<void> {
+    await this.db
+      .update(schema.coupons)
+      .set({ redemptionCount: sql`${schema.coupons.redemptionCount} + 1` })
+      .where(eq(schema.coupons.id, id));
   }
 
   // QR Template operations
@@ -2105,6 +2165,68 @@ class MemStorage implements IStorage {
 
   async deleteHostingTier(id: string): Promise<void> {
     this.hostingTiers.delete(id);
+  }
+
+  // Coupon operations
+  private couponsMap = new Map<string, Coupon>();
+
+  async getCoupons(): Promise<Coupon[]> {
+    return Array.from(this.couponsMap.values());
+  }
+
+  async getActiveCoupons(): Promise<Coupon[]> {
+    return Array.from(this.couponsMap.values()).filter(c => c.isActive);
+  }
+
+  async getCoupon(id: string): Promise<Coupon | undefined> {
+    return this.couponsMap.get(id);
+  }
+
+  async getCouponByCode(code: string): Promise<Coupon | undefined> {
+    return Array.from(this.couponsMap.values()).find(c => c.code === code.toUpperCase());
+  }
+
+  async createCoupon(coupon: InsertCoupon): Promise<Coupon> {
+    const id = `coupon_${Date.now()}`;
+    const newCoupon: Coupon = {
+      ...coupon,
+      id,
+      code: coupon.code.toUpperCase(),
+      currency: coupon.currency ?? "usd",
+      minOrderAmount: coupon.minOrderAmount ?? null,
+      maxRedemptions: coupon.maxRedemptions ?? null,
+      redemptionCount: 0,
+      validFrom: coupon.validFrom ?? null,
+      validUntil: coupon.validUntil ?? null,
+      stripeCouponId: coupon.stripeCouponId ?? null,
+      stripePromotionCodeId: coupon.stripePromotionCodeId ?? null,
+      isActive: coupon.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.couponsMap.set(id, newCoupon);
+    return newCoupon;
+  }
+
+  async updateCoupon(id: string, coupon: Partial<InsertCoupon>): Promise<Coupon | undefined> {
+    const existing = this.couponsMap.get(id);
+    if (!existing) return undefined;
+    const updated: Coupon = { ...existing, ...coupon, updatedAt: new Date() };
+    if (coupon.code) updated.code = coupon.code.toUpperCase();
+    this.couponsMap.set(id, updated);
+    return updated;
+  }
+
+  async deleteCoupon(id: string): Promise<void> {
+    this.couponsMap.delete(id);
+  }
+
+  async incrementCouponRedemption(id: string): Promise<void> {
+    const existing = this.couponsMap.get(id);
+    if (existing) {
+      existing.redemptionCount = (existing.redemptionCount || 0) + 1;
+      this.couponsMap.set(id, existing);
+    }
   }
 
   // QR Template operations

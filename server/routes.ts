@@ -3262,6 +3262,239 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ COUPONS ENDPOINTS ============
+
+  // Get all coupons (admin only)
+  app.get("/api/admin/coupons", isAdmin, async (req, res) => {
+    try {
+      const coupons = await storage.getCoupons();
+      res.json(coupons);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create coupon (admin only) - syncs with Stripe
+  app.post("/api/admin/coupons", isAdmin, async (req, res) => {
+    try {
+      const createSchema = z.object({
+        code: z.string().min(1).max(50),
+        name: z.string().min(1),
+        discountType: z.enum(["percent", "fixed"]),
+        discountValue: z.string().refine(val => parseFloat(val) > 0, "Must be greater than 0"),
+        currency: z.string().optional().default("usd"),
+        minOrderAmount: z.string().nullable().optional(),
+        maxRedemptions: z.number().nullable().optional(),
+        validFrom: z.string().nullable().optional(),
+        validUntil: z.string().nullable().optional(),
+        isActive: z.boolean().optional().default(true),
+      });
+
+      const validated = createSchema.parse(req.body);
+
+      // Check for duplicate code
+      const existing = await storage.getCouponByCode(validated.code);
+      if (existing) {
+        return res.status(409).json({ error: "A coupon with this code already exists" });
+      }
+
+      // Try to create in Stripe
+      let stripeCouponId: string | null = null;
+      let stripePromotionCodeId: string | null = null;
+
+      try {
+        const { getUncachableStripeClient } = await import("./stripeClient");
+        const stripe = await getUncachableStripeClient();
+
+        // Create Stripe coupon
+        const stripeCoupon = await stripe.coupons.create({
+          ...(validated.discountType === "percent"
+            ? { percent_off: parseFloat(validated.discountValue) }
+            : { amount_off: Math.round(parseFloat(validated.discountValue) * 100), currency: validated.currency }),
+          name: validated.name,
+          ...(validated.validUntil && { redeem_by: Math.floor(new Date(validated.validUntil).getTime() / 1000) }),
+          ...(validated.maxRedemptions && { max_redemptions: validated.maxRedemptions }),
+        });
+        stripeCouponId = stripeCoupon.id;
+
+        // Create promotion code (customer-facing code)
+        const promoCode = await stripe.promotionCodes.create({
+          coupon: stripeCoupon.id,
+          code: validated.code.toUpperCase(),
+          active: validated.isActive,
+        });
+        stripePromotionCodeId = promoCode.id;
+      } catch (stripeError: any) {
+        console.error("Stripe coupon creation failed:", stripeError.message);
+        // Continue without Stripe sync - coupon will work locally
+      }
+
+      const coupon = await storage.createCoupon({
+        code: validated.code,
+        name: validated.name,
+        discountType: validated.discountType,
+        discountValue: validated.discountValue,
+        currency: validated.currency,
+        minOrderAmount: validated.minOrderAmount ?? null,
+        maxRedemptions: validated.maxRedemptions ?? null,
+        validFrom: validated.validFrom ? new Date(validated.validFrom) : null,
+        validUntil: validated.validUntil ? new Date(validated.validUntil) : null,
+        stripeCouponId,
+        stripePromotionCodeId,
+        isActive: validated.isActive,
+      });
+
+      res.json(coupon);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update coupon (admin only)
+  app.put("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateSchema = z.object({
+        name: z.string().optional(),
+        isActive: z.boolean().optional(),
+        maxRedemptions: z.number().nullable().optional(),
+        validUntil: z.string().nullable().optional(),
+      });
+
+      const validated = updateSchema.parse(req.body);
+      
+      // Update Stripe promotion code if we have one
+      const existingCoupon = await storage.getCoupon(id);
+      if (existingCoupon?.stripePromotionCodeId && validated.isActive !== undefined) {
+        try {
+          const { getUncachableStripeClient } = await import("./stripeClient");
+          const stripe = await getUncachableStripeClient();
+          await stripe.promotionCodes.update(existingCoupon.stripePromotionCodeId, {
+            active: validated.isActive,
+          });
+        } catch (stripeError: any) {
+          console.error("Stripe promo code update failed:", stripeError.message);
+        }
+      }
+
+      const updated = await storage.updateCoupon(id, {
+        ...(validated.name && { name: validated.name }),
+        ...(validated.isActive !== undefined && { isActive: validated.isActive }),
+        ...(validated.maxRedemptions !== undefined && { maxRedemptions: validated.maxRedemptions }),
+        ...(validated.validUntil !== undefined && { validUntil: validated.validUntil ? new Date(validated.validUntil) : null }),
+      });
+
+      if (!updated) {
+        return res.status(404).json({ error: "Coupon not found" });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete coupon (admin only)
+  app.delete("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Deactivate in Stripe if we have a promo code
+      const existingCoupon = await storage.getCoupon(id);
+      if (existingCoupon?.stripePromotionCodeId) {
+        try {
+          const { getUncachableStripeClient } = await import("./stripeClient");
+          const stripe = await getUncachableStripeClient();
+          await stripe.promotionCodes.update(existingCoupon.stripePromotionCodeId, {
+            active: false,
+          });
+        } catch (stripeError: any) {
+          console.error("Stripe promo code deactivation failed:", stripeError.message);
+        }
+      }
+
+      await storage.deleteCoupon(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Validate coupon code (public - for cart/checkout)
+  app.post("/api/coupons/validate", async (req, res) => {
+    try {
+      const validateSchema = z.object({
+        code: z.string().min(1),
+        orderTotal: z.number().optional(),
+      });
+
+      const { code, orderTotal } = validateSchema.parse(req.body);
+      const coupon = await storage.getCouponByCode(code);
+
+      if (!coupon) {
+        return res.status(404).json({ valid: false, error: "Invalid coupon code" });
+      }
+
+      if (!coupon.isActive) {
+        return res.status(400).json({ valid: false, error: "This coupon is no longer active" });
+      }
+
+      const now = new Date();
+      if (coupon.validFrom && now < new Date(coupon.validFrom)) {
+        return res.status(400).json({ valid: false, error: "This coupon is not yet active" });
+      }
+
+      if (coupon.validUntil && now > new Date(coupon.validUntil)) {
+        return res.status(400).json({ valid: false, error: "This coupon has expired" });
+      }
+
+      if (coupon.maxRedemptions && (coupon.redemptionCount || 0) >= coupon.maxRedemptions) {
+        return res.status(400).json({ valid: false, error: "This coupon has reached its usage limit" });
+      }
+
+      if (coupon.minOrderAmount && orderTotal && orderTotal < parseFloat(coupon.minOrderAmount)) {
+        return res.status(400).json({ 
+          valid: false, 
+          error: `Minimum order of $${coupon.minOrderAmount} required for this coupon` 
+        });
+      }
+
+      // Calculate discount
+      let discountAmount = 0;
+      if (orderTotal) {
+        if (coupon.discountType === "percent") {
+          discountAmount = orderTotal * (parseFloat(coupon.discountValue) / 100);
+        } else {
+          discountAmount = Math.min(parseFloat(coupon.discountValue), orderTotal);
+        }
+      }
+
+      res.json({
+        valid: true,
+        coupon: {
+          id: coupon.id,
+          code: coupon.code,
+          name: coupon.name,
+          discountType: coupon.discountType,
+          discountValue: coupon.discountValue,
+          stripePromotionCodeId: coupon.stripePromotionCodeId,
+        },
+        discountAmount: discountAmount.toFixed(2),
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ valid: false, error: error.errors });
+      }
+      res.status(500).json({ valid: false, error: error.message });
+    }
+  });
+
   // ============ QR TEMPLATES ENDPOINTS ============
   
   // Get active templates for customers
