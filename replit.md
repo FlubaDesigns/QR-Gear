@@ -90,6 +90,7 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - After making KC-relevant changes, update files in AI-COMMS/ and regenerate zip
 
 ## Recent Changes
+- 2025-12-25: **IMPLEMENTED** SVG text-warp rendering pipeline for print-ready images. Features: 9 warp presets (straight, arc-up/down, wave, circle-top/bottom), rich text controls (color picker, letter spacing, optional stroke), 20-font allowlist, 4500x5400px PNG output via @resvg/resvg-js. API endpoints: /api/render/config, /api/render/preview (SVG), /api/render/png. Fallback to canvas renderer with full style parity.
 - 2025-12-24: **ENHANCED** Cost sync now also caches availableColors (JSONB) and availableSizes (text array) in printifyPrintProviders table. Frontend shows "(cached)" indicators when data comes from database. API endpoints return colorsFromDatabase/sizesFromDatabase flags.
 - 2025-12-24: **IMPLEMENTED** Landing page text overlay feature - title/description with position (top/bottom), font selection, color picker. Stored in `landingOverlay` JSON field. Display on /customs/:id page.
 - 2025-12-24: Added library asset system with backgrounds/videos, season/event categorization, admin UI tabs
@@ -149,3 +150,30 @@ The cost sync system extracts real production costs, colors, and sizes from Prin
 - 3s delay between requests to avoid rate limits
 - Staleness threshold: 24 hours (amber badge in admin UI)
 - Frontend shows "(cached)" indicators when data comes from database vs live API
+
+## SVG Text Rendering System
+The SVG-based text rendering pipeline generates high-quality print-ready images with text warp effects:
+
+**Key Components:**
+- `server/lib/svg-renderer.ts`: SVG generation with text-on-path for warp effects
+- `server/lib/qrcode-svg.d.ts`: Type definitions for qrcode-svg package
+- API endpoints: `/api/render/config`, `/api/render/preview`, `/api/render/png`
+
+**Warp Presets:**
+- `straight` - No warp, horizontal text
+- `arc-up` / `arc-down` - Gentle arc curves
+- `arc-strong-up` / `arc-strong-down` - Dramatic arc curves
+- `wave` / `wave-strong` - Sine wave effects
+- `circle-top` / `circle-bottom` - Circular text paths
+
+**Text Style Options:**
+- Font family: 20-font allowlist including Orbitron, Impact, Georgia
+- Font size: Print-scale (120pt header, 96pt footer default)
+- Color: Hex color picker
+- Letter spacing: -10 to +50 range
+- Stroke: Optional outline with color and width
+
+**Output:**
+- Canvas: 4500 × 5400 px transparent PNG
+- QR code: SVG-based using qrcode-svg for crisp scaling
+- PNG conversion: @resvg/resvg-js (Rust-based, high quality)
