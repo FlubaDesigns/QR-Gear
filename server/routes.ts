@@ -3234,11 +3234,21 @@ ${allPages.map(page => `  <url>
           text: z.string(),
           fontFamily: z.string(),
           fontSize: z.string(),
+          color: z.string().optional(),
+          letterSpacing: z.number().optional(),
+          warpPreset: z.string().optional(),
+          strokeColor: z.string().optional(),
+          strokeWidth: z.number().optional(),
         }).nullable().optional(),
         bottomText: z.object({
           text: z.string(),
           fontFamily: z.string(),
           fontSize: z.string(),
+          color: z.string().optional(),
+          letterSpacing: z.number().optional(),
+          warpPreset: z.string().optional(),
+          strokeColor: z.string().optional(),
+          strokeWidth: z.number().optional(),
         }).nullable().optional(),
         // Landing page overlay - displayed when QR is scanned (not printed)
         landingOverlay: z.object({

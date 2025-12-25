@@ -3010,19 +3010,21 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     
                     <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Base Production Cost:</span>
+                        <span>Base Production Cost (1st placement):</span>
                         <span className="font-medium">
                           {catalogDetails.basePrice > 0 ? `$${catalogDetails.basePrice.toFixed(2)}` : "Sync costs to view"}
                         </span>
                       </div>
                       
-                      {/* Per-placement breakdown */}
-                      {qrContentType === "rich_media" && (headerEnabled || footerEnabled) && (
+                      {/* Per-placement breakdown - always show when multiple placements */}
+                      {Object.keys(placementConfigs).length > 0 && (
                         <div className="border-t pt-2 mt-2">
-                          <div className="text-xs text-muted-foreground mb-2">Text upcharges by placement:</div>
-                          {Object.entries(placementConfigs).map(([id, mode]) => {
+                          <div className="text-xs text-muted-foreground mb-2">Print areas:</div>
+                          {Object.entries(placementConfigs).map(([id, mode], index) => {
                             const placement = QR_PLACEMENTS.find(p => p.id === id);
-                            const hasTextUpcharge = mode === "full" && (
+                            const isFirstPlacement = index === 0;
+                            const additionalPlacementCost = 4.00; // Printify charges ~$4 per additional print area
+                            const hasTextUpcharge = mode === "full" && qrContentType === "rich_media" && (
                               (headerEnabled && headerText) || (footerEnabled && footerText)
                             );
                             const placementTextCost = hasTextUpcharge 
@@ -3030,13 +3032,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                  (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0))
                               : 0;
                             
+                            // Total cost for this placement
+                            const placementTotalCost = isFirstPlacement 
+                              ? placementTextCost 
+                              : additionalPlacementCost + placementTextCost;
+                            
                             return (
                               <div key={id} className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
                                   {placement?.label || id} ({mode === "full" ? "Full" : "QR Only"})
+                                  {!isFirstPlacement && <span className="text-xs ml-1">(+$4 area)</span>}
                                 </span>
-                                <span className={mode === "full" && hasTextUpcharge ? "font-medium" : "text-muted-foreground"}>
-                                  {mode === "qr-only" ? "—" : (hasTextUpcharge ? `+$${placementTextCost.toFixed(2)}` : "—")}
+                                <span className={placementTotalCost > 0 ? "font-medium" : "text-muted-foreground"}>
+                                  {isFirstPlacement 
+                                    ? (hasTextUpcharge ? `+$${placementTextCost.toFixed(2)} text` : "included")
+                                    : `+$${placementTotalCost.toFixed(2)}`
+                                  }
                                 </span>
                               </div>
                             );
@@ -3058,10 +3069,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                                         (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0);
                         const totalTextUpcharge = qrContentType === "rich_media" ? fullArtworkPlacements.length * textUpchargePerPlacement : 0;
                         
-                        // For plain_text QR, no hosting or text upcharges
+                        // Calculate additional placement costs ($4 per additional print area)
+                        const additionalPlacementCount = Math.max(0, Object.keys(placementConfigs).length - 1);
+                        const additionalPlacementCost = additionalPlacementCount * 4.00;
+                        
+                        // For plain_text QR, no hosting or text upcharges but still charge for additional placements
                         const baseCost = qrContentType === "plain_text" 
-                          ? catalogDetails.basePrice 
-                          : catalogDetails.basePrice + totalTextUpcharge + hostingPrice;
+                          ? catalogDetails.basePrice + additionalPlacementCost
+                          : catalogDetails.basePrice + additionalPlacementCost + totalTextUpcharge + hostingPrice;
                         const retailPrice = baseCost * (1 + markupPercent / 100) + markupFixed;
                         
                         return (
