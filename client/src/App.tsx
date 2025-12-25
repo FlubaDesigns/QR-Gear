@@ -28,6 +28,7 @@ import Customs from "@/pages/customs";
 import GiftShop from "@/pages/gift-shop";
 import GiftRedeem from "@/pages/gift-redeem";
 import AdminGifts from "@/pages/admin-gifts";
+import ShopSegment from "@/pages/shop-segment";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -59,6 +60,8 @@ function Router() {
       <Route path="/gifts" component={GiftShop} />
       <Route path="/gift/redeem" component={GiftRedeem} />
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
+      <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
+      <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
       <Route component={NotFound} />
     </Switch>
   );

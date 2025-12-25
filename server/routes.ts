@@ -2843,6 +2843,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Public: Get partner store by slug (for widget embedding)
+  // Optional query param: ?placement=homepage|dashboard|static_page to filter by kcPlacements
   app.get("/api/widget/stores/:slug", async (req, res) => {
     try {
       const store = await storage.getPartnerStoreBySlug(req.params.slug);
@@ -2850,11 +2851,19 @@ ${allPages.map(page => `  <url>
         return res.status(404).json({ error: "Partner store not found" });
       }
       const storeProducts = await storage.getPartnerStoreProducts(store.id);
-      const enabledProducts = storeProducts.filter(sp => sp.isEnabled);
+      
+      // Filter by placement if provided
+      const placement = req.query.placement as string | undefined;
+      let filteredProducts = storeProducts.filter(sp => sp.isEnabled);
+      if (placement) {
+        filteredProducts = filteredProducts.filter(sp => 
+          sp.kcPlacements && sp.kcPlacements.includes(placement)
+        );
+      }
       
       // Fetch actual product details
       const productDetails = await Promise.all(
-        enabledProducts.map(async (sp) => {
+        filteredProducts.map(async (sp) => {
           const product = await storage.getProduct(sp.productId);
           if (!product || !product.isEnabled) return null;
           return {
@@ -2863,6 +2872,7 @@ ${allPages.map(page => `  <url>
             imageUrl: product.imageUrl,
             customPrice: sp.customPrice,
             sortOrder: sp.sortOrder,
+            kcPlacements: sp.kcPlacements,
           };
         })
       );
@@ -2874,7 +2884,46 @@ ${allPages.map(page => `  <url>
         logoUrl: store.logoUrl,
         primaryColor: store.primaryColor,
         accentColor: store.accentColor,
+        availableSegments: store.availableSegments,
         products: productDetails.filter(Boolean).sort((a: any, b: any) => (a?.sortOrder || 0) - (b?.sortOrder || 0)),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Public: Get store products by store type/name/segment (for internal store pages)
+  // Used by pages like /shop/internal/qr-gear/featured or /shop/external/kingdom-connects/homepage
+  app.get("/api/store/:storeType/:storeName", async (req, res) => {
+    try {
+      const { storeType, storeName } = req.params;
+      const segment = req.query.segment as string | undefined;
+      
+      // Validate store type
+      if (!["Internal", "External"].includes(storeType)) {
+        return res.status(400).json({ error: "Invalid store type. Use 'Internal' or 'External'" });
+      }
+      
+      // Get custom designs saved to this store/segment
+      const designs = await storage.getCustomDesignsByStoreSegment(storeType, storeName, segment);
+      
+      // Transform to product display format
+      const products = designs.map(d => ({
+        id: d.id,
+        name: d.productName,
+        imageUrl: d.productImage || d.printifyCompositeUrl,
+        segment: d.segment,
+        isFeatured: d.isFeatured,
+        isSeasonalPromo: d.isSeasonalPromo,
+        templateVariant: d.templateVariant,
+        createdAt: d.createdAt,
+      }));
+      
+      res.json({
+        storeType,
+        storeName,
+        segment: segment || null,
+        products,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

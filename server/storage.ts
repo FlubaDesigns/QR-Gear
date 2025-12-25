@@ -259,6 +259,7 @@ export interface IStorage {
   getCustomDesign(id: string): Promise<CustomDesign | undefined>;
   getCustomDesigns(): Promise<CustomDesign[]>;
   getCustomDesignsForLibrary(): Promise<CustomDesign[]>;
+  getCustomDesignsByStoreSegment(storeType: string, storeName: string, segment?: string): Promise<CustomDesign[]>;
   createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign>;
   updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined>;
   deleteCustomDesign(id: string): Promise<void>;
@@ -1265,6 +1266,20 @@ export class DbStorage implements IStorage {
   async getCustomDesignsForLibrary(): Promise<CustomDesign[]> {
     return await this.db.select().from(schema.customDesigns)
       .where(eq(schema.customDesigns.savedToLibrary, true))
+      .orderBy(sql`${schema.customDesigns.createdAt} DESC`);
+  }
+
+  async getCustomDesignsByStoreSegment(storeType: string, storeName: string, segment?: string): Promise<CustomDesign[]> {
+    const conditions = [
+      eq(schema.customDesigns.savedToStore, true),
+      eq(schema.customDesigns.storeType, storeType),
+      eq(schema.customDesigns.storeName, storeName),
+    ];
+    if (segment) {
+      conditions.push(eq(schema.customDesigns.segment, segment));
+    }
+    return await this.db.select().from(schema.customDesigns)
+      .where(and(...conditions))
       .orderBy(sql`${schema.customDesigns.createdAt} DESC`);
   }
 
@@ -2700,6 +2715,18 @@ class MemStorage implements IStorage {
   async getCustomDesignsForLibrary(): Promise<CustomDesign[]> {
     return Array.from(this.customDesigns.values())
       .filter(d => d.savedToLibrary)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getCustomDesignsByStoreSegment(storeType: string, storeName: string, segment?: string): Promise<CustomDesign[]> {
+    return Array.from(this.customDesigns.values())
+      .filter(d => {
+        if (!d.savedToStore) return false;
+        if (d.storeType !== storeType) return false;
+        if (d.storeName !== storeName) return false;
+        if (segment && d.segment !== segment) return false;
+        return true;
+      })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
