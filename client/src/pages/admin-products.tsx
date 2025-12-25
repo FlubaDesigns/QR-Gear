@@ -1701,7 +1701,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
 
             {/* Custom: Build Module */}
             {productSource === "Custom" && (
-              <div className="space-y-4 p-4 border-2 border-accent/50 rounded-lg bg-accent/5">
+              <div className="space-y-4 p-2 sm:p-4 border-2 border-accent/50 rounded-lg bg-accent/5">
                 <Label className="text-lg font-bold">Custom Product Builder</Label>
                 <p className="text-sm text-muted-foreground">
                   Build a custom design, upload a background, add text, and create a QR code that links to your hosted design.
