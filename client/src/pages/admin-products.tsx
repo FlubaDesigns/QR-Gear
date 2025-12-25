@@ -1430,9 +1430,18 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     }
   }
   
-  async function handleSaveCustomDesign(saveTarget: "library" | "store" | "both") {
+  async function handleSaveCustomDesign(
+    saveTarget: "library" | "store" | "both",
+    templateMeta?: { name: string; categoryId: string; subcategoryId?: string }
+  ) {
     if (!selectedItemId || !catalogDetails) {
       toast({ title: "Error", description: "Please select a product first", variant: "destructive" });
+      return;
+    }
+    
+    // For library or both saves, require template metadata
+    if ((saveTarget === "library" || saveTarget === "both") && !templateMeta?.name) {
+      toast({ title: "Error", description: "Template name is required for library saves", variant: "destructive" });
       return;
     }
     
@@ -1533,6 +1542,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
       const res = await apiRequest("POST", "/api/admin/custom-designs", {
         ...designData,
         saveTarget,
+        // Template organization metadata (for library saves)
+        templateName: templateMeta?.name,
+        templateCategory: templateMeta?.categoryId,
+        templateSubcategory: templateMeta?.subcategoryId,
       });
       
       const result = await res.json();
@@ -3354,6 +3367,205 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 )}
               </div>
             )}
+            
+            {/* Template Save Dialog - Collect name and category for library saves */}
+            <Dialog open={templateSaveDialogOpen} onOpenChange={(open) => {
+              setTemplateSaveDialogOpen(open);
+              if (!open) {
+                setTemplateSavePendingTarget(null);
+                setTemplateName("");
+                setSelectedTemplateCategory("");
+                setSelectedTemplateSubcategory("");
+                setCreatingNewCategory(false);
+                setCreatingNewSubcategory(false);
+                setNewCategoryName("");
+                setNewSubcategoryName("");
+              }
+            }}>
+              <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Save Template to Library</DialogTitle>
+                  <DialogDescription>
+                    Organize your template with a name and category for easy finding later.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {/* Template Name */}
+                  <div className="space-y-2">
+                    <Label htmlFor="template-name" className="text-base font-medium">Template Name *</Label>
+                    <Input
+                      id="template-name"
+                      placeholder="e.g., Beach Scene Summer 2025"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      className="h-12"
+                      data-testid="input-template-name"
+                    />
+                  </div>
+                  
+                  {/* Category Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-base font-medium">Category *</Label>
+                    {creatingNewCategory ? (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="New category name"
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          className="h-12 flex-1"
+                          data-testid="input-new-category"
+                        />
+                        <Button
+                          size="default"
+                          onClick={() => {
+                            if (newCategoryName.trim()) {
+                              createCategoryMutation.mutate({ name: newCategoryName.trim() });
+                            }
+                          }}
+                          disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
+                          data-testid="button-save-category"
+                        >
+                          {createCategoryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          size="default"
+                          variant="outline"
+                          onClick={() => {
+                            setCreatingNewCategory(false);
+                            setNewCategoryName("");
+                          }}
+                          data-testid="button-cancel-category"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Select value={selectedTemplateCategory} onValueChange={(v) => {
+                          setSelectedTemplateCategory(v);
+                          setSelectedTemplateSubcategory("");
+                        }}>
+                          <SelectTrigger className="h-12 flex-1" data-testid="select-category">
+                            <SelectValue placeholder="Select category..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {topLevelCategories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="default"
+                          variant="outline"
+                          onClick={() => setCreatingNewCategory(true)}
+                          data-testid="button-add-category"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Subcategory Selection - only show when category is selected */}
+                  {selectedTemplateCategory && (
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium">Subcategory (optional)</Label>
+                      {creatingNewSubcategory ? (
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="New subcategory name"
+                            value={newSubcategoryName}
+                            onChange={(e) => setNewSubcategoryName(e.target.value)}
+                            className="h-12 flex-1"
+                            data-testid="input-new-subcategory"
+                          />
+                          <Button
+                            size="default"
+                            onClick={() => {
+                              if (newSubcategoryName.trim()) {
+                                createCategoryMutation.mutate({ 
+                                  name: newSubcategoryName.trim(),
+                                  parentId: selectedTemplateCategory
+                                });
+                              }
+                            }}
+                            disabled={!newSubcategoryName.trim() || createCategoryMutation.isPending}
+                            data-testid="button-save-subcategory"
+                          >
+                            {createCategoryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            size="default"
+                            variant="outline"
+                            onClick={() => {
+                              setCreatingNewSubcategory(false);
+                              setNewSubcategoryName("");
+                            }}
+                            data-testid="button-cancel-subcategory"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Select value={selectedTemplateSubcategory} onValueChange={setSelectedTemplateSubcategory}>
+                            <SelectTrigger className="h-12 flex-1" data-testid="select-subcategory">
+                              <SelectValue placeholder="Select subcategory..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {subcategoriesForSelected.map((sub) => (
+                                <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="default"
+                            variant="outline"
+                            onClick={() => setCreatingNewSubcategory(true)}
+                            data-testid="button-add-subcategory"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button
+                    variant="outline"
+                    onClick={() => setTemplateSaveDialogOpen(false)}
+                    data-testid="button-cancel-template-save"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!templateName.trim() || !selectedTemplateCategory) {
+                        toast({ title: "Missing Info", description: "Please enter a name and select a category", variant: "destructive" });
+                        return;
+                      }
+                      setTemplateSaveDialogOpen(false);
+                      handleSaveCustomDesign(templateSavePendingTarget || "library", {
+                        name: templateName.trim(),
+                        categoryId: selectedTemplateCategory,
+                        subcategoryId: selectedTemplateSubcategory || undefined,
+                      });
+                      // Reset form
+                      setTemplateName("");
+                      setSelectedTemplateCategory("");
+                      setSelectedTemplateSubcategory("");
+                      setTemplateSavePendingTarget(null);
+                    }}
+                    disabled={!templateName.trim() || !selectedTemplateCategory || savingCustom}
+                    data-testid="button-confirm-template-save"
+                  >
+                    {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Save to Library
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             
             {/* Add Store Dialog */}
             <Dialog open={addStoreDialogOpen} onOpenChange={setAddStoreDialogOpen}>

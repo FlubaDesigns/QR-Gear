@@ -2399,75 +2399,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // ============ PARTNER STORE ENDPOINTS ============
-
-  // Admin: Get all partner stores
-  app.get("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
-    try {
-      const stores = await storage.getPartnerStores();
-      res.json(stores);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Admin: Get single partner store with products
-  app.get("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
-    try {
-      const store = await storage.getPartnerStore(req.params.id);
-      if (!store) {
-        return res.status(404).json({ error: "Partner store not found" });
-      }
-      const products = await storage.getPartnerStoreProducts(store.id);
-      res.json({ ...store, products });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Admin: Create partner store
-  app.post("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
-    try {
-      // Auto-generate apiKey if not provided
-      const dataWithApiKey = {
-        ...req.body,
-        apiKey: req.body.apiKey || `ps_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
-      };
-      const validated = insertPartnerStoreSchema.parse(dataWithApiKey);
-      const store = await storage.createPartnerStore(validated);
-      res.json(store);
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        console.error("[Partner Store Validation Error]", JSON.stringify(error.errors, null, 2));
-        return res.status(400).json({ error: "Validation error", details: error.errors });
-      }
-      console.error("[Partner Store Create Error]", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Admin: Update partner store
-  app.put("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
-    try {
-      const store = await storage.updatePartnerStore(req.params.id, req.body);
-      if (!store) {
-        return res.status(404).json({ error: "Partner store not found" });
-      }
-      res.json(store);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Admin: Delete partner store
-  app.delete("/api/admin/partner-stores/:id", isAdmin, async (req: any, res) => {
-    try {
-      await storage.deletePartnerStore(req.params.id);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+  // NOTE: Partner store CRUD endpoints moved to ADMIN PARTNER STORE ENDPOINTS section below
 
   // Admin: Get partner store products with product details (sizes/colors)
   app.get("/api/admin/partner-stores/:id/products", isAdmin, async (req: any, res) => {
@@ -5370,11 +5302,35 @@ ${allPages.map(page => `  <url>
   // Create partner store
   app.post("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
     try {
-      // Generate API key if not provided
-      const apiKey = req.body.apiKey || `qrg_${crypto.randomUUID().replace(/-/g, '')}`;
-      const store = await storage.createPartnerStore({ ...req.body, apiKey });
+      // Auto-generate apiKey if not provided
+      const dataWithApiKey = {
+        ...req.body,
+        apiKey: req.body.apiKey || `qrg_${crypto.randomUUID().replace(/-/g, '')}`,
+      };
+      
+      // Validate with Zod schema first
+      const validated = insertPartnerStoreSchema.parse(dataWithApiKey);
+      
+      // Check for existing store with same name and internal flag to prevent duplicates
+      const existingStores = await storage.getPartnerStores();
+      const normalizedName = validated.name?.toLowerCase().trim();
+      const isDuplicate = existingStores.some(
+        (s) => s.name?.toLowerCase().trim() === normalizedName && s.isInternal === validated.isInternal
+      );
+      if (isDuplicate) {
+        return res.status(409).json({ 
+          error: `A ${validated.isInternal ? 'internal' : 'partner'} store with the name "${validated.name}" already exists` 
+        });
+      }
+      
+      const store = await storage.createPartnerStore(validated);
       res.json(store);
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        console.error("[Partner Store Validation Error]", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ error: "Validation error", details: error.errors });
+      }
+      console.error("[Partner Store Create Error]", error);
       res.status(500).json({ error: error.message });
     }
   });
