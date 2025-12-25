@@ -66,6 +66,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CatalogSyncStatus {
   latestSync: {
@@ -727,8 +728,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [deleteWizardStoreId, setDeleteWizardStoreId] = useState<string | null>(null);
   const [deleteWizardSegmentInfo, setDeleteWizardSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
   
-  // Library background picker state
+  // Library picker state (backgrounds + templates)
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
+  const [libraryPickerTab, setLibraryPickerTab] = useState<"backgrounds" | "templates">("backgrounds");
+  const [libraryFilterSeason, setLibraryFilterSeason] = useState<string>("all");
+  const [libraryFilterEvent, setLibraryFilterEvent] = useState<string>("all");
   
   // Fetch partner stores from database for External store type
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
@@ -766,6 +770,62 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
       return response.json();
     },
     enabled: libraryPickerOpen,
+  });
+  
+  // Fetch library templates (custom designs saved to library)
+  interface LibraryTemplate {
+    id: string;
+    productName: string;
+    productImage: string | null;
+    backgroundImageUrl: string | null;
+    topText: { text: string; fontFamily: string; fontSize: string } | null;
+    bottomText: { text: string; fontFamily: string; fontSize: string } | null;
+    qrCodeUrl: string | null;
+    printifyCompositeUrl: string | null;
+    storeType: string | null;
+    storeName: string | null;
+    segment: string | null;
+    isFeatured: boolean | null;
+    isSeasonalPromo: boolean | null;
+    createdAt: string;
+  }
+  const { data: libraryTemplates = [] } = useQuery<LibraryTemplate[]>({
+    queryKey: ["/api/admin/library/templates"],
+    enabled: libraryPickerOpen && libraryPickerTab === "templates",
+  });
+  
+  // Season and event filter options for library picker
+  const LIBRARY_SEASONS = [
+    { value: "all", label: "All Seasons" },
+    { value: "spring", label: "Spring" },
+    { value: "summer", label: "Summer" },
+    { value: "fall", label: "Fall" },
+    { value: "winter", label: "Winter" },
+  ];
+  const LIBRARY_EVENTS = [
+    { value: "all", label: "All Events" },
+    { value: "christmas", label: "Christmas" },
+    { value: "easter", label: "Easter" },
+    { value: "thanksgiving", label: "Thanksgiving" },
+    { value: "valentines", label: "Valentine's Day" },
+    { value: "mothers-day", label: "Mother's Day" },
+    { value: "fathers-day", label: "Father's Day" },
+    { value: "independence-day", label: "Independence Day" },
+    { value: "new-year", label: "New Year" },
+    { value: "halloween", label: "Halloween" },
+    { value: "graduation", label: "Graduation" },
+    { value: "birthday", label: "Birthday" },
+    { value: "wedding", label: "Wedding" },
+    { value: "anniversary", label: "Anniversary" },
+  ];
+  
+  // Filter library items by season/event only
+  // Note: Visibility rules (visibleStoreSlugs, visibleSegments) apply to customer-facing widget,
+  // not admin builder. Admins can access all backgrounds to build products for any store.
+  const filteredBackgrounds = libraryBackgrounds.filter((bg) => {
+    if (libraryFilterSeason !== "all" && bg.season !== libraryFilterSeason) return false;
+    if (libraryFilterEvent !== "all" && bg.event !== libraryFilterEvent) return false;
+    return true;
   });
   
   // Get selected hosting tier price (default to $5 for 1 year if not loaded)
@@ -2795,60 +2855,192 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         </DialogContent>
       </Dialog>
 
-      {/* Library Background Picker Dialog */}
+      {/* Library Picker Dialog - Backgrounds & Templates with filters */}
       <Dialog open={libraryPickerOpen} onOpenChange={setLibraryPickerOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh]">
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Select Background from Library</DialogTitle>
+            <DialogTitle className="text-xl">Library</DialogTitle>
             <DialogDescription>
-              Choose a background image from the admin library
+              Select a background or template from your library
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto max-h-[50vh] p-1">
-            {libraryBackgrounds.length === 0 ? (
-              <div className="text-center py-8">
-                <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground">No backgrounds in library.</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Upload backgrounds in the Library tab first.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {libraryBackgrounds.map((bg) => (
-                  <div
-                    key={bg.id}
-                    className="border rounded-lg overflow-hidden cursor-pointer hover-elevate"
-                    onClick={() => {
-                      setBackgroundImage(null);
-                      setBackgroundPreview(bg.publicUrl);
-                      setLibraryPickerOpen(false);
-                      toast({ title: "Background selected", description: bg.name });
-                    }}
-                    data-testid={`library-bg-${bg.id}`}
-                  >
-                    <div className="aspect-square relative">
-                      <img
-                        src={bg.publicUrl}
-                        alt={bg.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                        <p className="text-white text-xs font-medium truncate">{bg.name}</p>
+          
+          {/* Tabs */}
+          <Tabs value={libraryPickerTab} onValueChange={(v) => setLibraryPickerTab(v as "backgrounds" | "templates")} className="flex-1 flex flex-col min-h-0">
+            <TabsList className="grid w-full grid-cols-2 h-12">
+              <TabsTrigger value="backgrounds" className="text-base h-10" data-testid="tab-library-backgrounds">
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Backgrounds
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="text-base h-10" data-testid="tab-library-templates">
+                <ImageIcon className="h-4 w-4 mr-2" />
+                Templates
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2 py-3">
+              <Select value={libraryFilterSeason} onValueChange={setLibraryFilterSeason}>
+                <SelectTrigger className="w-36 h-10" data-testid="select-library-season">
+                  <SelectValue placeholder="Season" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LIBRARY_SEASONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={libraryFilterEvent} onValueChange={setLibraryFilterEvent}>
+                <SelectTrigger className="w-40 h-10" data-testid="select-library-event">
+                  <SelectValue placeholder="Event" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LIBRARY_EVENTS.map((e) => (
+                    <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(libraryFilterSeason !== "all" || libraryFilterEvent !== "all") && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => { setLibraryFilterSeason("all"); setLibraryFilterEvent("all"); }}
+                  data-testid="button-clear-library-filters"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+            
+            {/* Backgrounds Tab Content */}
+            <TabsContent value="backgrounds" className="flex-1 overflow-y-auto mt-0 min-h-0">
+              {filteredBackgrounds.length === 0 ? (
+                <div className="text-center py-12">
+                  <FolderOpen className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg text-muted-foreground">No backgrounds found.</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {libraryBackgrounds.length === 0 
+                      ? "Upload backgrounds in the Library page first."
+                      : "Try adjusting your filters."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
+                  {filteredBackgrounds.map((bg) => (
+                    <div
+                      key={bg.id}
+                      className="border-2 rounded-lg overflow-hidden cursor-pointer hover-elevate active-elevate-2 transition-transform"
+                      onClick={() => {
+                        setBackgroundImage(null);
+                        setBackgroundPreview(bg.publicUrl);
+                        setLibraryPickerOpen(false);
+                        toast({ 
+                          title: "Background Selected", 
+                          description: `"${bg.name}" applied to your design.`,
+                          duration: 3000,
+                        });
+                      }}
+                      data-testid={`library-bg-${bg.id}`}
+                    >
+                      <div className="aspect-square relative">
+                        <img
+                          src={bg.publicUrl}
+                          alt={bg.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                          <p className="text-white text-sm font-medium truncate">{bg.name}</p>
+                        </div>
+                      </div>
+                      <div className="p-2 flex flex-wrap gap-1 min-h-[36px]">
+                        {bg.season && <Badge variant="secondary" className="text-xs">{bg.season}</Badge>}
+                        {bg.event && <Badge variant="outline" className="text-xs">{bg.event}</Badge>}
                       </div>
                     </div>
-                    <div className="p-2 flex flex-wrap gap-1">
-                      {bg.season && <Badge variant="secondary" className="text-xs">{bg.season}</Badge>}
-                      {bg.event && <Badge variant="outline" className="text-xs">{bg.event}</Badge>}
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            {/* Templates Tab Content */}
+            <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0 min-h-0">
+              {libraryTemplates.length === 0 ? (
+                <div className="text-center py-12">
+                  <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg text-muted-foreground">No templates saved yet.</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Create designs and save them to library using "Save to Library" option.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
+                  {libraryTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="border-2 rounded-lg overflow-hidden cursor-pointer hover-elevate active-elevate-2 transition-transform"
+                      onClick={() => {
+                        // TODO Phase 2: Apply template - load design into builder fields
+                        // For now, show coming soon message
+                        toast({ 
+                          title: "Template Preview", 
+                          description: `"${template.productName}" - Template apply feature coming in Phase 2.`,
+                          duration: 4000,
+                        });
+                      }}
+                      data-testid={`library-template-${template.id}`}
+                    >
+                      <div className="aspect-square relative bg-muted">
+                        {template.printifyCompositeUrl ? (
+                          <img
+                            src={template.printifyCompositeUrl}
+                            alt={template.productName}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : template.backgroundImageUrl ? (
+                          <img
+                            src={template.backgroundImageUrl}
+                            alt={template.productName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : template.productImage ? (
+                          <img
+                            src={template.productImage}
+                            alt={template.productName}
+                            className="w-full h-full object-contain p-2"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ImageIcon className="h-12 w-12 opacity-30" />
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                          <p className="text-white text-sm font-medium truncate">{template.productName}</p>
+                        </div>
+                      </div>
+                      <div className="p-2">
+                        <div className="flex flex-wrap gap-1 min-h-[28px]">
+                          {template.topText?.text && (
+                            <Badge variant="secondary" className="text-xs truncate max-w-full">
+                              {template.topText.text.substring(0, 20)}{template.topText.text.length > 20 ? "..." : ""}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          {template.storeName || "No store"} {template.segment ? `• ${template.segment}` : ""}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+          
+          <DialogFooter className="pt-2 border-t">
             <DialogClose asChild>
-              <Button variant="outline" data-testid="button-close-library-picker">Close</Button>
+              <Button variant="outline" size="lg" data-testid="button-close-library-picker">
+                Close
+              </Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
