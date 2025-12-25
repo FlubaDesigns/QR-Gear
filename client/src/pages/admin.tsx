@@ -135,26 +135,22 @@ export default function Admin() {
           <span className="text-foreground font-medium" aria-current="page">Admin Dashboard</span>
         </nav>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {adminSections.map((section) => (
-            <Button
+            <Link
               key={section.href}
-              variant="outline"
-              asChild
-              className="h-auto p-4 flex flex-col items-start justify-start text-left"
+              href={section.href}
+              className="flex flex-col items-center justify-center gap-3 p-4 min-h-[140px] rounded-xl border-2 border-border bg-card hover-elevate active-elevate-2 transition-all text-center"
               data-testid={`button-admin-${section.title.toLowerCase().replace(/\s+/g, '-')}`}
             >
-              <Link href={section.href}>
-                <div className="flex items-center justify-between w-full mb-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <section.icon className="h-6 w-6" />
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="font-semibold text-lg mb-1">{section.title}</div>
-                <div className="text-sm text-muted-foreground font-normal">{section.description}</div>
-              </Link>
-            </Button>
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <section.icon className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <div className="font-semibold text-base">{section.title}</div>
+                <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{section.description}</div>
+              </div>
+            </Link>
           ))}
         </div>
 
