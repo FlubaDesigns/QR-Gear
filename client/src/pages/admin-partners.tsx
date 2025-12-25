@@ -217,10 +217,10 @@ export default function AdminPartners() {
                 <Store className="h-6 w-6 text-amber-400" />
                 <div>
                   <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    Partner Stores
+                    Store Management
                   </h1>
                   <p className="text-xs text-slate-400">
-                    Manage partner integrations & widgets
+                    Internal stores (ours) & partner stores (external)
                   </p>
                 </div>
               </div>
@@ -256,9 +256,9 @@ export default function AdminPartners() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
             <div>
-              <CardTitle>Partner Stores</CardTitle>
+              <CardTitle>All Stores</CardTitle>
               <CardDescription>
-                Configure external partner stores for widget embedding
+                Internal stores = our QR Gear stores. Partner stores = external partners like Kingdom Connects.
               </CardDescription>
             </div>
             <Button onClick={() => handleOpenDialog()} className="h-12 px-6" data-testid="button-add-store">
@@ -274,8 +274,8 @@ export default function AdminPartners() {
             ) : stores.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Store className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">No partner stores configured yet.</p>
-                <p className="text-sm mt-1">Create a partner store to enable widget embedding.</p>
+                <p className="text-lg">No stores configured yet.</p>
+                <p className="text-sm mt-1">Add an internal store (like QR Maine) or a partner store (for external sites).</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -318,7 +318,7 @@ export default function AdminPartners() {
                         </TableCell>
                         <TableCell>
                           <Badge variant={store.isInternal ? "default" : "outline"}>
-                            {store.isInternal ? "Internal" : "External"}
+                            {store.isInternal ? "Internal" : "Partner"}
                           </Badge>
                         </TableCell>
                         <TableCell>{store.commissionPercent || "0"}%</TableCell>
@@ -558,7 +558,7 @@ export default function AdminPartners() {
                   onCheckedChange={(checked) => setFormData({ ...formData, isInternal: checked })}
                   data-testid="switch-internal"
                 />
-                <Label htmlFor="isInternal">Internal Store (our site)</Label>
+                <Label htmlFor="isInternal">Internal Store (ours, not a partner)</Label>
               </div>
               <div className="flex items-center gap-3">
                 <Switch

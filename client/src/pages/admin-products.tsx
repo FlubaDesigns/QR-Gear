@@ -521,14 +521,9 @@ interface CatalogDetails {
 const STORE_TYPES = ["Internal", "External"] as const;
 type StoreType = typeof STORE_TYPES[number];
 
-// Predefined stores by type
-const INTERNAL_STORES = [
-  { name: "QR Gear Main", segments: ["Homepage", "Dashboard", "Featured", "Seasonal"] },
-  { name: "Holiday Shop", segments: ["Homepage", "Christmas", "Easter", "Thanksgiving"] },
-  { name: "Religious Store", segments: ["Homepage", "Scripture", "Church", "Faith"] },
-];
-
-const EXTERNAL_STORES: Array<{ name: string; segments: string[] }> = [];
+// All stores come from partner_stores database
+// Internal stores = our stores (QR Gear, etc.)
+// External stores = partner stores (Kingdom Connects, etc.)
 
 // Product source types
 const PRODUCT_SOURCES = ["Library", "Custom"] as const;
@@ -849,36 +844,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const markupPercent = parseFloat(adminSettings?.globalMarkupPercent || "25");
   const markupFixed = parseFloat(adminSettings?.globalMarkupFixed || "0");
   
-  // Derive available stores based on store type
-  // Include partner stores from database filtered by isInternal
-  const dbInternalStores: StoreWithAreas[] = partnerStoresData
-    .filter(ps => ps.isInternal)
+  // Derive available stores based on store type - all stores come from database
+  const availableStores: StoreWithAreas[] = partnerStoresData
+    .filter(ps => storeType === "Internal" ? ps.isInternal : !ps.isInternal)
     .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
-  const dbExternalStores: StoreWithAreas[] = partnerStoresData
-    .filter(ps => !ps.isInternal)
-    .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
-  
-  const availableStores = storeType === "Internal" 
-    ? (() => {
-        const combined = [...INTERNAL_STORES, ...dbInternalStores];
-        const seen = new Set<string>();
-        return combined.filter(s => {
-          if (seen.has(s.name)) return false;
-          seen.add(s.name);
-          return true;
-        });
-      })()
-    : storeType === "External"
-    ? (() => {
-        const combined = [...EXTERNAL_STORES, ...dbExternalStores];
-        const seen = new Set<string>();
-        return combined.filter(s => {
-          if (seen.has(s.name)) return false;
-          seen.add(s.name);
-          return true;
-        });
-      })()
-    : [];
   
   // All DB stores for segment lookup
   const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
@@ -886,16 +855,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     areas: ps.availableSegments || [],
   }));
   
-  // Find current store's segments - prioritize dbPartnerStores (with segments) over predefined stores
-  const allStores: Array<{ name: string; segments?: string[]; areas?: string[] }> = [
-    ...dbPartnerStores,  // Partner stores from DB first (have segments)
-    ...INTERNAL_STORES,  // Predefined stores
-    ...EXTERNAL_STORES, 
-  ];
-  const currentStoreData = allStores.find(
+  // Find current store's segments from database
+  const currentStoreData = dbPartnerStores.find(
     (s) => s.name === selectedStore || s.name === selectedStore.replace(/^(Internal:|External:)/, "")
   );
-  const availableSegments: string[] = currentStoreData?.segments || currentStoreData?.areas || [];
+  const availableSegments: string[] = currentStoreData?.areas || [];
   type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
@@ -977,12 +941,16 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
       } else {
         // Store not in database yet - create it with this segment
+        // Generate slug from store name
+        const slug = selectedStore.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         const res = await fetch("/api/admin/partner-stores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ 
-            name: selectedStore, 
+            name: selectedStore,
+            slug: slug,
+            isInternal: storeType === "Internal",
             availableSegments: [newSegmentName.trim()] 
           }),
         });
@@ -4034,20 +4002,13 @@ function ProductsContent() {
     queryKey: ["/api/admin/partner-stores"],
   });
   
-  const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
-    name: ps.name,
-    areas: ps.availableSegments || [],
-  }));
-  
-  const allExternalStores = (() => {
-    const combined = [...EXTERNAL_STORES, ...dbPartnerStores];
-    const seen = new Set<string>();
-    return combined.filter(s => {
-      if (seen.has(s.name)) return false;
-      seen.add(s.name);
-      return true;
-    });
-  })();
+  // All stores from database
+  const allInternalStores: StoreWithAreas[] = partnerStoresData
+    .filter(ps => ps.isInternal)
+    .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
+  const allExternalStores: StoreWithAreas[] = partnerStoresData
+    .filter(ps => !ps.isInternal)
+    .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
   
   type AdminProduct = Product & { 
     categoryIds?: string[]; 
@@ -4074,13 +4035,12 @@ function ProductsContent() {
   const qrUpcharge = parseFloat(adminSettings?.globalQrProductionCost || "2");
   
   const selectedExternalStore = allExternalStores.find(s => s.name === filterSegment);
-  const selectedInternalStore = INTERNAL_STORES.find(s => s.name === filterSegment);
+  const selectedInternalStore = allInternalStores.find(s => s.name === filterSegment);
   // Find the selected partner store from fresh data (for delete functionality)
   const selectedPartnerStore = partnerStoresData.find(s => s.name === filterSegment);
   const filterStoreAreas: string[] = 
-    (selectedExternalStore && 'areas' in selectedExternalStore ? selectedExternalStore.areas : undefined) ||
-    (selectedExternalStore && 'segments' in selectedExternalStore ? selectedExternalStore.segments : undefined) ||
-    selectedInternalStore?.segments || 
+    selectedExternalStore?.areas ||
+    selectedInternalStore?.areas || 
     [];
   
   const filteredProducts = products.filter(product => {
@@ -4271,16 +4231,20 @@ function ProductsContent() {
                 data-testid="filter-store-segment"
               >
                 <option value="">All Stores</option>
-                <optgroup label="Internal Stores">
-                  {INTERNAL_STORES.map((store) => (
-                    <option key={store.name} value={store.name}>{store.name}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="External Stores">
-                  {allExternalStores.map((store) => (
-                    <option key={store.name} value={store.name}>{store.name}</option>
-                  ))}
-                </optgroup>
+                {allInternalStores.length > 0 && (
+                  <optgroup label="Internal Stores">
+                    {allInternalStores.map((store) => (
+                      <option key={store.name} value={store.name}>{store.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {allExternalStores.length > 0 && (
+                  <optgroup label="External Stores">
+                    {allExternalStores.map((store) => (
+                      <option key={store.name} value={store.name}>{store.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               {selectedPartnerStore && (
                 <Button
@@ -4308,49 +4272,12 @@ function ProductsContent() {
                     <option key={area} value={area}>{area}</option>
                   ))}
                 </select>
-                {filterArea && (
+                {filterArea && selectedPartnerStore && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                    onClick={async () => {
-                      if (selectedPartnerStore) {
-                        // Store exists in database - use existing delete flow
-                        setDeleteSegmentInfo({ storeId: selectedPartnerStore.id, segment: filterArea });
-                      } else {
-                        // Predefined store - need to create in database first, then delete segment
-                        try {
-                          const predefinedStore = EXTERNAL_STORES.find(s => s.name === filterSegment);
-                          if (!predefinedStore) return;
-                          
-                          // Get all segments except the one being deleted
-                          const remainingSegments = (predefinedStore.segments || []).filter(s => s !== filterArea);
-                          
-                          // Create store in database with remaining segments
-                          const res = await fetch("/api/admin/partner-stores", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify({ 
-                              name: predefinedStore.name, 
-                              availableSegments: remainingSegments 
-                            }),
-                          });
-                          
-                          if (!res.ok) {
-                            const errData = await res.json();
-                            throw new Error(errData.error || "Failed to update store");
-                          }
-                          
-                          await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
-                          await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
-                          setFilterArea("");
-                          toast({ title: "Success", description: `Deleted segment "${filterArea}"` });
-                        } catch (error: any) {
-                          toast({ title: "Error", description: error.message, variant: "destructive" });
-                        }
-                      }
-                    }}
+                    onClick={() => setDeleteSegmentInfo({ storeId: selectedPartnerStore.id, segment: filterArea })}
                     title="Delete this segment"
                     data-testid="button-delete-segment"
                   >
