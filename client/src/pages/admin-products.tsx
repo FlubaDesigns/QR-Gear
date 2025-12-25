@@ -2722,6 +2722,8 @@ function ProductsContent() {
   const [filterArea, setFilterArea] = useState<string>("");
   const [filterProductSource, setFilterProductSource] = useState<string>("");
   const [filterProductCategory, setFilterProductCategory] = useState<string>("");
+  const [deleteStoreId, setDeleteStoreId] = useState<string | null>(null);
+  const [deleteSegmentInfo, setDeleteSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
   
   const customStores: StoreWithAreas[] = (() => {
     const saved = localStorage.getItem("qrgear-custom-stores");
@@ -2819,6 +2821,37 @@ function ProductsContent() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to delete product.", variant: "destructive" });
+    },
+  });
+
+  const deleteStoreMutation = useMutation({
+    mutationFn: async (storeId: string) => {
+      return apiRequest("DELETE", `/api/admin/partner-stores/${storeId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+      toast({ title: "Store Deleted", description: "Store removed successfully." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete store.", variant: "destructive" });
+    },
+  });
+
+  const deleteSegmentMutation = useMutation({
+    mutationFn: async ({ storeId, segment }: { storeId: string; segment: string }) => {
+      const store = partnerStoresData.find(s => s.id === storeId);
+      if (!store) throw new Error("Store not found");
+      const updatedSegments = (store.availableSegments || []).filter(s => s !== segment);
+      return apiRequest("PUT", `/api/admin/partner-stores/${storeId}`, {
+        availableSegments: updatedSegments
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+      toast({ title: "Segment Deleted", description: "Segment removed from store." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete segment.", variant: "destructive" });
     },
   });
 
@@ -2929,36 +2962,76 @@ function ProductsContent() {
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <select
-              className="p-2 border rounded-md bg-background text-sm"
-              value={filterSegment}
-              onChange={(e) => { setFilterSegment(e.target.value); setFilterArea(""); }}
-              data-testid="filter-store-segment"
-            >
-              <option value="">All Stores</option>
-              <optgroup label="Internal Stores">
-                {INTERNAL_STORES.map((store) => (
-                  <option key={store.name} value={store.name}>{store.name}</option>
-                ))}
-              </optgroup>
-              <optgroup label="External Stores">
-                {allExternalStores.map((store) => (
-                  <option key={store.name} value={store.name}>{store.name}</option>
-                ))}
-              </optgroup>
-            </select>
-            {filterStoreAreas.length > 0 && (
+            <div className="flex items-center gap-1">
               <select
                 className="p-2 border rounded-md bg-background text-sm"
-                value={filterArea}
-                onChange={(e) => setFilterArea(e.target.value)}
-                data-testid="filter-store-area"
+                value={filterSegment}
+                onChange={(e) => { setFilterSegment(e.target.value); setFilterArea(""); }}
+                data-testid="filter-store-segment"
               >
-                <option value="">All Areas</option>
-                {filterStoreAreas.map((area) => (
-                  <option key={area} value={area}>{area}</option>
-                ))}
+                <option value="">All Stores</option>
+                <optgroup label="Internal Stores">
+                  {INTERNAL_STORES.map((store) => (
+                    <option key={store.name} value={store.name}>{store.name}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="External Stores">
+                  {allExternalStores.map((store) => (
+                    <option key={store.name} value={store.name}>{store.name}</option>
+                  ))}
+                </optgroup>
               </select>
+              {filterSegment && (() => {
+                const selectedStore = partnerStoresData.find(s => s.name === filterSegment);
+                if (selectedStore) {
+                  return (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteStoreId(selectedStore.id)}
+                      title="Delete this store"
+                      data-testid="button-delete-store"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+            {filterStoreAreas.length > 0 && (
+              <div className="flex items-center gap-1">
+                <select
+                  className="p-2 border rounded-md bg-background text-sm"
+                  value={filterArea}
+                  onChange={(e) => setFilterArea(e.target.value)}
+                  data-testid="filter-store-area"
+                >
+                  <option value="">All Segments</option>
+                  {filterStoreAreas.map((area) => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
+                {filterArea && (() => {
+                  const selectedStore = partnerStoresData.find(s => s.name === filterSegment);
+                  if (selectedStore) {
+                    return (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteSegmentInfo({ storeId: selectedStore.id, segment: filterArea })}
+                        title="Delete this segment"
+                        data-testid="button-delete-segment"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
             )}
             {(filterSegment || filterArea) && (
               <Button 
@@ -3086,7 +3159,7 @@ function ProductsContent() {
         </CardContent>
       </Card>
       
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Product Confirmation Dialog */}
       <AlertDialog open={!!deleteProductId} onOpenChange={(open) => !open && setDeleteProductId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -3108,6 +3181,63 @@ function ProductsContent() {
               data-testid="button-confirm-delete"
             >
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Store Confirmation Dialog */}
+      <AlertDialog open={!!deleteStoreId} onOpenChange={(open) => !open && setDeleteStoreId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Store</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this store? This will remove the store and all its segments. Products assigned to this store will need to be reassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-store">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteStoreId) {
+                  deleteStoreMutation.mutate(deleteStoreId);
+                  setDeleteStoreId(null);
+                  setFilterSegment("");
+                  setFilterArea("");
+                }
+              }}
+              data-testid="button-confirm-delete-store"
+            >
+              Delete Store
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Segment Confirmation Dialog */}
+      <AlertDialog open={!!deleteSegmentInfo} onOpenChange={(open) => !open && setDeleteSegmentInfo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Segment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the "{deleteSegmentInfo?.segment}" segment from this store?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-segment">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteSegmentInfo) {
+                  deleteSegmentMutation.mutate(deleteSegmentInfo);
+                  setDeleteSegmentInfo(null);
+                  setFilterArea("");
+                }
+              }}
+              data-testid="button-confirm-delete-segment"
+            >
+              Delete Segment
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
