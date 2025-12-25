@@ -673,6 +673,256 @@ export const insertDynamicContentSlotSchema = createInsertSchema(dynamicContentS
   createdAt: true,
 });
 
+// ============================================
+// MULTI-PROVIDER POD + MARKETPLACE ORCHESTRATION
+// ============================================
+
+// Master Products - Provider-agnostic product model (single source of truth)
+export const masterProducts = pgTable("master_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Unified SKU: QRG-{type}-{designId}-{seq}
+  sku: text("sku").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  // Product type for routing (apparel, drinkware, accessories, etc.)
+  productType: text("product_type").notNull(),
+  // Link to the current design version
+  currentDesignVersionId: varchar("current_design_version_id"),
+  // Link to pricing profile for markup rules
+  pricingProfileId: varchar("pricing_profile_id"),
+  // Base production cost (from cheapest provider)
+  baseCost: decimal("base_cost", { precision: 10, scale: 2 }),
+  // Retail price (calculated from pricing profile)
+  retailPrice: decimal("retail_price", { precision: 10, scale: 2 }),
+  // Product status
+  status: text("status").default("draft"), // 'draft', 'active', 'paused', 'archived'
+  // Channel toggles (which platforms to publish to)
+  channels: jsonb("channels"), // { printify: true, printful: false, etsy: true, ... }
+  // Tags for filtering
+  tags: text("tags").array(),
+  // Bundle info (for cross-sell)
+  bundleParentId: varchar("bundle_parent_id"),
+  bundleDiscount: decimal("bundle_discount", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Design Versions - Immutable snapshots of artwork for versioning
+export const productDesignVersions = pgTable("product_design_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  masterProductId: varchar("master_product_id").notNull().references(() => masterProducts.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull().default(1),
+  // Design inputs (what was used to generate the artwork)
+  headerText: text("header_text"),
+  headerStyle: jsonb("header_style"), // { fontFamily, fontSize, color, warpPreset, letterSpacing, stroke }
+  footerText: text("footer_text"),
+  footerStyle: jsonb("footer_style"),
+  qrUrl: text("qr_url").notNull(),
+  // Rendered assets (output files)
+  renderedPngUrl: text("rendered_png_url"), // 4500x5400 transparent PNG
+  renderedSvgUrl: text("rendered_svg_url"), // Source SVG
+  qrCodeUrl: text("qr_code_url"), // QR code image
+  // Placement-specific renders
+  placementImages: jsonb("placement_images"), // { front: url, back: url, sleeve: url }
+  // Metadata
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Channel Configs - API credentials and settings for each provider/marketplace
+export const channelConfigs = pgTable("channel_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Channel identifier: printify, printful, apliiq, etsy, ebay, amazon
+  channelType: text("channel_type").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  // Whether this channel is enabled globally
+  isEnabled: boolean("is_enabled").default(false),
+  // API credentials (stored encrypted via secrets, reference only here)
+  apiKeySecretName: text("api_key_secret_name"), // e.g., "PRINTIFY_API_KEY"
+  apiSecretSecretName: text("api_secret_secret_name"),
+  shopId: text("shop_id"), // For Printify/Printful shop ID
+  // Rate limiting
+  rateLimit: integer("rate_limit").default(60), // requests per minute
+  rateLimitWindow: integer("rate_limit_window").default(60), // seconds
+  // Webhook config
+  webhookSecret: text("webhook_secret"),
+  webhookUrl: text("webhook_url"),
+  // Channel-specific settings
+  settings: jsonb("settings"), // { defaultShippingProfile, returnPolicy, etc. }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Channel Publish States - Per-product, per-channel publishing status
+export const channelPublishStates = pgTable("channel_publish_states", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  masterProductId: varchar("master_product_id").notNull().references(() => masterProducts.id, { onDelete: "cascade" }),
+  channelType: text("channel_type").notNull(), // printify, etsy, etc.
+  // External IDs from the platform
+  externalProductId: text("external_product_id"),
+  externalListingId: text("external_listing_id"),
+  externalVariantIds: jsonb("external_variant_ids"), // { "S/White": "ext123", ... }
+  // Publishing status
+  status: text("status").default("unpublished"), // 'unpublished', 'pending', 'published', 'failed', 'paused'
+  lastPublishedAt: timestamp("last_published_at"),
+  lastSyncedAt: timestamp("last_synced_at"),
+  lastError: text("last_error"),
+  // Version tracking (which design version is published)
+  publishedDesignVersionId: varchar("published_design_version_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  productChannelUnique: unique().on(table.masterProductId, table.channelType),
+}));
+
+// Provider Quotes - Cost and ETA snapshots from print providers
+export const providerQuotes = pgTable("provider_quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  masterProductId: varchar("master_product_id").notNull().references(() => masterProducts.id, { onDelete: "cascade" }),
+  providerType: text("provider_type").notNull(), // printify, printful, apliiq
+  // Cost breakdown
+  productionCost: decimal("production_cost", { precision: 10, scale: 2 }).notNull(),
+  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),
+  // Estimated delivery
+  estimatedDays: integer("estimated_days"),
+  // Availability
+  isAvailable: boolean("is_available").default(true),
+  // When this quote was fetched
+  quotedAt: timestamp("quoted_at").defaultNow().notNull(),
+  // Expiry (quotes become stale)
+  expiresAt: timestamp("expires_at"),
+});
+
+// Pricing Profiles - Markup rules for calculating retail prices
+export const pricingProfiles = pgTable("pricing_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  // Markup strategy
+  markupType: text("markup_type").notNull().default("percentage"), // 'percentage', 'fixed', 'tiered'
+  markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }),
+  markupFixed: decimal("markup_fixed", { precision: 10, scale: 2 }),
+  // Minimum margin protection
+  minMarginPercent: decimal("min_margin_percent", { precision: 5, scale: 2 }).default("40"),
+  // Per-channel adjustments
+  channelAdjustments: jsonb("channel_adjustments"), // { etsy: { addPercent: 5 }, ebay: { addFixed: 2 } }
+  // Auto-repricing rules
+  autoRepriceEnabled: boolean("auto_reprice_enabled").default(false),
+  autoRepriceMinMargin: decimal("auto_reprice_min_margin", { precision: 5, scale: 2 }),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Unified Orders - All orders from all channels in one place
+export const ordersUnified = pgTable("orders_unified", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Source channel
+  sourceChannel: text("source_channel").notNull(), // 'direct', 'etsy', 'ebay', 'amazon'
+  externalOrderId: text("external_order_id"),
+  // Customer info
+  customerEmail: text("customer_email"),
+  customerName: text("customer_name"),
+  shippingAddress: jsonb("shipping_address"),
+  // Order details
+  items: jsonb("items").notNull(), // [{ masterProductId, variantSku, quantity, price }]
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  shippingTotal: decimal("shipping_total", { precision: 10, scale: 2 }),
+  taxTotal: decimal("tax_total", { precision: 10, scale: 2 }),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  // Fulfillment routing
+  routedProvider: text("routed_provider"), // printify, printful, apliiq
+  providerOrderId: text("provider_order_id"),
+  // Status timeline
+  status: text("status").default("pending"), // 'pending', 'routed', 'in_production', 'shipped', 'delivered', 'cancelled'
+  statusHistory: jsonb("status_history"), // [{ status, timestamp, note }]
+  // Tracking
+  trackingNumber: text("tracking_number"),
+  trackingUrl: text("tracking_url"),
+  shippedAt: timestamp("shipped_at"),
+  deliveredAt: timestamp("delivered_at"),
+  // Profit tracking
+  productionCost: decimal("production_cost", { precision: 10, scale: 2 }),
+  profit: decimal("profit", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// QR Scan Events - Analytics for QR code scans
+export const qrScanEvents = pgTable("qr_scan_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // What was scanned
+  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
+  customDesignId: varchar("custom_design_id"),
+  qrUrl: text("qr_url"),
+  // Scan metadata
+  scanDate: timestamp("scan_date").defaultNow().notNull(),
+  // Aggregation (daily rollup)
+  scanCount: integer("scan_count").default(1),
+  // Location (optional, from IP geolocation)
+  country: text("country"),
+  region: text("region"),
+  // Device info
+  deviceType: text("device_type"), // 'mobile', 'tablet', 'desktop'
+  userAgent: text("user_agent"),
+});
+
+// Provider Health Log - Uptime and reliability metrics
+export const providerHealthLog = pgTable("provider_health_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  providerType: text("provider_type").notNull(), // printify, printful, apliiq
+  // Health check result
+  checkTime: timestamp("check_time").defaultNow().notNull(),
+  isHealthy: boolean("is_healthy").default(true),
+  responseTimeMs: integer("response_time_ms"),
+  // Error details
+  errorMessage: text("error_message"),
+  errorCode: text("error_code"),
+  // Aggregated metrics (updated periodically)
+  uptimePercent24h: decimal("uptime_percent_24h", { precision: 5, scale: 2 }),
+  avgResponseTime24h: integer("avg_response_time_24h"),
+});
+
+// Insert schemas for orchestration tables
+export const insertMasterProductSchema = createInsertSchema(masterProducts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertProductDesignVersionSchema = createInsertSchema(productDesignVersions).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertChannelConfigSchema = createInsertSchema(channelConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertChannelPublishStateSchema = createInsertSchema(channelPublishStates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertProviderQuoteSchema = createInsertSchema(providerQuotes).omit({
+  id: true,
+});
+export const insertPricingProfileSchema = createInsertSchema(pricingProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertOrderUnifiedSchema = createInsertSchema(ordersUnified).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertQrScanEventSchema = createInsertSchema(qrScanEvents).omit({
+  id: true,
+});
+export const insertProviderHealthLogSchema = createInsertSchema(providerHealthLog).omit({
+  id: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -762,3 +1012,31 @@ export type InsertDynamicContentSet = z.infer<typeof insertDynamicContentSetSche
 
 export type DynamicContentSlot = typeof dynamicContentSlots.$inferSelect;
 export type InsertDynamicContentSlot = z.infer<typeof insertDynamicContentSlotSchema>;
+
+// Orchestration Types
+export type MasterProduct = typeof masterProducts.$inferSelect;
+export type InsertMasterProduct = z.infer<typeof insertMasterProductSchema>;
+
+export type ProductDesignVersion = typeof productDesignVersions.$inferSelect;
+export type InsertProductDesignVersion = z.infer<typeof insertProductDesignVersionSchema>;
+
+export type ChannelConfig = typeof channelConfigs.$inferSelect;
+export type InsertChannelConfig = z.infer<typeof insertChannelConfigSchema>;
+
+export type ChannelPublishState = typeof channelPublishStates.$inferSelect;
+export type InsertChannelPublishState = z.infer<typeof insertChannelPublishStateSchema>;
+
+export type ProviderQuote = typeof providerQuotes.$inferSelect;
+export type InsertProviderQuote = z.infer<typeof insertProviderQuoteSchema>;
+
+export type PricingProfile = typeof pricingProfiles.$inferSelect;
+export type InsertPricingProfile = z.infer<typeof insertPricingProfileSchema>;
+
+export type OrderUnified = typeof ordersUnified.$inferSelect;
+export type InsertOrderUnified = z.infer<typeof insertOrderUnifiedSchema>;
+
+export type QrScanEvent = typeof qrScanEvents.$inferSelect;
+export type InsertQrScanEvent = z.infer<typeof insertQrScanEventSchema>;
+
+export type ProviderHealthLog = typeof providerHealthLog.$inferSelect;
+export type InsertProviderHealthLog = z.infer<typeof insertProviderHealthLogSchema>;
