@@ -2428,28 +2428,19 @@ ${allPages.map(page => `  <url>
   // Admin: Create partner store
   app.post("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
     try {
-      // Build store data with defaults
-      const storeData = {
-        slug: req.body.slug,
-        name: req.body.name,
-        description: req.body.description || null,
-        logoUrl: req.body.logoUrl || null,
-        websiteUrl: req.body.websiteUrl || null,
-        businessPageUrlPattern: req.body.businessPageUrlPattern || null,
+      // Auto-generate apiKey if not provided
+      const dataWithApiKey = {
+        ...req.body,
         apiKey: req.body.apiKey || `ps_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
-        allowedOrigins: Array.isArray(req.body.allowedOrigins) ? req.body.allowedOrigins : null,
-        primaryColor: req.body.primaryColor || null,
-        accentColor: req.body.accentColor || null,
-        commissionPercent: req.body.commissionPercent || "0",
-        availableSegments: Array.isArray(req.body.availableSegments) ? req.body.availableSegments : null,
-        isInternal: req.body.isInternal ?? false,
-        isActive: req.body.isActive ?? true,
-        annualMemberPerk: req.body.annualMemberPerk || null,
       };
-      
-      const store = await storage.createPartnerStore(storeData as any);
+      const validated = insertPartnerStoreSchema.parse(dataWithApiKey);
+      const store = await storage.createPartnerStore(validated);
       res.json(store);
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        console.error("[Partner Store Validation Error]", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ error: "Validation error", details: error.errors });
+      }
       console.error("[Partner Store Create Error]", error);
       res.status(500).json({ error: error.message });
     }

@@ -149,21 +149,35 @@ export default function AdminPartners() {
   };
 
   const handleSubmit = () => {
-    const data = {
+    // Parse arrays - send undefined instead of empty arrays for optional fields
+    const allowedOriginsArr = formData.allowedOrigins 
+      ? formData.allowedOrigins.split(",").map(s => s.trim()).filter(Boolean) 
+      : [];
+    const availableSegmentsArr = formData.availableSegments 
+      ? formData.availableSegments.split(",").map(s => s.trim()).filter(Boolean) 
+      : [];
+    
+    const data: Record<string, any> = {
       slug: formData.slug.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
       name: formData.name,
       description: formData.description || null,
       logoUrl: formData.logoUrl || null,
       websiteUrl: formData.websiteUrl || null,
       businessPageUrlPattern: formData.businessPageUrlPattern || null,
-      allowedOrigins: formData.allowedOrigins ? formData.allowedOrigins.split(",").map(s => s.trim()).filter(Boolean) : [],
       primaryColor: formData.primaryColor || null,
       accentColor: formData.accentColor || null,
       commissionPercent: formData.commissionPercent || "0",
-      availableSegments: formData.availableSegments ? formData.availableSegments.split(",").map(s => s.trim()).filter(Boolean) : [],
       isInternal: formData.isInternal,
       isActive: formData.isActive,
     };
+    
+    // Only include arrays if they have values (avoids Zod rejecting empty arrays)
+    if (allowedOriginsArr.length > 0) {
+      data.allowedOrigins = allowedOriginsArr;
+    }
+    if (availableSegmentsArr.length > 0) {
+      data.availableSegments = availableSegmentsArr;
+    }
 
     if (editingStore) {
       updateMutation.mutate({ id: editingStore.id, data });
