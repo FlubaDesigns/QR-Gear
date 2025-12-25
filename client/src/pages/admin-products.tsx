@@ -591,9 +591,7 @@ const INTERNAL_STORES = [
   { name: "Religious Store", segments: ["Homepage", "Scripture", "Church", "Faith"] },
 ];
 
-const EXTERNAL_STORES = [
-  { name: "Kingdom Connects", segments: ["Homepage", "Dashboard", "Member Page", "Static Page"] },
-];
+const EXTERNAL_STORES: Array<{ name: string; segments: string[] }> = [];
 
 // Product source types
 const PRODUCT_SOURCES = ["Library", "Custom"] as const;
@@ -2999,12 +2997,49 @@ function ProductsContent() {
                     <option key={area} value={area}>{area}</option>
                   ))}
                 </select>
-                {filterArea && selectedPartnerStore && (
+                {filterArea && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteSegmentInfo({ storeId: selectedPartnerStore.id, segment: filterArea })}
+                    onClick={async () => {
+                      if (selectedPartnerStore) {
+                        // Store exists in database - use existing delete flow
+                        setDeleteSegmentInfo({ storeId: selectedPartnerStore.id, segment: filterArea });
+                      } else {
+                        // Predefined store - need to create in database first, then delete segment
+                        try {
+                          const predefinedStore = EXTERNAL_STORES.find(s => s.name === filterSegment);
+                          if (!predefinedStore) return;
+                          
+                          // Get all segments except the one being deleted
+                          const remainingSegments = (predefinedStore.segments || []).filter(s => s !== filterArea);
+                          
+                          // Create store in database with remaining segments
+                          const res = await fetch("/api/admin/partner-stores", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({ 
+                              name: predefinedStore.name, 
+                              availableSegments: remainingSegments 
+                            }),
+                          });
+                          
+                          if (!res.ok) {
+                            const errData = await res.json();
+                            throw new Error(errData.error || "Failed to update store");
+                          }
+                          
+                          await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+                          await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
+                          setFilterArea("");
+                          toast({ title: "Success", description: `Deleted segment "${filterArea}"` });
+                        } catch (error: any) {
+                          toast({ title: "Error", description: error.message, variant: "destructive" });
+                        }
+                      }
+                    }}
                     title="Delete this segment"
                     data-testid="button-delete-segment"
                   >
