@@ -2747,6 +2747,13 @@ function ProductsContent() {
     queryKey: ["/api/admin/products"],
   });
   
+  // Fetch global markup from admin settings
+  type AdminSettingsData = { globalMarkupPercent?: string };
+  const { data: adminSettings } = useQuery<AdminSettingsData>({
+    queryKey: ["/api/admin/settings"],
+  });
+  const globalMarkup = parseFloat(adminSettings?.globalMarkupPercent || "25");
+  
   const selectedExternalStore = allExternalStores.find(s => s.name === filterSegment);
   const selectedInternalStore = INTERNAL_STORES.find(s => s.name === filterSegment);
   const filterStoreAreas: string[] = 
@@ -3000,12 +3007,12 @@ function ProductsContent() {
                         )}
                         <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
-                          <div className="text-xs text-muted-foreground">{product.markupPercent || 25}%</div>
+                          <div className="text-xs text-muted-foreground">{globalMarkup}%</div>
                         </div>
                         <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Customer Price</div>
                           <div className="text-lg font-bold text-green-600">
-                            ${((parseFloat(product.basePrice) + parseFloat(product.textUpcharge || "0")) * (1 + (parseFloat(product.markupPercent || "25") / 100))).toFixed(2)}
+                            ${((parseFloat(product.basePrice) + parseFloat(product.textUpcharge || "0")) * (1 + (globalMarkup / 100))).toFixed(2)}
                           </div>
                         </div>
                       </div>
