@@ -17,6 +17,16 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -2707,6 +2717,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
 function ProductsContent() {
   const { toast } = useToast();
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [filterSegment, setFilterSegment] = useState<string>("");
   const [filterArea, setFilterArea] = useState<string>("");
   const [filterProductSource, setFilterProductSource] = useState<string>("");
@@ -3060,11 +3071,7 @@ function ProductsContent() {
                       variant="outline"
                       size="sm"
                       className="text-destructive border-destructive/50 hover:bg-destructive/10"
-                      onClick={() => {
-                        if (confirm(`Remove "${product.name}" from catalog?`)) {
-                          deleteMutation.mutate(product.id);
-                        }
-                      }}
+                      onClick={() => setDeleteProductId(product.id)}
                       disabled={deleteMutation.isPending}
                       data-testid={`button-delete-${product.id}`}
                     >
@@ -3078,6 +3085,33 @@ function ProductsContent() {
           )}
         </CardContent>
       </Card>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteProductId} onOpenChange={(open) => !open && setDeleteProductId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this product from your catalog? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteProductId) {
+                  deleteMutation.mutate(deleteProductId);
+                  setDeleteProductId(null);
+                }
+              }}
+              data-testid="button-confirm-delete"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
