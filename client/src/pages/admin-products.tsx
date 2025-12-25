@@ -181,79 +181,81 @@ function CatalogSyncSection() {
   return (
     <Card className="mb-4">
       <CardContent className="pt-4 px-3 sm:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium">Printify Catalog</h3>
-              {syncStatus?.totalBlueprints ? (
-                <Badge variant="secondary" className="text-xs">
-                  {syncStatus.totalBlueprints} products cached
-                </Badge>
-              ) : null}
-            </div>
-            {isLoading && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading sync status...
-              </p>
-            )}
-            {isError && (
-              <p className="text-xs text-destructive flex items-center gap-2">
-                Failed to load status
-                <Button variant="ghost" size="sm" className="h-5 px-2 text-xs" onClick={() => refetchStatus()}>
-                  Retry
-                </Button>
-              </p>
-            )}
-            {!isLoading && !isError && lastSync && (
-              <p className="text-xs text-muted-foreground">
-                {lastSync.status === 'running' ? (
-                  <span className="flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Syncing... ({lastSync.blueprintsCount || 0} blueprints)
-                  </span>
-                ) : lastSync.status === 'completed' ? (
-                  <>Last synced: {formatDate(lastSync.completedAt || lastSync.startedAt)}</>
-                ) : lastSync.status === 'failed' ? (
-                  <span className="text-destructive">Last sync failed: {lastSync.errorMessage}</span>
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-medium">Printify Catalog</h3>
+                {syncStatus?.totalBlueprints ? (
+                  <Badge variant="secondary" className="text-xs">
+                    {syncStatus.totalBlueprints} products cached
+                  </Badge>
                 ) : null}
-              </p>
-            )}
-            {!isLoading && !isError && !lastSync && (
-              <p className="text-xs text-muted-foreground">
-                No catalog synced yet. Click "Sync Now" to download the Printify catalog.
-              </p>
+              </div>
+              {isLoading && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading sync status...
+                </p>
+              )}
+              {isError && (
+                <p className="text-xs text-destructive flex items-center gap-2">
+                  Failed to load status
+                  <Button variant="ghost" size="sm" className="!min-h-[32px] px-2 text-xs" onClick={() => refetchStatus()}>
+                    Retry
+                  </Button>
+                </p>
+              )}
+              {!isLoading && !isError && lastSync && (
+                <p className="text-xs text-muted-foreground">
+                  {lastSync.status === 'running' ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Syncing... ({lastSync.blueprintsCount || 0} blueprints)
+                    </span>
+                  ) : lastSync.status === 'completed' ? (
+                    <>Last synced: {formatDate(lastSync.completedAt || lastSync.startedAt)}</>
+                  ) : lastSync.status === 'failed' ? (
+                    <span className="text-destructive">Last sync failed: {lastSync.errorMessage}</span>
+                  ) : null}
+                </p>
+              )}
+              {!isLoading && !isError && !lastSync && (
+                <p className="text-xs text-muted-foreground">
+                  No catalog synced yet. Click "Sync Now" to download the Printify catalog.
+                </p>
+              )}
+            </div>
+
+            {costSyncStatus?.stats && (
+              <div className="flex items-center gap-3 text-xs flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <DollarSign className="h-3.5 w-3.5 text-green-600" />
+                  <span className="text-muted-foreground">
+                    {costSyncStatus.stats.withCosts}/{costSyncStatus.stats.total} with costs
+                  </span>
+                </div>
+                {costSyncStatus.stats.stale > 0 && (
+                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                    {costSyncStatus.stats.stale} stale (&gt;24h)
+                  </Badge>
+                )}
+                {isCostSyncRunning && costSyncStatus.currentSync && (
+                  <span className="text-muted-foreground">
+                    {costSyncStatus.currentSync.processedCount}/{costSyncStatus.currentSync.totalProviders} processed
+                  </span>
+                )}
+              </div>
             )}
           </div>
-
-          {costSyncStatus?.stats && (
-            <div className="flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-1.5">
-                <DollarSign className="h-3.5 w-3.5 text-green-600" />
-                <span className="text-muted-foreground">
-                  {costSyncStatus.stats.withCosts}/{costSyncStatus.stats.total} with costs
-                </span>
-              </div>
-              {costSyncStatus.stats.stale > 0 && (
-                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                  {costSyncStatus.stats.stale} stale (&gt;24h)
-                </Badge>
-              )}
-              {isCostSyncRunning && costSyncStatus.currentSync && (
-                <span className="text-muted-foreground">
-                  {costSyncStatus.currentSync.processedCount}/{costSyncStatus.currentSync.totalProviders} processed
-                </span>
-              )}
-            </div>
-          )}
           
-          <div className="flex gap-2">
+          <div className="flex justify-center gap-3">
             <Button
               variant="outline"
-              size="sm"
               onClick={() => syncMutation.mutate()}
               disabled={isSyncRunning || syncMutation.isPending}
               data-testid="button-sync-catalog"
+              className="flex-1 max-w-[200px]"
             >
               {isSyncRunning ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
@@ -263,10 +265,10 @@ function CatalogSyncSection() {
             </Button>
             <Button
               variant="default"
-              size="sm"
               onClick={() => costSyncMutation.mutate()}
               disabled={isCostSyncRunning || costSyncMutation.isPending || !syncStatus?.totalBlueprints}
               data-testid="button-sync-costs"
+              className="flex-1 max-w-[200px]"
             >
               {isCostSyncRunning ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing Costs...</>
