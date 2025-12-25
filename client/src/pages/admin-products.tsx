@@ -728,17 +728,13 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [deleteWizardStoreId, setDeleteWizardStoreId] = useState<string | null>(null);
   const [deleteWizardSegmentInfo, setDeleteWizardSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
   
-  // Library picker state (backgrounds + templates) - now inline in Step 5
+  // Library picker state (backgrounds + templates)
+  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
   const [libraryPickerTab, setLibraryPickerTab] = useState<"backgrounds" | "templates">("backgrounds");
   const [libraryFilterSeason, setLibraryFilterSeason] = useState<string>("all");
   const [libraryFilterEvent, setLibraryFilterEvent] = useState<string>("all");
-  // Selected library item - when set, shows confirmation card and populates builder
-  const [selectedLibraryItem, setSelectedLibraryItem] = useState<{
-    type: "template" | "background";
-    id: string;
-    name: string;
-    imageUrl?: string;
-  } | null>(null);
+  // Track which source button was clicked: templates, backgrounds, or custom
+  const [librarySourceType, setLibrarySourceType] = useState<"templates" | "backgrounds" | "custom" | null>(null);
   
   // Fetch partner stores from database for External store type
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
@@ -1793,70 +1789,67 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
               </div>
             )}
 
-            {/* Step 5: Product Source (Library/Custom) */}
+            {/* Step 5: Product Source (Templates/Backgrounds/Custom) */}
             {selectedSegment && (
               <div className="space-y-4 p-4 border-2 border-primary/30 rounded-lg">
                 <Label className="text-lg font-bold">Step 5: Product Source</Label>
-                <div className="flex flex-col gap-4">
+                <p className="text-sm text-muted-foreground">Choose how to start your design</p>
+                <div className="flex flex-col gap-3">
                   <Button
-                    variant={productSource === "Library" ? "default" : "outline"}
-                    className={`h-20 text-lg w-full ${productSource === "Library" ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                    variant={librarySourceType === "templates" ? "default" : "outline"}
+                    className={`h-16 text-lg w-full ${librarySourceType === "templates" ? "ring-2 ring-primary ring-offset-2" : ""}`}
                     onClick={() => {
-                      setProductSource("Library");
-                      toast({
-                        title: "Library Selected",
-                        description: "Now pick a product type below",
-                        duration: 2000,
-                      });
+                      setLibrarySourceType("templates");
+                      setLibraryPickerTab("templates");
+                      setLibraryPickerOpen(true);
+                      setProductSource("Custom");
                     }}
-                    data-testid="button-source-library"
+                    data-testid="button-source-templates"
                   >
                     <div className="text-center">
-                      <div className="font-bold text-xl">Library</div>
-                      <div className="text-sm opacity-80">Pick from Printify catalog</div>
+                      <div className="font-bold text-lg">Templates</div>
+                      <div className="text-xs opacity-80">Load a saved design to edit</div>
                     </div>
                   </Button>
                   <Button
-                    variant={productSource === "Custom" ? "default" : "outline"}
-                    className={`h-20 text-lg w-full ${productSource === "Custom" ? "ring-2 ring-accent ring-offset-2" : ""}`}
+                    variant={librarySourceType === "backgrounds" ? "default" : "outline"}
+                    className={`h-16 text-lg w-full ${librarySourceType === "backgrounds" ? "ring-2 ring-primary ring-offset-2" : ""}`}
                     onClick={() => {
+                      setLibrarySourceType("backgrounds");
+                      setLibraryPickerTab("backgrounds");
+                      setLibraryPickerOpen(true);
+                      setProductSource("Custom");
+                    }}
+                    data-testid="button-source-backgrounds"
+                  >
+                    <div className="text-center">
+                      <div className="font-bold text-lg">Backgrounds</div>
+                      <div className="text-xs opacity-80">Pick landing page background</div>
+                    </div>
+                  </Button>
+                  <Button
+                    variant={librarySourceType === "custom" ? "default" : "outline"}
+                    className={`h-16 text-lg w-full ${librarySourceType === "custom" ? "ring-2 ring-accent ring-offset-2" : ""}`}
+                    onClick={() => {
+                      setLibrarySourceType("custom");
                       setProductSource("Custom");
                       toast({
                         title: "Custom Selected",
-                        description: "Build your own design below",
+                        description: "Build from scratch below",
                         duration: 2000,
                       });
                     }}
                     data-testid="button-source-custom"
                   >
                     <div className="text-center">
-                      <div className="font-bold text-xl">Custom</div>
-                      <div className="text-sm opacity-80">Build your own design</div>
+                      <div className="font-bold text-lg">Custom</div>
+                      <div className="text-xs opacity-80">Build from scratch</div>
                     </div>
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Library: Product Category Selection */}
-            {productSource === "Library" && (
-              <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg">
-                <Label className="text-lg font-bold">Step 6: Product Type</Label>
-                <select
-                  className="w-full p-3 border rounded-md bg-background text-base"
-                  value={selectedCategory}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  data-testid="select-product-category"
-                >
-                  <option value="">-- Select product type --</option>
-                  {catalog.map((cat) => (
-                    <option key={cat.name} value={cat.name}>
-                      {cat.name} ({cat.count} items)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {/* Custom: Build Module */}
             {productSource === "Custom" && (
