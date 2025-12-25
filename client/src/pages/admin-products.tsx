@@ -249,31 +249,31 @@ function CatalogSyncSection() {
             )}
           </div>
           
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-2">
             <Button
               variant="outline"
+              size="default"
               onClick={() => syncMutation.mutate()}
               disabled={isSyncRunning || syncMutation.isPending}
               data-testid="button-sync-catalog"
-              className="flex-1 max-w-[200px]"
             >
               {isSyncRunning ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
+                <><Loader2 className="h-4 w-4 mr-1" /> Syncing</>
               ) : (
-                <><RefreshCw className="h-4 w-4 mr-2" /> Sync Catalog</>
+                <><RefreshCw className="h-4 w-4 mr-1" /> Catalog</>
               )}
             </Button>
             <Button
               variant="default"
+              size="default"
               onClick={() => costSyncMutation.mutate()}
               disabled={isCostSyncRunning || costSyncMutation.isPending || !syncStatus?.totalBlueprints}
               data-testid="button-sync-costs"
-              className="flex-1 max-w-[200px]"
             >
               {isCostSyncRunning ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing Costs...</>
+                <><Loader2 className="h-4 w-4 mr-1" /> Syncing</>
               ) : (
-                <><DollarSign className="h-4 w-4 mr-2" /> Sync Costs</>
+                <><DollarSign className="h-4 w-4 mr-1" /> Costs</>
               )}
             </Button>
           </div>
