@@ -3573,7 +3573,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
 
       {/* Library Picker Dialog - Backgrounds & Templates with filters */}
       <Dialog open={libraryPickerOpen} onOpenChange={setLibraryPickerOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] h-[92vh] !max-h-[92vh] flex flex-col p-4">
+        <DialogContent className="max-w-4xl w-[95vw] !grid-rows-[auto_1fr] h-[92vh] !max-h-[92vh] p-4" style={{ display: 'flex', flexDirection: 'column' }}>
           <DialogHeader className="flex-shrink-0 pb-2">
             <DialogTitle className="text-xl">Library</DialogTitle>
             <DialogDescription>
@@ -3582,7 +3582,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
           </DialogHeader>
           
           {/* Tabs */}
-          <Tabs value={libraryPickerTab} onValueChange={(v) => setLibraryPickerTab(v as "backgrounds" | "templates")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <Tabs value={libraryPickerTab} onValueChange={(v) => setLibraryPickerTab(v as "backgrounds" | "templates")} className="flex-1 flex flex-col min-h-0" style={{ minHeight: 0, flex: 1 }}>
             <TabsList className="grid w-full grid-cols-2 h-12 flex-shrink-0">
               <TabsTrigger value="backgrounds" className="text-base h-10" data-testid="tab-library-backgrounds">
                 <FolderOpen className="h-4 w-4 mr-2" />
@@ -3629,7 +3629,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             </div>
             
             {/* Backgrounds Tab Content */}
-            <TabsContent value="backgrounds" className="flex-1 overflow-y-auto mt-0">
+            <TabsContent value="backgrounds" className="flex-1 overflow-y-auto mt-0" style={{ flex: 1, minHeight: 0 }}>
               {filteredBackgrounds.length === 0 ? (
                 <div className="text-center py-12">
                   <FolderOpen className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -3697,7 +3697,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             </TabsContent>
             
             {/* Templates Tab Content */}
-            <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0">
+            <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0" style={{ flex: 1, minHeight: 0 }}>
               {libraryTemplates.length === 0 ? (
                 <div className="text-center py-12">
                   <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
