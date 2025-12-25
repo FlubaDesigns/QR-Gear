@@ -1015,17 +1015,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin Products - Get all products with admin fields
+  // Admin Products - Get all products with admin fields and cached costs
   app.get("/api/admin/products", isAdmin, async (req: any, res) => {
     try {
       const products = await storage.getAllProducts();
-      // Enrich products with their assigned category IDs
+      // Enrich products with their assigned category IDs and cached costs
       const enrichedProducts = await Promise.all(
         products.map(async (product) => {
           const assignments = await storage.getProductCategoryAssignments(product.id);
+          
+          // Look up cached costs from printifyPrintProviders
+          let cachedMinCost: number | null = null;
+          let cachedMaxCost: number | null = null;
+          if (product.blueprintId && product.printProviderId) {
+            const provider = await storage.getPrintifyPrintProvider(
+              product.blueprintId,
+              product.printProviderId
+            );
+            if (provider?.minCost) {
+              cachedMinCost = Number(provider.minCost) / 100; // Convert from cents
+              cachedMaxCost = provider.maxCost ? Number(provider.maxCost) / 100 : cachedMinCost;
+            }
+          }
+          
           return {
             ...product,
             categoryIds: assignments.map((a) => a.categoryId),
+            cachedMinCost,
+            cachedMaxCost,
           };
         })
       );

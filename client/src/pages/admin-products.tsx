@@ -2741,7 +2741,12 @@ function ProductsContent() {
     });
   })();
   
-  type AdminProduct = Product & { categoryIds?: string[] };
+  type AdminProduct = Product & { 
+    categoryIds?: string[]; 
+    textUpcharge?: string;
+    cachedMinCost?: number | null;
+    cachedMaxCost?: number | null;
+  };
   
   const { data: products = [], isLoading, refetch } = useQuery<AdminProduct[]>({
     queryKey: ["/api/admin/products"],
@@ -2997,14 +3002,19 @@ function ProductsContent() {
                       <div className="flex items-center gap-4 mt-3 flex-wrap">
                         <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Cost</div>
-                          <div className="text-xs text-muted-foreground">${product.basePrice}</div>
-                        </div>
-                        {parseFloat(product.textUpcharge || "0") > 0 && (
-                          <div>
-                            <div className="text-[10px] text-muted-foreground uppercase">Text</div>
-                            <div className="text-xs text-muted-foreground">+${product.textUpcharge}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {product.cachedMinCost ? (
+                              <>
+                                ${product.cachedMinCost.toFixed(2)}
+                                {product.cachedMaxCost && product.cachedMaxCost !== product.cachedMinCost && (
+                                  <span className="text-muted-foreground/60"> - ${product.cachedMaxCost.toFixed(2)}</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-amber-500">No cost data</span>
+                            )}
                           </div>
-                        )}
+                        </div>
                         <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
                           <div className="text-xs text-muted-foreground">{globalMarkup}%</div>
@@ -3012,7 +3022,11 @@ function ProductsContent() {
                         <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Customer Price</div>
                           <div className="text-lg font-bold text-green-600">
-                            ${((parseFloat(product.basePrice) + parseFloat(product.textUpcharge || "0")) * (1 + (globalMarkup / 100))).toFixed(2)}
+                            {product.cachedMinCost ? (
+                              `$${(product.cachedMinCost * (1 + globalMarkup / 100)).toFixed(2)}`
+                            ) : (
+                              <span className="text-amber-500">--</span>
+                            )}
                           </div>
                         </div>
                       </div>
