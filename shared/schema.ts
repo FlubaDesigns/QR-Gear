@@ -888,6 +888,58 @@ export const providerHealthLog = pgTable("provider_health_log", {
   avgResponseTime24h: integer("avg_response_time_24h"),
 });
 
+// Auto-Repricing Rules - Dynamic pricing based on conditions
+export const repricingRules = pgTable("repricing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  priority: integer("priority").default(0), // Higher = evaluated first
+  // Conditions (JSON structure for flexibility)
+  // e.g., { "marginBelow": 20, "channel": "amazon" }
+  conditions: jsonb("conditions").default({}).$type<{
+    marginBelow?: number; // Margin percentage threshold
+    marginAbove?: number;
+    channel?: string; // Specific channel
+    productCategory?: string;
+    costIncreasePercent?: number; // Trigger on cost increases
+    competitorPriceBelow?: number; // Competitive pricing
+  }>(),
+  // Action to take
+  actionType: text("action_type").notNull(), // 'adjust_margin', 'match_target', 'increase_percent', 'decrease_percent'
+  // Action parameters
+  actionParams: jsonb("action_params").default({}).$type<{
+    targetMarginPercent?: number; // For 'adjust_margin' - set price to achieve this margin
+    adjustPercent?: number; // For 'increase_percent' / 'decrease_percent'
+    minPrice?: number; // Floor price
+    maxPrice?: number; // Ceiling price
+    roundTo?: number; // Round to nearest (e.g., 0.99)
+  }>(),
+  // Scope - which products/channels this applies to
+  appliesTo: text("applies_to").default("all"), // 'all', 'category', 'product', 'channel'
+  appliesToIds: text("applies_to_ids").array(), // Specific IDs if not 'all'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Repricing History - Audit log of price changes
+export const repricingHistory = pgTable("repricing_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ruleId: varchar("rule_id").references(() => repricingRules.id),
+  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
+  channel: text("channel"),
+  // Price change details
+  previousPrice: decimal("previous_price", { precision: 10, scale: 2 }).notNull(),
+  newPrice: decimal("new_price", { precision: 10, scale: 2 }).notNull(),
+  reason: text("reason").notNull(), // Human-readable explanation
+  // Margin details
+  previousMargin: decimal("previous_margin", { precision: 5, scale: 2 }),
+  newMargin: decimal("new_margin", { precision: 5, scale: 2 }),
+  // Metadata
+  appliedAt: timestamp("applied_at").defaultNow().notNull(),
+  wasAutomatic: boolean("was_automatic").default(true),
+});
+
 // Insert schemas for orchestration tables
 export const insertMasterProductSchema = createInsertSchema(masterProducts).omit({
   id: true,
@@ -926,6 +978,15 @@ export const insertQrScanEventSchema = createInsertSchema(qrScanEvents).omit({
 });
 export const insertProviderHealthLogSchema = createInsertSchema(providerHealthLog).omit({
   id: true,
+});
+export const insertRepricingRuleSchema = createInsertSchema(repricingRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertRepricingHistorySchema = createInsertSchema(repricingHistory).omit({
+  id: true,
+  appliedAt: true,
 });
 
 // Types
@@ -1045,3 +1106,9 @@ export type InsertQrScanEvent = z.infer<typeof insertQrScanEventSchema>;
 
 export type ProviderHealthLog = typeof providerHealthLog.$inferSelect;
 export type InsertProviderHealthLog = z.infer<typeof insertProviderHealthLogSchema>;
+
+export type RepricingRule = typeof repricingRules.$inferSelect;
+export type InsertRepricingRule = z.infer<typeof insertRepricingRuleSchema>;
+
+export type RepricingHistoryEntry = typeof repricingHistory.$inferSelect;
+export type InsertRepricingHistoryEntry = z.infer<typeof insertRepricingHistorySchema>;

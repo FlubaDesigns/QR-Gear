@@ -4368,6 +4368,162 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ==================== AUTO-REPRICING ENDPOINTS ====================
+
+  // Get all repricing rules
+  app.get("/api/admin/orchestration/repricing/rules", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const rules = await autoRepricer.getRules();
+      res.json(rules);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get repricing statistics
+  app.get("/api/admin/orchestration/repricing/stats", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const stats = await autoRepricer.getStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get repricing history
+  app.get("/api/admin/orchestration/repricing/history", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const limit = parseInt(req.query.limit as string) || 50;
+      if (limit < 1 || limit > 500) {
+        return res.status(400).json({ error: "limit must be between 1 and 500" });
+      }
+      const history = await autoRepricer.getHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new repricing rule
+  app.post("/api/admin/orchestration/repricing/rules", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const { name, description, isActive, priority, conditions, actionType, actionParams, appliesTo, appliesToIds } = req.body;
+      
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ error: "name is required and must be a non-empty string" });
+      }
+      if (!actionType || typeof actionType !== "string") {
+        return res.status(400).json({ error: "actionType is required" });
+      }
+      const validActionTypes = ["adjust_margin", "match_target", "increase_percent", "decrease_percent"];
+      if (!validActionTypes.includes(actionType)) {
+        return res.status(400).json({ error: `actionType must be one of: ${validActionTypes.join(", ")}` });
+      }
+      
+      const rule = await autoRepricer.createRule({
+        name: name.trim(),
+        description,
+        isActive,
+        priority,
+        conditions: conditions || {},
+        actionType,
+        actionParams: actionParams || {},
+        appliesTo,
+        appliesToIds,
+      });
+      res.status(201).json(rule);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update a repricing rule
+  app.patch("/api/admin/orchestration/repricing/rules/:ruleId", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const { ruleId } = req.params;
+      
+      if (!ruleId) {
+        return res.status(400).json({ error: "ruleId is required" });
+      }
+      
+      const updated = await autoRepricer.updateRule(ruleId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a repricing rule
+  app.delete("/api/admin/orchestration/repricing/rules/:ruleId", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const { ruleId } = req.params;
+      
+      if (!ruleId) {
+        return res.status(400).json({ error: "ruleId is required" });
+      }
+      
+      await autoRepricer.deleteRule(ruleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Toggle rule active status
+  app.post("/api/admin/orchestration/repricing/rules/:ruleId/toggle", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const { ruleId } = req.params;
+      
+      const updated = await autoRepricer.toggleRule(ruleId);
+      if (!updated) {
+        return res.status(404).json({ error: "Rule not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Preview rule impact (dry run)
+  app.get("/api/admin/orchestration/repricing/rules/:ruleId/preview", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const { ruleId } = req.params;
+      
+      const preview = await autoRepricer.previewRule(ruleId);
+      res.json(preview);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Run repricing evaluation (dry run or apply)
+  app.post("/api/admin/orchestration/repricing/run", isAdmin, async (req: any, res) => {
+    try {
+      const { autoRepricer } = await import("./services/auto-repricer");
+      const { dryRun = true } = req.body;
+      
+      const results = await autoRepricer.evaluateAllProducts(dryRun);
+      res.json({
+        dryRun,
+        productsAffected: results.length,
+        results,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
