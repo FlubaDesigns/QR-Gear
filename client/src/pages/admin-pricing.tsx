@@ -555,6 +555,8 @@ function CouponsSection() {
       name: string;
       discountType: string;
       discountValue: string;
+      currency: string;
+      isActive: boolean;
       maxRedemptions?: number | null;
       validUntil?: string | null;
     }) => apiRequest("POST", "/api/admin/coupons", data),
@@ -608,6 +610,8 @@ function CouponsSection() {
       name: newCoupon.name.trim(),
       discountType: newCoupon.discountType,
       discountValue: newCoupon.discountValue,
+      currency: "usd",
+      isActive: true,
       maxRedemptions: newCoupon.maxRedemptions ? parseInt(newCoupon.maxRedemptions) : null,
       validUntil: newCoupon.validUntil || null,
     });
