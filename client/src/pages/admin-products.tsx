@@ -2111,7 +2111,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setLibraryPickerOpen(true)}
+                            onClick={() => {
+                              setLibraryPickerTab("backgrounds");
+                              setLibraryPickerOpen(true);
+                            }}
                             data-testid="button-pick-from-library"
                           >
                             <FolderOpen className="h-4 w-4 mr-1" /> Pick from Library
