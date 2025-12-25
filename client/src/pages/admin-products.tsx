@@ -694,9 +694,19 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [footerEnabled, setFooterEnabled] = useState(false);
   const [footerText, setFooterText] = useState("");
   const [headerFontFamily, setHeaderFontFamily] = useState("Arial");
-  const [headerFontSize, setHeaderFontSize] = useState("18");
+  const [headerFontSize, setHeaderFontSize] = useState("120"); // Print-scale size for 4500x5400 canvas
+  const [headerColor, setHeaderColor] = useState("#000000");
+  const [headerLetterSpacing, setHeaderLetterSpacing] = useState(0);
+  const [headerWarp, setHeaderWarp] = useState<string>("straight");
+  const [headerStrokeColor, setHeaderStrokeColor] = useState("");
+  const [headerStrokeWidth, setHeaderStrokeWidth] = useState(0);
   const [footerFontFamily, setFooterFontFamily] = useState("Arial");
-  const [footerFontSize, setFooterFontSize] = useState("16");
+  const [footerFontSize, setFooterFontSize] = useState("96"); // Print-scale size for 4500x5400 canvas
+  const [footerColor, setFooterColor] = useState("#000000");
+  const [footerLetterSpacing, setFooterLetterSpacing] = useState(0);
+  const [footerWarp, setFooterWarp] = useState<string>("straight");
+  const [footerStrokeColor, setFooterStrokeColor] = useState("");
+  const [footerStrokeWidth, setFooterStrokeWidth] = useState(0);
   
   // Landing page overlay state (displayed when QR is scanned, not printed)
   const [landingOverlayEnabled, setLandingOverlayEnabled] = useState(false);
@@ -735,6 +745,18 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [libraryFilterEvent, setLibraryFilterEvent] = useState<string>("all");
   // Track which source button was clicked: templates, backgrounds, or custom
   const [librarySourceType, setLibrarySourceType] = useState<"templates" | "backgrounds" | "custom" | null>(null);
+  // SVG preview state
+  const [svgPreviewUrl, setSvgPreviewUrl] = useState<string>("");
+  const [generatingPng, setGeneratingPng] = useState(false);
+  
+  // Fetch render config (fonts and warp presets) for SVG text warp system
+  interface RenderConfig {
+    fonts: string[];
+    warpPresets: { value: string; label: string }[];
+  }
+  const { data: renderConfig } = useQuery<RenderConfig>({
+    queryKey: ["/api/render/config"],
+  });
   
   // Fetch partner stores from database for External store type
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
@@ -1140,8 +1162,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     setSelectedPlacements(new Set(["front-chest"]));
     setHeaderEnabled(false);
     setHeaderText("");
+    setHeaderFontFamily("Arial");
+    setHeaderFontSize("120");
+    setHeaderColor("#000000");
+    setHeaderLetterSpacing(0);
+    setHeaderWarp("straight");
+    setHeaderStrokeColor("");
+    setHeaderStrokeWidth(0);
     setFooterEnabled(false);
     setFooterText("");
+    setFooterFontFamily("Arial");
+    setFooterFontSize("96");
+    setFooterColor("#000000");
+    setFooterLetterSpacing(0);
+    setFooterWarp("straight");
+    setFooterStrokeColor("");
+    setFooterStrokeWidth(0);
   }
   
   function removeFromStagingCart(id: string) {
@@ -1298,8 +1334,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     setSelectedPlacements(new Set(["front-chest"]));
     setHeaderEnabled(false);
     setHeaderText("");
+    setHeaderFontFamily("Arial");
+    setHeaderFontSize("120");
+    setHeaderColor("#000000");
+    setHeaderLetterSpacing(0);
+    setHeaderWarp("straight");
+    setHeaderStrokeColor("");
+    setHeaderStrokeWidth(0);
     setFooterEnabled(false);
     setFooterText("");
+    setFooterFontFamily("Arial");
+    setFooterFontSize("96");
+    setFooterColor("#000000");
+    setFooterLetterSpacing(0);
+    setFooterWarp("straight");
+    setFooterStrokeColor("");
+    setFooterStrokeWidth(0);
   }
   
   function handleStoreTypeChange(type: StoreType | "") {
@@ -1423,11 +1473,21 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
           text: headerText,
           fontFamily: headerFontFamily,
           fontSize: headerFontSize,
+          color: headerColor,
+          letterSpacing: headerLetterSpacing,
+          warpPreset: headerWarp,
+          strokeColor: headerStrokeColor || undefined,
+          strokeWidth: headerStrokeWidth || undefined,
         } : null,
         bottomText: footerEnabled ? {
           text: footerText,
           fontFamily: footerFontFamily,
           fontSize: footerFontSize,
+          color: footerColor,
+          letterSpacing: footerLetterSpacing,
+          warpPreset: footerWarp,
+          strokeColor: footerStrokeColor || undefined,
+          strokeWidth: footerStrokeWidth || undefined,
         } : null,
         // Landing page overlay - displayed when QR is scanned (not printed)
         landingOverlay: landingOverlayEnabled ? {
@@ -1470,8 +1530,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
       setBackgroundPreview("");
       setHeaderEnabled(false);
       setHeaderText("");
+      setHeaderFontFamily("Arial");
+      setHeaderFontSize("120");
+      setHeaderColor("#000000");
+      setHeaderLetterSpacing(0);
+      setHeaderWarp("straight");
+      setHeaderStrokeColor("");
+      setHeaderStrokeWidth(0);
       setFooterEnabled(false);
       setFooterText("");
+      setFooterFontFamily("Arial");
+      setFooterFontSize("96");
+      setFooterColor("#000000");
+      setFooterLetterSpacing(0);
+      setFooterWarp("straight");
+      setFooterStrokeColor("");
+      setFooterStrokeWidth(0);
       setLandingOverlayEnabled(false);
       setLandingTitle("");
       setLandingDescription("");
@@ -2128,10 +2202,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* 5. Text Options with Font Selection */}
+                {/* 5. Text Options with Rich SVG Warp Controls */}
                 {selectedItemId && (
                   <div className="space-y-4">
-                    {/* Top Text */}
+                    {/* Top Text (Header) with Warp */}
                     <div className="space-y-3 p-4 bg-background rounded-lg border">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="header-enabled" className="font-semibold text-base">Top Text (Header)</Label>
@@ -2143,57 +2217,163 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         />
                       </div>
                       {headerEnabled && (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <Input
                             placeholder="Enter top text (max 35 chars)"
                             value={headerText}
                             onChange={(e) => setHeaderText(e.target.value.slice(0, 35))}
                             maxLength={35}
-                            className="text-base h-11"
+                            className="text-base h-12"
                             data-testid="input-header-text"
                           />
-                          <div className="flex gap-3">
-                            <div className="flex-1">
-                              <Label className="text-sm mb-1.5 block text-muted-foreground">Font Style</Label>
+                          
+                          {/* Font and Size Row */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
                               <select
-                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
                                 value={headerFontFamily}
                                 onChange={(e) => setHeaderFontFamily(e.target.value)}
                                 style={{ fontFamily: headerFontFamily }}
                                 data-testid="select-header-font"
                               >
-                                {FONT_FAMILIES.map((font) => (
-                                  <option key={font.name} value={font.name} style={{ fontFamily: font.name }}>{font.name}</option>
+                                {(renderConfig?.fonts || FONT_FAMILIES.map(f => f.name)).map((font) => (
+                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
                                 ))}
                               </select>
                             </div>
-                            <div className="w-24">
+                            <div>
                               <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
                               <select
-                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
                                 value={headerFontSize}
                                 onChange={(e) => setHeaderFontSize(e.target.value)}
                                 data-testid="select-header-size"
                               >
-                                {FONT_SIZES.map((size) => (
-                                  <option key={size} value={size}>{size}px</option>
+                                {[72, 96, 120, 144, 168, 192, 216, 240, 280, 320].map((size) => (
+                                  <option key={size} value={String(size)}>{size}pt</option>
                                 ))}
                               </select>
                             </div>
                           </div>
+                          
+                          {/* Color and Warp Preset Row */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Color</Label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="color"
+                                  value={headerColor}
+                                  onChange={(e) => setHeaderColor(e.target.value)}
+                                  className="w-12 h-12 border rounded-md cursor-pointer"
+                                  data-testid="input-header-color"
+                                />
+                                <Input
+                                  value={headerColor}
+                                  onChange={(e) => setHeaderColor(e.target.value)}
+                                  className="flex-1 h-12 font-mono text-sm"
+                                  placeholder="#000000"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Warp Style</Label>
+                              <select
+                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
+                                value={headerWarp}
+                                onChange={(e) => setHeaderWarp(e.target.value)}
+                                data-testid="select-header-warp"
+                              >
+                                {(renderConfig?.warpPresets || [
+                                  { value: 'straight', label: 'Straight' },
+                                  { value: 'arc-up', label: 'Arc Up' },
+                                  { value: 'arc-down', label: 'Arc Down' },
+                                ]).map((preset) => (
+                                  <option key={preset.value} value={preset.value}>{preset.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          
+                          {/* Letter Spacing Slider */}
+                          <div>
+                            <Label className="text-sm mb-1.5 block text-muted-foreground">
+                              Letter Spacing: {headerLetterSpacing}px
+                            </Label>
+                            <input
+                              type="range"
+                              min="-10"
+                              max="50"
+                              value={headerLetterSpacing}
+                              onChange={(e) => setHeaderLetterSpacing(Number(e.target.value))}
+                              className="w-full h-3 accent-primary cursor-pointer"
+                              data-testid="slider-header-spacing"
+                            />
+                          </div>
+                          
+                          {/* Optional Stroke/Outline */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Color (optional)</Label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="color"
+                                  value={headerStrokeColor || "#ffffff"}
+                                  onChange={(e) => setHeaderStrokeColor(e.target.value)}
+                                  className="w-12 h-12 border rounded-md cursor-pointer"
+                                  data-testid="input-header-stroke-color"
+                                />
+                                <Input
+                                  value={headerStrokeColor}
+                                  onChange={(e) => setHeaderStrokeColor(e.target.value)}
+                                  className="flex-1 h-12 font-mono text-sm"
+                                  placeholder="None"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Width: {headerStrokeWidth}px</Label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="20"
+                                value={headerStrokeWidth}
+                                onChange={(e) => setHeaderStrokeWidth(Number(e.target.value))}
+                                className="w-full h-3 accent-primary cursor-pointer mt-4"
+                                data-testid="slider-header-stroke"
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Text Preview with Warp Visualization */}
                           {headerText && (
-                            <div 
-                              className="p-3 bg-muted/50 rounded-md border text-center"
-                              style={{ fontFamily: headerFontFamily, fontSize: `${parseInt(headerFontSize) * 0.9}px` }}
-                            >
-                              {headerText}
+                            <div className="p-4 bg-muted/50 rounded-md border text-center overflow-hidden">
+                              <div 
+                                style={{ 
+                                  fontFamily: headerFontFamily, 
+                                  fontSize: `${Math.min(parseInt(headerFontSize) * 0.25, 48)}px`,
+                                  color: headerColor,
+                                  letterSpacing: `${headerLetterSpacing * 0.1}px`,
+                                  textShadow: headerStrokeColor && headerStrokeWidth > 0 
+                                    ? `0 0 ${headerStrokeWidth}px ${headerStrokeColor}` 
+                                    : undefined,
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                {headerText}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-2">
+                                Warp: {renderConfig?.warpPresets?.find(p => p.value === headerWarp)?.label || headerWarp}
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
                     </div>
                     
-                    {/* Bottom Text */}
+                    {/* Bottom Text (Footer) with Warp */}
                     <div className="space-y-3 p-4 bg-background rounded-lg border">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="footer-enabled" className="font-semibold text-base">Bottom Text (Footer)</Label>
@@ -2205,50 +2385,156 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         />
                       </div>
                       {footerEnabled && (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <Input
                             placeholder="Enter bottom text (max 40 chars)"
                             value={footerText}
                             onChange={(e) => setFooterText(e.target.value.slice(0, 40))}
                             maxLength={40}
-                            className="text-base h-11"
+                            className="text-base h-12"
                             data-testid="input-footer-text"
                           />
-                          <div className="flex gap-3">
-                            <div className="flex-1">
-                              <Label className="text-sm mb-1.5 block text-muted-foreground">Font Style</Label>
+                          
+                          {/* Font and Size Row */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
                               <select
-                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
                                 value={footerFontFamily}
                                 onChange={(e) => setFooterFontFamily(e.target.value)}
                                 style={{ fontFamily: footerFontFamily }}
                                 data-testid="select-footer-font"
                               >
-                                {FONT_FAMILIES.map((font) => (
-                                  <option key={font.name} value={font.name} style={{ fontFamily: font.name }}>{font.name}</option>
+                                {(renderConfig?.fonts || FONT_FAMILIES.map(f => f.name)).map((font) => (
+                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
                                 ))}
                               </select>
                             </div>
-                            <div className="w-24">
+                            <div>
                               <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
                               <select
-                                className="w-full h-11 px-3 border rounded-md text-sm bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
                                 value={footerFontSize}
                                 onChange={(e) => setFooterFontSize(e.target.value)}
                                 data-testid="select-footer-size"
                               >
-                                {FONT_SIZES.map((size) => (
-                                  <option key={size} value={size}>{size}px</option>
+                                {[72, 96, 120, 144, 168, 192, 216, 240, 280, 320].map((size) => (
+                                  <option key={size} value={String(size)}>{size}pt</option>
                                 ))}
                               </select>
                             </div>
                           </div>
+                          
+                          {/* Color and Warp Preset Row */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Color</Label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="color"
+                                  value={footerColor}
+                                  onChange={(e) => setFooterColor(e.target.value)}
+                                  className="w-12 h-12 border rounded-md cursor-pointer"
+                                  data-testid="input-footer-color"
+                                />
+                                <Input
+                                  value={footerColor}
+                                  onChange={(e) => setFooterColor(e.target.value)}
+                                  className="flex-1 h-12 font-mono text-sm"
+                                  placeholder="#000000"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Warp Style</Label>
+                              <select
+                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
+                                value={footerWarp}
+                                onChange={(e) => setFooterWarp(e.target.value)}
+                                data-testid="select-footer-warp"
+                              >
+                                {(renderConfig?.warpPresets || [
+                                  { value: 'straight', label: 'Straight' },
+                                  { value: 'arc-up', label: 'Arc Up' },
+                                  { value: 'arc-down', label: 'Arc Down' },
+                                ]).map((preset) => (
+                                  <option key={preset.value} value={preset.value}>{preset.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          
+                          {/* Letter Spacing Slider */}
+                          <div>
+                            <Label className="text-sm mb-1.5 block text-muted-foreground">
+                              Letter Spacing: {footerLetterSpacing}px
+                            </Label>
+                            <input
+                              type="range"
+                              min="-10"
+                              max="50"
+                              value={footerLetterSpacing}
+                              onChange={(e) => setFooterLetterSpacing(Number(e.target.value))}
+                              className="w-full h-3 accent-primary cursor-pointer"
+                              data-testid="slider-footer-spacing"
+                            />
+                          </div>
+                          
+                          {/* Optional Stroke/Outline */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Color (optional)</Label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="color"
+                                  value={footerStrokeColor || "#ffffff"}
+                                  onChange={(e) => setFooterStrokeColor(e.target.value)}
+                                  className="w-12 h-12 border rounded-md cursor-pointer"
+                                  data-testid="input-footer-stroke-color"
+                                />
+                                <Input
+                                  value={footerStrokeColor}
+                                  onChange={(e) => setFooterStrokeColor(e.target.value)}
+                                  className="flex-1 h-12 font-mono text-sm"
+                                  placeholder="None"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Width: {footerStrokeWidth}px</Label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="20"
+                                value={footerStrokeWidth}
+                                onChange={(e) => setFooterStrokeWidth(Number(e.target.value))}
+                                className="w-full h-3 accent-primary cursor-pointer mt-4"
+                                data-testid="slider-footer-stroke"
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Text Preview */}
                           {footerText && (
-                            <div 
-                              className="p-3 bg-muted/50 rounded-md border text-center"
-                              style={{ fontFamily: footerFontFamily, fontSize: `${parseInt(footerFontSize) * 0.9}px` }}
-                            >
-                              {footerText}
+                            <div className="p-4 bg-muted/50 rounded-md border text-center overflow-hidden">
+                              <div 
+                                style={{ 
+                                  fontFamily: footerFontFamily, 
+                                  fontSize: `${Math.min(parseInt(footerFontSize) * 0.25, 48)}px`,
+                                  color: footerColor,
+                                  letterSpacing: `${footerLetterSpacing * 0.1}px`,
+                                  textShadow: footerStrokeColor && footerStrokeWidth > 0 
+                                    ? `0 0 ${footerStrokeWidth}px ${footerStrokeColor}` 
+                                    : undefined,
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                {footerText}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-2">
+                                Warp: {renderConfig?.warpPresets?.find(p => p.value === footerWarp)?.label || footerWarp}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -3012,12 +3298,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           setHeaderEnabled(true);
                           setHeaderText(template.topText.text);
                           setHeaderFontFamily(template.topText.fontFamily || "Arial");
-                          setHeaderFontSize(template.topText.fontSize || "18");
+                          setHeaderFontSize(template.topText.fontSize || "120");
+                          setHeaderColor((template.topText as any).color || "#000000");
+                          setHeaderLetterSpacing((template.topText as any).letterSpacing || 0);
+                          setHeaderWarp((template.topText as any).warpPreset || "straight");
+                          setHeaderStrokeColor((template.topText as any).strokeColor || "");
+                          setHeaderStrokeWidth((template.topText as any).strokeWidth || 0);
                         } else {
                           setHeaderEnabled(false);
                           setHeaderText("");
                           setHeaderFontFamily("Arial");
-                          setHeaderFontSize("18");
+                          setHeaderFontSize("120");
+                          setHeaderColor("#000000");
+                          setHeaderLetterSpacing(0);
+                          setHeaderWarp("straight");
+                          setHeaderStrokeColor("");
+                          setHeaderStrokeWidth(0);
                         }
                         
                         // Footer text - always reset to template values or clear
@@ -3025,12 +3321,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           setFooterEnabled(true);
                           setFooterText(template.bottomText.text);
                           setFooterFontFamily(template.bottomText.fontFamily || "Arial");
-                          setFooterFontSize(template.bottomText.fontSize || "16");
+                          setFooterFontSize(template.bottomText.fontSize || "96");
+                          setFooterColor((template.bottomText as any).color || "#000000");
+                          setFooterLetterSpacing((template.bottomText as any).letterSpacing || 0);
+                          setFooterWarp((template.bottomText as any).warpPreset || "straight");
+                          setFooterStrokeColor((template.bottomText as any).strokeColor || "");
+                          setFooterStrokeWidth((template.bottomText as any).strokeWidth || 0);
                         } else {
                           setFooterEnabled(false);
                           setFooterText("");
                           setFooterFontFamily("Arial");
-                          setFooterFontSize("16");
+                          setFooterFontSize("96");
+                          setFooterColor("#000000");
+                          setFooterLetterSpacing(0);
+                          setFooterWarp("straight");
+                          setFooterStrokeColor("");
+                          setFooterStrokeWidth(0);
                         }
                         
                         // Background - always reset

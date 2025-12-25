@@ -3354,15 +3354,81 @@ ${allPages.map(page => `  <url>
         color: { dark: "#000000", light: "#ffffff" },
       });
       
-      // Generate print-ready composite image (header + QR + footer) for Printify
-      // This is a CLEAN image with just text and QR - no background
-      const printifyCompositeUrl = await generatePrintifyComposite(
-        qrUrl,
-        validatedData.topText || null,
-        validatedData.bottomText || null,
-        1200, // width in pixels (print quality)
-        1800  // height in pixels (print quality)
-      );
+      // Generate print-ready composite image using SVG renderer (header + QR + footer)
+      // This produces a 4500x5400 transparent PNG for Printify
+      let printifyCompositeUrl = null;
+      try {
+        const { renderDesignToPng } = await import("./lib/svg-renderer");
+        const headerStyle = validatedData.topText ? {
+          text: validatedData.topText.text,
+          fontFamily: validatedData.topText.fontFamily || "Arial",
+          fontSize: parseInt(validatedData.topText.fontSize) || 120,
+          color: (validatedData.topText as any).color || "#000000",
+          letterSpacing: (validatedData.topText as any).letterSpacing || 0,
+          warpPreset: (validatedData.topText as any).warpPreset || "straight",
+          strokeColor: (validatedData.topText as any).strokeColor,
+          strokeWidth: (validatedData.topText as any).strokeWidth,
+        } : undefined;
+        
+        const footerStyle = validatedData.bottomText ? {
+          text: validatedData.bottomText.text,
+          fontFamily: validatedData.bottomText.fontFamily || "Arial",
+          fontSize: parseInt(validatedData.bottomText.fontSize) || 96,
+          color: (validatedData.bottomText as any).color || "#000000",
+          letterSpacing: (validatedData.bottomText as any).letterSpacing || 0,
+          warpPreset: (validatedData.bottomText as any).warpPreset || "straight",
+          strokeColor: (validatedData.bottomText as any).strokeColor,
+          strokeWidth: (validatedData.bottomText as any).strokeWidth,
+        } : undefined;
+        
+        const renderResult = await renderDesignToPng({
+          templateType: 'shirt-front',
+          header: headerStyle,
+          footer: footerStyle,
+          qrUrl,
+        });
+        
+        const fileName = `svg-composite-${design.id}-${Date.now()}.png`;
+        const uploadResult = await uploadImageFromBuffer(
+          renderResult.pngBuffer,
+          fileName,
+          'image/png'
+        );
+        printifyCompositeUrl = uploadResult.publicUrl;
+        console.log(`[Custom Design] Generated SVG composite: ${printifyCompositeUrl}`);
+      } catch (svgError: any) {
+        console.error("[Custom Design] SVG render failed, falling back to canvas:", svgError.message);
+        // Fallback to canvas renderer with full style support
+        const fallbackTopText = validatedData.topText ? {
+          text: validatedData.topText.text,
+          fontFamily: validatedData.topText.fontFamily || "Arial",
+          fontSize: validatedData.topText.fontSize || "120",
+          color: (validatedData.topText as any).color || "#000000",
+          letterSpacing: (validatedData.topText as any).letterSpacing || 0,
+          warpPreset: (validatedData.topText as any).warpPreset || "straight",
+          strokeColor: (validatedData.topText as any).strokeColor,
+          strokeWidth: (validatedData.topText as any).strokeWidth,
+        } : null;
+        
+        const fallbackBottomText = validatedData.bottomText ? {
+          text: validatedData.bottomText.text,
+          fontFamily: validatedData.bottomText.fontFamily || "Arial",
+          fontSize: validatedData.bottomText.fontSize || "96",
+          color: (validatedData.bottomText as any).color || "#000000",
+          letterSpacing: (validatedData.bottomText as any).letterSpacing || 0,
+          warpPreset: (validatedData.bottomText as any).warpPreset || "straight",
+          strokeColor: (validatedData.bottomText as any).strokeColor,
+          strokeWidth: (validatedData.bottomText as any).strokeWidth,
+        } : null;
+        
+        printifyCompositeUrl = await generatePrintifyComposite(
+          qrUrl,
+          fallbackTopText,
+          fallbackBottomText,
+          4500, // Match SVG output size
+          5400
+        );
+      }
       
       // Update design with QR code and composite image
       const updatedDesign = await storage.updateCustomDesign(design.id, {
@@ -3458,6 +3524,112 @@ ${allPages.map(page => `  <url>
       await storage.deleteCustomDesign(id);
       res.json({ success: true });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ SVG TEXT WARP RENDER ENDPOINTS ============
+  
+  // Get available fonts and warp presets for the builder
+  app.get("/api/render/config", async (req, res) => {
+    try {
+      const { getFontAllowlist, getWarpPresets } = await import("./lib/svg-renderer");
+      res.json({
+        fonts: getFontAllowlist(),
+        warpPresets: getWarpPresets(),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Generate SVG preview (returns SVG string for live preview in browser)
+  // Supports both GET (query params) and POST (body)
+  app.all("/api/render/preview", async (req, res) => {
+    try {
+      const { buildPreviewSvg } = await import("./lib/svg-renderer");
+      // Support both GET query params and POST body
+      const params = req.method === 'GET' ? req.query : req.body;
+      const { header, footer, qrUrl, previewWidth, previewHeight } = params as any;
+      
+      if (!qrUrl) {
+        return res.status(400).json({ error: "qrUrl is required" });
+      }
+      
+      const svgString = buildPreviewSvg(
+        { templateType: 'shirt-front', header, footer, qrUrl },
+        previewWidth || 450,
+        previewHeight || 540
+      );
+      
+      res.type('image/svg+xml').send(svgString);
+    } catch (error: any) {
+      console.error("[SVG Preview] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Generate full-resolution PNG for Printify upload
+  app.post("/api/render/png", isAdmin, async (req, res) => {
+    try {
+      const { renderDesignToPng } = await import("./lib/svg-renderer");
+      const { header, footer, qrUrl, templateType } = req.body;
+      
+      if (!qrUrl) {
+        return res.status(400).json({ error: "qrUrl is required" });
+      }
+      
+      const result = await renderDesignToPng({
+        templateType: templateType || 'shirt-front',
+        header,
+        footer,
+        qrUrl,
+      });
+      
+      // Upload to object storage
+      const fileName = `svg-render-${Date.now()}.png`;
+      const uploadResult = await uploadImageFromBuffer(
+        result.pngBuffer,
+        fileName,
+        'image/png'
+      );
+      
+      res.json({
+        url: uploadResult.publicUrl,
+        width: result.width,
+        height: result.height,
+      });
+    } catch (error: any) {
+      console.error("[PNG Render] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Generate PNG and return as binary (for direct download)
+  app.post("/api/render/png/download", isAdmin, async (req, res) => {
+    try {
+      const { renderDesignToPng } = await import("./lib/svg-renderer");
+      const { header, footer, qrUrl, templateType } = req.body;
+      
+      if (!qrUrl) {
+        return res.status(400).json({ error: "qrUrl is required" });
+      }
+      
+      const result = await renderDesignToPng({
+        templateType: templateType || 'shirt-front',
+        header,
+        footer,
+        qrUrl,
+      });
+      
+      res.set({
+        'Content-Type': 'image/png',
+        'Content-Disposition': 'attachment; filename="printify-design.png"',
+        'Content-Length': result.pngBuffer.length,
+      });
+      res.send(result.pngBuffer);
+    } catch (error: any) {
+      console.error("[PNG Download] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

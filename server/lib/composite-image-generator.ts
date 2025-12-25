@@ -1,21 +1,24 @@
 import { createCanvas, registerFont, loadImage } from "canvas";
 import QRCode from "qrcode";
 
+export interface TextStyle {
+  text: string;
+  fontFamily: string;
+  fontSize: string;
+  color?: string;
+  letterSpacing?: number;
+  warpPreset?: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+}
+
 export interface CompositeImageOptions {
   width?: number;
   height?: number;
   backgroundColor?: string;
   qrSize?: number;
-  topText?: {
-    text: string;
-    fontFamily: string;
-    fontSize: string;
-  } | null;
-  bottomText?: {
-    text: string;
-    fontFamily: string;
-    fontSize: string;
-  } | null;
+  topText?: TextStyle | null;
+  bottomText?: TextStyle | null;
   qrUrl: string;
 }
 
@@ -57,14 +60,24 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   if (topText && topText.text) {
     const fontSize = parseInt(topText.fontSize) * 3;
     const fontFamily = FONT_MAP[topText.fontFamily] || "Arial";
+    const fillColor = topText.color || textColor;
     
     ctx.font = `bold ${fontSize}px "${fontFamily}"`;
-    ctx.fillStyle = textColor;
+    ctx.fillStyle = fillColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     
+    // Apply stroke if configured
+    if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
+      ctx.strokeStyle = topText.strokeColor;
+      ctx.lineWidth = topText.strokeWidth * 3;
+    }
+    
     const lines = wrapText(ctx, topText.text, width - padding * 2);
     for (const line of lines) {
+      if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
+        ctx.strokeText(line, width / 2, currentY);
+      }
       ctx.fillText(line, width / 2, currentY);
       currentY += fontSize * 1.3;
     }
@@ -87,14 +100,24 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   if (bottomText && bottomText.text) {
     const fontSize = parseInt(bottomText.fontSize) * 3;
     const fontFamily = FONT_MAP[bottomText.fontFamily] || "Arial";
+    const fillColor = bottomText.color || textColor;
     
     ctx.font = `bold ${fontSize}px "${fontFamily}"`;
-    ctx.fillStyle = textColor;
+    ctx.fillStyle = fillColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     
+    // Apply stroke if configured
+    if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
+      ctx.strokeStyle = bottomText.strokeColor;
+      ctx.lineWidth = bottomText.strokeWidth * 3;
+    }
+    
     const lines = wrapText(ctx, bottomText.text, width - padding * 2);
     for (const line of lines) {
+      if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
+        ctx.strokeText(line, width / 2, currentY);
+      }
       ctx.fillText(line, width / 2, currentY);
       currentY += fontSize * 1.3;
     }
@@ -129,8 +152,8 @@ function wrapText(ctx: any, text: string, maxWidth: number): string[] {
 
 export async function generatePrintifyComposite(
   qrUrl: string,
-  topText: { text: string; fontFamily: string; fontSize: string } | null,
-  bottomText: { text: string; fontFamily: string; fontSize: string } | null,
+  topText: TextStyle | null,
+  bottomText: TextStyle | null,
   printWidth: number = 1200,
   printHeight: number = 1800
 ): Promise<string> {
