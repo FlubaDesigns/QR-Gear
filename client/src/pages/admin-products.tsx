@@ -3647,10 +3647,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       className="border-2 rounded-lg overflow-hidden relative group"
                       data-testid={`library-bg-${bg.id}`}
                     >
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 z-10 h-8 w-8 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                      <button 
+                        type="button"
+                        aria-label={`Delete background ${bg.name}`}
+                        className="absolute top-1 right-1 z-10 h-12 w-12 flex items-center justify-center rounded-md bg-destructive text-destructive-foreground hover-elevate active-elevate-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm(`Delete background "${bg.name}"?`)) {
@@ -3659,8 +3659,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         }}
                         data-testid={`delete-bg-${bg.id}`}
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
+                        <X className="h-5 w-5" />
+                      </button>
                       <div 
                         className="cursor-pointer hover-elevate active-elevate-2 transition-transform"
                         onClick={() => {
@@ -3713,10 +3713,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       className="border-2 rounded-lg overflow-hidden relative group"
                       data-testid={`library-template-${template.id}`}
                     >
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 z-10 h-8 w-8 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity"
+                      <button 
+                        type="button"
+                        aria-label={`Delete template ${template.productName}`}
+                        className="absolute top-1 right-1 z-10 h-12 w-12 flex items-center justify-center rounded-md bg-destructive text-destructive-foreground hover-elevate active-elevate-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm(`Delete template "${template.productName}"?`)) {
@@ -3725,8 +3725,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         }}
                         data-testid={`delete-template-${template.id}`}
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
+                        <X className="h-5 w-5" />
+                      </button>
                       <div
                         className="cursor-pointer hover-elevate active-elevate-2 transition-transform"
                         onClick={() => {
