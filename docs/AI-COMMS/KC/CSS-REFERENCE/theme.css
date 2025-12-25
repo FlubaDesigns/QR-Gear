@@ -1,0 +1,1262 @@
+/* =========================================
+   Kingdom Connects — theme (V4 visuals only)
+   Visuals (colors, surfaces, effects); no layout
+   ========================================= */
+
+/* ===== Dark (default) ===== */
+:root,
+html[data-theme="dark"]{
+  /* Page Colors */
+  --page-bg: #5a6b7d;
+  --text: #e8f3ff;
+
+  /* Header */
+  --header-bg: linear-gradient(180deg,#2f6bcb 0%, #1e4e9a 100%);
+  --header-fg: #ffffff;
+
+  /* Panels & Cards */
+  --panel-bg: #0c1e34;
+  --card-border: rgba(255,215,0,0.15);
+  --card-shadow: rgba(0,0,0,0.2);
+  --card-hover-shadow: rgba(0,0,0,0.25);
+
+  /* Navigation */
+  --menu-bg: #0e2036;
+  --menu-link: #dfeaff;
+  --menu-hover: rgba(255,255,255,.08);
+
+  /* Buttons */
+  --btn-fg:#0a1e34;
+  --button-bg: linear-gradient(180deg, #5a88c9 0%, #476ba0 100%);
+  --button-radius: 12px;
+
+  /* Footer */
+  --footer-fg:#f7d48c;
+  --footer-link:#f7d48c;
+
+  /* Social */
+  --social-bg:white;
+  --social-fg:#0a2438;
+
+  /* Form Elements */
+  --input-bg: rgba(255,255,255,.08);
+  --input-border: rgba(255,255,255,.25);
+  --input-focus-border: #ffd700;
+  --input-focus-shadow: rgba(255,215,0,0.2);
+  --input-radius: 12px;
+
+  /* Status Colors */
+  --status-pending-bg: rgba(255,215,0,0.1);
+  --status-pending-border: #ffd700;
+  --status-success-bg: rgba(16,185,129,0.1);
+  --status-success-border: #10b981;
+  --status-success-text: #10b981;
+  --status-error-bg: rgba(239,68,68,0.1);
+  --status-error-border: #ef4444;
+  --status-error-text: #ef4444;
+
+  /* Info Card Colors */
+  --info-card-bg: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04));
+  --info-card-border: rgba(255,215,0,0.3);
+  --warning-card-bg: rgba(255,193,7,0.1);
+  --warning-card-border: #ffc107;
+
+  /* Controls */
+  --control-h: 28px;
+  --toggle-ring: rgba(255,255,255,.35);
+  --toggle-icon: 18px;
+
+  /* Spacing (customizable) */
+  --card-padding: 1.5rem;
+  --card-gap: 1.5rem;
+  --button-padding: 16px 28px;
+}
+
+/* ===== Light ===== */
+html[data-theme="light"]{
+  /* Page Colors */
+  --page-bg: #0a1b2f;
+  --text: #0d2540;
+
+  /* Header */
+  --header-bg: linear-gradient(180deg,#dfeaff 0%, #bed6ff 100%);
+  --header-fg: #102443;
+
+  /* Panels & Cards */
+  --panel-bg: #ffffff;
+  --card-border: rgba(0,0,0,0.1);
+  --card-shadow: rgba(0,0,0,0.08);
+  --card-hover-shadow: rgba(0,0,0,0.12);
+
+  /* Navigation */
+  --menu-bg: #ffffff;
+  --menu-link: #102443;
+  --menu-hover: rgba(16,36,67,.08);
+
+  /* Buttons */
+  --btn-fg:#ffffff;
+  --button-bg: linear-gradient(180deg, #4a6fa5 0%, #3a5580 100%);
+
+  /* Footer */
+  --footer-fg:#20406f;
+  --footer-link:#20406f;
+
+  /* Social */
+  --social-bg:#1c9ee9;
+  --social-fg:#ffffff;
+
+  /* Form Elements */
+  --input-bg: #ffffff;
+  --input-border: rgba(0,0,0,.2);
+  --input-focus-border: #ffd700;
+  --input-focus-shadow: rgba(255,215,0,0.3);
+
+  /* Controls */
+  --toggle-ring: rgba(0,0,0,.35);
+}
+
+/* ===== Base hooks (no layout) ===== */
+html, body { background: var(--page-bg); color: var(--text); }
+.main-content { background: var(--page-bg); }
+
+/* Header + menu colors */
+.site-header{ background: var(--header-bg); color: var(--header-fg); }
+.menu-toggle { color: var(--header-fg); }
+.menu-toggle .bar { background: currentColor; }
+
+/* Dropdown navigation */
+.nav-links{
+  background: var(--menu-bg);
+  border: 1px solid rgba(255,255,255,.08);
+}
+html[data-theme="light"] .nav-links{ border-color: rgba(0,0,0,.08); }
+.nav-links a{ color: var(--menu-link); }
+.nav-links a:hover{ background: var(--menu-hover); }
+
+/* Settings panel default surface (overridden to white below) */
+#settingsMenu{
+  background: transparent;
+  color: var(--menu-link);
+  border-radius: 16px;
+  border: 1.5px solid var(--toggle-ring);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+}
+
+/* Content card */
+.page-content{
+  background: var(--panel-bg);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,.10);
+}
+html[data-theme="light"] .page-content{ border-color: rgba(0,0,0,.06); }
+
+/* Links & simple content buttons */
+a { color: #cfe0ff; }
+a:hover { text-decoration: none; }
+
+/* ===== Footer + social buttons ===== */
+.site-footer{ color: var(--footer-fg); }
+.footer-nav a, .back-to-top{ color: var(--footer-link); }
+
+/* Social buttons (global defaults) */
+.social-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--social-bg);
+  color: var(--social-fg);
+  box-shadow:
+    0 0 0 2px var(--toggle-ring),
+    0 10px 18px rgba(0,0,0,.25);
+  text-decoration: none;
+  transition: transform .15s ease, opacity .15s ease;
+}
+.social-btn:hover{ transform: scale(1.06); opacity: .95; }
+
+/* ===== Accessible focus ===== */
+:focus-visible{ outline: 2px solid #00c8ff; outline-offset: 2px; }
+
+/* =========================================
+   Settings controls (DOT icons + transparent track)
+   ========================================= */
+
+#settingsMenu .theme-toggle{
+  display: inline-grid;
+  grid-template-columns: var(--toggle-icon) calc(var(--control-h) * 2) var(--toggle-icon);
+  align-items: center;
+  column-gap: 8px;
+  padding: 0; margin: 0; border: 0; background: transparent;
+  line-height: 0; vertical-align: middle;
+}
+
+/* Dot “icons” (filled/ring) */
+#settingsMenu .theme-toggle::before,
+#settingsMenu .theme-toggle::after{
+  content: ""; display: block;
+  width: var(--toggle-icon); height: var(--toggle-icon); border-radius: 50%;
+  background: transparent; box-shadow: 0 0 0 2px currentColor inset;
+}
+/* LIGHT: left filled, right ring */
+html[data-theme="light"] #settingsMenu .theme-toggle::before{ background: currentColor; box-shadow: none; }
+html[data-theme="light"] #settingsMenu .theme-toggle::after { background: transparent; box-shadow: 0 0 0 2px currentColor inset; }
+/* DARK: left ring, right filled */
+html[data-theme="dark"]  #settingsMenu .theme-toggle::before{ background: transparent; box-shadow: 0 0 0 2px currentColor inset; }
+html[data-theme="dark"]  #settingsMenu .theme-toggle::after { background: currentColor; box-shadow: none; }
+
+/* Track: keep it TRANSPARENT */
+#settingsMenu .theme-toggle .toggle-track{
+  grid-column: 2;
+  position: relative; display: block; overflow: hidden;
+  width: calc(var(--control-h) * 2) !important;
+  height: var(--control-h) !important;
+  border-radius: 999px;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1.6px solid var(--toggle-ring);
+}
+
+/* Thumb (movement handled by layout) */
+#settingsMenu .theme-toggle .toggle-thumb{
+  --gap: 3px;
+  position: absolute; top: var(--gap); left: var(--gap);
+  width: calc(var(--control-h) - (var(--gap) * 2));
+  height: calc(var(--control-h) - (var(--gap) * 2));
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 1px 0 rgba(0,0,0,.15), 0 0 0 2px rgba(0,0,0,.2) inset;
+  transition: transform .2s ease;
+}
+html[data-theme="light"] #settingsMenu .theme-toggle .toggle-thumb{
+  transform: translateX(var(--control-h));
+}
+
+/* ===== OVERRIDE: Settings menu should be WHITE */
+:root,
+html[data-theme="dark"]{
+  --settings-bg: #ffffff;
+  --settings-fg: #0d2540;
+  --settings-border: rgba(0,0,0,.14);
+}
+html[data-theme="light"]{
+  --settings-bg: #ffffff;
+  --settings-fg: #0d2540;
+  --settings-border: rgba(0,0,0,.14);
+}
+#settingsMenu{
+  background: var(--settings-bg) !important;
+  color: var(--settings-fg) !important;
+  border: 1.5px solid var(--settings-border) !important;
+}
+
+/* ===== Footer (navy panel + refined socials) ===== */
+.site-footer {
+  background: #081529 !important;
+  color: #E9F2FF !important;
+  border-top: 1px solid rgba(255,215,0,0.25) !important;
+  border-radius: 16px 16px 0 0;
+  text-align: center;
+  padding: 2rem 1rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.site-footer .page-content,
+.site-footer .card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.site-footer a:hover { color: #FFD700 !important; }
+
+.site-footer{ --social-size: 32px; --social-gap: 12px; }
+@media (min-width: 480px){ .site-footer{ --social-size: 34px; --social-gap: 14px; } }
+
+.site-footer .socials{ display:flex; gap:var(--social-gap); justify-content:center; }
+
+.site-footer .social-btn{
+  width: var(--social-size);
+  height: var(--social-size);
+  border-radius: 999px;
+  background: transparent !important;
+  color: #FFD700 !important;
+  box-shadow: inset 0 0 0 2px #FFD700, 0 8px 14px rgba(0,0,0,.35);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: .95rem;
+  letter-spacing: .4px;
+  transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+.site-footer .social-btn:hover{
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: inset 0 0 0 2px #FFD700, 0 10px 18px rgba(0,0,0,.40);
+}
+
+/* =========================
+   Business directory bits
+   ========================= */
+:root { --gold: #FFD700; }
+
+.biz-title{
+  color: var(--gold);
+  margin: 0 0 .5rem;
+  line-height: 1.15;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+/* inline-error replacement used by business.html JS */
+.error-box{
+  color: #f7d48c;
+  background: #2a0e0e;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,215,0,0.25);
+}
+
+/* tiny spacing utility */
+.mt-16{ margin-top: 1rem; }
+
+/* =========================
+   Gold heading styles (H2)
+   ========================= */
+:root {
+  --gold-solid: #FFD700;
+  --gold-hi:    #FFF4B0;
+  --gold-mid:   #FFD700;
+  --gold-low:   #DAA520;
+  --gold-deep:  #B8860B;
+}
+h2.gold{ color: var(--gold-solid); text-shadow: 0 1px 0 rgba(0,0,0,.25); }
+
+h2.gold-metallic{
+  color: transparent;
+  background-image: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold-mid) 32%, var(--gold-low) 64%, var(--gold-deep) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25), 0 6px 18px rgba(0,0,0,.25);
+}
+html[data-theme="light"] h2.gold-metallic{
+  text-shadow: 0 1px 0 rgba(255,255,255,.3), 0 6px 14px rgba(0,0,0,.15);
+}
+
+/* Center indicator: A↕ (clear meaning) */
+.font-size-controls::before{
+  content: "A↕";
+  order: 2;
+  font-weight: 900;
+  letter-spacing: .2px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  color: #FFD700;
+  background: rgba(255,215,0,.14);
+  box-shadow: inset 0 0 0 1px rgba(255,215,0,.35), 0 4px 10px rgba(0,0,0,.18);
+}
+.font-size-controls > :first-child{ order: 1; }
+.font-size-controls > :last-child { order: 3; }
+
+/* ================================
+   Settings menu polish (light 3D)
+   ================================ */
+
+/* Panel: softer white, depth, gentle border */
+#settingsMenu{
+  background: linear-gradient(180deg, #ffffff, #f5f7fb);
+  border: 1px solid rgba(8,21,41,.08);
+  box-shadow:
+    0 10px 28px rgba(8,21,41,.28),
+    0 2px 0 rgba(255,255,255,.9) inset;
+}
+
+/* Section headings stay dark/navy for readability */
+#settingsMenu h3, #settingsMenu .section-title{
+  color: #0d2540;
+}
+
+/* ================================
+   Theme selector / toggle clarity
+   Works whether it's a switch or radio dots
+   ================================ */
+
+/* If you use a track + thumb switch */
+#settingsMenu .theme-toggle .toggle-track{
+  height: 28px; width: 50px;
+  background: rgba(8,21,41,.15);
+  border-radius: 999px;
+  border: 1.5px solid rgba(8,21,41,.25);
+  box-shadow: inset 0 2px 3px rgba(0,0,0,.12);
+}
+#settingsMenu .theme-toggle .toggle-thumb{
+  height: 24px; width: 24px;
+  margin: 1px;
+  border-radius: 50%;
+  background: linear-gradient(180deg,#fefefe,#e7ecf5);
+  box-shadow: 0 1px 0 rgba(0,0,0,.18), 0 6px 10px rgba(0,0,0,.18);
+}
+
+/* ================================
+   Font-size controls: – [A a] +
+   Same height as buttons, much lighter
+   ================================ */
+
+.font-size-controls{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(8,21,41,.06);
+  border: 1px solid rgba(8,21,41,.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+/* – / + buttons */
+.font-size-controls button{
+  appearance: none;
+  width: 36px; height: 28px;          /* height matches center badge */
+  border: 0;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  font-weight: 800;
+  background: #eef3ff;
+  color: #102443;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 6px 10px rgba(8,21,41,.15);
+  transition: transform .12s ease, filter .15s ease;
+}
+.font-size-controls button:hover{ transform: translateY(-1px); }
+.font-size-controls button:active{ transform: translateY(0); filter: brightness(.96); }
+
+/* Center badge: thin, not heavy; same height as buttons */
+.font-size-controls::before{
+  content: "";
+  order: 2;
+  width: 44px; height: 28px;          /* same height as buttons */
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255,215,0,.12), rgba(255,215,0,.08));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,215,0,.45),
+    0 2px 6px rgba(8,21,41,.12);
+
+  /* Elegant "A a" as lightweight SVG (gold) */
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='44' height='28' viewBox='0 0 44 28'>\
+  <text x='12' y='19' font-family='system-ui,Segoe UI,Roboto,Arial' font-size='14' font-weight='800' fill='%23FFD24D'>A</text>\
+  <text x='26' y='19' font-family='system-ui,Segoe UI,Roboto,Arial' font-size='11' font-weight='800' fill='%23FFD24D'>a</text>\
+</svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Ensure the – is left, + is right */
+.font-size-controls > :first-child{ order: 1; }
+.font-size-controls > :last-child { order: 3; }
+
+/* On light theme keep contrast */
+html[data-theme="light"] .font-size-controls{
+  background: rgba(8,21,41,.04);
+  border-color: rgba(8,21,41,.12);
+}
+
+/* Center indicator: A↕ (no pill/background, same size as buttons) */
+.font-size-controls::before{
+  content: "A↕";
+  order: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;   /* match button width */
+  height: 28px;      /* match button height */
+  font-weight: 800;
+  font-size: 15px;   /* a touch larger for clarity */
+  line-height: 1;
+  color: #0d2540;    /* black/navy */
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+/* High-contrast thumb on DARK theme */
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-track{
+  background: rgba(255,255,255,.22) !important;         /* lighter rail */
+  border-color: rgba(255,255,255,.30) !important;
+}
+
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-thumb{
+  background: linear-gradient(180deg, #1b2f51, #0d2540) !important; /* dark thumb */
+  border: 2px solid #ffffff !important;                                /* white ring */
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.45),                                   /* outer glow for clarity */
+    0 6px 12px rgba(0,0,0,.35) !important;
+}
+/* ---------------------------------------
+   Toggle: visible rail + perfectly centered thumb
+   --------------------------------------- */
+#settingsMenu .theme-toggle .toggle-track,
+#settingsMenu .theme-toggle .toggle-thumb{
+  box-sizing: border-box; /* borders won't shift sizing */
+}
+
+#settingsMenu .theme-toggle .toggle-track{
+  position: relative;
+  width: 56px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(8,21,41,.18) !important;        /* rail fill (dark-ish on light bg) */
+  border: 2px solid rgba(8,21,41,.45) !important;   /* strong visible outline */
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),            /* inner highlight */
+    0 0 0 1px rgba(8,21,41,.05);                    /* hairline outer */
+}
+
+#settingsMenu .theme-toggle .toggle-thumb{
+  position: absolute;
+  left: 2px;                                        /* rests on left edge */
+  top: 50%;                                         /* always vertical-center */
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(180deg,#ffffff,#e9eef6) !important;
+  border: 2px solid #0d2540 !important;             /* crisp ring so it’s visible */
+  box-shadow: 0 1px 0 rgba(0,0,0,.18), 0 6px 10px rgba(0,0,0,.18) !important;
+  transition: left .15s ease;
+}
+
+/* ON state: slide to exact right edge */
+#settingsMenu .theme-toggle.is-on .toggle-thumb{
+  left: calc(100% - 2px - 28px);
+}
+
+/* ---- Dark theme tuning: brighter rail + white ring thumb ---- */
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-track{
+  background: rgba(255,255,255,.22) !important;
+  border-color: rgba(255,255,255,.60) !important;
+}
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-thumb{
+  background: linear-gradient(180deg,#1b2f51,#0d2540) !important;
+  border-color: #ffffff !important;                 /* white ring */
+  box-shadow: 0 0 0 2px rgba(255,255,255,.35), 0 6px 12px rgba(0,0,0,.35) !important;
+}
+
+/* ===============================
+   Theme toggle (final calibrated)
+   =============================== */
+#settingsMenu .theme-toggle .toggle-track {
+  position: relative;
+  width: 56px;
+  height: 32px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  display: inline-block;
+}
+
+#settingsMenu .theme-toggle .toggle-thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  transition: left 0.2s ease;
+}
+
+/* --- Light Theme --- */
+html[data-theme="light"] #settingsMenu .theme-toggle .toggle-track {
+  background: #d0d7e3;
+  border: 2px solid #9faec5;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
+}
+html[data-theme="light"] #settingsMenu .theme-toggle .toggle-thumb {
+  background: linear-gradient(180deg,#ffffff,#e9eef6);
+  border: 2px solid #0d2540;
+  box-shadow: 0 1px 0 rgba(0,0,0,.18), 0 6px 10px rgba(0,0,0,.18);
+}
+
+/* --- Dark Theme --- */
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-track {
+  background: rgba(255,255,255,.2);
+  border: 2px solid rgba(255,255,255,.65);
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.5);
+}
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-thumb {
+  background: linear-gradient(180deg,#1b2f51,#0d2540);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.3), 0 6px 12px rgba(0,0,0,.35);
+}
+
+/* When in light mode, thumb slides right */
+html[data-theme="light"] #settingsMenu .theme-toggle .toggle-thumb {
+  left: calc(100% - 2px - 28px);
+}
+
+/* ===============================
+   Settings dropdown panel styling
+   =============================== */
+
+/* Style the h4 heading without a box */
+#settingsMenu h4 {
+  margin: 0 0 8px 0;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Apply box styling only to setting rows */
+#settingsMenu .setting-row {
+  border-radius: 16px !important;
+  padding: 16px 20px !important;
+  border: 1px solid rgba(13,37,64,.12) !important;   /* subtle edge */
+  box-shadow:
+    0 14px 32px rgba(0,0,0,.22),
+    0 2px 6px rgba(0,0,0,.12),
+    inset 0 1px 0 rgba(255,255,255,.65) !important;   /* gentle inner highlight */
+  backdrop-filter: saturate(140%) blur(2px);          /* a touch of depth (supported browsers) */
+}
+
+/* Light theme: gentle cool gradient, not pure white */
+html[data-theme="light"] #settingsMenu .setting-row {
+  background: linear-gradient(180deg, #ffffff 0%, #f2f6fc 100%) !important;
+}
+
+/* Dark theme: keep it light enough to float, but cooler to reduce glare */
+html[data-theme="dark"] #settingsMenu .setting-row {
+  background: linear-gradient(180deg, #1b2f51 0%, #0d2540 100%) !important;
+}
+
+/* =========================================================
+   Kingdom Connects — THEME
+   - Light/Dark tokens
+   - Gold palette + utilities
+   - Settings dropdown panel
+   - Theme toggle (track + thumb)
+   - Font size controls (– A↕ +)
+   ========================================================= */
+
+/* ---------- Base tokens (Light defaults) ---------- */
+:root{
+  --base-font-size:16px;
+
+  /* Core text & surfaces */
+  --page-bg:#0a1b2f;
+  --text:#0c223b;
+  --muted:#5b6b7d;
+
+  --surface-1:#ffffff;  /* cards, popovers */
+  --surface-2:#eef3f8;  /* subtle containers */
+  --surface-3:#d7e1ec;  /* outlines/dividers */
+
+  /* Header/Footer tints (gradients are in layout.css) */
+  --header-bg-start:#6aa4ff;
+  --header-bg-end:#b7d2ff;
+  --header-fg:#0c223b;
+
+  --footer-bg:#0b1e35;
+  --footer-fg:#cfe2ff;
+
+  /* Controls */
+  --control-bg:#f2f5f9;
+  --control-fg:#0c223b;
+
+  /* Toggle parts */
+  --toggle-track:#d0d7e2;     /* rail outline (light) */
+  --toggle-thumb:#ffffff;     /* thumb fill (light) */
+  --toggle-thumb-icon:#0c223b;
+
+  /* Shadows */
+  --shadow-pop: 0 10px 30px rgba(3, 20, 40, 0.25);
+}
+
+/* ---------- Dark theme overrides ---------- */
+html[data-theme="dark"]{
+  --page-bg:#0a1b2f;
+  --text:#dfe9f7;
+  --muted:#9fb1c6;
+
+  --surface-1:#f9fbff;   /* we keep the dropdown panel light to “float” */
+  --surface-2:#e9f0f9;
+  --surface-3:#163552;
+
+  --header-bg-start:#1a57b8;
+  --header-bg-end:#215ed1;
+  --header-fg:#e9f2ff;
+
+  --footer-bg:#0a1a2d;
+  --footer-fg:#c8ddff;
+
+  --control-bg:#0e223a;
+  --control-fg:#e7f0ff;
+
+  /* Dark-mode toggle rail outline (your request: dark blue) */
+  --toggle-track:#0d2540;     /* deep navy border color on rail */
+  --toggle-thumb:#102844;     /* darker thumb in dark */
+  --toggle-thumb-icon:#e7f0ff;
+
+  --shadow-pop: 0 16px 40px rgba(0, 10, 25, .55);
+}
+
+/* Apply page background & text */
+html, body{
+  background:var(--page-bg);
+  color:var(--text);
+  font-size:var(--base-font-size);
+}
+
+/* =========================================================
+   GOLD ACCENT SUITE — reusable tokens & tiny utilities
+   ========================================================= */
+:root{
+  --gold-50:  #FFF7DB;
+  --gold-100: #FBE8A6;
+  --gold-200: #F7D36E;
+  --gold-300: #F3C545;
+  --gold-400: #F0C23B;   /* primary brand gold */
+  --gold-500: #D6A81F;
+  --gold-600: #B58B12;
+  --gold-700: #936E07;
+  --gold-800: #6F5200;
+  --gold-900: #553E00;
+
+  --gold-grad-start: var(--gold-400);
+  --gold-grad-end:   #FFE98A;
+  --gold-ring:       color-mix(in oklab, var(--gold-400) 65%, white 35%);
+  --gold-shadow-md:  0 8px 24px rgba(136, 93, 0, .28);
+  --gold-shadow-sm:  0 2px 8px rgba(136, 93, 0, .22);
+}
+
+html[data-theme="dark"]{
+  --gold-grad-start: color-mix(in oklab, var(--gold-400) 86%, white 14%);
+  --gold-grad-end:   color-mix(in oklab, var(--gold-400) 62%, white 38%);
+  --gold-ring:       color-mix(in oklab, var(--gold-400) 70%, white 30%);
+}
+
+/* Text utilities */
+.gold,
+.text-gold       { color: var(--gold-400) !important; }
+.text-gold-deep  { color: var(--gold-500) !important; }
+
+/* Metallic headline (used on index) */
+.gold-metallic,
+.text-gold-metallic{
+  color: var(--gold-400) !important;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.08),
+    0 2px 4px rgba(0,0,0,.25),
+    0 0 .5px var(--gold-700);
+}
+
+/* LIGHT THEME: Darken gold text for readability */
+html[data-theme="light"] .gold,
+html[data-theme="light"] .text-gold {
+  color: var(--gold-700) !important;
+}
+
+html[data-theme="light"] .gold-metallic,
+html[data-theme="light"] .text-gold-metallic {
+  color: var(--gold-800) !important;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.5),
+    0 1px 2px rgba(0,0,0,.15);
+}
+
+/* Background utilities (optional) */
+.bg-gold-soft{
+  background: linear-gradient(180deg, var(--gold-50), color-mix(in oklab, var(--gold-50) 60%, white 40%));
+  color: var(--text);
+}
+.bg-gold-glow{
+  background: radial-gradient(120% 100% at 50% -10%, var(--gold-grad-end), transparent 60%);
+}
+
+/* Rings / borders */
+.ring-gold{ outline: 2px solid var(--gold-ring); outline-offset: 2px; }
+.border-gold{ border: 1px solid var(--gold-400) !important; }
+
+/* Small helpers */
+.badge-gold{
+  display:inline-flex; align-items:center; gap:.4ch;
+  padding:.25rem .55rem;
+  font-weight:700; font-size:.825rem; letter-spacing:.02em;
+  background: linear-gradient(180deg, #f9fbff 0%, #e9f0f9 100%);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 6px;
+}
+.badge-secondary{
+  display:inline-flex; align-items:center; gap:.4ch;
+  padding:.25rem .55rem;
+  font-weight:700; font-size:.825rem; letter-spacing:.02em;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 6px;
+  opacity: 0.8;
+}
+
+/* ===============================
+   PATCH — Settings dropdown & toggle
+   =============================== */
+
+/* 1) Settings dropdown: gradient panel (not stark white) */
+#settingsMenu{
+  background:
+    radial-gradient(160% 120% at 15% -20%, rgba(255,255,255,.25), transparent 40%),
+    linear-gradient(180deg, #ffffff 0%, #f2f6fc 100%) !important;
+  border: 1px solid rgba(13,37,64,.12) !important;
+}
+
+/* Title/header: NO border/box, stays plain */
+#settingsMenu .settings-header,
+#settingsMenu .menu-header,
+#settingsMenu .dropdown-header,
+#settingsMenu .panel > .header,
+#settingsMenu .panel > header,
+#settingsMenu .menu > header,
+#settingsMenu h2.menu-title,
+#settingsMenu h3.menu-title{
+  background: transparent !important;
+  border: 0 !important;        /* remove title border */
+  box-shadow: none !important;
+}
+
+/* 2) Toggle rail: ensure geometry + outlines + centering */
+#settingsMenu .theme-toggle .toggle-track{
+  position: relative !important;
+  display: inline-block !important;
+  width: 56px !important;
+  height: 32px !important;
+  border-radius: 999px !important;
+  background: #dfe5ef !important;                 /* light rail fill */
+  border: 2px solid var(--toggle-ring) !important;
+}
+
+/* Dark mode: rail outline = deep navy (visible) */
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-track{
+  background: rgba(255,255,255,.18) !important;
+  border-color: #0d2540 !important;               /* dark blue outline */
+}
+
+/* Thumb: always vertically centered */
+#settingsMenu .theme-toggle .toggle-thumb{
+  position: absolute !important;
+  left: 2px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  transition: left .18s ease !important;
+  z-index: 1 !important;
+}
+
+/* Light mode: DARK thumb so it reads on white/gray */
+html[data-theme="light"] #settingsMenu .theme-toggle .toggle-thumb{
+  background: linear-gradient(180deg,#142d50,#0d2540) !important;
+  border: 2px solid #ffffff !important;           /* crisp white ring */
+  box-shadow: 0 1px 0 rgba(0,0,0,.18), 0 6px 10px rgba(0,0,0,.18) !important;
+  left: calc(100% - 2px - 28px) !important;       /* slide right in light */
+}
+
+/* Dark mode: keep strong white ring */
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-thumb{
+  background: linear-gradient(180deg,#1b2f51,#0d2540) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.30), 0 6px 12px rgba(0,0,0,.35) !important;
+}
+
+/* ================================
+   FINAL POLISHED PATCH — Settings dropdown + toggle
+   ================================ */
+
+/* 1. Dropdown background: soft gradient + rounded blur card */
+#settingsMenu {
+  background: linear-gradient(180deg, #ffffff 0%, #f4f6fa 100%) !important;
+  border: none !important;
+  border-radius: 18px !important;
+  box-shadow:
+    0 16px 32px rgba(0,0,0,0.25),
+    0 6px 12px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  overflow: hidden !important;
+}
+
+/* 2. Remove header box or border entirely */
+#settingsMenu h4 {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin: 0 0 8px 0 !important;
+  padding: 0 !important;
+}
+
+/* 3. Toggle track (light mode baseline) */
+#settingsMenu .theme-toggle .toggle-track {
+  border: 2px solid var(--toggle-ring) !important;
+  border-radius: 999px !important;
+  background: #dfe5ef !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55) !important;
+}
+
+/* Dark mode: deeper blue outline */
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-track {
+  background: rgba(255,255,255,0.18) !important;
+  border-color: #0d2540 !important;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.45) !important;
+}
+
+/* 4. Toggle thumb alignment and contrast */
+#settingsMenu .theme-toggle .toggle-thumb {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  left: 2px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  transition: left 0.18s ease !important;
+}
+
+/* Light mode: darker, bolder thumb */
+html[data-theme="light"] #settingsMenu .theme-toggle .toggle-thumb {
+  background: linear-gradient(180deg, #1b2f51, #0d2540) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.25),
+    0 6px 10px rgba(0,0,0,0.18) !important;
+}
+
+/* Dark mode: white-ringed thumb */
+html[data-theme="dark"] #settingsMenu .theme-toggle .toggle-thumb {
+  background: linear-gradient(180deg, #1b2f51, #0d2540) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.3),
+    0 6px 12px rgba(0,0,0,0.35) !important;
+}
+
+/* Marketing Dashboard - Color/Theme Additions */
+.stat-change {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+.stat-change.positive {
+  color: #4CAF50;
+}
+
+.stat-change.negative {
+  color: #f44336;
+}
+
+.rank-badge {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.rank-1 {
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: #000;
+}
+
+.rank-2 {
+  background: linear-gradient(135deg, #C0C0C0, #808080);
+  color: #000;
+}
+
+.rank-3 {
+  background: linear-gradient(135deg, #CD7F32, #8B4513);
+  color: #fff;
+}
+
+.rank-other {
+  background: rgba(255,255,255,0.1);
+  color: var(--gold);
+}
+
+.metric-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.metric-excellent {
+  background: rgba(0,255,0,0.2);
+  color: #0f0;
+}
+
+.metric-good {
+  background: rgba(255,215,0,0.2);
+  color: var(--gold);
+}
+
+.metric-needs-improvement {
+  background: rgba(255,0,0,0.2);
+  color: #f88;
+}
+
+.comparison-table th {
+  background: rgba(218,165,32,0.2);
+  color: var(--gold);
+  border-bottom: 2px solid rgba(218,165,32,0.3);
+}
+
+.comparison-table tr:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+/* Quick Action Cards - Theme */
+.quick-action-card {
+  background: rgba(218,165,32,0.1);
+  border: 2px solid rgba(218,165,32,0.3);
+}
+
+.quick-action-card:hover {
+  background: rgba(218,165,32,0.2);
+  border-color: var(--gold);
+  transform: translateY(-3px);
+}
+
+.quick-action-title {
+  color: var(--gold);
+}
+
+/* Leaderboard and Activity Feed Containers */
+.leaderboard,
+.activity-feed {
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.activity-item {
+  padding: 1rem;
+  border-left: 3px solid rgba(218,165,32,0.3);
+  margin-bottom: 1rem;
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
+}
+
+.activity-item.conversion {
+  border-left-color: #4CAF50;
+}
+
+.activity-item.signup {
+  border-left-color: #2196F3;
+}
+
+.activity-time {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-top: 0.5rem;
+}
+
+.progress-bar-fill-gold {
+  background: linear-gradient(90deg, var(--gold), #FFA500);
+}
+
+.progress-bar-fill-green {
+  background: linear-gradient(90deg, #4CAF50, #45a049);
+}
+
+.agent-info h4 {
+  margin: 0 0 0.25rem 0;
+  color: var(--gold);
+}
+
+.agent-info p {
+  margin: 0;
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.performance-metric {
+  text-align: right;
+}
+
+.performance-metric .value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.performance-metric .label {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* Chart Title */
+.chart-title {
+  color: var(--gold);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+/* Funnel Stage Theme */
+.funnel-stage {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+}
+
+.funnel-stage-name {
+  font-weight: 700;
+  color: var(--gold);
+  font-size: 1.1rem;
+}
+
+.funnel-bar-fill {
+  background: linear-gradient(90deg, var(--gold), #FFA500);
+}
+
+.funnel-count {
+  color: var(--gold);
+}
+
+/* Agent Card Theme */
+.agent-card {
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.agent-card:hover {
+  border-color: var(--gold);
+  background: rgba(255,255,255,0.08);
+}
+
+.agent-avatar {
+  background: linear-gradient(135deg, var(--gold), #FFA500);
+  color: #000;
+}
+
+.agent-info h3 {
+  color: var(--gold);
+}
+
+.agent-stat-value {
+  color: var(--gold);
+}
+
+/* Filter Tab Theme */
+.filter-tab {
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.1);
+  color: var(--text);
+}
+
+.filter-tab:hover {
+  border-color: var(--gold);
+}
+
+.filter-tab.active {
+  background: rgba(218,165,32,0.2);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.quota-progress {
+  background: linear-gradient(90deg, var(--gold), #FFA500);
+}
+
+/* Report Card Theme */
+.report-card {
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.1);
+}
+
+.report-card:hover {
+  border-color: var(--gold);
+  background: rgba(255,255,255,0.08);
+}
+
+.report-title {
+  color: var(--gold);
+}
+
+/* Summary Card Theme */
+.summary-card {
+  background: rgba(218,165,32,0.1);
+  border: 1px solid rgba(218,165,32,0.3);
+}
+
+.summary-value {
+  color: var(--gold);
+}
+
+/* Modal Theme */
+.modal-content {
+  background: var(--surface);
+  border: 2px solid rgba(255,255,255,0.1);
+}
+
+/* Date Selector */
+.date-selector select {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-size: 1rem;
+}
+
+/* ========================================
+   Page-Specific Theme Classes
+   (Consolidated from page-specific.css)
+   ======================================== */
+
+/* For Agents */
+.for-agents-ideal-candidate {
+  background: rgba(255,255,255,0.05);
+  border-left-color: rgba(255,255,255,0.3);
+}
+
+/* Submit Review */
+.review-business-name {
+  opacity: 0.8;
+}
+
+/* Thank You Review */
+.thank-you-review-card {
+  background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(184,134,11,0.1));
+  border: 2px solid gold;
+}
+
+/* Church Page */
+.church-message-title {
+  color: var(--gold);
+}
+
+.church-message-date {
+  color: var(--text-muted);
+}
+
+/* Download Page */
+.download-help-text {
+  color: #888;
+}
+
+/* Toast Animations */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-10px); }
+}
