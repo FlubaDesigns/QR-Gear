@@ -137,11 +137,20 @@ function TemplatesContent() {
       return await response.json();
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Template removed from library." });
+      toast({ 
+        title: "Template Removed", 
+        description: "The design has been removed from your library. It's still available in Product Builder.",
+        duration: 4000,
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/library/templates"] });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to remove template.", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "Remove Failed", 
+        description: error?.message || "Couldn't remove the template. Please try again.", 
+        variant: "destructive",
+        duration: 5000,
+      });
     },
   });
 
@@ -152,7 +161,8 @@ function TemplatesContent() {
   const handleDuplicate = (design: CustomDesign) => {
     toast({ 
       title: "Coming Soon", 
-      description: "Duplicate functionality will open Product Builder with pre-filled data." 
+      description: "Duplicate functionality will open Product Builder with pre-filled data.",
+      duration: 3000,
     });
   };
 
@@ -377,12 +387,21 @@ function LibraryBackgroundsContent() {
       return await response.json();
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Background updated successfully." });
+      toast({ 
+        title: "Background Updated", 
+        description: "Your changes have been saved successfully.",
+        duration: 4000,
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
       handleCloseDialog();
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update background.", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "Update Failed", 
+        description: error?.message || "Something went wrong. Please try again.", 
+        variant: "destructive",
+        duration: 5000,
+      });
     },
   });
 
@@ -392,11 +411,20 @@ function LibraryBackgroundsContent() {
       return await response.json();
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Background deleted successfully." });
+      toast({ 
+        title: "Background Deleted", 
+        description: "The background has been removed from your library.",
+        duration: 4000,
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete background.", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "Delete Failed", 
+        description: error?.message || "Couldn't remove the background. Please try again.", 
+        variant: "destructive",
+        duration: 5000,
+      });
     },
   });
 
@@ -475,7 +503,12 @@ function LibraryBackgroundsContent() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
-        toast({ title: "Error", description: "Please select an image file.", variant: "destructive" });
+        toast({ 
+          title: "Invalid File Type", 
+          description: "Please select an image file (PNG, JPG, etc.).", 
+          variant: "destructive",
+          duration: 4000,
+        });
         return;
       }
       setImageFile(file);
@@ -489,7 +522,12 @@ function LibraryBackgroundsContent() {
 
   const handleSubmit = async () => {
     if (!editingAsset && !imageFile) {
-      toast({ title: "Error", description: "Please upload an image.", variant: "destructive" });
+      toast({ 
+        title: "Image Required", 
+        description: "Please upload a background image before saving.", 
+        variant: "destructive",
+        duration: 4000,
+      });
       return;
     }
 
@@ -536,12 +574,21 @@ function LibraryBackgroundsContent() {
           throw new Error("Failed to upload background");
         }
 
-        toast({ title: "Success", description: "Background uploaded successfully." });
+        toast({ 
+          title: "Background Added", 
+          description: `"${formData.name}" has been added to your library.`,
+          duration: 4000,
+        });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
         handleCloseDialog();
       }
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to save background.", variant: "destructive" });
+      toast({ 
+        title: "Upload Failed", 
+        description: error.message || "Something went wrong. Please try again.", 
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setUploading(false);
     }
