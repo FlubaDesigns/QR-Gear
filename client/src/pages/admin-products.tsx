@@ -4338,36 +4338,43 @@ function ProductsContent() {
                         <span>{product.category}</span>
                         {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
                       </div>
-                      <div className="flex items-center gap-4 mt-3 flex-wrap">
-                        <div>
-                          <div className="text-[10px] text-muted-foreground uppercase">Cost</div>
-                          <div className="text-xs text-muted-foreground">
-                            {product.cachedMinCost ? (
-                              `$${product.cachedMinCost.toFixed(2)}`
-                            ) : (
-                              <span className="text-amber-500">No cost</span>
-                            )}
+                      {(() => {
+                        const effectiveCost = product.cachedMinCost ?? (Number(product.basePrice) || 0);
+                        const hasCost = effectiveCost > 0;
+                        const customerPrice = hasCost ? ((effectiveCost + qrUpcharge) * (1 + globalMarkup / 100)).toFixed(2) : null;
+                        return (
+                          <div className="flex items-center gap-4 mt-3 flex-wrap">
+                            <div>
+                              <div className="text-[10px] text-muted-foreground uppercase">Cost</div>
+                              <div className="text-xs text-muted-foreground">
+                                {hasCost ? (
+                                  `$${effectiveCost.toFixed(2)}`
+                                ) : (
+                                  <span className="text-amber-500">No cost</span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-muted-foreground uppercase">+QR</div>
+                              <div className="text-xs text-muted-foreground">${qrUpcharge.toFixed(2)}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-muted-foreground uppercase">+{globalMarkup}%</div>
+                              <div className="text-xs text-muted-foreground">markup</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-muted-foreground uppercase">Customer Price</div>
+                              <div className="text-lg font-bold text-green-600">
+                                {customerPrice ? (
+                                  `$${customerPrice}`
+                                ) : (
+                                  <span className="text-amber-500">--</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-muted-foreground uppercase">+QR</div>
-                          <div className="text-xs text-muted-foreground">${qrUpcharge.toFixed(2)}</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-muted-foreground uppercase">+{globalMarkup}%</div>
-                          <div className="text-xs text-muted-foreground">markup</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-muted-foreground uppercase">Customer Price</div>
-                          <div className="text-lg font-bold text-green-600">
-                            {product.cachedMinCost ? (
-                              `$${((product.cachedMinCost + qrUpcharge) * (1 + globalMarkup / 100)).toFixed(2)}`
-                            ) : (
-                              <span className="text-amber-500">--</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   
