@@ -1125,6 +1125,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Apply synced costs to product prices - uses costs from printify_print_providers
+  app.post("/api/admin/products/apply-costs", isAdmin, async (req: any, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      const settings = await storage.getAdminSettings();
+      
+      // Default markup settings
+      const markupPercent = settings?.globalMarkupPercent ? parseFloat(settings.globalMarkupPercent) : 25;
+      const markupFixed = settings?.globalMarkupFixed ? parseFloat(settings.globalMarkupFixed) : 0;
+      const qrCost = settings?.globalQrProductionCost ? parseFloat(settings.globalQrProductionCost) : 2;
+      
+      let updated = 0;
+      let skipped = 0;
+      const results: { productId: string; name: string; cost: number; price: number }[] = [];
+      
+      for (const product of products) {
+        // Skip products without Printify blueprint/provider info
+        if (!product.blueprintId || !product.printProviderId) {
+          skipped++;
+          continue;
+        }
+        
+        // Get the cached cost from printify_print_providers
+        const provider = await storage.getPrintifyPrintProvider(
+          product.blueprintId,
+          product.printProviderId
+        );
+        
+        if (!provider?.minCost) {
+          skipped++;
+          continue;
+        }
+        
+        // Convert cents to dollars
+        const productionCost = Number(provider.minCost) / 100;
+        
+        // Calculate retail price: (production cost + QR cost + fixed markup) * (1 + markup %)
+        const totalCost = productionCost + qrCost + markupFixed;
+        const retailPrice = Math.ceil((totalCost * (1 + markupPercent / 100)) * 100) / 100;
+        
+        // Update the product's base price
+        await storage.updateProduct(product.id, { 
+          basePrice: retailPrice.toFixed(2),
+          qrProductionCost: qrCost.toFixed(2)
+        });
+        
+        updated++;
+        results.push({
+          productId: product.id,
+          name: product.name,
+          cost: productionCost,
+          price: retailPrice
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        updated, 
+        skipped,
+        markupPercent,
+        markupFixed,
+        qrCost,
+        results: results.slice(0, 20) // Return first 20 for preview
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get product variants
   app.get("/api/admin/products/:id/variants", isAdmin, async (req: any, res) => {
     try {

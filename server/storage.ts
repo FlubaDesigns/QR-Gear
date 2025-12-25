@@ -237,6 +237,7 @@ export interface IStorage {
   getPrintifyPrintProvider(blueprintId: number, providerId: number): Promise<PrintifyPrintProvider | undefined>;
   upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider>;
   updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string; availableColors?: any[]; availableSizes?: string[] }): Promise<PrintifyPrintProvider | undefined>;
+  updateProductPricesByProvider(blueprintId: number, providerId: number, basePrice: string): Promise<number>;
   deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void>;
   clearPrintifyPrintProviders(): Promise<void>;
   
@@ -1132,6 +1133,17 @@ export class DbStorage implements IStorage {
       ))
       .returning();
     return updated;
+  }
+
+  async updateProductPricesByProvider(blueprintId: number, providerId: number, basePrice: string): Promise<number> {
+    const result = await this.db
+      .update(schema.products)
+      .set({ basePrice, updatedAt: new Date() })
+      .where(and(
+        eq(schema.products.blueprintId, blueprintId),
+        eq(schema.products.printProviderId, providerId)
+      ));
+    return result.rowCount ?? 0;
   }
 
   async deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void> {
@@ -2555,6 +2567,17 @@ class MemStorage implements IStorage {
     }
     this.printifyPrintProviders.set(id, updated);
     return updated;
+  }
+
+  async updateProductPricesByProvider(blueprintId: number, providerId: number, basePrice: string): Promise<number> {
+    let count = 0;
+    this.products.forEach((product, id) => {
+      if (product.blueprintId === blueprintId && product.printProviderId === providerId) {
+        this.products.set(id, { ...product, basePrice, updatedAt: new Date() });
+        count++;
+      }
+    });
+    return count;
   }
 
   async deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void> {

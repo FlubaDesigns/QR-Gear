@@ -160,6 +160,27 @@ async function runCostSyncBackground(
         availableSizes: colorsAndSizes.sizes,
       });
 
+      // Auto-update product prices with new cost data
+      const productionCostDollars = costs.minCost / 100;
+      const settings = await storage.getAdminSettings();
+      const markupPercent = settings?.globalMarkupPercent ? parseFloat(settings.globalMarkupPercent) : 25;
+      const markupFixed = settings?.globalMarkupFixed ? parseFloat(settings.globalMarkupFixed) : 0;
+      const qrCost = settings?.globalQrProductionCost ? parseFloat(settings.globalQrProductionCost) : 2;
+      
+      const totalCost = productionCostDollars + qrCost + markupFixed;
+      const retailPrice = Math.ceil((totalCost * (1 + markupPercent / 100)) * 100) / 100;
+      
+      // Update any products using this blueprint/provider
+      const updatedCount = await storage.updateProductPricesByProvider(
+        provider.blueprintId, 
+        provider.providerId, 
+        retailPrice.toFixed(2)
+      );
+      
+      if (updatedCount > 0) {
+        console.log(`[Cost Sync] Updated ${updatedCount} product(s) with price $${retailPrice.toFixed(2)}`);
+      }
+
       console.log(`[Cost Sync] ${provider.blueprintId}/${provider.providerId}: $${(costs.minCost / 100).toFixed(2)} - $${(costs.maxCost / 100).toFixed(2)}, ${colorsAndSizes.colors.length} colors, ${colorsAndSizes.sizes.length} sizes`);
       successCount++;
 
