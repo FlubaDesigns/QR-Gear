@@ -3221,36 +3221,41 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       const canSave = isExternalUrlValid && isPlainTextValid && !savingCustom;
                       
                       return (
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            className="w-full h-12"
-                            variant="outline"
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
                             onClick={() => handleSaveCustomDesign("library")}
                             data-testid="button-save-library"
                           >
-                            {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderOpen className="h-4 w-4 mr-2" />}
-                            Save to Library Only
-                          </Button>
-                          <Button
-                            className="w-full h-12"
-                            variant="outline"
+                            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                              {savingCustom ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <FolderOpen className="h-6 w-6 text-primary" />}
+                            </div>
+                            <span className="text-sm font-semibold text-center">Library Only</span>
+                          </button>
+                          <button
+                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
                             onClick={() => handleSaveCustomDesign("store")}
                             data-testid="button-save-store"
                           >
-                            {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Store className="h-4 w-4 mr-2" />}
-                            Save to Store Only
-                          </Button>
-                          <Button
-                            className="w-full h-12"
+                            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                              {savingCustom ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <Store className="h-6 w-6 text-primary" />}
+                            </div>
+                            <span className="text-sm font-semibold text-center">Store Only</span>
+                          </button>
+                          <button
+                            className="col-span-2 flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-primary bg-primary text-primary-foreground hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
                             onClick={() => handleSaveCustomDesign("both")}
                             data-testid="button-save-both"
                           >
-                            {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-                            Save to Both Library & Store
-                          </Button>
+                            <div className="h-12 w-12 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                              {savingCustom ? <Loader2 className="h-6 w-6 animate-spin" /> : <Check className="h-6 w-6" />}
+                            </div>
+                            <span className="text-base font-bold text-center">Save to Both</span>
+                            <span className="text-xs opacity-80">Library & Store</span>
+                          </button>
                         </div>
                       );
                     })()}
@@ -3268,27 +3273,29 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       <span className="text-muted-foreground">Design ID:</span>{" "}
                       <code className="bg-muted px-2 py-0.5 rounded text-xs">{lastSavedDesign.id}</code>
                     </p>
-                    <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       {lastSavedDesign.printifyCompositeUrl && (
-                        <Button
-                          variant="outline"
-                          className="w-full"
+                        <button
+                          className="flex flex-col items-center justify-center gap-2 p-3 min-h-[100px] rounded-lg border-2 border-green-300 dark:border-green-700 bg-white dark:bg-green-900/30 hover-elevate active-elevate-2 transition-all"
                           onClick={() => window.open(lastSavedDesign.printifyCompositeUrl, '_blank')}
                           data-testid="button-view-print-image"
                         >
-                          <ImageIcon className="h-4 w-4 mr-2" />
-                          View Print-Ready Image
-                        </Button>
+                          <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                            <ImageIcon className="h-5 w-5 text-green-700 dark:text-green-300" />
+                          </div>
+                          <span className="text-xs font-semibold text-center text-green-800 dark:text-green-300">Print Image</span>
+                        </button>
                       )}
-                      <Button
-                        variant="outline"
-                        className="w-full"
+                      <button
+                        className="flex flex-col items-center justify-center gap-2 p-3 min-h-[100px] rounded-lg border-2 border-green-300 dark:border-green-700 bg-white dark:bg-green-900/30 hover-elevate active-elevate-2 transition-all"
                         onClick={() => window.open(`/customs/${lastSavedDesign.id}`, '_blank')}
                         data-testid="button-view-qr-page"
                       >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        View QR Landing Page
-                      </Button>
+                        <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                          <ExternalLink className="h-5 w-5 text-green-700 dark:text-green-300" />
+                        </div>
+                        <span className="text-xs font-semibold text-center text-green-800 dark:text-green-300">QR Page</span>
+                      </button>
                       <Button
                         variant="ghost"
                         size="sm"
