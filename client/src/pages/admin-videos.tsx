@@ -260,8 +260,8 @@ function VideosContent() {
                   <SelectValue placeholder="All Seasons" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Seasons</SelectItem>
-                  {SEASONS.filter(s => s.value).map((s) => (
+                  <SelectItem value="none">All Seasons</SelectItem>
+                  {SEASONS.filter(s => s.value !== "none").map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -274,8 +274,8 @@ function VideosContent() {
                   <SelectValue placeholder="All Events" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Events</SelectItem>
-                  {EVENTS.filter(e => e.value).map((e) => (
+                  <SelectItem value="none">All Events</SelectItem>
+                  {EVENTS.filter(e => e.value !== "none").map((e) => (
                     <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                   ))}
                 </SelectContent>
