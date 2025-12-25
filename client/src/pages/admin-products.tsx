@@ -1788,7 +1788,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               data-testid={`custom-item-${item.id}`}
                             >
                               {/* Row 1: Image + Name/Manufacturer/Flag/Price - stacked on mobile, side-by-side on larger */}
-                              <div className="flex flex-col sm:flex-row gap-4 p-4">
+                              <div className="flex flex-col sm:flex-row gap-4 p-2 sm:p-4">
                                 <div 
                                   className="relative group cursor-pointer"
                                   onClick={(e) => {
