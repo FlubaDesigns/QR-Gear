@@ -4237,6 +4237,137 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // =====================================
+  // PROFIT CALCULATOR ENDPOINTS
+  // =====================================
+
+  // Get complete profit dashboard
+  app.get("/api/admin/orchestration/profit/dashboard", isAdmin, async (req: any, res) => {
+    try {
+      const { profitCalculator } = await import("./services/profit-calculator");
+      const dashboard = await profitCalculator.getDashboard();
+      res.json(dashboard);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get channel profit summaries
+  app.get("/api/admin/orchestration/profit/channels", isAdmin, async (req: any, res) => {
+    try {
+      const { profitCalculator } = await import("./services/profit-calculator");
+      const summaries = await profitCalculator.getChannelProfitSummaries();
+      res.json(summaries);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get product profit analysis
+  app.get("/api/admin/orchestration/profit/products", isAdmin, async (req: any, res) => {
+    try {
+      const { profitCalculator } = await import("./services/profit-calculator");
+      const products = await profitCalculator.getProductProfitAnalysis();
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get profit alerts
+  app.get("/api/admin/orchestration/profit/alerts", isAdmin, async (req: any, res) => {
+    try {
+      const { profitCalculator } = await import("./services/profit-calculator");
+      const alerts = await profitCalculator.generateAlerts();
+      res.json(alerts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Calculate profit for specific parameters
+  app.post("/api/admin/orchestration/profit/calculate", isAdmin, async (req: any, res) => {
+    try {
+      const { profitCalculator } = await import("./services/profit-calculator");
+      const { revenue, productionCost, shippingCost = 0, channel = "direct" } = req.body;
+      
+      if (typeof revenue !== "number" || !isFinite(revenue) || revenue < 0) {
+        return res.status(400).json({ error: "revenue must be a non-negative number" });
+      }
+      if (typeof productionCost !== "number" || !isFinite(productionCost) || productionCost < 0) {
+        return res.status(400).json({ error: "productionCost must be a non-negative number" });
+      }
+      if (typeof shippingCost !== "number" || !isFinite(shippingCost) || shippingCost < 0) {
+        return res.status(400).json({ error: "shippingCost must be a non-negative number" });
+      }
+      if (typeof channel !== "string" || !["direct", "etsy", "ebay", "amazon", "printify", "printful", "apliiq"].includes(channel.toLowerCase())) {
+        return res.status(400).json({ error: "channel must be one of: direct, etsy, ebay, amazon, printify, printful, apliiq" });
+      }
+      
+      const breakdown = profitCalculator.calculateOrderProfit(
+        revenue,
+        productionCost,
+        shippingCost,
+        channel
+      );
+      res.json(breakdown);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Compare channels for a product
+  app.post("/api/admin/orchestration/profit/compare-channels", isAdmin, async (req: any, res) => {
+    try {
+      const { profitCalculator } = await import("./services/profit-calculator");
+      const { productionCost, basePrice } = req.body;
+      
+      if (typeof productionCost !== "number" || !isFinite(productionCost) || productionCost < 0) {
+        return res.status(400).json({ error: "productionCost must be a non-negative number" });
+      }
+      if (typeof basePrice !== "number" || !isFinite(basePrice) || basePrice < 0) {
+        return res.status(400).json({ error: "basePrice must be a non-negative number" });
+      }
+      
+      const comparison = profitCalculator.compareChannelsForProduct(productionCost, basePrice);
+      res.json(comparison);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get recommended price for target margin
+  app.post("/api/admin/orchestration/profit/recommended-price", isAdmin, async (req: any, res) => {
+    try {
+      const { profitCalculator } = await import("./services/profit-calculator");
+      const { productionCost, targetMarginPercent = 50, channel = "direct" } = req.body;
+      
+      if (typeof productionCost !== "number" || !isFinite(productionCost) || productionCost < 0) {
+        return res.status(400).json({ error: "productionCost must be a non-negative number" });
+      }
+      if (typeof targetMarginPercent !== "number" || !isFinite(targetMarginPercent) || targetMarginPercent < 0 || targetMarginPercent > 100) {
+        return res.status(400).json({ error: "targetMarginPercent must be a number between 0 and 100" });
+      }
+      if (typeof channel !== "string") {
+        return res.status(400).json({ error: "channel must be a string" });
+      }
+      
+      const recommendedPrice = profitCalculator.calculateRecommendedPrice(
+        productionCost,
+        targetMarginPercent,
+        channel
+      );
+      res.json({ 
+        productionCost,
+        targetMarginPercent,
+        channel,
+        recommendedPrice
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
