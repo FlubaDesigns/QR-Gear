@@ -764,9 +764,38 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     landingOverlay: { enabled: boolean; title: string; description: string; position: string; fontFamily: string; color: string } | null;
     createdAt: string;
   }
-  const { data: libraryTemplates = [] } = useQuery<LibraryTemplate[]>({
+  const { data: libraryTemplates = [], refetch: refetchTemplates } = useQuery<LibraryTemplate[]>({
     queryKey: ["/api/admin/library/templates"],
     enabled: libraryPickerOpen && libraryPickerTab === "templates",
+  });
+
+  // Delete mutations for backgrounds and templates
+  const deleteBackgroundMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/library/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Background deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/templates/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Template deleted" });
+      refetchTemplates();
+    },
+    onError: (error: any) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    },
   });
   
   // Season and event filter options for library picker
@@ -3615,32 +3644,50 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   {filteredBackgrounds.map((bg) => (
                     <div
                       key={bg.id}
-                      className="border-2 rounded-lg overflow-hidden cursor-pointer hover-elevate active-elevate-2 transition-transform"
-                      onClick={() => {
-                        setBackgroundImage(null);
-                        setBackgroundPreview(bg.publicUrl);
-                        setLibraryPickerOpen(false);
-                        toast({ 
-                          title: "Background Selected", 
-                          description: `"${bg.name}" applied to your design.`,
-                          duration: 3000,
-                        });
-                      }}
+                      className="border-2 rounded-lg overflow-hidden relative group"
                       data-testid={`library-bg-${bg.id}`}
                     >
-                      <div className="aspect-square relative">
-                        <img
-                          src={bg.publicUrl}
-                          alt={bg.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                          <p className="text-white text-sm font-medium truncate">{bg.name}</p>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 z-10 h-8 w-8 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete background "${bg.name}"?`)) {
+                            deleteBackgroundMutation.mutate(bg.id);
+                          }
+                        }}
+                        data-testid={`delete-bg-${bg.id}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <div 
+                        className="cursor-pointer hover-elevate active-elevate-2 transition-transform"
+                        onClick={() => {
+                          setBackgroundImage(null);
+                          setBackgroundPreview(bg.publicUrl);
+                          setLibraryPickerOpen(false);
+                          toast({ 
+                            title: "Background Selected", 
+                            description: `"${bg.name}" applied to your design.`,
+                            duration: 3000,
+                          });
+                        }}
+                      >
+                        <div className="aspect-square relative">
+                          <img
+                            src={bg.publicUrl}
+                            alt={bg.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                            <p className="text-white text-sm font-medium truncate">{bg.name}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="p-2 flex flex-wrap gap-1 min-h-[36px]">
-                        {bg.season && <Badge variant="secondary" className="text-xs">{bg.season}</Badge>}
-                        {bg.event && <Badge variant="outline" className="text-xs">{bg.event}</Badge>}
+                        <div className="p-2 flex flex-wrap gap-1 min-h-[36px]">
+                          {bg.season && <Badge variant="secondary" className="text-xs">{bg.season}</Badge>}
+                          {bg.event && <Badge variant="outline" className="text-xs">{bg.event}</Badge>}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -3663,8 +3710,26 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   {libraryTemplates.map((template) => (
                     <div
                       key={template.id}
-                      className="border-2 rounded-lg overflow-hidden cursor-pointer hover-elevate active-elevate-2 transition-transform"
-                      onClick={() => {
+                      className="border-2 rounded-lg overflow-hidden relative group"
+                      data-testid={`library-template-${template.id}`}
+                    >
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 z-10 h-8 w-8 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete template "${template.productName}"?`)) {
+                            deleteTemplateMutation.mutate(template.id);
+                          }
+                        }}
+                        data-testid={`delete-template-${template.id}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <div
+                        className="cursor-pointer hover-elevate active-elevate-2 transition-transform"
+                        onClick={() => {
                         // Load template DESIGN data into form fields
                         // Note: We don't force the product selection - user picks their own product
                         // Templates are about design content (text, fonts, background), not catalog items
@@ -3772,7 +3837,6 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           duration: 4000,
                         });
                       }}
-                      data-testid={`library-template-${template.id}`}
                     >
                       <div className="aspect-square relative bg-muted">
                         {template.printifyCompositeUrl ? (
@@ -3813,6 +3877,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         <p className="text-xs text-muted-foreground mt-1 truncate">
                           {template.storeName || "No store"} {template.segment ? `• ${template.segment}` : ""}
                         </p>
+                      </div>
                       </div>
                     </div>
                   ))}
