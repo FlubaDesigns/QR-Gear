@@ -4349,7 +4349,7 @@ ${allPages.map(page => `  <url>
       
       // Convert Map to object for JSON response
       const resultsObj: Record<number, any> = {};
-      for (const [id, result] of results) {
+      for (const [id, result] of Array.from(results.entries())) {
         resultsObj[id] = result;
       }
       
@@ -4895,14 +4895,15 @@ ${allPages.map(page => `  <url>
         
         if (item.masterProductId) {
           const [mp] = await db.select().from(masterProducts).where(eq(masterProducts.id, item.masterProductId)).limit(1);
-          if (mp && mp.baseRetailPrice) {
-            itemPrice = parseFloat(mp.baseRetailPrice);
+          if (mp && mp.retailPrice) {
+            itemPrice = parseFloat(mp.retailPrice);
             itemName = mp.title;
           }
         } else if (item.productId) {
-          const [product] = await db.select().from(products).where(eq(products.id, item.productId)).limit(1);
+          // productId is integer, products.id is varchar - convert to string
+          const [product] = await db.select().from(products).where(eq(products.id, String(item.productId))).limit(1);
           if (product) {
-            itemPrice = parseFloat(product.price);
+            itemPrice = parseFloat(product.basePrice);
             itemName = product.name;
           }
         }
@@ -5093,12 +5094,16 @@ ${allPages.map(page => `  <url>
       if (pkg.masterProductId) {
         const product = await storage.getMasterProduct(pkg.masterProductId);
         if (product) {
+          // Get first design version for image
+          const designVersions = await storage.getDesignVersions(product.id);
+          
           productDetails = {
             id: product.id,
             title: product.title,
-            imageUrl: product.imageUrl,
-            availableColors: product.availableColors,
-            availableSizes: product.availableSizes,
+            imageUrl: designVersions[0]?.renderedPngUrl || null,
+            // Colors/sizes are determined at checkout based on provider
+            availableColors: [],
+            availableSizes: [],
           };
         }
       }
