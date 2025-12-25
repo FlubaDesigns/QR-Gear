@@ -70,6 +70,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccessibleIconButton } from "@/components/ui/accessible-icon-button";
+import { FontPicker } from "@/components/ui/font-picker";
 
 interface CatalogSyncStatus {
   latestSync: {
@@ -2517,17 +2518,13 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
-                              <select
-                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
+                              <FontPicker
                                 value={headerFontFamily}
-                                onChange={(e) => setHeaderFontFamily(e.target.value)}
-                                style={{ fontFamily: headerFontFamily }}
+                                onChange={setHeaderFontFamily}
+                                fonts={renderConfig?.fonts || FONT_FAMILIES.map(f => f.name)}
+                                previewText={headerText || "QR Gear"}
                                 data-testid="select-header-font"
-                              >
-                                {(renderConfig?.fonts || FONT_FAMILIES.map(f => f.name)).map((font) => (
-                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
-                                ))}
-                              </select>
+                              />
                             </div>
                             <div>
                               <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
@@ -2685,17 +2682,13 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
-                              <select
-                                className="w-full h-12 px-3 border rounded-md text-sm bg-background"
+                              <FontPicker
                                 value={footerFontFamily}
-                                onChange={(e) => setFooterFontFamily(e.target.value)}
-                                style={{ fontFamily: footerFontFamily }}
+                                onChange={setFooterFontFamily}
+                                fonts={renderConfig?.fonts || FONT_FAMILIES.map(f => f.name)}
+                                previewText={footerText || "QR Gear"}
                                 data-testid="select-footer-font"
-                              >
-                                {(renderConfig?.fonts || FONT_FAMILIES.map(f => f.name)).map((font) => (
-                                  <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
-                                ))}
-                              </select>
+                              />
                             </div>
                             <div>
                               <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
