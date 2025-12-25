@@ -420,7 +420,7 @@ export const dynamicPageAssets = pgTable("dynamic_page_assets", {
 });
 
 // Library Assets - unified storage for backgrounds (images/videos) with ownership tracking
-// Supports: admin backgrounds, user personal libraries, seasonal/event categorization
+// Supports: admin backgrounds, user personal libraries, hierarchical category organization
 export const libraryAssets = pgTable("library_assets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id), // null = admin asset
@@ -437,6 +437,10 @@ export const libraryAssets = pgTable("library_assets", {
   publicUrl: text("public_url").notNull(), // serving URL
   thumbnailUrl: text("thumbnail_url"), // for videos, generated thumbnail
   duration: integer("duration"), // for videos, duration in seconds
+  // Hierarchical category organization (shares templateCategories table)
+  libraryCategoryId: varchar("library_category_id").references(() => templateCategories.id), // top-level category
+  librarySubcategoryId: varchar("library_subcategory_id").references(() => templateCategories.id), // subcategory
+  // Legacy fields kept for migration - prefer category hierarchy
   category: text("category"), // 'general', 'seasonal', 'events', etc.
   season: text("season"), // 'christmas', 'easter', 'summer', etc.
   event: text("event"), // 'birthday', 'wedding', 'graduation', etc.

@@ -683,6 +683,17 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   // Track which source button was clicked: templates, backgrounds, or custom
   const [librarySourceType, setLibrarySourceType] = useState<"templates" | "backgrounds" | "custom" | null>(null);
   const [loadedFromTemplate, setLoadedFromTemplate] = useState(false); // Persists when template is loaded
+  
+  // Template save dialog state (for hierarchical organization)
+  const [templateSaveDialogOpen, setTemplateSaveDialogOpen] = useState(false);
+  const [templateSavePendingTarget, setTemplateSavePendingTarget] = useState<"library" | "both" | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<string>("");
+  const [selectedTemplateSubcategory, setSelectedTemplateSubcategory] = useState<string>("");
+  const [creatingNewCategory, setCreatingNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [creatingNewSubcategory, setCreatingNewSubcategory] = useState(false);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
   // SVG preview state
   const [svgPreviewUrl, setSvgPreviewUrl] = useState<string>("");
   const [generatingPng, setGeneratingPng] = useState(false);
@@ -769,6 +780,25 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     queryKey: ["/api/admin/library/templates"],
     enabled: libraryPickerOpen && libraryPickerTab === "templates",
   });
+  
+  // Fetch template categories for hierarchical organization
+  interface TemplateCategory {
+    id: string;
+    name: string;
+    parentId: string | null;
+    sortOrder: number;
+    isActive: boolean;
+    createdAt: string;
+  }
+  const { data: templateCategories = [], refetch: refetchCategories } = useQuery<TemplateCategory[]>({
+    queryKey: ["/api/admin/template-categories"],
+  });
+  
+  // Derived: top-level categories (no parent) and subcategories
+  const topLevelCategories = templateCategories.filter(c => c.parentId === null);
+  const subcategoriesForSelected = selectedTemplateCategory
+    ? templateCategories.filter(c => c.parentId === selectedTemplateCategory)
+    : [];
 
   // Delete mutations for backgrounds and templates
   const deleteBackgroundMutation = useMutation({
@@ -796,6 +826,34 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     },
     onError: (error: any) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  // Create template category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async ({ name, parentId }: { name: string; parentId?: string }) => {
+      const res = await apiRequest("POST", "/api/admin/template-categories", { 
+        name, 
+        parentId: parentId || null,
+        sortOrder: templateCategories.length 
+      });
+      return res.json();
+    },
+    onSuccess: (newCategory) => {
+      toast({ title: "Category Created", description: `"${newCategory.name}" added successfully` });
+      refetchCategories();
+      if (newCategory.parentId) {
+        setSelectedTemplateSubcategory(newCategory.id);
+        setCreatingNewSubcategory(false);
+        setNewSubcategoryName("");
+      } else {
+        setSelectedTemplateCategory(newCategory.id);
+        setCreatingNewCategory(false);
+        setNewCategoryName("");
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create category", description: error.message, variant: "destructive" });
     },
   });
   
@@ -3205,7 +3263,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           <button
                             className="flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
-                            onClick={() => handleSaveCustomDesign("library")}
+                            onClick={() => {
+                              setTemplateSavePendingTarget("library");
+                              setTemplateSaveDialogOpen(true);
+                            }}
                             data-testid="button-save-library"
                           >
                             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -3227,7 +3288,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           <button
                             className="col-span-2 flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-primary bg-primary text-primary-foreground hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
-                            onClick={() => handleSaveCustomDesign("both")}
+                            onClick={() => {
+                              setTemplateSavePendingTarget("both");
+                              setTemplateSaveDialogOpen(true);
+                            }}
                             data-testid="button-save-both"
                           >
                             <div className="h-12 w-12 rounded-full bg-primary-foreground/20 flex items-center justify-center">
