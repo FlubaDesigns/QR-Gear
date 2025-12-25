@@ -4831,6 +4831,43 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Bulk publishing endpoints
+  const { bulkPublisher } = await import("./services/bulk-publisher");
+  
+  app.post("/api/admin/orchestration/bulk-publish", isAdmin, async (req: any, res) => {
+    try {
+      const { productIds, channelTypes } = req.body;
+      if (!productIds?.length || !channelTypes?.length) {
+        return res.status(400).json({ error: "productIds and channelTypes arrays required" });
+      }
+      const jobId = await bulkPublisher.createJob({ productIds, channelTypes });
+      res.json({ jobId, message: "Bulk publish job started" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.get("/api/admin/orchestration/bulk-publish/:jobId", isAdmin, async (req: any, res) => {
+    try {
+      const job = bulkPublisher.getJob(req.params.jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      res.json(job);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.get("/api/admin/orchestration/bulk-publish-jobs", isAdmin, async (req: any, res) => {
+    try {
+      const jobs = bulkPublisher.getAllJobs();
+      res.json(jobs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
