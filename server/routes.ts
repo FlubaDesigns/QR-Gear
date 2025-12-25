@@ -1266,9 +1266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get full catalog item details with USA providers and pricing
-  // In-memory cache for individual blueprint details (shared with batch endpoint)
-  const individualBlueprintCache = new Map<number, { data: any; timestamp: number }>();
-  const INDIVIDUAL_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+  // Database is the source of truth for costs - no in-memory cache
 
   app.get("/api/admin/printify/catalog/:blueprintId", isAdmin, async (req: any, res) => {
     try {
@@ -1276,12 +1274,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(503).json({ error: "Printify API not configured" });
       }
       const blueprintId = parseInt(req.params.blueprintId);
-      
-      // Check cache first
-      const cached = individualBlueprintCache.get(blueprintId);
-      if (cached && Date.now() - cached.timestamp < INDIVIDUAL_CACHE_TTL) {
-        return res.json(cached.data);
-      }
       
       // Fetch blueprint details, providers, and find USA providers
       const [blueprint, providers] = await Promise.all([
@@ -1358,9 +1350,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageUrl: blueprint.images?.[0] || null,
       };
       
-      // Cache the result
-      individualBlueprintCache.set(blueprintId, { data: responseData, timestamp: Date.now() });
-      
       res.json(responseData);
     } catch (error: any) {
       console.error(`Printify API error for blueprint ${req.params.blueprintId}:`, error.message);
@@ -1368,11 +1357,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // In-memory cache for blueprint details
-  const blueprintDetailsCache = new Map<number, { data: any; timestamp: number }>();
-  const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
-  
   // Batch fetch blueprint details (for efficient loading)
+  // Database is the source of truth for costs - no in-memory cache
   app.post("/api/admin/printify/catalog/batch-details", isAdmin, async (req: any, res) => {
     try {
       if (!printify) {
@@ -1389,13 +1375,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results: Record<number, any> = {};
       
       for (const blueprintId of limitedIds) {
-        // Check cache first
-        const cached = blueprintDetailsCache.get(blueprintId);
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-          results[blueprintId] = cached.data;
-          continue;
-        }
-        
         try {
           // Fetch blueprint details and providers
           const [blueprint, providers] = await Promise.all([
@@ -1474,8 +1453,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             providerName: selectedProvider?.title,
           };
           
-          // Cache the result
-          blueprintDetailsCache.set(blueprintId, { data, timestamp: Date.now() });
           results[blueprintId] = data;
           
           // Small delay to avoid rate limiting
@@ -3364,7 +3341,7 @@ ${allPages.map(page => `  <url>
             description: `Custom QR design for ${categoryPath}`,
             category: categoryPath,
             imageUrl: validatedData.productImage || null,
-            blueprintId: validatedData.productId ? parseInt(validatedData.productId) : null,
+            blueprintId: validatedData.productId || null,
             isEnabled: true,
             metadata: { customDesignId: design.id, source: "custom" },
           });
@@ -3377,7 +3354,7 @@ ${allPages.map(page => `  <url>
             basePrice: "0",
             category: categoryPath,
             imageUrl: validatedData.productImage || null,
-            blueprintId: validatedData.productId ? parseInt(validatedData.productId) : null,
+            blueprintId: validatedData.productId || null,
             isEnabled: true,
             metadata: { customDesignId: design.id, source: "custom" },
           });
