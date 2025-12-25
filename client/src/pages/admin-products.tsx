@@ -69,6 +69,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AccessibleIconButton } from "@/components/ui/accessible-icon-button";
 
 interface CatalogSyncStatus {
   latestSync: {
@@ -3647,10 +3648,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       className="border-2 rounded-lg overflow-hidden relative group"
                       data-testid={`library-bg-${bg.id}`}
                     >
-                      <button 
-                        type="button"
+                      <AccessibleIconButton
+                        variant="destructive"
                         aria-label={`Delete background ${bg.name}`}
-                        className="absolute top-1 right-1 z-10 h-12 w-12 flex items-center justify-center rounded-md bg-destructive text-destructive-foreground hover-elevate active-elevate-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="absolute top-1 right-1 z-10"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm(`Delete background "${bg.name}"?`)) {
@@ -3660,7 +3661,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         data-testid={`delete-bg-${bg.id}`}
                       >
                         <X className="h-5 w-5" />
-                      </button>
+                      </AccessibleIconButton>
                       <div 
                         className="cursor-pointer hover-elevate active-elevate-2 transition-transform"
                         onClick={() => {
@@ -3713,10 +3714,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       className="border-2 rounded-lg overflow-hidden relative group"
                       data-testid={`library-template-${template.id}`}
                     >
-                      <button 
-                        type="button"
+                      <AccessibleIconButton
+                        variant="destructive"
                         aria-label={`Delete template ${template.productName}`}
-                        className="absolute top-1 right-1 z-10 h-12 w-12 flex items-center justify-center rounded-md bg-destructive text-destructive-foreground hover-elevate active-elevate-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="absolute top-1 right-1 z-10"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm(`Delete template "${template.productName}"?`)) {
@@ -3726,7 +3727,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         data-testid={`delete-template-${template.id}`}
                       >
                         <X className="h-5 w-5" />
-                      </button>
+                      </AccessibleIconButton>
                       <div
                         className="cursor-pointer hover-elevate active-elevate-2 transition-transform"
                         onClick={() => {
