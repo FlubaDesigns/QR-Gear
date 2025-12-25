@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, or } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -241,12 +241,14 @@ export interface IStorage {
   // Custom Design operations
   getCustomDesign(id: string): Promise<CustomDesign | undefined>;
   getCustomDesigns(): Promise<CustomDesign[]>;
+  getCustomDesignsForLibrary(): Promise<CustomDesign[]>;
   createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign>;
   updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined>;
   deleteCustomDesign(id: string): Promise<void>;
 
   // Library Asset operations
   getLibraryAsset(id: string): Promise<LibraryAsset | undefined>;
+  getLibraryAssetByUrl(url: string): Promise<LibraryAsset | undefined>;
   getLibraryAssets(filters?: { ownerType?: string; assetType?: string; mediaType?: string; userId?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]>;
   getAdminLibraryAssets(filters?: { assetType?: string; mediaType?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]>;
   getUserLibraryAssets(userId: string, filters?: { assetType?: string; mediaType?: string }): Promise<LibraryAsset[]>;
@@ -1173,6 +1175,12 @@ export class DbStorage implements IStorage {
       .orderBy(sql`${schema.customDesigns.createdAt} DESC`);
   }
 
+  async getCustomDesignsForLibrary(): Promise<CustomDesign[]> {
+    return await this.db.select().from(schema.customDesigns)
+      .where(eq(schema.customDesigns.savedToLibrary, true))
+      .orderBy(sql`${schema.customDesigns.createdAt} DESC`);
+  }
+
   async createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign> {
     const [newDesign] = await this.db.insert(schema.customDesigns).values(design).returning();
     return newDesign;
@@ -1194,6 +1202,15 @@ export class DbStorage implements IStorage {
   // Library Asset operations
   async getLibraryAsset(id: string): Promise<LibraryAsset | undefined> {
     const [asset] = await this.db.select().from(schema.libraryAssets).where(eq(schema.libraryAssets.id, id));
+    return asset;
+  }
+
+  async getLibraryAssetByUrl(url: string): Promise<LibraryAsset | undefined> {
+    const [asset] = await this.db.select().from(schema.libraryAssets)
+      .where(or(
+        eq(schema.libraryAssets.publicUrl, url),
+        eq(schema.libraryAssets.storageUrl, url)
+      ));
     return asset;
   }
 
@@ -1996,6 +2013,7 @@ class MemStorage implements IStorage {
       annualMemberPerk: store.annualMemberPerk ?? null,
       commissionPercent: store.commissionPercent ?? "0",
       isActive: store.isActive ?? true,
+      isInternal: store.isInternal ?? false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -2354,6 +2372,12 @@ class MemStorage implements IStorage {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
+  async getCustomDesignsForLibrary(): Promise<CustomDesign[]> {
+    return Array.from(this.customDesigns.values())
+      .filter(d => d.savedToLibrary)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
   async createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign> {
     // Use provided id (slug) or fallback to timestamp-based id
     const id = design.id || `custom_${Date.now()}`;
@@ -2362,9 +2386,11 @@ class MemStorage implements IStorage {
       id,
       productImage: design.productImage ?? null,
       backgroundImageUrl: design.backgroundImageUrl ?? null,
+      backgroundAssetId: design.backgroundAssetId ?? null,
       topText: design.topText ?? null,
       bottomText: design.bottomText ?? null,
       textUpcharge: design.textUpcharge ?? "2.00",
+      landingOverlay: design.landingOverlay ?? null,
       storeType: design.storeType ?? null,
       storeName: design.storeName ?? null,
       segment: design.segment ?? null,
@@ -2404,6 +2430,10 @@ class MemStorage implements IStorage {
     return this.libraryAssets.get(id);
   }
 
+  async getLibraryAssetByUrl(url: string): Promise<LibraryAsset | undefined> {
+    return Array.from(this.libraryAssets.values()).find(a => a.publicUrl === url || a.storageUrl === url);
+  }
+
   async getLibraryAssets(filters?: { ownerType?: string; assetType?: string; mediaType?: string; userId?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
     let assets = Array.from(this.libraryAssets.values()).filter(a => a.isActive);
     if (filters?.ownerType) assets = assets.filter(a => a.ownerType === filters.ownerType);
@@ -2429,6 +2459,19 @@ class MemStorage implements IStorage {
     const newAsset: LibraryAsset = {
       ...asset,
       id,
+      userId: asset.userId ?? null,
+      description: asset.description ?? null,
+      thumbnailUrl: asset.thumbnailUrl ?? null,
+      duration: asset.duration ?? null,
+      category: asset.category ?? null,
+      season: asset.season ?? null,
+      event: asset.event ?? null,
+      tags: asset.tags ?? null,
+      visibleStoreSlugs: asset.visibleStoreSlugs ?? null,
+      visibleSegments: asset.visibleSegments ?? null,
+      isActive: asset.isActive ?? true,
+      isFeatured: asset.isFeatured ?? false,
+      sortOrder: asset.sortOrder ?? 0,
       usageCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
