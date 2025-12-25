@@ -64,6 +64,8 @@ import type {
   InsertChannelConfig,
   ChannelPublishState,
   InsertChannelPublishState,
+  ProviderHealthLog,
+  InsertProviderHealthLog,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -288,6 +290,13 @@ export interface IStorage {
   getPublishStates(masterProductId: string): Promise<ChannelPublishState[]>;
   getPublishState(masterProductId: string, channelType: string): Promise<ChannelPublishState | undefined>;
   upsertPublishState(state: InsertChannelPublishState): Promise<ChannelPublishState>;
+
+  // Provider Health operations
+  logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog>;
+  getProviderHealthLogs(providerType: string, limit?: number): Promise<ProviderHealthLog[]>;
+  getLatestProviderHealth(providerType: string): Promise<ProviderHealthLog | undefined>;
+  getAllLatestProviderHealth(): Promise<ProviderHealthLog[]>;
+  getProviderHealthStats(providerType: string, hours?: number): Promise<{ uptimePercent: number; avgResponseTime: number; totalChecks: number }>;
 }
 
 export class DbStorage implements IStorage {
@@ -1381,9 +1390,63 @@ export class DbStorage implements IStorage {
   async upsertPublishState(state: InsertChannelPublishState): Promise<ChannelPublishState> {
     const [result] = await this.db.insert(schema.channelPublishStates).values(state).onConflictDoUpdate({
       target: [schema.channelPublishStates.masterProductId, schema.channelPublishStates.channelType],
-      set: { ...state, lastSyncAt: new Date() }
+      set: { ...state, lastSyncedAt: new Date() }
     }).returning();
     return result;
+  }
+
+  // Provider Health operations
+  async logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog> {
+    const [result] = await this.db.insert(schema.providerHealthLog).values(log).returning();
+    return result;
+  }
+
+  async getProviderHealthLogs(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
+    return this.db.select().from(schema.providerHealthLog)
+      .where(eq(schema.providerHealthLog.providerType, providerType))
+      .orderBy(sql`${schema.providerHealthLog.checkTime} DESC`)
+      .limit(limit);
+  }
+
+  async getLatestProviderHealth(providerType: string): Promise<ProviderHealthLog | undefined> {
+    const [result] = await this.db.select().from(schema.providerHealthLog)
+      .where(eq(schema.providerHealthLog.providerType, providerType))
+      .orderBy(sql`${schema.providerHealthLog.checkTime} DESC`)
+      .limit(1);
+    return result;
+  }
+
+  async getAllLatestProviderHealth(): Promise<ProviderHealthLog[]> {
+    // Get latest health check for each provider type using subquery
+    const providerTypes = ['printify', 'printful', 'apliiq'];
+    const results: ProviderHealthLog[] = [];
+    for (const type of providerTypes) {
+      const latest = await this.getLatestProviderHealth(type);
+      if (latest) results.push(latest);
+    }
+    return results;
+  }
+
+  async getProviderHealthStats(providerType: string, hours: number = 24): Promise<{ uptimePercent: number; avgResponseTime: number; totalChecks: number }> {
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const logs = await this.db.select().from(schema.providerHealthLog)
+      .where(and(
+        eq(schema.providerHealthLog.providerType, providerType),
+        sql`${schema.providerHealthLog.checkTime} > ${cutoff}`
+      ));
+    
+    if (logs.length === 0) {
+      return { uptimePercent: 0, avgResponseTime: 0, totalChecks: 0 };
+    }
+    
+    const healthyCount = logs.filter(l => l.isHealthy).length;
+    const totalResponseTime = logs.reduce((sum, l) => sum + (l.responseTimeMs || 0), 0);
+    
+    return {
+      uptimePercent: Math.round((healthyCount / logs.length) * 100 * 100) / 100,
+      avgResponseTime: Math.round(totalResponseTime / logs.length),
+      totalChecks: logs.length,
+    };
   }
 }
 
@@ -1401,6 +1464,7 @@ class MemStorage implements IStorage {
   private pricingRules = new Map<string, PricingRule>();
   private partnerStores = new Map<string, PartnerStore>();
   private partnerStoreProducts = new Map<string, PartnerStoreProduct>();
+  private providerHealthLogs: ProviderHealthLog[] = [];
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
@@ -2515,6 +2579,11 @@ class MemStorage implements IStorage {
       printifyCompositeUrl: design.printifyCompositeUrl ?? null,
       savedToLibrary: design.savedToLibrary ?? false,
       savedToStore: design.savedToStore ?? false,
+      placementConfigs: design.placementConfigs ?? {},
+      placementImages: design.placementImages ?? null,
+      templateVariant: design.templateVariant ?? null,
+      externalUrl: design.externalUrl ?? null,
+      dynamicContentSetId: design.dynamicContentSetId ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -2644,7 +2713,8 @@ class MemStorage implements IStorage {
       status: product.status ?? "draft",
       channels: null,
       tags: product.tags ?? [],
-      metadata: null,
+      bundleParentId: null,
+      bundleDiscount: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -2723,9 +2793,11 @@ class MemStorage implements IStorage {
       rateLimit: 60,
       rateLimitWindow: 60,
       webhookSecret: null,
+      webhookUrl: null,
       lastHealthCheck: null,
       settings: config.settings ?? null,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
     this.orchestrationChannelConfigs.set(config.channelType, newConfig);
     return newConfig;
@@ -2754,19 +2826,84 @@ class MemStorage implements IStorage {
     const newState: ChannelPublishState = {
       id: existing?.id ?? crypto.randomUUID(),
       masterProductId: state.masterProductId,
-      designVersionId: state.designVersionId,
+      publishedDesignVersionId: state.publishedDesignVersionId ?? null,
       channelType: state.channelType,
       externalProductId: state.externalProductId ?? null,
       externalListingId: null,
+      externalVariantIds: null,
       status: state.status ?? "pending",
-      lastSyncAt: new Date(),
-      lastSyncError: state.lastSyncError ?? null,
-      externalUrl: null,
-      metadata: null,
+      lastPublishedAt: null,
+      lastSyncedAt: new Date(),
+      lastError: state.lastError ?? null,
       createdAt: existing?.createdAt ?? new Date(),
+      updatedAt: new Date(),
     };
     this.orchestrationPublishStates.set(key, newState);
     return newState;
+  }
+
+  // Provider Health operations
+  async logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog> {
+    const newLog: ProviderHealthLog = {
+      id: crypto.randomUUID(),
+      providerType: log.providerType,
+      checkTime: new Date(),
+      isHealthy: log.isHealthy ?? true,
+      responseTimeMs: log.responseTimeMs ?? null,
+      errorMessage: log.errorMessage ?? null,
+      errorCode: log.errorCode ?? null,
+      uptimePercent24h: null,
+      avgResponseTime24h: null,
+    };
+    this.providerHealthLogs.push(newLog);
+    // Keep only last 1000 logs in memory
+    if (this.providerHealthLogs.length > 1000) {
+      this.providerHealthLogs = this.providerHealthLogs.slice(-1000);
+    }
+    return newLog;
+  }
+
+  async getProviderHealthLogs(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
+    return this.providerHealthLogs
+      .filter(l => l.providerType === providerType)
+      .sort((a, b) => (b.checkTime?.getTime() || 0) - (a.checkTime?.getTime() || 0))
+      .slice(0, limit);
+  }
+
+  async getLatestProviderHealth(providerType: string): Promise<ProviderHealthLog | undefined> {
+    const logs = await this.getProviderHealthLogs(providerType, 1);
+    return logs[0];
+  }
+
+  async getAllLatestProviderHealth(): Promise<ProviderHealthLog[]> {
+    const providerTypes = ['printify', 'printful', 'apliiq'];
+    const results: ProviderHealthLog[] = [];
+    for (const type of providerTypes) {
+      const latest = await this.getLatestProviderHealth(type);
+      if (latest) results.push(latest);
+    }
+    return results;
+  }
+
+  async getProviderHealthStats(providerType: string, hours: number = 24): Promise<{ uptimePercent: number; avgResponseTime: number; totalChecks: number }> {
+    const cutoff = Date.now() - hours * 60 * 60 * 1000;
+    const logs = this.providerHealthLogs.filter(l => 
+      l.providerType === providerType && 
+      (l.checkTime?.getTime() || 0) > cutoff
+    );
+    
+    if (logs.length === 0) {
+      return { uptimePercent: 0, avgResponseTime: 0, totalChecks: 0 };
+    }
+    
+    const healthyCount = logs.filter(l => l.isHealthy).length;
+    const totalResponseTime = logs.reduce((sum, l) => sum + (l.responseTimeMs || 0), 0);
+    
+    return {
+      uptimePercent: Math.round((healthyCount / logs.length) * 100 * 100) / 100,
+      avgResponseTime: Math.round(totalResponseTime / logs.length),
+      totalChecks: logs.length,
+    };
   }
 }
 

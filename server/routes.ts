@@ -4100,28 +4100,49 @@ ${allPages.map(page => `  <url>
 
   // ============ ORCHESTRATION: PROVIDER HEALTH API ============
   
+  // Get health dashboard (cached results with stats)
   app.get("/api/admin/orchestration/provider-health", isAdmin, async (req: any, res) => {
     try {
-      const { adapterRegistry } = await import("./adapters");
-      const results: Record<string, any> = {};
-      
-      for (const adapter of adapterRegistry.getAllPrintProviders()) {
-        const health = await adapter.healthCheck();
-        results[adapter.providerType] = {
-          displayName: adapter.displayName,
-          ...health,
-        };
+      const { healthMonitor } = await import("./services/health-monitor");
+      const dashboard = await healthMonitor.getHealthDashboard();
+      res.json(dashboard);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Trigger immediate health check for all providers
+  app.post("/api/admin/orchestration/provider-health/check", isAdmin, async (req: any, res) => {
+    try {
+      const { healthMonitor } = await import("./services/health-monitor");
+      const results = await healthMonitor.checkAllProviders();
+      res.json({ success: true, results });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check specific provider health
+  app.post("/api/admin/orchestration/provider-health/:providerType/check", isAdmin, async (req: any, res) => {
+    try {
+      const { healthMonitor } = await import("./services/health-monitor");
+      const result = await healthMonitor.checkProvider(req.params.providerType);
+      if (!result) {
+        return res.status(404).json({ error: "Provider not found" });
       }
-      
-      for (const adapter of adapterRegistry.getAllMarketplaces()) {
-        const health = await adapter.healthCheck();
-        results[adapter.marketplaceType] = {
-          displayName: adapter.displayName,
-          ...health,
-        };
-      }
-      
-      res.json(results);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get provider health history
+  app.get("/api/admin/orchestration/provider-health/:providerType/history", isAdmin, async (req: any, res) => {
+    try {
+      const { healthMonitor } = await import("./services/health-monitor");
+      const limit = parseInt(req.query.limit as string) || 100;
+      const history = await healthMonitor.getProviderHistory(req.params.providerType, limit);
+      res.json(history);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
