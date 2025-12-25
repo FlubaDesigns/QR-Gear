@@ -752,6 +752,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [generatingPng, setGeneratingPng] = useState(false);
   // Inline background picker state (in Custom Builder)
   const [bgPickerExpanded, setBgPickerExpanded] = useState(false);
+  // QR content type: plain_text (offline, no hosting) vs rich_media (hosted landing page with background)
+  const [qrContentType, setQrContentType] = useState<"plain_text" | "rich_media" | null>(null);
+  // Plain text QR content (URL or text to encode directly)
+  const [plainTextQrContent, setPlainTextQrContent] = useState<string>("");
   
   // Fetch render config (fonts and warp presets) for SVG text warp system
   interface RenderConfig {
@@ -1884,6 +1888,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       setLibraryPickerTab("templates");
                       setLibraryPickerOpen(true);
                       setProductSource("Custom");
+                      setQrContentType(null); // Reset QR type selection
+                      setPlainTextQrContent(""); // Reset plain text content
                     }}
                     data-testid="button-source-templates"
                   >
@@ -1898,9 +1904,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     onClick={() => {
                       setLibrarySourceType("custom");
                       setProductSource("Custom");
+                      setQrContentType(null); // Reset QR type selection
+                      setPlainTextQrContent(""); // Reset plain text content
                       toast({
                         title: "Custom Selected",
-                        description: "Build from scratch below",
+                        description: "Choose QR type below",
                         duration: 2000,
                       });
                     }}
@@ -1921,10 +1929,64 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
               <div className="space-y-4 p-2 sm:p-4 border-2 border-accent/50 rounded-lg bg-accent/5">
                 <Label className="text-lg font-bold">Custom Product Builder</Label>
                 <p className="text-sm text-muted-foreground">
-                  Build a custom design, upload a background, add text, and create a QR code that links to your hosted design.
+                  Build a custom design with QR code for your products.
                 </p>
                 
-                {/* Step 1: Select Product Type (Category) */}
+                {/* QR Content Type Selection */}
+                <div className="space-y-3">
+                  <Label className="font-semibold">QR Type</Label>
+                  <p className="text-sm text-muted-foreground">Choose what your QR code will contain</p>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant={qrContentType === "plain_text" ? "default" : "outline"}
+                      className={`h-14 text-base w-full ${qrContentType === "plain_text" ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                      onClick={() => {
+                        setQrContentType("plain_text");
+                        // Clear all rich-media state since plain text doesn't need it
+                        setBackgroundImage(null);
+                        setBackgroundPreview("");
+                        setBgPickerExpanded(false);
+                        // Reset header/footer toggles
+                        setHeaderEnabled(false);
+                        setFooterEnabled(false);
+                        setHeaderText("");
+                        setFooterText("");
+                        // Reset landing overlay
+                        setLandingOverlayEnabled(false);
+                        setLandingTitle("");
+                        setLandingDescription("");
+                        // Clear hosting tier (not used for plain text)
+                        setSelectedHostingTier("");
+                      }}
+                      data-testid="button-qr-plain-text"
+                    >
+                      <div className="text-left flex-1">
+                        <div className="font-bold">Plain Text QR</div>
+                        <div className="text-xs opacity-80">Offline scannable text or URL - no hosting needed</div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant={qrContentType === "rich_media" ? "default" : "outline"}
+                      className={`h-14 text-base w-full ${qrContentType === "rich_media" ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                      onClick={() => {
+                        setQrContentType("rich_media");
+                        // Set default hosting tier if not already set (1 year free included)
+                        if (!selectedHostingTier) {
+                          setSelectedHostingTier("1_year");
+                        }
+                      }}
+                      data-testid="button-qr-rich-media"
+                    >
+                      <div className="text-left flex-1">
+                        <div className="font-bold">Image / Video QR</div>
+                        <div className="text-xs opacity-80">Hosted landing page with background - 1 year free</div>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Step 1: Select Product Type (Category) - Only show after QR type selected */}
+                {qrContentType && (
                 <div className="space-y-2">
                   <Label className="font-semibold">Step 1: Product Type</Label>
                   <select
@@ -1941,9 +2003,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     ))}
                   </select>
                 </div>
+                )}
 
                 {/* Step 2: Location Filter (US/Other) - Only show after category selected */}
-                {selectedCategory && categoryData && (
+                {qrContentType && selectedCategory && categoryData && (
                   <div className="space-y-2">
                     <Label className="font-semibold">Step 2: Made In</Label>
                     {(() => {
@@ -1982,7 +2045,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 )}
 
                 {/* Step 3: Select Product from filtered list */}
-                {selectedCategory && categoryData && (
+                {qrContentType && selectedCategory && categoryData && (
                   <div className="space-y-2">
                     <Label className="font-semibold">Step 3: Select Product</Label>
                     <div className="max-h-[32rem] sm:max-h-64 overflow-y-auto border-2 border-border rounded-lg p-1 sm:p-3 bg-background space-y-3">
@@ -2128,8 +2191,28 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* 4. Background Image - Two Buttons Stacked */}
-                {selectedItemId && (
+                {/* Plain Text QR Content Input (only for plain_text QR) */}
+                {selectedItemId && qrContentType === "plain_text" && (
+                  <div className="space-y-3 p-4 border rounded-lg bg-background">
+                    <Label className="font-semibold">QR Code Content</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enter the text or URL that will be encoded directly in the QR code.
+                    </p>
+                    <Input
+                      placeholder="https://yourwebsite.com or any text"
+                      value={plainTextQrContent}
+                      onChange={(e) => setPlainTextQrContent(e.target.value)}
+                      className="h-12 text-base"
+                      data-testid="input-plain-text-qr"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Max ~2,000 characters. For best scanning, keep it short (URLs recommended).
+                    </p>
+                  </div>
+                )}
+                
+                {/* 4. Background Image - Two Buttons Stacked (only for rich media QR) */}
+                {selectedItemId && qrContentType === "rich_media" && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="font-semibold">Background Image</Label>
@@ -2253,12 +2336,12 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                   <div
                                     key={bg.id}
                                     className={`flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] cursor-pointer rounded-lg border-2 overflow-hidden transition-all ${
-                                      backgroundPreview === bg.imageUrl 
+                                      backgroundPreview === bg.publicUrl 
                                         ? "border-primary ring-2 ring-primary ring-offset-2" 
                                         : "border-border hover:border-primary/50"
                                     }`}
                                     onClick={() => {
-                                      setBackgroundPreview(bg.imageUrl);
+                                      setBackgroundPreview(bg.publicUrl);
                                       setBackgroundImage(null);
                                       setBgPickerExpanded(false);
                                       toast({
@@ -2271,7 +2354,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                   >
                                     <div className="aspect-[9/16] relative">
                                       <img 
-                                        src={bg.imageUrl} 
+                                        src={bg.publicUrl} 
                                         alt={bg.name} 
                                         className="w-full h-full object-cover"
                                       />
@@ -2299,8 +2382,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* 5. Text Options with Rich SVG Warp Controls */}
-                {selectedItemId && (
+                {/* 5. Text Options with Rich SVG Warp Controls (only for rich media QR) */}
+                {selectedItemId && qrContentType === "rich_media" && (
                   <div className="space-y-4">
                     {/* Top Text (Header) with Warp */}
                     <div className="space-y-3 p-4 bg-background rounded-lg border">
@@ -2820,7 +2903,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   <div className="space-y-3 pt-4 border-t">
                     <Label className="font-semibold text-base">Pricing Summary</Label>
                     
-                    {/* Hosting Tier Selection */}
+                    {/* Hosting Tier Selection - only for rich media QR */}
+                    {qrContentType === "rich_media" && (
                     <div className="space-y-2">
                       <Label className="text-sm">Server Hosting Duration</Label>
                       <Select value={selectedHostingTier} onValueChange={setSelectedHostingTier}>
@@ -2850,6 +2934,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         How long the QR content will be hosted online
                       </p>
                     </div>
+                    )}
+                    
+                    {/* Plain Text QR notice */}
+                    {qrContentType === "plain_text" && (
+                      <div className="p-3 bg-muted/50 rounded-lg border text-sm text-muted-foreground">
+                        Plain Text QR - No hosting required. QR encodes text directly.
+                      </div>
+                    )}
                     
                     <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                       <div className="flex justify-between text-sm">
@@ -2858,28 +2950,33 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           {catalogDetails.basePrice > 0 ? `$${catalogDetails.basePrice.toFixed(2)}` : "Sync costs to view"}
                         </span>
                       </div>
-                      {headerEnabled && headerText && (
+                      {qrContentType === "rich_media" && headerEnabled && headerText && (
                         <div className="flex justify-between text-sm">
                           <span>Header Text Upcharge:</span>
                           <span className="font-medium">+${parseFloat(textUpcharge || "2").toFixed(2)}</span>
                         </div>
                       )}
-                      {footerEnabled && footerText && (
+                      {qrContentType === "rich_media" && footerEnabled && footerText && (
                         <div className="flex justify-between text-sm">
                           <span>Footer Text Upcharge:</span>
                           <span className="font-medium">+${parseFloat(textUpcharge || "2").toFixed(2)}</span>
                         </div>
                       )}
+                      {qrContentType === "rich_media" && (
                       <div className="flex justify-between text-sm">
                         <span>Hosting ({selectedTier?.name || {"1_year": "1 Year", "2_year": "2 Years", "3_year": "3 Years"}[selectedHostingTier] || "1 Year"}):</span>
                         <span className="font-medium">+${hostingPrice.toFixed(2)}</span>
                       </div>
+                      )}
                       
                       {(() => {
-                        const baseCost = catalogDetails.basePrice + 
-                          (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
-                          (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0) +
-                          hostingPrice;
+                        // For plain_text QR, no hosting or text upcharges
+                        const baseCost = qrContentType === "plain_text" 
+                          ? catalogDetails.basePrice 
+                          : catalogDetails.basePrice + 
+                            (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
+                            (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0) +
+                            hostingPrice;
                         const retailPrice = baseCost * (1 + markupPercent / 100) + markupFixed;
                         
                         return (
