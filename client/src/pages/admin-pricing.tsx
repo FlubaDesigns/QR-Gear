@@ -25,6 +25,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+} from "@/components/ui/drawer";
 import type { AdminSettings, HostingTier, Coupon } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -740,14 +748,14 @@ function CouponsSection() {
         </CardContent>
       </Card>
 
-      {/* Add Coupon Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Create Coupon</DialogTitle>
-            <DialogDescription>Create a discount code that syncs with Stripe.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4 overflow-y-auto flex-1">
+      {/* Add Coupon - Bottom Sheet Drawer for mobile-friendly input */}
+      <Drawer open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader className="text-left">
+            <DrawerTitle>Create Coupon</DrawerTitle>
+            <DrawerDescription>Create a discount code that syncs with Stripe.</DrawerDescription>
+          </DrawerHeader>
+          <div className="space-y-4 px-4 pb-4 overflow-y-auto">
             <div className="space-y-2">
               <Label htmlFor="coupon-code">Coupon Code *</Label>
               <Input
@@ -832,15 +840,15 @@ function CouponsSection() {
               </div>
             </div>
           </div>
-          <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="h-12">Cancel</Button>
-            <Button onClick={handleCreateCoupon} disabled={createMutation.isPending} className="h-12" data-testid="button-create-coupon">
+          <DrawerFooter className="pt-4 border-t">
+            <Button onClick={handleCreateCoupon} disabled={createMutation.isPending} className="h-12 w-full" data-testid="button-create-coupon">
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Create Coupon
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="h-12 w-full">Cancel</Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
