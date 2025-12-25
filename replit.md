@@ -10,7 +10,7 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 
 ## CRITICAL Rules
 - **NEVER remove existing features without explicit user request.** User pays for agent time - removing and re-adding features wastes money.
-- Always confirm back what user said BEFORE starting work on changes.
+- **ALWAYS confirm back what user said BEFORE starting work.** When user asks a question or describes an issue, REPEAT IT BACK first. Do NOT jump to implementing. Wait for user confirmation that you understood correctly.
 - Product flow steps are LOCKED and must not be changed:
   1. Store Type (Internal/External)
   2. Select Store
