@@ -1787,7 +1787,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               }}
                               data-testid={`custom-item-${item.id}`}
                             >
-                              {/* Row 1: Image + Name/Manufacturer/Flag - stacked on mobile, side-by-side on larger */}
+                              {/* Row 1: Image + Name/Manufacturer/Flag/Price - stacked on mobile, side-by-side on larger */}
                               <div className="flex flex-col sm:flex-row gap-4 p-4">
                                 <div 
                                   className="relative group cursor-pointer mx-auto sm:mx-0"
@@ -1801,8 +1801,17 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                     <ZoomIn className="w-8 h-8 text-white" />
                                   </div>
                                 </div>
-                                <div className="space-y-3 text-center sm:text-left">
-                                  <div className="text-xl font-semibold leading-snug">{item.title}</div>
+                                <div className="space-y-2 text-center sm:text-left flex-1">
+                                  <div className="flex flex-wrap items-center justify-center sm:justify-between gap-2">
+                                    <div className="text-xl font-semibold leading-snug">{item.title}</div>
+                                    {details && !details.error && details.basePrice > 0 && (
+                                      <span className="text-sm font-bold text-green-600">
+                                        {details.maxPrice && details.maxPrice > details.basePrice 
+                                          ? `$${details.basePrice.toFixed(2)}–$${details.maxPrice.toFixed(2)}`
+                                          : `$${details.basePrice.toFixed(2)}`}
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="flex items-center justify-center sm:justify-start gap-4">
                                     <span className="text-lg text-muted-foreground">{item.brand}</span>
                                     {item.madeInUSA ? (
@@ -1815,31 +1824,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                     ) : (
                                       <span className="text-base text-muted-foreground">(International)</span>
                                     )}
+                                    {details && !details.error && details.basePrice === 0 && (
+                                      <span className="text-sm text-amber-600">Sync costs needed</span>
+                                    )}
                                   </div>
                                 </div>
-                              </div>
-                              
-                              {/* Row 2: Pricing (full width edge-to-edge) */}
-                              <div className="py-5 px-4 bg-primary/10 border-y-2 border-primary/30">
-                                {details && !details.error ? (
-                                  <div>
-                                    <span className="text-2xl font-bold text-primary">
-                                      {details.basePrice > 0 
-                                        ? (details.maxPrice && details.maxPrice > details.basePrice 
-                                            ? `$${details.basePrice.toFixed(2)} – $${details.maxPrice.toFixed(2)}`
-                                            : `$${details.basePrice.toFixed(2)}`)
-                                        : "—"}
-                                    </span>
-                                    {details.basePrice === 0 && (
-                                      <div className="text-base text-amber-600 mt-2">Sync costs needed</div>
-                                    )}
-                                    {details.costsFromDatabase && details.basePrice > 0 && (
-                                      <div className="text-base text-green-600 mt-2">(cached)</div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-lg text-muted-foreground">Loading price...</span>
-                                )}
                               </div>
                               
                               {/* Row 3: Sizes (full width) */}
