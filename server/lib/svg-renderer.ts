@@ -364,3 +364,32 @@ export async function renderDesignToPng(request: RenderRequest): Promise<RenderR
   const svg = buildDesignSvg(request);
   return renderSvgToPng(svg);
 }
+
+export interface QrOnlyRequest {
+  qrUrl: string;
+  qrSize?: number;
+}
+
+/**
+ * Render just a QR code centered on the canvas (no text)
+ * Used for "qr-only" placement mode on smaller print areas like sleeves
+ */
+export async function renderQrOnlyToPng(request: QrOnlyRequest): Promise<RenderResult> {
+  const qrSize = request.qrSize || 2400; // Larger QR for print quality
+  const qrX = (CANVAS_WIDTH - qrSize) / 2;
+  const qrY = (CANVAS_HEIGHT - qrSize) / 2;
+  
+  const qrSvgRaw = generateQrSvg(request.qrUrl, qrSize);
+  const qrSvgMatch = qrSvgRaw.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+  const qrInnerContent = qrSvgMatch ? qrSvgMatch[1] : '';
+  
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" 
+     width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}">
+  <g transform="translate(${qrX}, ${qrY})">
+    ${qrInnerContent}
+  </g>
+</svg>`;
+  
+  return renderSvgToPng(svg);
+}

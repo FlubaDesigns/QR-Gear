@@ -3228,6 +3228,7 @@ ${allPages.map(page => `  <url>
         productName: z.string(),
         productImage: z.string().nullable().optional(),
         placements: z.array(z.string()).min(1),
+        placementConfigs: z.record(z.string(), z.enum(["full", "qr-only"])).optional(), // per-placement mode
         backgroundImage: z.string().nullable().optional(),
         topText: z.object({
           text: z.string(),
@@ -3323,12 +3324,17 @@ ${allPages.map(page => `  <url>
       }
       
       // Create the design with descriptive ID
+      // Default placementConfigs to "full" for all placements if not provided
+      const finalPlacementConfigs = validatedData.placementConfigs || 
+        Object.fromEntries(validatedData.placements.map(p => [p, "full"]));
+      
       const designData = {
         id: designId,
         productId: validatedData.productId,
         productName: validatedData.productName,
         productImage: validatedData.productImage || null,
         placements: validatedData.placements,
+        placementConfigs: finalPlacementConfigs, // per-placement mode map
         backgroundImageUrl: validatedData.backgroundImage || null,
         backgroundAssetId: backgroundAssetId,
         topText: validatedData.topText || null,
@@ -3354,86 +3360,85 @@ ${allPages.map(page => `  <url>
         color: { dark: "#000000", light: "#ffffff" },
       });
       
-      // Generate print-ready composite image using SVG renderer (header + QR + footer)
-      // This produces a 4500x5400 transparent PNG for Printify
-      let printifyCompositeUrl = null;
-      try {
-        const { renderDesignToPng } = await import("./lib/svg-renderer");
-        const headerStyle = validatedData.topText ? {
-          text: validatedData.topText.text,
-          fontFamily: validatedData.topText.fontFamily || "Arial",
-          fontSize: parseInt(validatedData.topText.fontSize) || 120,
-          color: (validatedData.topText as any).color || "#000000",
-          letterSpacing: (validatedData.topText as any).letterSpacing || 0,
-          warpPreset: (validatedData.topText as any).warpPreset || "straight",
-          strokeColor: (validatedData.topText as any).strokeColor,
-          strokeWidth: (validatedData.topText as any).strokeWidth,
-        } : undefined;
-        
-        const footerStyle = validatedData.bottomText ? {
-          text: validatedData.bottomText.text,
-          fontFamily: validatedData.bottomText.fontFamily || "Arial",
-          fontSize: parseInt(validatedData.bottomText.fontSize) || 96,
-          color: (validatedData.bottomText as any).color || "#000000",
-          letterSpacing: (validatedData.bottomText as any).letterSpacing || 0,
-          warpPreset: (validatedData.bottomText as any).warpPreset || "straight",
-          strokeColor: (validatedData.bottomText as any).strokeColor,
-          strokeWidth: (validatedData.bottomText as any).strokeWidth,
-        } : undefined;
-        
-        const renderResult = await renderDesignToPng({
-          templateType: 'shirt-front',
-          header: headerStyle,
-          footer: footerStyle,
-          qrUrl,
-        });
-        
-        const fileName = `svg-composite-${design.id}-${Date.now()}.png`;
-        const uploadResult = await uploadImageFromBuffer(
-          renderResult.pngBuffer,
-          fileName,
-          'image/png'
-        );
-        printifyCompositeUrl = uploadResult.publicUrl;
-        console.log(`[Custom Design] Generated SVG composite: ${printifyCompositeUrl}`);
-      } catch (svgError: any) {
-        console.error("[Custom Design] SVG render failed, falling back to canvas:", svgError.message);
-        // Fallback to canvas renderer with full style support
-        const fallbackTopText = validatedData.topText ? {
-          text: validatedData.topText.text,
-          fontFamily: validatedData.topText.fontFamily || "Arial",
-          fontSize: validatedData.topText.fontSize || "120",
-          color: (validatedData.topText as any).color || "#000000",
-          letterSpacing: (validatedData.topText as any).letterSpacing || 0,
-          warpPreset: (validatedData.topText as any).warpPreset || "straight",
-          strokeColor: (validatedData.topText as any).strokeColor,
-          strokeWidth: (validatedData.topText as any).strokeWidth,
-        } : null;
-        
-        const fallbackBottomText = validatedData.bottomText ? {
-          text: validatedData.bottomText.text,
-          fontFamily: validatedData.bottomText.fontFamily || "Arial",
-          fontSize: validatedData.bottomText.fontSize || "96",
-          color: (validatedData.bottomText as any).color || "#000000",
-          letterSpacing: (validatedData.bottomText as any).letterSpacing || 0,
-          warpPreset: (validatedData.bottomText as any).warpPreset || "straight",
-          strokeColor: (validatedData.bottomText as any).strokeColor,
-          strokeWidth: (validatedData.bottomText as any).strokeWidth,
-        } : null;
-        
-        printifyCompositeUrl = await generatePrintifyComposite(
-          qrUrl,
-          fallbackTopText,
-          fallbackBottomText,
-          4500, // Match SVG output size
-          5400
-        );
+      // Generate print-ready images per placement based on mode
+      // "full" mode: header + QR + footer (4500x5400 transparent PNG)
+      // "qr-only" mode: just QR code centered (4500x5400 transparent PNG)
+      const placementImages: Record<string, string> = {};
+      let primaryCompositeUrl: string | null = null;
+      
+      const { renderDesignToPng, renderQrOnlyToPng } = await import("./lib/svg-renderer");
+      
+      for (const [placementId, mode] of Object.entries(finalPlacementConfigs)) {
+        try {
+          let uploadResult;
+          
+          if (mode === "qr-only") {
+            // Generate QR-only image (just QR centered, no text)
+            const qrOnlyResult = await renderQrOnlyToPng({ qrUrl });
+            const fileName = `qr-only-${design.id}-${placementId}-${Date.now()}.png`;
+            uploadResult = await uploadImageFromBuffer(
+              qrOnlyResult.pngBuffer,
+              fileName,
+              'image/png'
+            );
+            console.log(`[Custom Design] Generated QR-only for ${placementId}: ${uploadResult.publicUrl}`);
+          } else {
+            // Generate full artwork (header + QR + footer)
+            const headerStyle = validatedData.topText ? {
+              text: validatedData.topText.text,
+              fontFamily: validatedData.topText.fontFamily || "Arial",
+              fontSize: parseInt(validatedData.topText.fontSize) || 120,
+              color: (validatedData.topText as any).color || "#000000",
+              letterSpacing: (validatedData.topText as any).letterSpacing || 0,
+              warpPreset: (validatedData.topText as any).warpPreset || "straight",
+              strokeColor: (validatedData.topText as any).strokeColor,
+              strokeWidth: (validatedData.topText as any).strokeWidth,
+            } : undefined;
+            
+            const footerStyle = validatedData.bottomText ? {
+              text: validatedData.bottomText.text,
+              fontFamily: validatedData.bottomText.fontFamily || "Arial",
+              fontSize: parseInt(validatedData.bottomText.fontSize) || 96,
+              color: (validatedData.bottomText as any).color || "#000000",
+              letterSpacing: (validatedData.bottomText as any).letterSpacing || 0,
+              warpPreset: (validatedData.bottomText as any).warpPreset || "straight",
+              strokeColor: (validatedData.bottomText as any).strokeColor,
+              strokeWidth: (validatedData.bottomText as any).strokeWidth,
+            } : undefined;
+            
+            const renderResult = await renderDesignToPng({
+              templateType: 'shirt-front',
+              header: headerStyle,
+              footer: footerStyle,
+              qrUrl,
+            });
+            
+            const fileName = `svg-composite-${design.id}-${placementId}-${Date.now()}.png`;
+            uploadResult = await uploadImageFromBuffer(
+              renderResult.pngBuffer,
+              fileName,
+              'image/png'
+            );
+            console.log(`[Custom Design] Generated full artwork for ${placementId}: ${uploadResult.publicUrl}`);
+          }
+          
+          placementImages[placementId] = uploadResult.publicUrl;
+          
+          // Use first placement's image as primary (for backward compatibility)
+          if (!primaryCompositeUrl) {
+            primaryCompositeUrl = uploadResult.publicUrl;
+          }
+        } catch (renderError: any) {
+          console.error(`[Custom Design] Render failed for ${placementId}:`, renderError.message);
+          // Continue with other placements
+        }
       }
       
-      // Update design with QR code and composite image
+      // Update design with QR code and composite images
       const updatedDesign = await storage.updateCustomDesign(design.id, {
         qrCodeUrl: qrCodeDataUrl,
-        printifyCompositeUrl: printifyCompositeUrl,
+        printifyCompositeUrl: primaryCompositeUrl, // Primary image for backward compat
+        placementImages, // Per-placement images map
       });
       
       // If saving to store, also create a product catalog entry with StoreName/Segment category

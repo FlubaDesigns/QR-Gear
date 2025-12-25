@@ -1481,7 +1481,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         productId: selectedItemId,
         productName: catalogDetails.blueprint?.title || "Custom Product",
         productImage: catalogDetails.imageUrl || "",
-        placements: Array.from(selectedPlacements),
+        placements: selectedPlacements, // Array of placement IDs
+        placementConfigs, // Map of placement ID to mode ('full' | 'qr-only')
         backgroundImage: finalBackgroundUrl,
         topText: headerEnabled ? {
           text: headerText,

@@ -146,6 +146,8 @@ export const customDesigns = pgTable("custom_designs", {
   productName: text("product_name").notNull(),
   productImage: text("product_image"),
   placements: text("placements").array().notNull(),
+  placementConfigs: jsonb("placement_configs"), // {placementId: 'full' | 'qr-only'}
+  placementImages: jsonb("placement_images"), // {placementId: 'imageUrl'}
   backgroundImageUrl: text("background_image_url"),
   backgroundAssetId: varchar("background_asset_id").references(() => libraryAssets.id), // link to library asset
   topText: jsonb("top_text"), // {text, fontFamily, fontSize} - for PHYSICAL PRINT
