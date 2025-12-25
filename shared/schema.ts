@@ -351,6 +351,7 @@ export const hostingTiers = pgTable("hosting_tiers", {
   durationDays: integer("duration_days").notNull(),
   isIncluded: boolean("is_included").default(false),
   priceUpcharge: decimal("price_upcharge", { precision: 10, scale: 2 }).default("0"),
+  videoPriceUpcharge: decimal("video_price_upcharge", { precision: 10, scale: 2 }).default("0"),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
 });

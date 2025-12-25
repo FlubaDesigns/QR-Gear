@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuestCart } from "@/hooks/useGuestCart";
@@ -135,6 +136,7 @@ export default function Creator() {
   const [dynamicHostingTier, setDynamicHostingTier] = useState<string>("1_year");
   const [selectedSize, setSelectedSize] = useState("");
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [contentRightsConfirmed, setContentRightsConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Track if we need to regenerate after current mutation completes
@@ -912,11 +914,27 @@ export default function Creator() {
                             data-testid="textarea-image-description"
                           />
                         </div>
+                        <div className="flex items-start gap-3 p-3 border rounded-md bg-muted/30">
+                          <Checkbox
+                            id="content-rights"
+                            checked={contentRightsConfirmed}
+                            onCheckedChange={(checked) => setContentRightsConfirmed(checked === true)}
+                            className="mt-0.5"
+                            data-testid="checkbox-content-rights"
+                          />
+                          <Label 
+                            htmlFor="content-rights" 
+                            className="text-sm leading-relaxed cursor-pointer"
+                          >
+                            I confirm that I own this content or have the legal right to use it. 
+                            I understand that QR Gear is not responsible for any copyright or intellectual property issues.
+                          </Label>
+                        </div>
                         <Button
                           variant="outline"
                           className="w-full h-24 border-dashed"
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadImageMutation.isPending}
+                          disabled={uploadImageMutation.isPending || !contentRightsConfirmed}
                           data-testid="button-upload-image"
                         >
                           {uploadImageMutation.isPending ? (
@@ -932,6 +950,11 @@ export default function Creator() {
                             </div>
                           )}
                         </Button>
+                        {!contentRightsConfirmed && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            Please confirm content ownership above to enable upload
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-md">
                           <Badge variant="outline" className="text-xs">Included</Badge>
                           <span className="text-sm">1-year image hosting included in price</span>
@@ -953,6 +976,7 @@ export default function Creator() {
                               setQrContent("");
                               setQrCodeImage("");
                               setOverlayText("");
+                              setContentRightsConfirmed(false);
                             }}
                             data-testid="button-remove-upload"
                           >
@@ -1167,6 +1191,23 @@ export default function Creator() {
                             </button>
                           ))}
                         </div>
+                      </div>
+
+                      <div className="flex items-start gap-3 p-3 border rounded-md bg-muted/30">
+                        <Checkbox
+                          id="dynamic-content-rights"
+                          checked={contentRightsConfirmed}
+                          onCheckedChange={(checked) => setContentRightsConfirmed(checked === true)}
+                          className="mt-0.5"
+                          data-testid="checkbox-dynamic-content-rights"
+                        />
+                        <Label 
+                          htmlFor="dynamic-content-rights" 
+                          className="text-sm leading-relaxed cursor-pointer"
+                        >
+                          I understand that any content I upload must be owned by me or I must have the legal right to use it.
+                          QR Gear is not responsible for any copyright or intellectual property issues.
+                        </Label>
                       </div>
 
                       <p className="text-xs text-muted-foreground">
