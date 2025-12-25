@@ -3573,8 +3573,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
 
       {/* Library Picker Dialog - Backgrounds & Templates with filters */}
       <Dialog open={libraryPickerOpen} onOpenChange={setLibraryPickerOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] h-[92vh] !max-h-[92vh] flex flex-col overflow-hidden">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl w-[95vw] h-[92vh] !max-h-[92vh] flex flex-col p-4">
+          <DialogHeader className="flex-shrink-0 pb-2">
             <DialogTitle className="text-xl">Library</DialogTitle>
             <DialogDescription>
               Select a background or template from your library
@@ -3582,8 +3582,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
           </DialogHeader>
           
           {/* Tabs */}
-          <Tabs value={libraryPickerTab} onValueChange={(v) => setLibraryPickerTab(v as "backgrounds" | "templates")} className="flex-1 flex flex-col min-h-0">
-            <TabsList className="grid w-full grid-cols-2 h-12">
+          <Tabs value={libraryPickerTab} onValueChange={(v) => setLibraryPickerTab(v as "backgrounds" | "templates")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <TabsList className="grid w-full grid-cols-2 h-12 flex-shrink-0">
               <TabsTrigger value="backgrounds" className="text-base h-10" data-testid="tab-library-backgrounds">
                 <FolderOpen className="h-4 w-4 mr-2" />
                 Backgrounds
@@ -3595,7 +3595,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             </TabsList>
             
             {/* Filters */}
-            <div className="flex flex-wrap gap-2 py-3">
+            <div className="flex flex-wrap gap-2 py-2 flex-shrink-0">
               <Select value={libraryFilterSeason} onValueChange={setLibraryFilterSeason}>
                 <SelectTrigger className="w-36 h-10" data-testid="select-library-season">
                   <SelectValue placeholder="Season" />
@@ -3629,7 +3629,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             </div>
             
             {/* Backgrounds Tab Content */}
-            <TabsContent value="backgrounds" className="flex-1 overflow-y-auto mt-0 min-h-0">
+            <TabsContent value="backgrounds" className="flex-1 overflow-y-auto mt-0">
               {filteredBackgrounds.length === 0 ? (
                 <div className="text-center py-12">
                   <FolderOpen className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -3697,7 +3697,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
             </TabsContent>
             
             {/* Templates Tab Content */}
-            <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0 min-h-0">
+            <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0">
               {libraryTemplates.length === 0 ? (
                 <div className="text-center py-12">
                   <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
