@@ -211,12 +211,14 @@ function HostingTiersSection() {
   const { toast } = useToast();
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState("");
+  const [editVideoPrice, setEditVideoPrice] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<HostingTier | null>(null);
   const [newTier, setNewTier] = useState({
     name: "",
     durationDays: 365,
     priceUpcharge: "0",
+    videoPriceUpcharge: "0",
   });
 
   const { data: tiers, isLoading } = useQuery<HostingTier[]>({
@@ -248,12 +250,12 @@ function HostingTiersSection() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: { code: string; name: string; durationDays: number; priceUpcharge: string }) =>
+    mutationFn: (data: { code: string; name: string; durationDays: number; priceUpcharge: string; videoPriceUpcharge: string }) =>
       apiRequest("POST", "/api/admin/hosting-tiers", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/hosting-tiers"] });
       setShowAddDialog(false);
-      setNewTier({ name: "", durationDays: 365, priceUpcharge: "0" });
+      setNewTier({ name: "", durationDays: 365, priceUpcharge: "0", videoPriceUpcharge: "0" });
       toast({ title: "Success", description: "New tier created." });
     },
     onError: () => {
@@ -276,10 +278,11 @@ function HostingTiersSection() {
   function startEdit(tier: HostingTier) {
     setEditingTier(tier.id);
     setEditPrice(tier.priceUpcharge || "0");
+    setEditVideoPrice(tier.videoPriceUpcharge || "0");
   }
 
   function saveEdit(id: string) {
-    updateMutation.mutate({ id, updates: { priceUpcharge: editPrice } });
+    updateMutation.mutate({ id, updates: { priceUpcharge: editPrice, videoPriceUpcharge: editVideoPrice } });
   }
 
   function toggleActive(tier: HostingTier) {
@@ -297,6 +300,7 @@ function HostingTiersSection() {
       name: newTier.name.trim(),
       durationDays: newTier.durationDays,
       priceUpcharge: newTier.priceUpcharge,
+      videoPriceUpcharge: newTier.videoPriceUpcharge,
     });
   }
 
@@ -337,7 +341,7 @@ function HostingTiersSection() {
             )}
           </div>
           <CardDescription>
-            Set pricing for QR content hosting (images, landing pages). Toggle tiers on/off to control which options customers see.
+            Set pricing for QR content hosting. Video hosting costs more than image hosting. Toggle tiers on/off to control which options customers see.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -395,15 +399,29 @@ function HostingTiersSection() {
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {editingTier === tier.id ? (
                       <>
-                        <div className="flex items-center gap-1">
-                          <span className="text-lg font-bold">$</span>
-                          <Input
-                            type="number"
-                            value={editPrice}
-                            onChange={(e) => setEditPrice(e.target.value)}
-                            className="w-24 h-12 text-lg font-bold"
-                            data-testid={`input-price-${tier.code}`}
-                          />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-muted-foreground w-12">Image:</span>
+                            <span className="text-lg font-bold">$</span>
+                            <Input
+                              type="number"
+                              value={editPrice}
+                              onChange={(e) => setEditPrice(e.target.value)}
+                              className="w-20 h-12 text-lg font-bold"
+                              data-testid={`input-price-${tier.code}`}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-muted-foreground w-12">Video:</span>
+                            <span className="text-lg font-bold">$</span>
+                            <Input
+                              type="number"
+                              value={editVideoPrice}
+                              onChange={(e) => setEditVideoPrice(e.target.value)}
+                              className="w-20 h-12 text-lg font-bold"
+                              data-testid={`input-video-price-${tier.code}`}
+                            />
+                          </div>
                         </div>
                         <Button 
                           className="h-12"
@@ -424,9 +442,16 @@ function HostingTiersSection() {
                       </>
                     ) : (
                       <>
-                        <span className="text-2xl font-bold text-primary min-w-[60px]">
-                          ${tier.priceUpcharge || "0"}
-                        </span>
+                        <div className="flex flex-col gap-1 text-right">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Image:</span>
+                            <span className="text-xl font-bold text-primary">${tier.priceUpcharge || "0"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Video:</span>
+                            <span className="text-lg font-semibold text-orange-600 dark:text-orange-400">${tier.videoPriceUpcharge || "0"}</span>
+                          </div>
+                        </div>
                         <Button 
                           className="h-12"
                           variant="outline"
@@ -491,7 +516,7 @@ function HostingTiersSection() {
               <p className="text-xs text-muted-foreground">Use 36500 for "Forever" (100 years)</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tier-price">Price Upcharge ($)</Label>
+              <Label htmlFor="tier-price">Image Hosting Upcharge ($)</Label>
               <Input
                 id="tier-price"
                 type="number"
@@ -501,6 +526,20 @@ function HostingTiersSection() {
                 className="h-12"
                 data-testid="input-new-tier-price"
               />
+              <p className="text-xs text-muted-foreground">Extra charge for image hosting at this tier</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tier-video-price">Video Hosting Upcharge ($)</Label>
+              <Input
+                id="tier-video-price"
+                type="number"
+                placeholder="0"
+                value={newTier.videoPriceUpcharge}
+                onChange={(e) => setNewTier({ ...newTier, videoPriceUpcharge: e.target.value })}
+                className="h-12"
+                data-testid="input-new-tier-video-price"
+              />
+              <p className="text-xs text-muted-foreground">Extra charge for video hosting (typically higher than image)</p>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
