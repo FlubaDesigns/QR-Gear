@@ -3018,18 +3018,35 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           {catalogDetails.basePrice > 0 ? `$${catalogDetails.basePrice.toFixed(2)}` : "Sync costs to view"}
                         </span>
                       </div>
-                      {qrContentType === "rich_media" && headerEnabled && headerText && (
-                        <div className="flex justify-between text-sm">
-                          <span>Header Text Upcharge:</span>
-                          <span className="font-medium">+${parseFloat(textUpcharge || "2").toFixed(2)}</span>
+                      
+                      {/* Per-placement breakdown */}
+                      {qrContentType === "rich_media" && (headerEnabled || footerEnabled) && (
+                        <div className="border-t pt-2 mt-2">
+                          <div className="text-xs text-muted-foreground mb-2">Text upcharges by placement:</div>
+                          {Object.entries(placementConfigs).map(([id, mode]) => {
+                            const placement = QR_PLACEMENTS.find(p => p.id === id);
+                            const hasTextUpcharge = mode === "full" && (
+                              (headerEnabled && headerText) || (footerEnabled && footerText)
+                            );
+                            const placementTextCost = hasTextUpcharge 
+                              ? ((headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
+                                 (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0))
+                              : 0;
+                            
+                            return (
+                              <div key={id} className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  {placement?.label || id} ({mode === "full" ? "Full" : "QR Only"})
+                                </span>
+                                <span className={mode === "full" && hasTextUpcharge ? "font-medium" : "text-muted-foreground"}>
+                                  {mode === "qr-only" ? "—" : (hasTextUpcharge ? `+$${placementTextCost.toFixed(2)}` : "—")}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
-                      {qrContentType === "rich_media" && footerEnabled && footerText && (
-                        <div className="flex justify-between text-sm">
-                          <span>Footer Text Upcharge:</span>
-                          <span className="font-medium">+${parseFloat(textUpcharge || "2").toFixed(2)}</span>
-                        </div>
-                      )}
+                      
                       {qrContentType === "rich_media" && (
                       <div className="flex justify-between text-sm">
                         <span>Hosting ({selectedTier?.name || {"1_year": "1 Year", "2_year": "2 Years", "3_year": "3 Years"}[selectedHostingTier] || "1 Year"}):</span>
@@ -3038,13 +3055,16 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       )}
                       
                       {(() => {
+                        // Calculate text upcharges only for "full" mode placements
+                        const fullArtworkPlacements = Object.entries(placementConfigs).filter(([, mode]) => mode === "full");
+                        const textUpchargePerPlacement = (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
+                                                        (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0);
+                        const totalTextUpcharge = qrContentType === "rich_media" ? fullArtworkPlacements.length * textUpchargePerPlacement : 0;
+                        
                         // For plain_text QR, no hosting or text upcharges
                         const baseCost = qrContentType === "plain_text" 
                           ? catalogDetails.basePrice 
-                          : catalogDetails.basePrice + 
-                            (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
-                            (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0) +
-                            hostingPrice;
+                          : catalogDetails.basePrice + totalTextUpcharge + hostingPrice;
                         const retailPrice = baseCost * (1 + markupPercent / 100) + markupFixed;
                         
                         return (
