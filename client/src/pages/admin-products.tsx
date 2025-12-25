@@ -726,10 +726,6 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [newStoreAreas, setNewStoreAreas] = useState<string[]>([""]);
   const [newSegmentName, setNewSegmentName] = useState("");
   const [addingSegment, setAddingSegment] = useState(false);
-  const [customStores, setCustomStores] = useState<StoreWithAreas[]>(() => {
-    const saved = localStorage.getItem("qrgear-custom-stores");
-    return saved ? JSON.parse(saved) : [];
-  });
   
   // Fetch partner stores from database for External store type
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null };
@@ -766,7 +762,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   }));
   
   const availableStores = storeType === "Internal" 
-    ? [...INTERNAL_STORES, ...customStores.filter(s => s.name.startsWith("Internal:"))]
+    ? [...INTERNAL_STORES]
     : storeType === "External"
     ? (() => {
         const combined = [...EXTERNAL_STORES, ...dbPartnerStores];
@@ -779,11 +775,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
       })()
     : [];
   
-  // Find current store's segments - prioritize customStores and dbPartnerStores (with segments) over predefined stores
+  // Find current store's segments - prioritize dbPartnerStores (with segments) over predefined stores
   const allStores: Array<{ name: string; segments?: string[]; areas?: string[] }> = [
     ...dbPartnerStores,  // Partner stores from DB first (have segments)
-    ...customStores,     // Custom stores with added segments second
-    ...INTERNAL_STORES,  // Predefined stores last (no segments)
+    ...INTERNAL_STORES,  // Predefined stores
     ...EXTERNAL_STORES, 
   ];
   const currentStoreData = allStores.find(
@@ -870,25 +865,26 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
         toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
       } else {
-        // For internal/custom stores, update localStorage
-        const storeIndex = customStores.findIndex(s => s.name === selectedStore);
-        if (storeIndex >= 0) {
-          const updated = [...customStores];
-          const currentAreas = updated[storeIndex].areas || [];
-          updated[storeIndex].areas = [...currentAreas, newSegmentName.trim()];
-          setCustomStores(updated);
-          localStorage.setItem("qrgear-custom-stores", JSON.stringify(updated));
-        } else {
-          // Add to INTERNAL/EXTERNAL predefined stores via custom stores
-          const newStore: StoreWithAreas = {
-            name: selectedStore,
-            areas: [newSegmentName.trim()],
-          };
-          const updated = [...customStores, newStore];
-          setCustomStores(updated);
-          localStorage.setItem("qrgear-custom-stores", JSON.stringify(updated));
+        // Store not in database yet - create it with this segment
+        const res = await fetch("/api/admin/partner-stores", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ 
+            name: selectedStore, 
+            availableSegments: [newSegmentName.trim()] 
+          }),
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to create store");
         }
-        toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
+        
+        // Invalidate and refetch to get updated data immediately
+        await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+        await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
+        toast({ title: "Success", description: `Created "${selectedStore}" with segment "${newSegmentName.trim()}"` });
       }
       setNewSegmentName("");
     } catch (error: any) {
@@ -2724,12 +2720,6 @@ function ProductsContent() {
   const [filterProductCategory, setFilterProductCategory] = useState<string>("");
   const [deleteStoreId, setDeleteStoreId] = useState<string | null>(null);
   const [deleteSegmentInfo, setDeleteSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
-  
-  const customStores: StoreWithAreas[] = (() => {
-    const saved = localStorage.getItem("qrgear-custom-stores");
-    return saved ? JSON.parse(saved) : [];
-  })();
-  
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null };
   const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
     queryKey: ["/api/admin/partner-stores"],
@@ -2741,7 +2731,7 @@ function ProductsContent() {
   }));
   
   const allExternalStores = (() => {
-    const combined = [...EXTERNAL_STORES, ...dbPartnerStores, ...customStores];
+    const combined = [...EXTERNAL_STORES, ...dbPartnerStores];
     const seen = new Set<string>();
     return combined.filter(s => {
       if (seen.has(s.name)) return false;
