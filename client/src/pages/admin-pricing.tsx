@@ -601,8 +601,17 @@ function CouponsSection() {
   }
 
   function handleCreateCoupon() {
-    if (!newCoupon.code.trim() || !newCoupon.name.trim() || !newCoupon.discountValue) {
-      toast({ title: "Error", description: "Please fill in all required fields.", variant: "destructive" });
+    const missingFields: string[] = [];
+    if (!newCoupon.code.trim()) missingFields.push("Coupon Code");
+    if (!newCoupon.name.trim()) missingFields.push("Internal Name");
+    if (!newCoupon.discountValue) missingFields.push(newCoupon.discountType === "percent" ? "Percentage" : "Amount");
+    
+    if (missingFields.length > 0) {
+      toast({ 
+        title: "Missing Information", 
+        description: `Please fill in: ${missingFields.join(", ")}`, 
+        variant: "destructive" 
+      });
       return;
     }
     createMutation.mutate({
@@ -733,14 +742,14 @@ function CouponsSection() {
 
       {/* Add Coupon Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Create Coupon</DialogTitle>
             <DialogDescription>Create a discount code that syncs with Stripe.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
             <div className="space-y-2">
-              <Label htmlFor="coupon-code">Coupon Code</Label>
+              <Label htmlFor="coupon-code">Coupon Code *</Label>
               <Input
                 id="coupon-code"
                 placeholder="e.g., SUMMER20"
@@ -753,7 +762,7 @@ function CouponsSection() {
               <p className="text-xs text-muted-foreground">Customers will enter this code at checkout</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="coupon-name">Internal Name</Label>
+              <Label htmlFor="coupon-name">Internal Name *</Label>
               <Input
                 id="coupon-name"
                 placeholder="e.g., Summer Sale 2025"
@@ -781,7 +790,7 @@ function CouponsSection() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="discount-value">
-                  {newCoupon.discountType === "percent" ? "Percentage" : "Amount ($)"}
+                  {newCoupon.discountType === "percent" ? "Percentage *" : "Amount ($) *"}
                 </Label>
                 <Input
                   id="discount-value"
@@ -798,7 +807,7 @@ function CouponsSection() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="max-redemptions">Usage Limit (optional)</Label>
+                <Label htmlFor="max-redemptions">Usage Limit</Label>
                 <Input
                   id="max-redemptions"
                   type="number"
@@ -811,7 +820,7 @@ function CouponsSection() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="valid-until">Expires (optional)</Label>
+                <Label htmlFor="valid-until">Expires</Label>
                 <Input
                   id="valid-until"
                   type="date"
@@ -823,9 +832,9 @@ function CouponsSection() {
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreateCoupon} disabled={createMutation.isPending} data-testid="button-create-coupon">
+          <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="h-12">Cancel</Button>
+            <Button onClick={handleCreateCoupon} disabled={createMutation.isPending} className="h-12" data-testid="button-create-coupon">
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Create Coupon
             </Button>
