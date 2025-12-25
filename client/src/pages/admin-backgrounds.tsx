@@ -946,10 +946,10 @@ export default function AdminBackgrounds() {
                 <Image className="h-6 w-6 text-amber-400" />
                 <div>
                   <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    Backgrounds
+                    Library
                   </h1>
                   <p className="text-xs text-slate-400">
-                    Manage background images
+                    Manage templates and backgrounds
                   </p>
                 </div>
               </div>
@@ -979,7 +979,7 @@ export default function AdminBackgrounds() {
         <nav className="mb-4 text-sm" aria-label="Breadcrumb">
           <Link href="/admin" className="text-muted-foreground hover:text-foreground" data-testid="link-breadcrumb-admin">Admin</Link>
           <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page" data-testid="text-breadcrumb-current">Backgrounds</span>
+          <span className="text-foreground font-medium" aria-current="page" data-testid="text-breadcrumb-current">Library</span>
         </nav>
 
         <Tabs defaultValue="templates" className="space-y-4">
@@ -988,15 +988,15 @@ export default function AdminBackgrounds() {
               <Image className="h-4 w-4 mr-2" />
               Templates
             </TabsTrigger>
-            <TabsTrigger value="library" data-testid="tab-library">
+            <TabsTrigger value="backgrounds" data-testid="tab-backgrounds">
               <FolderOpen className="h-4 w-4 mr-2" />
-              Library
+              Backgrounds
             </TabsTrigger>
           </TabsList>
           <TabsContent value="templates">
             <TemplatesContent />
           </TabsContent>
-          <TabsContent value="library">
+          <TabsContent value="backgrounds">
             <LibraryBackgroundsContent />
           </TabsContent>
         </Tabs>

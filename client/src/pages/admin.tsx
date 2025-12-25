@@ -29,8 +29,8 @@ const adminSections = [
     href: "/admin/pricing",
   },
   {
-    title: "Backgrounds",
-    description: "Upload and manage QR background images",
+    title: "Library",
+    description: "Manage templates and backgrounds",
     icon: Image,
     href: "/admin/backgrounds",
   },
