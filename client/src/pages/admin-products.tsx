@@ -2496,11 +2496,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                     </Button>
                   </div>
                 </div>
-                <DialogFooter className="flex gap-3 sm:justify-between">
+                <DialogFooter className="flex flex-row gap-3 w-full">
                   <Button 
                     variant="outline" 
                     size="lg"
-                    className="flex-1"
+                    className="flex-1 min-w-[100px]"
                     onClick={() => setAddStoreDialogOpen(false)}
                     data-testid="button-back-dialog"
                   >
@@ -2508,7 +2508,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </Button>
                   <Button 
                     size="lg"
-                    className="flex-1"
+                    className="flex-1 min-w-[100px]"
                     onClick={saveNewStore} 
                     data-testid="button-save-store"
                   >
