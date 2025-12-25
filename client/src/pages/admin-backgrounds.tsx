@@ -676,11 +676,11 @@ function LibraryBackgroundsContent() {
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingAsset ? "Edit Background" : "Add Library Background"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
             {!editingAsset && (
               <div className="space-y-2">
                 <Label htmlFor="library-bg-image">Background Image</Label>
