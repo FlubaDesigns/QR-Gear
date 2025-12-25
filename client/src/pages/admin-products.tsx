@@ -2987,14 +2987,26 @@ function ProductsContent() {
                         <span>{product.category}</span>
                         {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
                       </div>
-                      <div className="flex items-center gap-4 mt-3">
+                      <div className="flex items-center gap-4 mt-3 flex-wrap">
                         <div>
-                          <div className="text-[10px] text-muted-foreground uppercase">Base</div>
-                          <div className="text-sm font-semibold text-green-600">${product.basePrice}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">Cost</div>
+                          <div className="text-xs text-muted-foreground">${product.basePrice}</div>
                         </div>
+                        {parseFloat(product.textUpcharge || "0") > 0 && (
+                          <div>
+                            <div className="text-[10px] text-muted-foreground uppercase">Text</div>
+                            <div className="text-xs text-muted-foreground">+${product.textUpcharge}</div>
+                          </div>
+                        )}
                         <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
-                          <div className="text-sm font-medium">{product.markupPercent || 0}%</div>
+                          <div className="text-xs text-muted-foreground">{product.markupPercent || 25}%</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-muted-foreground uppercase">Customer Price</div>
+                          <div className="text-lg font-bold text-green-600">
+                            ${((parseFloat(product.basePrice) + parseFloat(product.textUpcharge || "0")) * (1 + (parseFloat(product.markupPercent || "25") / 100))).toFixed(2)}
+                          </div>
                         </div>
                       </div>
                     </div>
