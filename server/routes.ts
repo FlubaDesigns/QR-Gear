@@ -1,8 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { eq, and, or, isNull, lte, gte } from "drizzle-orm";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
-import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema } from "@shared/schema";
+import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema, productBundles, bundleItems, masterProducts, products } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants, detectCategory } from "./lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
@@ -4592,6 +4594,238 @@ ${allPages.map(page => `  <url>
       });
 
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ======== Cross-Sell Bundles ========
+  
+  // Get all bundles
+  app.get("/api/admin/orchestration/bundles", isAdmin, async (req: any, res) => {
+    try {
+      const allBundles = await db.select().from(productBundles).orderBy(productBundles.displayOrder);
+      res.json(allBundles);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get bundle by ID with items
+  app.get("/api/admin/orchestration/bundles/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const bundle = await db.select().from(productBundles).where(eq(productBundles.id, id)).limit(1);
+      if (!bundle.length) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      const items = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, id)).orderBy(bundleItems.displayOrder);
+      res.json({ ...bundle[0], items });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create bundle
+  app.post("/api/admin/orchestration/bundles", isAdmin, async (req: any, res) => {
+    try {
+      const { items, ...bundleData } = req.body;
+      const [bundle] = await db.insert(productBundles).values(bundleData).returning();
+      
+      if (items && items.length > 0) {
+        const itemsWithBundleId = items.map((item: any) => ({
+          ...item,
+          bundleId: bundle.id,
+        }));
+        await db.insert(bundleItems).values(itemsWithBundleId);
+      }
+      
+      const finalItems = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, bundle.id));
+      res.json({ ...bundle, items: finalItems });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update bundle
+  app.patch("/api/admin/orchestration/bundles/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { items, ...bundleData } = req.body;
+      
+      const [bundle] = await db.update(productBundles)
+        .set({ ...bundleData, updatedAt: new Date() })
+        .where(eq(productBundles.id, id))
+        .returning();
+      
+      if (!bundle) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      
+      if (items !== undefined) {
+        await db.delete(bundleItems).where(eq(bundleItems.bundleId, id));
+        if (items.length > 0) {
+          const itemsWithBundleId = items.map((item: any) => ({
+            ...item,
+            bundleId: id,
+          }));
+          await db.insert(bundleItems).values(itemsWithBundleId);
+        }
+      }
+      
+      const finalItems = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, id));
+      res.json({ ...bundle, items: finalItems });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete bundle
+  app.delete("/api/admin/orchestration/bundles/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await db.delete(productBundles).where(eq(productBundles.id, id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Toggle bundle active status
+  app.post("/api/admin/orchestration/bundles/:id/toggle", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const [bundle] = await db.select().from(productBundles).where(eq(productBundles.id, id)).limit(1);
+      if (!bundle) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      const [updated] = await db.update(productBundles)
+        .set({ isActive: !bundle.isActive, updatedAt: new Date() })
+        .where(eq(productBundles.id, id))
+        .returning();
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get bundles for a product (for cross-sell display)
+  app.get("/api/bundles/for-product/:productId", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const now = new Date();
+      
+      const activeBundles = await db.select()
+        .from(productBundles)
+        .where(
+          and(
+            eq(productBundles.isActive, true),
+            or(
+              isNull(productBundles.startDate),
+              lte(productBundles.startDate, now)
+            ),
+            or(
+              isNull(productBundles.endDate),
+              gte(productBundles.endDate, now)
+            )
+          )
+        );
+      
+      const relevantBundles = activeBundles.filter(bundle => {
+        if (!bundle.triggerProductIds || bundle.triggerProductIds.length === 0) {
+          return true;
+        }
+        return bundle.triggerProductIds.includes(productId);
+      });
+      
+      const bundlesWithItems = await Promise.all(
+        relevantBundles.map(async bundle => {
+          const items = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, bundle.id));
+          return { ...bundle, items };
+        })
+      );
+      
+      res.json(bundlesWithItems);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Calculate bundle price
+  app.post("/api/bundles/:id/calculate", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { selectedItems } = req.body;
+      
+      const [bundle] = await db.select().from(productBundles).where(eq(productBundles.id, id)).limit(1);
+      if (!bundle) {
+        return res.status(404).json({ error: "Bundle not found" });
+      }
+      
+      const items = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, id));
+      
+      let totalRetailPrice = 0;
+      const itemDetails: any[] = [];
+      
+      for (const item of items) {
+        if (selectedItems && !selectedItems.includes(item.id)) continue;
+        
+        let itemPrice = 0;
+        let itemName = "";
+        
+        if (item.masterProductId) {
+          const [mp] = await db.select().from(masterProducts).where(eq(masterProducts.id, item.masterProductId)).limit(1);
+          if (mp && mp.baseRetailPrice) {
+            itemPrice = parseFloat(mp.baseRetailPrice);
+            itemName = mp.title;
+          }
+        } else if (item.productId) {
+          const [product] = await db.select().from(products).where(eq(products.id, item.productId)).limit(1);
+          if (product) {
+            itemPrice = parseFloat(product.price);
+            itemName = product.name;
+          }
+        }
+        
+        const qty = item.quantity || 1;
+        const itemDiscount = item.itemDiscountPercent ? parseFloat(item.itemDiscountPercent) / 100 : 0;
+        const discountedPrice = itemPrice * (1 - itemDiscount) * qty;
+        
+        totalRetailPrice += discountedPrice;
+        itemDetails.push({
+          itemId: item.id,
+          name: itemName,
+          unitPrice: itemPrice,
+          quantity: qty,
+          discount: itemDiscount * 100,
+          subtotal: discountedPrice,
+        });
+      }
+      
+      let bundlePrice = totalRetailPrice;
+      let savings = 0;
+      
+      if (bundle.pricingType === "fixed_price" && bundle.fixedPrice) {
+        bundlePrice = parseFloat(bundle.fixedPrice);
+        savings = totalRetailPrice - bundlePrice;
+      } else if (bundle.pricingType === "discount_percent" && bundle.discountPercent) {
+        const discount = parseFloat(bundle.discountPercent) / 100;
+        bundlePrice = totalRetailPrice * (1 - discount);
+        savings = totalRetailPrice - bundlePrice;
+      } else if (bundle.pricingType === "discount_amount" && bundle.discountAmount) {
+        bundlePrice = totalRetailPrice - parseFloat(bundle.discountAmount);
+        savings = parseFloat(bundle.discountAmount);
+      }
+      
+      res.json({
+        bundleId: bundle.id,
+        bundleName: bundle.name,
+        originalPrice: totalRetailPrice,
+        bundlePrice: Math.max(0, bundlePrice),
+        savings: Math.max(0, savings),
+        savingsPercent: totalRetailPrice > 0 ? (savings / totalRetailPrice) * 100 : 0,
+        items: itemDetails,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -940,6 +940,59 @@ export const repricingHistory = pgTable("repricing_history", {
   wasAutomatic: boolean("was_automatic").default(true),
 });
 
+// Cross-Sell Bundles - Product bundles for upselling and discounts
+export const productBundles = pgTable("product_bundles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  // Bundle type: 'fixed' (set items), 'pick' (choose N from list)
+  bundleType: text("bundle_type").notNull().default("fixed"),
+  // Display settings
+  displayImage: text("display_image"),
+  displayOrder: integer("display_order").default(0),
+  // Pricing strategy
+  pricingType: text("pricing_type").notNull().default("discount_percent"),
+  // For 'discount_percent': percentage off sum of items
+  // For 'fixed_price': exact bundle price
+  // For 'discount_amount': flat discount off sum
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
+  fixedPrice: decimal("fixed_price", { precision: 10, scale: 2 }),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
+  // For 'pick' bundles: min/max items customer must select
+  minItems: integer("min_items"),
+  maxItems: integer("max_items"),
+  // Visibility and status
+  isActive: boolean("is_active").default(true),
+  // Where this bundle is shown: 'cart', 'product_page', 'checkout', 'all'
+  displayLocations: text("display_locations").array().default(sql`ARRAY['cart']::text[]`),
+  // Optional: only show for specific products (JSON array of product IDs)
+  triggerProductIds: text("trigger_product_ids").array(),
+  // Scheduling
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Bundle Items - Products included in each bundle
+export const bundleItems = pgTable("bundle_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bundleId: varchar("bundle_id").notNull().references(() => productBundles.id, { onDelete: "cascade" }),
+  // Can reference either a master product or a legacy product
+  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
+  productId: integer("product_id"),
+  // Display order within the bundle
+  displayOrder: integer("display_order").default(0),
+  // Quantity of this item in the bundle
+  quantity: integer("quantity").default(1),
+  // For 'pick' bundles: is this item required or optional?
+  isRequired: boolean("is_required").default(false),
+  // Item-specific discount override (optional)
+  itemDiscountPercent: decimal("item_discount_percent", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas for orchestration tables
 export const insertMasterProductSchema = createInsertSchema(masterProducts).omit({
   id: true,
@@ -987,6 +1040,15 @@ export const insertRepricingRuleSchema = createInsertSchema(repricingRules).omit
 export const insertRepricingHistorySchema = createInsertSchema(repricingHistory).omit({
   id: true,
   appliedAt: true,
+});
+export const insertProductBundleSchema = createInsertSchema(productBundles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertBundleItemSchema = createInsertSchema(bundleItems).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Types
@@ -1112,3 +1174,9 @@ export type InsertRepricingRule = z.infer<typeof insertRepricingRuleSchema>;
 
 export type RepricingHistoryEntry = typeof repricingHistory.$inferSelect;
 export type InsertRepricingHistoryEntry = z.infer<typeof insertRepricingHistorySchema>;
+
+export type ProductBundle = typeof productBundles.$inferSelect;
+export type InsertProductBundle = z.infer<typeof insertProductBundleSchema>;
+
+export type BundleItem = typeof bundleItems.$inferSelect;
+export type InsertBundleItem = z.infer<typeof insertBundleItemSchema>;
