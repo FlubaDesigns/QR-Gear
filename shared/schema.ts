@@ -176,6 +176,13 @@ export const customDesigns = pgTable("custom_designs", {
   printifyCompositeUrl: text("printify_composite_url"),
   savedToLibrary: boolean("saved_to_library").default(false),
   savedToStore: boolean("saved_to_store").default(false),
+  // Template organization - for library templates
+  templateName: text("template_name"), // Custom display name (e.g., "Beach Scene 01")
+  templateCategory: text("template_category"), // Main category (e.g., "Seasonal", "Events", "Evergreen")
+  templateSubcategory: text("template_subcategory"), // Subcategory (e.g., "Summer", "Valentine's Day")
+  // For user/partner templates - their private sandbox
+  ownerUserId: varchar("owner_user_id").references(() => users.id),
+  campaignName: text("campaign_name"), // User's campaign/project folder (e.g., "12 Days of Deals")
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -183,6 +190,21 @@ export const customDesigns = pgTable("custom_designs", {
 export const insertCustomDesignSchema = createInsertSchema(customDesigns).omit({ createdAt: true, updatedAt: true });
 export type InsertCustomDesign = z.infer<typeof insertCustomDesignSchema>;
 export type CustomDesign = typeof customDesigns.$inferSelect;
+
+// Template categories for organizing library templates (admin can add new ones)
+// Supports hierarchical structure: Category > Subcategory
+export const templateCategories = pgTable("template_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // "Seasonal", "Summer", "Valentine's Day"
+  parentId: varchar("parent_id"), // null = top-level category, otherwise = subcategory
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTemplateCategorySchema = createInsertSchema(templateCategories).omit({ id: true, createdAt: true });
+export type InsertTemplateCategory = z.infer<typeof insertTemplateCategorySchema>;
+export type TemplateCategory = typeof templateCategories.$inferSelect;
 
 // Partner stores for embeddable widgets (Kingdom Connects, etc.)
 export const partnerStores = pgTable("partner_stores", {
