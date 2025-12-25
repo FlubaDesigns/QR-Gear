@@ -436,25 +436,21 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
           <Label className="text-sm font-medium mb-2 block">
             Colors {saving && <Loader2 className="w-3 h-3 inline animate-spin ml-1" />}
           </Label>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2">
             {colors.map(color => (
-              <button
-                key={color.name}
-                type="button"
-                onClick={() => toggleColor(color.name)}
-                disabled={saving}
-                className={`p-0.5 rounded transition-all ${
-                  enabledColors.has(color.name) 
-                    ? "ring-2 ring-primary ring-offset-1" 
-                    : "opacity-40 hover:opacity-70"
-                }`}
-                title={color.name}
-                aria-label={`${color.name} ${enabledColors.has(color.name) ? "(enabled)" : "(disabled)"}`}
-                aria-pressed={enabledColors.has(color.name)}
-                data-testid={`button-color-${product.id}-${color.name}`}
-              >
+              <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                <Switch
+                  id={`color-${product.id}-${color.name}`}
+                  checked={enabledColors.has(color.name)}
+                  onCheckedChange={() => toggleColor(color.name)}
+                  disabled={saving}
+                  data-testid={`switch-color-${product.id}-${color.name}`}
+                />
                 <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-5 h-5" />
-              </button>
+                <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
+                  {color.name}
+                </Label>
+              </div>
             ))}
           </div>
         </div>
