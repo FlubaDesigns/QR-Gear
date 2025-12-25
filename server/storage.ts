@@ -56,6 +56,14 @@ import type {
   InsertCustomDesign,
   LibraryAsset,
   InsertLibraryAsset,
+  MasterProduct,
+  InsertMasterProduct,
+  ProductDesignVersion,
+  InsertProductDesignVersion,
+  ChannelConfig,
+  InsertChannelConfig,
+  ChannelPublishState,
+  InsertChannelPublishState,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -256,6 +264,30 @@ export interface IStorage {
   updateLibraryAsset(id: string, asset: Partial<InsertLibraryAsset>): Promise<LibraryAsset | undefined>;
   deleteLibraryAsset(id: string): Promise<void>;
   incrementLibraryAssetUsage(id: string): Promise<void>;
+
+  // Orchestration: Master Product operations
+  getAllMasterProducts(): Promise<MasterProduct[]>;
+  getMasterProduct(id: string): Promise<MasterProduct | undefined>;
+  createMasterProduct(product: InsertMasterProduct): Promise<MasterProduct>;
+  updateMasterProduct(id: string, product: Partial<InsertMasterProduct>): Promise<MasterProduct | undefined>;
+  deleteMasterProduct(id: string): Promise<void>;
+
+  // Orchestration: Design Version operations
+  getDesignVersions(masterProductId: string): Promise<ProductDesignVersion[]>;
+  getActiveDesignVersion(masterProductId: string): Promise<ProductDesignVersion | undefined>;
+  createDesignVersion(version: InsertProductDesignVersion): Promise<ProductDesignVersion>;
+  updateDesignVersion(id: string, version: Partial<InsertProductDesignVersion>): Promise<ProductDesignVersion | undefined>;
+
+  // Orchestration: Channel Config operations
+  getAllChannelConfigs(): Promise<ChannelConfig[]>;
+  getChannelConfig(channelType: string): Promise<ChannelConfig | undefined>;
+  createChannelConfig(config: InsertChannelConfig): Promise<ChannelConfig>;
+  updateChannelConfig(channelType: string, config: Partial<InsertChannelConfig>): Promise<ChannelConfig | undefined>;
+
+  // Orchestration: Publish State operations
+  getPublishStates(masterProductId: string): Promise<ChannelPublishState[]>;
+  getPublishState(masterProductId: string, channelType: string): Promise<ChannelPublishState | undefined>;
+  upsertPublishState(state: InsertChannelPublishState): Promise<ChannelPublishState>;
 }
 
 export class DbStorage implements IStorage {
@@ -1269,6 +1301,89 @@ export class DbStorage implements IStorage {
     await this.db.update(schema.libraryAssets)
       .set({ usageCount: sql`${schema.libraryAssets.usageCount} + 1` })
       .where(eq(schema.libraryAssets.id, id));
+  }
+
+  // Orchestration: Master Product operations
+  async getAllMasterProducts(): Promise<MasterProduct[]> {
+    return this.db.select().from(schema.masterProducts).orderBy(schema.masterProducts.createdAt);
+  }
+
+  async getMasterProduct(id: string): Promise<MasterProduct | undefined> {
+    const [product] = await this.db.select().from(schema.masterProducts).where(eq(schema.masterProducts.id, id));
+    return product;
+  }
+
+  async createMasterProduct(product: InsertMasterProduct): Promise<MasterProduct> {
+    const [newProduct] = await this.db.insert(schema.masterProducts).values(product).returning();
+    return newProduct;
+  }
+
+  async updateMasterProduct(id: string, product: Partial<InsertMasterProduct>): Promise<MasterProduct | undefined> {
+    const [updated] = await this.db.update(schema.masterProducts).set({ ...product, updatedAt: new Date() }).where(eq(schema.masterProducts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteMasterProduct(id: string): Promise<void> {
+    await this.db.delete(schema.masterProducts).where(eq(schema.masterProducts.id, id));
+  }
+
+  // Orchestration: Design Version operations
+  async getDesignVersions(masterProductId: string): Promise<ProductDesignVersion[]> {
+    return this.db.select().from(schema.productDesignVersions).where(eq(schema.productDesignVersions.masterProductId, masterProductId)).orderBy(schema.productDesignVersions.versionNumber);
+  }
+
+  async getActiveDesignVersion(masterProductId: string): Promise<ProductDesignVersion | undefined> {
+    const [version] = await this.db.select().from(schema.productDesignVersions).where(and(eq(schema.productDesignVersions.masterProductId, masterProductId), eq(schema.productDesignVersions.isActive, true)));
+    return version;
+  }
+
+  async createDesignVersion(version: InsertProductDesignVersion): Promise<ProductDesignVersion> {
+    const [newVersion] = await this.db.insert(schema.productDesignVersions).values(version).returning();
+    return newVersion;
+  }
+
+  async updateDesignVersion(id: string, version: Partial<InsertProductDesignVersion>): Promise<ProductDesignVersion | undefined> {
+    const [updated] = await this.db.update(schema.productDesignVersions).set(version).where(eq(schema.productDesignVersions.id, id)).returning();
+    return updated;
+  }
+
+  // Orchestration: Channel Config operations
+  async getAllChannelConfigs(): Promise<ChannelConfig[]> {
+    return this.db.select().from(schema.channelConfigs);
+  }
+
+  async getChannelConfig(channelType: string): Promise<ChannelConfig | undefined> {
+    const [config] = await this.db.select().from(schema.channelConfigs).where(eq(schema.channelConfigs.channelType, channelType));
+    return config;
+  }
+
+  async createChannelConfig(config: InsertChannelConfig): Promise<ChannelConfig> {
+    const [newConfig] = await this.db.insert(schema.channelConfigs).values(config).returning();
+    return newConfig;
+  }
+
+  async updateChannelConfig(channelType: string, config: Partial<InsertChannelConfig>): Promise<ChannelConfig | undefined> {
+    // Only update provided fields, don't auto-set lastHealthCheck
+    const [updated] = await this.db.update(schema.channelConfigs).set(config).where(eq(schema.channelConfigs.channelType, channelType)).returning();
+    return updated;
+  }
+
+  // Orchestration: Publish State operations
+  async getPublishStates(masterProductId: string): Promise<ChannelPublishState[]> {
+    return this.db.select().from(schema.channelPublishStates).where(eq(schema.channelPublishStates.masterProductId, masterProductId));
+  }
+
+  async getPublishState(masterProductId: string, channelType: string): Promise<ChannelPublishState | undefined> {
+    const [state] = await this.db.select().from(schema.channelPublishStates).where(and(eq(schema.channelPublishStates.masterProductId, masterProductId), eq(schema.channelPublishStates.channelType, channelType)));
+    return state;
+  }
+
+  async upsertPublishState(state: InsertChannelPublishState): Promise<ChannelPublishState> {
+    const [result] = await this.db.insert(schema.channelPublishStates).values(state).onConflictDoUpdate({
+      target: [schema.channelPublishStates.masterProductId, schema.channelPublishStates.channelType],
+      set: { ...state, lastSyncAt: new Date() }
+    }).returning();
+    return result;
   }
 }
 
@@ -2498,6 +2613,160 @@ class MemStorage implements IStorage {
       asset.usageCount = (asset.usageCount || 0) + 1;
       this.libraryAssets.set(id, asset);
     }
+  }
+
+  // Orchestration: Master Product operations (stub implementations for MemStorage)
+  private orchestrationMasterProducts = new Map<string, MasterProduct>();
+  private orchestrationDesignVersions = new Map<string, ProductDesignVersion>();
+  private orchestrationChannelConfigs = new Map<string, ChannelConfig>();
+  private orchestrationPublishStates = new Map<string, ChannelPublishState>();
+
+  async getAllMasterProducts(): Promise<MasterProduct[]> {
+    return Array.from(this.orchestrationMasterProducts.values());
+  }
+
+  async getMasterProduct(id: string): Promise<MasterProduct | undefined> {
+    return this.orchestrationMasterProducts.get(id);
+  }
+
+  async createMasterProduct(product: InsertMasterProduct): Promise<MasterProduct> {
+    const id = crypto.randomUUID();
+    const newProduct: MasterProduct = {
+      id,
+      sku: product.sku,
+      title: product.title,
+      description: product.description ?? null,
+      productType: product.productType,
+      currentDesignVersionId: null,
+      pricingProfileId: null,
+      baseCost: null,
+      retailPrice: null,
+      status: product.status ?? "draft",
+      channels: null,
+      tags: product.tags ?? [],
+      metadata: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.orchestrationMasterProducts.set(id, newProduct);
+    return newProduct;
+  }
+
+  async updateMasterProduct(id: string, product: Partial<InsertMasterProduct>): Promise<MasterProduct | undefined> {
+    const existing = this.orchestrationMasterProducts.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...product, updatedAt: new Date() };
+    this.orchestrationMasterProducts.set(id, updated);
+    return updated;
+  }
+
+  async deleteMasterProduct(id: string): Promise<void> {
+    this.orchestrationMasterProducts.delete(id);
+  }
+
+  async getDesignVersions(masterProductId: string): Promise<ProductDesignVersion[]> {
+    return Array.from(this.orchestrationDesignVersions.values()).filter(v => v.masterProductId === masterProductId);
+  }
+
+  async getActiveDesignVersion(masterProductId: string): Promise<ProductDesignVersion | undefined> {
+    return Array.from(this.orchestrationDesignVersions.values()).find(v => v.masterProductId === masterProductId && v.isActive);
+  }
+
+  async createDesignVersion(version: InsertProductDesignVersion): Promise<ProductDesignVersion> {
+    const id = crypto.randomUUID();
+    const newVersion: ProductDesignVersion = {
+      id,
+      masterProductId: version.masterProductId,
+      versionNumber: version.versionNumber ?? 1,
+      headerText: version.headerText ?? null,
+      headerStyle: version.headerStyle ?? null,
+      footerText: version.footerText ?? null,
+      footerStyle: version.footerStyle ?? null,
+      qrUrl: version.qrUrl,
+      renderedPngUrl: version.renderedPngUrl ?? null,
+      renderedSvgUrl: version.renderedSvgUrl ?? null,
+      qrCodeUrl: null,
+      placementImages: null,
+      isActive: version.isActive ?? true,
+      createdAt: new Date(),
+    };
+    this.orchestrationDesignVersions.set(id, newVersion);
+    return newVersion;
+  }
+
+  async updateDesignVersion(id: string, version: Partial<InsertProductDesignVersion>): Promise<ProductDesignVersion | undefined> {
+    const existing = this.orchestrationDesignVersions.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...version };
+    this.orchestrationDesignVersions.set(id, updated);
+    return updated;
+  }
+
+  async getAllChannelConfigs(): Promise<ChannelConfig[]> {
+    return Array.from(this.orchestrationChannelConfigs.values());
+  }
+
+  async getChannelConfig(channelType: string): Promise<ChannelConfig | undefined> {
+    return this.orchestrationChannelConfigs.get(channelType);
+  }
+
+  async createChannelConfig(config: InsertChannelConfig): Promise<ChannelConfig> {
+    const id = crypto.randomUUID();
+    const newConfig: ChannelConfig = {
+      id,
+      channelType: config.channelType,
+      displayName: config.displayName,
+      isEnabled: config.isEnabled ?? false,
+      apiKeySecretName: config.apiKeySecretName ?? null,
+      apiSecretSecretName: null,
+      shopId: config.shopId ?? null,
+      rateLimit: 60,
+      rateLimitWindow: 60,
+      webhookSecret: null,
+      lastHealthCheck: null,
+      settings: config.settings ?? null,
+      createdAt: new Date(),
+    };
+    this.orchestrationChannelConfigs.set(config.channelType, newConfig);
+    return newConfig;
+  }
+
+  async updateChannelConfig(channelType: string, config: Partial<InsertChannelConfig>): Promise<ChannelConfig | undefined> {
+    const existing = this.orchestrationChannelConfigs.get(channelType);
+    if (!existing) return undefined;
+    // Only update provided fields, don't auto-set lastHealthCheck
+    const updated = { ...existing, ...config };
+    this.orchestrationChannelConfigs.set(channelType, updated);
+    return updated;
+  }
+
+  async getPublishStates(masterProductId: string): Promise<ChannelPublishState[]> {
+    return Array.from(this.orchestrationPublishStates.values()).filter(s => s.masterProductId === masterProductId);
+  }
+
+  async getPublishState(masterProductId: string, channelType: string): Promise<ChannelPublishState | undefined> {
+    return this.orchestrationPublishStates.get(`${masterProductId}-${channelType}`);
+  }
+
+  async upsertPublishState(state: InsertChannelPublishState): Promise<ChannelPublishState> {
+    const key = `${state.masterProductId}-${state.channelType}`;
+    const existing = this.orchestrationPublishStates.get(key);
+    const newState: ChannelPublishState = {
+      id: existing?.id ?? crypto.randomUUID(),
+      masterProductId: state.masterProductId,
+      designVersionId: state.designVersionId,
+      channelType: state.channelType,
+      externalProductId: state.externalProductId ?? null,
+      externalListingId: null,
+      status: state.status ?? "pending",
+      lastSyncAt: new Date(),
+      lastSyncError: state.lastSyncError ?? null,
+      externalUrl: null,
+      metadata: null,
+      createdAt: existing?.createdAt ?? new Date(),
+    };
+    this.orchestrationPublishStates.set(key, newState);
+    return newState;
   }
 }
 

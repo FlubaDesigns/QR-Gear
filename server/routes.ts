@@ -3804,6 +3804,251 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ ORCHESTRATION: MASTER PRODUCTS API ============
+  
+  app.get("/api/admin/orchestration/master-products", isAdmin, async (req: any, res) => {
+    try {
+      const products = await storage.getAllMasterProducts();
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/orchestration/master-products/:id", isAdmin, async (req: any, res) => {
+    try {
+      const product = await storage.getMasterProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Master product not found" });
+      }
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/orchestration/master-products", isAdmin, async (req: any, res) => {
+    try {
+      const { title, description, productType, tags, channels, pricingProfileId, baseCost, retailPrice } = req.body;
+      
+      if (!title || !productType) {
+        return res.status(400).json({ error: "Title and productType are required" });
+      }
+      
+      // Generate unified SKU: QRG-{type}-{seq}
+      const seq = Date.now().toString(36).toUpperCase();
+      const sku = `QRG-${productType.toUpperCase().slice(0, 3)}-${seq}`;
+      
+      const product = await storage.createMasterProduct({
+        sku,
+        title,
+        description: description || null,
+        productType,
+        tags: tags || [],
+        channels: channels || null,
+        pricingProfileId: pricingProfileId || null,
+        baseCost: baseCost || null,
+        retailPrice: retailPrice || null,
+        status: "draft",
+      });
+      
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/orchestration/master-products/:id", isAdmin, async (req: any, res) => {
+    try {
+      const id = req.params.id;
+      const updates = req.body;
+      
+      const product = await storage.updateMasterProduct(id, updates);
+      if (!product) {
+        return res.status(404).json({ error: "Master product not found" });
+      }
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/orchestration/master-products/:id", isAdmin, async (req: any, res) => {
+    try {
+      const id = req.params.id;
+      await storage.deleteMasterProduct(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ ORCHESTRATION: DESIGN VERSIONS API ============
+  
+  app.get("/api/admin/orchestration/master-products/:id/design-versions", isAdmin, async (req: any, res) => {
+    try {
+      const masterProductId = req.params.id;
+      const versions = await storage.getDesignVersions(masterProductId);
+      res.json(versions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/orchestration/master-products/:id/design-versions", isAdmin, async (req: any, res) => {
+    try {
+      const masterProductId = req.params.id;
+      const { headerText, headerStyle, footerText, footerStyle, qrUrl, renderedPngUrl, renderedSvgUrl, qrCodeUrl, placementImages } = req.body;
+      
+      if (!qrUrl) {
+        return res.status(400).json({ error: "qrUrl is required" });
+      }
+      
+      // Get existing versions to calculate next version number (immutable - no modifications to existing)
+      const existingVersions = await storage.getDesignVersions(masterProductId);
+      const versionNumber = existingVersions.length + 1;
+      
+      // Create new version as immutable snapshot (existing versions remain unchanged)
+      const version = await storage.createDesignVersion({
+        masterProductId,
+        versionNumber,
+        headerText: headerText || null,
+        headerStyle: headerStyle || null,
+        footerText: footerText || null,
+        footerStyle: footerStyle || null,
+        qrUrl,
+        renderedPngUrl: renderedPngUrl || null,
+        renderedSvgUrl: renderedSvgUrl || null,
+        qrCodeUrl: qrCodeUrl || null,
+        placementImages: placementImages || null,
+        isActive: true,
+      });
+      
+      // Update master product to point to new current version
+      await storage.updateMasterProduct(masterProductId, {
+        currentDesignVersionId: version.id,
+      });
+      
+      res.json(version);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ ORCHESTRATION: CHANNEL CONFIG API ============
+  
+  app.get("/api/admin/orchestration/channel-configs", isAdmin, async (req: any, res) => {
+    try {
+      const configs = await storage.getAllChannelConfigs();
+      res.json(configs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/orchestration/channel-configs/:channelType", isAdmin, async (req: any, res) => {
+    try {
+      const config = await storage.getChannelConfig(req.params.channelType);
+      if (!config) {
+        return res.status(404).json({ error: "Channel config not found" });
+      }
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/orchestration/channel-configs", isAdmin, async (req: any, res) => {
+    try {
+      const { channelType, displayName, isEnabled, apiKeySecretName, shopId, settings } = req.body;
+      
+      if (!channelType || !displayName) {
+        return res.status(400).json({ error: "channelType and displayName are required" });
+      }
+      
+      const config = await storage.createChannelConfig({
+        channelType,
+        displayName,
+        isEnabled: isEnabled ?? false,
+        apiKeySecretName: apiKeySecretName || null,
+        shopId: shopId || null,
+        settings: settings || {},
+      });
+      
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/orchestration/channel-configs/:channelType", isAdmin, async (req: any, res) => {
+    try {
+      const { displayName, isEnabled, apiKeySecretName, apiSecretSecretName, shopId, rateLimit, rateLimitWindow, webhookSecret, settings } = req.body;
+      
+      // Only include fields that were actually provided (don't update lastHealthCheck on config changes)
+      const updates: Record<string, unknown> = {};
+      if (displayName !== undefined) updates.displayName = displayName;
+      if (isEnabled !== undefined) updates.isEnabled = isEnabled;
+      if (apiKeySecretName !== undefined) updates.apiKeySecretName = apiKeySecretName;
+      if (apiSecretSecretName !== undefined) updates.apiSecretSecretName = apiSecretSecretName;
+      if (shopId !== undefined) updates.shopId = shopId;
+      if (rateLimit !== undefined) updates.rateLimit = rateLimit;
+      if (rateLimitWindow !== undefined) updates.rateLimitWindow = rateLimitWindow;
+      if (webhookSecret !== undefined) updates.webhookSecret = webhookSecret;
+      if (settings !== undefined) updates.settings = settings;
+      
+      const config = await storage.updateChannelConfig(req.params.channelType, updates);
+      
+      if (!config) {
+        return res.status(404).json({ error: "Channel config not found" });
+      }
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ ORCHESTRATION: PUBLISH STATE API ============
+  
+  app.get("/api/admin/orchestration/master-products/:id/publish-states", isAdmin, async (req: any, res) => {
+    try {
+      const masterProductId = req.params.id;
+      const states = await storage.getPublishStates(masterProductId);
+      res.json(states);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ ORCHESTRATION: PROVIDER HEALTH API ============
+  
+  app.get("/api/admin/orchestration/provider-health", isAdmin, async (req: any, res) => {
+    try {
+      const { adapterRegistry } = await import("./adapters");
+      const results: Record<string, any> = {};
+      
+      for (const adapter of adapterRegistry.getAllPrintProviders()) {
+        const health = await adapter.healthCheck();
+        results[adapter.providerType] = {
+          displayName: adapter.displayName,
+          ...health,
+        };
+      }
+      
+      for (const adapter of adapterRegistry.getAllMarketplaces()) {
+        const health = await adapter.healthCheck();
+        results[adapter.marketplaceType] = {
+          displayName: adapter.displayName,
+          ...health,
+        };
+      }
+      
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
