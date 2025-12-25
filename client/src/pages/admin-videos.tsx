@@ -24,7 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { LibraryAsset } from "@shared/schema";
 
 const SEASONS = [
-  { value: "", label: "No Season" },
+  { value: "none", label: "No Season" },
   { value: "spring", label: "Spring" },
   { value: "summer", label: "Summer" },
   { value: "fall", label: "Fall" },
@@ -32,7 +32,7 @@ const SEASONS = [
 ];
 
 const EVENTS = [
-  { value: "", label: "No Event" },
+  { value: "none", label: "No Event" },
   { value: "christmas", label: "Christmas" },
   { value: "easter", label: "Easter" },
   { value: "thanksgiving", label: "Thanksgiving" },
@@ -55,16 +55,16 @@ function VideosContent() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    season: "",
-    event: "",
+    season: "none",
+    event: "none",
     isActive: true,
     isFeatured: false,
   });
   const [uploading, setUploading] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
-  const [filterSeason, setFilterSeason] = useState("");
-  const [filterEvent, setFilterEvent] = useState("");
+  const [filterSeason, setFilterSeason] = useState("none");
+  const [filterEvent, setFilterEvent] = useState("none");
 
   const { data: assets = [], isLoading } = useQuery<LibraryAsset[]>({
     queryKey: ["/api/admin/library/admin", { assetType: "video", mediaType: "video" }],
@@ -77,8 +77,8 @@ function VideosContent() {
   });
 
   const filteredAssets = assets.filter((asset) => {
-    if (filterSeason && asset.season !== filterSeason) return false;
-    if (filterEvent && asset.event !== filterEvent) return false;
+    if (filterSeason !== "none" && asset.season !== filterSeason) return false;
+    if (filterEvent !== "none" && asset.event !== filterEvent) return false;
     return true;
   });
 
@@ -117,8 +117,8 @@ function VideosContent() {
     setFormData({
       name: "",
       description: "",
-      season: "",
-      event: "",
+      season: "none",
+      event: "none",
       isActive: true,
       isFeatured: false,
     });
@@ -131,8 +131,8 @@ function VideosContent() {
     setFormData({
       name: "",
       description: "",
-      season: "",
-      event: "",
+      season: "none",
+      event: "none",
       isActive: true,
       isFeatured: false,
     });
@@ -146,8 +146,8 @@ function VideosContent() {
     setFormData({
       name: asset.name,
       description: asset.description || "",
-      season: asset.season || "",
-      event: asset.event || "",
+      season: asset.season || "none",
+      event: asset.event || "none",
       isActive: asset.isActive ?? true,
       isFeatured: asset.isFeatured ?? false,
     });
@@ -182,8 +182,8 @@ function VideosContent() {
           data: {
             name: formData.name,
             description: formData.description || null,
-            season: formData.season || null,
-            event: formData.event || null,
+            season: formData.season === "none" ? null : formData.season,
+            event: formData.event === "none" ? null : formData.event,
             isActive: formData.isActive,
             isFeatured: formData.isFeatured,
           },
@@ -195,8 +195,8 @@ function VideosContent() {
         formDataObj.append("description", formData.description);
         formDataObj.append("assetType", "video");
         formDataObj.append("mediaType", "video");
-        formDataObj.append("season", formData.season);
-        formDataObj.append("event", formData.event);
+        if (formData.season !== "none") formDataObj.append("season", formData.season);
+        if (formData.event !== "none") formDataObj.append("event", formData.event);
 
         const response = await fetch("/api/admin/library/upload", {
           method: "POST",
@@ -408,7 +408,7 @@ function VideosContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {SEASONS.map((s) => (
-                      <SelectItem key={s.value || "none"} value={s.value || " "}>{s.label}</SelectItem>
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -424,7 +424,7 @@ function VideosContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {EVENTS.map((e) => (
-                      <SelectItem key={e.value || "none"} value={e.value || " "}>{e.label}</SelectItem>
+                      <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
