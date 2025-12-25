@@ -1790,7 +1790,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               {/* Row 1: Image + Name/Manufacturer/Flag/Price - stacked on mobile, side-by-side on larger */}
                               <div className="flex flex-col sm:flex-row gap-4 p-4">
                                 <div 
-                                  className="relative group cursor-pointer mx-auto sm:mx-0"
+                                  className="relative group cursor-pointer"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setZoomedImage({ url: item.imageUrl || "", title: item.title });
