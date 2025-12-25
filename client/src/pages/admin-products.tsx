@@ -107,37 +107,38 @@ interface CostSyncStatusData {
 
 function CatalogSyncSection() {
   const { toast } = useToast();
-  const [isSyncRunning, setIsSyncRunning] = useState(false);
-  const [isCostSyncRunning, setIsCostSyncRunning] = useState(false);
   
+  // Derive running state directly from API response
   const { data: syncStatus, refetch: refetchStatus, isLoading, isError, error } = useQuery<CatalogSyncStatus>({
     queryKey: ["/api/admin/catalog/sync-status"],
-    refetchInterval: isSyncRunning ? 5000 : false,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true,
     retry: 2,
-    staleTime: 60000,
+    staleTime: 30000,
   });
 
   const { data: costSyncStatus, refetch: refetchCostStatus } = useQuery<CostSyncStatusData>({
     queryKey: ["/api/admin/catalog/cost-sync-status"],
-    refetchInterval: isCostSyncRunning ? 3000 : false,
     refetchOnWindowFocus: false,
-    staleTime: 30000,
+    refetchOnMount: true,
+    staleTime: 10000,
   });
 
+  // Derive running states from API responses
+  const isSyncRunning = syncStatus?.latestSync?.status === 'running';
+  const isCostSyncRunning = costSyncStatus?.isRunning ?? false;
+
+  // Poll while syncing
   useEffect(() => {
-    if (costSyncStatus?.isRunning !== undefined) {
-      setIsCostSyncRunning(costSyncStatus.isRunning);
-    }
-  }, [costSyncStatus?.isRunning]);
-  
-  useEffect(() => {
-    const running = syncStatus?.latestSync?.status === 'running';
-    if (running !== isSyncRunning) {
-      setIsSyncRunning(running || false);
-    }
-  }, [syncStatus?.latestSync?.status, isSyncRunning]);
+    if (!isSyncRunning && !isCostSyncRunning) return;
+    
+    const interval = setInterval(() => {
+      if (isSyncRunning) refetchStatus();
+      if (isCostSyncRunning) refetchCostStatus();
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [isSyncRunning, isCostSyncRunning, refetchStatus, refetchCostStatus]);
   
   const syncMutation = useMutation({
     mutationFn: async () => {
@@ -158,9 +159,6 @@ function CatalogSyncSection() {
       const res = await apiRequest("POST", "/api/admin/catalog/sync-all-costs");
       return res.json();
     },
-    onMutate: () => {
-      setIsCostSyncRunning(true);
-    },
     onSuccess: (data) => {
       toast({ 
         title: "Cost sync started", 
@@ -170,11 +168,9 @@ function CatalogSyncSection() {
     },
     onError: (error: any) => {
       toast({ title: "Cost sync failed", description: error.message, variant: "destructive" });
-      setIsCostSyncRunning(false);
     },
   });
   
-  const isSyncing = syncStatus?.latestSync?.status === 'running';
   const lastSync = syncStatus?.latestSync;
   
   const formatDate = (dateStr: string) => {
@@ -256,10 +252,10 @@ function CatalogSyncSection() {
               variant="outline"
               size="sm"
               onClick={() => syncMutation.mutate()}
-              disabled={isSyncing || syncMutation.isPending}
+              disabled={isSyncRunning || syncMutation.isPending}
               data-testid="button-sync-catalog"
             >
-              {isSyncing ? (
+              {isSyncRunning ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
               ) : (
                 <><RefreshCw className="h-4 w-4 mr-2" /> Sync Catalog</>
@@ -281,7 +277,7 @@ function CatalogSyncSection() {
           </div>
         </div>
         
-        {isSyncing && (
+        {isSyncRunning && (
           <Progress value={undefined} className="mt-3 h-1" />
         )}
         {isCostSyncRunning && costSyncStatus?.currentSync && (
