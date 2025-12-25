@@ -2752,12 +2752,18 @@ function ProductsContent() {
     queryKey: ["/api/admin/products"],
   });
   
-  // Fetch global markup from admin settings
-  type AdminSettingsData = { globalMarkupPercent?: string };
+  // Fetch global markup and upcharges from admin settings
+  type AdminSettingsData = { 
+    globalMarkupPercent?: string;
+    globalQrProductionCost?: string;
+    textAboveUpcharge?: string;
+    textBelowUpcharge?: string;
+  };
   const { data: adminSettings } = useQuery<AdminSettingsData>({
     queryKey: ["/api/admin/settings"],
   });
   const globalMarkup = parseFloat(adminSettings?.globalMarkupPercent || "25");
+  const qrUpcharge = parseFloat(adminSettings?.globalQrProductionCost || "2");
   
   const selectedExternalStore = allExternalStores.find(s => s.name === filterSegment);
   const selectedInternalStore = INTERNAL_STORES.find(s => s.name === filterSegment);
@@ -3004,26 +3010,25 @@ function ProductsContent() {
                           <div className="text-[10px] text-muted-foreground uppercase">Cost</div>
                           <div className="text-xs text-muted-foreground">
                             {product.cachedMinCost ? (
-                              <>
-                                ${product.cachedMinCost.toFixed(2)}
-                                {product.cachedMaxCost && product.cachedMaxCost !== product.cachedMinCost && (
-                                  <span className="text-muted-foreground/60"> - ${product.cachedMaxCost.toFixed(2)}</span>
-                                )}
-                              </>
+                              `$${product.cachedMinCost.toFixed(2)}`
                             ) : (
-                              <span className="text-amber-500">No cost data</span>
+                              <span className="text-amber-500">No cost</span>
                             )}
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-muted-foreground uppercase">Markup</div>
-                          <div className="text-xs text-muted-foreground">{globalMarkup}%</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">+QR</div>
+                          <div className="text-xs text-muted-foreground">${qrUpcharge.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-muted-foreground uppercase">+{globalMarkup}%</div>
+                          <div className="text-xs text-muted-foreground">markup</div>
                         </div>
                         <div>
                           <div className="text-[10px] text-muted-foreground uppercase">Customer Price</div>
                           <div className="text-lg font-bold text-green-600">
                             {product.cachedMinCost ? (
-                              `$${(product.cachedMinCost * (1 + globalMarkup / 100)).toFixed(2)}`
+                              `$${((product.cachedMinCost + qrUpcharge) * (1 + globalMarkup / 100)).toFixed(2)}`
                             ) : (
                               <span className="text-amber-500">--</span>
                             )}
