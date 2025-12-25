@@ -147,6 +147,7 @@ export const customDesigns = pgTable("custom_designs", {
   productImage: text("product_image"),
   placements: text("placements").array().notNull(),
   backgroundImageUrl: text("background_image_url"),
+  backgroundAssetId: varchar("background_asset_id").references(() => libraryAssets.id), // link to library asset
   topText: jsonb("top_text"), // {text, fontFamily, fontSize} - for PHYSICAL PRINT
   bottomText: jsonb("bottom_text"), // {text, fontFamily, fontSize} - for PHYSICAL PRINT
   textUpcharge: decimal("text_upcharge", { precision: 10, scale: 2 }).default("2.00"),
@@ -405,6 +406,8 @@ export const libraryAssets = pgTable("library_assets", {
   season: text("season"), // 'christmas', 'easter', 'summer', etc.
   event: text("event"), // 'birthday', 'wedding', 'graduation', etc.
   tags: text("tags").array(), // additional searchable tags
+  visibleStoreSlugs: text("visible_store_slugs").array(), // which stores can see this asset (null = all)
+  visibleSegments: jsonb("visible_segments"), // segments per store, e.g., {"kingdom-connects": ["Religious", "Business"]}
   isActive: boolean("is_active").default(true),
   isFeatured: boolean("is_featured").default(false),
   sortOrder: integer("sort_order").default(0),
