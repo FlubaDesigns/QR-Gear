@@ -1464,6 +1464,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         segment: selectedSegment,
         isFeatured,
         isSeasonalPromo,
+        // Include pricing data for the product
+        basePrice: catalogDetails.basePrice || 0,
+        markupPercent,
+        markupFixed,
+        hostingPrice: qrContentType === "rich_media" ? hostingPrice : 0,
       };
       
       // Save custom design and get QR code
@@ -4339,15 +4344,22 @@ function ProductsContent() {
                         {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
                       </div>
                       {(() => {
+                        // Use stored customerPrice if available, otherwise calculate from baseCost
+                        const storedCustomerPrice = product.customerPrice ? Number(product.customerPrice) : null;
                         const effectiveCost = product.cachedMinCost ?? (Number(product.basePrice) || 0);
-                        const hasCost = effectiveCost > 0;
-                        const customerPrice = hasCost ? ((effectiveCost + qrUpcharge) * (1 + globalMarkup / 100)).toFixed(2) : null;
+                        const hasCost = effectiveCost > 0 || storedCustomerPrice !== null;
+                        
+                        // Use stored price if available, otherwise calculate
+                        const displayPrice = storedCustomerPrice !== null 
+                          ? storedCustomerPrice.toFixed(2)
+                          : (effectiveCost > 0 ? ((effectiveCost + qrUpcharge) * (1 + globalMarkup / 100)).toFixed(2) : null);
+                        
                         return (
                           <div className="flex items-center gap-4 mt-3 flex-wrap">
                             <div>
                               <div className="text-[10px] text-muted-foreground uppercase">Cost</div>
                               <div className="text-xs text-muted-foreground">
-                                {hasCost ? (
+                                {effectiveCost > 0 ? (
                                   `$${effectiveCost.toFixed(2)}`
                                 ) : (
                                   <span className="text-amber-500">No cost</span>
@@ -4365,8 +4377,8 @@ function ProductsContent() {
                             <div>
                               <div className="text-[10px] text-muted-foreground uppercase">Customer Price</div>
                               <div className="text-lg font-bold text-green-600">
-                                {customerPrice ? (
-                                  `$${customerPrice}`
+                                {displayPrice ? (
+                                  `$${displayPrice}`
                                 ) : (
                                   <span className="text-amber-500">--</span>
                                 )}

@@ -3410,6 +3410,11 @@ ${allPages.map(page => `  <url>
         isFeatured: z.boolean().optional().default(false),
         isSeasonalPromo: z.boolean().optional().default(false),
         saveTarget: z.enum(["library", "store", "both"]),
+        // Pricing data for product catalog entry
+        basePrice: z.number().optional().default(0),
+        markupPercent: z.number().optional().default(0),
+        markupFixed: z.number().optional().default(0),
+        hostingPrice: z.number().optional().default(0),
       });
       
       const validatedData = createSchema.parse(req.body);
@@ -3703,6 +3708,15 @@ ${allPages.map(page => `  <url>
         
         const productId = `custom_${design.id}`;
         
+        // Calculate total cost and customer price
+        // Base cost includes: base price + text upcharges + hosting (if rich_media)
+        const textUpchargeTotal = (validatedData.topText ? validatedData.textUpcharge : 0) + 
+                                  (validatedData.bottomText ? validatedData.textUpcharge : 0);
+        const totalCost = validatedData.basePrice + textUpchargeTotal + validatedData.hostingPrice;
+        
+        // Customer price = (total cost) * (1 + markup%) + fixed markup
+        const customerPrice = (totalCost * (1 + validatedData.markupPercent / 100)) + validatedData.markupFixed;
+        
         // Check if product already exists
         const existingProduct = await storage.getProduct(productId);
         
@@ -3712,6 +3726,10 @@ ${allPages.map(page => `  <url>
             name: validatedData.productName,
             description: `Custom QR design for ${categoryPath}`,
             category: categoryPath,
+            basePrice: String(totalCost.toFixed(2)),
+            customerPrice: String(customerPrice.toFixed(2)),
+            markupPercent: String(validatedData.markupPercent),
+            markupFixed: String(validatedData.markupFixed),
             imageUrl: validatedData.productImage || null,
             blueprintId: validatedData.productId || null,
             isEnabled: true,
@@ -3723,7 +3741,10 @@ ${allPages.map(page => `  <url>
             id: productId,
             name: validatedData.productName,
             description: `Custom QR design for ${categoryPath}`,
-            basePrice: "0",
+            basePrice: String(totalCost.toFixed(2)),
+            customerPrice: String(customerPrice.toFixed(2)),
+            markupPercent: String(validatedData.markupPercent),
+            markupFixed: String(validatedData.markupFixed),
             category: categoryPath,
             imageUrl: validatedData.productImage || null,
             blueprintId: validatedData.productId || null,
@@ -3732,7 +3753,7 @@ ${allPages.map(page => `  <url>
           });
         }
         
-        console.log(`[Custom Design] Created/updated product catalog entry: ${productId} in category: ${categoryPath}`);
+        console.log(`[Custom Design] Created/updated product catalog entry: ${productId} in category: ${categoryPath} with price $${customerPrice.toFixed(2)}`);
       }
       
       res.json(updatedDesign);

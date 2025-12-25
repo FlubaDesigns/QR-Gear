@@ -74,6 +74,7 @@ export const products = pgTable("products", {
   markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }).default("0"),
   markupFixed: decimal("markup_fixed", { precision: 10, scale: 2 }).default("0"),
   qrProductionCost: decimal("qr_production_cost", { precision: 10, scale: 2 }).default("0"),
+  customerPrice: decimal("customer_price", { precision: 10, scale: 2 }),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
