@@ -777,8 +777,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   // Fetch library templates (custom designs saved to library)
   interface LibraryTemplate {
     id: string;
+    productId: number;
     productName: string;
     productImage: string | null;
+    placements: string[] | null;
     backgroundImageUrl: string | null;
     topText: { text: string; fontFamily: string; fontSize: string } | null;
     bottomText: { text: string; fontFamily: string; fontSize: string } | null;
@@ -789,6 +791,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     segment: string | null;
     isFeatured: boolean | null;
     isSeasonalPromo: boolean | null;
+    landingOverlay: { enabled: boolean; title: string; description: string; position: string; fontFamily: string; color: string } | null;
     createdAt: string;
   }
   const { data: libraryTemplates = [] } = useQuery<LibraryTemplate[]>({
@@ -2995,8 +2998,16 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       key={template.id}
                       className="border-2 rounded-lg overflow-hidden cursor-pointer hover-elevate active-elevate-2 transition-transform"
                       onClick={() => {
-                        // Load template data into form fields
-                        // Header text
+                        // Load template DESIGN data into form fields
+                        // Note: We don't force the product selection - user picks their own product
+                        // Templates are about design content (text, fonts, background), not catalog items
+                        
+                        // Placements (if available, otherwise use default)
+                        if (template.placements && template.placements.length > 0) {
+                          setSelectedPlacements(new Set(template.placements));
+                        }
+                        
+                        // Header text - always reset to template values or clear
                         if (template.topText?.text) {
                           setHeaderEnabled(true);
                           setHeaderText(template.topText.text);
@@ -3005,8 +3016,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         } else {
                           setHeaderEnabled(false);
                           setHeaderText("");
+                          setHeaderFontFamily("Arial");
+                          setHeaderFontSize("18");
                         }
-                        // Footer text
+                        
+                        // Footer text - always reset to template values or clear
                         if (template.bottomText?.text) {
                           setFooterEnabled(true);
                           setFooterText(template.bottomText.text);
@@ -3015,13 +3029,36 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         } else {
                           setFooterEnabled(false);
                           setFooterText("");
+                          setFooterFontFamily("Arial");
+                          setFooterFontSize("16");
                         }
-                        // Background
+                        
+                        // Background - always reset
+                        setBackgroundImage(null);
                         if (template.backgroundImageUrl) {
-                          setBackgroundImage(null);
                           setBackgroundPreview(template.backgroundImageUrl);
+                        } else {
+                          setBackgroundPreview("");
                         }
-                        // Store/segment (optional - set if matching)
+                        
+                        // Landing overlay - fully reset to template values or clear
+                        if (template.landingOverlay?.enabled) {
+                          setLandingOverlayEnabled(true);
+                          setLandingTitle(template.landingOverlay.title || "");
+                          setLandingDescription(template.landingOverlay.description || "");
+                          setLandingPosition((template.landingOverlay.position as "top" | "bottom") || "top");
+                          setLandingFontFamily(template.landingOverlay.fontFamily || "Arial");
+                          setLandingColor(template.landingOverlay.color || "#FFFFFF");
+                        } else {
+                          setLandingOverlayEnabled(false);
+                          setLandingTitle("");
+                          setLandingDescription("");
+                          setLandingPosition("top");
+                          setLandingFontFamily("Arial");
+                          setLandingColor("#FFFFFF");
+                        }
+                        
+                        // Store/segment (optional - only set if matching store found)
                         if (template.storeType) {
                           setStoreType(template.storeType as StoreType);
                         }
@@ -3034,6 +3071,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         if (template.segment) {
                           setSelectedSegment(template.segment);
                         }
+                        
                         // Featured/Seasonal flags
                         setIsFeatured(template.isFeatured || false);
                         setIsSeasonalPromo(template.isSeasonalPromo || false);
@@ -3041,7 +3079,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         setLibraryPickerOpen(false);
                         toast({ 
                           title: "Template Loaded", 
-                          description: `"${template.productName}" loaded. Edit the fields below and save as new template.`,
+                          description: `"${template.productName}" design loaded. Select a product and customize below.`,
                           duration: 4000,
                         });
                       }}
