@@ -25,6 +25,9 @@ import AdminOrders from "@/pages/admin-orders";
 import StoreBuild from "@/pages/store-build";
 import CheckoutSuccess from "@/pages/checkout-success";
 import Customs from "@/pages/customs";
+import GiftShop from "@/pages/gift-shop";
+import GiftRedeem from "@/pages/gift-redeem";
+import AdminGifts from "@/pages/admin-gifts";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -47,11 +50,15 @@ function Router() {
       <Route path="/admin/partners" component={AdminPartners} />
       <Route path="/admin/orchestration" component={AdminOrchestration} />
       <Route path="/admin/orders" component={AdminOrders} />
+      <Route path="/admin/gifts" component={AdminGifts} />
       <Route path="/admin/sales/build" component={StoreBuild} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />
       <Route path="/customs/:id" component={Customs} />
+      <Route path="/gifts" component={GiftShop} />
+      <Route path="/gift/redeem" component={GiftRedeem} />
+      <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route component={NotFound} />
     </Switch>
   );
