@@ -758,10 +758,12 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [generatingPng, setGeneratingPng] = useState(false);
   // Inline background picker state (in Custom Builder)
   const [bgPickerExpanded, setBgPickerExpanded] = useState(false);
-  // QR content type: plain_text (offline, no hosting) vs rich_media (hosted landing page with background)
-  const [qrContentType, setQrContentType] = useState<"plain_text" | "rich_media" | null>(null);
+  // QR content type: plain_text (offline, no hosting) vs rich_media (hosted landing page with background) vs external_url (any custom URL with header/footer)
+  const [qrContentType, setQrContentType] = useState<"plain_text" | "rich_media" | "external_url" | null>(null);
   // Plain text QR content (URL or text to encode directly)
   const [plainTextQrContent, setPlainTextQrContent] = useState<string>("");
+  // External URL for external_url mode (custom URL that QR points to directly)
+  const [externalUrl, setExternalUrl] = useState<string>("");
   
   // Fetch render config (fonts and warp presets) for SVG text warp system
   interface RenderConfig {
@@ -1483,7 +1485,15 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         productImage: catalogDetails.imageUrl || "",
         placements: selectedPlacements, // Array of placement IDs
         placementConfigs, // Map of placement ID to mode ('full' | 'qr-only')
-        backgroundImage: finalBackgroundUrl,
+        // QR content type determines template variant and encoding
+        qrContentType,
+        plainTextQrContent: qrContentType === "plain_text" ? plainTextQrContent : undefined,
+        // Normalize external URL: add https:// if missing protocol before sending to API
+        externalUrl: qrContentType === "external_url" && externalUrl
+          ? (externalUrl.match(/^https?:\/\//) ? externalUrl : `https://${externalUrl}`)
+          : undefined,
+        // Background image (only for rich_media mode, not external_url)
+        backgroundImage: qrContentType === "rich_media" ? finalBackgroundUrl : null,
         topText: headerEnabled ? {
           text: headerText,
           fontFamily: headerFontFamily,
@@ -1567,6 +1577,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
       setLandingPosition("top");
       setLandingFontFamily("Arial");
       setLandingColor("#FFFFFF");
+      setExternalUrl("");
+      setPlainTextQrContent("");
       setSelectedItemId(null);
       setCatalogDetails(null);
       
@@ -1979,11 +1991,35 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         if (!selectedHostingTier) {
                           setSelectedHostingTier("1_year");
                         }
+                        // Clear external URL
+                        setExternalUrl("");
                       }}
                       data-testid="button-qr-rich-media"
                     >
                       <span className="font-bold text-base">Image / Video QR</span>
                       <span className="text-xs opacity-80 whitespace-normal">Hosted landing page - 1 year free</span>
+                    </Button>
+                    <Button
+                      variant={qrContentType === "external_url" ? "default" : "outline"}
+                      className={`min-h-16 py-3 text-base w-full flex flex-col items-center justify-center border-2 ${qrContentType === "external_url" ? "ring-2 ring-primary ring-offset-2 border-white/50" : "border-border"}`}
+                      onClick={() => {
+                        setQrContentType("external_url");
+                        // Clear background (not needed for external URL)
+                        setBackgroundImage(null);
+                        setBackgroundPreview("");
+                        setBgPickerExpanded(false);
+                        // Reset landing overlay (not used)
+                        setLandingOverlayEnabled(false);
+                        setLandingTitle("");
+                        setLandingDescription("");
+                        // Clear hosting tier (not needed) - explicitly reset to prevent stale values
+                        setSelectedHostingTier("");
+                        // Keep header/footer enabled - user can still style text
+                      }}
+                      data-testid="button-qr-external-url"
+                    >
+                      <span className="font-bold text-base">External URL QR</span>
+                      <span className="text-xs opacity-80 whitespace-normal">Your own URL with styled header/footer</span>
                     </Button>
                   </div>
                 </div>
@@ -2276,6 +2312,49 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
+                {/* External URL Input (only for external_url QR) */}
+                {selectedItemId && qrContentType === "external_url" && (
+                  <div className="space-y-3 p-4 border-2 border-primary/30 rounded-lg bg-primary/5">
+                    <Label className="font-semibold flex items-center gap-2">
+                      <ExternalLink className="h-4 w-4" />
+                      Your Custom URL
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enter any URL - when scanned, the QR code goes directly to this address.
+                    </p>
+                    <Input
+                      placeholder="https://yourbusiness.com/promo"
+                      value={externalUrl}
+                      onChange={(e) => setExternalUrl(e.target.value)}
+                      onBlur={(e) => {
+                        // Normalize URL on blur: add https:// if missing protocol and URL is valid
+                        const val = e.target.value.trim();
+                        if (val && !val.match(/^https?:\/\//) && val.match(/^[\w.-]+\.[a-z]{2,}/i)) {
+                          setExternalUrl(`https://${val}`);
+                        }
+                      }}
+                      className="h-12 text-base"
+                      data-testid="input-external-url"
+                    />
+                    {externalUrl && !externalUrl.match(/^https?:\/\/.+/) && externalUrl.includes('.') && (
+                      <p className="text-xs text-muted-foreground">
+                        Will be saved as: https://{externalUrl}
+                      </p>
+                    )}
+                    {externalUrl && !externalUrl.match(/^https?:\/\/.+/) && !externalUrl.includes('.') && (
+                      <p className="text-xs text-yellow-600">
+                        Please enter a valid URL (e.g., example.com or https://example.com)
+                      </p>
+                    )}
+                    <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                      <p className="font-medium text-green-600 mb-1">No hosting fee required!</p>
+                      <p className="text-muted-foreground">
+                        Your QR points directly to your URL. You can still add styled header/footer text to the product design.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
                 {/* 4. Background Image - Two Buttons Stacked (only for rich media QR) */}
                 {selectedItemId && qrContentType === "rich_media" && (
                   <div className="space-y-3">
@@ -2447,8 +2526,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
                 
-                {/* 5. Text Options with Rich SVG Warp Controls (only for rich media QR) */}
-                {selectedItemId && qrContentType === "rich_media" && (
+                {/* 5. Text Options with Rich SVG Warp Controls (for rich media QR and external URL QR) */}
+                {selectedItemId && (qrContentType === "rich_media" || qrContentType === "external_url") && (
                   <div className="space-y-4">
                     {/* Top Text (Header) with Warp */}
                     <div className="space-y-3 p-4 bg-background rounded-lg border">
@@ -3008,6 +3087,19 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       </div>
                     )}
                     
+                    {/* External URL QR notice */}
+                    {qrContentType === "external_url" && (
+                      <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 text-sm">
+                        <div className="flex items-center gap-2 font-medium text-green-700 dark:text-green-400">
+                          <ExternalLink className="h-4 w-4" />
+                          External URL QR - No hosting fee!
+                        </div>
+                        <p className="text-muted-foreground mt-1">
+                          QR points directly to your URL. Header/footer styling still included in print.
+                        </p>
+                      </div>
+                    )}
+                    
                     <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Base Production Cost (1st placement):</span>
@@ -3024,7 +3116,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                             const placement = QR_PLACEMENTS.find(p => p.id === id);
                             const isFirstPlacement = index === 0;
                             const additionalPlacementCost = 4.00; // Printify charges ~$4 per additional print area
-                            const hasTextUpcharge = mode === "full" && qrContentType === "rich_media" && (
+                            const hasTextUpcharge = mode === "full" && (qrContentType === "rich_media" || qrContentType === "external_url") && (
                               (headerEnabled && headerText) || (footerEnabled && footerText)
                             );
                             const placementTextCost = hasTextUpcharge 
@@ -3067,16 +3159,26 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         const fullArtworkPlacements = Object.entries(placementConfigs).filter(([, mode]) => mode === "full");
                         const textUpchargePerPlacement = (headerEnabled && headerText ? parseFloat(textUpcharge || "2") : 0) + 
                                                         (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0);
-                        const totalTextUpcharge = qrContentType === "rich_media" ? fullArtworkPlacements.length * textUpchargePerPlacement : 0;
+                        const totalTextUpcharge = (qrContentType === "rich_media" || qrContentType === "external_url") ? fullArtworkPlacements.length * textUpchargePerPlacement : 0;
                         
                         // Calculate additional placement costs ($4 per additional print area)
                         const additionalPlacementCount = Math.max(0, Object.keys(placementConfigs).length - 1);
                         const additionalPlacementCost = additionalPlacementCount * 4.00;
                         
-                        // For plain_text QR, no hosting or text upcharges but still charge for additional placements
-                        const baseCost = qrContentType === "plain_text" 
-                          ? catalogDetails.basePrice + additionalPlacementCost
-                          : catalogDetails.basePrice + additionalPlacementCost + totalTextUpcharge + hostingPrice;
+                        // Calculate final cost:
+                        // - plain_text: no hosting, no text upcharges
+                        // - external_url: no hosting, but text upcharges apply
+                        // - rich_media: hosting + text upcharges
+                        // Explicitly zero hosting for non-rich_media modes to prevent stale values
+                        const effectiveHostingPrice = qrContentType === "rich_media" ? hostingPrice : 0;
+                        let baseCost: number;
+                        if (qrContentType === "plain_text") {
+                          baseCost = catalogDetails.basePrice + additionalPlacementCost;
+                        } else if (qrContentType === "external_url") {
+                          baseCost = catalogDetails.basePrice + additionalPlacementCost + totalTextUpcharge; // No hosting fee
+                        } else {
+                          baseCost = catalogDetails.basePrice + additionalPlacementCost + totalTextUpcharge + effectiveHostingPrice;
+                        }
                         const retailPrice = baseCost * (1 + markupPercent / 100) + markupFixed;
                         
                         return (
@@ -3111,39 +3213,92 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   <div className="space-y-3 pt-4 border-t">
                     <Label className="font-semibold">Save Custom Design</Label>
                     <p className="text-xs text-muted-foreground">
-                      This will create a hosted page at /customs/[id] with your design and generate a QR code linking to it.
+                      {qrContentType === "external_url" 
+                        ? "This will create a QR code that points directly to your external URL."
+                        : qrContentType === "plain_text"
+                        ? "This will create a QR code with your text encoded directly (offline scannable)."
+                        : "This will create a hosted page at /customs/[id] with your design and generate a QR code linking to it."}
                     </p>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        className="w-full h-12"
-                        variant="outline"
-                        disabled={savingCustom}
-                        onClick={() => handleSaveCustomDesign("library")}
-                        data-testid="button-save-library"
-                      >
-                        {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderOpen className="h-4 w-4 mr-2" />}
-                        Save to Library Only
-                      </Button>
-                      <Button
-                        className="w-full h-12"
-                        variant="outline"
-                        disabled={savingCustom}
-                        onClick={() => handleSaveCustomDesign("store")}
-                        data-testid="button-save-store"
-                      >
-                        {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Store className="h-4 w-4 mr-2" />}
-                        Save to Store Only
-                      </Button>
-                      <Button
-                        className="w-full h-12"
-                        disabled={savingCustom}
-                        onClick={() => handleSaveCustomDesign("both")}
-                        data-testid="button-save-both"
-                      >
-                        {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-                        Save to Both Library & Store
-                      </Button>
-                    </div>
+                    
+                    {/* Validation warnings */}
+                    {(() => {
+                      const isExternalUrlInvalid = qrContentType === "external_url" && (!externalUrl || !externalUrl.trim());
+                      const isPlainTextInvalid = qrContentType === "plain_text" && (!plainTextQrContent || !plainTextQrContent.trim());
+                      const isExternalUrlFormatInvalid = qrContentType === "external_url" && externalUrl && !externalUrl.match(/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i);
+                      
+                      if (isExternalUrlInvalid) {
+                        return (
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700 text-sm text-yellow-800 dark:text-yellow-300">
+                            Please enter your external URL above to continue.
+                          </div>
+                        );
+                      }
+                      if (isExternalUrlFormatInvalid) {
+                        return (
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700 text-sm text-yellow-800 dark:text-yellow-300">
+                            Please enter a valid URL (e.g., https://example.com or example.com)
+                          </div>
+                        );
+                      }
+                      // Show normalized URL confirmation when valid
+                      if (qrContentType === "external_url" && externalUrl && externalUrl.trim() && externalUrl.match(/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i)) {
+                        const normalizedUrl = externalUrl.match(/^https?:\/\//) ? externalUrl : `https://${externalUrl}`;
+                        return (
+                          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-300 dark:border-green-700 text-sm text-green-800 dark:text-green-300">
+                            QR will link to: <code className="font-mono bg-green-100 dark:bg-green-800/50 px-1 rounded">{normalizedUrl}</code>
+                          </div>
+                        );
+                      }
+                      if (isPlainTextInvalid) {
+                        return (
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700 text-sm text-yellow-800 dark:text-yellow-300">
+                            Please enter QR code content above to continue.
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
+                    {(() => {
+                      // Calculate if form is valid
+                      const isExternalUrlValid = qrContentType !== "external_url" || (externalUrl && externalUrl.trim() && externalUrl.match(/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i));
+                      const isPlainTextValid = qrContentType !== "plain_text" || (plainTextQrContent && plainTextQrContent.trim());
+                      const canSave = isExternalUrlValid && isPlainTextValid && !savingCustom;
+                      
+                      return (
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            className="w-full h-12"
+                            variant="outline"
+                            disabled={!canSave}
+                            onClick={() => handleSaveCustomDesign("library")}
+                            data-testid="button-save-library"
+                          >
+                            {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderOpen className="h-4 w-4 mr-2" />}
+                            Save to Library Only
+                          </Button>
+                          <Button
+                            className="w-full h-12"
+                            variant="outline"
+                            disabled={!canSave}
+                            onClick={() => handleSaveCustomDesign("store")}
+                            data-testid="button-save-store"
+                          >
+                            {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Store className="h-4 w-4 mr-2" />}
+                            Save to Store Only
+                          </Button>
+                          <Button
+                            className="w-full h-12"
+                            disabled={!canSave}
+                            onClick={() => handleSaveCustomDesign("both")}
+                            data-testid="button-save-both"
+                          >
+                            {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                            Save to Both Library & Store
+                          </Button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
                 

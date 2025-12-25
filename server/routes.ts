@@ -3229,6 +3229,26 @@ ${allPages.map(page => `  <url>
         productImage: z.string().nullable().optional(),
         placements: z.array(z.string()).min(1),
         placementConfigs: z.record(z.string(), z.enum(["full", "qr-only"])).optional(), // per-placement mode
+        // QR content type: rich_media (hosted), plain_text (direct), external_url (user's URL)
+        qrContentType: z.enum(["rich_media", "plain_text", "external_url"]).optional().default("rich_media"),
+        plainTextQrContent: z.string().nullable().optional(), // For plain_text mode - encoded directly in QR
+        // For external_url mode - require a valid URL with proper domain structure
+        externalUrl: z.string().nullable().optional().refine(
+          (val) => {
+            if (!val) return true; // Allow null/empty (validated at runtime based on mode)
+            // Normalize: add https:// if missing protocol
+            const normalized = val.match(/^https?:\/\//) ? val : `https://${val}`;
+            // Validate URL structure: must have domain with TLD (e.g., example.com)
+            try {
+              const url = new URL(normalized);
+              // Must have a valid hostname with at least one dot (excludes localhost-style URLs)
+              return url.hostname.includes('.') && url.hostname.length > 3;
+            } catch {
+              return false;
+            }
+          },
+          { message: "Please enter a valid URL (e.g., https://example.com or example.com)" }
+        ),
         backgroundImage: z.string().nullable().optional(),
         topText: z.object({
           text: z.string(),
@@ -3269,6 +3289,24 @@ ${allPages.map(page => `  <url>
       });
       
       const validatedData = createSchema.parse(req.body);
+      
+      // Runtime validation: external_url mode requires a valid external URL
+      if (validatedData.qrContentType === "external_url") {
+        if (!validatedData.externalUrl || validatedData.externalUrl.trim() === "") {
+          return res.status(400).json({ 
+            error: "External URL is required when using External URL QR mode" 
+          });
+        }
+      }
+      
+      // Runtime validation: plain_text mode requires content
+      if (validatedData.qrContentType === "plain_text") {
+        if (!validatedData.plainTextQrContent || validatedData.plainTextQrContent.trim() === "") {
+          return res.status(400).json({ 
+            error: "QR content is required when using Plain Text QR mode" 
+          });
+        }
+      }
       
       // Generate descriptive slug: storename-segment-producttype-date
       const slugify = (str: string) => str?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || '';
@@ -3338,6 +3376,12 @@ ${allPages.map(page => `  <url>
       const finalPlacementConfigs = validatedData.placementConfigs || 
         Object.fromEntries(validatedData.placements.map(p => [p, "full"]));
       
+      // Determine template variant based on QR content type
+      // Values: 'plain-text', 'url' (hosted), 'external-url', 'dynamics'
+      const templateVariant = validatedData.qrContentType === "plain_text" ? "plain-text" 
+        : validatedData.qrContentType === "external_url" ? "external-url" 
+        : "url"; // rich_media uses 'url' for hosted landing page
+      
       const designData = {
         id: designId,
         productId: validatedData.productId,
@@ -3358,12 +3402,36 @@ ${allPages.map(page => `  <url>
         isSeasonalPromo: validatedData.isSeasonalPromo,
         savedToLibrary: validatedData.saveTarget === "library" || validatedData.saveTarget === "both",
         savedToStore: validatedData.saveTarget === "store" || validatedData.saveTarget === "both",
+        // New QR content type fields
+        templateVariant,
+        // Normalize external URL with https:// if missing protocol
+        externalUrl: validatedData.externalUrl 
+          ? (validatedData.externalUrl.match(/^https?:\/\//) 
+             ? validatedData.externalUrl 
+             : `https://${validatedData.externalUrl}`)
+          : null,
+        // Note: plainTextQrContent is not stored - it's encoded directly in the QR at generation time
       };
       
       const design = await storage.createCustomDesign(designData);
       
-      // Generate QR code URL that points to the hosted page
-      const qrUrl = `${baseUrl}/customs/${design.id}`;
+      // Determine QR code content based on content type:
+      // - rich_media: hosted landing page at /customs/:id
+      // - plain_text: direct content encoded in QR
+      // - external_url: user's external URL directly
+      let qrUrl: string;
+      if (validatedData.qrContentType === "external_url" && validatedData.externalUrl) {
+        // External URL mode: QR points directly to user's URL (normalized)
+        const extUrl = validatedData.externalUrl;
+        qrUrl = extUrl.match(/^https?:\/\//) ? extUrl : `https://${extUrl}`;
+      } else if (validatedData.qrContentType === "plain_text" && validatedData.plainTextQrContent) {
+        // Plain text mode: encode content directly in QR
+        qrUrl = validatedData.plainTextQrContent;
+      } else {
+        // Rich media mode (default): QR points to hosted page
+        qrUrl = `${baseUrl}/customs/${design.id}`;
+      }
+      
       const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
         width: 256,
         margin: 2,

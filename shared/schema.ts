@@ -160,7 +160,10 @@ export const customDesigns = pgTable("custom_designs", {
   // 'plain-text' = QR contains actual text (offline readable, up to ~2000 chars)
   // 'url' = QR links to hosted landing page with static content (image/text)
   // 'dynamics' = QR links to landing page showing cycling content based on schedule
-  templateVariant: text("template_variant").default("url"), // 'plain-text', 'url', 'dynamics'
+  // 'external-url' = QR links directly to any external URL (no landing page, keeps header/footer)
+  templateVariant: text("template_variant").default("url"), // 'plain-text', 'url', 'dynamics', 'external-url'
+  // For external-url variant: the custom URL the QR code points to
+  externalUrl: text("external_url"),
   // For dynamics variant: links to content set for cycling content
   dynamicContentSetId: varchar("dynamic_content_set_id"),
   storeType: text("store_type"), // 'Internal' or 'External'
