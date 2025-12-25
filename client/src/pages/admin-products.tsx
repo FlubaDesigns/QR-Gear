@@ -1819,7 +1819,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                               {/* Row 2: Price - full width */}
                               {details && !details.error && details.basePrice > 0 && (
                                 <div className="px-2 sm:px-4 pb-2">
-                                  <span className="text-base font-bold text-green-600">
+                                  <span className="text-lg font-bold text-green-600">
                                     {details.maxPrice && details.maxPrice > details.basePrice 
                                       ? `$${details.basePrice.toFixed(2)}–$${details.maxPrice.toFixed(2)}`
                                       : `$${details.basePrice.toFixed(2)}`}
