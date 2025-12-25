@@ -76,6 +76,7 @@ import type {
   InsertGiftRedemption,
   TemplateCategory,
   InsertTemplateCategory,
+  OrderUnified,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -320,9 +321,15 @@ export interface IStorage {
   getPublishState(masterProductId: string, channelType: string): Promise<ChannelPublishState | undefined>;
   upsertPublishState(state: InsertChannelPublishState): Promise<ChannelPublishState>;
 
+  // Batch retrieval operations for admin
+  getUsers(): Promise<User[]>;
+  getOrders(): Promise<OrderUnified[]>;
+  getProducts(): Promise<Product[]>;
+
   // Provider Health operations
   logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog>;
-  getProviderHealthLogs(providerType: string, limit?: number): Promise<ProviderHealthLog[]>;
+  getProviderHealthLogs(limit?: number): Promise<ProviderHealthLog[]>;
+  getProviderHealthLogsByType(providerType: string, limit?: number): Promise<ProviderHealthLog[]>;
   getLatestProviderHealth(providerType: string): Promise<ProviderHealthLog | undefined>;
   getAllLatestProviderHealth(): Promise<ProviderHealthLog[]>;
   getProviderHealthStats(providerType: string, hours?: number): Promise<{ uptimePercent: number; avgResponseTime: number; totalChecks: number }>;
@@ -1561,13 +1568,32 @@ export class DbStorage implements IStorage {
     return result;
   }
 
+  // Batch retrieval operations for admin
+  async getUsers(): Promise<User[]> {
+    return this.db.select().from(schema.users).orderBy(sql`${schema.users.createdAt} DESC`);
+  }
+
+  async getOrders(): Promise<OrderUnified[]> {
+    return this.db.select().from(schema.ordersUnified).orderBy(sql`${schema.ordersUnified.createdAt} DESC`);
+  }
+
+  async getProducts(): Promise<Product[]> {
+    return this.db.select().from(schema.products);
+  }
+
   // Provider Health operations
   async logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog> {
     const [result] = await this.db.insert(schema.providerHealthLog).values(log).returning();
     return result;
   }
 
-  async getProviderHealthLogs(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
+  async getProviderHealthLogs(limit: number = 100): Promise<ProviderHealthLog[]> {
+    return this.db.select().from(schema.providerHealthLog)
+      .orderBy(sql`${schema.providerHealthLog.checkTime} DESC`)
+      .limit(limit);
+  }
+
+  async getProviderHealthLogsByType(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
     return this.db.select().from(schema.providerHealthLog)
       .where(eq(schema.providerHealthLog.providerType, providerType))
       .orderBy(sql`${schema.providerHealthLog.checkTime} DESC`)
@@ -1713,6 +1739,7 @@ class MemStorage implements IStorage {
   private cartItems = new Map<string, CartItem>();
   private orders = new Map<string, Order>();
   private orderItems = new Map<string, OrderItem>();
+  private ordersUnified = new Map<string, OrderUnified>();
   private hostedImages = new Map<string, HostedImage>();
   private browsingHistory = new Map<string, BrowsingHistory>();
   private adminSettings: AdminSettings | undefined;
@@ -3226,6 +3253,23 @@ class MemStorage implements IStorage {
     return newState;
   }
 
+  // Batch retrieval operations for admin
+  async getUsers(): Promise<User[]> {
+    return Array.from(this.users.values()).sort((a, b) => 
+      (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
+    );
+  }
+
+  async getOrders(): Promise<OrderUnified[]> {
+    return Array.from(this.ordersUnified.values()).sort((a, b) => 
+      (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
+    );
+  }
+
+  async getProducts(): Promise<Product[]> {
+    return Array.from(this.products.values());
+  }
+
   // Provider Health operations
   async logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog> {
     const newLog: ProviderHealthLog = {
@@ -3247,7 +3291,13 @@ class MemStorage implements IStorage {
     return newLog;
   }
 
-  async getProviderHealthLogs(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
+  async getProviderHealthLogs(limit: number = 100): Promise<ProviderHealthLog[]> {
+    return this.providerHealthLogs
+      .sort((a, b) => (b.checkTime?.getTime() || 0) - (a.checkTime?.getTime() || 0))
+      .slice(0, limit);
+  }
+
+  async getProviderHealthLogsByType(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
     return this.providerHealthLogs
       .filter(l => l.providerType === providerType)
       .sort((a, b) => (b.checkTime?.getTime() || 0) - (a.checkTime?.getTime() || 0))
@@ -3255,7 +3305,7 @@ class MemStorage implements IStorage {
   }
 
   async getLatestProviderHealth(providerType: string): Promise<ProviderHealthLog | undefined> {
-    const logs = await this.getProviderHealthLogs(providerType, 1);
+    const logs = await this.getProviderHealthLogsByType(providerType, 1);
     return logs[0];
   }
 

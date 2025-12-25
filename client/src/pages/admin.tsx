@@ -12,10 +12,34 @@ import {
   Settings,
   ChevronRight,
   Globe,
+  LayoutDashboard,
+  Users,
+  Activity,
+  Percent,
+  ShoppingCart,
+  Gift,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const adminSections = [
+  {
+    title: "Dashboard",
+    description: "Analytics, revenue, and business metrics",
+    icon: LayoutDashboard,
+    href: "/admin/dashboard",
+  },
+  {
+    title: "Orders",
+    description: "View and manage customer orders",
+    icon: ShoppingCart,
+    href: "/admin/orders",
+  },
+  {
+    title: "Customers",
+    description: "View customer list and order history",
+    icon: Users,
+    href: "/admin/customers",
+  },
   {
     title: "Products",
     description: "Manage product catalog and sync from Printify",
@@ -27,6 +51,12 @@ const adminSections = [
     description: "Set markup, production costs, and upcharges",
     icon: DollarSign,
     href: "/admin/pricing",
+  },
+  {
+    title: "Promo Codes",
+    description: "Create and manage discount codes",
+    icon: Percent,
+    href: "/admin/coupons",
   },
   {
     title: "Library",
@@ -41,16 +71,16 @@ const adminSections = [
     href: "/admin/videos",
   },
   {
+    title: "Gifts",
+    description: "Manage gift packages and codes",
+    icon: Gift,
+    href: "/admin/gifts",
+  },
+  {
     title: "Templates",
     description: "Manage product category templates",
     icon: Tag,
     href: "/admin/categories",
-  },
-  {
-    title: "Tags",
-    description: "Organize products by seasons, holidays, and occasions",
-    icon: Tag,
-    href: "/admin/tags",
   },
   {
     title: "Partners",
@@ -63,6 +93,12 @@ const adminSections = [
     description: "Orchestrate products across Printify, Printful, Etsy, eBay, Amazon",
     icon: Globe,
     href: "/admin/orchestration",
+  },
+  {
+    title: "System Health",
+    description: "Monitor provider status and system health",
+    icon: Activity,
+    href: "/admin/health",
   },
 ];
 

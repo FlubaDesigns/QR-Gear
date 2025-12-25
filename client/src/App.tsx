@@ -28,6 +28,10 @@ import Customs from "@/pages/customs";
 import GiftShop from "@/pages/gift-shop";
 import GiftRedeem from "@/pages/gift-redeem";
 import AdminGifts from "@/pages/admin-gifts";
+import AdminDashboard from "@/pages/admin-dashboard";
+import AdminCoupons from "@/pages/admin-coupons";
+import AdminHealth from "@/pages/admin-health";
+import AdminCustomers from "@/pages/admin-customers";
 import ShopSegment from "@/pages/shop-segment";
 import NotFound from "@/pages/not-found";
 
@@ -52,6 +56,10 @@ function Router() {
       <Route path="/admin/orchestration" component={AdminOrchestration} />
       <Route path="/admin/orders" component={AdminOrders} />
       <Route path="/admin/gifts" component={AdminGifts} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/coupons" component={AdminCoupons} />
+      <Route path="/admin/health" component={AdminHealth} />
+      <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/sales/build" component={StoreBuild} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />
