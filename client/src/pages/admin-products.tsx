@@ -1768,7 +1768,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 {selectedCategory && categoryData && (
                   <div className="space-y-2">
                     <Label className="font-semibold">Step 3: Select Product</Label>
-                    <div className="max-h-64 overflow-y-auto border-2 border-border rounded-lg p-3 bg-background space-y-3">
+                    <div className="max-h-64 overflow-y-auto border-2 border-border rounded-lg p-1 sm:p-3 bg-background space-y-3">
                       {(() => {
                         const items = customLocationFilter === "usa" 
                           ? categoryData.items.filter(i => i.madeInUSA)
