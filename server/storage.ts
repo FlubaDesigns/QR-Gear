@@ -66,6 +66,12 @@ import type {
   InsertChannelPublishState,
   ProviderHealthLog,
   InsertProviderHealthLog,
+  GiftPackage,
+  InsertGiftPackage,
+  GiftCode,
+  InsertGiftCode,
+  GiftRedemption,
+  InsertGiftRedemption,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -297,6 +303,28 @@ export interface IStorage {
   getLatestProviderHealth(providerType: string): Promise<ProviderHealthLog | undefined>;
   getAllLatestProviderHealth(): Promise<ProviderHealthLog[]>;
   getProviderHealthStats(providerType: string, hours?: number): Promise<{ uptimePercent: number; avgResponseTime: number; totalChecks: number }>;
+
+  // Gift Mode: Package operations
+  getAllGiftPackages(): Promise<GiftPackage[]>;
+  getActiveGiftPackages(): Promise<GiftPackage[]>;
+  getGiftPackage(id: string): Promise<GiftPackage | undefined>;
+  createGiftPackage(pkg: InsertGiftPackage): Promise<GiftPackage>;
+  updateGiftPackage(id: string, pkg: Partial<InsertGiftPackage>): Promise<GiftPackage | undefined>;
+  deleteGiftPackage(id: string): Promise<void>;
+
+  // Gift Mode: Code operations
+  getGiftCode(id: string): Promise<GiftCode | undefined>;
+  getGiftCodeByCode(code: string): Promise<GiftCode | undefined>;
+  getGiftCodesByBuyer(buyerUserId: string): Promise<GiftCode[]>;
+  createGiftCode(code: InsertGiftCode): Promise<GiftCode>;
+  updateGiftCode(id: string, code: Partial<InsertGiftCode>): Promise<GiftCode | undefined>;
+
+  // Gift Mode: Redemption operations
+  getGiftRedemption(id: string): Promise<GiftRedemption | undefined>;
+  getGiftRedemptionByCode(giftCodeId: string): Promise<GiftRedemption | undefined>;
+  getGiftRedemptionsByRecipient(recipientEmail: string): Promise<GiftRedemption[]>;
+  createGiftRedemption(redemption: InsertGiftRedemption): Promise<GiftRedemption>;
+  updateGiftRedemption(id: string, redemption: Partial<InsertGiftRedemption>): Promise<GiftRedemption | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -1447,6 +1475,95 @@ export class DbStorage implements IStorage {
       avgResponseTime: Math.round(totalResponseTime / logs.length),
       totalChecks: logs.length,
     };
+  }
+
+  // Gift Mode: Package operations
+  async getAllGiftPackages(): Promise<GiftPackage[]> {
+    return this.db.select().from(schema.giftPackages).orderBy(schema.giftPackages.sortOrder);
+  }
+
+  async getActiveGiftPackages(): Promise<GiftPackage[]> {
+    return this.db.select().from(schema.giftPackages)
+      .where(eq(schema.giftPackages.isActive, true))
+      .orderBy(schema.giftPackages.sortOrder);
+  }
+
+  async getGiftPackage(id: string): Promise<GiftPackage | undefined> {
+    const [pkg] = await this.db.select().from(schema.giftPackages).where(eq(schema.giftPackages.id, id));
+    return pkg;
+  }
+
+  async createGiftPackage(pkg: InsertGiftPackage): Promise<GiftPackage> {
+    const [result] = await this.db.insert(schema.giftPackages).values(pkg).returning();
+    return result;
+  }
+
+  async updateGiftPackage(id: string, pkg: Partial<InsertGiftPackage>): Promise<GiftPackage | undefined> {
+    const [result] = await this.db.update(schema.giftPackages)
+      .set({ ...pkg, updatedAt: new Date() })
+      .where(eq(schema.giftPackages.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteGiftPackage(id: string): Promise<void> {
+    await this.db.delete(schema.giftPackages).where(eq(schema.giftPackages.id, id));
+  }
+
+  // Gift Mode: Code operations
+  async getGiftCode(id: string): Promise<GiftCode | undefined> {
+    const [code] = await this.db.select().from(schema.giftCodes).where(eq(schema.giftCodes.id, id));
+    return code;
+  }
+
+  async getGiftCodeByCode(code: string): Promise<GiftCode | undefined> {
+    const [result] = await this.db.select().from(schema.giftCodes).where(eq(schema.giftCodes.code, code));
+    return result;
+  }
+
+  async getGiftCodesByBuyer(buyerUserId: string): Promise<GiftCode[]> {
+    return this.db.select().from(schema.giftCodes).where(eq(schema.giftCodes.buyerUserId, buyerUserId));
+  }
+
+  async createGiftCode(code: InsertGiftCode): Promise<GiftCode> {
+    const [result] = await this.db.insert(schema.giftCodes).values(code).returning();
+    return result;
+  }
+
+  async updateGiftCode(id: string, code: Partial<InsertGiftCode>): Promise<GiftCode | undefined> {
+    const [result] = await this.db.update(schema.giftCodes)
+      .set(code)
+      .where(eq(schema.giftCodes.id, id))
+      .returning();
+    return result;
+  }
+
+  // Gift Mode: Redemption operations
+  async getGiftRedemption(id: string): Promise<GiftRedemption | undefined> {
+    const [redemption] = await this.db.select().from(schema.giftRedemptions).where(eq(schema.giftRedemptions.id, id));
+    return redemption;
+  }
+
+  async getGiftRedemptionByCode(giftCodeId: string): Promise<GiftRedemption | undefined> {
+    const [result] = await this.db.select().from(schema.giftRedemptions).where(eq(schema.giftRedemptions.giftCodeId, giftCodeId));
+    return result;
+  }
+
+  async getGiftRedemptionsByRecipient(recipientEmail: string): Promise<GiftRedemption[]> {
+    return this.db.select().from(schema.giftRedemptions).where(eq(schema.giftRedemptions.recipientEmail, recipientEmail));
+  }
+
+  async createGiftRedemption(redemption: InsertGiftRedemption): Promise<GiftRedemption> {
+    const [result] = await this.db.insert(schema.giftRedemptions).values(redemption).returning();
+    return result;
+  }
+
+  async updateGiftRedemption(id: string, redemption: Partial<InsertGiftRedemption>): Promise<GiftRedemption | undefined> {
+    const [result] = await this.db.update(schema.giftRedemptions)
+      .set(redemption)
+      .where(eq(schema.giftRedemptions.id, id))
+      .returning();
+    return result;
   }
 }
 
@@ -2904,6 +3021,152 @@ class MemStorage implements IStorage {
       avgResponseTime: Math.round(totalResponseTime / logs.length),
       totalChecks: logs.length,
     };
+  }
+
+  // Gift Mode: Package operations
+  private giftPackages = new Map<string, GiftPackage>();
+  private giftCodes = new Map<string, GiftCode>();
+  private giftRedemptions = new Map<string, GiftRedemption>();
+
+  async getAllGiftPackages(): Promise<GiftPackage[]> {
+    return Array.from(this.giftPackages.values());
+  }
+
+  async getActiveGiftPackages(): Promise<GiftPackage[]> {
+    return Array.from(this.giftPackages.values()).filter(p => p.isActive);
+  }
+
+  async getGiftPackage(id: string): Promise<GiftPackage | undefined> {
+    return this.giftPackages.get(id);
+  }
+
+  async createGiftPackage(pkg: InsertGiftPackage): Promise<GiftPackage> {
+    const newPkg: GiftPackage = {
+      id: crypto.randomUUID(),
+      name: pkg.name,
+      description: pkg.description ?? null,
+      giftType: pkg.giftType ?? "product",
+      masterProductId: pkg.masterProductId ?? null,
+      dynamicsTier: pkg.dynamicsTier ?? null,
+      dynamicsMonths: pkg.dynamicsMonths ?? null,
+      price: pkg.price,
+      allowColorChoice: pkg.allowColorChoice ?? true,
+      allowSizeChoice: pkg.allowSizeChoice ?? true,
+      allowQrCustomization: pkg.allowQrCustomization ?? true,
+      includePersonalMessage: pkg.includePersonalMessage ?? true,
+      redemptionValidDays: pkg.redemptionValidDays ?? 365,
+      displayImage: pkg.displayImage ?? null,
+      isActive: pkg.isActive ?? true,
+      sortOrder: pkg.sortOrder ?? 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.giftPackages.set(newPkg.id, newPkg);
+    return newPkg;
+  }
+
+  async updateGiftPackage(id: string, pkg: Partial<InsertGiftPackage>): Promise<GiftPackage | undefined> {
+    const existing = this.giftPackages.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...pkg, updatedAt: new Date() };
+    this.giftPackages.set(id, updated);
+    return updated;
+  }
+
+  async deleteGiftPackage(id: string): Promise<void> {
+    this.giftPackages.delete(id);
+  }
+
+  // Gift Mode: Code operations
+  async getGiftCode(id: string): Promise<GiftCode | undefined> {
+    return this.giftCodes.get(id);
+  }
+
+  async getGiftCodeByCode(code: string): Promise<GiftCode | undefined> {
+    return Array.from(this.giftCodes.values()).find(c => c.code === code);
+  }
+
+  async getGiftCodesByBuyer(buyerUserId: string): Promise<GiftCode[]> {
+    return Array.from(this.giftCodes.values()).filter(c => c.buyerUserId === buyerUserId);
+  }
+
+  async createGiftCode(code: InsertGiftCode): Promise<GiftCode> {
+    const newCode: GiftCode = {
+      id: crypto.randomUUID(),
+      code: code.code,
+      giftPackageId: code.giftPackageId,
+      buyerUserId: code.buyerUserId ?? null,
+      buyerEmail: code.buyerEmail ?? null,
+      buyerName: code.buyerName ?? null,
+      personalMessage: code.personalMessage ?? null,
+      orderId: code.orderId ?? null,
+      stripePaymentId: code.stripePaymentId ?? null,
+      purchasedAt: new Date(),
+      expiresAt: code.expiresAt,
+      status: code.status ?? "active",
+      lastEmailedTo: code.lastEmailedTo ?? null,
+      lastEmailedAt: code.lastEmailedAt ?? null,
+      createdAt: new Date(),
+    };
+    this.giftCodes.set(newCode.id, newCode);
+    return newCode;
+  }
+
+  async updateGiftCode(id: string, code: Partial<InsertGiftCode>): Promise<GiftCode | undefined> {
+    const existing = this.giftCodes.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...code };
+    this.giftCodes.set(id, updated);
+    return updated;
+  }
+
+  // Gift Mode: Redemption operations
+  async getGiftRedemption(id: string): Promise<GiftRedemption | undefined> {
+    return this.giftRedemptions.get(id);
+  }
+
+  async getGiftRedemptionByCode(giftCodeId: string): Promise<GiftRedemption | undefined> {
+    return Array.from(this.giftRedemptions.values()).find(r => r.giftCodeId === giftCodeId);
+  }
+
+  async getGiftRedemptionsByRecipient(recipientEmail: string): Promise<GiftRedemption[]> {
+    return Array.from(this.giftRedemptions.values()).filter(r => r.recipientEmail === recipientEmail);
+  }
+
+  async createGiftRedemption(redemption: InsertGiftRedemption): Promise<GiftRedemption> {
+    const newRedemption: GiftRedemption = {
+      id: crypto.randomUUID(),
+      giftCodeId: redemption.giftCodeId,
+      recipientUserId: redemption.recipientUserId ?? null,
+      recipientEmail: redemption.recipientEmail ?? null,
+      recipientName: redemption.recipientName ?? null,
+      selectedColor: redemption.selectedColor ?? null,
+      selectedSize: redemption.selectedSize ?? null,
+      qrContent: redemption.qrContent ?? null,
+      qrStyle: redemption.qrStyle ?? null,
+      shippingAddress: redemption.shippingAddress ?? null,
+      dynamicsSubscriptionId: redemption.dynamicsSubscriptionId ?? null,
+      dynamicsContentSetId: redemption.dynamicsContentSetId ?? null,
+      fulfillmentOrderId: redemption.fulfillmentOrderId ?? null,
+      fulfillmentProvider: redemption.fulfillmentProvider ?? null,
+      fulfillmentStatus: redemption.fulfillmentStatus ?? "pending",
+      trackingNumber: redemption.trackingNumber ?? null,
+      trackingUrl: redemption.trackingUrl ?? null,
+      redeemedAt: new Date(),
+      fulfilledAt: redemption.fulfilledAt ?? null,
+      shippedAt: redemption.shippedAt ?? null,
+      deliveredAt: redemption.deliveredAt ?? null,
+    };
+    this.giftRedemptions.set(newRedemption.id, newRedemption);
+    return newRedemption;
+  }
+
+  async updateGiftRedemption(id: string, redemption: Partial<InsertGiftRedemption>): Promise<GiftRedemption | undefined> {
+    const existing = this.giftRedemptions.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...redemption };
+    this.giftRedemptions.set(id, updated);
+    return updated;
   }
 }
 

@@ -993,6 +993,97 @@ export const bundleItems = pgTable("bundle_items", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ============================================================
+// GIFT MODE TABLES
+// Enables gift purchases with redeemable codes
+// ============================================================
+
+// Gift Packages - Define what's included in a gift purchase
+export const giftPackages = pgTable("gift_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  // What type of gift: 'product' (physical item), 'dynamics' (QR Dynamics subscription)
+  giftType: text("gift_type").notNull().default("product"),
+  // For product gifts: which master product
+  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
+  // For dynamics gifts: subscription tier level
+  dynamicsTier: text("dynamics_tier"),
+  dynamicsMonths: integer("dynamics_months"),
+  // Pricing
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  // Customization options available to recipient
+  allowColorChoice: boolean("allow_color_choice").default(true),
+  allowSizeChoice: boolean("allow_size_choice").default(true),
+  allowQrCustomization: boolean("allow_qr_customization").default(true),
+  // Optional personal message from buyer
+  includePersonalMessage: boolean("include_personal_message").default(true),
+  // Validity period for redemption (days after purchase)
+  redemptionValidDays: integer("redemption_valid_days").default(365),
+  // Display
+  displayImage: text("display_image"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Gift Codes - Generated when a gift is purchased
+export const giftCodes = pgTable("gift_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Unique redeemable code (e.g., "GIFT-A1B2-C3D4-E5F6")
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  giftPackageId: varchar("gift_package_id").notNull().references(() => giftPackages.id),
+  // Buyer info
+  buyerUserId: varchar("buyer_user_id").references(() => users.id),
+  buyerEmail: text("buyer_email"),
+  buyerName: text("buyer_name"),
+  // Personal message from buyer to recipient
+  personalMessage: text("personal_message"),
+  // Purchase tracking
+  orderId: varchar("order_id"),
+  stripePaymentId: text("stripe_payment_id"),
+  purchasedAt: timestamp("purchased_at").defaultNow().notNull(),
+  // Expiration
+  expiresAt: timestamp("expires_at").notNull(),
+  // Status: 'active', 'redeemed', 'expired', 'cancelled'
+  status: text("status").notNull().default("active"),
+  // When was this code last sent to recipient
+  lastEmailedTo: text("last_emailed_to"),
+  lastEmailedAt: timestamp("last_emailed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Gift Redemptions - Records when/how a gift code was redeemed
+export const giftRedemptions = pgTable("gift_redemptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  giftCodeId: varchar("gift_code_id").notNull().references(() => giftCodes.id),
+  // Recipient info
+  recipientUserId: varchar("recipient_user_id").references(() => users.id),
+  recipientEmail: text("recipient_email"),
+  recipientName: text("recipient_name"),
+  // Customizations selected by recipient
+  selectedColor: text("selected_color"),
+  selectedSize: text("selected_size"),
+  qrContent: text("qr_content"),
+  qrStyle: jsonb("qr_style"),
+  shippingAddress: jsonb("shipping_address"),
+  // For dynamics gifts: activated subscription
+  dynamicsSubscriptionId: varchar("dynamics_subscription_id"),
+  dynamicsContentSetId: varchar("dynamics_content_set_id").references(() => dynamicContentSets.id),
+  // Fulfillment tracking
+  fulfillmentOrderId: varchar("fulfillment_order_id"),
+  fulfillmentProvider: text("fulfillment_provider"),
+  fulfillmentStatus: text("fulfillment_status").default("pending"),
+  trackingNumber: text("tracking_number"),
+  trackingUrl: text("tracking_url"),
+  // Timestamps
+  redeemedAt: timestamp("redeemed_at").defaultNow().notNull(),
+  fulfilledAt: timestamp("fulfilled_at"),
+  shippedAt: timestamp("shipped_at"),
+  deliveredAt: timestamp("delivered_at"),
+});
+
 // Insert schemas for orchestration tables
 export const insertMasterProductSchema = createInsertSchema(masterProducts).omit({
   id: true,
@@ -1049,6 +1140,20 @@ export const insertProductBundleSchema = createInsertSchema(productBundles).omit
 export const insertBundleItemSchema = createInsertSchema(bundleItems).omit({
   id: true,
   createdAt: true,
+});
+
+// Insert schemas for Gift Mode tables
+export const insertGiftPackageSchema = createInsertSchema(giftPackages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertGiftCodeSchema = createInsertSchema(giftCodes).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertGiftRedemptionSchema = createInsertSchema(giftRedemptions).omit({
+  id: true,
 });
 
 // Types
@@ -1180,3 +1285,13 @@ export type InsertProductBundle = z.infer<typeof insertProductBundleSchema>;
 
 export type BundleItem = typeof bundleItems.$inferSelect;
 export type InsertBundleItem = z.infer<typeof insertBundleItemSchema>;
+
+// Gift Mode Types
+export type GiftPackage = typeof giftPackages.$inferSelect;
+export type InsertGiftPackage = z.infer<typeof insertGiftPackageSchema>;
+
+export type GiftCode = typeof giftCodes.$inferSelect;
+export type InsertGiftCode = z.infer<typeof insertGiftCodeSchema>;
+
+export type GiftRedemption = typeof giftRedemptions.$inferSelect;
+export type InsertGiftRedemption = z.infer<typeof insertGiftRedemptionSchema>;

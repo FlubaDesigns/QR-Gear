@@ -4868,6 +4868,276 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ================================================================
+  // GIFT MODE API
+  // ================================================================
+
+  // Helper to generate unique gift codes
+  function generateGiftCode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "GIFT";
+    for (let i = 0; i < 3; i++) {
+      code += "-";
+      for (let j = 0; j < 4; j++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+    }
+    return code;
+  }
+
+  // Get active gift packages for purchase
+  app.get("/api/gifts/packages", async (req: any, res) => {
+    try {
+      const packages = await storage.getActiveGiftPackages();
+      res.json(packages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get a single gift package
+  app.get("/api/gifts/packages/:id", async (req: any, res) => {
+    try {
+      const pkg = await storage.getGiftPackage(req.params.id);
+      if (!pkg) return res.status(404).json({ error: "Gift package not found" });
+      res.json(pkg);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Purchase a gift - creates a gift code
+  app.post("/api/gifts/purchase", async (req: any, res) => {
+    try {
+      const { giftPackageId, buyerEmail, buyerName, personalMessage, recipientEmail } = req.body;
+      
+      const pkg = await storage.getGiftPackage(giftPackageId);
+      if (!pkg) return res.status(404).json({ error: "Gift package not found" });
+      if (!pkg.isActive) return res.status(400).json({ error: "Gift package is not available" });
+      
+      const buyerUserId = req.user?.claims?.sub || null;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + (pkg.redemptionValidDays || 365));
+      
+      const giftCode = await storage.createGiftCode({
+        code: generateGiftCode(),
+        giftPackageId,
+        buyerUserId,
+        buyerEmail,
+        buyerName,
+        personalMessage: pkg.includePersonalMessage ? personalMessage : null,
+        expiresAt,
+        status: "active",
+        lastEmailedTo: recipientEmail || null,
+        lastEmailedAt: recipientEmail ? new Date() : null,
+      });
+      
+      res.json({ 
+        success: true,
+        giftCode: giftCode.code,
+        expiresAt: giftCode.expiresAt,
+        packageName: pkg.name,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Look up a gift code for redemption
+  app.get("/api/gifts/redeem/:code", async (req: any, res) => {
+    try {
+      const giftCode = await storage.getGiftCodeByCode(req.params.code.toUpperCase());
+      
+      if (!giftCode) {
+        return res.status(404).json({ error: "Gift code not found" });
+      }
+      
+      if (giftCode.status === "redeemed") {
+        return res.status(400).json({ error: "This gift has already been redeemed" });
+      }
+      
+      if (giftCode.status === "expired" || new Date() > new Date(giftCode.expiresAt)) {
+        return res.status(400).json({ error: "This gift code has expired" });
+      }
+      
+      if (giftCode.status === "cancelled") {
+        return res.status(400).json({ error: "This gift code has been cancelled" });
+      }
+      
+      const pkg = await storage.getGiftPackage(giftCode.giftPackageId);
+      if (!pkg) {
+        return res.status(500).json({ error: "Gift package not found" });
+      }
+      
+      let productDetails = null;
+      if (pkg.masterProductId) {
+        const product = await storage.getMasterProduct(pkg.masterProductId);
+        if (product) {
+          productDetails = {
+            id: product.id,
+            title: product.title,
+            imageUrl: product.imageUrl,
+            availableColors: product.availableColors,
+            availableSizes: product.availableSizes,
+          };
+        }
+      }
+      
+      res.json({
+        giftCodeId: giftCode.id,
+        packageName: pkg.name,
+        packageDescription: pkg.description,
+        giftType: pkg.giftType,
+        personalMessage: giftCode.personalMessage,
+        buyerName: giftCode.buyerName,
+        expiresAt: giftCode.expiresAt,
+        allowColorChoice: pkg.allowColorChoice,
+        allowSizeChoice: pkg.allowSizeChoice,
+        allowQrCustomization: pkg.allowQrCustomization,
+        product: productDetails,
+        dynamicsTier: pkg.dynamicsTier,
+        dynamicsMonths: pkg.dynamicsMonths,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Redeem a gift code
+  app.post("/api/gifts/redeem/:code", async (req: any, res) => {
+    try {
+      const giftCode = await storage.getGiftCodeByCode(req.params.code.toUpperCase());
+      
+      if (!giftCode) {
+        return res.status(404).json({ error: "Gift code not found" });
+      }
+      
+      if (giftCode.status !== "active") {
+        return res.status(400).json({ error: `Gift code is ${giftCode.status}` });
+      }
+      
+      if (new Date() > new Date(giftCode.expiresAt)) {
+        await storage.updateGiftCode(giftCode.id, { status: "expired" });
+        return res.status(400).json({ error: "This gift code has expired" });
+      }
+      
+      const { recipientEmail, recipientName, selectedColor, selectedSize, qrContent, qrStyle, shippingAddress } = req.body;
+      
+      const recipientUserId = req.user?.claims?.sub || null;
+      
+      const redemption = await storage.createGiftRedemption({
+        giftCodeId: giftCode.id,
+        recipientUserId,
+        recipientEmail,
+        recipientName,
+        selectedColor,
+        selectedSize,
+        qrContent,
+        qrStyle,
+        shippingAddress,
+        fulfillmentStatus: "pending",
+      });
+      
+      await storage.updateGiftCode(giftCode.id, { status: "redeemed" });
+      
+      res.json({
+        success: true,
+        redemptionId: redemption.id,
+        message: "Gift redeemed successfully! Your order is being processed.",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get all gift packages
+  app.get("/api/admin/gifts/packages", isAdmin, async (req: any, res) => {
+    try {
+      const packages = await storage.getAllGiftPackages();
+      res.json(packages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Create gift package
+  app.post("/api/admin/gifts/packages", isAdmin, async (req: any, res) => {
+    try {
+      const pkg = await storage.createGiftPackage(req.body);
+      res.json(pkg);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update gift package
+  app.patch("/api/admin/gifts/packages/:id", isAdmin, async (req: any, res) => {
+    try {
+      const pkg = await storage.updateGiftPackage(req.params.id, req.body);
+      if (!pkg) return res.status(404).json({ error: "Gift package not found" });
+      res.json(pkg);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Delete gift package
+  app.delete("/api/admin/gifts/packages/:id", isAdmin, async (req: any, res) => {
+    try {
+      await storage.deleteGiftPackage(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: List gift codes
+  app.get("/api/admin/gifts/codes", isAdmin, async (req: any, res) => {
+    try {
+      if (db) {
+        const { giftCodes } = await import("@shared/schema");
+        const { desc } = await import("drizzle-orm");
+        const codes = await db.select().from(giftCodes)
+          .orderBy(desc(giftCodes.createdAt))
+          .limit(100);
+        res.json(codes);
+      } else {
+        res.json([]);
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get redemptions
+  app.get("/api/admin/gifts/redemptions", isAdmin, async (req: any, res) => {
+    try {
+      if (db) {
+        const { giftRedemptions } = await import("@shared/schema");
+        const { desc } = await import("drizzle-orm");
+        const redemptions = await db.select().from(giftRedemptions)
+          .orderBy(desc(giftRedemptions.redeemedAt))
+          .limit(100);
+        res.json(redemptions);
+      } else {
+        res.json([]);
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update redemption fulfillment status
+  app.patch("/api/admin/gifts/redemptions/:id", isAdmin, async (req: any, res) => {
+    try {
+      const redemption = await storage.updateGiftRedemption(req.params.id, req.body);
+      if (!redemption) return res.status(404).json({ error: "Redemption not found" });
+      res.json(redemption);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
