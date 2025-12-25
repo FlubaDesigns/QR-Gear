@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useLocation, Link } from "wouter";
+import { Link, useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,12 +24,11 @@ interface StoreResponse {
 }
 
 export default function ShopSegmentPage() {
-  const [location] = useLocation();
+  const params = useParams<{ storeType: string; storeName: string; segment?: string }>();
   
-  const pathParts = location.split("/").filter(Boolean);
-  const storeType = pathParts[1] || "Internal";
-  const storeName = decodeURIComponent(pathParts[2] || "");
-  const segment = pathParts[3] ? decodeURIComponent(pathParts[3]) : undefined;
+  const storeType = params.storeType || "Internal";
+  const storeName = decodeURIComponent(params.storeName || "");
+  const segment = params.segment ? decodeURIComponent(params.segment) : undefined;
   
   const apiUrl = segment 
     ? `/api/store/${storeType}/${encodeURIComponent(storeName)}?segment=${encodeURIComponent(segment)}`

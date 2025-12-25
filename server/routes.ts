@@ -2896,13 +2896,15 @@ ${allPages.map(page => `  <url>
   // Used by pages like /shop/internal/qr-gear/featured or /shop/external/kingdom-connects/homepage
   app.get("/api/store/:storeType/:storeName", async (req, res) => {
     try {
-      const { storeType, storeName } = req.params;
+      const { storeType: rawStoreType, storeName } = req.params;
       const segment = req.query.segment as string | undefined;
       
-      // Validate store type
-      if (!["Internal", "External"].includes(storeType)) {
+      // Normalize store type to title case (accept internal/Internal/INTERNAL)
+      const normalizedType = rawStoreType.toLowerCase();
+      if (!["internal", "external"].includes(normalizedType)) {
         return res.status(400).json({ error: "Invalid store type. Use 'Internal' or 'External'" });
       }
+      const storeType = normalizedType === "internal" ? "Internal" : "External";
       
       // Get custom designs saved to this store/segment
       const designs = await storage.getCustomDesignsByStoreSegment(storeType, storeName, segment);

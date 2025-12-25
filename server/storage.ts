@@ -1270,13 +1270,14 @@ export class DbStorage implements IStorage {
   }
 
   async getCustomDesignsByStoreSegment(storeType: string, storeName: string, segment?: string): Promise<CustomDesign[]> {
+    // Case-insensitive comparison using SQL lower()
     const conditions = [
       eq(schema.customDesigns.savedToStore, true),
-      eq(schema.customDesigns.storeType, storeType),
-      eq(schema.customDesigns.storeName, storeName),
+      sql`LOWER(${schema.customDesigns.storeType}) = LOWER(${storeType})`,
+      sql`LOWER(${schema.customDesigns.storeName}) = LOWER(${storeName})`,
     ];
     if (segment) {
-      conditions.push(eq(schema.customDesigns.segment, segment));
+      conditions.push(sql`LOWER(${schema.customDesigns.segment}) = LOWER(${segment})`);
     }
     return await this.db.select().from(schema.customDesigns)
       .where(and(...conditions))
@@ -2722,9 +2723,9 @@ class MemStorage implements IStorage {
     return Array.from(this.customDesigns.values())
       .filter(d => {
         if (!d.savedToStore) return false;
-        if (d.storeType !== storeType) return false;
-        if (d.storeName !== storeName) return false;
-        if (segment && d.segment !== segment) return false;
+        if (d.storeType?.toLowerCase() !== storeType.toLowerCase()) return false;
+        if (d.storeName?.toLowerCase() !== storeName.toLowerCase()) return false;
+        if (segment && d.segment?.toLowerCase() !== segment.toLowerCase()) return false;
         return true;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
