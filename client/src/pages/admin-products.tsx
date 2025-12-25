@@ -3573,7 +3573,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
 
       {/* Library Picker Dialog - Backgrounds & Templates with filters */}
       <Dialog open={libraryPickerOpen} onOpenChange={setLibraryPickerOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] h-[92vh] flex flex-col">
+        <DialogContent className="max-w-4xl w-[95vw] h-[92vh] !max-h-[92vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-xl">Library</DialogTitle>
             <DialogDescription>
