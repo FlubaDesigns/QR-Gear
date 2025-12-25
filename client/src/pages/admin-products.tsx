@@ -105,11 +105,17 @@ interface CostSyncStatusData {
   };
 }
 
+const POD_PROVIDERS = [
+  { id: 'printify', name: 'Printify', configured: true },
+  { id: 'printful', name: 'Printful', configured: false },
+  { id: 'apliiq', name: 'Apliiq', configured: false },
+];
+
 function CatalogSyncSection() {
   const { toast } = useToast();
+  const [selectedProvider, setSelectedProvider] = useState('printify');
   
-  // Derive running state directly from API response
-  const { data: syncStatus, refetch: refetchStatus, isLoading, isError, error } = useQuery<CatalogSyncStatus>({
+  const { data: syncStatus, refetch: refetchStatus, isLoading, isError } = useQuery<CatalogSyncStatus>({
     queryKey: ["/api/admin/catalog/sync-status"],
     refetchOnWindowFocus: false,
     refetchOnMount: true,
@@ -124,54 +130,38 @@ function CatalogSyncSection() {
     staleTime: 10000,
   });
 
-  // Derive running states from API responses
   const isSyncRunning = syncStatus?.latestSync?.status === 'running';
   const isCostSyncRunning = costSyncStatus?.isRunning ?? false;
+  const isAnySyncRunning = isSyncRunning || isCostSyncRunning;
 
-  // Poll while syncing
   useEffect(() => {
-    if (!isSyncRunning && !isCostSyncRunning) return;
-    
+    if (!isAnySyncRunning) return;
     const interval = setInterval(() => {
-      if (isSyncRunning) refetchStatus();
-      if (isCostSyncRunning) refetchCostStatus();
+      refetchStatus();
+      refetchCostStatus();
     }, 3000);
-    
     return () => clearInterval(interval);
-  }, [isSyncRunning, isCostSyncRunning, refetchStatus, refetchCostStatus]);
+  }, [isAnySyncRunning, refetchStatus, refetchCostStatus]);
   
-  const syncMutation = useMutation({
+  const syncAllMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/catalog/sync");
-      return res.json();
+      const catalogRes = await apiRequest("POST", "/api/admin/catalog/sync");
+      await catalogRes.json();
+      const costRes = await apiRequest("POST", "/api/admin/catalog/sync-all-costs");
+      return costRes.json();
     },
     onSuccess: () => {
-      toast({ title: "Sync started", description: "Downloading catalog from Printify..." });
+      toast({ title: "Sync started", description: "Updating catalog and costs..." });
       refetchStatus();
+      refetchCostStatus();
     },
     onError: (error: any) => {
       toast({ title: "Sync failed", description: error.message, variant: "destructive" });
     },
   });
-
-  const costSyncMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/catalog/sync-all-costs");
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({ 
-        title: "Cost sync started", 
-        description: `Fetching costs for ${data.totalProviders || 'all'} products in background...` 
-      });
-      refetchCostStatus();
-    },
-    onError: (error: any) => {
-      toast({ title: "Cost sync failed", description: error.message, variant: "destructive" });
-    },
-  });
   
   const lastSync = syncStatus?.latestSync;
+  const provider = POD_PROVIDERS.find(p => p.id === selectedProvider);
   
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -181,116 +171,60 @@ function CatalogSyncSection() {
   return (
     <Card className="mb-4">
       <CardContent className="pt-4 px-3 sm:px-6">
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-medium">Printify Catalog</h3>
-                {syncStatus?.totalBlueprints ? (
-                  <Badge variant="secondary" className="text-xs">
-                    {syncStatus.totalBlueprints} products cached
-                  </Badge>
-                ) : null}
-              </div>
-              {isLoading && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading sync status...
-                </p>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+              <SelectTrigger className="w-[140px] !min-h-[48px]" data-testid="select-pod-provider">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {POD_PROVIDERS.map(p => (
+                  <SelectItem key={p.id} value={p.id} disabled={!p.configured}>
+                    {p.name} {!p.configured && '(Soon)'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Button
+              onClick={() => syncAllMutation.mutate()}
+              disabled={isAnySyncRunning || syncAllMutation.isPending || !provider?.configured}
+              data-testid="button-sync-all"
+              className="!min-h-[48px]"
+            >
+              {isAnySyncRunning ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Sync</>
               )}
-              {isError && (
-                <p className="text-xs text-destructive flex items-center gap-2">
-                  Failed to load status
-                  <Button variant="ghost" size="sm" className="!min-h-[32px] px-2 text-xs" onClick={() => refetchStatus()}>
-                    Retry
-                  </Button>
-                </p>
-              )}
-              {!isLoading && !isError && lastSync && (
-                <p className="text-xs text-muted-foreground">
-                  {lastSync.status === 'running' ? (
-                    <span className="flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Syncing... ({lastSync.blueprintsCount || 0} blueprints)
-                    </span>
-                  ) : lastSync.status === 'completed' ? (
-                    <>Last synced: {formatDate(lastSync.completedAt || lastSync.startedAt)}</>
-                  ) : lastSync.status === 'failed' ? (
-                    <span className="text-destructive">Last sync failed: {lastSync.errorMessage}</span>
-                  ) : null}
-                </p>
-              )}
-              {!isLoading && !isError && !lastSync && (
-                <p className="text-xs text-muted-foreground">
-                  No catalog synced yet. Click "Sync Now" to download the Printify catalog.
-                </p>
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {syncStatus?.totalBlueprints ? (
+                <Badge variant="secondary" className="text-xs">
+                  {syncStatus.totalBlueprints} products
+                </Badge>
+              ) : null}
+              {costSyncStatus?.stats && (
+                <span>{costSyncStatus.stats.withCosts}/{costSyncStatus.stats.total} with costs</span>
               )}
             </div>
-
-            {costSyncStatus?.stats && (
-              <div className="flex items-center gap-3 text-xs flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <DollarSign className="h-3.5 w-3.5 text-green-600" />
-                  <span className="text-muted-foreground">
-                    {costSyncStatus.stats.withCosts}/{costSyncStatus.stats.total} with costs
-                  </span>
-                </div>
-                {costSyncStatus.stats.stale > 0 && (
-                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                    {costSyncStatus.stats.stale} stale (&gt;24h)
-                  </Badge>
-                )}
-                {isCostSyncRunning && costSyncStatus.currentSync && (
-                  <span className="text-muted-foreground">
-                    {costSyncStatus.currentSync.processedCount}/{costSyncStatus.currentSync.totalProviders} processed
-                  </span>
-                )}
-              </div>
+            {!isLoading && !isError && lastSync && lastSync.status === 'completed' && (
+              <span>Last: {formatDate(lastSync.completedAt || lastSync.startedAt)}</span>
             )}
-          </div>
-          
-          <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              size="default"
-              onClick={() => syncMutation.mutate()}
-              disabled={isSyncRunning || syncMutation.isPending}
-              data-testid="button-sync-catalog"
-            >
-              {isSyncRunning ? (
-                <><Loader2 className="h-4 w-4 mr-1" /> Syncing</>
-              ) : (
-                <><RefreshCw className="h-4 w-4 mr-1" /> Catalog</>
-              )}
-            </Button>
-            <Button
-              variant="default"
-              size="default"
-              onClick={() => costSyncMutation.mutate()}
-              disabled={isCostSyncRunning || costSyncMutation.isPending || !syncStatus?.totalBlueprints}
-              data-testid="button-sync-costs"
-            >
-              {isCostSyncRunning ? (
-                <><Loader2 className="h-4 w-4 mr-1" /> Syncing</>
-              ) : (
-                <><DollarSign className="h-4 w-4 mr-1" /> Costs</>
-              )}
-            </Button>
           </div>
         </div>
         
-        {isSyncRunning && (
-          <Progress value={undefined} className="mt-3 h-1" />
-        )}
-        {isCostSyncRunning && costSyncStatus?.currentSync && (
+        {isAnySyncRunning && (
           <div className="mt-3 space-y-1">
-            <Progress 
-              value={(costSyncStatus.currentSync.processedCount / costSyncStatus.currentSync.totalProviders) * 100} 
-              className="h-1" 
-            />
-            <p className="text-xs text-muted-foreground">
-              Syncing costs: {costSyncStatus.currentSync.successCount} success, {costSyncStatus.currentSync.failedCount} failed, {costSyncStatus.currentSync.skippedCount} skipped
-            </p>
+            <Progress value={undefined} className="h-1" />
+            {isCostSyncRunning && costSyncStatus?.currentSync && (
+              <p className="text-xs text-muted-foreground">
+                {costSyncStatus.currentSync.processedCount}/{costSyncStatus.currentSync.totalProviders} processed
+              </p>
+            )}
           </div>
         )}
       </CardContent>
