@@ -11,6 +11,7 @@ import {
   Store,
   Settings,
   ChevronRight,
+  Globe,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -56,6 +57,12 @@ const adminSections = [
     description: "Manage partner stores and product lines",
     icon: Store,
     href: "/admin/partners",
+  },
+  {
+    title: "Multi-Provider",
+    description: "Orchestrate products across Printify, Printful, Etsy, eBay, Amazon",
+    icon: Globe,
+    href: "/admin/orchestration",
   },
 ];
 

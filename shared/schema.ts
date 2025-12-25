@@ -747,6 +747,8 @@ export const channelConfigs = pgTable("channel_configs", {
   // Webhook config
   webhookSecret: text("webhook_secret"),
   webhookUrl: text("webhook_url"),
+  // Health monitoring
+  lastHealthCheck: timestamp("last_health_check"),
   // Channel-specific settings
   settings: jsonb("settings"), // { defaultShippingProfile, returnPolicy, etc. }
   createdAt: timestamp("created_at").defaultNow().notNull(),

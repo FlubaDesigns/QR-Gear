@@ -1,23 +1,12 @@
 # QR Gear
 
 ## Overview
-QR Gear is a custom promotional merchandise e-commerce platform specializing in personalized apparel and products featuring QR codes. It integrates with Printify for print-on-demand fulfillment of USA-made items like hats, shirts, mugs, and bags. Users can generate and customize QR codes (text or image-based) and apply them to products. The platform targets B2B sales, particularly small businesses for marketing, with planned integration into Kingdom Connects, a faith-based business directory. Key product lines include Simple Text QR, Pre-designed Template Collections, Fully Custom QR Gifts, and the innovative "QR Dynamics™" (living QR) for changeable digital content, aiming for recurring revenue streams.
+QR Gear is an e-commerce platform for personalized promotional merchandise, focusing on apparel and products featuring custom QR codes. It integrates with Printify for print-on-demand fulfillment of USA-made items. The platform allows users to generate and customize QR codes (text or image-based) and apply them to various products. QR Gear targets B2B sales, particularly small businesses for marketing purposes, with plans for integration into the Kingdom Connects business directory. The platform offers four distinct QR product lines, including the innovative "QR Dynamics™" for changeable digital content, aiming to establish recurring revenue streams.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Documentation: Keep ADMIN_MANUAL.md updated as admin features evolve.
 Accessibility: User has CIDP (limited hand mobility) - agent should be fully autonomous.
-
-## CRITICAL Rules
-- **NEVER remove existing features without explicit user request.** User pays for agent time - removing and re-adding features wastes money.
-- **ALWAYS confirm back what user said BEFORE starting work.** When user asks a question or describes an issue, REPEAT IT BACK first. Do NOT jump to implementing. Wait for user confirmation that you understood correctly.
-- Product flow steps are LOCKED and must not be changed:
-  1. Store Type (Internal/External)
-  2. Select Store
-  3. Store Locations (switches for each segment)
-  4. Store Occasion (Featured/Seasonal switches)
-  5. Product Source (Templates/Custom) - two buttons only
-  6. Custom Builder (includes inline background picker with 2-item scroll)
 
 ## System Architecture
 
@@ -28,153 +17,50 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - **State Management**: TanStack React Query
 - **Forms**: React Hook Form with Zod validation
 - **Payments**: Stripe React integration
-- **Path Aliases**: `@/` (client/src), `@shared/` (shared/)
 
 ### Backend
 - **Runtime**: Node.js with Express
 - **Language**: TypeScript with ES modules
 - **API Pattern**: RESTful endpoints under `/api/`
-- **Build**: esbuild
 
 ### Database
 - **Primary Database**: PostgreSQL via Neon serverless
 - **ORM**: Drizzle ORM with drizzle-kit for migrations
 - **Schema**: `shared/schema.ts`
-- **Key Tables**: `users`, `products`, `productVariants`, `printifyBlueprints`, `qrDesigns`, `qrTemplates`, `customGifts`, `hostingTiers`, `partnerStores`, `cartItems`, `orders`, `adminSettings`, `pricingRules`.
 - **Secondary Data Store**: Firebase Firestore for dynamic categories.
 
-### Four QR Product Lines
-1.  **Simple Text QR**: User-entered URL/text on any Printify product.
-2.  **Featured Collections**: Admin-curated templates with QR codes linking to hosted images.
-3.  **Fully Custom QR Gifts**: User uploads image, adds text, with tiered hosting options.
-4.  **QR Dynamics™**: Physical product with a permanent QR linking to a changeable digital content page (images, videos, links) via a user dashboard, with a subscription model.
-
 ### Core Features
--   Server-side QR code generation.
--   Product customization with QR placement options.
--   Shopping cart and order processing.
--   Embeddable widget system for partners (e.g., Kingdom Connects).
--   Premium QR Text options with upcharges.
--   Firestore-based product category system.
--   Pricing strategy: no upfront prices, final price after customization.
+- Server-side QR code generation with customization options.
+- Four QR product lines: Simple Text QR, Featured Collections, Fully Custom QR Gifts, and QR Dynamics™ (subscription-based dynamic content).
+- Multi-Provider Orchestration System for publishing products to various print providers and marketplaces (Printify, Printful, Apliiq, Etsy, eBay, Amazon).
+- Shopping cart and order processing.
+- Embeddable widget system for partners.
+- Admin UI for managing products, channels, and health, designed with mobile-first accessibility.
+- Automated Printify cost sync system for extracting real production costs.
+- SVG text rendering pipeline for print-ready images with text warp effects.
+- Per-placement artwork mode for product customization.
 
 ### Design System
--   **Typography**: Inter (body), Space Grotesk (headings).
--   **Layout**: Mobile-first responsive, max-w-7xl containers.
--   **Components**: Card-based, consistent styling.
+- **Typography**: Inter (body), Space Grotesk (headings).
+- **Layout**: Mobile-first responsive, `max-w-7xl` containers.
+- **Components**: Card-based, consistent styling with `h-12` touch targets for accessibility.
 
 ## External Dependencies
 
 ### Third-Party Services
--   **Printify API**: Print-on-demand fulfillment.
--   **Stripe**: Payment processing (checkout, subscriptions).
--   **Firebase/Firestore**: Secondary data store for categories and real-time features.
--   **Neon Database**: Primary PostgreSQL hosting.
--   **Resend**: Email delivery for order confirmations and reminders.
+- **Printify API**: Print-on-demand fulfillment.
+- **Stripe**: Payment processing (checkout, subscriptions).
+- **Firebase/Firestore**: Secondary data store for categories and real-time features.
+- **Neon Database**: PostgreSQL hosting.
+- **Resend**: Email delivery.
 
 ### Key NPM Packages
--   `@neondatabase/serverless`: PostgreSQL connectivity.
--   `drizzle-orm` / `drizzle-kit`: ORM and migrations.
--   `@stripe/stripe-js` / `@stripe/react-stripe-js`: Stripe integration.
--   `qrcode`: QR code generation.
--   `jsonwebtoken`: Widget authentication.
--   `@tanstack/react-query`: Data fetching.
--   `zod`: Schema validation.
--   `express-rate-limit`: API rate limiting.
-
-## Cross-Project Coordination
-- **docs/AI-COMMS.zip**: Single zip containing all cross-AI communication
-  - `AI-COMMS/QR/` - Files FROM QR Gear (this project)
-  - `AI-COMMS/KC/` - Files FROM Kingdom Connects
-  - `AI-COMMS/SHARED/` - Shared protocol docs
-- After making KC-relevant changes, update files in AI-COMMS/ and regenerate zip
-
-## Recent Changes
-- 2025-12-25: **IMPLEMENTED** Per-placement artwork mode feature. Each print placement can now be set to "Full Artwork" (header+QR+footer) or "QR Only" (just QR code). UI: mobile-friendly h-12 toggle buttons in placement picker. State: `placementConfigs` stores mode per placement. Backend: generates separate images per placement based on mode, with canvas fallback on SVG failure. DB: Added `placementConfigs` (JSONB) and `placementImages` (JSONB) columns to customDesigns table. SVG renderer: new `renderQrOnlyToPng()` function for QR-only mode. Primary composite URL prefers "full" mode placements for backward compatibility.
-- 2025-12-25: **IMPLEMENTED** SVG text-warp rendering pipeline for print-ready images. Features: 9 warp presets (straight, arc-up/down, wave, circle-top/bottom), rich text controls (color picker, letter spacing, optional stroke), 20-font allowlist, 4500x5400px PNG output via @resvg/resvg-js. API endpoints: /api/render/config, /api/render/preview (SVG), /api/render/png. Fallback to canvas renderer with full style parity.
-- 2025-12-24: **ENHANCED** Cost sync now also caches availableColors (JSONB) and availableSizes (text array) in printifyPrintProviders table. Frontend shows "(cached)" indicators when data comes from database. API endpoints return colorsFromDatabase/sizesFromDatabase flags.
-- 2025-12-24: **IMPLEMENTED** Landing page text overlay feature - title/description with position (top/bottom), font selection, color picker. Stored in `landingOverlay` JSON field. Display on /customs/:id page.
-- 2025-12-24: Added library asset system with backgrounds/videos, season/event categorization, admin UI tabs
-- 2025-12-24: Updated AI-COMMS.zip with QR Gear responses to KC questions
-- 2025-12-23: Restored segment selection step in product flow (Store Type → Store → Segment → Product Source). Segment dropdown now appears after store selection.
-- 2025-12-23: Custom Product Builder improvements - (1) Font preview: each font selection now shows a live sample of how that font looks. (2) Composite image generator: server-side generation of print-ready images (header + QR + footer on white background) stored in `printifyCompositeUrl` for Printify submission. (3) Multi-placement support: `placements` stored as text array in database.
-- 2025-12-23: Implemented automated Printify cost sync system - background job module (server/lib/printify-cost-sync.ts) creates temp products to extract real production costs. Features: printifyCostSync table tracks sync progress, resume capability from paused syncs, finally block cleanup prevents orphaned Printify products, 3s rate limiting between requests, staleness indicators (>24h badge) in admin UI with real-time progress display.
-- 2025-12-23: Fixed external store creation - now properly saves to PostgreSQL via POST /api/admin/partner-stores with auto-generated API key and unique slug. External stores appear immediately in dropdown after creation. Fixed switch component visibility with border-border class.
-- 2025-12-23: Added cost extraction system for Printify products - printifyPrintProviders table now stores minCost/maxCost fields. Backend endpoint `/api/admin/catalog/fetch-costs` creates temporary placeholder products in Printify to extract real production costs (since Printify catalog API doesn't expose costs). Batch-details endpoint prioritizes cached costs from database.
-- 2025-12-22: Added Printify catalog sync feature with local caching (printifyBlueprints, printifyPrintProviders tables), on-demand sync from admin products page, real-time status updates
-
-## Printify Design Specifications
-
-### Print-Ready File Requirements
-- **Format**: PNG with transparent background (REQUIRED)
-- **Dimensions**: 4500 × 5400 px (portrait) for apparel
-- **Resolution**: 300 DPI
-- **Color Mode**: RGB (sRGB safest) - NOT CMYK
-- **Background**: Transparent - let Printify apply garment color
-
-### QR Code Rules
-- **Minimum size**: 3" × 3" preferred (2.5" × 2.5" absolute minimum)
-- **Design**: Pure black on transparent, no gradients, no thin strokes
-- **Error correction**: Level H (High)
-- **Quiet zone**: 4 modules minimum clear margin around QR
-- **No stylized/distressed QR codes or rounded modules for apparel**
-
-### Text Rules
-- **Minimum height**: 14-16 px at final print size
-- **Font weight**: Medium or bold (thin fonts disappear on fabric)
-- **Orbitron**: Only works well at bold weights
-
-### Landing Page Images (Digital Display)
-- **Dimensions**: 1080 × 1920 px (9:16 portrait)
-- **Format**: JPG @ 80-85% quality, ≤300 KB
-- **For**: Background images shown on /customs/:id when QR is scanned
-- **Safe zones**: Top/bottom 15% may be hidden by browser UI - keep key content in center third
-- **Contrast**: Use dark overlay (rgba(0,0,0,0.4)) or light overlay (rgba(255,255,255,0.25)) for text readability
-- **Performance**: Must load in <1 second on mobile - QR users are impatient
-
-### File Checklist
-✔ PNG ✔ Transparent background ✔ 300 DPI ✔ 4500×5400 px ✔ RGB ✔ QR ≥ 3" ✔ Clean margins
-
-## Printify Cost Sync System
-The cost sync system extracts real production costs, colors, and sizes from Printify by creating temporary placeholder products (since Printify's catalog API doesn't expose this data):
-
-**Key Components:**
-- `server/lib/printify-cost-sync.ts`: Background job module with rate limiting and resume capability
-- `printifyCostSync` table: Tracks sync progress (status, counts, lastProcessedProviderId)
-- Admin endpoints: `/api/admin/catalog/sync-all-costs`, `/api/admin/catalog/cost-sync-status`, `/api/admin/catalog/cancel-cost-sync`
-
-**Features:**
-- Creates temp products with placeholder image to extract variant costs, colors, and sizes
-- Stores minCost/maxCost, availableColors (JSONB), availableSizes (text array) in printifyPrintProviders table
-- Resume from paused syncs using lastProcessedProviderId
-- Finally block cleanup prevents orphaned Printify products
-- 3s delay between requests to avoid rate limits
-- Staleness threshold: 24 hours (amber badge in admin UI)
-- Frontend shows "(cached)" indicators when data comes from database vs live API
-
-## SVG Text Rendering System
-The SVG-based text rendering pipeline generates high-quality print-ready images with text warp effects:
-
-**Key Components:**
-- `server/lib/svg-renderer.ts`: SVG generation with text-on-path for warp effects
-- `server/lib/qrcode-svg.d.ts`: Type definitions for qrcode-svg package
-- API endpoints: `/api/render/config`, `/api/render/preview`, `/api/render/png`
-
-**Warp Presets:**
-- `straight` - No warp, horizontal text
-- `arc-up` / `arc-down` - Gentle arc curves
-- `arc-strong-up` / `arc-strong-down` - Dramatic arc curves
-- `wave` / `wave-strong` - Sine wave effects
-- `circle-top` / `circle-bottom` - Circular text paths
-
-**Text Style Options:**
-- Font family: 20-font allowlist including Orbitron, Impact, Georgia
-- Font size: Print-scale (120pt header, 96pt footer default)
-- Color: Hex color picker
-- Letter spacing: -10 to +50 range
-- Stroke: Optional outline with color and width
-
-**Output:**
-- Canvas: 4500 × 5400 px transparent PNG
-- QR code: SVG-based using qrcode-svg for crisp scaling
-- PNG conversion: @resvg/resvg-js (Rust-based, high quality)
+- `@neondatabase/serverless`: PostgreSQL connectivity.
+- `drizzle-orm` / `drizzle-kit`: ORM and migrations.
+- `@stripe/stripe-js` / `@stripe/react-stripe-js`: Stripe integration.
+- `qrcode`: QR code generation.
+- `jsonwebtoken`: Widget authentication.
+- `@tanstack/react-query`: Data fetching.
+- `zod`: Schema validation.
+- `express-rate-limit`: API rate limiting.
+- `@resvg/resvg-js`: SVG to PNG conversion.
