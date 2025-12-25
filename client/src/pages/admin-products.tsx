@@ -728,11 +728,17 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [deleteWizardStoreId, setDeleteWizardStoreId] = useState<string | null>(null);
   const [deleteWizardSegmentInfo, setDeleteWizardSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
   
-  // Library picker state (backgrounds + templates)
-  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
+  // Library picker state (backgrounds + templates) - now inline in Step 5
   const [libraryPickerTab, setLibraryPickerTab] = useState<"backgrounds" | "templates">("backgrounds");
   const [libraryFilterSeason, setLibraryFilterSeason] = useState<string>("all");
   const [libraryFilterEvent, setLibraryFilterEvent] = useState<string>("all");
+  // Selected library item - when set, shows confirmation card and populates builder
+  const [selectedLibraryItem, setSelectedLibraryItem] = useState<{
+    type: "template" | "background";
+    id: string;
+    name: string;
+    imageUrl?: string;
+  } | null>(null);
   
   // Fetch partner stores from database for External store type
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
@@ -1794,8 +1800,15 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 <div className="flex flex-col gap-4">
                   <Button
                     variant={productSource === "Library" ? "default" : "outline"}
-                    className="h-20 text-lg w-full"
-                    onClick={() => setProductSource("Library")}
+                    className={`h-20 text-lg w-full ${productSource === "Library" ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                    onClick={() => {
+                      setProductSource("Library");
+                      toast({
+                        title: "Library Selected",
+                        description: "Now pick a product type below",
+                        duration: 2000,
+                      });
+                    }}
                     data-testid="button-source-library"
                   >
                     <div className="text-center">
@@ -1805,8 +1818,15 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </Button>
                   <Button
                     variant={productSource === "Custom" ? "default" : "outline"}
-                    className="h-20 text-lg w-full"
-                    onClick={() => setProductSource("Custom")}
+                    className={`h-20 text-lg w-full ${productSource === "Custom" ? "ring-2 ring-accent ring-offset-2" : ""}`}
+                    onClick={() => {
+                      setProductSource("Custom");
+                      toast({
+                        title: "Custom Selected",
+                        description: "Build your own design below",
+                        duration: 2000,
+                      });
+                    }}
                     data-testid="button-source-custom"
                   >
                     <div className="text-center">

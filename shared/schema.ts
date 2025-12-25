@@ -610,6 +610,67 @@ export const insertPrintifyCostSyncSchema = createInsertSchema(printifyCostSync)
   id: true,
 });
 
+// QR Dynamics™ - Cycling Content System
+// A content set defines a schedule for cycling through multiple slots
+// Use cases: "12 Days of Christmas", "30 Days of Verses", weekly menus
+export const dynamicContentSets = pgTable("dynamic_content_sets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // "12 Days of Christmas"
+  description: text("description"),
+  // Schedule type determines how content cycles
+  // 'hourly' = new slot every hour, 'daily' = new slot every day
+  // 'weekly' = new slot every week, 'monthly' = new slot every month
+  scheduleType: text("schedule_type").notNull().default("daily"), // 'hourly', 'daily', 'weekly', 'monthly'
+  // Start date/time for the first slot (slot 1 shows at this time)
+  startDate: timestamp("start_date").notNull(),
+  // Optional end date - after this, shows last slot or loops
+  endDate: timestamp("end_date"),
+  // Loop behavior: when all slots are exhausted
+  // 'stop' = show last slot forever, 'loop' = restart from slot 1
+  loopBehavior: text("loop_behavior").default("stop"), // 'stop', 'loop'
+  // Total number of slots expected (for display purposes)
+  totalSlots: integer("total_slots").default(0),
+  // Owner info (for future user-created sets)
+  userId: varchar("user_id").references(() => users.id),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Individual content slots within a set
+// Each slot contains the content to display at a specific position in the cycle
+export const dynamicContentSlots = pgTable("dynamic_content_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentSetId: varchar("content_set_id").notNull().references(() => dynamicContentSets.id, { onDelete: "cascade" }),
+  // Position in the sequence (1-indexed: slot 1, slot 2, etc.)
+  slotNumber: integer("slot_number").notNull(),
+  // Content for this slot (similar to landing page overlay)
+  title: text("title"),
+  description: text("description"),
+  // Background image for this slot
+  imageUrl: text("image_url"),
+  // Optional video URL
+  videoUrl: text("video_url"),
+  // Optional link (button or tap destination)
+  linkUrl: text("link_url"),
+  linkText: text("link_text"), // "Learn More", "Shop Now", etc.
+  // Styling options
+  textColor: text("text_color").default("#ffffff"),
+  overlayPosition: text("overlay_position").default("bottom"), // 'top', 'center', 'bottom'
+  fontFamily: text("font_family").default("Inter"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDynamicContentSetSchema = createInsertSchema(dynamicContentSets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertDynamicContentSlotSchema = createInsertSchema(dynamicContentSlots).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -693,3 +754,9 @@ export type InsertPrintifyCatalogSync = z.infer<typeof insertPrintifyCatalogSync
 
 export type PrintifyCostSync = typeof printifyCostSync.$inferSelect;
 export type InsertPrintifyCostSync = z.infer<typeof insertPrintifyCostSyncSchema>;
+
+export type DynamicContentSet = typeof dynamicContentSets.$inferSelect;
+export type InsertDynamicContentSet = z.infer<typeof insertDynamicContentSetSchema>;
+
+export type DynamicContentSlot = typeof dynamicContentSlots.$inferSelect;
+export type InsertDynamicContentSlot = z.infer<typeof insertDynamicContentSlotSchema>;
