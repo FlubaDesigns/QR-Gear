@@ -21,30 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Video, Play, Pause } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-
-interface LibraryAsset {
-  id: string;
-  ownerType: string;
-  userId: string | null;
-  assetType: string;
-  mediaType: string;
-  name: string;
-  originalName: string;
-  description: string | null;
-  fileName: string;
-  storageUrl: string;
-  publicUrl: string;
-  category: string | null;
-  season: string | null;
-  event: string | null;
-  tags: string | null;
-  sortOrder: number;
-  usageCount: number;
-  isActive: boolean;
-  isFeatured: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { LibraryAsset } from "@shared/schema";
 
 const SEASONS = [
   { value: "", label: "No Season" },
@@ -171,8 +148,8 @@ function VideosContent() {
       description: asset.description || "",
       season: asset.season || "",
       event: asset.event || "",
-      isActive: asset.isActive,
-      isFeatured: asset.isFeatured,
+      isActive: asset.isActive ?? true,
+      isFeatured: asset.isFeatured ?? false,
     });
     setVideoPreview(asset.publicUrl);
     setIsDialogOpen(true);

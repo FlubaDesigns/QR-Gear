@@ -438,27 +438,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { filename } = req.params;
       const storageClient = new ObjectStorageClient();
       
-      // Library files can be in various nested folders - search common locations
-      const possiblePaths = [
-        `library/admin/backgrounds/${filename}`,
-        `library/admin/designs/${filename}`,
-        `library/admin/videos/${filename}`,
-      ];
+      // First, try to find the actual storage path from the database by URL
+      const matchingAsset = await storage.getLibraryAssetByUrl(`/api/library-files/${filename}`);
       
       let foundData: Buffer | null = null;
-      for (const path of possiblePaths) {
-        const { ok, value } = await storageClient.downloadAsBytes(path);
+      
+      // If we found the asset in DB, use its exact storage path
+      if (matchingAsset?.storageUrl) {
+        const { ok, value } = await storageClient.downloadAsBytes(matchingAsset.storageUrl);
         if (ok && value) {
           foundData = value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array);
-          break;
         }
       }
       
-      // If not found in standard locations, try searching library folder recursively
+      // Fallback: search common locations if not found via DB
       if (!foundData) {
-        const { ok, value } = await storageClient.downloadAsBytes(`library/${filename}`);
-        if (ok && value) {
-          foundData = value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array);
+        const possiblePaths = [
+          `library/admin/backgrounds/${filename}`,
+          `library/admin/designs/${filename}`,
+          `library/admin/videos/${filename}`,
+          `library/user/${filename}`,
+        ];
+        
+        for (const path of possiblePaths) {
+          const { ok, value } = await storageClient.downloadAsBytes(path);
+          if (ok && value) {
+            foundData = value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array);
+            break;
+          }
         }
       }
       
@@ -3319,7 +3326,10 @@ ${allPages.map(page => `  <url>
 
         // Create promotion code (customer-facing code)
         const promoCode = await stripe.promotionCodes.create({
-          coupon: stripeCoupon.id,
+          promotion: {
+            type: 'coupon',
+            coupon: stripeCoupon.id,
+          },
           code: validated.code.toUpperCase(),
           active: validated.isActive,
         });

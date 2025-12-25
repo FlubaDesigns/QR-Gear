@@ -140,10 +140,15 @@ export async function uploadImageFromBuffer(
     },
   });
 
+  // Use correct route based on folder - library assets use library-files route
+  const publicUrl = folder.startsWith("library/") 
+    ? `/api/library-files/${uniqueId}.${extension}`
+    : `/api/files/${uniqueId}.${extension}`;
+
   return {
     fileName: objectName,
     storageUrl: objectName,
-    publicUrl: `/api/files/${uniqueId}.${extension}`,
+    publicUrl,
     sizeBytes: buffer.length,
     mimeType,
   };

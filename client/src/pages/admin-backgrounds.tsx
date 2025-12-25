@@ -21,72 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-
-interface QrTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string | null;
-  thumbnailUrl: string;
-  fullImageUrl: string;
-  storageUrl: string;
-  priceUpcharge: string;
-  isActive: boolean;
-  isFeatured: boolean;
-  sortOrder: number;
-  createdAt: string;
-}
-
-interface CustomDesign {
-  id: string;
-  productId: number;
-  productName: string;
-  productImage: string | null;
-  placements: string[];
-  backgroundImageUrl: string | null;
-  backgroundAssetId: string | null;
-  topText: { text: string; fontFamily: string; fontSize: string } | null;
-  bottomText: { text: string; fontFamily: string; fontSize: string } | null;
-  landingOverlay: { enabled: boolean; title?: string; description?: string; position: string; fontFamily: string; color: string } | null;
-  textUpcharge: string;
-  storeType: string | null;
-  storeName: string | null;
-  segment: string | null;
-  isFeatured: boolean | null;
-  isSeasonalPromo: boolean | null;
-  qrCodeUrl: string | null;
-  printifyCompositeUrl: string | null;
-  savedToLibrary: boolean | null;
-  savedToStore: boolean | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface LibraryAsset {
-  id: string;
-  ownerType: string;
-  userId: string | null;
-  assetType: string;
-  mediaType: string;
-  name: string;
-  originalName: string;
-  description: string | null;
-  fileName: string;
-  storageUrl: string;
-  publicUrl: string;
-  category: string | null;
-  season: string | null;
-  event: string | null;
-  tags: string | null;
-  sortOrder: number;
-  usageCount: number;
-  isActive: boolean;
-  isFeatured: boolean;
-  visibleStoreSlugs: string[] | null;
-  visibleSegments: { segments: string[] } | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { CustomDesign, LibraryAsset, PartnerStore } from "@shared/schema";
 
 const TEMPLATE_CATEGORIES = [
   { value: "religious", label: "Religious" },
@@ -235,10 +170,10 @@ function TemplatesContent() {
                   )}
                 </div>
                 
-                {(design.topText || design.bottomText) && (
+                {(design.topText !== null || design.bottomText !== null) && (
                   <div className="mt-2 text-xs text-muted-foreground">
-                    {design.topText && <p>Top: "{(design.topText as any).text}"</p>}
-                    {design.bottomText && <p>Bottom: "{(design.bottomText as any).text}"</p>}
+                    {design.topText !== null && <p>Top: "{String((design.topText as Record<string, unknown>)?.text ?? "")}"</p>}
+                    {design.bottomText !== null && <p>Bottom: "{String((design.bottomText as Record<string, unknown>)?.text ?? "")}"</p>}
                   </div>
                 )}
 
@@ -326,14 +261,6 @@ function TemplatesContent() {
   );
 }
 
-interface PartnerStore {
-  id: string;
-  name: string;
-  slug: string;
-  availableSegments: { segments: string[] } | null;
-  isActive: boolean | null;
-}
-
 function LibraryBackgroundsContent() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -370,8 +297,8 @@ function LibraryBackgroundsContent() {
   });
 
   const allSegments = stores.reduce((acc, store) => {
-    const segments = store.availableSegments?.segments || [];
-    segments.forEach(s => { if (!acc.includes(s)) acc.push(s); });
+    const segments = store.availableSegments || [];
+    segments.forEach((s: string) => { if (!acc.includes(s)) acc.push(s); });
     return acc;
   }, [] as string[]);
 
@@ -472,10 +399,10 @@ function LibraryBackgroundsContent() {
       category: asset.category || "",
       season: asset.season || "none",
       event: asset.event || "none",
-      isActive: asset.isActive,
-      isFeatured: asset.isFeatured,
+      isActive: asset.isActive ?? true,
+      isFeatured: asset.isFeatured ?? false,
       visibleStoreSlugs: asset.visibleStoreSlugs || [],
-      visibleSegments: asset.visibleSegments?.segments || [],
+      visibleSegments: (asset.visibleSegments as { segments?: string[] })?.segments || [],
     });
     setImagePreview(asset.publicUrl);
     setIsDialogOpen(true);

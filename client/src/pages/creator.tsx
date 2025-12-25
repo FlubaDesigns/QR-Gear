@@ -20,31 +20,7 @@ import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
-import type { Product } from "@shared/schema";
-
-interface QrTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string | null;
-  thumbnailUrl: string;
-  fullImageUrl: string;
-  priceUpcharge: string;
-  isActive: boolean;
-  isFeatured: boolean;
-}
-
-interface HostingTier {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  durationDays: number;
-  isIncluded: boolean;
-  priceUpcharge: string;
-  isActive: boolean;
-  sortOrder: number;
-}
+import type { Product, QrTemplate, HostingTier } from "@shared/schema";
 
 const placementLabels: Record<string, string> = {
   "front": "Front",
@@ -837,7 +813,7 @@ export default function Creator() {
                               )}
                               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                                 <p className="text-white text-xs font-medium truncate">{template.name}</p>
-                                {parseFloat(template.priceUpcharge) > 0 && (
+                                {parseFloat(template.priceUpcharge || "0") > 0 && (
                                   <p className="text-white/80 text-xs">+${template.priceUpcharge}</p>
                                 )}
                               </div>
@@ -855,7 +831,7 @@ export default function Creator() {
                                 <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
                               )}
                             </div>
-                            {parseFloat(selectedTemplate.priceUpcharge) > 0 && (
+                            {parseFloat(selectedTemplate.priceUpcharge || "0") > 0 && (
                               <Badge variant="outline">+${selectedTemplate.priceUpcharge}</Badge>
                             )}
                           </div>
@@ -1046,7 +1022,7 @@ export default function Creator() {
                             Your image will be hosted online and accessible via QR code for the selected duration.
                           </p>
                           <div className="grid grid-cols-2 gap-2">
-                            {hostingTiers.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map((tier) => (
+                            {hostingTiers.filter(t => t.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((tier) => (
                               <button
                                 key={tier.id}
                                 type="button"
@@ -1068,7 +1044,7 @@ export default function Creator() {
                                   {tier.isIncluded ? (
                                     <Badge variant="outline" className="text-xs">Included</Badge>
                                   ) : (
-                                    <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge).toFixed(0)}</Badge>
+                                    <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge || "0").toFixed(0)}</Badge>
                                   )}
                                 </div>
                               </button>
@@ -1163,7 +1139,7 @@ export default function Creator() {
                           How long should your dynamic page remain active?
                         </p>
                         <div className="grid grid-cols-2 gap-2">
-                          {hostingTiers.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map((tier) => (
+                          {hostingTiers.filter(t => t.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((tier) => (
                             <button
                               key={tier.id}
                               type="button"
@@ -1185,7 +1161,7 @@ export default function Creator() {
                                 {tier.isIncluded ? (
                                   <Badge variant="outline" className="text-xs">Included</Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge).toFixed(0)}</Badge>
+                                  <Badge variant="secondary" className="text-xs">+${parseFloat(tier.priceUpcharge || "0").toFixed(0)}</Badge>
                                 )}
                               </div>
                             </button>
