@@ -2776,6 +2776,8 @@ function ProductsContent() {
   
   const selectedExternalStore = allExternalStores.find(s => s.name === filterSegment);
   const selectedInternalStore = INTERNAL_STORES.find(s => s.name === filterSegment);
+  // Find the selected partner store from fresh data (for delete functionality)
+  const selectedPartnerStore = partnerStoresData.find(s => s.name === filterSegment);
   const filterStoreAreas: string[] = 
     (selectedExternalStore && 'areas' in selectedExternalStore ? selectedExternalStore.areas : undefined) ||
     (selectedExternalStore && 'segments' in selectedExternalStore ? selectedExternalStore.segments : undefined) ||
@@ -2981,24 +2983,18 @@ function ProductsContent() {
                   ))}
                 </optgroup>
               </select>
-              {filterSegment && (() => {
-                const selectedStore = partnerStoresData.find(s => s.name === filterSegment);
-                if (selectedStore) {
-                  return (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteStoreId(selectedStore.id)}
-                      title="Delete this store"
-                      data-testid="button-delete-store"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  );
-                }
-                return null;
-              })()}
+              {selectedPartnerStore && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteStoreId(selectedPartnerStore.id)}
+                  title="Delete this store"
+                  data-testid="button-delete-store"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             {filterStoreAreas.length > 0 && (
               <div className="flex items-center gap-1">
@@ -3013,24 +3009,18 @@ function ProductsContent() {
                     <option key={area} value={area}>{area}</option>
                   ))}
                 </select>
-                {filterArea && (() => {
-                  const selectedStore = partnerStoresData.find(s => s.name === filterSegment);
-                  if (selectedStore) {
-                    return (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteSegmentInfo({ storeId: selectedStore.id, segment: filterArea })}
-                        title="Delete this segment"
-                        data-testid="button-delete-segment"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    );
-                  }
-                  return null;
-                })()}
+                {filterArea && selectedPartnerStore && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteSegmentInfo({ storeId: selectedPartnerStore.id, segment: filterArea })}
+                    title="Delete this segment"
+                    data-testid="button-delete-segment"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
             {(filterSegment || filterArea) && (
