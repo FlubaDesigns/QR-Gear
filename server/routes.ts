@@ -4524,6 +4524,79 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // QR Scan Analytics Endpoints
+  app.get("/api/admin/orchestration/qr-analytics/summary", isAdmin, async (req: any, res) => {
+    try {
+      const { qrAnalyticsService } = await import("./services/qr-analytics");
+      const summary = await qrAnalyticsService.getSummary();
+      res.json(summary);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/orchestration/qr-analytics/products", isAdmin, async (req: any, res) => {
+    try {
+      const { qrAnalyticsService } = await import("./services/qr-analytics");
+      const limit = parseInt(req.query.limit as string) || 20;
+      const analytics = await qrAnalyticsService.getProductAnalytics(Math.min(Math.max(1, limit), 100));
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/orchestration/qr-analytics/trends", isAdmin, async (req: any, res) => {
+    try {
+      const { qrAnalyticsService } = await import("./services/qr-analytics");
+      const days = parseInt(req.query.days as string) || 30;
+      const trends = await qrAnalyticsService.getTrends(Math.min(Math.max(1, days), 365));
+      res.json(trends);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/orchestration/qr-analytics/recent", isAdmin, async (req: any, res) => {
+    try {
+      const { qrAnalyticsService } = await import("./services/qr-analytics");
+      const limit = parseInt(req.query.limit as string) || 50;
+      const recent = await qrAnalyticsService.getRecentScans(Math.min(Math.max(1, limit), 200));
+      res.json(recent);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Public scan logging endpoint (called when QR is scanned)
+  app.post("/api/qr/scan", async (req, res) => {
+    try {
+      const { qrAnalyticsService } = await import("./services/qr-analytics");
+      const { masterProductId, customDesignId, qrUrl, country, region } = req.body;
+      
+      if (!masterProductId && !customDesignId && !qrUrl) {
+        return res.status(400).json({ error: "At least one identifier required" });
+      }
+
+      const userAgent = req.headers["user-agent"] || "";
+      const deviceType = qrAnalyticsService.detectDeviceType(userAgent);
+
+      await qrAnalyticsService.logScan({
+        masterProductId,
+        customDesignId,
+        qrUrl,
+        country,
+        region,
+        deviceType,
+        userAgent,
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
