@@ -2487,6 +2487,16 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Admin: Get library templates (custom designs saved to library)
+  app.get("/api/admin/library/templates", isAdmin, async (req: any, res) => {
+    try {
+      const templates = await storage.getCustomDesignsForLibrary();
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Create library asset
   app.post("/api/admin/library", isAdmin, async (req: any, res) => {
     try {
@@ -3276,6 +3286,42 @@ ${allPages.map(page => `  <url>
         ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
         : "http://localhost:5000";
       
+      // Auto-save background image to library_assets (deduplicate by URL)
+      let backgroundAssetId: string | null = null;
+      if (validatedData.backgroundImage && validatedData.saveTarget !== "store") {
+        // Check if this background already exists in library_assets
+        const existingAsset = await storage.getLibraryAssetByUrl(validatedData.backgroundImage);
+        if (existingAsset) {
+          backgroundAssetId = existingAsset.id;
+          // Increment usage count and reactivate if needed
+          await storage.incrementLibraryAssetUsage(existingAsset.id);
+          if (!existingAsset.isActive) {
+            await storage.updateLibraryAsset(existingAsset.id, { isActive: true });
+          }
+        } else {
+          // Create new library asset for this background
+          const bgFilename = validatedData.backgroundImage.split('/').pop() || 'background.png';
+          const newAsset = await storage.createLibraryAsset({
+            name: `Background - ${validatedData.storeName || 'Custom'} ${validatedData.segment || ''}`.trim(),
+            originalName: bgFilename,
+            mimeType: 'image/png',
+            fileName: bgFilename,
+            sizeBytes: 0, // Unknown size when auto-saving from URL
+            storageUrl: validatedData.backgroundImage,
+            publicUrl: validatedData.backgroundImage,
+            ownerType: 'admin',
+            assetType: 'background',
+            mediaType: 'image',
+            isActive: true,
+            isFeatured: false,
+            // Set visibility to the store/segment this design is for
+            visibleStoreSlugs: validatedData.storeName ? [validatedData.storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-')] : null,
+            visibleSegments: validatedData.segment ? { segments: [validatedData.segment] } : null,
+          });
+          backgroundAssetId = newAsset.id;
+        }
+      }
+      
       // Create the design with descriptive ID
       const designData = {
         id: designId,
@@ -3284,6 +3330,7 @@ ${allPages.map(page => `  <url>
         productImage: validatedData.productImage || null,
         placements: validatedData.placements,
         backgroundImageUrl: validatedData.backgroundImage || null,
+        backgroundAssetId: backgroundAssetId,
         topText: validatedData.topText || null,
         bottomText: validatedData.bottomText || null,
         landingOverlay: validatedData.landingOverlay || null,
@@ -3380,6 +3427,26 @@ ${allPages.map(page => `  <url>
       const designs = await storage.getCustomDesigns();
       res.json(designs);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Admin: Update custom design (partial update)
+  app.put("/api/admin/custom-designs/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      // Validate the design exists
+      const existing = await storage.getCustomDesign(id);
+      if (!existing) {
+        return res.status(404).json({ error: "Custom design not found" });
+      }
+      
+      const updatedDesign = await storage.updateCustomDesign(id, updates);
+      res.json(updatedDesign);
+    } catch (error: any) {
+      console.error("[Custom Design Update] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

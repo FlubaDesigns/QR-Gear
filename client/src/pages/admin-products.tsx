@@ -727,6 +727,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [deleteWizardStoreId, setDeleteWizardStoreId] = useState<string | null>(null);
   const [deleteWizardSegmentInfo, setDeleteWizardSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
   
+  // Library background picker state
+  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
+  
   // Fetch partner stores from database for External store type
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
   const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
@@ -741,6 +744,28 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   // Fetch admin settings for markup calculation
   const { data: adminSettings } = useQuery<AdminSettings>({
     queryKey: ["/api/admin/settings"],
+  });
+  
+  // Fetch library backgrounds for picker
+  interface LibraryBackground {
+    id: string;
+    name: string;
+    publicUrl: string;
+    category: string | null;
+    season: string | null;
+    event: string | null;
+    visibleStoreSlugs: string[] | null;
+    visibleSegments: { segments: string[] } | null;
+  }
+  const { data: libraryBackgrounds = [] } = useQuery<LibraryBackground[]>({
+    queryKey: ["/api/admin/library/admin", { assetType: "background", mediaType: "image" }],
+    queryFn: async () => {
+      const params = new URLSearchParams({ assetType: "background", mediaType: "image" });
+      const response = await fetch(`/api/admin/library/admin?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch backgrounds");
+      return response.json();
+    },
+    enabled: libraryPickerOpen,
   });
   
   // Get selected hosting tier price (default to $5 for 1 year if not loaded)
@@ -1990,24 +2015,35 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           </Button>
                         </div>
                       ) : (
-                        <label className="cursor-pointer block" title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality">
-                          <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <span className="text-sm text-muted-foreground">Click to upload background image</span>
-                          <p className="text-xs text-muted-foreground mt-1">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setBackgroundImage(file);
-                                setBackgroundPreview(URL.createObjectURL(file));
-                              }
-                            }}
-                            data-testid="input-background-upload"
-                          />
-                        </label>
+                        <div className="space-y-3">
+                          <label className="cursor-pointer block" title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality">
+                            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                            <span className="text-sm text-muted-foreground">Click to upload background image</span>
+                            <p className="text-xs text-muted-foreground mt-1">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setBackgroundImage(file);
+                                  setBackgroundPreview(URL.createObjectURL(file));
+                                }
+                              }}
+                              data-testid="input-background-upload"
+                            />
+                          </label>
+                          <div className="text-xs text-muted-foreground">— or —</div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setLibraryPickerOpen(true)}
+                            data-testid="button-pick-from-library"
+                          >
+                            <FolderOpen className="h-4 w-4 mr-1" /> Pick from Library
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -2756,6 +2792,65 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Library Background Picker Dialog */}
+      <Dialog open={libraryPickerOpen} onOpenChange={setLibraryPickerOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Select Background from Library</DialogTitle>
+            <DialogDescription>
+              Choose a background image from the admin library
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[50vh] p-1">
+            {libraryBackgrounds.length === 0 ? (
+              <div className="text-center py-8">
+                <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-muted-foreground">No backgrounds in library.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Upload backgrounds in the Library tab first.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {libraryBackgrounds.map((bg) => (
+                  <div
+                    key={bg.id}
+                    className="border rounded-lg overflow-hidden cursor-pointer hover-elevate"
+                    onClick={() => {
+                      setBackgroundImage(null);
+                      setBackgroundPreview(bg.publicUrl);
+                      setLibraryPickerOpen(false);
+                      toast({ title: "Background selected", description: bg.name });
+                    }}
+                    data-testid={`library-bg-${bg.id}`}
+                  >
+                    <div className="aspect-square relative">
+                      <img
+                        src={bg.publicUrl}
+                        alt={bg.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                        <p className="text-white text-xs font-medium truncate">{bg.name}</p>
+                      </div>
+                    </div>
+                    <div className="p-2 flex flex-wrap gap-1">
+                      {bg.season && <Badge variant="secondary" className="text-xs">{bg.season}</Badge>}
+                      {bg.event && <Badge variant="outline" className="text-xs">{bg.event}</Badge>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" data-testid="button-close-library-picker">Close</Button>
+            </DialogClose>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
