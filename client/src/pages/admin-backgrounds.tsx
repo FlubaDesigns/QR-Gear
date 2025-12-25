@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -675,17 +674,21 @@ function LibraryBackgroundsContent() {
         </div>
       )}
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>{editingAsset ? "Edit Background" : "Add Library Background"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+      {/* Inline Form - replaces modal for better mobile experience */}
+      {isDialogOpen && (
+        <Card className="mb-6 border-2 border-primary/50">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">
+              {editingAsset ? "Edit Background" : "Add Library Background"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Image Upload Section */}
             {!editingAsset && (
-              <div className="space-y-2">
-                <Label htmlFor="library-bg-image">Background Image</Label>
+              <div className="space-y-3">
+                <Label htmlFor="library-bg-image" className="text-base font-medium">Background Image</Label>
                 {imagePreview && (
-                  <div className="aspect-video rounded-md overflow-hidden mb-2">
+                  <div className="aspect-video max-w-md rounded-lg overflow-hidden border-2 border-border">
                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
@@ -694,50 +697,56 @@ function LibraryBackgroundsContent() {
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
+                  className="h-12 text-base"
                   title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality"
                   data-testid="input-library-bg-image"
                 />
-                <p className="text-xs text-muted-foreground">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
+                <p className="text-sm text-muted-foreground">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
               </div>
             )}
 
             {editingAsset && imagePreview && (
-              <div className="aspect-video rounded-md overflow-hidden">
+              <div className="aspect-video max-w-md rounded-lg overflow-hidden border-2 border-border">
                 <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
               </div>
             )}
 
+            {/* Name Field */}
             <div className="space-y-2">
-              <Label htmlFor="library-bg-name">Name</Label>
+              <Label htmlFor="library-bg-name" className="text-base font-medium">Name</Label>
               <Input
                 id="library-bg-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Background name"
+                className="h-12 text-base"
                 data-testid="input-library-bg-name"
               />
             </div>
 
+            {/* Description Field */}
             <div className="space-y-2">
-              <Label htmlFor="library-bg-description">Description</Label>
+              <Label htmlFor="library-bg-description" className="text-base font-medium">Description</Label>
               <Textarea
                 id="library-bg-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Optional description..."
-                rows={2}
+                rows={3}
+                className="text-base"
                 data-testid="input-library-bg-description"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Season and Event */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Season</Label>
+                <Label className="text-base font-medium">Season</Label>
                 <Select
                   value={formData.season}
                   onValueChange={(value) => setFormData({ ...formData, season: value })}
                 >
-                  <SelectTrigger data-testid="select-library-bg-season">
+                  <SelectTrigger className="h-12 text-base" data-testid="select-library-bg-season">
                     <SelectValue placeholder="Select season" />
                   </SelectTrigger>
                   <SelectContent>
@@ -748,12 +757,12 @@ function LibraryBackgroundsContent() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Event</Label>
+                <Label className="text-base font-medium">Event</Label>
                 <Select
                   value={formData.event}
                   onValueChange={(value) => setFormData({ ...formData, event: value })}
                 >
-                  <SelectTrigger data-testid="select-library-bg-event">
+                  <SelectTrigger className="h-12 text-base" data-testid="select-library-bg-event">
                     <SelectValue placeholder="Select event" />
                   </SelectTrigger>
                   <SelectContent>
@@ -765,35 +774,37 @@ function LibraryBackgroundsContent() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            {/* Active/Featured Switches */}
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-3">
                 <Switch
                   id="library-bg-active"
                   checked={formData.isActive}
                   onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
                 />
-                <Label htmlFor="library-bg-active">Active</Label>
+                <Label htmlFor="library-bg-active" className="text-base">Active</Label>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Switch
                   id="library-bg-featured"
                   checked={formData.isFeatured}
                   onCheckedChange={(checked) => setFormData({ ...formData, isFeatured: checked })}
                 />
-                <Label htmlFor="library-bg-featured">Featured</Label>
+                <Label htmlFor="library-bg-featured" className="text-base">Featured</Label>
               </div>
             </div>
 
+            {/* Store Visibility */}
             {stores.length > 0 && (
-              <div className="space-y-2 border-t pt-4">
-                <Label>Visible to Stores</Label>
-                <p className="text-xs text-muted-foreground">Leave all unchecked for visibility to all stores</p>
+              <div className="space-y-3 border-t pt-4">
+                <Label className="text-base font-medium">Visible to Stores</Label>
+                <p className="text-sm text-muted-foreground">Leave all unchecked for visibility to all stores</p>
                 <div className="flex flex-wrap gap-2">
                   {stores.filter(s => s.isActive).map((store) => (
                     <Button
                       key={store.slug}
                       type="button"
-                      size="sm"
+                      size="lg"
                       variant={formData.visibleStoreSlugs.includes(store.slug) ? "default" : "outline"}
                       onClick={() => toggleStoreVisibility(store.slug)}
                       data-testid={`button-visibility-store-${store.slug}`}
@@ -805,16 +816,17 @@ function LibraryBackgroundsContent() {
               </div>
             )}
 
+            {/* Segment Visibility */}
             {allSegments.length > 0 && (
-              <div className="space-y-2">
-                <Label>Visible to Segments</Label>
-                <p className="text-xs text-muted-foreground">Leave all unchecked for visibility to all segments</p>
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Visible to Segments</Label>
+                <p className="text-sm text-muted-foreground">Leave all unchecked for visibility to all segments</p>
                 <div className="flex flex-wrap gap-2">
                   {allSegments.map((segment) => (
                     <Button
                       key={segment}
                       type="button"
-                      size="sm"
+                      size="lg"
                       variant={formData.visibleSegments.includes(segment) ? "default" : "outline"}
                       onClick={() => toggleSegmentVisibility(segment)}
                       data-testid={`button-visibility-segment-${segment}`}
@@ -825,24 +837,33 @@ function LibraryBackgroundsContent() {
                 </div>
               </div>
             )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button
-              onClick={handleSubmit}
-              disabled={uploading || updateMutation.isPending || !formData.name}
-              data-testid="button-save-library-bg"
-            >
-              {(uploading || updateMutation.isPending) && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              {editingAsset ? "Update" : "Upload"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleCloseDialog}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="lg"
+                onClick={handleSubmit}
+                disabled={uploading || updateMutation.isPending || !formData.name || (!editingAsset && !imageFile)}
+                className="w-full sm:w-auto"
+                data-testid="button-save-library-bg"
+              >
+                {(uploading || updateMutation.isPending) && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                {editingAsset ? "Update Background" : "Upload Background"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }
