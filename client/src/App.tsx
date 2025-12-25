@@ -21,6 +21,7 @@ import AdminCategories from "@/pages/admin-categories";
 import AdminTags from "@/pages/admin-tags";
 import AdminPartners from "@/pages/admin-partners";
 import AdminOrchestration from "@/pages/admin-orchestration";
+import AdminOrders from "@/pages/admin-orders";
 import StoreBuild from "@/pages/store-build";
 import CheckoutSuccess from "@/pages/checkout-success";
 import Customs from "@/pages/customs";
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/admin/tags" component={AdminTags} />
       <Route path="/admin/partners" component={AdminPartners} />
       <Route path="/admin/orchestration" component={AdminOrchestration} />
+      <Route path="/admin/orders" component={AdminOrders} />
       <Route path="/admin/sales/build" component={StoreBuild} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />
