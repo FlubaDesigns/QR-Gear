@@ -41,6 +41,11 @@ import QRStaticPlus from "@/pages/qr-static-plus";
 import QRUrl from "@/pages/qr-url";
 import QRVideo from "@/pages/qr-video";
 import QRDynamics from "@/pages/qr-dynamics";
+import WeddingQRShirts from "@/pages/wedding-qr-shirts";
+import FamilyReunionShirts from "@/pages/family-reunion-shirts";
+import ArtistQRApparel from "@/pages/artist-qr-apparel";
+import MemorialQRGifts from "@/pages/memorial-qr-gifts";
+import MusicianMerch from "@/pages/musician-merch";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 
@@ -87,6 +92,11 @@ function Router() {
       <Route path="/qr-url" component={QRUrl} />
       <Route path="/qr-video" component={QRVideo} />
       <Route path="/qr-dynamics" component={QRDynamics} />
+      <Route path="/wedding-qr-shirts" component={WeddingQRShirts} />
+      <Route path="/family-reunion-shirts" component={FamilyReunionShirts} />
+      <Route path="/artist-qr-apparel" component={ArtistQRApparel} />
+      <Route path="/memorial-qr-gifts" component={MemorialQRGifts} />
+      <Route path="/musician-merch" component={MusicianMerch} />
       <Route component={NotFound} />
     </Switch>
   );

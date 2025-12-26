@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { QRButton } from "@/components/QRButton";
-import blueShirtImage from "@assets/generated_images/blue_shirt_qr_with_shoulder.png";
+import blueShirtImage from "@assets/generated_images/blue_shirt_qr_lifestyle_flat_lay.png";
 import hoodieImage from "@assets/generated_images/navy_hoodie_with_qr_code.png";
 import capImage from "@assets/generated_images/Phone_scanning_QR_cap_37352447.png";
 import bagImage from "@assets/generated_images/Gym_bag_QR_mockup_9450e53d.png";
