@@ -962,7 +962,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         const updatedSegments = [...currentSegments, segmentToAdd];
         
         const res = await fetch(`/api/admin/partner-stores/${currentPartnerStore.id}`, {
-          method: "PUT",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ availableSegments: updatedSegments }),
