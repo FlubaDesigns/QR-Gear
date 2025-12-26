@@ -7,7 +7,9 @@ const actionCards = [
   {
     icon: QrCode,
     title: "QR Basics",
+    state: "Permanent",
     description: "A simple, scannable QR code. Text, URL, or contact info encoded permanently.",
+    tagline: "No updates. No subscriptions.",
     href: "/qr-static",
     buttonText: "Create QR Basics",
     color: "ice",
@@ -15,7 +17,9 @@ const actionCards = [
   {
     icon: Type,
     title: "QR Plus",
-    description: "Add a message above and below your QR. Perfect for calls-to-action.",
+    state: "Permanent + Messaging",
+    description: "Add a message above and below your QR. Perfect for calls-to-action and instructions.",
+    tagline: "Printed once. Works forever.",
     href: "/qr-static-plus",
     buttonText: "Create QR Plus",
     color: "accent",
@@ -23,7 +27,9 @@ const actionCards = [
   {
     icon: Palette,
     title: "QR Canvas",
-    description: "Design a custom image your QR opens to. Your QR Space, your visual.",
+    state: "Visual Space",
+    description: "Design a custom image your QR opens to. Your QR Space. Your visual.",
+    tagline: "Saved to your personal library.",
     href: "/qr-url",
     buttonText: "Create QR Canvas",
     color: "ice",
@@ -31,7 +37,9 @@ const actionCards = [
   {
     icon: Upload,
     title: "QR Play",
+    state: "Motion",
     description: "Bring your QR to life with video. Plays instantly in your QR Space.",
+    tagline: "No apps. Just scan.",
     href: "/qr-video",
     buttonText: "Create QR Play",
     color: "accent",
@@ -39,7 +47,9 @@ const actionCards = [
   {
     icon: Sparkles,
     title: "QR Dynamics™",
+    state: "Living Space",
     description: "Content that changes over time. Scheduled updates, rotating content, analytics.",
+    tagline: "Available as yearly or multi-year personal QR Spaces.",
     href: "/qr-dynamics",
     buttonText: "Create QR Dynamics",
     color: "ice",
@@ -68,8 +78,10 @@ export default function ActionCards() {
                   <div className={`w-12 h-12 rounded-xl icon-bg-${card.color} flex items-center justify-center mb-4`}>
                     <card.icon className={`w-6 h-6 icon-color-${card.color}`} />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">{card.title}</h3>
-                  <p className="text-sm text-muted-foreground flex-1">{card.description}</p>
+                  <h3 className="text-lg font-semibold mb-1">{card.title}</h3>
+                  <span className="text-xs text-muted-foreground/70 uppercase tracking-wide mb-2">{card.state}</span>
+                  <p className="text-sm text-muted-foreground flex-1 mb-2">{card.description}</p>
+                  <p className="text-xs text-muted-foreground/80 italic">{card.tagline}</p>
                 </CardContent>
               </Card>
             </Link>
