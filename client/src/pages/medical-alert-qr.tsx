@@ -129,7 +129,7 @@ export default function MedicalAlertQR() {
               <Link href="/lost-found-qr">
                 <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Lost & Found QR</span>
-                  <p className="text-sm text-muted-foreground">Tag your bags and gear</p>
+                  <p className="text-sm text-muted-foreground">QR on your bags and gear</p>
                 </div>
               </Link>
               <Link href="/personal-items-qr">

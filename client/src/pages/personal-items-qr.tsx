@@ -1,4 +1,4 @@
-import { Tag, CheckCircle, User, Key, Shirt, Baby, ArrowRight } from "lucide-react";
+import { Tag, CheckCircle, User, Shirt, Baby, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,24 +24,19 @@ const exampleTexts = [
 
 const items = [
   {
-    icon: Key,
-    title: "Keys & Wallets",
-    description: "Lost keys? The finder knows exactly what to do. 'IF FOUND' plus your contact.",
-  },
-  {
     icon: Shirt,
-    title: "Clothing & Jackets",
-    description: "Label your favorite hoodie. Kids' clothes. Work uniforms. Always finds its way back.",
+    title: "Jackets & Hoodies",
+    description: "Left your hoodie at the gym? The finder knows exactly what to do. 'IF FOUND' plus your contact.",
   },
   {
     icon: Baby,
-    title: "Kids' Stuff",
-    description: "Backpacks, lunchboxes, water bottles. Because everything gets left somewhere.",
+    title: "Kids' Clothes",
+    description: "Hoodies, t-shirts, jackets. Because everything gets left somewhere.",
   },
   {
     icon: User,
-    title: "Personal Gear",
-    description: "Headphones, sunglasses, chargers. Small things that easily wander off.",
+    title: "Bags & Totes",
+    description: "Gym bags, backpacks, totes. Your stuff, permanently claimed.",
   },
 ];
 
@@ -50,8 +45,8 @@ export default function PersonalItemsQR() {
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
         title="Personal Items QR | Label Your Stuff With Style | QR Gear"
-        description="Create QR labels for personal items with 'IF FOUND' text and contact info. Perfect for keys, wallets, kids' stuff, and anything you don't want to lose. USA options available."
-        keywords="personal items QR, if found QR, property label, lost item tag, kids stuff QR, personal belongings label"
+        description="Create QR gear for personal items with 'IF FOUND' text and contact info. Perfect for hoodies, bags, and anything you don't want to lose. USA options available."
+        keywords="personal items QR, if found QR, custom hoodies, gym bag QR, personal belongings QR"
       />
       <Navbar />
       <main className="flex-1 container py-12">
@@ -94,7 +89,7 @@ export default function PersonalItemsQR() {
           </Card>
 
           <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-6">Label anything:</h2>
+            <h2 className="font-semibold mb-6">Print on your gear:</h2>
             <div className="grid gap-4">
               {items.map((item, i) => (
                 <div key={i} className="flex items-start gap-4">
@@ -112,7 +107,7 @@ export default function PersonalItemsQR() {
 
           <Link href="/creator?line=static-plus">
             <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-personal">
-              Create Your Personal Item Tags
+              Create Your Personal QR Gear
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>

@@ -134,7 +134,7 @@ export default function OfficeQRMug() {
               <Link href="/personal-items-qr">
                 <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Personal Items QR</span>
-                  <p className="text-sm text-muted-foreground">Label anything that's yours</p>
+                  <p className="text-sm text-muted-foreground">Claim your gear with style</p>
                 </div>
               </Link>
             </div>

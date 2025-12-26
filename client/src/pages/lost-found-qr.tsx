@@ -43,7 +43,7 @@ export default function LostFoundQR() {
       <SEO 
         title="Lost & Found QR | Never Lose Your Gear Again | QR Gear"
         description="Add QR codes to your bags, luggage, and gear with your contact info. Good samaritans scan and call you. Perfect for gym bags, backpacks, and travel gear. USA options available."
-        keywords="lost and found QR, luggage tag QR, gym bag tag, backpack QR code, contact info tag, gear identification"
+        keywords="lost and found QR, gym bag QR, backpack QR code, contact info QR, gear identification, custom bags"
       />
       <Navbar />
       <main className="flex-1 container py-12">
@@ -83,7 +83,7 @@ export default function LostFoundQR() {
           </Card>
 
           <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-6">Tag everything that travels:</h2>
+            <h2 className="font-semibold mb-6">Print on everything that travels:</h2>
             <div className="grid gap-4">
               {items.map((item, i) => (
                 <div key={i} className="flex items-start gap-4">
@@ -103,10 +103,10 @@ export default function LostFoundQR() {
             <div className="flex items-start gap-4">
               <Backpack className="w-8 h-8 text-green-500 shrink-0" />
               <div>
-                <h3 className="font-semibold mb-1">Works on anything</h3>
+                <h3 className="font-semibold mb-1">Printed on quality gear</h3>
                 <p className="text-sm text-muted-foreground">
-                  Stickers, tags, keychains, patches - whatever sticks to your gear. 
-                  Order the format that works for your stuff.
+                  T-shirts, hoodies, bags, mugs - put your contact info on something you'll actually use and wear. 
+                  When your stuff gets left behind, it knows how to come home.
                 </p>
               </div>
             </div>
@@ -114,7 +114,7 @@ export default function LostFoundQR() {
 
           <Link href="/creator?line=static">
             <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-lost-found">
-              Create Your Lost & Found Tag
+              Create Your Lost & Found Gear
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>
@@ -134,7 +134,7 @@ export default function LostFoundQR() {
               <Link href="/personal-items-qr">
                 <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Personal Items QR</span>
-                  <p className="text-sm text-muted-foreground">Label all your gear</p>
+                  <p className="text-sm text-muted-foreground">Claim all your gear</p>
                 </div>
               </Link>
               <Link href="/everyday-qr">
