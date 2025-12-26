@@ -71,13 +71,13 @@ function MetricCard({
     <Card className="hover-elevate overflow-hidden">
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
-            <p className="text-lg sm:text-2xl font-bold mt-1 truncate" data-testid={`metric-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs sm:text-sm text-muted-foreground break-words">{title}</p>
+            <p className="text-lg sm:text-2xl font-bold mt-1 break-words" data-testid={`metric-${title.toLowerCase().replace(/\s+/g, '-')}`}>
               {value}
             </p>
             {subtitle && (
-              <p className="text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>
+              <p className="text-xs text-muted-foreground mt-1 break-words">{subtitle}</p>
             )}
             {trend !== undefined && (
               <div className="flex items-center gap-1 mt-2 flex-wrap">
