@@ -1,40 +1,48 @@
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { QRButton } from "@/components/QRButton";
-import { QrCode, Palette, Upload, Sparkles, ShoppingBag, Shield } from "lucide-react";
+import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield } from "lucide-react";
 
 const actionCards = [
   {
     icon: QrCode,
-    title: "Simple QR Products",
-    description: "Enter any URL or text and we'll create a scannable QR code on your choice of apparel.",
+    title: "Simple QR",
+    description: "Basic text or URL encoded directly in QR code on your choice of apparel.",
     href: "/qr-static",
     buttonText: "Create Simple QR",
     color: "ice",
   },
   {
-    icon: Palette,
-    title: "Pre-Designed QR Gifts",
-    description: "Choose from curated backgrounds - religious, sports, business themes - with your QR placed perfectly.",
-    href: "/qr-url",
-    buttonText: "Browse Designs",
+    icon: Type,
+    title: "QR + Text",
+    description: "Add header and footer text around your QR code for more impact.",
+    href: "/qr-static-plus",
+    buttonText: "Add Text to QR",
     color: "accent",
   },
   {
-    icon: Upload,
-    title: "Fully Custom QR Gifts",
-    description: "Upload your own image, add text overlays, and create a unique QR gift with hosted image viewing.",
-    href: "/qr-video",
-    buttonText: "Upload & Create",
+    icon: Palette,
+    title: "Gift Backgrounds",
+    description: "Pre-designed templates with your QR placed perfectly - religious, sports, business themes.",
+    href: "/qr-url",
+    buttonText: "Browse Designs",
     color: "ice",
   },
   {
+    icon: Upload,
+    title: "Video QR",
+    description: "Upload a video that plays when scanned - perfect for messages and tutorials.",
+    href: "/qr-video",
+    buttonText: "Upload Video",
+    color: "accent",
+  },
+  {
     icon: Sparkles,
-    title: "Dynamic QR Products",
-    description: "Get a QR that links to a page you control - update the image anytime without reprinting.",
+    title: "QR Dynamics™",
+    description: "Living QR codes you can update anytime without reprinting.",
     href: "/qr-dynamics",
     buttonText: "Go Dynamic",
-    color: "accent",
+    color: "ice",
   },
 ];
 
@@ -44,10 +52,10 @@ export default function ActionCards() {
       <div className="container">
         <div className="center mb-10">
           <h2>Choose Your QR Product Line</h2>
-          <p>Four ways to create custom QR merchandise for any purpose</p>
+          <p>Five ways to create custom QR merchandise for any purpose</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {actionCards.map((card, index) => (
             <Card 
               key={index} 
