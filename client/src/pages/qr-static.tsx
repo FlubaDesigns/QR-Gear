@@ -55,13 +55,21 @@ export default function QRStaticLanding() {
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <QrCode className="w-8 h-8 md:w-10 md:h-10 text-primary" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold">QR Basics</h1>
+            <div>
+              <h1 className="text-2xl md:text-4xl font-bold">QR Basics</h1>
+              <span className="text-sm text-muted-foreground/70 uppercase tracking-wide">Permanent</span>
+            </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">A simple, scannable QR code</p>
-          <p className="text-lg text-muted-foreground mb-8">
-            The classic QR experience. Encode your text, URL, or contact info directly into 
-            a permanent QR code printed on quality USA-made merchandise. Need a simple link to your website? This is it.
+          <p className="text-xl font-medium text-foreground mb-1">A clean, scannable QR code.</p>
+          <p className="text-lg text-muted-foreground mb-6">The classic, permanent QR experience.</p>
+          
+          <p className="text-base text-muted-foreground mb-2">
+            Encode your text, URL, or contact info directly into a permanent QR code printed on quality, USA-made merchandise.
+            Need a simple link to your website? This is it.
+          </p>
+          <p className="text-sm text-muted-foreground/80 italic mb-8">
+            Best for: websites, contact info, lost & found, emergency info
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">
