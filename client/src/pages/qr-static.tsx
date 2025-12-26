@@ -9,7 +9,7 @@ const features = [
   "Encode any text, URL, or contact info",
   "Up to 2,000 characters - that's a LOT of info!",
   "Permanent QR - never expires or changes",
-  "USA-made apparel and accessories",
+  "USA-made products available",
 ];
 
 const examples = [
@@ -45,7 +45,7 @@ export default function QRStaticLanding() {
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
         title="QR Basics | Text & URL QR Code Products | QR Gear"
-        description="Create QR Basics merchandise - encode text, URLs, or contact info directly into a permanent QR code. Perfect for business cards, contact info, and direct links. USA-made products."
+        description="Create QR Basics merchandise - encode text, URLs, or contact info directly into a permanent QR code. Perfect for business cards, contact info, and direct links. USA options available."
         keywords="QR Basics, simple QR code, basic QR products, text QR code, URL QR code, QR merchandise"
       />
       <Navbar />
@@ -65,7 +65,7 @@ export default function QRStaticLanding() {
           <p className="text-lg text-muted-foreground mb-6">Permanent. No subscriptions. Just works.</p>
           
           <p className="text-base text-muted-foreground mb-2">
-            Encode your text, URL, or contact info directly into a permanent QR code printed on quality, USA-made merchandise.
+            Encode your text, URL, or contact info directly into a permanent QR code printed on quality merchandise.
             Need a simple link to your website? This is it.
           </p>
           <p className="text-sm text-muted-foreground/80 italic mb-8">

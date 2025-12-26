@@ -12,8 +12,8 @@ interface SEOProps {
 
 export default function SEO({
   title = "QR Gear - Custom QR Code Merchandise",
-  description = "Create custom QR code merchandise with QR Gear. USA-made apparel, hats, mugs, and more featuring your personalized QR codes.",
-  keywords = "QR code merchandise, custom promotional products, USA made merchandise",
+  description = "Create custom QR code merchandise with QR Gear. Apparel, hats, mugs, and more featuring your personalized QR codes. USA-made options available.",
+  keywords = "QR code merchandise, custom promotional products, QR gear",
   ogImage = "/og-image.png",
   ogType = "website",
   ogUrl,

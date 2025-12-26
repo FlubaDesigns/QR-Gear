@@ -41,7 +41,7 @@ export default function QRUrlLanding() {
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
         title="QR Canvas | Custom Background QR Products | QR Gear"
-        description="Create QR Canvas merchandise - upload your own image that appears when people scan your QR. Custom backgrounds, templates, and optional text. USA-made products."
+        description="Create QR Canvas merchandise - upload your own image that appears when people scan your QR. Custom backgrounds, templates, and optional text. USA options available."
         keywords="QR Canvas, custom QR background, upload image QR, personalized QR, custom QR merchandise"
       />
       <Navbar />

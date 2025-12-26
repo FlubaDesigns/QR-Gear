@@ -41,7 +41,7 @@ export default function QRVideoLanding() {
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
         title="QR Play | Video QR Code Products | QR Gear"
-        description="Create QR Play merchandise - upload your video that plays instantly when scanned. Perfect for video messages, tutorials, and multimedia content. USA-made products."
+        description="Create QR Play merchandise - upload your video that plays instantly when scanned. Perfect for video messages, tutorials, and multimedia content. USA options available."
         keywords="QR Play, video QR code, video QR products, scannable video, multimedia QR, video merchandise"
       />
       <Navbar />

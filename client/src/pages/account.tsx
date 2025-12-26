@@ -449,7 +449,7 @@ export default function Account() {
                             <Badge variant="secondary">{design.placement}</Badge>
                             {design.madeInUSA && (
                               <Badge variant="default" className="gap-1">
-                                USA Made
+                                USA
                               </Badge>
                             )}
                           </div>

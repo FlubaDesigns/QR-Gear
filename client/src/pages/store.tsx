@@ -100,7 +100,7 @@ export default function Store() {
     <div className="min-h-screen flex flex-col">
       <SEO 
         title="Shop QR Products | QR Gear"
-        description="Browse our collection of USA-made merchandise for your custom QR codes. T-shirts, hats, mugs, bags and more ready for customization."
+        description="Browse our collection of merchandise for your custom QR codes. T-shirts, hats, mugs, bags and more ready for customization. USA options available."
         keywords="QR code products, custom merchandise, promotional items, QR shirts, QR hats"
       />
       <Navbar />
@@ -252,7 +252,7 @@ export default function Store() {
                         variant="secondary"
                       >
                         <UsaFlag className="w-4 h-3" />
-                        USA Made
+                        USA
                       </Badge>
                     )}
                   </div>

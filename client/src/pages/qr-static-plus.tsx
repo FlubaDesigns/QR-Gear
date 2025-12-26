@@ -11,7 +11,7 @@ const features = [
   "Multiple font styles and sizes",
   "Clean, readable layouts",
   "Permanent QR — never expires or changes",
-  "USA-made apparel and accessories",
+  "USA-made products available",
 ];
 
 const personalUses = [
@@ -49,7 +49,7 @@ export default function QRStaticPlusLanding() {
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
         title="QR Plus | QR Code with Header & Footer Text | QR Gear"
-        description="Create QR Plus merchandise with custom header and footer text printed on the product. Add context and calls-to-action around your QR codes. USA-made products."
+        description="Create QR Plus merchandise with custom header and footer text printed on the product. Add context and calls-to-action around your QR codes. USA options available."
         keywords="QR Plus, QR code with text, custom text QR, header footer QR, QR merchandise with text"
       />
       <Navbar />

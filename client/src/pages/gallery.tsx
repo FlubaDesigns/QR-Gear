@@ -31,7 +31,7 @@ export default function Gallery() {
     <div className="min-h-screen bg-background">
       <SEO
         title="Design Gallery - QR Code Merchandise Inspiration"
-        description="Browse our gallery of custom QR code merchandise designs. Get inspired by real creations from our community. USA-made apparel, hats, mugs and more."
+        description="Browse our gallery of custom QR code merchandise designs. Get inspired by real creations from our community. USA options available."
         keywords="QR code designs, custom merchandise gallery, QR gear examples, promotional product ideas"
         ogType="website"
       />
@@ -48,7 +48,7 @@ export default function Gallery() {
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Get inspired by real QR code merchandise designs shared by our community. 
-            Every design features USA-made products with high-quality printing.
+            Every design features high-quality printing. USA products available.
           </p>
         </div>
 
@@ -93,7 +93,7 @@ export default function Gallery() {
                         className="absolute top-2 right-2 gap-1"
                       >
                         <Flag className="w-3 h-3" />
-                        USA Made
+                        USA
                       </Badge>
                     )}
                   </div>

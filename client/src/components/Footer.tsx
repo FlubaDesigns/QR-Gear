@@ -15,7 +15,7 @@ export default function Footer() {
               <span>QRGear.com</span>
             </div>
             <p className="footer__tagline">
-              Custom QR code merchandise made in the USA. Bridge the physical and digital world.
+              Custom QR code merchandise with USA options. Bridge the physical and digital world.
             </p>
             <div className="footer__social">
               <a href="#" aria-label="Facebook" className="footer__social-link" data-testid="link-facebook">
@@ -58,7 +58,7 @@ export default function Footer() {
               </div>
               <div className="footer__contact-item">
                 <MapPin className="w-4 h-4" />
-                <span>USA Made Products</span>
+                <span>USA Products Available</span>
               </div>
             </div>
             <div className="footer__partner">

@@ -785,7 +785,7 @@ export default function Creator() {
     <div className="min-h-screen bg-background">
       <SEO 
         title="QR Code Creator | Design Your Custom QR Products | QR Gear"
-        description="Design your custom QR code merchandise. Add text, upload images, or create QR Dynamics - living QR codes you can update anytime. USA-made products."
+        description="Design your custom QR code merchandise. Add text, upload images, or create QR Dynamics - living QR codes you can update anytime. USA options available."
         keywords="QR code creator, custom QR design, QR merchandise designer, QR Dynamics, living QR codes, dynamic QR products"
       />
       <Navbar />
@@ -1571,7 +1571,7 @@ export default function Creator() {
                                 {product.madeInUSA && (
                                   <Badge className="absolute top-3 right-3 gap-1.5" variant="secondary">
                                     <UsaFlag className="w-4 h-3" />
-                                    USA Made
+                                    USA
                                   </Badge>
                                 )}
                                 {isSelected && (

@@ -86,7 +86,7 @@ export default function Hero() {
 
           <div className="flex justify-between items-center">
             <div className="product__label">Yours Alone • Made to Order</div>
-            <span className="text-xs text-white/70">🇺🇸 USA Made</span>
+            <span className="text-xs text-white/70">🇺🇸 USA Options</span>
           </div>
         </div>
       </div>

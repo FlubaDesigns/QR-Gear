@@ -62,7 +62,7 @@ export default function FeaturedProducts() {
                     variant="secondary"
                   >
                     <UsaFlag className="w-4 h-3" />
-                    USA Made
+                    USA
                   </Badge>
                 )}
               </div>
