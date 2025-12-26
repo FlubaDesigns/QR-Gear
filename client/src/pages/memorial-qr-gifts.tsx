@@ -113,6 +113,33 @@ export default function MemorialQRGifts() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/memorial-video-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Memorial Video Shirts</span>
+                  <p className="text-sm text-muted-foreground">Scan to watch video memories</p>
+                </div>
+              </Link>
+              <Link href="/family-video-messages">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Family Video Messages</span>
+                  <p className="text-sm text-muted-foreground">Recorded moments that last forever</p>
+                </div>
+              </Link>
+              <Link href="/family-reunion-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Family Reunion Shirts</span>
+                  <p className="text-sm text-muted-foreground">Group photo memories for everyone</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-url">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-canvas">
               ← Back to QR Canvas

@@ -119,6 +119,33 @@ export default function MedicalAlertQR() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/lost-found-qr">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Lost & Found QR</span>
+                  <p className="text-sm text-muted-foreground">Tag your bags and gear</p>
+                </div>
+              </Link>
+              <Link href="/personal-items-qr">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Personal Items QR</span>
+                  <p className="text-sm text-muted-foreground">Label anything important</p>
+                </div>
+              </Link>
+              <Link href="/everyday-qr">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Everyday QR</span>
+                  <p className="text-sm text-muted-foreground">Practical QR for daily use</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-static">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-basics">
               ← Back to QR Basics

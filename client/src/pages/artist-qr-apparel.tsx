@@ -113,6 +113,33 @@ export default function ArtistQRApparel() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Brush className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/musician-merch">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Musician Merch</span>
+                  <p className="text-sm text-muted-foreground">Album art and video shirts for bands</p>
+                </div>
+              </Link>
+              <Link href="/band-dynamic-merch">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Band Dynamic Merch</span>
+                  <p className="text-sm text-muted-foreground">Updateable tour dates and content</p>
+                </div>
+              </Link>
+              <Link href="/wedding-qr-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Wedding Photo Shirts</span>
+                  <p className="text-sm text-muted-foreground">Event photography on apparel</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-url">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-canvas">
               ← Back to QR Canvas

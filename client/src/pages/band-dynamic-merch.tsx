@@ -119,6 +119,33 @@ export default function BandDynamicMerch() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Disc className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/musician-merch">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Musician Merch</span>
+                  <p className="text-sm text-muted-foreground">Album art and video shirts</p>
+                </div>
+              </Link>
+              <Link href="/artist-qr-apparel">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Artist Portfolio Shirts</span>
+                  <p className="text-sm text-muted-foreground">Wearable gallery for creatives</p>
+                </div>
+              </Link>
+              <Link href="/advent-qr-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Advent QR Shirts</span>
+                  <p className="text-sm text-muted-foreground">Scheduled daily content</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-dynamics">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-dynamics">
               ← Back to QR Dynamics™

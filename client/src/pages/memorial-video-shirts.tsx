@@ -112,6 +112,33 @@ export default function MemorialVideoShirts() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/memorial-qr-gifts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Memorial Photo Gifts</span>
+                  <p className="text-sm text-muted-foreground">Photo-based remembrance shirts</p>
+                </div>
+              </Link>
+              <Link href="/family-video-messages">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Family Video Messages</span>
+                  <p className="text-sm text-muted-foreground">Comfort for those far from home</p>
+                </div>
+              </Link>
+              <Link href="/video-time-capsule">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Video Time Capsule</span>
+                  <p className="text-sm text-muted-foreground">Messages for the future</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-video">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-play">
               ← Back to QR Play

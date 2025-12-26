@@ -117,6 +117,33 @@ export default function EverydayQR() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/personal-items-qr">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Personal Items QR</span>
+                  <p className="text-sm text-muted-foreground">Label your belongings</p>
+                </div>
+              </Link>
+              <Link href="/lost-found-qr">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Lost & Found QR</span>
+                  <p className="text-sm text-muted-foreground">Tag things that travel</p>
+                </div>
+              </Link>
+              <Link href="/office-qr-mug">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Office QR Mug</span>
+                  <p className="text-sm text-muted-foreground">Stop the office mug thief</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-static-plus">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-plus">
               ← Back to QR Plus

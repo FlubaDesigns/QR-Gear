@@ -119,6 +119,33 @@ export default function BusinessAnalyticsQR() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/realtor-qr-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Realtor QR Shirts</span>
+                  <p className="text-sm text-muted-foreground">Updateable property listings</p>
+                </div>
+              </Link>
+              <Link href="/business-qr-plus">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Business QR Plus</span>
+                  <p className="text-sm text-muted-foreground">Clear calls-to-action</p>
+                </div>
+              </Link>
+              <Link href="/networking-qr-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Networking Shirts</span>
+                  <p className="text-sm text-muted-foreground">Digital business cards</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-dynamics">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-dynamics">
               ← Back to QR Dynamics™

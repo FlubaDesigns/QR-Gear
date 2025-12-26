@@ -113,6 +113,33 @@ export default function NetworkingQRShirts() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Handshake className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/website-qr-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Website QR Shirts</span>
+                  <p className="text-sm text-muted-foreground">Link directly to your portfolio</p>
+                </div>
+              </Link>
+              <Link href="/business-qr-plus">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Business QR Plus</span>
+                  <p className="text-sm text-muted-foreground">Add company branding text</p>
+                </div>
+              </Link>
+              <Link href="/realtor-qr-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Realtor QR Shirts</span>
+                  <p className="text-sm text-muted-foreground">Dynamic content for real estate</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-static">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-basics">
               ← Back to QR Basics

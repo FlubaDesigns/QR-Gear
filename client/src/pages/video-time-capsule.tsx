@@ -119,6 +119,33 @@ export default function VideoTimeCapsule() {
             </Button>
           </Link>
 
+          <Card className="p-6 mt-8">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Gift className="w-5 h-5 text-primary" />
+              Related Ideas
+            </h2>
+            <div className="grid gap-3">
+              <Link href="/family-video-messages">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Family Video Messages</span>
+                  <p className="text-sm text-muted-foreground">Home in their pocket</p>
+                </div>
+              </Link>
+              <Link href="/memorial-video-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Memorial Video Shirts</span>
+                  <p className="text-sm text-muted-foreground">Keep voices alive</p>
+                </div>
+              </Link>
+              <Link href="/advent-qr-shirts">
+                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                  <span className="font-medium">Advent QR Shirts</span>
+                  <p className="text-sm text-muted-foreground">Daily reveals and countdowns</p>
+                </div>
+              </Link>
+            </div>
+          </Card>
+
           <Link href="/qr-video">
             <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-play">
               ← Back to QR Play
