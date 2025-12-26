@@ -31,7 +31,7 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 
 ### Core Features
 - Server-side QR code generation with customization options.
-- Four QR product lines: Simple Text QR, Featured Collections, Fully Custom QR Gifts, and QR Dynamics™ (subscription-based dynamic content).
+- Five QR product lines: Simple QR (text/URL), QR + Text (header/footer), Custom Backgrounds (upload or templates for destination page), Video QR, and QR Dynamics™ (subscription-based dynamic content).
 - Multi-Provider Orchestration System for publishing products to various print providers and marketplaces (Printify, Printful, Apliiq, Etsy, eBay, Amazon).
 - Shopping cart and order processing.
 - Embeddable widget system for partners.
@@ -48,6 +48,13 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - Updated admin navigation with 13 sections including Orders, Gifts.
 
 ### Recent Fixes (December 26, 2025)
+- **SEO Landing Pages**: All 5 product type landing pages (/qr-static, /qr-static-plus, /qr-url, /qr-video, /qr-dynamics) now show actual content instead of auto-redirecting. Include practical examples, feature lists, and SEO metadata.
+- **Static QR Page**: Added real-world examples (coffee mug, gym bag, networking polo, medical alert) and emphasized 2,000 character encoding capacity.
+- **Custom Backgrounds Rename**: Changed "Gift Backgrounds" to "Custom Backgrounds" with clearer explanation that the background shows on the destination webpage (not the shirt).
+- **Image Cropper Component**: New `ImageCropper.tsx` component using react-image-crop for uploading custom background images with optional 9:16 mobile crop or full-image mode.
+- **ScrollToTop Component**: Added `ScrollToTop.tsx` to reset scroll position on route navigation.
+- **Click Feedback**: Added active:scale-[0.98] press-down effect on ActionCards for tactile feedback.
+- **Removed Redundant CTAs**: Removed CTA buttons from landing pages since entire card is now clickable.
 - **Auto-Sync Variants from Local Catalog**: Products now auto-populate sizes/colors from `printifyPrintProviders` table without Printify API calls. Uses reusable `autoSyncVariantsFromLocalCatalog` helper function.
 - **Metadata Preservation**: Auto-sync now merges metadata instead of overwriting (preserves Kingdom Connects data, etc.)
 - **Placeholder Variant ID Flagging**: Added `variantIdsArePlaceholders: true` flag in metadata for products needing real Printify variant IDs during fulfillment

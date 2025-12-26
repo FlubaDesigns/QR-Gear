@@ -17,7 +17,8 @@ import Navbar from "@/components/Navbar";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image, Package, Shirt, Target, ArrowLeft, ArrowRight, RotateCw } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image, Package, Shirt, Target, ArrowLeft, ArrowRight, RotateCw, ImagePlus } from "lucide-react";
+import ImageCropper from "@/components/ImageCropper";
 import { getSwatchColor } from "@/lib/admin-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
@@ -48,11 +49,11 @@ const productLineConfig: Record<ProductLine, {
     icon: Type,
     qrTypes: ["text"],
     productLineFilter: ["text", "all"],
-    upsell: { line: "url", message: "Use pre-designed backgrounds for gift-ready products" },
+    upsell: { line: "url", message: "Add a custom background that shows when people scan your QR" },
   },
   "url": {
-    label: "Gift Backgrounds",
-    description: "Pre-designed templates with your QR placed perfectly",
+    label: "Custom Backgrounds",
+    description: "Upload your own background or choose from our templates",
     icon: Image,
     qrTypes: ["template"],
     productLineFilter: ["template", "all"],
@@ -221,6 +222,8 @@ export default function Creator() {
   const [priceQuote, setPriceQuote] = useState<PriceQuote | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<QrTemplate | null>(null);
   const [templateCategory, setTemplateCategory] = useState<string>("all");
+  const [customBackground, setCustomBackground] = useState<string | null>(null);
+  const [showCustomUpload, setShowCustomUpload] = useState(false);
   const [selectedHostingTier, setSelectedHostingTier] = useState<string>("1_year");
   const [overlayText, setOverlayText] = useState("");
   const [overlayFontFamily, setOverlayFontFamily] = useState("Inter");
@@ -855,94 +858,154 @@ export default function Creator() {
                     </div>
                   </TabsContent>
                   <TabsContent value="template" className="space-y-4">
-                    <div>
-                      <Label>Pre-designed Gift Background</Label>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Choose a curated background - your QR code will be placed on it
-                      </p>
-                      
-                      {templateCategories.length > 1 && (
-                        <div className="flex gap-2 mb-4 flex-wrap">
-                          {templateCategories.map((cat) => (
-                            <Button
-                              key={cat}
-                              size="sm"
-                              variant={templateCategory === cat ? "default" : "outline"}
-                              onClick={() => setTemplateCategory(cat as string)}
-                              data-testid={`button-category-${cat}`}
-                            >
-                              {cat === "all" ? "All" : (cat as string).charAt(0).toUpperCase() + (cat as string).slice(1)}
-                            </Button>
-                          ))}
+                    {showCustomUpload ? (
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <Label>Upload Your Background</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setShowCustomUpload(false);
+                              setCustomBackground(null);
+                            }}
+                            data-testid="button-back-to-templates"
+                          >
+                            Back to Templates
+                          </Button>
                         </div>
-                      )}
-                      
-                      {templatesLoading ? (
-                        <div className="text-center py-8">
-                          <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
-                        </div>
-                      ) : filteredTemplates.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <LayoutTemplate className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                          <p>No templates available yet.</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
-                          {filteredTemplates.map((template) => (
-                            <div
-                              key={template.id}
-                              className={`relative cursor-pointer rounded-md overflow-hidden border-2 transition-all hover-elevate ${
-                                selectedTemplate?.id === template.id 
-                                  ? "border-primary ring-2 ring-primary/30" 
-                                  : "border-transparent"
-                              }`}
-                              onClick={() => setSelectedTemplate(template)}
-                              data-testid={`template-${template.id}`}
-                            >
-                              <div className="aspect-square">
-                                <img
-                                  src={template.thumbnailUrl}
-                                  alt={template.name}
-                                  className="w-full h-full object-cover"
-                                />
+                        <ImageCropper
+                          onCropComplete={(croppedImage) => {
+                            setCustomBackground(croppedImage);
+                            setSelectedTemplate(null);
+                          }}
+                          onCancel={() => {
+                            setShowCustomUpload(false);
+                            setCustomBackground(null);
+                          }}
+                        />
+                        {customBackground && (
+                          <div className="mt-4 p-3 bg-muted rounded-md">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={customBackground}
+                                alt="Your background"
+                                className="w-16 h-16 object-cover rounded"
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium">Your Custom Background</p>
+                                <p className="text-xs text-muted-foreground">Ready to use</p>
                               </div>
-                              {selectedTemplate?.id === template.id && (
-                                <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
-                                  <Check className="w-3 h-3" />
+                              <Check className="w-5 h-5 text-green-500" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="mb-4">
+                          <button
+                            onClick={() => {
+                              setShowCustomUpload(true);
+                              setSelectedTemplate(null);
+                            }}
+                            className="w-full p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center gap-3 hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer min-h-12"
+                            data-testid="button-upload-custom-background"
+                          >
+                            <ImagePlus className="w-6 h-6 text-muted-foreground" />
+                            <span className="font-medium">Upload Your Own Background</span>
+                          </button>
+                          <p className="text-xs text-muted-foreground text-center mt-2">
+                            Or choose from our templates below
+                          </p>
+                        </div>
+                        
+                        {templateCategories.length > 1 && (
+                          <div className="flex gap-2 mb-4 flex-wrap">
+                            {templateCategories.map((cat) => (
+                              <Button
+                                key={cat}
+                                size="sm"
+                                variant={templateCategory === cat ? "default" : "outline"}
+                                onClick={() => setTemplateCategory(cat as string)}
+                                data-testid={`button-category-${cat}`}
+                              >
+                                {cat === "all" ? "All" : (cat as string).charAt(0).toUpperCase() + (cat as string).slice(1)}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {templatesLoading ? (
+                          <div className="text-center py-8">
+                            <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
+                          </div>
+                        ) : filteredTemplates.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <LayoutTemplate className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                            <p>No templates available yet.</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                            {filteredTemplates.map((template) => (
+                              <div
+                                key={template.id}
+                                className={`relative cursor-pointer rounded-md overflow-hidden border-2 transition-all hover-elevate ${
+                                  selectedTemplate?.id === template.id 
+                                    ? "border-primary ring-2 ring-primary/30" 
+                                    : "border-transparent"
+                                }`}
+                                onClick={() => {
+                                  setSelectedTemplate(template);
+                                  setCustomBackground(null);
+                                }}
+                                data-testid={`template-${template.id}`}
+                              >
+                                <div className="aspect-square">
+                                  <img
+                                    src={template.thumbnailUrl}
+                                    alt={template.name}
+                                    className="w-full h-full object-cover"
+                                  />
                                 </div>
-                              )}
-                              {template.isFeatured && (
-                                <Badge className="absolute top-1 left-1 text-xs">Featured</Badge>
-                              )}
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                                <p className="text-white text-xs font-medium truncate">{template.name}</p>
-                                {parseFloat(template.priceUpcharge || "0") > 0 && (
-                                  <p className="text-white/80 text-xs">+${template.priceUpcharge}</p>
+                                {selectedTemplate?.id === template.id && (
+                                  <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
+                                    <Check className="w-3 h-3" />
+                                  </div>
+                                )}
+                                {template.isFeatured && (
+                                  <Badge className="absolute top-1 left-1 text-xs">Featured</Badge>
+                                )}
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                  <p className="text-white text-xs font-medium truncate">{template.name}</p>
+                                  {parseFloat(template.priceUpcharge || "0") > 0 && (
+                                    <p className="text-white/80 text-xs">+${template.priceUpcharge}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {selectedTemplate && (
+                          <div className="mt-4 p-3 bg-muted rounded-md">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">{selectedTemplate.name}</p>
+                                {selectedTemplate.description && (
+                                  <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
                                 )}
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {selectedTemplate && (
-                        <div className="mt-4 p-3 bg-muted rounded-md">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{selectedTemplate.name}</p>
-                              {selectedTemplate.description && (
-                                <p className="text-xs text-muted-foreground">{selectedTemplate.description}</p>
+                              {parseFloat(selectedTemplate.priceUpcharge || "0") > 0 && (
+                                <Badge variant="outline">+${selectedTemplate.priceUpcharge}</Badge>
                               )}
                             </div>
-                            {parseFloat(selectedTemplate.priceUpcharge || "0") > 0 && (
-                              <Badge variant="outline">+${selectedTemplate.priceUpcharge}</Badge>
-                            )}
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                     
-                    {selectedTemplate && (
+                    {(selectedTemplate || customBackground) && (
                       <div>
                         <Label htmlFor="template-qr-url">QR Code Link</Label>
                         <Input
