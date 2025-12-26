@@ -38,12 +38,14 @@ export default function QRUrlLanding() {
       />
       <Navbar />
       <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <Palette className="w-10 h-10 text-primary" />
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Palette className="w-8 h-8 md:w-10 md:h-10 text-primary" />
+            </div>
+            <h1 className="text-2xl md:text-4xl font-bold">Custom Backgrounds</h1>
           </div>
           
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Custom Backgrounds</h1>
           <p className="text-lg text-muted-foreground mb-8">
             When someone scans your QR, they see your custom background on their phone. 
             Upload your own image or pick from our templates - it's the backdrop for your message.

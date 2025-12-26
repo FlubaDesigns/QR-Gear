@@ -20,12 +20,14 @@ export default function QRVideoLanding() {
       />
       <Navbar />
       <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="w-20 h-20 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-6">
-            <Upload className="w-10 h-10 text-accent" />
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-accent/10 flex items-center justify-center shrink-0">
+              <Upload className="w-8 h-8 md:w-10 md:h-10 text-accent" />
+            </div>
+            <h1 className="text-2xl md:text-4xl font-bold">Video QR</h1>
           </div>
           
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Video QR</h1>
           <p className="text-lg text-muted-foreground mb-8">
             Upload a video that plays when your QR code is scanned. 
             Perfect for personal messages, tutorials, and multimedia content.
