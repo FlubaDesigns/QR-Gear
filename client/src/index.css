@@ -108,28 +108,7 @@
 }
 
 /* ========== Glass Cards (QR Gear specific) ========== */
-/* NOTE: .glass-card is now defined in theme.css with Ghost's enhanced double-border technique */
-.glass {
-  background: linear-gradient(180deg, var(--glass-bg-2), var(--glass-bg));
-  border: 1px solid var(--glass-stroke);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-1);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  position: relative;
-  overflow: hidden;
-}
-
-.glass::after {
-  content: "";
-  position: absolute;
-  inset: -40% -20% auto -20%;
-  height: 65%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
-  transform: rotate(10deg);
-  opacity: 0.55;
-  pointer-events: none;
-}
+/* NOTE: .glass and .glass-card are now defined in theme.css with Ghost's premium glassmorphism */
 
 .card {
   padding: 18px;
