@@ -9,7 +9,7 @@ import SEO from "@/components/SEO";
 const features = [
   "Your vCard encoded directly in the QR",
   "Saves to their phone contacts instantly",
-  "Name, email, phone, website - all in one scan",
+  "Name, email, phone, company, website - all in one scan",
   "No business cards to lose or forget",
   "Works at conferences, meetups, anywhere",
 ];
