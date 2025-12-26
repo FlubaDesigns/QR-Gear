@@ -528,18 +528,42 @@ html[data-theme="light"] .page-grid {
 }
 
 .vanity-header-icon {
+  position: relative;
   width: 4rem;
   height: 4rem;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(0,255,170,0.12), rgba(0,120,255,0.06));
-  border: 1px solid var(--glass-stroke);
-  backdrop-filter: blur(10px) saturate(130%);
-  -webkit-backdrop-filter: blur(10px) saturate(130%);
-  box-shadow: var(--shadow-1);
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--glassA), var(--glassB));
+  border: 1px solid var(--stroke1);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Inner ring - edge lighting */
+.vanity-header-icon::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 17px;
+  border: 1px solid var(--stroke2);
+  pointer-events: none;
+}
+
+/* Specular shine */
+.vanity-header-icon::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: radial-gradient(400px 180px at 30% 15%, var(--spec1), transparent 55%);
+  transform: rotate(15deg);
+  pointer-events: none;
+  opacity: 0.65;
+  mix-blend-mode: screen;
 }
 
 @media (min-width: 768px) {
@@ -668,19 +692,43 @@ html[data-theme="light"] .page-grid {
 }
 
 .vanity-item-icon {
+  position: relative;
   width: 2.5rem;
   height: 2.5rem;
   min-height: 2.5rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(0,255,170,0.12), rgba(0,120,255,0.06));
-  border: 1px solid var(--glass-stroke);
-  backdrop-filter: blur(10px) saturate(130%);
-  -webkit-backdrop-filter: blur(10px) saturate(130%);
-  box-shadow: var(--shadow-1);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--glassA), var(--glassB));
+  border: 1px solid var(--stroke1);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Inner ring */
+.vanity-item-icon::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 13px;
+  border: 1px solid var(--stroke2);
+  pointer-events: none;
+}
+
+/* Subtle specular shine */
+.vanity-item-icon::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(200px 100px at 25% 20%, var(--spec1), transparent 60%);
+  transform: rotate(12deg);
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: screen;
 }
 
 .vanity-item-icon svg {
@@ -712,17 +760,42 @@ html[data-theme="light"] .page-grid {
 }
 
 .vanity-highlight-icon {
+  position: relative;
   width: 3rem;
   height: 3rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255,122,26,0.15), rgba(255,178,74,0.08));
-  border: 1px solid var(--glass-stroke);
-  backdrop-filter: blur(10px) saturate(130%);
-  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 140, 60, 0.18), rgba(255, 100, 20, 0.08));
+  border: 1px solid rgba(255, 180, 100, 0.20);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Inner ring - accent color */
+.vanity-highlight-icon::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 160, 80, 0.12);
+  pointer-events: none;
+}
+
+/* Accent specular shine */
+.vanity-highlight-icon::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(200px 100px at 30% 15%, rgba(255, 200, 140, 0.35), transparent 55%);
+  transform: rotate(12deg);
+  pointer-events: none;
+  opacity: 0.6;
+  mix-blend-mode: screen;
 }
 
 .vanity-highlight-icon svg {
@@ -849,8 +922,26 @@ html[data-theme="light"] .vanity-cta {
 /* Light mode adjustments */
 html[data-theme="light"] .vanity-header-icon,
 html[data-theme="light"] .vanity-item-icon {
-  background: linear-gradient(135deg, rgba(46,169,255,0.12), rgba(27,126,214,0.06));
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  --glassA: rgba(255, 255, 255, 0.70);
+  --glassB: rgba(240, 248, 255, 0.50);
+  --stroke1: rgba(0, 0, 0, 0.08);
+  --stroke2: rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.10);
+}
+
+html[data-theme="light"] .vanity-header-icon::after,
+html[data-theme="light"] .vanity-item-icon::after {
+  opacity: 0.25;
+}
+
+html[data-theme="light"] .vanity-use-case-icon {
+  background: linear-gradient(135deg, rgba(255, 140, 60, 0.12), rgba(255, 100, 20, 0.05));
+  border: 1px solid rgba(255, 140, 60, 0.15);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .vanity-use-case-icon::after {
+  opacity: 0.20;
 }
 
 html[data-theme="light"] .vanity-highlight-icon {
@@ -968,15 +1059,42 @@ html[data-theme="light"] .vanity-highlight-icon {
 }
 
 .vanity-use-case-icon {
+  position: relative;
   width: 3rem;
   height: 3rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--glass-fill), transparent);
-  border: 1px solid var(--glass-stroke);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 140, 60, 0.16), rgba(255, 100, 20, 0.06));
+  border: 1px solid rgba(255, 180, 100, 0.18);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Inner ring */
+.vanity-use-case-icon::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 160, 80, 0.10);
+  pointer-events: none;
+}
+
+/* Accent specular shine */
+.vanity-use-case-icon::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(180px 90px at 28% 18%, rgba(255, 200, 140, 0.30), transparent 55%);
+  transform: rotate(10deg);
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: screen;
 }
 
 .vanity-use-case-icon svg {
