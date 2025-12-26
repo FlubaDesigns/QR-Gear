@@ -71,7 +71,6 @@ export default function Hero() {
         <div className="glass card product">
           <div className="card__title">
             One-of-a-Kind Gear
-            <span className="pill text-xs">🇺🇸 USA-Made</span>
           </div>
 
           <div className="flex gap-4 items-center">
@@ -85,7 +84,10 @@ export default function Hero() {
             <ProductCarousel />
           </div>
 
-          <div className="product__label">Yours Alone • Made to Order</div>
+          <div className="flex justify-between items-center">
+            <div className="product__label">Yours Alone • Made to Order</div>
+            <span className="text-xs text-white/70">🇺🇸 USA Made</span>
+          </div>
         </div>
       </div>
     </section>
