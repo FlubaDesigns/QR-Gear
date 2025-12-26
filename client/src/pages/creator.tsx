@@ -21,7 +21,7 @@ import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
-import type { Product, QrTemplate, HostingTier } from "@shared/schema";
+import type { Product, QrTemplate, HostingTier, ProductCategory } from "@shared/schema";
 
 type ProductLine = "static" | "static-plus" | "url" | "video" | "dynamics";
 
@@ -30,6 +30,7 @@ const productLineConfig: Record<ProductLine, {
   description: string;
   icon: any;
   qrTypes: string[];
+  productLineFilter: string[];
   upsell?: { line: ProductLine; message: string };
 }> = {
   "static": {
@@ -37,6 +38,7 @@ const productLineConfig: Record<ProductLine, {
     description: "Basic text or URL encoded in QR code",
     icon: Type,
     qrTypes: ["text"],
+    productLineFilter: ["text", "all"],
     upsell: { line: "static-plus", message: "Add header/footer text for more impact" },
   },
   "static-plus": {
@@ -44,6 +46,7 @@ const productLineConfig: Record<ProductLine, {
     description: "Add header and footer text around your QR",
     icon: Type,
     qrTypes: ["text"],
+    productLineFilter: ["text", "all"],
     upsell: { line: "url", message: "Use pre-designed backgrounds for gift-ready products" },
   },
   "url": {
@@ -51,6 +54,7 @@ const productLineConfig: Record<ProductLine, {
     description: "Pre-designed templates with your QR placed perfectly",
     icon: Image,
     qrTypes: ["template"],
+    productLineFilter: ["template", "all"],
     upsell: { line: "dynamics", message: "Go Dynamic - update your content anytime without reprinting" },
   },
   "video": {
@@ -58,6 +62,7 @@ const productLineConfig: Record<ProductLine, {
     description: "Upload a video that plays when scanned",
     icon: Video,
     qrTypes: ["upload"],
+    productLineFilter: ["custom", "all"],
     upsell: { line: "dynamics", message: "Go Dynamic - swap videos anytime with QR Dynamics" },
   },
   "dynamics": {
@@ -65,6 +70,7 @@ const productLineConfig: Record<ProductLine, {
     description: "Living QR codes you can update anytime",
     icon: Sparkles,
     qrTypes: ["dynamic"],
+    productLineFilter: ["dynamic", "all"],
   },
 };
 
@@ -183,6 +189,7 @@ export default function Creator() {
   };
   
   const currentLineConfig = productLineConfig[productLine];
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
   const [qrCodeImage, setQrCodeImage] = useState("");
@@ -1368,7 +1375,13 @@ export default function Creator() {
                 
                 {!productsLoading && !productsError && (
                   <div className="grid grid-cols-2 gap-3">
-                    {products.map((product) => (
+                    {products
+                      .filter((product) => {
+                        const lineFilter = currentLineConfig.productLineFilter;
+                        const productLineValue = (product as any).productLine || "all";
+                        return lineFilter.includes(productLineValue) || productLineValue === "all";
+                      })
+                      .map((product) => (
                     <Card
                       key={product.id}
                       className={`cursor-pointer hover-elevate transition-all ${
