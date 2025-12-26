@@ -279,79 +279,149 @@ a:hover {
    Ghost's Premium Glassmorphism System
    ========================================================= */
 
-/* Base glass class - real frosted + edge lighting + light sweep */
+/* === GLASS CARD BASE === */
 .glass,
 .glass-card {
   position: relative;
-  isolation: isolate;
-  border-radius: 26px;
-  padding: 18px;
-  background: linear-gradient(135deg, var(--glassA), var(--glassB));
-  border: 1px solid var(--stroke1);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.07),
+    rgba(255, 255, 255, 0.03)
+  );
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 22px;
 }
 
-/* Inner ring highlight - edge lighting */
+/* === SUBTLE EDGE HIGHLIGHT (TOP SHINE) === */
 .glass::before,
 .glass-card::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: 25px;
-  border: 1px solid var(--stroke2);
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Specular "glass shine" - contained within card */
-.glass::after,
-.glass-card::after {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 50%;
+  height: 1px;
   background: linear-gradient(
-    135deg,
-    var(--spec1) 0%,
-    var(--spec2) 25%,
-    transparent 60%
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
   );
-  border-radius: 25px 25px 0 0;
+  border-radius: 20px;
   pointer-events: none;
-  opacity: 0.6;
-  z-index: 0;
+}
+
+/* === ICON TILE (EMBEDDED, NOT FLOATING) === */
+.glass-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* === PRIMARY TITLE TEXT === */
+.glass-title {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* === SUBTITLE / META TEXT === */
+.glass-subtitle {
+  color: rgba(160, 200, 255, 0.75);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+/* === BODY COPY === */
+.glass-body {
+  color: rgba(220, 235, 255, 0.82);
+  line-height: 1.55;
+}
+
+/* === BUTTON / CHIP STYLE === */
+.glass-button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: rgba(220, 235, 255, 0.9);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* === OPTIONAL: SLIGHTLY STRONGER GLOW FOR PREMIUM CARDS === */
+.glass-card.premium {
+  border-color: rgba(120, 200, 255, 0.35);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(120, 200, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 /* Dimensional hover - subtle premium lift */
 .glass:hover,
 .glass-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
+  box-shadow: 
+    0 24px 56px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Light mode glass adjustments */
 html[data-theme="light"] .glass,
 html[data-theme="light"] .glass-card {
-  --glassA: rgba(255, 255, 255, 0.65);
-  --glassB: rgba(240, 246, 252, 0.45);
-  --stroke1: rgba(0, 0, 0, 0.08);
-  --stroke2: rgba(0, 0, 0, 0.04);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.75),
+    rgba(255, 255, 255, 0.55)
+  );
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-html[data-theme="light"] .glass::after,
-html[data-theme="light"] .glass-card::after {
-  opacity: 0.25;
+html[data-theme="light"] .glass::before,
+html[data-theme="light"] .glass-card::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.8),
+    transparent
+  );
 }
 
 html[data-theme="light"] .glass:hover,
 html[data-theme="light"] .glass-card:hover {
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+  box-shadow: 
+    0 16px 40px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+html[data-theme="light"] .glass-title {
+  color: rgba(10, 35, 64, 0.95);
+}
+
+html[data-theme="light"] .glass-subtitle {
+  color: rgba(74, 106, 138, 0.85);
+}
+
+html[data-theme="light"] .glass-body {
+  color: rgba(27, 69, 112, 0.85);
 }
 
 /* ===== Typography - Futuristic but not cringe ===== */
