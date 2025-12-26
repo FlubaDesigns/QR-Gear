@@ -18,6 +18,8 @@ import {
   Clock,
   Activity,
 } from "lucide-react";
+import { formatCurrency, formatTrend } from "@/lib/admin-utils";
+import "@/styles/layout.css";
 
 interface DashboardMetrics {
   revenue: {
@@ -89,8 +91,7 @@ function MetricCard({
                     trend >= 0 ? "text-green-500" : "text-red-500"
                   }`}
                 >
-                  {trend >= 0 ? "+" : ""}
-                  {trend}%
+                  {formatTrend(trend)}
                 </span>
                 {trendLabel && (
                   <span className="text-xs text-muted-foreground">
@@ -151,79 +152,75 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <LayoutDashboard className="h-6 w-6 text-amber-400" />
-                <div>
-                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    Dashboard
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Business metrics & health
-                  </p>
-                </div>
+    <div className="qr-admin-page">
+      <div className="qr-admin-bar">
+        <div className="qr-admin-bar__inner">
+          <div className="qr-admin-bar__left">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/admin")}
+              className="text-white hover:bg-white/10 min-h-12 min-w-12"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <LayoutDashboard className="qr-admin-bar__icon" />
+              <div>
+                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
+                  Dashboard
+                </h1>
+                <p className="qr-admin-bar__subtitle">
+                  Business metrics & health
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-300">
-                <Link href="/admin/health">
-                  <Activity className="h-4 w-4 mr-2" />
-                  System Health
-                </Link>
-              </Button>
-            </div>
+          </div>
+          <div className="qr-admin-bar__right">
+            <Button asChild variant="outline" className="border-slate-600 text-slate-300 min-h-12">
+              <Link href="/admin/health">
+                <Activity className="h-4 w-4 mr-2" />
+                System Health
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
 
-      <main className="container max-w-6xl mx-auto py-6 px-4">
-        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <Link href="/admin" className="text-muted-foreground hover:text-foreground">
-            Admin
-          </Link>
-          <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page">
+      <main className="qr-admin-main">
+        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/admin">Admin</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <span className="qr-admin-breadcrumb__current" aria-current="page">
             Dashboard
           </span>
         </nav>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="qr-admin-grid qr-admin-grid--4">
             {[...Array(8)].map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="qr-admin-grid qr-admin-grid--4 mb-6">
               <MetricCard
                 title="Today's Revenue"
-                value={`$${(metrics?.revenue.today || 0).toFixed(2)}`}
+                value={formatCurrency(metrics?.revenue.today || 0)}
                 icon={DollarSign}
                 trend={metrics?.revenue.trend}
                 trendLabel="vs yesterday"
               />
               <MetricCard
                 title="Weekly Revenue"
-                value={`$${(metrics?.revenue.week || 0).toFixed(2)}`}
+                value={formatCurrency(metrics?.revenue.week || 0)}
                 icon={DollarSign}
               />
               <MetricCard
                 title="Monthly Revenue"
-                value={`$${(metrics?.revenue.month || 0).toFixed(2)}`}
+                value={formatCurrency(metrics?.revenue.month || 0)}
                 icon={DollarSign}
               />
               <MetricCard
@@ -235,7 +232,7 @@ export default function AdminDashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="qr-admin-grid qr-admin-grid--4 mb-6">
               <MetricCard
                 title="Pending Orders"
                 value={metrics?.orders.pending || 0}
@@ -262,7 +259,7 @@ export default function AdminDashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="qr-admin-grid qr-admin-grid--2">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -329,38 +326,22 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Link
-                href="/admin/orders"
-                className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-card hover-elevate transition-all"
-                data-testid="link-manage-orders"
-              >
-                <ShoppingCart className="h-5 w-5 text-primary" />
-                <span className="font-medium">Manage Orders</span>
+            <div className="qr-admin-quicklinks">
+              <Link href="/admin/orders" className="qr-admin-quicklink" data-testid="link-manage-orders">
+                <ShoppingCart className="qr-admin-quicklink__icon" />
+                <span>Manage Orders</span>
               </Link>
-              <Link
-                href="/admin/customers"
-                className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-card hover-elevate transition-all"
-                data-testid="link-view-customers"
-              >
-                <Users className="h-5 w-5 text-primary" />
-                <span className="font-medium">View Customers</span>
+              <Link href="/admin/customers" className="qr-admin-quicklink" data-testid="link-view-customers">
+                <Users className="qr-admin-quicklink__icon" />
+                <span>View Customers</span>
               </Link>
-              <Link
-                href="/admin/coupons"
-                className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-card hover-elevate transition-all"
-                data-testid="link-promo-codes"
-              >
-                <DollarSign className="h-5 w-5 text-primary" />
-                <span className="font-medium">Promo Codes</span>
+              <Link href="/admin/coupons" className="qr-admin-quicklink" data-testid="link-promo-codes">
+                <DollarSign className="qr-admin-quicklink__icon" />
+                <span>Promo Codes</span>
               </Link>
-              <Link
-                href="/admin/products"
-                className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-card hover-elevate transition-all"
-                data-testid="link-products"
-              >
-                <Package className="h-5 w-5 text-primary" />
-                <span className="font-medium">Products</span>
+              <Link href="/admin/products" className="qr-admin-quicklink" data-testid="link-products">
+                <Package className="qr-admin-quicklink__icon" />
+                <span>Products</span>
               </Link>
             </div>
           </>

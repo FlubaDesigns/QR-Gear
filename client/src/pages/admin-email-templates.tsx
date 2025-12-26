@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, Plus, Mail, Edit, Trash2, Send, Clock, CheckCircle, XCircle } from "lucide-react";
 import type { EmailTemplate, EmailLog } from "@shared/schema";
+import "@/styles/layout.css";
 
 const EMAIL_TRIGGERS = [
   { value: "order_confirmation", label: "Order Confirmation", description: "When order is placed" },
@@ -127,10 +128,10 @@ export default function AdminEmailTemplates() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
+    <div className="qr-admin-page">
+      <div className="qr-admin-bar">
+        <div className="qr-admin-bar__inner">
+          <div className="qr-admin-bar__left">
             <Button
               variant="ghost"
               size="icon"
@@ -141,19 +142,19 @@ export default function AdminEmailTemplates() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <Mail className="h-6 w-6 text-amber-400" />
+              <Mail className="qr-admin-bar__icon" />
               <div>
-                <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
+                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
                   Email Templates
                 </h1>
-                <p className="text-xs text-slate-400">Manage email templates and view logs</p>
+                <p className="qr-admin-bar__subtitle">Manage email templates and view logs</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container max-w-6xl mx-auto px-4 py-6">
+      <div className="qr-admin-main">
         <Tabs defaultValue="templates" className="space-y-6">
           <TabsList className="min-h-12">
             <TabsTrigger value="templates" className="min-h-10 px-6" data-testid="tab-templates">

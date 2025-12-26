@@ -269,3 +269,101 @@
 .track-badge--store:hover {
   box-shadow: 0 8px 24px rgba(255, 140, 50, 0.4);
 }
+
+/* =========================================================
+   CIDP Accessibility: 48px Touch Targets
+   User has limited hand mobility - all interactive elements
+   must meet minimum 48px tap target requirement.
+   ========================================================= */
+
+/* ===== Touch Target Base ===== */
+.qr-touch-48 {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* Touch-optimized button (default for admin UI) */
+.qr-btn--touch {
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 0.9375rem;
+}
+
+/* Touch-optimized icon button */
+.qr-btn--icon-touch {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-btn--icon-touch svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ===== Button Groups (inline actions) ===== */
+.qr-btn-group {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.qr-btn-group--stacked {
+  flex-direction: column;
+  width: 100%;
+}
+
+/* ===== Mobile Responsive Buttons ===== */
+@media (max-width: 768px) {
+  .qr-btn--touch {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .qr-btn-group:not(.qr-btn-group--inline) {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .qr-btn-group:not(.qr-btn-group--inline) > * {
+    width: 100%;
+  }
+}
+
+/* Keep icon button groups inline on mobile */
+.qr-btn-group--inline {
+  flex-direction: row !important;
+  flex-wrap: wrap;
+}
+
+.qr-btn-group--inline > * {
+  width: auto !important;
+}
+
+/* ===== Table Action Buttons ===== */
+.qr-table-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.qr-table-actions .qr-btn--icon-touch {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+@media (max-width: 768px) {
+  .qr-table-actions {
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  
+  .qr-table-actions .qr-btn--icon-touch {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}

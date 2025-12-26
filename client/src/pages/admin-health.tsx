@@ -17,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { ProviderHealthLog } from "@shared/schema";
+import "@/styles/layout.css";
 
 interface ProviderStatus {
   provider: string;
@@ -162,38 +163,37 @@ export default function AdminHealth() {
   const recentLogs = data?.recentLogs || [];
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Activity className="h-6 w-6 text-amber-400" />
-                <div>
-                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    System Health
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Provider & service monitoring
-                  </p>
-                </div>
+    <div className="qr-admin-page">
+      <div className="qr-admin-bar">
+        <div className="qr-admin-bar__inner">
+          <div className="qr-admin-bar__left">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/admin")}
+              className="text-white hover:bg-white/10 min-h-12 min-w-12"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Activity className="qr-admin-bar__icon" />
+              <div>
+                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
+                  System Health
+                </h1>
+                <p className="qr-admin-bar__subtitle">
+                  Provider & service monitoring
+                </p>
               </div>
             </div>
+          </div>
+          <div className="qr-admin-bar__right">
             <Button
               variant="outline"
-              size="lg"
               onClick={() => refetch()}
               disabled={isRefetching}
-              className="border-slate-600 text-slate-300"
+              className="border-slate-600 text-slate-300 min-h-12"
               data-testid="button-refresh"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
@@ -203,20 +203,18 @@ export default function AdminHealth() {
         </div>
       </div>
 
-      <main className="container max-w-6xl mx-auto py-6 px-4">
-        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <Link href="/admin" className="text-muted-foreground hover:text-foreground">
-            Admin
-          </Link>
-          <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page">
+      <main className="qr-admin-main">
+        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/admin">Admin</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <span className="qr-admin-breadcrumb__current" aria-current="page">
             System Health
           </span>
         </nav>
 
         {isLoading ? (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="qr-admin-grid qr-admin-grid--2">
               {[...Array(2)].map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-4">
@@ -239,7 +237,7 @@ export default function AdminHealth() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="qr-admin-grid qr-admin-grid--2">
               {providers.length > 0 ? (
                 providers.map((provider) => (
                   <ProviderCard key={provider.provider} provider={provider} />
