@@ -18,6 +18,7 @@ import {
   Percent,
   ShoppingCart,
   Gift,
+  Mail,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -99,6 +100,12 @@ const adminSections = [
     description: "Monitor provider status and system health",
     icon: Activity,
     href: "/admin/health",
+  },
+  {
+    title: "Email Templates",
+    description: "Manage email templates and view logs",
+    icon: Mail,
+    href: "/admin/email-templates",
   },
 ];
 

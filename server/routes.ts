@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, or, isNull, lte, gte } from "drizzle-orm";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
-import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema, productBundles, bundleItems, masterProducts, products } from "@shared/schema";
+import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema, productBundles, bundleItems, masterProducts, products, insertEmailTemplateSchema } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants, detectCategory } from "./lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
@@ -5851,6 +5851,81 @@ ${allPages.map(page => `  <url>
     try {
       const storeProducts = await storage.getPartnerStoreProducts(req.params.id);
       res.json(storeProducts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // Email Templates Admin Routes
+  // ============================================
+
+  // Get all email templates
+  app.get("/api/admin/email-templates", isAdmin, async (req: any, res) => {
+    try {
+      const templates = await storage.getEmailTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single email template
+  app.get("/api/admin/email-templates/:id", isAdmin, async (req: any, res) => {
+    try {
+      const template = await storage.getEmailTemplate(req.params.id);
+      if (!template) return res.status(404).json({ error: "Template not found" });
+      res.json(template);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create email template
+  app.post("/api/admin/email-templates", isAdmin, async (req: any, res) => {
+    try {
+      const parsed = insertEmailTemplateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+      }
+      const template = await storage.createEmailTemplate(parsed.data);
+      res.json(template);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update email template
+  app.patch("/api/admin/email-templates/:id", isAdmin, async (req: any, res) => {
+    try {
+      const parsed = insertEmailTemplateSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+      }
+      const template = await storage.updateEmailTemplate(req.params.id, parsed.data);
+      if (!template) return res.status(404).json({ error: "Template not found" });
+      res.json(template);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete email template
+  app.delete("/api/admin/email-templates/:id", isAdmin, async (req: any, res) => {
+    try {
+      await storage.deleteEmailTemplate(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get email logs
+  app.get("/api/admin/email-logs", isAdmin, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getEmailLogs(limit);
+      res.json(logs);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
