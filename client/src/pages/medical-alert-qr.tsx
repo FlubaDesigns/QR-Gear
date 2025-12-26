@@ -7,9 +7,10 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
-  "Encode allergies, blood type, conditions",
+  "Allergies (penicillin, peanuts, latex, etc.)",
+  "Blood type and medical conditions",
+  "Current medications, dosages, schedules",
   "Emergency contacts with phone numbers",
-  "Medications and dosages",
   "Up to 2,000 characters - room for everything",
   "Permanent QR - critical info that lasts",
 ];
