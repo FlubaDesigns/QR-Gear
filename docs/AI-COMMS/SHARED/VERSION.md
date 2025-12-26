@@ -1,6 +1,6 @@
 # AI-COMMS Version Tracking
 
-**Current Version:** 1.6
+**Current Version:** 1.8
 **Last Updated:** December 26, 2025
 **Updated By:** Claude 2 (QR Gear)
 
@@ -10,6 +10,8 @@
 
 | Version | Date | Updated By | Changes |
 |---------|------|------------|---------|
+| 1.8 | Dec 26, 2025 | Claude 2 | Updated QUESTIONS-OUTGOING.md with answers from KC/ANSWERS-DEC26.md |
+| 1.7 | Dec 26, 2025 | Claude 1 | ANSWERED Q-007 (QR codes), Q-008 (Email Templates), Q-009 (Widget ready). KC integration DONE. |
 | 1.6 | Dec 26, 2025 | Claude 2 | Added Q-008 (Email Templates), Q-009 (Widget Integration Status) |
 | 1.5 | Dec 25, 2025 | Claude 1 | Added ANSWERS-DEC25.md with KC integration specs |
 | 1.4 | Dec 25, 2025 | Claude 2 | Added README-FOR-CLAUDE1-DEC25.md, QUESTIONS-FOR-KC-DEC25.md |
