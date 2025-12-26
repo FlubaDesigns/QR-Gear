@@ -17,7 +17,7 @@ import Navbar from "@/components/Navbar";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image, Package } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image, Package, Shirt, Target, ArrowLeft, ArrowRight, RotateCw } from "lucide-react";
 import { getSwatchColor } from "@/lib/admin-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
@@ -108,6 +108,18 @@ function formatPlacementLabel(position: string): string {
     .join(' ');
 }
 
+// QR Placement options with icons (matching admin-products)
+const QR_PLACEMENTS = [
+  { id: "front-chest", label: "Front Chest", Icon: Shirt },
+  { id: "front-center", label: "Front Center", Icon: Target },
+  { id: "back", label: "Back", Icon: ArrowLeft },
+  { id: "left-shoulder", label: "Left Shoulder", Icon: ArrowLeft },
+  { id: "right-shoulder", label: "Right Shoulder", Icon: ArrowRight },
+  { id: "wrap-around", label: "Wrap Around", Icon: RotateCw },
+];
+
+type PlacementMode = 'full' | 'qr-only';
+
 const standardSizes = [
   { value: "XS", label: "XS" },
   { value: "S", label: "S" },
@@ -195,7 +207,10 @@ export default function Creator() {
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
   const [qrCodeImage, setQrCodeImage] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [placement, setPlacement] = useState("front-chest");
+  const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementMode>>({
+    "front-chest": "full"
+  });
+  const placement = Object.keys(placementConfigs)[0] || "front-chest";
   const [productColor, setProductColor] = useState("");
   const [textAbove, setTextAbove] = useState("");
   const [textBelow, setTextBelow] = useState("");
@@ -1496,7 +1511,7 @@ export default function Creator() {
                         })}
                       </div>
 
-                      {/* Color/Size Selection Panel - appears after product selection */}
+                      {/* Color, Size & Placement Panel - appears after product selection */}
                       {selectedProduct && (() => {
                         const rawColors = Array.isArray((selectedProduct as any).availableColors) ? (selectedProduct as any).availableColors : [];
                         const colors = rawColors.map((c: any) => ({
@@ -1515,10 +1530,16 @@ export default function Creator() {
                               <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
                                 <img src={selectedProduct.imageUrl || ""} alt="" className="w-full h-full object-cover" />
                               </div>
-                              <div>
+                              <div className="flex-1">
                                 <p className="font-medium text-sm">{selectedProduct.name}</p>
-                                <p className="text-xs text-muted-foreground">Choose color & size below</p>
+                                {selectedProduct.madeInUSA && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <UsaFlag className="w-4 h-3" />
+                                    <span className="text-xs text-muted-foreground">Made in USA</span>
+                                  </div>
+                                )}
                               </div>
+                              <span className="text-lg font-bold text-primary">${selectedProduct.customerPrice || selectedProduct.basePrice}</span>
                             </div>
 
                             {visibleColors.length > 0 && (
@@ -1545,7 +1566,7 @@ export default function Creator() {
                             )}
 
                             {visibleSizes.length > 0 && (
-                              <div>
+                              <div className="mb-4">
                                 <Label className="text-sm mb-2 block">Size: <span className="font-normal text-muted-foreground">{selectedSize}</span></Label>
                                 <div className="flex flex-wrap gap-2">
                                   {visibleSizes.map((size: string) => (
@@ -1566,6 +1587,81 @@ export default function Creator() {
                                 </div>
                               </div>
                             )}
+
+                            {/* QR Placement - matching products page layout */}
+                            <div className="pt-4 border-t">
+                              <Label className="text-sm mb-2 block">Print Placements</Label>
+                              <p className="text-xs text-muted-foreground mb-3">Select placement and choose artwork type</p>
+                              
+                              <div className="space-y-3">
+                                {QR_PLACEMENTS.map(({ id, label, Icon }) => {
+                                  const isSelected = id in placementConfigs;
+                                  const mode = placementConfigs[id] || "full";
+                                  
+                                  return (
+                                    <div 
+                                      key={id}
+                                      className={`p-3 rounded-lg border-2 transition-colors ${isSelected ? "border-primary bg-primary/5" : "border-border"}`}
+                                    >
+                                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                                        <Button
+                                          variant={isSelected ? "default" : "outline"}
+                                          className="h-12 min-w-[140px] flex-1 qr-touch-48"
+                                          onClick={() => {
+                                            const newConfigs = { ...placementConfigs };
+                                            if (isSelected) {
+                                              if (Object.keys(newConfigs).length > 1) {
+                                                delete newConfigs[id];
+                                              }
+                                            } else {
+                                              newConfigs[id] = "full";
+                                            }
+                                            setPlacementConfigs(newConfigs);
+                                          }}
+                                          data-testid={`button-placement-${id}`}
+                                        >
+                                          <Icon className="h-5 w-5 mr-2" />
+                                          {label}
+                                        </Button>
+                                        
+                                        {isSelected && (
+                                          <div className="flex gap-1 bg-muted rounded-md p-1">
+                                            <Button
+                                              variant={mode === "full" ? "default" : "ghost"}
+                                              size="sm"
+                                              className="h-10 px-3 text-xs qr-touch-48"
+                                              onClick={() => {
+                                                setPlacementConfigs({
+                                                  ...placementConfigs,
+                                                  [id]: "full"
+                                                });
+                                              }}
+                                              data-testid={`placement-${id}-full`}
+                                            >
+                                              Full Artwork
+                                            </Button>
+                                            <Button
+                                              variant={mode === "qr-only" ? "default" : "ghost"}
+                                              size="sm"
+                                              className="h-10 px-3 text-xs qr-touch-48"
+                                              onClick={() => {
+                                                setPlacementConfigs({
+                                                  ...placementConfigs,
+                                                  [id]: "qr-only"
+                                                });
+                                              }}
+                                              data-testid={`placement-${id}-qr-only`}
+                                            >
+                                              QR Only
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                         );
                       })()}
@@ -1575,87 +1671,61 @@ export default function Creator() {
               </CardContent>
             </Card>
 
-            {/* Step 3: Placement & Text */}
+            {/* Step 3: Custom Text (Optional) */}
             {selectedProduct && (
               <Card>
                 <CardHeader>
-                  <CardTitle>3. Placement & Text</CardTitle>
-                  <CardDescription>Choose where to place QR and add optional text</CardDescription>
+                  <CardTitle>3. Add Text (Optional)</CardTitle>
+                  <CardDescription>Add header or footer text around your QR code</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="placement">QR Code Placement</Label>
-                    <Select value={placement} onValueChange={setPlacement}>
-                      <SelectTrigger id="placement" className="qr-touch-48" data-testid="select-placement">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePlacements.length > 0 ? (
-                          availablePlacements.map((pos: string) => (
-                            <SelectItem key={pos} value={pos}>
-                              {formatPlacementLabel(pos)}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="front">Front</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {selectedProduct.madeInUSA && (
-                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-                      <UsaFlag className="w-6 h-4" />
-                      <span className="text-sm font-medium">Proudly Made in USA</span>
-                    </div>
-                  )}
-
-                  <div className="border-t pt-4 mt-2">
-                    <div className="flex items-center justify-between mb-3">
-                      <Label>Custom Text (Optional)</Label>
-                      {priceQuote && priceQuote.breakdown.textAboveUpcharge > 0 && (
-                        <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textAboveUpcharge.toFixed(2)} each</Badge>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2 mb-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <Label htmlFor="text-above">
                         Text Above QR <span className="text-muted-foreground text-xs">({textAbove.length}/20)</span>
                       </Label>
-                      <Input
-                        id="text-above"
-                        type="text"
-                        placeholder="SCAN ME"
-                        maxLength={20}
-                        value={textAbove}
-                        onChange={(e) => setTextAbove(e.target.value)}
-                        className="qr-touch-48"
-                        data-testid="input-text-above"
-                      />
+                      {priceQuote && priceQuote.breakdown.textAboveUpcharge > 0 && (
+                        <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textAboveUpcharge.toFixed(2)}</Badge>
+                      )}
                     </div>
-                    
-                    <div className="space-y-2 mb-4">
+                    <Input
+                      id="text-above"
+                      type="text"
+                      placeholder="SCAN ME"
+                      maxLength={20}
+                      value={textAbove}
+                      onChange={(e) => setTextAbove(e.target.value)}
+                      className="qr-touch-48"
+                      data-testid="input-text-above"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <Label htmlFor="text-below">
                         Text Below QR <span className="text-muted-foreground text-xs">({textBelow.length}/30)</span>
                       </Label>
-                      <Input
-                        id="text-below"
-                        type="text"
-                        placeholder="Connect with us!"
-                        maxLength={30}
-                        value={textBelow}
-                        onChange={(e) => setTextBelow(e.target.value)}
-                        className="qr-touch-48"
-                        data-testid="input-text-below"
-                      />
+                      {priceQuote && priceQuote.breakdown.textBelowUpcharge > 0 && (
+                        <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textBelowUpcharge.toFixed(2)}</Badge>
+                      )}
                     </div>
-                    
-                    {priceQuote && (hasTextAbove || hasTextBelow) && (
-                      <p className="text-xs text-muted-foreground">
-                        Text adds +${(priceQuote.breakdown.textAboveUpcharge + priceQuote.breakdown.textBelowUpcharge).toFixed(2)} to your order
-                      </p>
-                    )}
+                    <Input
+                      id="text-below"
+                      type="text"
+                      placeholder="Connect with us!"
+                      maxLength={30}
+                      value={textBelow}
+                      onChange={(e) => setTextBelow(e.target.value)}
+                      className="qr-touch-48"
+                      data-testid="input-text-below"
+                    />
                   </div>
+                  
+                  {priceQuote && (hasTextAbove || hasTextBelow) && (
+                    <p className="text-xs text-muted-foreground">
+                      Text adds +${(priceQuote.breakdown.textAboveUpcharge + priceQuote.breakdown.textBelowUpcharge).toFixed(2)} to your order
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}
