@@ -77,6 +77,9 @@ import type {
   TemplateCategory,
   InsertTemplateCategory,
   OrderUnified,
+  EmailTemplate,
+  InsertEmailTemplate,
+  EmailLog,
 } from "@shared/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -355,6 +358,18 @@ export interface IStorage {
   getGiftRedemptionsByRecipient(recipientEmail: string): Promise<GiftRedemption[]>;
   createGiftRedemption(redemption: InsertGiftRedemption): Promise<GiftRedemption>;
   updateGiftRedemption(id: string, redemption: Partial<InsertGiftRedemption>): Promise<GiftRedemption | undefined>;
+
+  // Email Template operations
+  getEmailTemplates(): Promise<EmailTemplate[]>;
+  getEmailTemplate(id: string): Promise<EmailTemplate | undefined>;
+  getEmailTemplateByTrigger(trigger: string): Promise<EmailTemplate | undefined>;
+  createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
+  updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined>;
+  deleteEmailTemplate(id: string): Promise<void>;
+
+  // Email Log operations
+  getEmailLogs(limit?: number): Promise<EmailLog[]>;
+  logEmail(log: Omit<EmailLog, 'id' | 'sentAt'>): Promise<EmailLog>;
 }
 
 export class DbStorage implements IStorage {
