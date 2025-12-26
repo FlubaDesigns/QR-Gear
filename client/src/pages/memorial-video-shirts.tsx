@@ -139,7 +139,7 @@ export default function MemorialVideoShirts() {
             </div>
           </div>
 
-          <Link href="/qr-video">
+          <Link href="/qr-play">
             <button className="vanity-back" data-testid="button-back-play">
               ← Back to QR Play
             </button>

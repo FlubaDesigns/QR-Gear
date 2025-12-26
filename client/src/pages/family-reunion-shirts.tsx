@@ -140,7 +140,7 @@ export default function FamilyReunionShirts() {
             </div>
           </div>
 
-          <Link href="/qr-url">
+          <Link href="/qr-canvas">
             <button className="vanity-back" data-testid="button-back-canvas">
               ← Back to QR Canvas
             </button>

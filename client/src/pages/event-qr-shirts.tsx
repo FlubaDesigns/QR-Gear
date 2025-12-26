@@ -151,7 +151,7 @@ export default function EventQRShirts() {
             </div>
           </div>
 
-          <Link href="/qr-static-plus">
+          <Link href="/qr-plus">
             <button className="vanity-back" data-testid="button-back-plus">
               ← Back to QR Plus
             </button>

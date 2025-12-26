@@ -139,7 +139,7 @@ export default function WebsiteQRShirts() {
             </div>
           </div>
 
-          <Link href="/qr-static">
+          <Link href="/qr-basics">
             <button className="vanity-back" data-testid="button-back-basics">
               ← Back to QR Basics
             </button>

@@ -36,10 +36,10 @@ import AdminEmailTemplates from "@/pages/admin-email-templates";
 import ShopSegment from "@/pages/shop-segment";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
-import QRStatic from "@/pages/qr-static";
-import QRStaticPlus from "@/pages/qr-static-plus";
-import QRUrl from "@/pages/qr-url";
-import QRVideo from "@/pages/qr-video";
+import QRBasics from "@/pages/qr-basics";
+import QRPlus from "@/pages/qr-plus";
+import QRCanvas from "@/pages/qr-canvas";
+import QRPlay from "@/pages/qr-play";
 import QRDynamics from "@/pages/qr-dynamics";
 import WeddingQRShirts from "@/pages/wedding-qr-shirts";
 import FamilyReunionShirts from "@/pages/family-reunion-shirts";
@@ -103,10 +103,10 @@ function Router() {
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-      <Route path="/qr-static" component={QRStatic} />
-      <Route path="/qr-static-plus" component={QRStaticPlus} />
-      <Route path="/qr-url" component={QRUrl} />
-      <Route path="/qr-video" component={QRVideo} />
+      <Route path="/qr-basics" component={QRBasics} />
+      <Route path="/qr-plus" component={QRPlus} />
+      <Route path="/qr-canvas" component={QRCanvas} />
+      <Route path="/qr-play" component={QRPlay} />
       <Route path="/qr-dynamics" component={QRDynamics} />
       <Route path="/wedding-qr-shirts" component={WeddingQRShirts} />
       <Route path="/family-reunion-shirts" component={FamilyReunionShirts} />

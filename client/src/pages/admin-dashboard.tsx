@@ -19,7 +19,6 @@ import {
   Activity,
 } from "lucide-react";
 import { formatCurrency, formatTrend } from "@/lib/admin-utils";
-import "@/styles/layout.css";
 
 interface DashboardMetrics {
   revenue: {

@@ -172,12 +172,12 @@ export default function MusicianMerch() {
           </div>
 
           <div className="vanity-back-group">
-            <Link href="/qr-url">
+            <Link href="/qr-canvas">
               <button className="vanity-back" data-testid="button-back-canvas">
                 ← Back to QR Canvas
               </button>
             </Link>
-            <Link href="/qr-video">
+            <Link href="/qr-play">
               <button className="vanity-back" data-testid="button-see-play">
                 See QR Play →
               </button>

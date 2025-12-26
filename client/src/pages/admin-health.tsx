@@ -17,7 +17,6 @@ import {
   Zap,
 } from "lucide-react";
 import type { ProviderHealthLog } from "@shared/schema";
-import "@/styles/layout.css";
 
 interface ProviderStatus {
   provider: string;

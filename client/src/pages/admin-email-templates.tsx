@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, Plus, Mail, Edit, Trash2, Send, Clock, CheckCircle, XCircle } from "lucide-react";
 import type { EmailTemplate, EmailLog } from "@shared/schema";
-import "@/styles/layout.css";
 
 const EMAIL_TRIGGERS = [
   { value: "order_confirmation", label: "Order Confirmation", description: "When order is placed" },

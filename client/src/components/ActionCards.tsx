@@ -9,7 +9,7 @@ const actionCards = [
     state: "Permanent",
     description: "A simple, scannable QR code. Text, URL, or contact info encoded permanently.",
     tagline: "No updates. No subscriptions.",
-    href: "/qr-static",
+    href: "/qr-basics",
     color: "ice",
   },
   {
@@ -18,7 +18,7 @@ const actionCards = [
     state: "Permanent + Messaging",
     description: "Add a message above and below your QR. Perfect for calls-to-action and instructions.",
     tagline: "Printed once. Works forever.",
-    href: "/qr-static-plus",
+    href: "/qr-plus",
     color: "accent",
   },
   {
@@ -27,7 +27,7 @@ const actionCards = [
     state: "Visual Space",
     description: "Design a custom image your QR opens to. Your QR Space. Your visual.",
     tagline: "Saved to your personal library.",
-    href: "/qr-url",
+    href: "/qr-canvas",
     color: "ice",
   },
   {
@@ -36,7 +36,7 @@ const actionCards = [
     state: "Motion",
     description: "Bring your QR to life with video. Plays instantly in your QR Space.",
     tagline: "No apps. Just scan.",
-    href: "/qr-video",
+    href: "/qr-play",
     color: "accent",
   },
   {
