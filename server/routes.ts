@@ -3310,7 +3310,7 @@ ${allPages.map(page => `  <url>
 
       // Get product count
       const products = await storage.getProducts();
-      const activeProducts = products.filter(p => p.isActive !== false).length;
+      const activeProducts = products.filter(p => p.isEnabled !== false).length;
 
       res.json({
         revenue: {
@@ -3357,7 +3357,7 @@ ${allPages.map(page => `  <url>
 
       // Calculate stats per user
       const customerStats = users.map(user => {
-        const userOrders = orders.filter(o => o.customerId === user.id);
+        const userOrders = orders.filter(o => o.customerEmail === user.email);
         const totalSpent = userOrders.reduce((sum, o) => sum + parseFloat(o.total || "0"), 0);
         const lastOrder = userOrders.sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -3392,7 +3392,7 @@ ${allPages.map(page => `  <url>
       }
 
       const orders = await storage.getOrders();
-      const userOrders = orders.filter(o => o.customerId === id);
+      const userOrders = orders.filter(o => o.customerEmail === user.email);
       const totalSpent = userOrders.reduce((sum, o) => sum + parseFloat(o.total || "0"), 0);
       const lastOrder = userOrders[0];
 

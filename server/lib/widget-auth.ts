@@ -7,8 +7,10 @@ const JWT_EXPIRY = "1h";
 export interface WidgetTokenPayload {
   businessId: string;
   businessName: string;
-  businessLogoUrl?: string;
+  businessSlug?: string;
+  businessLogoUrl?: string | null;
   kcListingUrl: string;
+  ownerEmail?: string;
   iat?: number;
   exp?: number;
 }
@@ -16,8 +18,10 @@ export interface WidgetTokenPayload {
 export const widgetTokenSchema = z.object({
   businessId: z.string(),
   businessName: z.string(),
-  businessLogoUrl: z.string().url().optional(),
+  businessSlug: z.string().optional(),
+  businessLogoUrl: z.string().url().optional().nullable(),
   kcListingUrl: z.string().url(),
+  ownerEmail: z.string().email().optional(),
 });
 
 export function signWidgetToken(payload: WidgetTokenPayload): string {
