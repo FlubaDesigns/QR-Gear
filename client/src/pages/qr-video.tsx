@@ -56,7 +56,7 @@ export default function QRVideoLanding() {
           
           <p className="text-xl font-medium text-foreground mb-2">Bring your QR to life with video</p>
           <p className="text-lg text-muted-foreground mb-8">
-            Press play on wearable video. Upload a video that plays instantly when your QR code is scanned. 
+            Press play on wearable video. Upload a video that plays instantly in your hosted QR Space when scanned. 
             Perfect for personal messages, tutorials, and multimedia content - plus optional text on the product.
           </p>
 

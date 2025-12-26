@@ -6,12 +6,14 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
+  "Your personal QR Space - hosted digital real estate",
+  "Space Terms: 1 year, 3 year, or 5 year options",
   "Scheduled changes - set it and forget it",
   "Rotating content - cycle through multiple destinations",
   "Daily sequences - prayers, tips, countdowns, advent calendars",
   "User-controlled updates without reprinting",
   "Scan analytics and tracking",
-  "Premium subscription service",
+  "Easy Space Renewal when your term ends",
 ];
 
 const examples = [
@@ -57,9 +59,10 @@ export default function QRDynamicsLanding() {
           
           <p className="text-xl font-medium text-foreground mb-2">Content that changes over time</p>
           <p className="text-lg text-muted-foreground mb-8">
-            The only QR tier with scheduled changes, rotating content, and daily sequences. 
-            Update where your QR points without reprinting - perfect for 12 Days of Christmas, daily prayers, 
-            rotating promotions, or any content that evolves. Includes scan analytics and tracking.
+            Your personal QR Space - digital real estate you control. The only tier with scheduled changes, 
+            rotating content, and daily sequences. Update what your QR shows without reprinting. Choose your 
+            Space Term (1yr / 3yr / 5yr) and manage content that evolves - 12 Days of Christmas, daily prayers, 
+            rotating promotions. Includes scan analytics.
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">

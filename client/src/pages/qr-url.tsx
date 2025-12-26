@@ -56,8 +56,8 @@ export default function QRUrlLanding() {
           
           <p className="text-xl font-medium text-foreground mb-2">Design a custom image your QR opens to</p>
           <p className="text-lg text-muted-foreground mb-8">
-            Your creative canvas for the scan experience. When someone scans your QR, they see your custom background on their phone. 
-            Upload your own image or pick from our templates - plus optional header/footer text on the product itself.
+            Your creative canvas for the scan experience. When someone scans your QR, they land on your hosted QR Space 
+            showing your custom background image. Upload your own or pick from templates - plus optional header/footer text on the product.
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">
