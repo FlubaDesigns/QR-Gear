@@ -48,10 +48,20 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - Updated admin navigation with 13 sections including Orders, Gifts.
 
 ### Recent Fixes (December 26, 2025)
+- **Auto-Sync Variants from Local Catalog**: Products now auto-populate sizes/colors from `printifyPrintProviders` table without Printify API calls. Uses reusable `autoSyncVariantsFromLocalCatalog` helper function.
+- **Metadata Preservation**: Auto-sync now merges metadata instead of overwriting (preserves Kingdom Connects data, etc.)
+- **Placeholder Variant ID Flagging**: Added `variantIdsArePlaceholders: true` flag in metadata for products needing real Printify variant IDs during fulfillment
 - **Admin Products Step Wizard**: Fixed store/segment lookup with case-insensitive, whitespace-trimmed name comparison and fallback to partnerStoresData
 - **Segment Creation**: Fixed prefix normalization issue where "Internal:/External:" prefixes prevented store lookup during segment addition
 - **Store Type Filter**: Fixed isInternal filter to use strict equality (=== true) to correctly classify stores with null/undefined values
 - **DOM Nesting**: Fixed Badge component inside p tag causing console warnings on Creator page
+
+### Auto-Sync Architecture
+- **Weekly Cron Job**: Syncs Printify catalog to `printifyPrintProviders` table with availableColors/availableSizes
+- **Product Creation**: Auto-seeds variants from local catalog data (no API calls needed)
+- **Limitation**: Variant IDs are placeholders - real Printify variant IDs fetched during fulfillment or manual sync
+- **Custom Designs**: Auto-sync doesn't apply yet (no printProviderId captured in custom design flow)
+- **Extensible**: Helper function designed for future POD providers (Printful, etc.) when connected
 
 ### AI Communication System
 - Cross-AI collaboration folder: `docs/AI-COMMS/`
