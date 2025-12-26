@@ -62,7 +62,7 @@ export default function QRStaticLanding() {
           </div>
           
           <p className="text-xl font-medium text-foreground mb-1">A clean, scannable QR code.</p>
-          <p className="text-lg text-muted-foreground mb-6">The classic, permanent QR experience.</p>
+          <p className="text-lg text-muted-foreground mb-6">Permanent. No subscriptions. Just works.</p>
           
           <p className="text-base text-muted-foreground mb-2">
             Encode your text, URL, or contact info directly into a permanent QR code printed on quality, USA-made merchandise.
