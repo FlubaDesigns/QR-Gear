@@ -1765,54 +1765,356 @@ export default function Creator() {
               </CardContent>
             </Card>
 
-            {/* Step 3: Custom Text (Optional) */}
+            {/* Step 3: Custom Text (Optional) with Rich Styling */}
             {selectedProduct && (
               <Card>
                 <CardHeader>
                   <CardTitle>3. Add Text (Optional)</CardTitle>
-                  <CardDescription>Add header or footer text around your QR code</CardDescription>
+                  <CardDescription>Add stylized header or footer text around your QR code</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
+                  {/* Top Text (Header) with Rich Controls */}
+                  <div className="space-y-3 p-3 bg-muted/30 rounded-lg border">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="text-above">
-                        Text Above QR <span className="text-muted-foreground text-xs">({textAbove.length}/20)</span>
-                      </Label>
-                      {priceQuote && priceQuote.breakdown.textAboveUpcharge > 0 && (
-                        <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textAboveUpcharge.toFixed(2)}</Badge>
-                      )}
+                      <Label htmlFor="header-enabled" className="font-semibold">Top Text (Header)</Label>
+                      <div className="flex items-center gap-2">
+                        {priceQuote && priceQuote.breakdown.textAboveUpcharge > 0 && (
+                          <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textAboveUpcharge.toFixed(2)}</Badge>
+                        )}
+                        <Switch
+                          id="header-enabled"
+                          checked={headerEnabled}
+                          onCheckedChange={(checked) => {
+                            setHeaderEnabled(checked);
+                            if (!checked) setTextAbove("");
+                          }}
+                          data-testid="switch-header-text"
+                        />
+                      </div>
                     </div>
-                    <Input
-                      id="text-above"
-                      type="text"
-                      placeholder="SCAN ME"
-                      maxLength={20}
-                      value={textAbove}
-                      onChange={(e) => setTextAbove(e.target.value)}
-                      className="qr-touch-48"
-                      data-testid="input-text-above"
-                    />
+                    {headerEnabled && (
+                      <div className="space-y-3">
+                        <Input
+                          placeholder="Enter top text (max 20 chars)"
+                          value={textAbove}
+                          onChange={(e) => setTextAbove(e.target.value.slice(0, 20))}
+                          maxLength={20}
+                          className="qr-touch-48"
+                          data-testid="input-text-above"
+                        />
+                        
+                        {/* Font and Size */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Font</Label>
+                            <FontPicker
+                              value={headerFontFamily}
+                              onChange={setHeaderFontFamily}
+                              fonts={renderConfig?.fonts || FONT_FAMILIES}
+                              previewText={textAbove || "QR Gear"}
+                              data-testid="select-header-font"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Size</Label>
+                            <select
+                              className="w-full h-12 px-3 border rounded-md text-sm bg-background qr-touch-48"
+                              value={headerFontSize}
+                              onChange={(e) => setHeaderFontSize(e.target.value)}
+                              data-testid="select-header-size"
+                            >
+                              {[72, 96, 120, 144, 168, 192, 216, 240, 280, 320].map((size) => (
+                                <option key={size} value={String(size)}>{size}pt</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        {/* Color and Warp */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Color</Label>
+                            <div className="flex gap-2">
+                              <input
+                                type="color"
+                                value={headerColor}
+                                onChange={(e) => setHeaderColor(e.target.value)}
+                                className="w-12 h-12 border rounded-md cursor-pointer qr-touch-48"
+                                data-testid="input-header-color"
+                              />
+                              <Input
+                                value={headerColor}
+                                onChange={(e) => setHeaderColor(e.target.value)}
+                                className="flex-1 font-mono text-xs qr-touch-48"
+                                placeholder="#000000"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Warp Style</Label>
+                            <select
+                              className="w-full h-12 px-3 border rounded-md text-sm bg-background qr-touch-48"
+                              value={headerWarp}
+                              onChange={(e) => setHeaderWarp(e.target.value)}
+                              data-testid="select-header-warp"
+                            >
+                              {(renderConfig?.warpPresets || [
+                                { value: 'straight', label: 'Straight' },
+                                { value: 'arc-up', label: 'Arc Up' },
+                                { value: 'arc-down', label: 'Arc Down' },
+                              ]).map((preset) => (
+                                <option key={preset.value} value={preset.value}>{preset.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        {/* Letter Spacing */}
+                        <div>
+                          <Label className="text-xs text-muted-foreground mb-1 block">
+                            Letter Spacing: {headerLetterSpacing}px
+                          </Label>
+                          <input
+                            type="range"
+                            min="-10"
+                            max="50"
+                            value={headerLetterSpacing}
+                            onChange={(e) => setHeaderLetterSpacing(Number(e.target.value))}
+                            className="w-full h-6 accent-primary cursor-pointer qr-touch-48"
+                            data-testid="slider-header-spacing"
+                          />
+                        </div>
+                        
+                        {/* Stroke/Outline */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Stroke Color</Label>
+                            <div className="flex gap-2">
+                              <input
+                                type="color"
+                                value={headerStrokeColor || "#ffffff"}
+                                onChange={(e) => setHeaderStrokeColor(e.target.value)}
+                                className="w-12 h-12 border rounded-md cursor-pointer qr-touch-48"
+                                data-testid="input-header-stroke-color"
+                              />
+                              <Input
+                                value={headerStrokeColor}
+                                onChange={(e) => setHeaderStrokeColor(e.target.value)}
+                                className="flex-1 font-mono text-xs qr-touch-48"
+                                placeholder="None"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Stroke Width: {headerStrokeWidth}px</Label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="20"
+                              value={headerStrokeWidth}
+                              onChange={(e) => setHeaderStrokeWidth(Number(e.target.value))}
+                              className="w-full h-6 accent-primary cursor-pointer mt-3 qr-touch-48"
+                              data-testid="slider-header-stroke"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Preview */}
+                        {textAbove && (
+                          <div className="p-3 bg-background rounded-md border text-center overflow-hidden">
+                            <div 
+                              style={{ 
+                                fontFamily: headerFontFamily, 
+                                fontSize: `${Math.min(parseInt(headerFontSize) * 0.2, 36)}px`,
+                                color: headerColor,
+                                letterSpacing: `${headerLetterSpacing * 0.1}px`,
+                                textShadow: headerStrokeColor && headerStrokeWidth > 0 
+                                  ? `0 0 ${headerStrokeWidth}px ${headerStrokeColor}` 
+                                  : undefined,
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              {textAbove}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Warp: {renderConfig?.warpPresets?.find(p => p.value === headerWarp)?.label || headerWarp}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
-                  <div className="space-y-2">
+                  {/* Bottom Text (Footer) with Rich Controls */}
+                  <div className="space-y-3 p-3 bg-muted/30 rounded-lg border">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="text-below">
-                        Text Below QR <span className="text-muted-foreground text-xs">({textBelow.length}/30)</span>
-                      </Label>
-                      {priceQuote && priceQuote.breakdown.textBelowUpcharge > 0 && (
-                        <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textBelowUpcharge.toFixed(2)}</Badge>
-                      )}
+                      <Label htmlFor="footer-enabled" className="font-semibold">Bottom Text (Footer)</Label>
+                      <div className="flex items-center gap-2">
+                        {priceQuote && priceQuote.breakdown.textBelowUpcharge > 0 && (
+                          <Badge variant="outline" className="text-xs">+${priceQuote.breakdown.textBelowUpcharge.toFixed(2)}</Badge>
+                        )}
+                        <Switch
+                          id="footer-enabled"
+                          checked={footerEnabled}
+                          onCheckedChange={(checked) => {
+                            setFooterEnabled(checked);
+                            if (!checked) setTextBelow("");
+                          }}
+                          data-testid="switch-footer-text"
+                        />
+                      </div>
                     </div>
-                    <Input
-                      id="text-below"
-                      type="text"
-                      placeholder="Connect with us!"
-                      maxLength={30}
-                      value={textBelow}
-                      onChange={(e) => setTextBelow(e.target.value)}
-                      className="qr-touch-48"
-                      data-testid="input-text-below"
-                    />
+                    {footerEnabled && (
+                      <div className="space-y-3">
+                        <Input
+                          placeholder="Enter bottom text (max 30 chars)"
+                          value={textBelow}
+                          onChange={(e) => setTextBelow(e.target.value.slice(0, 30))}
+                          maxLength={30}
+                          className="qr-touch-48"
+                          data-testid="input-text-below"
+                        />
+                        
+                        {/* Font and Size */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Font</Label>
+                            <FontPicker
+                              value={footerFontFamily}
+                              onChange={setFooterFontFamily}
+                              fonts={renderConfig?.fonts || FONT_FAMILIES}
+                              previewText={textBelow || "QR Gear"}
+                              data-testid="select-footer-font"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Size</Label>
+                            <select
+                              className="w-full h-12 px-3 border rounded-md text-sm bg-background qr-touch-48"
+                              value={footerFontSize}
+                              onChange={(e) => setFooterFontSize(e.target.value)}
+                              data-testid="select-footer-size"
+                            >
+                              {[72, 96, 120, 144, 168, 192, 216, 240, 280, 320].map((size) => (
+                                <option key={size} value={String(size)}>{size}pt</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        {/* Color and Warp */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Color</Label>
+                            <div className="flex gap-2">
+                              <input
+                                type="color"
+                                value={footerColor}
+                                onChange={(e) => setFooterColor(e.target.value)}
+                                className="w-12 h-12 border rounded-md cursor-pointer qr-touch-48"
+                                data-testid="input-footer-color"
+                              />
+                              <Input
+                                value={footerColor}
+                                onChange={(e) => setFooterColor(e.target.value)}
+                                className="flex-1 font-mono text-xs qr-touch-48"
+                                placeholder="#000000"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Warp Style</Label>
+                            <select
+                              className="w-full h-12 px-3 border rounded-md text-sm bg-background qr-touch-48"
+                              value={footerWarp}
+                              onChange={(e) => setFooterWarp(e.target.value)}
+                              data-testid="select-footer-warp"
+                            >
+                              {(renderConfig?.warpPresets || [
+                                { value: 'straight', label: 'Straight' },
+                                { value: 'arc-up', label: 'Arc Up' },
+                                { value: 'arc-down', label: 'Arc Down' },
+                              ]).map((preset) => (
+                                <option key={preset.value} value={preset.value}>{preset.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        {/* Letter Spacing */}
+                        <div>
+                          <Label className="text-xs text-muted-foreground mb-1 block">
+                            Letter Spacing: {footerLetterSpacing}px
+                          </Label>
+                          <input
+                            type="range"
+                            min="-10"
+                            max="50"
+                            value={footerLetterSpacing}
+                            onChange={(e) => setFooterLetterSpacing(Number(e.target.value))}
+                            className="w-full h-6 accent-primary cursor-pointer qr-touch-48"
+                            data-testid="slider-footer-spacing"
+                          />
+                        </div>
+                        
+                        {/* Stroke/Outline */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Stroke Color</Label>
+                            <div className="flex gap-2">
+                              <input
+                                type="color"
+                                value={footerStrokeColor || "#ffffff"}
+                                onChange={(e) => setFooterStrokeColor(e.target.value)}
+                                className="w-12 h-12 border rounded-md cursor-pointer qr-touch-48"
+                                data-testid="input-footer-stroke-color"
+                              />
+                              <Input
+                                value={footerStrokeColor}
+                                onChange={(e) => setFooterStrokeColor(e.target.value)}
+                                className="flex-1 font-mono text-xs qr-touch-48"
+                                placeholder="None"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-1 block">Stroke Width: {footerStrokeWidth}px</Label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="20"
+                              value={footerStrokeWidth}
+                              onChange={(e) => setFooterStrokeWidth(Number(e.target.value))}
+                              className="w-full h-6 accent-primary cursor-pointer mt-3 qr-touch-48"
+                              data-testid="slider-footer-stroke"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Preview */}
+                        {textBelow && (
+                          <div className="p-3 bg-background rounded-md border text-center overflow-hidden">
+                            <div 
+                              style={{ 
+                                fontFamily: footerFontFamily, 
+                                fontSize: `${Math.min(parseInt(footerFontSize) * 0.2, 36)}px`,
+                                color: footerColor,
+                                letterSpacing: `${footerLetterSpacing * 0.1}px`,
+                                textShadow: footerStrokeColor && footerStrokeWidth > 0 
+                                  ? `0 0 ${footerStrokeWidth}px ${footerStrokeColor}` 
+                                  : undefined,
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              {textBelow}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Warp: {renderConfig?.warpPresets?.find(p => p.value === footerWarp)?.label || footerWarp}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   {priceQuote && (hasTextAbove || hasTextBelow) && (
