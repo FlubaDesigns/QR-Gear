@@ -20,6 +20,8 @@ import UsaFlag from "@/components/UsaFlag";
 import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image, Package, Shirt, Target, ArrowLeft, ArrowRight, RotateCw, ImagePlus } from "lucide-react";
 const ImageCropper = lazy(() => import("@/components/ImageCropper"));
 import { getSwatchColor } from "@/lib/admin-utils";
+import { FontPicker } from "@/components/ui/font-picker";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
@@ -215,6 +217,24 @@ export default function Creator() {
   const [productColor, setProductColor] = useState("");
   const [textAbove, setTextAbove] = useState("");
   const [textBelow, setTextBelow] = useState("");
+  
+  const [headerEnabled, setHeaderEnabled] = useState(false);
+  const [headerFontFamily, setHeaderFontFamily] = useState("Arial");
+  const [headerFontSize, setHeaderFontSize] = useState("120");
+  const [headerColor, setHeaderColor] = useState("#000000");
+  const [headerWarp, setHeaderWarp] = useState("straight");
+  const [headerLetterSpacing, setHeaderLetterSpacing] = useState(0);
+  const [headerStrokeColor, setHeaderStrokeColor] = useState("");
+  const [headerStrokeWidth, setHeaderStrokeWidth] = useState(0);
+  
+  const [footerEnabled, setFooterEnabled] = useState(false);
+  const [footerFontFamily, setFooterFontFamily] = useState("Arial");
+  const [footerFontSize, setFooterFontSize] = useState("120");
+  const [footerColor, setFooterColor] = useState("#000000");
+  const [footerWarp, setFooterWarp] = useState("straight");
+  const [footerLetterSpacing, setFooterLetterSpacing] = useState(0);
+  const [footerStrokeColor, setFooterStrokeColor] = useState("");
+  const [footerStrokeWidth, setFooterStrokeWidth] = useState(0);
   const [uploadedImage, setUploadedImage] = useState<{ id: string; url: string; preview: string } | null>(null);
   const [isVideoContent, setIsVideoContent] = useState(false);
   const [imageTitle, setImageTitle] = useState("");
@@ -252,6 +272,15 @@ export default function Creator() {
   const { data: hostingTiers = [] } = useQuery<HostingTier[]>({
     queryKey: ["/api/hosting-tiers"],
     enabled: qrType === "upload" || qrType === "dynamic",
+  });
+
+  interface RenderConfig {
+    fonts: string[];
+    warpPresets: { value: string; label: string }[];
+  }
+  const FONT_FAMILIES = ["Arial", "Helvetica", "Times New Roman", "Georgia", "Verdana", "Courier New", "Impact", "Comic Sans MS", "Trebuchet MS", "Palatino Linotype"];
+  const { data: renderConfig } = useQuery<RenderConfig>({
+    queryKey: ["/api/render/config"],
   });
 
   const filteredTemplates = templateCategory === "all" 

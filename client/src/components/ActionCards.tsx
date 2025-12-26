@@ -69,13 +69,7 @@ export default function ActionCards() {
                     <card.icon className={`w-6 h-6 icon-color-${card.color}`} />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">{card.title}</h3>
-                  <p className="text-sm text-muted-foreground flex-1 mb-4">{card.description}</p>
-                  <span 
-                    className={`qr-btn ${card.color === "accent" ? "qr-btn--accent" : "qr-btn--ghost"} qr-btn--small w-full block text-center`}
-                    data-testid={`button-${card.title.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    {card.buttonText}
-                  </span>
+                  <p className="text-sm text-muted-foreground flex-1">{card.description}</p>
                 </CardContent>
               </Card>
             </Link>
