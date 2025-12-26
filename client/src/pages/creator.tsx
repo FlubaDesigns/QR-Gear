@@ -1428,138 +1428,148 @@ export default function Creator() {
                   }
                   
                   return (
-                    <div className="space-y-4">
-                      {filteredProducts.map((product) => {
-                        const isSelected = selectedProduct?.id === product.id;
-                        const rawColors = Array.isArray((product as any).availableColors) ? (product as any).availableColors : [];
+                    <>
+                      {/* Product Grid - Store-style layout */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {filteredProducts.map((product) => {
+                          const isSelected = selectedProduct?.id === product.id;
+                          return (
+                            <Card 
+                              key={product.id} 
+                              className={`overflow-hidden cursor-pointer transition-all ${isSelected ? "ring-2 ring-primary border-primary" : "hover-elevate"}`}
+                              onClick={() => {
+                                setSelectedProduct(product);
+                                const rawColors = Array.isArray((product as any).availableColors) ? (product as any).availableColors : [];
+                                const colors = rawColors.map((c: any) => typeof c === 'string' ? c : c.name || '');
+                                const sizes = Array.isArray((product as any).availableSizes) ? (product as any).availableSizes as string[] : [];
+                                if (!productColor && colors.length > 0) setProductColor(colors[0]);
+                                if (!selectedSize && sizes.length > 0) setSelectedSize(sizes[0]);
+                              }}
+                              data-testid={`card-product-${product.id}`}
+                            >
+                              <div className="relative aspect-square bg-muted">
+                                {product.imageUrl ? (
+                                  <img
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-12 h-12 text-muted-foreground" />
+                                  </div>
+                                )}
+                                {product.madeInUSA && (
+                                  <Badge className="absolute top-3 right-3 gap-1.5" variant="secondary">
+                                    <UsaFlag className="w-4 h-3" />
+                                    USA Made
+                                  </Badge>
+                                )}
+                                {isSelected && (
+                                  <div className="absolute top-3 left-3">
+                                    <Badge className="gap-1">
+                                      <Check className="w-3 h-3" />
+                                      Selected
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+                              <CardContent className="p-4">
+                                <h3 className="font-semibold text-foreground mb-1 truncate">{product.name}</h3>
+                                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                                  {product.description || `Custom QR ${product.category}`}
+                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-lg font-bold text-primary">${product.customerPrice || product.basePrice}</span>
+                                  <Button 
+                                    size="sm"
+                                    variant={isSelected ? "default" : "outline"}
+                                    className="qr-touch-48"
+                                    data-testid={`button-select-${product.id}`}
+                                  >
+                                    {isSelected ? "Selected" : "Select"}
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+
+                      {/* Color/Size Selection Panel - appears after product selection */}
+                      {selectedProduct && (() => {
+                        const rawColors = Array.isArray((selectedProduct as any).availableColors) ? (selectedProduct as any).availableColors : [];
                         const colors = rawColors.map((c: any) => ({
                           name: typeof c === 'string' ? c : c.name || '',
                           hex: typeof c === 'string' ? getSwatchColor(c) : c.hex || getSwatchColor(c.name || '')
                         }));
-                        const sizes = Array.isArray((product as any).availableSizes) ? (product as any).availableSizes as string[] : [];
-                        const enabledColors = ((product as any).metadata?.enabledColors as string[] | undefined) || colors.map((c: any) => c.name);
-                        const enabledSizes = ((product as any).metadata?.enabledSizes as string[] | undefined) || sizes;
+                        const sizes = Array.isArray((selectedProduct as any).availableSizes) ? (selectedProduct as any).availableSizes as string[] : [];
+                        const enabledColors = ((selectedProduct as any).metadata?.enabledColors as string[] | undefined) || colors.map((c: any) => c.name);
+                        const enabledSizes = ((selectedProduct as any).metadata?.enabledSizes as string[] | undefined) || sizes;
                         const visibleColors = colors.filter((c: any) => enabledColors.includes(c.name));
                         const visibleSizes = sizes.filter((s: string) => enabledSizes.includes(s));
-                        
+
                         return (
-                          <Card 
-                            key={product.id} 
-                            className={`p-4 cursor-pointer transition-all ${isSelected ? "ring-2 ring-primary border-primary" : "hover-elevate"}`}
-                            onClick={() => {
-                              setSelectedProduct(product);
-                              if (!productColor && visibleColors.length > 0) {
-                                setProductColor(visibleColors[0].name);
-                              }
-                              if (!selectedSize && visibleSizes.length > 0) {
-                                setSelectedSize(visibleSizes[0]);
-                              }
-                            }}
-                            data-testid={`card-product-${product.id}`}
-                          >
-                            <div className="flex gap-4">
-                              <div className="flex-shrink-0">
-                                <div className="w-20 h-20 rounded overflow-hidden bg-muted">
-                                  <img 
-                                    src={product.imageUrl || ""} 
-                                    alt={product.name}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => { e.currentTarget.src = "/assets/generated_images/Product_mockup_white_tee_de332d78.png"; }}
-                                  />
-                                </div>
+                          <div className="mt-6 p-4 bg-muted/50 rounded-lg border" data-testid="panel-product-options">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
+                                <img src={selectedProduct.imageUrl || ""} alt="" className="w-full h-full object-cover" />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div>
-                                    <p className="font-medium text-sm leading-tight">{product.name}</p>
-                                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                                      <span>{product.category}</span>
-                                      {product.madeInUSA && (
-                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
-                                          <UsaFlag className="w-3 h-2" /> USA
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <p className="text-lg font-bold text-primary">${product.customerPrice || product.basePrice}</p>
-                                </div>
-                                
-                                {visibleColors.length > 0 && (
-                                  <div className="mt-3">
-                                    <p className="text-xs text-muted-foreground mb-1.5">Colors</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {visibleColors.slice(0, 8).map((color: any) => (
-                                        <button
-                                          key={color.name}
-                                          type="button"
-                                          className={`w-7 h-7 rounded-full border-2 transition-all qr-touch-48 ${
-                                            isSelected && productColor === color.name 
-                                              ? "ring-2 ring-primary ring-offset-2 border-primary" 
-                                              : "border-muted hover:border-foreground/50"
-                                          }`}
-                                          style={{ backgroundColor: color.hex }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedProduct(product);
-                                            setProductColor(color.name);
-                                          }}
-                                          title={color.name}
-                                          data-testid={`button-swatch-${product.id}-${color.name}`}
-                                        />
-                                      ))}
-                                      {visibleColors.length > 8 && (
-                                        <span className="text-xs text-muted-foreground self-center ml-1">+{visibleColors.length - 8}</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {visibleSizes.length > 0 && (
-                                  <div className="mt-3">
-                                    <p className="text-xs text-muted-foreground mb-1.5">Sizes</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {visibleSizes.map((size: string) => (
-                                        <button
-                                          key={size}
-                                          type="button"
-                                          className={`px-2.5 py-1 text-xs rounded border transition-all qr-touch-48 ${
-                                            isSelected && selectedSize === size 
-                                              ? "bg-primary text-primary-foreground border-primary" 
-                                              : "bg-muted/50 border-muted hover:border-foreground/50"
-                                          }`}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedProduct(product);
-                                            setSelectedSize(size);
-                                          }}
-                                          data-testid={`button-size-${product.id}-${size}`}
-                                        >
-                                          {size}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                              <div>
+                                <p className="font-medium text-sm">{selectedProduct.name}</p>
+                                <p className="text-xs text-muted-foreground">Choose color & size below</p>
                               </div>
                             </div>
-                            
-                            {isSelected && (
-                              <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Check className="h-4 w-4 text-primary" />
-                                  <span className="text-muted-foreground">
-                                    {productColor && <span className="font-medium text-foreground">{productColor}</span>}
-                                    {productColor && selectedSize && " / "}
-                                    {selectedSize && <span className="font-medium text-foreground">{selectedSize}</span>}
-                                  </span>
+
+                            {visibleColors.length > 0 && (
+                              <div className="mb-4">
+                                <Label className="text-sm mb-2 block">Color: <span className="font-normal text-muted-foreground">{productColor}</span></Label>
+                                <div className="flex flex-wrap gap-2">
+                                  {visibleColors.map((color: any) => (
+                                    <button
+                                      key={color.name}
+                                      type="button"
+                                      className={`w-10 h-10 rounded-full border-2 transition-all qr-touch-48 ${
+                                        productColor === color.name 
+                                          ? "ring-2 ring-primary ring-offset-2 border-primary" 
+                                          : "border-muted hover:border-foreground/50"
+                                      }`}
+                                      style={{ backgroundColor: color.hex }}
+                                      onClick={() => setProductColor(color.name)}
+                                      title={color.name}
+                                      data-testid={`button-swatch-${color.name}`}
+                                    />
+                                  ))}
                                 </div>
-                                <Badge variant="secondary">Selected</Badge>
                               </div>
                             )}
-                          </Card>
+
+                            {visibleSizes.length > 0 && (
+                              <div>
+                                <Label className="text-sm mb-2 block">Size: <span className="font-normal text-muted-foreground">{selectedSize}</span></Label>
+                                <div className="flex flex-wrap gap-2">
+                                  {visibleSizes.map((size: string) => (
+                                    <button
+                                      key={size}
+                                      type="button"
+                                      className={`px-4 py-2 text-sm rounded border transition-all qr-touch-48 ${
+                                        selectedSize === size 
+                                          ? "bg-primary text-primary-foreground border-primary" 
+                                          : "bg-background border-muted hover:border-foreground/50"
+                                      }`}
+                                      onClick={() => setSelectedSize(size)}
+                                      data-testid={`button-size-${size}`}
+                                    >
+                                      {size}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         );
-                      })}
-                    </div>
+                      })()}
+                    </>
                   );
                 })()}
               </CardContent>
