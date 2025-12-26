@@ -32,8 +32,8 @@ const items = [
   },
   {
     icon: Dog,
-    title: "Pet Gear",
-    description: "Leashes, carriers, bowls - because Fido's stuff wanders too.",
+    title: "Pet Owner Gear",
+    description: "Your dog-walking hoodie, your pet sitter bag. People know who to call.",
   },
 ];
 
