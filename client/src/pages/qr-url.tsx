@@ -66,7 +66,7 @@ export default function QRUrlLanding() {
           </div>
 
           <div className="bg-card rounded-xl p-6 mb-8 text-left">
-            <h2 className="font-semibold mb-4">How it works:</h2>
+            <h2 className="font-semibold mb-4">Popular Uses:</h2>
             <div className="grid gap-4">
               {examples.map((example, i) => (
                 <div key={i} className="flex items-start gap-4">

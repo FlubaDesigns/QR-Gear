@@ -1,4 +1,4 @@
-import { Upload, CheckCircle, ArrowRight } from "lucide-react";
+import { Upload, CheckCircle, ArrowRight, Heart, GraduationCap, Wrench, Users } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -10,6 +10,29 @@ const features = [
   "Plays when QR is scanned",
   "Great for video messages and tutorials",
   "Cloud-hosted for instant playback",
+];
+
+const examples = [
+  {
+    icon: Heart,
+    title: "Memorial Tributes",
+    text: "A hoodie with grandpa's photo - scan to watch his favorite stories and memories",
+  },
+  {
+    icon: GraduationCap,
+    title: "Graduation Gifts",
+    text: "Family video messages on a grad's new shirt - they can watch anytime they miss home",
+  },
+  {
+    icon: Wrench,
+    title: "How-To Gear",
+    text: "Work uniform links to assembly videos - new hires scan and learn right on the job",
+  },
+  {
+    icon: Users,
+    title: "Team Introductions",
+    text: "Company polo plays your \"About Us\" video - clients get the full story instantly",
+  },
 ];
 
 export default function QRVideoLanding() {
@@ -35,7 +58,7 @@ export default function QRVideoLanding() {
             Perfect for personal messages, tutorials, and multimedia content.
           </p>
 
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+          <div className="bg-card rounded-xl p-6 mb-6 text-left">
             <h2 className="font-semibold mb-4">What you get:</h2>
             <ul className="space-y-3">
               {features.map((feature, i) => (
@@ -45,6 +68,23 @@ export default function QRVideoLanding() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+            <h2 className="font-semibold mb-4">Popular Uses:</h2>
+            <div className="grid gap-4">
+              {examples.map((example, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <example.icon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{example.title}</h3>
+                    <p className="text-sm text-muted-foreground">{example.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <Link href="/creator?line=video">

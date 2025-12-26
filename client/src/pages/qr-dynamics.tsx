@@ -1,4 +1,4 @@
-import { Sparkles, CheckCircle, ArrowRight } from "lucide-react";
+import { Sparkles, CheckCircle, ArrowRight, Building2, CalendarDays, Music, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -10,6 +10,29 @@ const features = [
   "Never reprint when content changes",
   "Analytics and scan tracking",
   "Premium subscription service",
+];
+
+const examples = [
+  {
+    icon: Building2,
+    title: "Real Estate Agents",
+    text: "Same polo for every listing - just update the QR to point to your current property",
+  },
+  {
+    icon: CalendarDays,
+    title: "Event Organizers",
+    text: "Reuse crew shirts season after season - update to this year's schedule before each event",
+  },
+  {
+    icon: Music,
+    title: "Musicians & DJs",
+    text: "Merch that stays current - link to your latest album, tour dates, or streaming profile",
+  },
+  {
+    icon: TrendingUp,
+    title: "Sales Teams",
+    text: "Track which reps get the most scans - update destinations for seasonal campaigns",
+  },
 ];
 
 export default function QRDynamicsLanding() {
@@ -35,7 +58,7 @@ export default function QRDynamicsLanding() {
             without reprinting. Includes scan analytics and tracking.
           </p>
 
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+          <div className="bg-card rounded-xl p-6 mb-6 text-left">
             <h2 className="font-semibold mb-4">What you get:</h2>
             <ul className="space-y-3">
               {features.map((feature, i) => (
@@ -45,6 +68,23 @@ export default function QRDynamicsLanding() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+            <h2 className="font-semibold mb-4">Popular Uses:</h2>
+            <div className="grid gap-4">
+              {examples.map((example, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <example.icon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{example.title}</h3>
+                    <p className="text-sm text-muted-foreground">{example.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <Link href="/creator?line=dynamics">
