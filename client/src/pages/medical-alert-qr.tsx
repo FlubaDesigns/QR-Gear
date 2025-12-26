@@ -1,7 +1,5 @@
 import { Heart, CheckCircle, AlertTriangle, Pill, Phone, Shield, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -40,117 +38,119 @@ const infoTypes = [
 
 export default function MedicalAlertQR() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="vanity-page">
       <SEO 
         title="Medical Alert QR | Emergency Info You Wear | QR Gear"
         description="Create wearable medical alert QR codes with allergies, medications, blood type, and emergency contacts. When you can't speak, your shirt can. USA options available."
         keywords="medical alert QR, emergency info shirt, allergy alert, medical ID QR, emergency contacts wearable, health info QR"
       />
       <Navbar />
-      <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-red-500/10 flex items-center justify-center shrink-0">
-              <Heart className="w-8 h-8 md:w-10 md:h-10 text-red-500" />
+      <main className="vanity-content">
+        <div className="vanity-container">
+          <div className="vanity-header">
+            <div className="vanity-header-icon">
+              <Heart />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">QR Basics</p>
-              <h1 className="text-2xl md:text-4xl font-bold">Medical Alert QR</h1>
+            <div className="vanity-header-text">
+              <p className="vanity-category">QR Basics</p>
+              <h1 className="vanity-title">Medical Alert QR</h1>
             </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">Silent lifesaver.</p>
-          <p className="text-lg text-muted-foreground mb-4">
+          <p className="vanity-tagline">Silent lifesaver.</p>
+          <p className="vanity-description">
             Allergies. Blood type. Emergency contacts. Medications. 
             When you can't speak, your shirt can.
           </p>
-          <p className="text-lg text-muted-foreground mb-8 italic">
+          <p className="vanity-description vanity-italic">
             Critical info, always on you, always accessible.
           </p>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Shield className="w-5 h-5 text-red-500" />
+          <div className="glass-card vanity-features">
+            <h2 className="vanity-features-title">
+              <Shield />
               What you can encode:
             </h2>
-            <ul className="space-y-3">
+            <ul className="vanity-features-list">
               {features.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                <li key={i} className="vanity-feature-item">
+                  <CheckCircle />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-6">Life-saving information:</h2>
-            <div className="grid gap-4">
+          <div className="glass-card vanity-items">
+            <h2 className="vanity-items-title">Life-saving information:</h2>
+            <div className="vanity-items-grid">
               {infoTypes.map((info, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-                    <info.icon className="w-5 h-5 text-red-500" />
+                <div key={i} className="vanity-item">
+                  <div className="vanity-item-icon">
+                    <info.icon />
                   </div>
-                  <div>
-                    <h3 className="font-medium">{info.title}</h3>
-                    <p className="text-sm text-muted-foreground">{info.description}</p>
+                  <div className="vanity-item-content">
+                    <h3>{info.title}</h3>
+                    <p>{info.description}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-8 bg-red-500/5 border-red-500/20">
-            <div className="flex items-start gap-4">
-              <AlertTriangle className="w-8 h-8 text-red-500 shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">For anyone with health concerns</h3>
-                <p className="text-sm text-muted-foreground">
+          <div className="glass-card vanity-highlight">
+            <div className="vanity-highlight-inner">
+              <div className="vanity-highlight-icon">
+                <AlertTriangle />
+              </div>
+              <div className="vanity-highlight-content">
+                <h3>For anyone with health concerns</h3>
+                <p>
                   Runners, hikers, seniors, kids with allergies, anyone who wants peace of mind. 
                   First responders know to look for medical IDs. Make yours scannable.
                 </p>
               </div>
             </div>
-          </Card>
+          </div>
 
           <Link href="/creator?line=static">
-            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-medical">
+            <button className="vanity-cta" data-testid="button-create-medical">
               Create Your Medical Alert
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+              <ArrowRight />
+            </button>
           </Link>
 
-          <Card className="p-6 mt-8">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
+          <div className="glass-card vanity-related">
+            <h2 className="vanity-related-title">
+              <Shield />
               Related Ideas
             </h2>
-            <div className="grid gap-3">
+            <div className="vanity-related-grid">
               <Link href="/lost-found-qr">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Lost & Found QR</span>
-                  <p className="text-sm text-muted-foreground">QR on your bags and gear</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Lost & Found QR</span>
+                  <p>QR on your bags and gear</p>
                 </div>
               </Link>
               <Link href="/personal-items-qr">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Personal Items QR</span>
-                  <p className="text-sm text-muted-foreground">Label anything important</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Personal Items QR</span>
+                  <p>Label anything important</p>
                 </div>
               </Link>
               <Link href="/everyday-qr">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Everyday QR</span>
-                  <p className="text-sm text-muted-foreground">Practical QR for daily use</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Everyday QR</span>
+                  <p>Practical QR for daily use</p>
                 </div>
               </Link>
             </div>
-          </Card>
+          </div>
 
           <Link href="/qr-static">
-            <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-basics">
+            <button className="vanity-back" data-testid="button-back-basics">
               ← Back to QR Basics
-            </Button>
+            </button>
           </Link>
 
         </div>

@@ -1,7 +1,5 @@
 import { TrendingUp, CheckCircle, Sparkles, BarChart3, RefreshCw, Target, Users, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -39,117 +37,119 @@ const capabilities = [
 
 export default function BusinessAnalyticsQR() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="vanity-page">
       <SEO 
         title="Business Analytics QR | The Shirt That Reports Back | QR Gear"
         description="Create business shirts with QR codes that track every scan. See what gets traction, update destinations mid-campaign, and optimize your marketing. No reprint required."
         keywords="business QR analytics, marketing QR shirt, trackable QR, campaign QR, sales analytics shirt, team performance QR"
       />
       <Navbar />
-      <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-cyan-500/10 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-8 h-8 md:w-10 md:h-10 text-cyan-500" />
+      <main className="vanity-content">
+        <div className="vanity-container">
+          <div className="vanity-header">
+            <div className="vanity-header-icon">
+              <TrendingUp />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">QR Dynamics™</p>
-              <h1 className="text-2xl md:text-4xl font-bold">Business Analytics QR</h1>
+            <div className="vanity-header-text">
+              <p className="vanity-category">QR Dynamics™</p>
+              <h1 className="vanity-title">Business Analytics QR</h1>
             </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">The shirt that reports back.</p>
-          <p className="text-lg text-muted-foreground mb-4">
+          <p className="vanity-tagline">The shirt that reports back.</p>
+          <p className="vanity-description">
             Track every scan. See which rep gets traction. 
             Update the destination mid-campaign without printing a thing.
           </p>
-          <p className="text-lg text-muted-foreground mb-8 italic">
+          <p className="vanity-description vanity-italic">
             Marketing that measures itself.
           </p>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-cyan-500" />
+          <div className="glass-card vanity-features">
+            <h2 className="vanity-features-title">
+              <Sparkles />
               What you get:
             </h2>
-            <ul className="space-y-3">
+            <ul className="vanity-features-list">
               {features.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                <li key={i} className="vanity-feature-item">
+                  <CheckCircle />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-6">Business intelligence built in:</h2>
-            <div className="grid gap-4">
+          <div className="glass-card vanity-items">
+            <h2 className="vanity-items-title">Business intelligence built in:</h2>
+            <div className="vanity-items-grid">
               {capabilities.map((cap, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
-                    <cap.icon className="w-5 h-5 text-cyan-500" />
+                <div key={i} className="vanity-item">
+                  <div className="vanity-item-icon">
+                    <cap.icon />
                   </div>
-                  <div>
-                    <h3 className="font-medium">{cap.title}</h3>
-                    <p className="text-sm text-muted-foreground">{cap.description}</p>
+                  <div className="vanity-item-content">
+                    <h3>{cap.title}</h3>
+                    <p>{cap.description}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-8 bg-cyan-500/5 border-cyan-500/20">
-            <div className="flex items-start gap-4">
-              <Target className="w-8 h-8 text-cyan-500 shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">Perfect for teams</h3>
-                <p className="text-sm text-muted-foreground">
+          <div className="glass-card vanity-highlight">
+            <div className="vanity-highlight-inner">
+              <div className="vanity-highlight-icon">
+                <Target />
+              </div>
+              <div className="vanity-highlight-content">
+                <h3>Perfect for teams</h3>
+                <p>
                   Each team member gets their own shirt, their own QR, their own analytics. 
                   Compare performance, optimize campaigns, reward top performers.
                 </p>
               </div>
             </div>
-          </Card>
+          </div>
 
           <Link href="/creator?line=dynamics">
-            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-analytics">
+            <button className="vanity-cta" data-testid="button-create-analytics">
               Create Your Analytics Shirt
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+              <ArrowRight />
+            </button>
           </Link>
 
-          <Card className="p-6 mt-8">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
+          <div className="glass-card vanity-related">
+            <h2 className="vanity-related-title">
+              <BarChart3 />
               Related Ideas
             </h2>
-            <div className="grid gap-3">
+            <div className="vanity-related-grid">
               <Link href="/realtor-qr-shirts">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Realtor QR Shirts</span>
-                  <p className="text-sm text-muted-foreground">Updateable property listings</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Realtor QR Shirts</span>
+                  <p>Updateable property listings</p>
                 </div>
               </Link>
               <Link href="/business-qr-plus">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Business QR Plus</span>
-                  <p className="text-sm text-muted-foreground">Clear calls-to-action</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Business QR Plus</span>
+                  <p>Clear calls-to-action</p>
                 </div>
               </Link>
               <Link href="/networking-qr-shirts">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Networking Shirts</span>
-                  <p className="text-sm text-muted-foreground">Digital business cards</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Networking Shirts</span>
+                  <p>Digital business cards</p>
                 </div>
               </Link>
             </div>
-          </Card>
+          </div>
 
           <Link href="/qr-dynamics">
-            <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-dynamics">
+            <button className="vanity-back" data-testid="button-back-dynamics">
               ← Back to QR Dynamics™
-            </Button>
+            </button>
           </Link>
 
         </div>

@@ -1,7 +1,5 @@
 import { Calendar, CheckCircle, Sparkles, Gift, Star, Church, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -39,117 +37,119 @@ const ideas = [
 
 export default function AdventQRShirts() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="vanity-page">
       <SEO 
         title="Advent QR Shirts | 12 Days of Christmas, Automated | QR Gear"
         description="Create shirts with QR codes that reveal different content each day. Perfect for Advent devotionals, Christmas countdowns, and daily sequences. Set it once, it runs itself."
         keywords="advent calendar QR, 12 days christmas shirt, daily QR content, countdown shirt, devotional QR, scheduled QR"
       />
       <Navbar />
-      <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-red-500/10 flex items-center justify-center shrink-0">
-              <Calendar className="w-8 h-8 md:w-10 md:h-10 text-red-500" />
+      <main className="vanity-content">
+        <div className="vanity-container">
+          <div className="vanity-header">
+            <div className="vanity-header-icon">
+              <Calendar />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">QR Dynamics™</p>
-              <h1 className="text-2xl md:text-4xl font-bold">Advent QR Shirts</h1>
+            <div className="vanity-header-text">
+              <p className="vanity-category">QR Dynamics™</p>
+              <h1 className="vanity-title">Advent QR Shirts</h1>
             </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">12 Days of Christmas, automated.</p>
-          <p className="text-lg text-muted-foreground mb-4">
+          <p className="vanity-tagline">12 Days of Christmas, automated.</p>
+          <p className="vanity-description">
             Day 1: A new devotional. Day 2: A different verse. Day 12: The grand finale. 
             Set it once. It runs itself.
           </p>
-          <p className="text-lg text-muted-foreground mb-8 italic">
+          <p className="vanity-description vanity-italic">
             Daily reveals without daily work.
           </p>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-red-500" />
+          <div className="glass-card vanity-features">
+            <h2 className="vanity-features-title">
+              <Sparkles />
               What you get:
             </h2>
-            <ul className="space-y-3">
+            <ul className="vanity-features-list">
               {features.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                <li key={i} className="vanity-feature-item">
+                  <CheckCircle />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-6">Sequence ideas:</h2>
-            <div className="grid gap-4">
+          <div className="glass-card vanity-items">
+            <h2 className="vanity-items-title">Sequence ideas:</h2>
+            <div className="vanity-items-grid">
               {ideas.map((idea, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-                    <idea.icon className="w-5 h-5 text-red-500" />
+                <div key={i} className="vanity-item">
+                  <div className="vanity-item-icon">
+                    <idea.icon />
                   </div>
-                  <div>
-                    <h3 className="font-medium">{idea.title}</h3>
-                    <p className="text-sm text-muted-foreground">{idea.description}</p>
+                  <div className="vanity-item-content">
+                    <h3>{idea.title}</h3>
+                    <p>{idea.description}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-8 bg-red-500/5 border-red-500/20">
-            <div className="flex items-start gap-4">
-              <Gift className="w-8 h-8 text-red-500 shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">Great for groups</h3>
-                <p className="text-sm text-muted-foreground">
+          <div className="glass-card vanity-highlight">
+            <div className="vanity-highlight-inner">
+              <div className="vanity-highlight-icon">
+                <Gift />
+              </div>
+              <div className="vanity-highlight-content">
+                <h3>Great for groups</h3>
+                <p>
                   Church groups, families, friend circles - everyone wears the same shirt. 
                   Each day brings a new conversation starter.
                 </p>
               </div>
             </div>
-          </Card>
+          </div>
 
           <Link href="/creator?line=dynamics">
-            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-advent">
+            <button className="vanity-cta" data-testid="button-create-advent">
               Create Your Advent Shirt
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+              <ArrowRight />
+            </button>
           </Link>
 
-          <Card className="p-6 mt-8">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Gift className="w-5 h-5 text-primary" />
+          <div className="glass-card vanity-related">
+            <h2 className="vanity-related-title">
+              <Gift />
               Related Ideas
             </h2>
-            <div className="grid gap-3">
+            <div className="vanity-related-grid">
               <Link href="/video-time-capsule">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Video Time Capsule</span>
-                  <p className="text-sm text-muted-foreground">Messages for the future</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Video Time Capsule</span>
+                  <p>Messages for the future</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Band Dynamic Merch</span>
-                  <p className="text-sm text-muted-foreground">Updateable musician content</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Band Dynamic Merch</span>
+                  <p>Updateable musician content</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Event QR Shirts</span>
-                  <p className="text-sm text-muted-foreground">Perfect for gatherings</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Event QR Shirts</span>
+                  <p>Perfect for gatherings</p>
                 </div>
               </Link>
             </div>
-          </Card>
+          </div>
 
           <Link href="/qr-dynamics">
-            <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-dynamics">
+            <button className="vanity-back" data-testid="button-back-dynamics">
               ← Back to QR Dynamics™
-            </Button>
+            </button>
           </Link>
 
         </div>

@@ -1,7 +1,5 @@
 import { Link2, CheckCircle, Globe, Smartphone, Zap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -35,114 +33,116 @@ const useCases = [
 
 export default function WebsiteQRShirts() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="vanity-page">
       <SEO 
         title="Website QR Shirts | Wearable Links to Your Site | QR Gear"
         description="Create shirts with QR codes that link directly to your website, portfolio, or booking page. One scan lands them on your site. No typing required. USA options available."
         keywords="website QR shirt, portfolio QR code, wearable link, booking page QR, URL QR shirt, scannable website shirt"
       />
       <Navbar />
-      <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0">
-              <Link2 className="w-8 h-8 md:w-10 md:h-10 text-blue-500" />
+      <main className="vanity-content">
+        <div className="vanity-container">
+          <div className="vanity-header">
+            <div className="vanity-header-icon">
+              <Link2 />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">QR Basics</p>
-              <h1 className="text-2xl md:text-4xl font-bold">Website QR Shirts</h1>
+            <div className="vanity-header-text">
+              <p className="vanity-category">QR Basics</p>
+              <h1 className="vanity-title">Website QR Shirts</h1>
             </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">Instant website access.</p>
-          <p className="text-lg text-muted-foreground mb-4">
+          <p className="vanity-tagline">Instant website access.</p>
+          <p className="vanity-description">
             "Just scan my shirt." One tap lands them on your site, portfolio, or booking page. 
             No typing, no searching. Your URL, encoded and ready to go.
           </p>
-          <p className="text-lg text-muted-foreground mb-8 italic">
+          <p className="vanity-description vanity-italic">
             The easiest business card you'll ever hand out.
           </p>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Zap className="w-5 h-5 text-blue-500" />
+          <div className="glass-card vanity-features">
+            <h2 className="vanity-features-title">
+              <Zap />
               What you get:
             </h2>
-            <ul className="space-y-3">
+            <ul className="vanity-features-list">
               {features.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                <li key={i} className="vanity-feature-item">
+                  <CheckCircle />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-6 flex items-center gap-2">
-              <Globe className="w-5 h-5 text-primary" />
+          <div className="glass-card vanity-items">
+            <h2 className="vanity-items-title">
+              <Globe />
               Perfect for:
             </h2>
-            <div className="grid gap-4">
+            <div className="vanity-items-grid vanity-scenarios">
               {useCases.map((use, i) => (
-                <div key={i} className="border-l-2 border-blue-500/30 pl-4">
-                  <h3 className="font-medium">{use.title}</h3>
-                  <p className="text-sm text-muted-foreground">{use.description}</p>
+                <div key={i} className="vanity-scenario">
+                  <h3>{use.title}</h3>
+                  <p>{use.description}</p>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-8 bg-blue-500/5 border-blue-500/20">
-            <div className="flex items-start gap-4">
-              <Smartphone className="w-8 h-8 text-blue-500 shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">Works on any phone</h3>
-                <p className="text-sm text-muted-foreground">
+          <div className="glass-card vanity-highlight">
+            <div className="vanity-highlight-inner">
+              <div className="vanity-highlight-icon">
+                <Smartphone />
+              </div>
+              <div className="vanity-highlight-content">
+                <h3>Works on any phone</h3>
+                <p>
                   iPhone, Android, any camera app. Point, scan, done. No special apps needed.
                 </p>
               </div>
             </div>
-          </Card>
+          </div>
 
           <Link href="/creator?line=static">
-            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-website">
+            <button className="vanity-cta" data-testid="button-create-website">
               Create Your Website Shirt
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+              <ArrowRight />
+            </button>
           </Link>
 
-          <Card className="p-6 mt-8">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Globe className="w-5 h-5 text-primary" />
+          <div className="glass-card vanity-related">
+            <h2 className="vanity-related-title">
+              <Globe />
               Related Ideas
             </h2>
-            <div className="grid gap-3">
+            <div className="vanity-related-grid">
               <Link href="/networking-qr-shirts">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Networking Shirts</span>
-                  <p className="text-sm text-muted-foreground">Save contacts instantly with vCard</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Networking Shirts</span>
+                  <p>Save contacts instantly with vCard</p>
                 </div>
               </Link>
               <Link href="/business-qr-plus">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Business QR Plus</span>
-                  <p className="text-sm text-muted-foreground">Add your tagline to the shirt</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Business QR Plus</span>
+                  <p>Add your tagline to the shirt</p>
                 </div>
               </Link>
               <Link href="/realtor-qr-shirts">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Realtor QR Shirts</span>
-                  <p className="text-sm text-muted-foreground">Updateable listings and open houses</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Realtor QR Shirts</span>
+                  <p>Updateable listings and open houses</p>
                 </div>
               </Link>
             </div>
-          </Card>
+          </div>
 
           <Link href="/qr-static">
-            <Button variant="ghost" className="w-full min-h-12 mt-4" data-testid="button-back-basics">
+            <button className="vanity-back" data-testid="button-back-basics">
               ← Back to QR Basics
-            </Button>
+            </button>
           </Link>
 
         </div>
