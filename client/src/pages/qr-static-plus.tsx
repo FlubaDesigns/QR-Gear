@@ -1,4 +1,4 @@
-import { Type, CheckCircle, ArrowRight, Store, Calendar, Gift, Megaphone } from "lucide-react";
+import { Type, CheckCircle, ArrowRight, User, Calendar, Heart, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -6,32 +6,41 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
-  "Add custom header text above your QR",
-  "Add footer text below for context",
+  "Custom header text above your QR",
+  "Footer text below for clarity or instructions",
   "Multiple font styles and sizes",
-  "Perfect for calls-to-action",
+  "Clean, readable layouts",
+  "Permanent QR — never expires or changes",
+  "USA-made apparel and accessories",
 ];
 
-const examples = [
+const personalUses = [
   {
-    icon: Store,
-    title: "The Self-Service Staff",
-    text: "\"NEED HELP? SCAN ME\" - customers get answers without hunting down an employee. Your team handles fewer interruptions.",
+    icon: User,
+    title: "Personal Items",
+    examples: ["IF FOUND, PLEASE CALL", "THIS BELONGS TO JESS", "MEDICAL INFO – SCAN"],
+    text: "Simple words make all the difference.",
   },
   {
     icon: Calendar,
-    title: "Festival Crew That Directs Itself",
-    text: "\"SCHEDULE\" up top, \"#SummerFest2025\" below. Attendees find stages, times, and lineups without asking.",
+    title: "Events & Groups",
+    examples: ["EVENT SCHEDULE", "JOIN THE GROUP", "PHOTOS FROM TODAY"],
+    text: "People know what they're getting before they scan.",
   },
   {
-    icon: Gift,
-    title: "Walking Sweepstakes",
-    text: "\"WIN $500\" screams the header. \"Scan to Enter\" seals the deal. Your giveaway walks through the crowd.",
+    icon: Heart,
+    title: "Everyday Prompts",
+    examples: ["SCAN TO LEARN MORE", "SCAN FOR INSTRUCTIONS", "SCAN FOR THE STORY"],
+    text: "Small text. Big clarity.",
   },
+];
+
+const businessUses = [
   {
-    icon: Megaphone,
-    title: "The Discount That Wears You",
-    text: "\"25% OFF TODAY\" header. Promo code footer. Customers photograph your shirt and shop from their couch.",
+    icon: Briefcase,
+    title: "Make It Obvious",
+    examples: ["SCAN FOR MENU", "SCAN FOR CONTACT INFO", "NEED HELP? SCAN ME"],
+    text: "No confusion. No hesitation.",
   },
 ];
 
@@ -50,13 +59,19 @@ export default function QRStaticPlusLanding() {
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-accent/10 flex items-center justify-center shrink-0">
               <Type className="w-8 h-8 md:w-10 md:h-10 text-accent" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold">QR Plus</h1>
+            <div>
+              <h1 className="text-2xl md:text-4xl font-bold">QR Plus</h1>
+              <span className="text-sm text-muted-foreground/70 uppercase tracking-wide">Permanent + Messaging</span>
+            </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">Add a message above and below your QR</p>
-          <p className="text-lg text-muted-foreground mb-8">
-            Make your QR code stand out with custom header and footer text printed right on the product. 
-            Add context, instructions, or a call-to-action that people see before they even scan.
+          <p className="text-xl font-medium text-foreground mb-1">Add a short message above and below your QR code.</p>
+          <p className="text-lg text-muted-foreground mb-6">
+            QR Plus lets you print simple header and footer text directly on the product, 
+            giving people context before they scan. Clear instructions. Friendly prompts. No guessing.
+          </p>
+          <p className="text-sm text-muted-foreground/80 italic mb-8">
+            Perfect when you want people to know why they should scan.
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">
@@ -71,17 +86,44 @@ export default function QRStaticPlusLanding() {
             </ul>
           </div>
 
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+          <div className="bg-card rounded-xl p-6 mb-6 text-left">
             <h2 className="font-semibold mb-4">Popular Uses:</h2>
-            <div className="grid gap-4">
-              {examples.map((example, i) => (
+            <div className="grid gap-5">
+              {personalUses.map((use, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <example.icon className="w-5 h-5 text-muted-foreground" />
+                    <use.icon className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-medium">{example.title}</h3>
-                    <p className="text-sm text-muted-foreground">{example.text}</p>
+                    <h3 className="font-medium mb-1">{use.title}</h3>
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      {use.examples.map((ex, j) => (
+                        <span key={j} className="text-xs bg-muted px-2 py-1 rounded font-mono">{ex}</span>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{use.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+            <h2 className="font-semibold mb-4">For Business:</h2>
+            <div className="grid gap-5">
+              {businessUses.map((use, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <use.icon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium mb-1">{use.title}</h3>
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      {use.examples.map((ex, j) => (
+                        <span key={j} className="text-xs bg-muted px-2 py-1 rounded font-mono">{ex}</span>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{use.text}</p>
                   </div>
                 </div>
               ))}
