@@ -1,7 +1,4 @@
 import { Link } from "wouter";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { QRButton } from "@/components/QRButton";
 import UsaFlag from "./UsaFlag";
 import tshirtImage from "@assets/generated_images/Product_mockup_white_tee_de332d78.png";
@@ -12,7 +9,6 @@ const products = [
     id: 1,
     image: tshirtImage,
     name: "Premium T-Shirt",
-    price: 24.99,
     madeInUSA: true,
     description: "Soft cotton blend with your custom QR code",
   },
@@ -20,7 +16,6 @@ const products = [
     id: 2,
     image: gymBagImage,
     name: "Gym Duffel Bag",
-    price: 39.99,
     madeInUSA: true,
     description: "Durable bag with private QR for your contact info",
   },
@@ -28,7 +23,6 @@ const products = [
     id: 3,
     image: tshirtImage,
     name: "Baseball Cap",
-    price: 19.99,
     madeInUSA: false,
     description: "Classic cap with front-panel QR code",
   },
@@ -36,59 +30,52 @@ const products = [
 
 export default function FeaturedProducts() {
   return (
-    <section className="features">
+    <section className="home-section">
       <div className="container">
-        <div className="center mb-8">
+        <div className="section-header">
           <h2>Featured Products</h2>
           <p>Explore our most popular QR code designs on premium products</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="products-grid">
           {products.map((product) => (
-            <Card 
+            <div 
               key={product.id} 
-              className="glass-card border-0 overflow-hidden hover-elevate transition-all duration-200"
+              className="glass-card product-card hover-elevate"
               data-testid={`card-product-${product.id}`}
             >
-              <div className="relative aspect-square">
+              <div className="product-card-image">
                 <img
                   src={product.image}
                   alt={product.name}
-                  className="w-full h-full object-cover"
                 />
                 {product.madeInUSA && (
-                  <Badge 
-                    className="absolute top-3 right-3 gap-1.5"
-                    variant="secondary"
-                  >
-                    <UsaFlag className="w-4 h-3" />
+                  <span className="product-card-badge">
+                    <UsaFlag className="usa-flag-small" />
                     USA
-                  </Badge>
+                  </span>
                 )}
               </div>
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
-                <p className="text-sm mb-4 muted">{product.description}</p>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-muted-foreground">
-                    Build to see price
-                  </span>
+              <div className="product-card-content">
+                <h3>{product.name}</h3>
+                <p className="product-card-description">{product.description}</p>
+                <div className="product-card-footer">
+                  <span className="product-card-price">Build to see price</span>
                   <Link href="/creator">
-                    <Button 
-                      size="sm"
-                      variant="outline"
+                    <button 
+                      className="product-card-btn"
                       data-testid={`button-customize-${product.id}`}
                     >
                       Customize
-                    </Button>
+                    </button>
                   </Link>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
 
-        <div className="center mt-12">
+        <div className="section-cta">
           <Link href="/gallery">
             <QRButton 
               variant="accent"

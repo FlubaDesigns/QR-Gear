@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { Smartphone, RefreshCw, Globe } from "lucide-react";
 
 const features = [
@@ -21,30 +20,28 @@ const features = [
 
 export default function HowItWorks() {
   return (
-    <section className="features">
+    <section className="home-section">
       <div className="container">
-        <div className="center mb-8">
+        <div className="section-header">
           <h2>How It Works</h2>
           <p>Three simple steps to your custom QR gear</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="features-grid">
           {features.map((feature, index) => (
-            <Card 
+            <div 
               key={index} 
-              className="glass-card border-0"
+              className="glass-card feature-card"
               data-testid={`feature-card-${index}`}
             >
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl icon-bg-ice flex items-center justify-center">
-                    <feature.icon className="w-5 h-5 icon-color-ice" />
-                  </div>
-                  <h3 className="card__title">{feature.title}</h3>
+              <div className="feature-card-header">
+                <div className="feature-card-icon icon-bg-ice">
+                  <feature.icon className="icon-color-ice" />
                 </div>
-                <p>{feature.description}</p>
-              </CardContent>
-            </Card>
+                <h3>{feature.title}</h3>
+              </div>
+              <p>{feature.description}</p>
+            </div>
           ))}
         </div>
       </div>

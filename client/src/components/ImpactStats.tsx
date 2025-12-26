@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { QrCode, Users, Package, Flag } from "lucide-react";
 
 const stats = [
@@ -6,60 +5,50 @@ const stats = [
     icon: QrCode,
     value: "5,000+",
     label: "QR Codes Created",
-    colorClass: "icon-bg-ice",
-    iconClass: "icon-color-ice",
+    color: "ice",
   },
   {
     icon: Users,
     value: "2,500+",
     label: "Happy Customers",
-    colorClass: "icon-bg-accent",
-    iconClass: "icon-color-accent",
+    color: "accent",
   },
   {
     icon: Package,
     value: "10,000+",
     label: "Products Shipped",
-    colorClass: "icon-bg-ice",
-    iconClass: "icon-color-ice",
+    color: "ice",
   },
   {
     icon: Flag,
     value: "100%",
     label: "USA Fulfillment",
-    colorClass: "icon-bg-accent",
-    iconClass: "icon-color-accent",
+    color: "accent",
   },
 ];
 
 export default function ImpactStats() {
   return (
-    <section className="features">
+    <section className="home-section">
       <div className="container">
-        <div className="center mb-8">
+        <div className="section-header">
           <h2>Our Impact</h2>
           <p>Join thousands of satisfied customers</p>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="stats-grid">
           {stats.map((stat, index) => (
-            <Card 
+            <div 
               key={index}
-              className="glass-card border-0 text-center"
+              className="glass-card stat-card"
               data-testid={`stat-${index}`}
             >
-              <CardContent className="p-6">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 ${stat.colorClass}`}>
-                  <stat.icon className={`w-6 h-6 ${stat.iconClass}`} />
-                </div>
-                <div className="text-2xl md:text-3xl font-bold mb-1">
-                  {stat.value}
-                </div>
-                <div className="text-sm muted">
-                  {stat.label}
-                </div>
-              </CardContent>
-            </Card>
+              <div className={`stat-card-icon icon-bg-${stat.color}`}>
+                <stat.icon className={`icon-color-${stat.color}`} />
+              </div>
+              <div className="stat-value">{stat.value}</div>
+              <div className="stat-label">{stat.label}</div>
+            </div>
           ))}
         </div>
       </div>
