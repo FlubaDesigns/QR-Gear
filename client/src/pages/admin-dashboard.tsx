@@ -68,23 +68,23 @@ function MetricCard({
   trendLabel?: string;
 }) {
   return (
-    <Card className="hover-elevate">
-      <CardContent className="p-4">
+    <Card className="hover-elevate overflow-hidden">
+      <CardContent className="p-3 sm:p-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground truncate">{title}</p>
-            <p className="text-2xl font-bold mt-1" data-testid={`metric-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
+            <p className="text-lg sm:text-2xl font-bold mt-1 truncate" data-testid={`metric-${title.toLowerCase().replace(/\s+/g, '-')}`}>
               {value}
             </p>
             {subtitle && (
-              <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+              <p className="text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>
             )}
             {trend !== undefined && (
-              <div className="flex items-center gap-1 mt-2">
+              <div className="flex items-center gap-1 mt-2 flex-wrap">
                 {trend >= 0 ? (
-                  <TrendingUp className="w-3 h-3 text-green-500" />
+                  <TrendingUp className="w-3 h-3 text-green-500 flex-shrink-0" />
                 ) : (
-                  <TrendingDown className="w-3 h-3 text-red-500" />
+                  <TrendingDown className="w-3 h-3 text-red-500 flex-shrink-0" />
                 )}
                 <span
                   className={`text-xs font-medium ${
@@ -94,15 +94,15 @@ function MetricCard({
                   {formatTrend(trend)}
                 </span>
                 {trendLabel && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground truncate">
                     {trendLabel}
                   </span>
                 )}
               </div>
             )}
           </div>
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Icon className="h-5 w-5 text-primary" />
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           </div>
         </div>
       </CardContent>

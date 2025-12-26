@@ -429,6 +429,7 @@ small { color: var(--text-2); }
 .qr-admin-page {
   min-height: 100vh;
   background: var(--bg-0, hsl(var(--background)));
+  overflow-x: hidden;
 }
 
 /* ===== Admin Header Bar ===== */
@@ -533,7 +534,13 @@ small { color: var(--text-2); }
 }
 
 .qr-admin-grid--4 {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 480px) {
+  .qr-admin-grid--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (min-width: 768px) {
