@@ -304,8 +304,45 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
     }
   };
   
+  const [syncing, setSyncing] = useState(false);
+  
+  const triggerSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}/sync-printify`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Sync failed");
+      }
+      toast({ title: "Success", description: "Sizes and colors synced from Printify" });
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Sync Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+  
   if (sizes.length === 0 && colors.length === 0) {
-    return <div className="text-sm text-muted-foreground">Waiting for auto-sync...</div>;
+    return (
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground">No sizes/colors synced yet</span>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={triggerSync}
+          disabled={syncing}
+          className="h-10 min-h-[48px]"
+          data-testid={`button-sync-${product.id}`}
+        >
+          {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+          Sync from Printify
+        </Button>
+      </div>
+    );
   }
   
   return (

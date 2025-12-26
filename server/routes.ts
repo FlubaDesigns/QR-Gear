@@ -21,6 +21,82 @@ import { z } from "zod";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
 
+// ============ AUTO-SYNC HELPER: Seeds variants from local catalog ============
+// Uses locally synced data from Printify (weekly cron job) - NO API calls needed
+// Extensible for future POD providers (Printful, etc.)
+// Note: Variant IDs are generated as placeholders since local catalog only stores sizes/colors
+async function autoSyncVariantsFromLocalCatalog(
+  productId: string,
+  blueprintId: number | null,
+  printProviderId: number | null,
+  basePrice: string,
+  existingMetadata?: Record<string, any>
+): Promise<{ variantsSeeded: number; syncWarning: string | null; colors?: any[]; sizes?: string[] }> {
+  let variantsSeeded = 0;
+  let syncWarning: string | null = null;
+  
+  if (!blueprintId || !printProviderId) {
+    return { variantsSeeded: 0, syncWarning: "Missing blueprintId or printProviderId" };
+  }
+  
+  try {
+    // Look up local catalog data (already synced from Printify weekly)
+    const localProvider = await storage.getPrintifyPrintProvider(blueprintId, printProviderId);
+    
+    if (localProvider && localProvider.availableColors && localProvider.availableSizes) {
+      const colors = localProvider.availableColors as Array<{ name: string; hex?: string }>;
+      const sizes = localProvider.availableSizes as string[];
+      
+      // Create variant for each color/size combination
+      // Note: Using generated IDs since local catalog doesn't store real Printify variant IDs
+      // Real variant IDs are fetched during fulfillment or can be synced via manual sync button
+      let variantIdCounter = 1;
+      for (const color of colors) {
+        for (const size of sizes) {
+          await storage.upsertProductVariant({
+            productId,
+            printifyVariantId: variantIdCounter++,
+            title: `${size} / ${color.name}`,
+            size: size,
+            color: color.name,
+            colorHex: color.hex || null,
+            price: basePrice,
+            isEnabled: true,
+            isInStock: true,
+          });
+          variantsSeeded++;
+        }
+      }
+      
+      // MERGE metadata instead of overwriting - preserve existing metadata
+      const mergedMetadata = {
+        ...(existingMetadata || {}),
+        autoSyncedFromLocalCatalog: true,
+        syncedAt: new Date().toISOString(),
+        variantIdsArePlaceholders: true, // Flag that real IDs need to be fetched for fulfillment
+      };
+      
+      // Update product with synced data from local catalog
+      await storage.updateProduct(productId, {
+        availableColors: colors,
+        availableSizes: sizes,
+        metadata: mergedMetadata,
+      });
+      
+      console.log(`[Auto-Sync] Seeded ${variantsSeeded} variants for ${productId} from local catalog`);
+      return { variantsSeeded, syncWarning, colors, sizes };
+    } else {
+      syncWarning = "Local catalog data not available. Run catalog sync first.";
+      console.log(`[Auto-Sync] No local data for blueprint ${blueprintId}/provider ${printProviderId}`);
+    }
+  } catch (syncError: any) {
+    syncWarning = `Auto-sync failed: ${syncError.message}`;
+    console.error(`[Auto-Sync] Error:`, syncError);
+  }
+  
+  return { variantsSeeded, syncWarning };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth
   await setupAuth(app);
@@ -2138,6 +2214,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sortOrder: 0,
       });
       
+      // AUTO-SYNC: Seed variants from local catalog (already synced from Printify weekly)
+      const { variantsSeeded, syncWarning } = await autoSyncVariantsFromLocalCatalog(
+        product.id,
+        blueprintId,
+        printProviderId,
+        basePrice.toString(),
+        metadata || {} // Pass existing metadata to be merged, not overwritten
+      );
+      
       // If this is a Kingdom Connects product, also create the partner store product entry
       if (category === "Kingdom Connects" && metadata?.kcPlacements?.length > 0) {
         // Find the Kingdom Connects partner store
@@ -2156,7 +2241,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(product);
+      res.json({ 
+        ...product, 
+        variantsSeeded,
+        syncWarning 
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
