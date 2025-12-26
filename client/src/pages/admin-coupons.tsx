@@ -376,7 +376,7 @@ export default function AdminCoupons() {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10"
+                className="text-white hover:bg-white/10 min-h-12 min-w-12"
                 data-testid="button-back"
               >
                 <ArrowLeft className="h-5 w-5" />

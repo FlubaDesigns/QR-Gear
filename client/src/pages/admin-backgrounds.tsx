@@ -118,7 +118,7 @@ function TemplatesContent() {
             Custom designs saved to library. Create new templates in Product Builder.
           </p>
         </div>
-        <Button size="sm" onClick={() => navigate("/admin/products")} data-testid="button-go-to-builder">
+        <Button onClick={() => navigate("/admin/products")} data-testid="button-go-to-builder">
           <Plus className="h-4 w-4 mr-2" />
           Create in Builder
         </Button>
@@ -177,33 +177,34 @@ function TemplatesContent() {
                   </div>
                 )}
 
-                <div className="flex gap-1 mt-3">
+                <div className="flex gap-2 mt-3">
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 min-h-12"
                     onClick={() => handleViewLandingPage(design)}
                     data-testid={`button-view-${design.id}`}
                   >
-                    <ExternalLink className="h-3 w-3 mr-1" />
+                    <ExternalLink className="h-4 w-4 mr-1" />
                     View
                   </Button>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="outline"
+                    className="min-h-12 min-w-12"
                     onClick={() => handleDuplicate(design)}
                     data-testid={`button-duplicate-${design.id}`}
                   >
-                    <Copy className="h-3 w-3" />
+                    <Copy className="h-4 w-4" />
                   </Button>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="destructive"
+                    className="min-h-12 min-w-12"
                     onClick={() => removeFromLibraryMutation.mutate(design.id)}
                     disabled={removeFromLibraryMutation.isPending}
                     data-testid={`button-remove-library-${design.id}`}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -536,7 +537,7 @@ function LibraryBackgroundsContent() {
           <h2 className="text-lg font-semibold">Library Backgrounds</h2>
           <p className="text-sm text-muted-foreground">Organized by season and event for custom products</p>
         </div>
-        <Button size="sm" onClick={handleOpenCreate} data-testid="button-add-library-background">
+        <Button onClick={handleOpenCreate} data-testid="button-add-library-background">
           <Plus className="h-4 w-4 mr-2" />
           Add Background
         </Button>
@@ -623,23 +624,24 @@ function LibraryBackgroundsContent() {
                   </Badge>
                   <span className="text-xs text-muted-foreground">Used {asset.usageCount}x</span>
                 </div>
-                <div className="flex gap-1 mt-3">
+                <div className="flex gap-2 mt-3">
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 min-h-12"
                     onClick={() => handleOpenEdit(asset)}
                     data-testid={`button-edit-library-bg-${asset.id}`}
                   >
-                    <Pencil className="h-3 w-3" />
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="destructive"
+                    className="min-h-12 min-w-12"
                     onClick={() => deleteMutation.mutate(asset.id)}
                     data-testid={`button-delete-library-bg-${asset.id}`}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -864,7 +866,7 @@ export default function AdminBackgrounds() {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10"
+                className="text-white hover:bg-white/10 min-h-12 min-w-12"
                 data-testid="button-back"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -888,8 +890,7 @@ export default function AdminBackgrounds() {
                   <p className="text-sm font-medium">{user.email || user.id}</p>
                 </div>
                 <Button 
-                  variant="outline" 
-                  size="sm" 
+                  variant="outline"
                   onClick={copyUserId}
                   className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
                   data-testid="button-copy-user-id"

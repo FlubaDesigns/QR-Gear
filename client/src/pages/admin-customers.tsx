@@ -95,8 +95,8 @@ function CustomerCard({
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="flex-shrink-0">
-            <ExternalLink className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="flex-shrink-0 min-h-12 min-w-12" data-testid={`button-view-customer-${customer.id}`}>
+            <ExternalLink className="w-5 h-5" />
           </Button>
         </div>
       </CardContent>
