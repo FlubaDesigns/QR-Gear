@@ -291,6 +291,7 @@ a:hover {
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
+  overflow: hidden;
 }
 
 /* Inner ring highlight - edge lighting */
@@ -302,21 +303,28 @@ a:hover {
   border-radius: 25px;
   border: 1px solid var(--stroke2);
   pointer-events: none;
+  z-index: 1;
 }
 
-/* Specular "glass shine" - premium light sweep */
+/* Specular "glass shine" - contained within card */
 .glass::after,
 .glass-card::after {
   content: "";
   position: absolute;
-  inset: -40%;
-  background:
-    radial-gradient(600px 220px at 22% 12%, var(--spec1), transparent 55%),
-    radial-gradient(520px 240px at 78% 0%, var(--spec2), transparent 60%);
-  transform: rotate(10deg);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--spec1) 0%,
+    var(--spec2) 25%,
+    transparent 60%
+  );
+  border-radius: 25px 25px 0 0;
   pointer-events: none;
-  opacity: 0.75;
-  mix-blend-mode: screen;
+  opacity: 0.6;
+  z-index: 0;
 }
 
 /* Dimensional hover - subtle premium lift */
