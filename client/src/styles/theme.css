@@ -363,13 +363,46 @@ a:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-/* === OPTIONAL: SLIGHTLY STRONGER GLOW FOR PREMIUM CARDS === */
+/* === PREMIUM GLASS UPGRADE (QR DYNAMICS ONLY) === */
 .glass-card.premium {
-  border-color: rgba(120, 200, 255, 0.35);
+  background: linear-gradient(
+    180deg,
+    rgba(120, 200, 255, 0.12),
+    rgba(20, 60, 110, 0.25)
+  );
+  border: 1px solid rgba(140, 210, 255, 0.45);
   box-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.45),
-    0 0 18px rgba(120, 200, 255, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 18px 40px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(120, 200, 255, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* subtle inner glow */
+.glass-card.premium::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  box-shadow: inset 0 0 18px rgba(120, 200, 255, 0.25);
+  pointer-events: none;
+}
+
+/* premium title emphasis */
+.glass-card.premium .glass-title {
+  color: rgba(235, 248, 255, 1);
+  text-shadow: 0 0 10px rgba(120, 200, 255, 0.45);
+}
+
+/* premium icon tile */
+.glass-card.premium .glass-icon {
+  background: linear-gradient(
+    180deg,
+    rgba(120, 200, 255, 0.35),
+    rgba(40, 90, 160, 0.35)
+  );
+  box-shadow:
+    0 0 14px rgba(120, 200, 255, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 /* Dimensional hover - subtle premium lift */

@@ -77,7 +77,7 @@ export default function QRDynamicsLanding() {
             Choose your Space Term (1 year / 3 year / 5 year) and manage content that lives, moves, and grows.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="glass-card premium vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>
             <ul className="vanity-features-list">
               {features.map((feature, i) => (
@@ -89,7 +89,7 @@ export default function QRDynamicsLanding() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="glass-card premium vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
             <div className="vanity-use-cases-grid">
               {popularUses.map((use, i) => (
