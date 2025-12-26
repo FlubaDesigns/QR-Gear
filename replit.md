@@ -47,6 +47,12 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - **System Health** (`/admin/health`): Provider status monitoring (Printify, Stripe).
 - Updated admin navigation with 13 sections including Orders, Gifts.
 
+### Recent Fixes (December 26, 2025)
+- **Admin Products Step Wizard**: Fixed store/segment lookup with case-insensitive, whitespace-trimmed name comparison and fallback to partnerStoresData
+- **Segment Creation**: Fixed prefix normalization issue where "Internal:/External:" prefixes prevented store lookup during segment addition
+- **Store Type Filter**: Fixed isInternal filter to use strict equality (=== true) to correctly classify stores with null/undefined values
+- **DOM Nesting**: Fixed Badge component inside p tag causing console warnings on Creator page
+
 ### AI Communication System
 - Cross-AI collaboration folder: `docs/AI-COMMS/`
 - KC (Kingdom Connects) agent shares CSS patterns and integration specs

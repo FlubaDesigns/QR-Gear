@@ -858,8 +858,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const markupFixed = parseFloat(adminSettings?.globalMarkupFixed || "0");
   
   // Derive available stores based on store type - all stores come from database
+  // Handle null/undefined isInternal: treat as External by default
   const availableStores: StoreWithAreas[] = partnerStoresData
-    .filter(ps => storeType === "Internal" ? ps.isInternal : !ps.isInternal)
+    .filter(ps => storeType === "Internal" ? ps.isInternal === true : ps.isInternal !== true)
     .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
   
   // All DB stores for segment lookup
@@ -869,10 +870,16 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   }));
   
   // Find current store's segments from database
-  const currentStoreData = dbPartnerStores.find(
-    (s) => s.name === selectedStore || s.name === selectedStore.replace(/^(Internal:|External:)/, "")
-  );
-  const availableSegments: string[] = currentStoreData?.areas || [];
+  // Normalize both sides for comparison to handle any whitespace or prefix issues
+  const normalizeStoreName = (name: string) => name?.replace(/^(Internal:|External:)/, "").trim().toLowerCase() || "";
+  const currentStoreData = dbPartnerStores.find((s) => {
+    const normalizedDbName = normalizeStoreName(s.name);
+    const normalizedSelected = normalizeStoreName(selectedStore);
+    return normalizedDbName === normalizedSelected || s.name === selectedStore;
+  });
+  // Also check directly in partnerStoresData for segments if dbPartnerStores lookup fails
+  const fallbackStore = !currentStoreData ? partnerStoresData.find(ps => normalizeStoreName(ps.name) === normalizeStoreName(selectedStore)) : null;
+  const availableSegments: string[] = currentStoreData?.areas || fallbackStore?.availableSegments || [];
   type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
