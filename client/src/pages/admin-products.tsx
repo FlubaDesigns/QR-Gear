@@ -71,6 +71,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccessibleIconButton } from "@/components/ui/accessible-icon-button";
 import { FontPicker } from "@/components/ui/font-picker";
+import { getSwatchColor } from "@/lib/admin-utils";
 
 interface CatalogSyncStatus {
   latestSync: {
@@ -232,52 +233,6 @@ function CatalogSyncSection() {
       </CardContent>
     </Card>
   );
-}
-
-const COLOR_MAP: Record<string, string> = {
-  white: "#ffffff",
-  black: "#000000",
-  navy: "#001f3f",
-  red: "#e53935",
-  blue: "#1e88e5",
-  green: "#43a047",
-  grey: "#9e9e9e",
-  gray: "#9e9e9e",
-  charcoal: "#36454f",
-  heather: "#b4b4b4",
-  maroon: "#800000",
-  orange: "#ff9800",
-  yellow: "#ffeb3b",
-  pink: "#e91e63",
-  purple: "#9c27b0",
-  tan: "#d2b48c",
-  brown: "#795548",
-  khaki: "#c3b091",
-  cream: "#fffdd0",
-  ivory: "#fffff0",
-  gold: "#ffd700",
-  silver: "#c0c0c0",
-  aqua: "#00bcd4",
-  teal: "#009688",
-  coral: "#ff7f50",
-  mint: "#98ff98",
-  olive: "#808000",
-  burgundy: "#800020",
-  sand: "#c2b280",
-  slate: "#708090",
-  forest: "#228b22",
-  royal: "#4169e1",
-  sky: "#87ceeb",
-  light: "#f5f5f5",
-  dark: "#333333",
-};
-
-function getSwatchColor(colorName: string): string {
-  const lower = colorName.toLowerCase();
-  for (const [key, value] of Object.entries(COLOR_MAP)) {
-    if (lower.includes(key)) return value;
-  }
-  return "#cccccc";
 }
 
 function ColorSwatch({ hex, className = "" }: { hex: string; className?: string }) {

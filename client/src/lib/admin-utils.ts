@@ -299,3 +299,80 @@ export function isNetworkError(error: unknown): boolean {
     (error.message.includes("fetch") || error.message.includes("network"))
   );
 }
+
+// ============================================
+// User/Customer Display Helpers
+// ============================================
+
+export interface UserDisplayInfo {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+}
+
+export function getDisplayName(user: UserDisplayInfo): string {
+  if (user.firstName || user.lastName) {
+    return `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  }
+  return user.email || "Unknown";
+}
+
+export function getInitials(user: UserDisplayInfo): string {
+  if (user.firstName) {
+    return (user.firstName[0] + (user.lastName?.[0] || "")).toUpperCase();
+  }
+  if (user.email) {
+    return user.email.slice(0, 2).toUpperCase();
+  }
+  return "??";
+}
+
+// ============================================
+// Color Utilities (for product swatches)
+// ============================================
+
+export const COLOR_MAP: Record<string, string> = {
+  white: "#ffffff",
+  black: "#000000",
+  navy: "#001f3f",
+  red: "#e53935",
+  blue: "#1e88e5",
+  green: "#43a047",
+  grey: "#9e9e9e",
+  gray: "#9e9e9e",
+  charcoal: "#36454f",
+  heather: "#b4b4b4",
+  maroon: "#800000",
+  orange: "#ff9800",
+  yellow: "#ffeb3b",
+  pink: "#e91e63",
+  purple: "#9c27b0",
+  tan: "#d2b48c",
+  brown: "#795548",
+  khaki: "#c3b091",
+  cream: "#fffdd0",
+  ivory: "#fffff0",
+  gold: "#ffd700",
+  silver: "#c0c0c0",
+  aqua: "#00bcd4",
+  teal: "#009688",
+  coral: "#ff7f50",
+  mint: "#98ff98",
+  olive: "#808000",
+  burgundy: "#800020",
+  sand: "#c2b280",
+  slate: "#708090",
+  forest: "#228b22",
+  royal: "#4169e1",
+  sky: "#87ceeb",
+  light: "#f5f5f5",
+  dark: "#333333",
+};
+
+export function getSwatchColor(colorName: string): string {
+  const lower = colorName.toLowerCase();
+  for (const [key, value] of Object.entries(COLOR_MAP)) {
+    if (lower.includes(key)) return value;
+  }
+  return "#cccccc";
+}

@@ -25,6 +25,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import type { User, OrderUnified } from "@shared/schema";
+import { getDisplayName, getInitials } from "@/lib/admin-utils";
 
 interface CustomerWithStats {
   id: string;
@@ -41,23 +42,6 @@ interface CustomerWithStats {
 interface CustomerDetail {
   customer: CustomerWithStats;
   recentOrders: OrderUnified[];
-}
-
-function getDisplayName(customer: CustomerWithStats): string {
-  if (customer.firstName || customer.lastName) {
-    return `${customer.firstName || ""} ${customer.lastName || ""}`.trim();
-  }
-  return customer.email || "Unknown";
-}
-
-function getInitials(customer: CustomerWithStats): string {
-  if (customer.firstName) {
-    return (customer.firstName[0] + (customer.lastName?.[0] || "")).toUpperCase();
-  }
-  if (customer.email) {
-    return customer.email.slice(0, 2).toUpperCase();
-  }
-  return "??";
 }
 
 function CustomerCard({
