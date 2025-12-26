@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
 import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image, Package, Shirt, Target, ArrowLeft, ArrowRight, RotateCw, ImagePlus } from "lucide-react";
-import ImageCropper from "@/components/ImageCropper";
+const ImageCropper = lazy(() => import("@/components/ImageCropper"));
 import { getSwatchColor } from "@/lib/admin-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
@@ -874,16 +874,18 @@ export default function Creator() {
                             Back to Templates
                           </Button>
                         </div>
-                        <ImageCropper
-                          onCropComplete={(croppedImage) => {
-                            setCustomBackground(croppedImage);
-                            setSelectedTemplate(null);
-                          }}
-                          onCancel={() => {
-                            setShowCustomUpload(false);
-                            setCustomBackground(null);
-                          }}
-                        />
+                        <Suspense fallback={<div className="text-center py-8"><Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" /></div>}>
+                          <ImageCropper
+                            onCropComplete={(croppedImage) => {
+                              setCustomBackground(croppedImage);
+                              setSelectedTemplate(null);
+                            }}
+                            onCancel={() => {
+                              setShowCustomUpload(false);
+                              setCustomBackground(null);
+                            }}
+                          />
+                        </Suspense>
                         {customBackground && (
                           <div className="mt-4 p-3 bg-muted rounded-md">
                             <div className="flex items-center gap-3">
