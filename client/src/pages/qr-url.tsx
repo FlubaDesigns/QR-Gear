@@ -1,4 +1,6 @@
-import { Palette, CheckCircle, Image, Crop, Smartphone } from "lucide-react";
+import { Palette, CheckCircle, Image, Crop, Smartphone, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -79,6 +81,13 @@ export default function QRUrlLanding() {
               ))}
             </div>
           </div>
+
+          <Link href="/creator?line=url">
+            <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-url">
+              Create Custom Background QR
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Link>
 
         </div>
       </main>

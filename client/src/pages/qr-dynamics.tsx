@@ -1,4 +1,6 @@
-import { Sparkles, CheckCircle } from "lucide-react";
+import { Sparkles, CheckCircle, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -44,6 +46,13 @@ export default function QRDynamicsLanding() {
               ))}
             </ul>
           </div>
+
+          <Link href="/creator?line=dynamics">
+            <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-dynamics">
+              Create Your QR Dynamics
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Link>
 
         </div>
       </main>

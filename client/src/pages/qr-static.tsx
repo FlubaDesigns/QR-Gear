@@ -1,4 +1,6 @@
-import { QrCode, CheckCircle, Coffee, Dumbbell, Briefcase, Heart } from "lucide-react";
+import { QrCode, CheckCircle, Coffee, Dumbbell, Briefcase, Heart, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -84,6 +86,13 @@ export default function QRStaticLanding() {
               ))}
             </div>
           </div>
+
+          <Link href="/creator?line=static">
+            <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-static">
+              Create Your Simple QR
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Link>
 
         </div>
       </main>
