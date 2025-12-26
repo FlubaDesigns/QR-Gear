@@ -46,6 +46,22 @@ import FamilyReunionShirts from "@/pages/family-reunion-shirts";
 import ArtistQRApparel from "@/pages/artist-qr-apparel";
 import MemorialQRGifts from "@/pages/memorial-qr-gifts";
 import MusicianMerch from "@/pages/musician-merch";
+import WebsiteQRShirts from "@/pages/website-qr-shirts";
+import OfficeQRMug from "@/pages/office-qr-mug";
+import LostFoundQR from "@/pages/lost-found-qr";
+import NetworkingQRShirts from "@/pages/networking-qr-shirts";
+import MedicalAlertQR from "@/pages/medical-alert-qr";
+import PersonalItemsQR from "@/pages/personal-items-qr";
+import EventQRShirts from "@/pages/event-qr-shirts";
+import EverydayQR from "@/pages/everyday-qr";
+import BusinessQRPlus from "@/pages/business-qr-plus";
+import MemorialVideoShirts from "@/pages/memorial-video-shirts";
+import FamilyVideoMessages from "@/pages/family-video-messages";
+import VideoTimeCapsule from "@/pages/video-time-capsule";
+import AdventQRShirts from "@/pages/advent-qr-shirts";
+import BandDynamicMerch from "@/pages/band-dynamic-merch";
+import RealtorQRShirts from "@/pages/realtor-qr-shirts";
+import BusinessAnalyticsQR from "@/pages/business-analytics-qr";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 
@@ -97,6 +113,22 @@ function Router() {
       <Route path="/artist-qr-apparel" component={ArtistQRApparel} />
       <Route path="/memorial-qr-gifts" component={MemorialQRGifts} />
       <Route path="/musician-merch" component={MusicianMerch} />
+      <Route path="/website-qr-shirts" component={WebsiteQRShirts} />
+      <Route path="/office-qr-mug" component={OfficeQRMug} />
+      <Route path="/lost-found-qr" component={LostFoundQR} />
+      <Route path="/networking-qr-shirts" component={NetworkingQRShirts} />
+      <Route path="/medical-alert-qr" component={MedicalAlertQR} />
+      <Route path="/personal-items-qr" component={PersonalItemsQR} />
+      <Route path="/event-qr-shirts" component={EventQRShirts} />
+      <Route path="/everyday-qr" component={EverydayQR} />
+      <Route path="/business-qr-plus" component={BusinessQRPlus} />
+      <Route path="/memorial-video-shirts" component={MemorialVideoShirts} />
+      <Route path="/family-video-messages" component={FamilyVideoMessages} />
+      <Route path="/video-time-capsule" component={VideoTimeCapsule} />
+      <Route path="/advent-qr-shirts" component={AdventQRShirts} />
+      <Route path="/band-dynamic-merch" component={BandDynamicMerch} />
+      <Route path="/realtor-qr-shirts" component={RealtorQRShirts} />
+      <Route path="/business-analytics-qr" component={BusinessAnalyticsQR} />
       <Route component={NotFound} />
     </Switch>
   );

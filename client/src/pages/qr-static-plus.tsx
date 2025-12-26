@@ -1,6 +1,7 @@
 import { Type, CheckCircle, ArrowRight, User, Calendar, Heart, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -11,7 +12,7 @@ const features = [
   "Multiple font styles and sizes",
   "Clean, readable layouts",
   "Permanent QR — never expires or changes",
-  "USA-made products available",
+  "USA options available",
 ];
 
 const personalUses = [
@@ -19,28 +20,33 @@ const personalUses = [
     icon: User,
     title: "Personal Items",
     examples: ["IF FOUND, PLEASE CALL", "THIS BELONGS TO JESS", "MEDICAL INFO – SCAN"],
-    text: "Simple words make all the difference.",
+    description: "Simple words make all the difference.",
+    link: "/personal-items-qr",
+    linkText: "Personal Item Ideas",
   },
   {
     icon: Calendar,
     title: "Events & Groups",
     examples: ["EVENT SCHEDULE", "JOIN THE GROUP", "PHOTOS FROM TODAY"],
-    text: "People know what they're getting before they scan.",
+    description: "People know what they're getting before they scan.",
+    link: "/event-qr-shirts",
+    linkText: "Event Ideas",
   },
   {
     icon: Heart,
     title: "Everyday Prompts",
     examples: ["SCAN TO LEARN MORE", "SCAN FOR INSTRUCTIONS", "SCAN FOR THE STORY"],
-    text: "Small text. Big clarity.",
+    description: "Small text. Big clarity.",
+    link: "/everyday-qr",
+    linkText: "Everyday Ideas",
   },
-];
-
-const businessUses = [
   {
     icon: Briefcase,
-    title: "Make It Obvious",
+    title: "Business Uses",
     examples: ["SCAN FOR MENU", "SCAN FOR CONTACT INFO", "NEED HELP? SCAN ME"],
-    text: "No confusion. No hesitation.",
+    description: "No confusion. No hesitation.",
+    link: "/business-qr-plus",
+    linkText: "Business Ideas",
   },
 ];
 
@@ -60,8 +66,8 @@ export default function QRStaticPlusLanding() {
               <Type className="w-8 h-8 md:w-10 md:h-10 text-accent" />
             </div>
             <div>
+              <p className="text-sm text-muted-foreground font-medium">State: Permanent + Messaging</p>
               <h1 className="text-2xl md:text-4xl font-bold">QR Plus</h1>
-              <span className="text-sm text-muted-foreground/70 uppercase tracking-wide">Permanent + Messaging</span>
             </div>
           </div>
           
@@ -74,7 +80,7 @@ export default function QRStaticPlusLanding() {
             Perfect when you want people to know why they should scan.
           </p>
 
-          <div className="bg-card rounded-xl p-6 mb-6 text-left">
+          <Card className="p-6 mb-6">
             <h2 className="font-semibold mb-4">What you get:</h2>
             <ul className="space-y-3">
               {features.map((feature, i) => (
@@ -84,54 +90,38 @@ export default function QRStaticPlusLanding() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
 
-          <div className="bg-card rounded-xl p-6 mb-6 text-left">
-            <h2 className="font-semibold mb-4">Popular Uses:</h2>
-            <div className="grid gap-5">
+          <Card className="p-6 mb-8">
+            <h2 className="font-semibold mb-6">Popular Uses:</h2>
+            <div className="grid gap-6">
               {personalUses.map((use, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <use.icon className="w-5 h-5 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                    <use.icon className="w-6 h-6 text-accent" />
                   </div>
-                  <div>
-                    <h3 className="font-medium mb-1">{use.title}</h3>
-                    <div className="flex flex-wrap gap-2 mb-1">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">{use.title}</h3>
+                    <div className="flex flex-wrap gap-2 mb-2">
                       {use.examples.map((ex, j) => (
                         <span key={j} className="text-xs bg-muted px-2 py-1 rounded font-mono">{ex}</span>
                       ))}
                     </div>
-                    <p className="text-sm text-muted-foreground">{use.text}</p>
+                    <p className="text-muted-foreground mb-3">{use.description}</p>
+                    <Link href={use.link}>
+                      <Button variant="outline" size="sm" className="min-h-12" data-testid={`button-use-${i}`}>
+                        {use.linkText}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
-            <h2 className="font-semibold mb-4">For Business:</h2>
-            <div className="grid gap-5">
-              {businessUses.map((use, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <use.icon className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium mb-1">{use.title}</h3>
-                    <div className="flex flex-wrap gap-2 mb-1">
-                      {use.examples.map((ex, j) => (
-                        <span key={j} className="text-xs bg-muted px-2 py-1 rounded font-mono">{ex}</span>
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{use.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          </Card>
 
           <Link href="/creator?line=static-plus">
-            <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-static-plus">
+            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-static-plus">
               Create Your QR Plus
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>

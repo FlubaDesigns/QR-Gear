@@ -19,16 +19,22 @@ const personalUses = [
     icon: Heart,
     title: "Grandpa Lives On",
     description: "The hoodie has his photo.\nScan it, and there he is — telling his favorite fishing story.\nForever.",
+    link: "/memorial-video-shirts",
+    linkText: "Memorial Ideas",
   },
   {
     icon: Home,
     title: "Home in Their Pocket",
     description: "The whole family recorded messages.\nNow every time they miss you, they scan the shirt.\nInstant comfort.",
+    link: "/family-video-messages",
+    linkText: "Family Message Ideas",
   },
   {
     icon: Clock,
     title: "A Message for Tomorrow",
     description: "Record a video for your child, partner, or future self.\nYears later, one scan brings your voice back to life.",
+    link: "/video-time-capsule",
+    linkText: "Time Capsule Ideas",
   },
 ];
 
@@ -92,7 +98,13 @@ export default function QRVideoLanding() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg mb-1">{use.title}</h3>
-                    <p className="text-muted-foreground whitespace-pre-line">{use.description}</p>
+                    <p className="text-muted-foreground whitespace-pre-line mb-3">{use.description}</p>
+                    <Link href={use.link}>
+                      <Button variant="outline" size="sm" className="min-h-12" data-testid={`button-use-${i}`}>
+                        {use.linkText}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ))}

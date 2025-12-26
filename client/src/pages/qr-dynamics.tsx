@@ -1,41 +1,50 @@
-import { Sparkles, CheckCircle, ArrowRight, Building2, CalendarDays, Music, TrendingUp } from "lucide-react";
+import { Sparkles, CheckCircle, ArrowRight, Calendar, Music, Building2, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
-  "Your personal QR Space - hosted digital real estate",
+  "Your personal QR Space — hosted digital real estate",
   "Space Terms: 1 year, 3 year, or 5 year options",
-  "Scheduled changes - set it and forget it",
-  "Rotating content - cycle through multiple destinations",
-  "Daily sequences - prayers, tips, countdowns, advent calendars",
+  "Scheduled changes — set it and forget it",
+  "Rotating content — cycle through multiple destinations",
+  "Daily sequences — prayers, tips, countdowns, advent calendars",
   "User-controlled updates without reprinting",
   "Scan analytics and tracking",
   "Easy Space Renewal when your term ends",
 ];
 
-const examples = [
+const popularUses = [
   {
-    icon: Building2,
-    title: "One Polo, Infinite Listings",
-    text: "Monday it's the downtown condo. Friday it's the lakefront estate. Same shirt - different property every week.",
-  },
-  {
-    icon: CalendarDays,
+    icon: Calendar,
     title: "12 Days of Christmas, Automated",
-    text: "Day 1: A new devotional. Day 2: Different verse. Day 12: Grand finale. Set it once, it runs itself.",
+    description: "Day 1: A new devotional.\nDay 2: A different verse.\nDay 12: The grand finale.\nSet it once. It runs itself.",
+    link: "/advent-qr-shirts",
+    linkText: "Advent Ideas",
   },
   {
     icon: Music,
     title: "Merch That Never Goes Stale",
-    text: "Tour ends? Update to the new album. Single drops? Link it. Your shirt stays as current as your Spotify.",
+    description: "Tour ends? Update to the new album.\nSingle drops? Link it.\nSame shirt — always current.",
+    link: "/band-dynamic-merch",
+    linkText: "Band Merch Ideas",
+  },
+  {
+    icon: Building2,
+    title: "One Polo, Infinite Listings",
+    description: "Monday it's the downtown condo.\nFriday it's the lakefront estate.\nSame shirt. Different property every week.",
+    link: "/realtor-qr-shirts",
+    linkText: "Realtor Ideas",
   },
   {
     icon: TrendingUp,
     title: "The Shirt That Reports Back",
-    text: "Track every scan. See which rep gets traction. Update the destination mid-campaign without printing a thing.",
+    description: "Track every scan.\nSee what gets traction.\nUpdate the destination mid-campaign — no reprint required.",
+    link: "/business-analytics-qr",
+    linkText: "Business Ideas",
   },
 ];
 
@@ -44,8 +53,8 @@ export default function QRDynamicsLanding() {
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
         title="QR Dynamics™ | Living QR Codes You Can Update Anytime"
-        description="Create QR Dynamics - living QR codes that link to pages you control. Update your content anytime without reprinting. Premium subscription QR merchandise."
-        keywords="QR Dynamics, dynamic QR code, living QR code, updateable QR, subscription QR, premium QR merchandise"
+        description="Create QR Dynamics - living QR codes that link to pages you control. Update content, schedule changes, rotate destinations, track engagement. Premium subscription QR merchandise."
+        keywords="QR Dynamics, dynamic QR code, living QR code, updateable QR, subscription QR, scheduled QR, analytics QR"
       />
       <Navbar />
       <main className="flex-1 container py-12">
@@ -54,18 +63,23 @@ export default function QRDynamicsLanding() {
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-primary" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold">QR Dynamics™</h1>
+            <div>
+              <p className="text-sm text-muted-foreground font-medium">State: Living</p>
+              <h1 className="text-2xl md:text-4xl font-bold">QR Dynamics™</h1>
+            </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">Content that changes over time</p>
+          <p className="text-xl font-medium text-foreground mb-2">Content that changes over time.</p>
+          <p className="text-lg text-muted-foreground mb-4">
+            Your personal QR Space — digital real estate you control. 
+            QR Dynamics™ is the only state where your QR evolves. Update content, schedule changes, 
+            rotate destinations, and track engagement — all without reprinting a thing.
+          </p>
           <p className="text-lg text-muted-foreground mb-8">
-            Your personal QR Space - digital real estate you control. The only tier with scheduled changes, 
-            rotating content, and daily sequences. Update what your QR shows without reprinting. Choose your 
-            Space Term (1yr / 3yr / 5yr) and manage content that evolves - 12 Days of Christmas, daily prayers, 
-            rotating promotions. Includes scan analytics.
+            Choose your Space Term (1 year / 3 year / 5 year) and manage content that lives, moves, and grows.
           </p>
 
-          <div className="bg-card rounded-xl p-6 mb-6 text-left">
+          <Card className="p-6 mb-6">
             <h2 className="font-semibold mb-4">What you get:</h2>
             <ul className="space-y-3">
               {features.map((feature, i) => (
@@ -75,27 +89,38 @@ export default function QRDynamicsLanding() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
 
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
-            <h2 className="font-semibold mb-4">Popular Uses:</h2>
-            <div className="grid gap-4">
-              {examples.map((example, i) => (
+          <Card className="p-6 mb-8">
+            <h2 className="font-semibold mb-6">Popular Uses:</h2>
+            <div className="grid gap-6">
+              {popularUses.map((use, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <example.icon className="w-5 h-5 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <use.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-medium">{example.title}</h3>
-                    <p className="text-sm text-muted-foreground">{example.text}</p>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">{use.title}</h3>
+                    <p className="text-muted-foreground whitespace-pre-line mb-3">{use.description}</p>
+                    <Link href={use.link}>
+                      <Button variant="outline" size="sm" className="min-h-12" data-testid={`button-use-${i}`}>
+                        {use.linkText}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
+
+          <Card className="p-6 mb-8 bg-primary/5 border-primary/20 text-center">
+            <p className="text-lg font-medium mb-2">QR Dynamics™ isn't a link.</p>
+            <p className="text-2xl font-bold text-primary">It's space.</p>
+          </Card>
 
           <Link href="/creator?line=dynamics">
-            <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-dynamics">
+            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-dynamics">
               Create Your QR Dynamics
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>

@@ -1,6 +1,7 @@
-import { QrCode, CheckCircle, Coffee, Dumbbell, Briefcase, Heart, Link2, ArrowRight } from "lucide-react";
+import { QrCode, CheckCircle, Link2, Coffee, Dumbbell, Briefcase, Heart, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -9,34 +10,44 @@ const features = [
   "Encode any text, URL, or contact info",
   "Up to 2,000 characters - that's a LOT of info!",
   "Permanent QR - never expires or changes",
-  "USA-made products available",
+  "USA options available",
 ];
 
 const examples = [
   {
     icon: Link2,
     title: "Instant Website Access",
-    text: "\"Just scan my shirt.\" One tap lands them on your site, portfolio, or booking page. No typing, no searching.",
+    description: "\"Just scan my shirt.\" One tap lands them on your site, portfolio, or booking page. No typing, no searching.",
+    link: "/website-qr-shirts",
+    linkText: "Website Ideas",
   },
   {
     icon: Coffee,
     title: "The Mug That Finds Its Way Home",
-    text: "When Karen \"borrows\" your mug again, she'll know exactly whose it is. Name, desk, extension - all encoded.",
+    description: "When Karen \"borrows\" your mug again, she'll know exactly whose it is. Name, desk, extension - all encoded.",
+    link: "/office-qr-mug",
+    linkText: "Office Mug Ideas",
   },
   {
     icon: Dumbbell,
     title: "Lost & Found Hero",
-    text: "Gym bag goes missing? Your contact info is baked right in. Good samaritans just scan and call.",
+    description: "Gym bag goes missing? Your contact info is baked right in. Good samaritans just scan and call.",
+    link: "/lost-found-qr",
+    linkText: "Lost & Found Ideas",
   },
   {
     icon: Briefcase,
     title: "Networking on Autopilot",
-    text: "Skip the business card shuffle. They scan, your vCard saves. You're in their phone before the handshake ends.",
+    description: "Skip the business card shuffle. They scan, your vCard saves. You're in their phone before the handshake ends.",
+    link: "/networking-qr-shirts",
+    linkText: "Networking Ideas",
   },
   {
     icon: Heart,
     title: "Silent Lifesaver",
-    text: "Allergies. Blood type. Emergency contacts. Medications. When you can't speak, your shirt can.",
+    description: "Allergies. Blood type. Emergency contacts. Medications. When you can't speak, your shirt can.",
+    link: "/medical-alert-qr",
+    linkText: "Medical Alert Ideas",
   },
 ];
 
@@ -56,8 +67,8 @@ export default function QRStaticLanding() {
               <QrCode className="w-8 h-8 md:w-10 md:h-10 text-primary" />
             </div>
             <div>
+              <p className="text-sm text-muted-foreground font-medium">State: Permanent</p>
               <h1 className="text-2xl md:text-4xl font-bold">QR Basics</h1>
-              <span className="text-sm text-muted-foreground/70 uppercase tracking-wide">Permanent</span>
             </div>
           </div>
           
@@ -72,7 +83,7 @@ export default function QRStaticLanding() {
             Best for: websites, contact info, lost & found, emergency info
           </p>
 
-          <div className="bg-card rounded-xl p-6 mb-6 text-left">
+          <Card className="p-6 mb-6">
             <h2 className="font-semibold mb-4">What you get:</h2>
             <ul className="space-y-3">
               {features.map((feature, i) => (
@@ -82,27 +93,33 @@ export default function QRStaticLanding() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
 
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
-            <h2 className="font-semibold mb-4">Popular Uses:</h2>
-            <div className="grid gap-4">
+          <Card className="p-6 mb-8">
+            <h2 className="font-semibold mb-6">Popular Uses:</h2>
+            <div className="grid gap-6">
               {examples.map((example, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <example.icon className="w-5 h-5 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <example.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-medium">{example.title}</h3>
-                    <p className="text-sm text-muted-foreground">{example.text}</p>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">{example.title}</h3>
+                    <p className="text-muted-foreground mb-3">{example.description}</p>
+                    <Link href={example.link}>
+                      <Button variant="outline" size="sm" className="min-h-12" data-testid={`button-use-${i}`}>
+                        {example.linkText}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
           <Link href="/creator?line=static">
-            <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-static">
+            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-static">
               Create Your QR Basics
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
