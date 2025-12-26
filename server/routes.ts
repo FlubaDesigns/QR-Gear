@@ -16,6 +16,7 @@ import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { sendOrderConfirmationEmail } from "./lib/email";
 import { submitOrderToPrintify, checkPrintifyOrderStatus } from "./lib/printify-orders";
 import { startCronJobs } from "./lib/cron-jobs";
+import { generateSitemap } from "./lib/sitemap";
 import { z } from "zod";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
@@ -23,6 +24,19 @@ import bcrypt from "bcryptjs";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth
   await setupAuth(app);
+
+  // Dynamic sitemap for SEO
+  app.get('/sitemap.xml', async (req, res) => {
+    try {
+      const xml = await generateSitemap();
+      res.set('Content-Type', 'application/xml');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(xml);
+    } catch (error) {
+      console.error('[Sitemap] Error generating sitemap:', error);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
 
   // Auth routes - returns null if not authenticated (no 401)
   app.get('/api/auth/user', async (req: any, res) => {

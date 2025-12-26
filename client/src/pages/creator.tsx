@@ -17,7 +17,8 @@ import Navbar from "@/components/Navbar";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image, Package } from "lucide-react";
+import { getSwatchColor } from "@/lib/admin-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
@@ -1358,11 +1359,12 @@ export default function Creator() {
             <Card>
               <CardHeader>
                 <CardTitle>2. Choose Your Product</CardTitle>
-                <CardDescription>Select the item to print on</CardDescription>
+                <CardDescription>Select item, color, and size</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {productsLoading && (
                   <div className="text-center py-8 text-muted-foreground">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                     Loading products...
                   </div>
                 )}
@@ -1373,64 +1375,174 @@ export default function Creator() {
                   </div>
                 )}
                 
-                {!productsLoading && !productsError && (
-                  <div className="grid grid-cols-2 gap-3">
-                    {products
-                      .filter((product) => {
-                        const lineFilter = currentLineConfig.productLineFilter;
-                        const productLineValue = (product as any).productLine || "all";
-                        return lineFilter.includes(productLineValue) || productLineValue === "all";
-                      })
-                      .map((product) => (
-                    <Card
-                      key={product.id}
-                      className={`cursor-pointer hover-elevate transition-all ${
-                        selectedProduct?.id === product.id ? "ring-2 ring-primary" : ""
-                      }`}
-                      onClick={() => {
-                        setSelectedProduct(product);
-                        setProductColor("");
-                      }}
-                      data-testid={`card-product-${product.id}`}
-                    >
-                      <CardContent className="p-2 sm:p-3">
-                        <div className="aspect-square bg-muted rounded-md mb-2 overflow-hidden relative">
-                          <img
-                            src={product.imageUrl || ""}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = "/assets/generated_images/Product_mockup_white_tee_de332d78.png";
+                {!productsLoading && !productsError && (() => {
+                  const lineFilter = currentLineConfig.productLineFilter;
+                  const filteredProducts = products.filter((product) => {
+                    const productLineValue = (product as any).productLine || "none";
+                    if (productLineValue === "none") return false;
+                    return lineFilter.includes(productLineValue) || productLineValue === "all";
+                  });
+                  
+                  if (filteredProducts.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p className="font-medium">No products available for this line yet</p>
+                        <p className="text-sm mt-1">Products will appear here once enabled by admin</p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="space-y-4">
+                      {filteredProducts.map((product) => {
+                        const isSelected = selectedProduct?.id === product.id;
+                        const rawColors = Array.isArray((product as any).availableColors) ? (product as any).availableColors : [];
+                        const colors = rawColors.map((c: any) => ({
+                          name: typeof c === 'string' ? c : c.name || '',
+                          hex: typeof c === 'string' ? getSwatchColor(c) : c.hex || getSwatchColor(c.name || '')
+                        }));
+                        const sizes = Array.isArray((product as any).availableSizes) ? (product as any).availableSizes as string[] : [];
+                        const enabledColors = ((product as any).metadata?.enabledColors as string[] | undefined) || colors.map((c: any) => c.name);
+                        const enabledSizes = ((product as any).metadata?.enabledSizes as string[] | undefined) || sizes;
+                        const visibleColors = colors.filter((c: any) => enabledColors.includes(c.name));
+                        const visibleSizes = sizes.filter((s: string) => enabledSizes.includes(s));
+                        
+                        return (
+                          <Card 
+                            key={product.id} 
+                            className={`p-4 cursor-pointer transition-all ${isSelected ? "ring-2 ring-primary border-primary" : "hover-elevate"}`}
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              if (!productColor && visibleColors.length > 0) {
+                                setProductColor(visibleColors[0].name);
+                              }
+                              if (!selectedSize && visibleSizes.length > 0) {
+                                setSelectedSize(visibleSizes[0]);
+                              }
                             }}
-                          />
-                          {product.madeInUSA && (
-                            <Badge className="absolute top-1 right-1 text-xs gap-1">
-                              <UsaFlag className="w-3 h-2" />
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs sm:text-sm font-semibold truncate">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">${product.basePrice}</p>
-                      </CardContent>
-                    </Card>
-                    ))}
-                  </div>
-                )}
+                            data-testid={`card-product-${product.id}`}
+                          >
+                            <div className="flex gap-4">
+                              <div className="flex-shrink-0">
+                                <div className="w-20 h-20 rounded overflow-hidden bg-muted">
+                                  <img 
+                                    src={product.imageUrl || ""} 
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.currentTarget.src = "/assets/generated_images/Product_mockup_white_tee_de332d78.png"; }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="font-medium text-sm leading-tight">{product.name}</p>
+                                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                                      <span>{product.category}</span>
+                                      {product.madeInUSA && (
+                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
+                                          <UsaFlag className="w-3 h-2" /> USA
+                                        </Badge>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <p className="text-lg font-bold text-primary">${product.customerPrice || product.basePrice}</p>
+                                </div>
+                                
+                                {visibleColors.length > 0 && (
+                                  <div className="mt-3">
+                                    <p className="text-xs text-muted-foreground mb-1.5">Colors</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {visibleColors.slice(0, 8).map((color: any) => (
+                                        <button
+                                          key={color.name}
+                                          type="button"
+                                          className={`w-7 h-7 rounded-full border-2 transition-all qr-touch-48 ${
+                                            isSelected && productColor === color.name 
+                                              ? "ring-2 ring-primary ring-offset-2 border-primary" 
+                                              : "border-muted hover:border-foreground/50"
+                                          }`}
+                                          style={{ backgroundColor: color.hex }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedProduct(product);
+                                            setProductColor(color.name);
+                                          }}
+                                          title={color.name}
+                                          data-testid={`button-swatch-${product.id}-${color.name}`}
+                                        />
+                                      ))}
+                                      {visibleColors.length > 8 && (
+                                        <span className="text-xs text-muted-foreground self-center ml-1">+{visibleColors.length - 8}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {visibleSizes.length > 0 && (
+                                  <div className="mt-3">
+                                    <p className="text-xs text-muted-foreground mb-1.5">Sizes</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {visibleSizes.map((size: string) => (
+                                        <button
+                                          key={size}
+                                          type="button"
+                                          className={`px-2.5 py-1 text-xs rounded border transition-all qr-touch-48 ${
+                                            isSelected && selectedSize === size 
+                                              ? "bg-primary text-primary-foreground border-primary" 
+                                              : "bg-muted/50 border-muted hover:border-foreground/50"
+                                          }`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedProduct(product);
+                                            setSelectedSize(size);
+                                          }}
+                                          data-testid={`button-size-${product.id}-${size}`}
+                                        >
+                                          {size}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {isSelected && (
+                              <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Check className="h-4 w-4 text-primary" />
+                                  <span className="text-muted-foreground">
+                                    {productColor && <span className="font-medium text-foreground">{productColor}</span>}
+                                    {productColor && selectedSize && " / "}
+                                    {selectedSize && <span className="font-medium text-foreground">{selectedSize}</span>}
+                                  </span>
+                                </div>
+                                <Badge variant="secondary">Selected</Badge>
+                              </div>
+                            )}
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
-            {/* Step 3: Customization */}
+            {/* Step 3: Placement & Text */}
             {selectedProduct && (
               <Card>
                 <CardHeader>
-                  <CardTitle>3. Customize Placement & Color</CardTitle>
-                  <CardDescription>Fine-tune your design</CardDescription>
+                  <CardTitle>3. Placement & Text</CardTitle>
+                  <CardDescription>Choose where to place QR and add optional text</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <Label htmlFor="placement">QR Code Placement</Label>
                     <Select value={placement} onValueChange={setPlacement}>
-                      <SelectTrigger id="placement" data-testid="select-placement">
+                      <SelectTrigger id="placement" className="qr-touch-48" data-testid="select-placement">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1445,46 +1557,6 @@ export default function Creator() {
                         )}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium">Product Color</Label>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {availableColors.map((color: any) => (
-                        <Button
-                          key={color.name}
-                          variant={productColor === color.name ? "default" : "outline"}
-                          size="sm"
-                          className="flex items-center gap-2 px-3 py-2"
-                          onClick={() => setProductColor(color.name)}
-                          data-testid={`button-color-${color.name.toLowerCase()}`}
-                        >
-                          <div
-                            className="w-4 h-4 rounded-full border flex-shrink-0"
-                            style={{ backgroundColor: color.hex }}
-                          />
-                          <span className="text-xs">{color.name}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium">Size</Label>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {availableSizes.map((size) => (
-                        <Button
-                          key={size.value}
-                          variant={selectedSize === size.value ? "default" : "outline"}
-                          size="sm"
-                          className="min-w-[3rem] px-4"
-                          onClick={() => setSelectedSize(size.value)}
-                          data-testid={`button-size-${size.value.toLowerCase()}`}
-                        >
-                          {size.label}
-                        </Button>
-                      ))}
-                    </div>
                   </div>
 
                   {selectedProduct.madeInUSA && (
@@ -1513,6 +1585,7 @@ export default function Creator() {
                         maxLength={20}
                         value={textAbove}
                         onChange={(e) => setTextAbove(e.target.value)}
+                        className="qr-touch-48"
                         data-testid="input-text-above"
                       />
                     </div>
@@ -1528,6 +1601,7 @@ export default function Creator() {
                         maxLength={30}
                         value={textBelow}
                         onChange={(e) => setTextBelow(e.target.value)}
+                        className="qr-touch-48"
                         data-testid="input-text-below"
                       />
                     </div>
