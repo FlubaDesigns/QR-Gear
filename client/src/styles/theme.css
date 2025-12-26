@@ -563,16 +563,23 @@ html[data-theme="light"] .page-grid {
   pointer-events: none;
 }
 
-/* Specular shine */
+/* Specular shine - contained within icon */
 .vanity-header-icon::after {
   content: "";
   position: absolute;
-  inset: -50%;
-  background: radial-gradient(400px 180px at 30% 15%, var(--spec1), transparent 55%);
-  transform: rotate(15deg);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(
+    135deg,
+    var(--spec1) 0%,
+    var(--spec2) 30%,
+    transparent 70%
+  );
+  border-radius: 17px 17px 0 0;
   pointer-events: none;
-  opacity: 0.65;
-  mix-blend-mode: screen;
+  opacity: 0.6;
 }
 
 @media (min-width: 768px) {
