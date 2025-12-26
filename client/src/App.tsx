@@ -42,6 +42,7 @@ import QRUrl from "@/pages/qr-url";
 import QRVideo from "@/pages/qr-video";
 import QRDynamics from "@/pages/qr-dynamics";
 import NotFound from "@/pages/not-found";
+import ScrollToTop from "@/components/ScrollToTop";
 
 function Router() {
   return (
@@ -95,6 +96,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <ScrollToTop />
         <Toaster />
         <Router />
       </TooltipProvider>

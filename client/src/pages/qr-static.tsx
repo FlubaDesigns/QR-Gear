@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { QrCode, CheckCircle } from "lucide-react";
+import { QrCode, CheckCircle, Coffee, Dumbbell, Briefcase, Heart } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -7,9 +7,32 @@ import { QRButton } from "@/components/QRButton";
 
 const features = [
   "Encode any text, URL, or contact info",
+  "Up to 2,000 characters - that's a LOT of info!",
   "Permanent QR - never expires or changes",
   "USA-made apparel and accessories",
-  "High-quality print that lasts",
+];
+
+const examples = [
+  {
+    icon: Coffee,
+    title: "Office Coffee Mug",
+    text: "Your name, department, and extension so coworkers know whose mug they borrowed",
+  },
+  {
+    icon: Dumbbell,
+    title: "Gym Bag Tag",
+    text: "Full contact info - name, phone, email, address - in case it gets lost",
+  },
+  {
+    icon: Briefcase,
+    title: "Networking Polo",
+    text: "Your complete vCard with business info - one scan saves your contact",
+  },
+  {
+    icon: Heart,
+    title: "Medical Alert",
+    text: "Emergency contacts, allergies, medications, blood type - vital info when it matters",
+  },
 ];
 
 export default function QRStaticLanding() {
@@ -33,7 +56,7 @@ export default function QRStaticLanding() {
             a permanent QR code printed on quality USA-made merchandise.
           </p>
 
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+          <div className="bg-card rounded-xl p-6 mb-6 text-left">
             <h2 className="font-semibold mb-4">What you get:</h2>
             <ul className="space-y-3">
               {features.map((feature, i) => (
@@ -43,6 +66,23 @@ export default function QRStaticLanding() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+            <h2 className="font-semibold mb-4">Popular Uses:</h2>
+            <div className="grid gap-4">
+              {examples.map((example, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <example.icon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{example.title}</h3>
+                    <p className="text-sm text-muted-foreground">{example.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <Link href="/creator?line=static">
