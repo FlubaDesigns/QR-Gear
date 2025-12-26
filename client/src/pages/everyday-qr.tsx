@@ -24,7 +24,7 @@ const uses = [
   {
     icon: BookOpen,
     title: "The Story Behind It",
-    description: "Handmade products. Art pieces. Vintage finds. 'SCAN FOR THE STORY' adds soul to any item.",
+    description: "Handmade products. Art pieces. Vintage finds. 'SCAN FOR THE STORY' adds soul — and context — to any item.",
   },
   {
     icon: HelpCircle,
@@ -64,10 +64,10 @@ export default function EverydayQR() {
             </div>
           </div>
           
-          <p className="vanity-tagline">Small text. Big clarity.</p>
+          <p className="vanity-tagline">Small text. Big clarity — every day.</p>
           <p className="vanity-description">
-            Sometimes you just need a gentle prompt. "SCAN TO LEARN MORE" or "SCAN FOR THE STORY" - 
-            simple words that invite curiosity without overselling.
+            Sometimes you just need a gentle prompt. "SCAN TO LEARN MORE" or "SCAN FOR THE STORY" — 
+            simple words that invite curiosity without overselling, wherever your gear goes.
           </p>
 
           <div className="vanity-example-tags">
