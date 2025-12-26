@@ -283,6 +283,7 @@ a:hover {
 .glass,
 .glass-card {
   position: relative;
+  isolation: isolate;
   border-radius: 26px;
   padding: 18px;
   background: linear-gradient(135deg, var(--glassA), var(--glassB));
@@ -529,6 +530,7 @@ html[data-theme="light"] .page-grid {
 
 .vanity-header-icon {
   position: relative;
+  isolation: isolate;
   width: 4rem;
   height: 4rem;
   border-radius: 18px;
@@ -693,6 +695,7 @@ html[data-theme="light"] .page-grid {
 
 .vanity-item-icon {
   position: relative;
+  isolation: isolate;
   width: 2.5rem;
   height: 2.5rem;
   min-height: 2.5rem;
@@ -761,6 +764,7 @@ html[data-theme="light"] .page-grid {
 
 .vanity-highlight-icon {
   position: relative;
+  isolation: isolate;
   width: 3rem;
   height: 3rem;
   border-radius: 14px;
@@ -1060,6 +1064,7 @@ html[data-theme="light"] .vanity-highlight-icon {
 
 .vanity-use-case-icon {
   position: relative;
+  isolation: isolate;
   width: 3rem;
   height: 3rem;
   border-radius: 14px;
