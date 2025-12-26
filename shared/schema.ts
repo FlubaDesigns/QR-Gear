@@ -356,6 +356,46 @@ export const hostingTiers = pgTable("hosting_tiers", {
   sortOrder: integer("sort_order").default(0),
 });
 
+// Email Templates - customizable email content for various triggers
+export const emailTemplates = pgTable("email_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trigger: text("trigger").notNull().unique(), // 'order_confirmation', 'order_shipped', etc.
+  name: text("name").notNull(), // Human-readable name
+  subject: text("subject").notNull(), // Email subject line
+  htmlContent: text("html_content").notNull(), // HTML email body
+  textContent: text("text_content"), // Plain text fallback
+  isEnabled: boolean("is_enabled").default(true),
+  description: text("description"), // Admin description of when this sends
+  variables: text("variables").array(), // Available merge tags like ['customerName', 'orderNumber']
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+
+// Email log - track all sent emails
+export const emailLogs = pgTable("email_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").references(() => emailTemplates.id),
+  trigger: text("trigger").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  subject: text("subject").notNull(),
+  status: text("status").notNull(), // 'sent', 'failed', 'bounced'
+  resendId: text("resend_id"), // Resend message ID for tracking
+  orderId: varchar("order_id"), // Related order if applicable
+  userId: varchar("user_id").references(() => users.id),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
+export type EmailLog = typeof emailLogs.$inferSelect;
+
 // Coupons / Discount codes - synced with Stripe promotion codes
 export const coupons = pgTable("coupons", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
