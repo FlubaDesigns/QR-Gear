@@ -57,29 +57,28 @@ export default function ActionCards() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {actionCards.map((card, index) => (
-            <Card 
-              key={index} 
-              className="glass-card border-0 hover-elevate transition-all"
+            <Link 
+              key={index}
+              href={card.href}
+              className="block"
               data-testid={`action-card-${index}`}
             >
-              <CardContent className="p-6 flex flex-col h-full">
-                <div className={`w-12 h-12 rounded-xl icon-bg-${card.color} flex items-center justify-center mb-4`}>
-                  <card.icon className={`w-6 h-6 icon-color-${card.color}`} />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{card.title}</h3>
-                <p className="text-sm text-muted-foreground flex-1 mb-4">{card.description}</p>
-                <Link href={card.href}>
-                  <QRButton 
-                    variant={card.color === "accent" ? "accent" : "ghost"} 
-                    size="small"
-                    className="w-full"
+              <Card className="glass-card border-0 hover-elevate transition-all h-full cursor-pointer">
+                <CardContent className="p-6 flex flex-col h-full">
+                  <div className={`w-12 h-12 rounded-xl icon-bg-${card.color} flex items-center justify-center mb-4`}>
+                    <card.icon className={`w-6 h-6 icon-color-${card.color}`} />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">{card.title}</h3>
+                  <p className="text-sm text-muted-foreground flex-1 mb-4">{card.description}</p>
+                  <span 
+                    className={`qr-btn ${card.color === "accent" ? "qr-btn--accent" : "qr-btn--ghost"} qr-btn--small w-full block text-center`}
                     data-testid={`button-${card.title.toLowerCase().replace(/\s+/g, '-')}`}
                   >
                     {card.buttonText}
-                  </QRButton>
-                </Link>
-              </CardContent>
-            </Card>
+                  </span>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </div>
