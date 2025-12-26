@@ -454,33 +454,35 @@ export default function AdminOrchestration() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10 min-h-12 min-w-12 p-3"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-6 w-6" />
-                <span className="sr-only">Back to Admin</span>
-              </Button>
-              <div>
-                <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                  Multi-Provider Orchestration
-                </h1>
-                <p className="text-xs text-slate-400">
-                  Manage products across Printify, Printful, Etsy, eBay, Amazon
-                </p>
-              </div>
+    <div className="qr-admin-page">
+      <div className="qr-admin-bar">
+        <div className="qr-admin-bar__inner">
+          <div className="qr-admin-bar__left">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/admin")}
+              className="text-white hover:bg-white/10 qr-touch-48"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="sr-only">Back to Admin</span>
+            </Button>
+            <Layers className="qr-admin-bar__icon" />
+            <div>
+              <h1 className="qr-admin-bar__title" data-testid="text-page-title">
+                Multi-Provider Orchestration
+              </h1>
+              <p className="qr-admin-bar__subtitle">
+                Manage products across Printify, Printful, Etsy, eBay, Amazon
+              </p>
             </div>
+          </div>
+          <div className="qr-admin-bar__right">
             <Button
               onClick={() => refetchProducts()}
               variant="outline"
-              className="h-12 border-slate-600 text-slate-300 hover:bg-slate-800"
+              className="qr-touch-48 border-slate-600 text-slate-300 hover:bg-slate-800"
               data-testid="button-refresh"
             >
               <RefreshCw className="h-5 w-5 mr-2" />
@@ -490,13 +492,13 @@ export default function AdminOrchestration() {
         </div>
       </div>
 
-      <main className="container max-w-6xl mx-auto py-6 px-4">
-        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <Link href="/" className="text-muted-foreground hover:text-foreground">Home</Link>
-          <span className="text-muted-foreground mx-2">/</span>
-          <Link href="/admin" className="text-muted-foreground hover:text-foreground">Admin</Link>
-          <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium">Orchestration</span>
+      <main className="qr-admin-main">
+        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Home</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <Link href="/admin">Admin</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <span className="qr-admin-breadcrumb__current">Orchestration</span>
         </nav>
 
         <Tabs defaultValue="products" className="w-full">

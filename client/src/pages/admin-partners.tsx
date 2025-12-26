@@ -199,58 +199,53 @@ export default function AdminPartners() {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10 h-12 w-12"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Store className="h-6 w-6 text-amber-400" />
-                <div>
-                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    Store Management
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Internal stores (ours) & partner stores (external)
-                  </p>
-                </div>
-              </div>
+    <div className="qr-admin-page">
+      <div className="qr-admin-bar">
+        <div className="qr-admin-bar__inner">
+          <div className="qr-admin-bar__left">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/admin")}
+              className="text-white hover:bg-white/10 qr-touch-48"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Store className="qr-admin-bar__icon" />
+            <div>
+              <h1 className="qr-admin-bar__title" data-testid="text-page-title">
+                Store Management
+              </h1>
+              <p className="qr-admin-bar__subtitle">
+                Internal stores (ours) & partner stores (external)
+              </p>
             </div>
-            {user && (
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs text-slate-400">Logged in as</p>
-                  <p className="text-sm font-medium">{user.email || user.id}</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={copyUserId}
-                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 h-10"
-                  data-testid="button-copy-user-id"
-                >
-                  Copy ID
-                </Button>
-              </div>
-            )}
           </div>
+          {user && (
+            <div className="qr-admin-bar__right">
+              <div className="text-right hidden sm:block">
+                <p className="text-xs text-slate-400">Logged in as</p>
+                <p className="text-sm font-medium">{user.email || user.id}</p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={copyUserId}
+                className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 qr-touch-48"
+                data-testid="button-copy-user-id"
+              >
+                Copy ID
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      <main className="container max-w-6xl mx-auto py-6 px-4">
-        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <Link href="/admin" className="text-muted-foreground hover:text-foreground" data-testid="link-breadcrumb-admin">Admin</Link>
-          <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page" data-testid="text-breadcrumb-current">Partners</span>
+      <main className="qr-admin-main">
+        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/admin" data-testid="link-breadcrumb-admin">Admin</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <span className="qr-admin-breadcrumb__current" aria-current="page" data-testid="text-breadcrumb-current">Partners</span>
         </nav>
 
         <Card>

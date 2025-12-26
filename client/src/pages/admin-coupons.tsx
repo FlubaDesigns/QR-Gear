@@ -367,35 +367,33 @@ export default function AdminCoupons() {
   const FormTrigger = isMobile ? DrawerTrigger : DialogTrigger;
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10 min-h-12 min-w-12"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Tag className="h-6 w-6 text-amber-400" />
-                <div>
-                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    Promo Codes
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Manage discount codes
-                  </p>
-                </div>
-              </div>
+    <div className="qr-admin-page">
+      <div className="qr-admin-bar">
+        <div className="qr-admin-bar__inner">
+          <div className="qr-admin-bar__left">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/admin")}
+              className="text-white hover:bg-white/10 qr-touch-48"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Tag className="qr-admin-bar__icon" />
+            <div>
+              <h1 className="qr-admin-bar__title" data-testid="text-page-title">
+                Promo Codes
+              </h1>
+              <p className="qr-admin-bar__subtitle">
+                Manage discount codes
+              </p>
             </div>
+          </div>
+          <div className="qr-admin-bar__right">
             <FormWrapper open={isFormOpen} onOpenChange={setIsFormOpen}>
               <FormTrigger asChild>
-                <Button size="lg" data-testid="button-add-coupon">
+                <Button className="qr-touch-48" data-testid="button-add-coupon">
                   <Plus className="h-5 w-5 mr-2" />
                   Add Code
                 </Button>
@@ -415,15 +413,11 @@ export default function AdminCoupons() {
         </div>
       </div>
 
-      <main className="container max-w-6xl mx-auto py-6 px-4">
-        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <Link href="/admin" className="text-muted-foreground hover:text-foreground">
-            Admin
-          </Link>
-          <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page">
-            Promo Codes
-          </span>
+      <main className="qr-admin-main">
+        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/admin">Admin</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <span className="qr-admin-breadcrumb__current" aria-current="page">Promo Codes</span>
         </nav>
 
         {isLoading ? (

@@ -278,8 +278,8 @@
 
 /* ===== Touch Target Base ===== */
 .qr-touch-48 {
-  min-height: 48px;
-  min-width: 48px;
+  min-height: 48px !important;
+  min-width: 48px !important;
 }
 
 /* Touch-optimized button (default for admin UI) */
