@@ -1,4 +1,4 @@
-import { Calendar, CheckCircle, Users, Camera, Music, PartyPopper, ArrowRight } from "lucide-react";
+import { Calendar, CheckCircle, Users, Camera, Music, PartyPopper, Heart, Footprints, GraduationCap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -7,8 +7,7 @@ import SEO from "@/components/SEO";
 const features = [
   "Event name as header text",
   "Instructions or schedule link as footer",
-  "People know what they're getting before they scan",
-  "Permanent QR - works long after the event",
+  "Permanent QR code (no expiration)",
   "USA options available",
 ];
 
@@ -19,19 +18,29 @@ const events = [
     description: "Everyone gets a shirt. QR links to the shared photo album. Header says 'SMITH REUNION 2024'.",
   },
   {
+    icon: Heart,
+    title: "Wedding Events",
+    description: "Bachelorette parties, rehearsal dinners, or the big day. The shirt becomes the keepsake.",
+  },
+  {
     icon: PartyPopper,
     title: "Parties & Celebrations",
     description: "Birthday bash? Bachelor party? The shirt IS the invitation. Scan for details.",
   },
   {
+    icon: Footprints,
+    title: "Charity Walks",
+    description: "5K runs, walkathons, fundraisers. Scan to donate or see photos from the day.",
+  },
+  {
+    icon: GraduationCap,
+    title: "School Events",
+    description: "Class reunions, sports teams, graduation parties. One scan, all the memories.",
+  },
+  {
     icon: Music,
     title: "Concerts & Festivals",
     description: "Band merch that links to the setlist, exclusive content, or the merch store.",
-  },
-  {
-    icon: Camera,
-    title: "Group Activities",
-    description: "5K runs, charity walks, team building. Scan to see all the photos from the day.",
   },
 ];
 
@@ -40,8 +49,8 @@ export default function EventQRShirts() {
     <div className="vanity-page">
       <SEO 
         title="Event QR Shirts | Wearable Event Links | QR Gear"
-        description="Create event shirts with QR codes linking to schedules, photos, and group info. Perfect for reunions, parties, and group activities. USA options available."
-        keywords="event QR shirt, reunion shirt, party QR code, group event shirt, festival merch, event merchandise"
+        description="Create custom event QR shirts linking to schedules, photos, and group info. Perfect for family reunions, weddings, charity walks, and group activities. USA options available."
+        keywords="event QR shirts, custom event shirts, QR code event shirts, family reunion shirts, wedding QR shirts"
       />
       <Navbar />
       <main className="vanity-content">
@@ -56,10 +65,10 @@ export default function EventQRShirts() {
             </div>
           </div>
           
-          <p className="vanity-tagline">People know what they're getting before they scan.</p>
+          <p className="vanity-tagline">People know exactly what they're getting before they scan.</p>
           <p className="vanity-description">
-            Header text like "EVENT SCHEDULE" or "PHOTOS FROM TODAY" tells everyone exactly what to expect. 
-            No mystery, just clarity.
+            Header text like "Event Schedule" or "Photos from Today" tells guests exactly what they'll see when they scan. 
+            No mystery. Just clarity.
           </p>
 
           <div className="glass-card vanity-features">
@@ -102,7 +111,7 @@ export default function EventQRShirts() {
               <div className="vanity-highlight-content">
                 <h3>The shirt becomes the souvenir</h3>
                 <p>
-                  Long after the event ends, they still have the shirt. Years later, they scan and relive the day.
+                  Long after the event ends, one scan brings the memories back.
                 </p>
               </div>
             </div>

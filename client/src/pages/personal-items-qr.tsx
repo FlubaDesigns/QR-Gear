@@ -1,4 +1,4 @@
-import { Tag, CheckCircle, User, Shirt, Baby, ArrowRight } from "lucide-react";
+import { Tag, CheckCircle, User, Shirt, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -8,7 +8,7 @@ const features = [
   "Custom header text above your QR",
   "Footer text for instructions or contact",
   "Clear context before anyone scans",
-  "Permanent QR - never expires",
+  "Permanent QR code (no expiration)",
   "USA options available",
 ];
 
@@ -27,11 +27,6 @@ const items = [
     description: "Left your hoodie at the gym? The finder knows exactly what to do. 'IF FOUND' plus your contact.",
   },
   {
-    icon: Baby,
-    title: "Kids' Clothes",
-    description: "Hoodies, t-shirts, jackets. Because everything gets left somewhere.",
-  },
-  {
     icon: User,
     title: "Bags & Totes",
     description: "Gym bags, backpacks, totes. Your stuff, permanently claimed.",
@@ -44,7 +39,7 @@ export default function PersonalItemsQR() {
       <SEO 
         title="Personal Items QR | Label Your Stuff With Style | QR Gear"
         description="Create QR gear for personal items with 'IF FOUND' text and contact info. Perfect for hoodies, bags, and anything you don't want to lose. USA options available."
-        keywords="personal items QR, if found QR, custom hoodies, gym bag QR, personal belongings QR"
+        keywords="personal QR code, lost and found QR, emergency contact QR, QR for personal items, QR labels for belongings"
       />
       <Navbar />
       <main className="vanity-content">
@@ -59,10 +54,10 @@ export default function PersonalItemsQR() {
             </div>
           </div>
           
-          <p className="vanity-tagline">Simple words make all the difference.</p>
+          <p className="vanity-tagline">Simple words make all the difference when it matters.</p>
           <p className="vanity-description">
-            Add a header like "IF FOUND, PLEASE CALL" so people know what to do before they even scan. 
-            Context first, action second.
+            Add a header like "If Found, Please Call" so people know exactly what to do before they scan. 
+            Context first. Action second.
           </p>
 
           <div className="vanity-example-tags">
