@@ -71,15 +71,20 @@ html[data-theme="dark"] {
   --status-error-border: #ef4444;
   --status-error-text: #ef4444;
 
-  /* Glass system */
+  /* Glass system - Ghost's double-border technique */
+  --glass-fill: rgba(12, 28, 48, 0.42);
+  --glass-fill-2: rgba(10, 22, 40, 0.30);
   --glass-bg: rgba(255, 255, 255, 0.08);
   --glass-bg-2: rgba(255, 255, 255, 0.12);
-  --glass-stroke: rgba(46, 169, 255, 0.40);
+  --glass-stroke: rgba(255, 255, 255, 0.10);
+  --glass-stroke-soft: rgba(255, 255, 255, 0.06);
+  --glass-highlight: rgba(255, 255, 255, 0.08);
   --glass-stroke-2: rgba(46, 169, 255, 0.55);
 
-  /* Shadow & glow */
-  --shadow-0: 0 14px 40px rgba(0, 0, 0, 0.45);
+  /* Shadow & glow - softer for glass */
+  --shadow-0: 0 18px 50px rgba(0, 0, 0, 0.55);
   --shadow-1: 0 10px 24px rgba(0, 0, 0, 0.35);
+  --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.42);
   --glow-ice: 0 0 0 1px rgba(46, 169, 255, 0.35), 0 0 26px rgba(46, 169, 255, 0.18);
   --glow-accent: 0 0 0 1px rgba(255, 122, 26, 0.35), 0 0 26px rgba(255, 122, 26, 0.18);
 
@@ -134,8 +139,14 @@ html[data-theme="light"] {
   --input-border: rgba(27, 126, 214, 0.40);
   --input-focus-shadow: rgba(46, 169, 255, 0.3);
 
+  /* Glass system - light mode */
+  --glass-fill: rgba(255, 255, 255, 0.65);
+  --glass-fill-2: rgba(255, 255, 255, 0.45);
   --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-stroke: rgba(27, 126, 214, 0.35);
+  --glass-stroke: rgba(27, 126, 214, 0.25);
+  --glass-stroke-soft: rgba(27, 126, 214, 0.12);
+  --glass-highlight: rgba(255, 255, 255, 0.5);
+  --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.12);
 
   --social-bg: var(--ice-2);
   --social-fg: #ffffff;
@@ -149,12 +160,21 @@ body {
 
 body {
   background:
-    radial-gradient(1200px 700px at 18% 12%, rgba(134,215,255,0.16), transparent 55%),
-    radial-gradient(900px 520px at 72% 25%, rgba(46,169,255,0.12), transparent 50%),
-    radial-gradient(900px 600px at 55% 88%, rgba(255,122,26,0.08), transparent 55%),
+    radial-gradient(900px 600px at 20% 10%, rgba(0,170,255,0.10), transparent 55%),
+    radial-gradient(800px 520px at 85% 25%, rgba(140,70,255,0.10), transparent 55%),
+    radial-gradient(900px 600px at 55% 88%, rgba(255,122,26,0.06), transparent 55%),
     linear-gradient(180deg, var(--bg-0), var(--bg-1) 42%, var(--bg-2));
   background-attachment: fixed;
   min-height: 100vh;
+}
+
+/* Light mode body background */
+html[data-theme="light"] body {
+  background:
+    radial-gradient(900px 600px at 20% 10%, rgba(46,169,255,0.08), transparent 55%),
+    radial-gradient(800px 520px at 85% 25%, rgba(140,70,255,0.06), transparent 55%),
+    radial-gradient(900px 600px at 55% 88%, rgba(255,122,26,0.04), transparent 55%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1) 42%, var(--bg-2));
 }
 
 .site-header {
@@ -224,4 +244,153 @@ a:hover {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* =========================================================
+   Ghost's Glassmorphism System
+   ========================================================= */
+
+/* Enhanced Glass Card - Double border technique */
+.glass-card {
+  position: relative;
+  border-radius: 22px;
+  padding: 18px;
+  background: linear-gradient(135deg, var(--glass-fill), var(--glass-fill-2));
+  border: 1px solid var(--glass-stroke);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  overflow: visible;
+}
+
+/* Inner highlight ring - what makes it feel "glass" */
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 21px;
+  border: 1px solid var(--glass-highlight);
+  pointer-events: none;
+}
+
+/* Subtle light sweep */
+.glass-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  background: radial-gradient(900px 220px at 15% 10%,
+    rgba(255,255,255,0.10), transparent 55%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+
+/* Light mode glass adjustments */
+html[data-theme="light"] .glass-card {
+  background: linear-gradient(135deg, var(--glass-fill), var(--glass-fill-2));
+  box-shadow: var(--shadow-soft);
+}
+
+html[data-theme="light"] .glass-card::after {
+  opacity: 0.3;
+}
+
+/* ===== Typography - Futuristic but not cringe ===== */
+h1, h2, h3 {
+  letter-spacing: 0.04em;
+  color: var(--text-0);
+}
+
+/* Subtle uppercase on smaller headings */
+h3, h4, h5, h6 {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+p, li {
+  color: var(--text-1);
+  line-height: 1.55;
+}
+
+/* Light mode text adjustments */
+html[data-theme="light"] p,
+html[data-theme="light"] li {
+  color: var(--text-1);
+}
+
+/* ===== Icon Chips - Lit glass effect ===== */
+.icon-chip {
+  width: 52px;
+  height: 52px;
+  min-height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(0,255,170,0.12), rgba(0,120,255,0.06));
+  border: 1px solid var(--glass-stroke);
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  box-shadow: var(--shadow-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Orange accent icon chip */
+.icon-chip-accent {
+  background: linear-gradient(135deg, rgba(255,122,26,0.15), rgba(255,178,74,0.08));
+}
+
+/* Light mode icon chip */
+html[data-theme="light"] .icon-chip {
+  background: linear-gradient(135deg, rgba(46,169,255,0.12), rgba(27,126,214,0.06));
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+/* ===== Primary Button - Glass gradient, not neon slab ===== */
+.btn-glass {
+  border-radius: 16px;
+  padding: 14px 18px;
+  min-height: 48px;
+  background: linear-gradient(180deg, rgba(0,160,255,0.85), rgba(0,120,255,0.65));
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+  color: #ffffff;
+  font-weight: 600;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.btn-glass:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+/* Orange accent glass button */
+.btn-glass-accent {
+  background: linear-gradient(180deg, rgba(255,140,40,0.9), rgba(255,100,20,0.75));
+}
+
+/* Light mode button adjustments */
+html[data-theme="light"] .btn-glass {
+  box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+}
+
+/* ===== Subtle grid overlay (optional - use .page-grid class) ===== */
+.page-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(600px 400px at 40% 10%, black 20%, transparent 70%);
+  z-index: 0;
+}
+
+html[data-theme="light"] .page-grid {
+  opacity: 0.06;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
 }
