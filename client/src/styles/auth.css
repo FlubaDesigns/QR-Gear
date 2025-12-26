@@ -193,7 +193,7 @@
 
 .qr-auth-link:hover {
   color: hsl(30, 100%, 65%);
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .qr-auth-error {

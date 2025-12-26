@@ -224,7 +224,7 @@ a {
 
 a:hover {
   color: var(--text-0);
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 /* ===== Color Utilities ===== */
