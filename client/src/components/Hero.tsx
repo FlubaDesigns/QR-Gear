@@ -31,7 +31,10 @@ export default function Hero() {
         <div className="glass card product">
           <div className="card__title">
             One-of-a-Kind Gear
-            <span className="pill">USA-Made</span>
+            <span className="pill flex items-center gap-1">
+              <img src="https://flagcdn.com/w20/us.png" alt="USA" className="w-4 h-3 object-cover rounded-sm" />
+              USA-Made
+            </span>
           </div>
 
           <div className="product__media">
