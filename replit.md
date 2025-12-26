@@ -40,6 +40,19 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - SVG text rendering pipeline for print-ready images with text warp effects.
 - Per-placement artwork mode for product customization.
 
+### Admin Expansion (December 2025)
+- **Dashboard** (`/admin/dashboard`): KPI metrics - revenue, orders, customers, product health.
+- **Customers** (`/admin/customers`): Customer list with stats, search, order history modal.
+- **Promo Codes** (`/admin/coupons`): CRUD for discount codes with Stripe sync.
+- **System Health** (`/admin/health`): Provider status monitoring (Printify, Stripe).
+- Updated admin navigation with 13 sections including Orders, Gifts.
+
+### AI Communication System
+- Cross-AI collaboration folder: `docs/AI-COMMS/`
+- KC (Kingdom Connects) agent shares CSS patterns and integration specs
+- QR agent prepares widget endpoints for KC embedding
+- Shared JWT secret required: `WIDGET_JWT_SECRET`
+
 ### Design System
 - **Typography**: Inter (body), Space Grotesk (headings).
 - **Layout**: Mobile-first responsive, `max-w-7xl` containers.
