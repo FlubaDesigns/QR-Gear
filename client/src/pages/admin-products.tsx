@@ -882,6 +882,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   // Also check directly in partnerStoresData for segments if dbPartnerStores lookup fails
   const fallbackStore = !currentStoreData ? partnerStoresData.find(ps => normalizeStoreName(ps.name) === normalizeStoreName(selectedStore)) : null;
   const availableSegments: string[] = currentStoreData?.areas || fallbackStore?.availableSegments || [];
+  console.log("[SegmentDebug] selectedStore:", selectedStore, "currentStoreData:", currentStoreData, "fallbackStore:", fallbackStore, "availableSegments:", availableSegments);
   type ItemDetails = {
     basePrice: number;
     maxPrice?: number;
