@@ -126,19 +126,19 @@ export default function AdventQRShirts() {
             </h2>
             <div className="grid gap-3">
               <Link href="/video-time-capsule">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Video Time Capsule</span>
                   <p className="text-sm text-muted-foreground">Messages for the future</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Band Dynamic Merch</span>
                   <p className="text-sm text-muted-foreground">Updateable musician content</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Event QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Perfect for gatherings</p>
                 </div>

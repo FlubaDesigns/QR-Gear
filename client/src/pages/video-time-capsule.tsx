@@ -126,19 +126,19 @@ export default function VideoTimeCapsule() {
             </h2>
             <div className="grid gap-3">
               <Link href="/family-video-messages">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Family Video Messages</span>
                   <p className="text-sm text-muted-foreground">Home in their pocket</p>
                 </div>
               </Link>
               <Link href="/memorial-video-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Memorial Video Shirts</span>
                   <p className="text-sm text-muted-foreground">Keep voices alive</p>
                 </div>
               </Link>
               <Link href="/advent-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Advent QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Daily reveals and countdowns</p>
                 </div>

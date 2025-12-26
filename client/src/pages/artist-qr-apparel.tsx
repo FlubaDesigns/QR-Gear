@@ -120,19 +120,19 @@ export default function ArtistQRApparel() {
             </h2>
             <div className="grid gap-3">
               <Link href="/musician-merch">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Musician Merch</span>
                   <p className="text-sm text-muted-foreground">Album art and video shirts for bands</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Band Dynamic Merch</span>
                   <p className="text-sm text-muted-foreground">Updateable tour dates and content</p>
                 </div>
               </Link>
               <Link href="/wedding-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Wedding Photo Shirts</span>
                   <p className="text-sm text-muted-foreground">Event photography on apparel</p>
                 </div>

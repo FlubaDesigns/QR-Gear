@@ -126,19 +126,19 @@ export default function BusinessAnalyticsQR() {
             </h2>
             <div className="grid gap-3">
               <Link href="/realtor-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Realtor QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Updateable property listings</p>
                 </div>
               </Link>
               <Link href="/business-qr-plus">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Business QR Plus</span>
                   <p className="text-sm text-muted-foreground">Clear calls-to-action</p>
                 </div>
               </Link>
               <Link href="/networking-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Networking Shirts</span>
                   <p className="text-sm text-muted-foreground">Digital business cards</p>
                 </div>

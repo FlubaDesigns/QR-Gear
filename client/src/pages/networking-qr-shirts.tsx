@@ -120,19 +120,19 @@ export default function NetworkingQRShirts() {
             </h2>
             <div className="grid gap-3">
               <Link href="/website-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Website QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Link directly to your portfolio</p>
                 </div>
               </Link>
               <Link href="/business-qr-plus">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Business QR Plus</span>
                   <p className="text-sm text-muted-foreground">Add company branding text</p>
                 </div>
               </Link>
               <Link href="/realtor-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Realtor QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Dynamic content for real estate</p>
                 </div>

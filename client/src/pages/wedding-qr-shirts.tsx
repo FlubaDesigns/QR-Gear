@@ -119,19 +119,19 @@ export default function WeddingQRShirts() {
             </h2>
             <div className="grid gap-3">
               <Link href="/family-reunion-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Family Reunion Shirts</span>
                   <p className="text-sm text-muted-foreground">Photo memories for the whole family</p>
                 </div>
               </Link>
               <Link href="/memorial-qr-gifts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Memorial Photo Gifts</span>
                   <p className="text-sm text-muted-foreground">Honor loved ones with lasting tributes</p>
                 </div>
               </Link>
               <Link href="/artist-qr-apparel">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Artist Portfolio Shirts</span>
                   <p className="text-sm text-muted-foreground">Turn your artwork into wearables</p>
                 </div>

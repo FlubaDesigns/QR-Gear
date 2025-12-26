@@ -119,19 +119,19 @@ export default function WebsiteQRShirts() {
             </h2>
             <div className="grid gap-3">
               <Link href="/networking-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Networking Shirts</span>
                   <p className="text-sm text-muted-foreground">Save contacts instantly with vCard</p>
                 </div>
               </Link>
               <Link href="/business-qr-plus">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Business QR Plus</span>
                   <p className="text-sm text-muted-foreground">Add your tagline to the shirt</p>
                 </div>
               </Link>
               <Link href="/realtor-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Realtor QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Updateable listings and open houses</p>
                 </div>

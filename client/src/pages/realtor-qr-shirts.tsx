@@ -126,19 +126,19 @@ export default function RealtorQRShirts() {
             </h2>
             <div className="grid gap-3">
               <Link href="/business-qr-plus">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Business QR Plus</span>
                   <p className="text-sm text-muted-foreground">Professional with text prompts</p>
                 </div>
               </Link>
               <Link href="/networking-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Networking Shirts</span>
                   <p className="text-sm text-muted-foreground">Save contacts instantly</p>
                 </div>
               </Link>
               <Link href="/business-analytics-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Business Analytics QR</span>
                   <p className="text-sm text-muted-foreground">Track engagement and performance</p>
                 </div>

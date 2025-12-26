@@ -137,19 +137,19 @@ export default function BusinessQRPlus() {
             </h2>
             <div className="grid gap-3">
               <Link href="/networking-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Networking Shirts</span>
                   <p className="text-sm text-muted-foreground">Save contacts with vCard</p>
                 </div>
               </Link>
               <Link href="/website-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Website QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Link to your portfolio</p>
                 </div>
               </Link>
               <Link href="/realtor-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Realtor QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Updateable real estate links</p>
                 </div>

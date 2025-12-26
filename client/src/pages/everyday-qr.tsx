@@ -124,19 +124,19 @@ export default function EverydayQR() {
             </h2>
             <div className="grid gap-3">
               <Link href="/personal-items-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Personal Items QR</span>
                   <p className="text-sm text-muted-foreground">Label your belongings</p>
                 </div>
               </Link>
               <Link href="/lost-found-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Lost & Found QR</span>
                   <p className="text-sm text-muted-foreground">Tag things that travel</p>
                 </div>
               </Link>
               <Link href="/office-qr-mug">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Office QR Mug</span>
                   <p className="text-sm text-muted-foreground">Stop the office mug thief</p>
                 </div>

@@ -373,4 +373,21 @@
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Orange glow hover for Related Ideas cards */
+  .hover-glow-accent {
+    position: relative;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .hover-glow-accent:hover,
+  .hover-glow-accent:active {
+    border-color: hsl(var(--accent)) !important;
+    box-shadow: 0 0 12px hsla(var(--accent), 0.4), 0 0 24px hsla(var(--accent), 0.2);
+  }
+
+  /* Remove underlines from links wrapping cards */
+  a:has(.hover-glow-accent) {
+    text-decoration: none !important;
+  }
 }

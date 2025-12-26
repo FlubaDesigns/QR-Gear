@@ -120,19 +120,19 @@ export default function FamilyReunionShirts() {
             </h2>
             <div className="grid gap-3">
               <Link href="/wedding-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Wedding Photo Shirts</span>
                   <p className="text-sm text-muted-foreground">Wearable favors for your big day</p>
                 </div>
               </Link>
               <Link href="/memorial-qr-gifts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Memorial Photo Gifts</span>
                   <p className="text-sm text-muted-foreground">Honor loved ones with lasting tributes</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Event QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Perfect for any gathering</p>
                 </div>

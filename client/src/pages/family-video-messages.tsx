@@ -119,19 +119,19 @@ export default function FamilyVideoMessages() {
             </h2>
             <div className="grid gap-3">
               <Link href="/memorial-video-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Memorial Video Shirts</span>
                   <p className="text-sm text-muted-foreground">Keep loved ones close</p>
                 </div>
               </Link>
               <Link href="/video-time-capsule">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Video Time Capsule</span>
                   <p className="text-sm text-muted-foreground">Messages for the future</p>
                 </div>
               </Link>
               <Link href="/family-reunion-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Family Reunion Shirts</span>
                   <p className="text-sm text-muted-foreground">Photo memories for the family</p>
                 </div>

@@ -126,19 +126,19 @@ export default function BandDynamicMerch() {
             </h2>
             <div className="grid gap-3">
               <Link href="/musician-merch">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Musician Merch</span>
                   <p className="text-sm text-muted-foreground">Album art and video shirts</p>
                 </div>
               </Link>
               <Link href="/artist-qr-apparel">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Artist Portfolio Shirts</span>
                   <p className="text-sm text-muted-foreground">Wearable gallery for creatives</p>
                 </div>
               </Link>
               <Link href="/advent-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Advent QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Scheduled daily content</p>
                 </div>

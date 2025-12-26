@@ -151,19 +151,19 @@ export default function MusicianMerch() {
             </h2>
             <div className="grid gap-3">
               <Link href="/artist-qr-apparel">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Artist Portfolio Shirts</span>
                   <p className="text-sm text-muted-foreground">Wearable gallery for visual artists</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Band Dynamic Merch</span>
                   <p className="text-sm text-muted-foreground">Updateable tour dates and setlists</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Event QR Shirts</span>
                   <p className="text-sm text-muted-foreground">Perfect for concerts and festivals</p>
                 </div>

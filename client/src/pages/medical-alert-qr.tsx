@@ -127,19 +127,19 @@ export default function MedicalAlertQR() {
             </h2>
             <div className="grid gap-3">
               <Link href="/lost-found-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Lost & Found QR</span>
                   <p className="text-sm text-muted-foreground">Tag your bags and gear</p>
                 </div>
               </Link>
               <Link href="/personal-items-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Personal Items QR</span>
                   <p className="text-sm text-muted-foreground">Label anything important</p>
                 </div>
               </Link>
               <Link href="/everyday-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Everyday QR</span>
                   <p className="text-sm text-muted-foreground">Practical QR for daily use</p>
                 </div>

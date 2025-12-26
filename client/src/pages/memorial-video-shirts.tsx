@@ -119,19 +119,19 @@ export default function MemorialVideoShirts() {
             </h2>
             <div className="grid gap-3">
               <Link href="/memorial-qr-gifts">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Memorial Photo Gifts</span>
                   <p className="text-sm text-muted-foreground">Photo-based remembrance shirts</p>
                 </div>
               </Link>
               <Link href="/family-video-messages">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Family Video Messages</span>
                   <p className="text-sm text-muted-foreground">Comfort for those far from home</p>
                 </div>
               </Link>
               <Link href="/video-time-capsule">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Video Time Capsule</span>
                   <p className="text-sm text-muted-foreground">Messages for the future</p>
                 </div>

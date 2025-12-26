@@ -126,19 +126,19 @@ export default function LostFoundQR() {
             </h2>
             <div className="grid gap-3">
               <Link href="/medical-alert-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Medical Alert QR</span>
                   <p className="text-sm text-muted-foreground">Emergency info when you need it</p>
                 </div>
               </Link>
               <Link href="/personal-items-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Personal Items QR</span>
                   <p className="text-sm text-muted-foreground">Label all your gear</p>
                 </div>
               </Link>
               <Link href="/everyday-qr">
-                <div className="p-3 rounded-lg border hover-elevate cursor-pointer">
+                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
                   <span className="font-medium">Everyday QR</span>
                   <p className="text-sm text-muted-foreground">Practical QR for daily life</p>
                 </div>
