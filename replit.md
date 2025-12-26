@@ -31,7 +31,12 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 
 ### Core Features
 - Server-side QR code generation with customization options.
-- Five QR product lines: Simple QR (text/URL), QR + Text (header/footer), Custom Backgrounds (upload or templates for destination page), Video QR, and QR Dynamics™ (subscription-based dynamic content).
+- Five QR product lines (standardized naming December 2025):
+  1. **QR Basics** - Text, URL, or contact info encoded directly (permanent)
+  2. **QR Plus** - QR with header/footer text printed on product
+  3. **QR Canvas** - Custom background image on scan destination page + optional text
+  4. **QR Play** - Video playback when scanned + optional text
+  5. **QR Dynamics™** - Updateable destination, subscription-based, analytics
 - Multi-Provider Orchestration System for publishing products to various print providers and marketplaces (Printify, Printful, Apliiq, Etsy, eBay, Amazon).
 - Shopping cart and order processing.
 - Embeddable widget system for partners.

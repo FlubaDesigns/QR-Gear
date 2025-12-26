@@ -6,9 +6,11 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
-  "Update your QR destination anytime",
-  "Never reprint when content changes",
-  "Analytics and scan tracking",
+  "Scheduled changes - set it and forget it",
+  "Rotating content - cycle through multiple destinations",
+  "Daily sequences - prayers, tips, countdowns, advent calendars",
+  "User-controlled updates without reprinting",
+  "Scan analytics and tracking",
   "Premium subscription service",
 ];
 
@@ -53,9 +55,11 @@ export default function QRDynamicsLanding() {
             <h1 className="text-2xl md:text-4xl font-bold">QR Dynamics™</h1>
           </div>
           
+          <p className="text-xl font-medium text-foreground mb-2">Content that changes over time</p>
           <p className="text-lg text-muted-foreground mb-8">
-            Living QR codes you can update anytime. Change where your QR points 
-            without reprinting. Includes scan analytics and tracking.
+            The only QR tier with scheduled changes, rotating content, and daily sequences. 
+            Update where your QR points without reprinting - perfect for 12 Days of Christmas, daily prayers, 
+            rotating promotions, or any content that evolves. Includes scan analytics and tracking.
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">

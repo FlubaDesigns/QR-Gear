@@ -1,4 +1,4 @@
-import { Palette, CheckCircle, Image, Crop, Smartphone, ArrowRight } from "lucide-react";
+import { Palette, CheckCircle, Image, Crop, Smartphone, Gift, Building, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -10,23 +10,29 @@ const features = [
   "Or choose from our pre-designed templates",
   "Easy crop tool to get the perfect frame",
   "Mobile-optimized 9:16 display (optional)",
+  "Optional header/footer text on the product",
 ];
 
 const examples = [
   {
-    icon: Image,
-    title: "Your Own Photos",
-    text: "Upload a family photo, company logo backdrop, or any image you want",
+    icon: Gift,
+    title: "Personalized Gifts",
+    text: "Upload a family photo as the scan backdrop - a shirt that reveals cherished memories",
   },
   {
-    icon: Crop,
-    title: "Easy Cropping",
-    text: "Drag to select exactly the part of your image you want to show",
+    icon: Building,
+    title: "Brand Experience",
+    text: "Your logo and brand colors greet customers when they scan - instant brand immersion",
+  },
+  {
+    icon: Image,
+    title: "Event Backdrops",
+    text: "Wedding photos, party themes, or event branding as the scan destination",
   },
   {
     icon: Smartphone,
-    title: "Mobile-Ready",
-    text: "Optimized for phones - looks great when people scan your QR",
+    title: "Portfolio Showcase",
+    text: "Artists and photographers can display their work as the scan background",
   },
 ];
 
@@ -34,9 +40,9 @@ export default function QRUrlLanding() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
-        title="Custom Background QR Products | Upload Your Own Image"
-        description="Create QR code merchandise with custom backgrounds. Upload your own image or choose from templates. The background appears when people scan your QR. USA-made products."
-        keywords="custom QR background, upload image QR, personalized QR, custom QR merchandise"
+        title="QR Canvas | Custom Background QR Products | QR Gear"
+        description="Create QR Canvas merchandise - upload your own image that appears when people scan your QR. Custom backgrounds, templates, and optional text. USA-made products."
+        keywords="QR Canvas, custom QR background, upload image QR, personalized QR, custom QR merchandise"
       />
       <Navbar />
       <main className="flex-1 container py-12">
@@ -45,12 +51,13 @@ export default function QRUrlLanding() {
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <Palette className="w-8 h-8 md:w-10 md:h-10 text-primary" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold">Custom Backgrounds</h1>
+            <h1 className="text-2xl md:text-4xl font-bold">QR Canvas</h1>
           </div>
           
+          <p className="text-xl font-medium text-foreground mb-2">Design a custom image your QR opens to</p>
           <p className="text-lg text-muted-foreground mb-8">
-            When someone scans your QR, they see your custom background on their phone. 
-            Upload your own image or pick from our templates - it's the backdrop for your message.
+            Your creative canvas for the scan experience. When someone scans your QR, they see your custom background on their phone. 
+            Upload your own image or pick from our templates - plus optional header/footer text on the product itself.
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">
@@ -84,7 +91,7 @@ export default function QRUrlLanding() {
 
           <Link href="/creator?line=url">
             <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-url">
-              Create Custom Background QR
+              Create Your QR Canvas
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>

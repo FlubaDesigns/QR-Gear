@@ -39,9 +39,9 @@ export default function QRStaticPlusLanding() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
-        title="QR Code with Text | Header & Footer Custom QR Gear"
-        description="Create QR code merchandise with custom header and footer text. Add context and calls-to-action around your QR codes. USA-made products."
-        keywords="QR code with text, custom text QR, header footer QR, QR merchandise with text"
+        title="QR Plus | QR Code with Header & Footer Text | QR Gear"
+        description="Create QR Plus merchandise with custom header and footer text printed on the product. Add context and calls-to-action around your QR codes. USA-made products."
+        keywords="QR Plus, QR code with text, custom text QR, header footer QR, QR merchandise with text"
       />
       <Navbar />
       <main className="flex-1 container py-12">
@@ -50,12 +50,13 @@ export default function QRStaticPlusLanding() {
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-accent/10 flex items-center justify-center shrink-0">
               <Type className="w-8 h-8 md:w-10 md:h-10 text-accent" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold">QR Code + Text</h1>
+            <h1 className="text-2xl md:text-4xl font-bold">QR Plus</h1>
           </div>
           
+          <p className="text-xl font-medium text-foreground mb-2">Add a message above and below your QR</p>
           <p className="text-lg text-muted-foreground mb-8">
-            Make your QR code stand out with custom header and footer text. 
-            Add context, instructions, or a call-to-action right on the product.
+            Make your QR code stand out with custom header and footer text printed right on the product. 
+            Add context, instructions, or a call-to-action that people see before they even scan.
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">
@@ -89,7 +90,7 @@ export default function QRStaticPlusLanding() {
 
           <Link href="/creator?line=static-plus">
             <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-static-plus">
-              Create Your QR + Text
+              Create Your QR Plus
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>

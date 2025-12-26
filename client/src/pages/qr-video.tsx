@@ -1,4 +1,4 @@
-import { Upload, CheckCircle, ArrowRight, Heart, GraduationCap, Wrench, Users } from "lucide-react";
+import { Play, CheckCircle, ArrowRight, Heart, GraduationCap, Wrench, Users } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -7,9 +7,10 @@ import SEO from "@/components/SEO";
 
 const features = [
   "Upload any video file",
-  "Plays when QR is scanned",
+  "Plays instantly when QR is scanned",
   "Great for video messages and tutorials",
   "Cloud-hosted for instant playback",
+  "Optional header/footer text on the product",
 ];
 
 const examples = [
@@ -39,23 +40,24 @@ export default function QRVideoLanding() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
-        title="Video QR Products | Upload Video for Scannable Merchandise"
-        description="Upload your video and create scannable QR merchandise. Perfect for video messages, tutorials, and multimedia content. USA-made products."
-        keywords="video QR code, video QR products, scannable video, multimedia QR, video merchandise"
+        title="QR Play | Video QR Code Products | QR Gear"
+        description="Create QR Play merchandise - upload your video that plays instantly when scanned. Perfect for video messages, tutorials, and multimedia content. USA-made products."
+        keywords="QR Play, video QR code, video QR products, scannable video, multimedia QR, video merchandise"
       />
       <Navbar />
       <main className="flex-1 container py-12">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-accent/10 flex items-center justify-center shrink-0">
-              <Upload className="w-8 h-8 md:w-10 md:h-10 text-accent" />
+              <Play className="w-8 h-8 md:w-10 md:h-10 text-accent" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold">Video QR</h1>
+            <h1 className="text-2xl md:text-4xl font-bold">QR Play</h1>
           </div>
           
+          <p className="text-xl font-medium text-foreground mb-2">Bring your QR to life with video</p>
           <p className="text-lg text-muted-foreground mb-8">
-            Upload a video that plays when your QR code is scanned. 
-            Perfect for personal messages, tutorials, and multimedia content.
+            Press play on wearable video. Upload a video that plays instantly when your QR code is scanned. 
+            Perfect for personal messages, tutorials, and multimedia content - plus optional text on the product.
           </p>
 
           <div className="bg-card rounded-xl p-6 mb-6 text-left">
@@ -89,7 +91,7 @@ export default function QRVideoLanding() {
 
           <Link href="/creator?line=video">
             <Button size="lg" className="w-full min-h-14 text-lg bg-orange-500 hover:bg-orange-600 text-white" data-testid="button-create-video">
-              Create Your Video QR
+              Create Your QR Play
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>
