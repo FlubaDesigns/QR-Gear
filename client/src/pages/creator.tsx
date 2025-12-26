@@ -547,17 +547,51 @@ export default function Creator() {
   }, [qrContent, qrColor, qrBgColor, qrType]);
 
   const availablePlacements = selectedProduct?.availablePlacements || [];
-  const availableColors = (selectedProduct?.availableColors as any[]) || [];
-
-  const getAvailableSizes = () => {
+  
+  // Get colors/sizes filtered by admin's enabled settings
+  const getFilteredColors = () => {
     if (!selectedProduct) return [];
-    const productName = selectedProduct.name.toLowerCase();
-    if (productName.includes("mug")) return mugSizes;
-    if (productName.includes("hat") || productName.includes("cap")) return hatSizes;
-    if (productName.includes("bag") || productName.includes("tote")) return bagSizes;
-    return standardSizes;
+    const rawColors = Array.isArray((selectedProduct as any).availableColors) ? (selectedProduct as any).availableColors : [];
+    const colors = rawColors.map((c: any) => ({
+      name: typeof c === 'string' ? c : c.name || '',
+      hex: typeof c === 'string' ? getSwatchColor(c) : c.hex || getSwatchColor(c.name || '')
+    }));
+    const enabledColors = ((selectedProduct as any).metadata?.enabledColors as string[] | undefined);
+    if (enabledColors && enabledColors.length > 0) {
+      return colors.filter((c: any) => enabledColors.includes(c.name));
+    }
+    return colors;
   };
-  const availableSizes = getAvailableSizes();
+  const availableColors = getFilteredColors();
+
+  const getFilteredSizes = () => {
+    if (!selectedProduct) return [];
+    // Use product's availableSizes from admin config
+    const productSizes = Array.isArray((selectedProduct as any).availableSizes) ? (selectedProduct as any).availableSizes as string[] : [];
+    const enabledSizes = ((selectedProduct as any).metadata?.enabledSizes as string[] | undefined);
+    
+    // If product has specific sizes set, use those (filtered by enabled)
+    if (productSizes.length > 0) {
+      const filteredSizes = enabledSizes && enabledSizes.length > 0 
+        ? productSizes.filter(s => enabledSizes.includes(s))
+        : productSizes;
+      return filteredSizes.map(s => ({ label: s, value: s }));
+    }
+    
+    // Fallback to category-based sizes if no product-specific sizes
+    const productName = selectedProduct.name.toLowerCase();
+    let fallbackSizes = standardSizes;
+    if (productName.includes("mug")) fallbackSizes = mugSizes;
+    else if (productName.includes("hat") || productName.includes("cap")) fallbackSizes = hatSizes;
+    else if (productName.includes("bag") || productName.includes("tote")) fallbackSizes = bagSizes;
+    
+    // Filter fallback sizes by enabled if set
+    if (enabledSizes && enabledSizes.length > 0) {
+      return fallbackSizes.filter(s => enabledSizes.includes(s.value));
+    }
+    return fallbackSizes;
+  };
+  const availableSizes = getFilteredSizes();
 
   useEffect(() => {
     if (selectedProduct && availableSizes.length > 0 && !selectedSize) {
