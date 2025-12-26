@@ -16,23 +16,23 @@ const features = [
 const examples = [
   {
     icon: Gift,
-    title: "Personalized Gifts",
-    text: "Upload a family photo as the scan backdrop - a shirt that reveals cherished memories",
+    title: "The Gift That Keeps Giving",
+    text: "Grandma scans the hoodie. Her screen fills with the family reunion photo. Tears guaranteed.",
   },
   {
     icon: Building,
-    title: "Brand Experience",
-    text: "Your logo and brand colors greet customers when they scan - instant brand immersion",
+    title: "Brand Immersion in 3 Seconds",
+    text: "They scan. Your logo fills their screen. Your colors. Your vibe. Instant brand moment - no app download.",
   },
   {
     icon: Image,
-    title: "Event Backdrops",
-    text: "Wedding photos, party themes, or event branding as the scan destination",
+    title: "Wearable Wedding Favors",
+    text: "Guests take home shirts. Years later, they scan - and see the couple's first dance photo. Timeless.",
   },
   {
     icon: Smartphone,
-    title: "Portfolio Showcase",
-    text: "Artists and photographers can display their work as the scan background",
+    title: "Your Art, Full Screen",
+    text: "Painters, photographers, designers - your best work becomes the QR Space. A portable gallery on every shirt.",
   },
 ];
 

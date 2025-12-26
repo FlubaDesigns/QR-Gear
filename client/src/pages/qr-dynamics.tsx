@@ -19,23 +19,23 @@ const features = [
 const examples = [
   {
     icon: Building2,
-    title: "Real Estate Agents",
-    text: "Same polo for every listing - just update the QR to point to your current property",
+    title: "One Polo, Infinite Listings",
+    text: "Monday it's the downtown condo. Friday it's the lakefront estate. Same shirt - different property every week.",
   },
   {
     icon: CalendarDays,
-    title: "Event Organizers",
-    text: "Reuse crew shirts season after season - update to this year's schedule before each event",
+    title: "12 Days of Christmas, Automated",
+    text: "Day 1: A new devotional. Day 2: Different verse. Day 12: Grand finale. Set it once, it runs itself.",
   },
   {
     icon: Music,
-    title: "Musicians & DJs",
-    text: "Merch that stays current - link to your latest album, tour dates, or streaming profile",
+    title: "Merch That Never Goes Stale",
+    text: "Tour ends? Update to the new album. Single drops? Link it. Your shirt stays as current as your Spotify.",
   },
   {
     icon: TrendingUp,
-    title: "Sales Teams",
-    text: "Track which reps get the most scans - update destinations for seasonal campaigns",
+    title: "The Shirt That Reports Back",
+    text: "Track every scan. See which rep gets traction. Update the destination mid-campaign without printing a thing.",
   },
 ];
 

@@ -15,28 +15,28 @@ const features = [
 const examples = [
   {
     icon: Link2,
-    title: "Direct Website Link",
-    text: "Point straight to your website, portfolio, or any URL - one scan, instant access",
+    title: "Instant Website Access",
+    text: "\"Just scan my shirt.\" One tap lands them on your site, portfolio, or booking page. No typing, no searching.",
   },
   {
     icon: Coffee,
-    title: "Office Coffee Mug",
-    text: "Your name, department, and extension so coworkers know whose mug they borrowed",
+    title: "The Mug That Finds Its Way Home",
+    text: "When Karen \"borrows\" your mug again, she'll know exactly whose it is. Name, desk, extension - all encoded.",
   },
   {
     icon: Dumbbell,
-    title: "Gym Bag Tag",
-    text: "Full contact info - name, phone, email, address - in case it gets lost",
+    title: "Lost & Found Hero",
+    text: "Gym bag goes missing? Your contact info is baked right in. Good samaritans just scan and call.",
   },
   {
     icon: Briefcase,
-    title: "Networking Polo",
-    text: "Your complete vCard with business info - one scan saves your contact",
+    title: "Networking on Autopilot",
+    text: "Skip the business card shuffle. They scan, your vCard saves. You're in their phone before the handshake ends.",
   },
   {
     icon: Heart,
-    title: "Medical Alert",
-    text: "Emergency contacts, allergies, medications, blood type - vital info when it matters",
+    title: "Silent Lifesaver",
+    text: "Allergies. Blood type. Emergency contacts. Medications. When you can't speak, your shirt can.",
   },
 ];
 

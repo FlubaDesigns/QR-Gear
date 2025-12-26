@@ -15,23 +15,23 @@ const features = [
 const examples = [
   {
     icon: Store,
-    title: "Retail Staff Shirts",
-    text: "\"SCAN FOR HELP\" above the QR, store website below - customers know exactly what to do",
+    title: "The Self-Service Staff",
+    text: "\"NEED HELP? SCAN ME\" - customers get answers without hunting down an employee. Your team handles fewer interruptions.",
   },
   {
     icon: Calendar,
-    title: "Event Crew Gear",
-    text: "\"SCHEDULE\" header with \"#YourEvent2025\" footer - everyone finds the lineup fast",
+    title: "Festival Crew That Directs Itself",
+    text: "\"SCHEDULE\" up top, \"#SummerFest2025\" below. Attendees find stages, times, and lineups without asking.",
   },
   {
     icon: Gift,
-    title: "Giveaway Merch",
-    text: "\"WIN BIG!\" up top, \"Enter Now\" below - turns any shirt into a contest entry point",
+    title: "Walking Sweepstakes",
+    text: "\"WIN $500\" screams the header. \"Scan to Enter\" seals the deal. Your giveaway walks through the crowd.",
   },
   {
     icon: Megaphone,
-    title: "Promo Campaigns",
-    text: "\"20% OFF\" header with your promo code as footer - wearable discount billboard",
+    title: "The Discount That Wears You",
+    text: "\"25% OFF TODAY\" header. Promo code footer. Customers photograph your shirt and shop from their couch.",
   },
 ];
 

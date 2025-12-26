@@ -16,23 +16,23 @@ const features = [
 const examples = [
   {
     icon: Heart,
-    title: "Memorial Tributes",
-    text: "A hoodie with grandpa's photo - scan to watch his favorite stories and memories",
+    title: "Grandpa Lives On",
+    text: "The hoodie has his photo. Scan it, and there he is - telling his favorite fishing story. Forever.",
   },
   {
     icon: GraduationCap,
-    title: "Graduation Gifts",
-    text: "Family video messages on a grad's new shirt - they can watch anytime they miss home",
+    title: "Home in Their Pocket",
+    text: "The whole family recorded messages. Now every time they miss you, they scan the shirt. Instant comfort.",
   },
   {
     icon: Wrench,
-    title: "How-To Gear",
-    text: "Work uniform links to assembly videos - new hires scan and learn right on the job",
+    title: "Training That Never Leaves",
+    text: "New hire scans the uniform, gets the how-to video. No shadowing. No questions. Just scan and learn.",
   },
   {
     icon: Users,
-    title: "Team Introductions",
-    text: "Company polo plays your \"About Us\" video - clients get the full story instantly",
+    title: "The Handshake Before the Handshake",
+    text: "Client scans your polo. Watches your company story. By the time you meet, they already trust you.",
   },
 ];
 
