@@ -1,7 +1,5 @@
 import { Sparkles, CheckCircle, ArrowRight, Calendar, Music, Building2, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -50,80 +48,80 @@ const popularUses = [
 
 export default function QRDynamicsLanding() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="vanity-page">
       <SEO 
         title="QR Dynamics™ | Living QR Codes You Can Update Anytime"
         description="Create QR Dynamics - living QR codes that link to pages you control. Update content, schedule changes, rotate destinations, track engagement. Premium subscription QR merchandise."
         keywords="QR Dynamics, dynamic QR code, living QR code, updateable QR, subscription QR, scheduled QR, analytics QR"
       />
       <Navbar />
-      <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-primary" />
+      <main className="vanity-content">
+        <div className="vanity-container">
+          <div className="vanity-header">
+            <div className="vanity-header-icon">
+              <Sparkles />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">State: Living</p>
-              <h1 className="text-2xl md:text-4xl font-bold">QR Dynamics™</h1>
+            <div className="vanity-header-text">
+              <p className="vanity-category">State: Living</p>
+              <h1 className="vanity-title">QR Dynamics™</h1>
             </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">Content that changes over time.</p>
-          <p className="text-lg text-muted-foreground mb-4">
+          <p className="vanity-tagline">Content that changes over time.</p>
+          <p className="vanity-description">
             Your personal QR Space — digital real estate you control. 
             QR Dynamics™ is the only state where your QR evolves. Update content, schedule changes, 
             rotate destinations, and track engagement — all without reprinting a thing.
           </p>
-          <p className="text-lg text-muted-foreground mb-8">
+          <p className="vanity-description">
             Choose your Space Term (1 year / 3 year / 5 year) and manage content that lives, moves, and grows.
           </p>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-4">What you get:</h2>
-            <ul className="space-y-3">
+          <div className="glass-card vanity-features">
+            <h2 className="vanity-features-title">What you get:</h2>
+            <ul className="vanity-features-list">
               {features.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                <li key={i} className="vanity-feature-item">
+                  <CheckCircle />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-8">
-            <h2 className="font-semibold mb-6">Popular Uses:</h2>
-            <div className="grid gap-6">
+          <div className="glass-card vanity-items">
+            <h2 className="vanity-items-title">Popular Uses:</h2>
+            <div className="vanity-use-cases-grid">
               {popularUses.map((use, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <use.icon className="w-6 h-6 text-primary" />
+                <div key={i} className="vanity-use-case">
+                  <div className="vanity-use-case-icon">
+                    <use.icon />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-1">{use.title}</h3>
-                    <p className="text-muted-foreground whitespace-pre-line mb-3">{use.description}</p>
+                  <div className="vanity-use-case-content">
+                    <h3>{use.title}</h3>
+                    <p className="vanity-use-case-multiline">{use.description}</p>
                     <Link href={use.link}>
-                      <Button variant="outline" size="sm" className="min-h-12" data-testid={`button-use-${i}`}>
+                      <button className="vanity-btn-outline" data-testid={`button-use-${i}`}>
                         {use.linkText}
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
+                        <ArrowRight />
+                      </button>
                     </Link>
                   </div>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-8 bg-primary/5 border-primary/20 text-center">
-            <p className="text-lg font-medium mb-2">QR Dynamics™ isn't a link.</p>
-            <p className="text-2xl font-bold text-primary">It's space.</p>
-          </Card>
+          <div className="glass-card vanity-highlight vanity-centered">
+            <p className="vanity-tagline">QR Dynamics™ isn't a link.</p>
+            <p className="vanity-title-accent">It's space.</p>
+          </div>
 
           <Link href="/creator?line=dynamics">
-            <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-dynamics">
+            <button className="vanity-cta" data-testid="button-create-dynamics">
               Create Your QR Dynamics
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+              <ArrowRight />
+            </button>
           </Link>
 
         </div>

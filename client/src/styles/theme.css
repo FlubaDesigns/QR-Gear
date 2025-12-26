@@ -792,3 +792,170 @@ html[data-theme="light"] .vanity-highlight-icon {
   font-size: 0.875rem;
   color: var(--text-2);
 }
+
+/* Scenarios grid */
+.vanity-scenarios-title {
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vanity-scenarios-title svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--accent);
+}
+
+.vanity-scenarios-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+/* CTA button groups */
+.vanity-cta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.vanity-cta-secondary {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-stroke);
+  color: var(--text-0);
+}
+
+.vanity-cta-secondary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 0 20px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.4);
+}
+
+.vanity-cta-secondary svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.vanity-back-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Product type pages - use case cards */
+.vanity-use-case {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.vanity-use-case-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--glass-fill), transparent);
+  border: 1px solid var(--glass-stroke);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vanity-use-case-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--accent);
+}
+
+.vanity-use-case-content {
+  flex: 1;
+}
+
+.vanity-use-case-content h3 {
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin-bottom: 0.25rem;
+  color: var(--text-0);
+}
+
+.vanity-use-case-content p {
+  color: var(--text-2);
+  margin-bottom: 0.75rem;
+}
+
+.vanity-use-case-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.vanity-use-cases-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* Outline button for use cases */
+.vanity-btn-outline {
+  min-height: 3rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px solid var(--glass-stroke);
+  color: var(--text-1);
+}
+
+.vanity-btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 12px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.2);
+}
+
+.vanity-btn-outline svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Multiline text in use cases */
+.vanity-use-case-multiline {
+  white-space: pre-line;
+}
+
+/* Muted card variant */
+.vanity-muted {
+  opacity: 0.8;
+}
+
+/* Centered highlight card */
+.vanity-centered {
+  text-align: center;
+}
+
+.vanity-title-accent {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}

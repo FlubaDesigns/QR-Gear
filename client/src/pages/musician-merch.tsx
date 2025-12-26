@@ -1,7 +1,5 @@
 import { Music, CheckCircle, Play, Disc, Users, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -42,145 +40,147 @@ const ideas = [
 
 export default function MusicianMerch() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="vanity-page">
       <SEO 
         title="Musician Merch | Band Shirts with Scannable Media | QR Gear"
         description="Create band merch with scannable QR codes. Fans scan to see album art or watch music videos. Perfect for tours, album drops, and exclusive content. USA options available."
         keywords="band merch, musician shirts, album art shirts, tour merchandise, music video shirts, artist merch, band merchandise, QR music"
       />
       <Navbar />
-      <main className="flex-1 container py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-orange-500/10 flex items-center justify-center shrink-0">
-              <Music className="w-8 h-8 md:w-10 md:h-10 text-orange-500" />
+      <main className="vanity-content">
+        <div className="vanity-container">
+          <div className="vanity-header">
+            <div className="vanity-header-icon">
+              <Music />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">QR Canvas + QR Play</p>
-              <h1 className="text-2xl md:text-4xl font-bold">Musician Merch</h1>
+            <div className="vanity-header-text">
+              <p className="vanity-category">QR Canvas + QR Play</p>
+              <h1 className="vanity-title">Musician Merch</h1>
             </div>
           </div>
           
-          <p className="text-xl font-medium text-foreground mb-2">Merch that plays.</p>
-          <p className="text-lg text-muted-foreground mb-4">
+          <p className="vanity-tagline">Merch that plays.</p>
+          <p className="vanity-description">
             Your fans don't just wear your shirt — they interact with it. 
             Album art that fills their screen. Music videos that play on scan. 
             This is merch for the streaming era.
           </p>
-          <p className="text-lg text-muted-foreground mb-8 italic">
+          <p className="vanity-description vanity-italic">
             "Album art that plays when scanned."
           </p>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Disc className="w-5 h-5 text-orange-500" />
+          <div className="glass-card vanity-features">
+            <h2 className="vanity-features-title">
+              <Disc />
               QR Canvas — Album Art:
             </h2>
-            <ul className="space-y-3">
+            <ul className="vanity-features-list">
               {canvasFeatures.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                <li key={i} className="vanity-feature-item">
+                  <CheckCircle />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Play className="w-5 h-5 text-orange-500" />
+          <div className="glass-card vanity-features">
+            <h2 className="vanity-features-title">
+              <Play />
               QR Play — Video Content:
             </h2>
-            <ul className="space-y-3">
+            <ul className="vanity-features-list">
               {playFeatures.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                <li key={i} className="vanity-feature-item">
+                  <CheckCircle />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-6">
-            <h2 className="font-semibold mb-6 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
+          <div className="glass-card vanity-scenarios">
+            <h2 className="vanity-scenarios-title">
+              <Sparkles />
               Ideas for your drop:
             </h2>
-            <div className="grid gap-4">
+            <div className="vanity-scenarios-grid">
               {ideas.map((idea, i) => (
-                <div key={i} className="border-l-2 border-orange-500/30 pl-4">
-                  <h3 className="font-medium">{idea.title}</h3>
-                  <p className="text-sm text-muted-foreground">{idea.description}</p>
+                <div key={i} className="vanity-scenario">
+                  <h3>{idea.title}</h3>
+                  <p>{idea.description}</p>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6 mb-8 bg-orange-500/5 border-orange-500/20">
-            <div className="flex items-start gap-4">
-              <Users className="w-8 h-8 text-orange-500 shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">No minimums, no inventory</h3>
-                <p className="text-sm text-muted-foreground">
+          <div className="glass-card vanity-highlight">
+            <div className="vanity-highlight-inner">
+              <div className="vanity-highlight-icon">
+                <Users />
+              </div>
+              <div className="vanity-highlight-content">
+                <h3>No minimums, no inventory</h3>
+                <p>
                   Every shirt is made when ordered. Sell through your website, at shows, or wherever your fans find you. 
                   You focus on the music — we handle the printing.
                 </p>
               </div>
             </div>
-          </Card>
+          </div>
 
-          <div className="grid gap-3 mb-4">
+          <div className="vanity-cta-group">
             <Link href="/creator?line=url">
-              <Button size="lg" className="w-full min-h-14 text-lg" data-testid="button-create-album-art">
+              <button className="vanity-cta" data-testid="button-create-album-art">
                 Create Album Art Merch (QR Canvas)
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+                <ArrowRight />
+              </button>
             </Link>
             <Link href="/creator?line=video">
-              <Button size="lg" variant="outline" className="w-full min-h-14 text-lg" data-testid="button-create-video-merch">
+              <button className="vanity-cta-secondary" data-testid="button-create-video-merch">
                 Create Video Merch (QR Play)
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+                <ArrowRight />
+              </button>
             </Link>
           </div>
 
-          <Card className="p-6 mt-8">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
+          <div className="glass-card vanity-related">
+            <h2 className="vanity-related-title">
+              <Sparkles />
               Related Ideas
             </h2>
-            <div className="grid gap-3">
+            <div className="vanity-related-grid">
               <Link href="/artist-qr-apparel">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Artist Portfolio Shirts</span>
-                  <p className="text-sm text-muted-foreground">Wearable gallery for visual artists</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Artist Portfolio Shirts</span>
+                  <p>Wearable gallery for visual artists</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Band Dynamic Merch</span>
-                  <p className="text-sm text-muted-foreground">Updateable tour dates and setlists</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Band Dynamic Merch</span>
+                  <p>Updateable tour dates and setlists</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="p-3 rounded-lg border hover-glow-accent cursor-pointer">
-                  <span className="font-medium">Event QR Shirts</span>
-                  <p className="text-sm text-muted-foreground">Perfect for concerts and festivals</p>
+                <div className="glass-card vanity-related-link">
+                  <span>Event QR Shirts</span>
+                  <p>Perfect for concerts and festivals</p>
                 </div>
               </Link>
             </div>
-          </Card>
+          </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <Link href="/qr-url" className="flex-1">
-              <Button variant="ghost" className="w-full min-h-12" data-testid="button-back-canvas">
+          <div className="vanity-back-group">
+            <Link href="/qr-url">
+              <button className="vanity-back" data-testid="button-back-canvas">
                 ← Back to QR Canvas
-              </Button>
+              </button>
             </Link>
-            <Link href="/qr-video" className="flex-1">
-              <Button variant="ghost" className="w-full min-h-12" data-testid="button-see-play">
+            <Link href="/qr-video">
+              <button className="vanity-back" data-testid="button-see-play">
                 See QR Play →
-              </Button>
+              </button>
             </Link>
           </div>
 
