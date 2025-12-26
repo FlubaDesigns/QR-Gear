@@ -17,11 +17,56 @@ import Navbar from "@/components/Navbar";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
-import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail } from "lucide-react";
+import { Upload, ImageIcon, Loader2, Palette, LayoutTemplate, Check, RefreshCw, Share2, Copy, Facebook, Twitter, Mail, ChevronRight, Sparkles, Video, Type, Image } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageDesigner from "@/components/ImageDesigner";
 import ProductMockup from "@/components/ProductMockup";
 import type { Product, QrTemplate, HostingTier } from "@shared/schema";
+
+type ProductLine = "static" | "static-plus" | "url" | "video" | "dynamics";
+
+const productLineConfig: Record<ProductLine, {
+  label: string;
+  description: string;
+  icon: any;
+  qrTypes: string[];
+  upsell?: { line: ProductLine; message: string };
+}> = {
+  "static": {
+    label: "Simple QR",
+    description: "Basic text or URL encoded in QR code",
+    icon: Type,
+    qrTypes: ["text"],
+    upsell: { line: "static-plus", message: "Add header/footer text for more impact" },
+  },
+  "static-plus": {
+    label: "QR + Text",
+    description: "Add header and footer text around your QR",
+    icon: Type,
+    qrTypes: ["text"],
+    upsell: { line: "url", message: "Use pre-designed backgrounds for gift-ready products" },
+  },
+  "url": {
+    label: "Gift Backgrounds",
+    description: "Pre-designed templates with your QR placed perfectly",
+    icon: Image,
+    qrTypes: ["template"],
+    upsell: { line: "dynamics", message: "Go Dynamic - update your content anytime without reprinting" },
+  },
+  "video": {
+    label: "Video QR",
+    description: "Upload a video that plays when scanned",
+    icon: Video,
+    qrTypes: ["upload"],
+    upsell: { line: "dynamics", message: "Go Dynamic - swap videos anytime with QR Dynamics" },
+  },
+  "dynamics": {
+    label: "QR Dynamics™",
+    description: "Living QR codes you can update anytime",
+    icon: Sparkles,
+    qrTypes: ["dynamic"],
+  },
+};
 
 const placementLabels: Record<string, string> = {
   "front": "Front",
@@ -100,6 +145,7 @@ export default function Creator() {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const { addItem: addGuestItem } = useGuestCart();
+  const [productLine, setProductLine] = useState<ProductLine>("static");
   const [qrType, setQrType] = useState<"text" | "image" | "upload" | "design" | "template" | "dynamic">("text");
   const [qrContent, setQrContent] = useState("");
   const [kcBusinessSlug, setKcBusinessSlug] = useState<string | null>(null);
@@ -112,7 +158,31 @@ export default function Creator() {
       const kcBusinessUrl = `https://kingdomconnects.org/business/${slug}.htm`;
       setQrContent(kcBusinessUrl);
     }
+    
+    const lineParam = urlParams.get("line") as ProductLine | null;
+    if (lineParam && productLineConfig[lineParam]) {
+      setProductLine(lineParam);
+      const config = productLineConfig[lineParam];
+      if (config.qrTypes[0] === "text") setQrType("text");
+      else if (config.qrTypes[0] === "template") setQrType("template");
+      else if (config.qrTypes[0] === "upload") setQrType("upload");
+      else if (config.qrTypes[0] === "dynamic") setQrType("dynamic");
+    }
   }, []);
+  
+  const handleProductLineChange = (line: ProductLine) => {
+    setProductLine(line);
+    const config = productLineConfig[line];
+    if (config.qrTypes[0] === "text") setQrType("text");
+    else if (config.qrTypes[0] === "template") setQrType("template");
+    else if (config.qrTypes[0] === "upload") setQrType("upload");
+    else if (config.qrTypes[0] === "dynamic") setQrType("dynamic");
+    setQrContent("");
+    setUploadedImage(null);
+    setSelectedTemplate(null);
+  };
+  
+  const currentLineConfig = productLineConfig[productLine];
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
   const [qrCodeImage, setQrCodeImage] = useState("");
@@ -633,9 +703,50 @@ export default function Creator() {
       <PageBreadcrumb currentPage="Create" />
       <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
         <h1 className="font-heading text-2xl sm:text-4xl font-bold mb-2">QR Code Creator</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
+        <p className="text-sm sm:text-base text-muted-foreground mb-4">
           Design your custom QR code product in three easy steps
         </p>
+
+        {/* Product Line Selector */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-6" data-testid="product-line-selector">
+          {(Object.entries(productLineConfig) as [ProductLine, typeof productLineConfig[ProductLine]][]).map(([key, config]) => {
+            const IconComponent = config.icon;
+            return (
+              <button
+                key={key}
+                onClick={() => handleProductLineChange(key)}
+                className={`qr-touch-48 flex flex-col items-center justify-center p-3 sm:p-4 rounded-md border transition-all ${
+                  productLine === key
+                    ? "border-primary bg-primary/10 ring-2 ring-primary"
+                    : "border-border hover-elevate"
+                }`}
+                data-testid={`button-line-${key}`}
+              >
+                <IconComponent className={`h-5 w-5 sm:h-6 sm:w-6 mb-1 ${productLine === key ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`text-xs sm:text-sm font-medium ${productLine === key ? "text-primary" : ""}`}>
+                  {config.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Upsell Banner */}
+        {currentLineConfig.upsell && (
+          <div 
+            className="mb-6 p-3 sm:p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-md flex items-center justify-between gap-3 cursor-pointer hover-elevate"
+            onClick={() => handleProductLineChange(currentLineConfig.upsell!.line)}
+            data-testid="banner-upsell"
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-primary shrink-0" />
+              <p className="text-sm">
+                <span className="font-medium">Upgrade:</span> {currentLineConfig.upsell.message}
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-primary shrink-0" />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Configuration Panel */}

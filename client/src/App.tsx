@@ -36,6 +36,11 @@ import AdminEmailTemplates from "@/pages/admin-email-templates";
 import ShopSegment from "@/pages/shop-segment";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import QRStatic from "@/pages/qr-static";
+import QRStaticPlus from "@/pages/qr-static-plus";
+import QRUrl from "@/pages/qr-url";
+import QRVideo from "@/pages/qr-video";
+import QRDynamics from "@/pages/qr-dynamics";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -76,6 +81,11 @@ function Router() {
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/qr-static" component={QRStatic} />
+      <Route path="/qr-static-plus" component={QRStaticPlus} />
+      <Route path="/qr-url" component={QRUrl} />
+      <Route path="/qr-video" component={QRVideo} />
+      <Route path="/qr-dynamics" component={QRDynamics} />
       <Route component={NotFound} />
     </Switch>
   );
