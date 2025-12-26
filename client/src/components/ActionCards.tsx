@@ -22,10 +22,10 @@ const actionCards = [
   },
   {
     icon: Palette,
-    title: "Gift Backgrounds",
-    description: "Pre-designed templates with your QR placed perfectly - religious, sports, business themes.",
+    title: "Custom Backgrounds",
+    description: "Upload your own background or choose a template - it shows when people scan your QR.",
     href: "/qr-url",
-    buttonText: "Browse Designs",
+    buttonText: "Add Background",
     color: "ice",
   },
   {

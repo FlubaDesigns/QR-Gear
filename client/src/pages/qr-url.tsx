@@ -1,22 +1,40 @@
-import { Palette, CheckCircle } from "lucide-react";
+import { Palette, CheckCircle, Image, Crop, Smartphone } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
-  "Pre-designed gift backgrounds",
-  "Religious, sports, and business themes",
-  "Professional QR placement included",
-  "Perfect for gifts and special occasions",
+  "Upload your own background image",
+  "Or choose from our pre-designed templates",
+  "Easy crop tool to get the perfect frame",
+  "Mobile-optimized 9:16 display (optional)",
+];
+
+const examples = [
+  {
+    icon: Image,
+    title: "Your Own Photos",
+    text: "Upload a family photo, company logo backdrop, or any image you want",
+  },
+  {
+    icon: Crop,
+    title: "Easy Cropping",
+    text: "Drag to select exactly the part of your image you want to show",
+  },
+  {
+    icon: Smartphone,
+    title: "Mobile-Ready",
+    text: "Optimized for phones - looks great when people scan your QR",
+  },
 ];
 
 export default function QRUrlLanding() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SEO 
-        title="Gift Background QR Products | Pre-Designed QR Templates"
-        description="Choose from beautiful pre-designed backgrounds for your QR code gifts. Religious, sports, business themes with perfect QR placement. USA-made merchandise."
-        keywords="QR gift backgrounds, QR templates, pre-designed QR, gift QR products, themed QR merchandise"
+        title="Custom Background QR Products | Upload Your Own Image"
+        description="Create QR code merchandise with custom backgrounds. Upload your own image or choose from templates. The background appears when people scan your QR. USA-made products."
+        keywords="custom QR background, upload image QR, personalized QR, custom QR merchandise"
       />
       <Navbar />
       <main className="flex-1 container py-12">
@@ -25,13 +43,13 @@ export default function QRUrlLanding() {
             <Palette className="w-10 h-10 text-primary" />
           </div>
           
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Gift Backgrounds</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Custom Backgrounds</h1>
           <p className="text-lg text-muted-foreground mb-8">
-            Browse our collection of beautiful pre-designed backgrounds. 
-            Your QR code is placed perfectly on themes for any occasion.
+            When someone scans your QR, they see your custom background on their phone. 
+            Upload your own image or pick from our templates - it's the backdrop for your message.
           </p>
 
-          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+          <div className="bg-card rounded-xl p-6 mb-6 text-left">
             <h2 className="font-semibold mb-4">What you get:</h2>
             <ul className="space-y-3">
               {features.map((feature, i) => (
@@ -41,6 +59,23 @@ export default function QRUrlLanding() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="bg-card rounded-xl p-6 mb-8 text-left">
+            <h2 className="font-semibold mb-4">How it works:</h2>
+            <div className="grid gap-4">
+              {examples.map((example, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <example.icon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{example.title}</h3>
+                    <p className="text-sm text-muted-foreground">{example.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>
