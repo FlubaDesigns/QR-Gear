@@ -30,8 +30,8 @@ export default function Hero() {
 
         <div className="glass card product">
           <div className="card__title">
-            Real Product
-            <span className="pill">Fabric + Stitch</span>
+            One-of-a-Kind Gear
+            <span className="pill">USA-Made</span>
           </div>
 
           <div className="product__media">
@@ -42,7 +42,7 @@ export default function Hero() {
             />
           </div>
 
-          <div className="product__label">Stitch • Scan • Connect</div>
+          <div className="product__label">Yours Alone • Made to Order</div>
         </div>
       </div>
     </section>
