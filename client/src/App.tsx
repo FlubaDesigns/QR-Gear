@@ -41,6 +41,7 @@ import QRPlus from "@/pages/qr-plus";
 import QRCanvas from "@/pages/qr-canvas";
 import QRPlay from "@/pages/qr-play";
 import QRDynamics from "@/pages/qr-dynamics";
+import QRHistory from "@/pages/qr-history";
 import WeddingQRShirts from "@/pages/wedding-qr-shirts";
 import FamilyReunionShirts from "@/pages/family-reunion-shirts";
 import ArtistQRApparel from "@/pages/artist-qr-apparel";
@@ -108,6 +109,7 @@ function Router() {
       <Route path="/qr-canvas" component={QRCanvas} />
       <Route path="/qr-play" component={QRPlay} />
       <Route path="/qr-dynamics" component={QRDynamics} />
+      <Route path="/qr-history" component={QRHistory} />
       <Route path="/wedding-qr-shirts" component={WeddingQRShirts} />
       <Route path="/family-reunion-shirts" component={FamilyReunionShirts} />
       <Route path="/artist-qr-apparel" component={ArtistQRApparel} />

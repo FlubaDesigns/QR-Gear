@@ -1887,3 +1887,225 @@ html[data-theme="light"] .vanity-highlight-icon {
   width: 1.25rem;
   height: 1.25rem;
 }
+
+/* =========================================================
+   QR History Page - Timeline
+   ========================================================= */
+
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.timeline-card {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.timeline-year {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ice-1);
+  min-width: 4rem;
+  text-align: center;
+}
+
+.timeline-content {
+  flex: 1;
+}
+
+.timeline-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-0);
+  margin-bottom: 0.5rem;
+}
+
+.timeline-content p {
+  font-size: 0.9375rem;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.timeline-icon {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .timeline-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-bottom: 0.75rem;
+  }
+  
+  .timeline-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/* Fun Facts Grid */
+.facts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .facts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .facts-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.fact-card {
+  padding: 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.fact-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ice-2);
+  opacity: 0.6;
+  line-height: 1;
+}
+
+.fact-card p {
+  font-size: 0.875rem;
+  color: var(--text-1);
+  line-height: 1.5;
+}
+
+/* CTA Card */
+.cta-card {
+  text-align: center;
+  padding: 3rem 2rem;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+.cta-card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-0);
+  margin-bottom: 0.75rem;
+}
+
+.cta-card p {
+  font-size: 1rem;
+  color: var(--text-2);
+  margin-bottom: 1.5rem;
+}
+
+/* =========================================================
+   Homepage Marketing Sections
+   ========================================================= */
+
+.message-section {
+  padding: 4rem 1rem;
+}
+
+@media (min-width: 768px) {
+  .message-section {
+    padding: 6rem 1rem;
+  }
+}
+
+.message-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .message-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.message-card {
+  padding: 2rem;
+}
+
+.message-card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ice-1);
+  margin-bottom: 1rem;
+}
+
+.message-card p {
+  font-size: 1rem;
+  color: var(--text-1);
+  line-height: 1.7;
+}
+
+.message-tagline {
+  font-size: 1.125rem;
+  font-style: italic;
+  color: var(--accent);
+  margin-top: 1rem;
+}
+
+/* History Teaser */
+.history-teaser {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .history-teaser {
+    flex-direction: row;
+    text-align: left;
+    padding: 1.25rem 2rem;
+  }
+}
+
+.history-teaser-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.history-teaser-content {
+  flex: 1;
+}
+
+.history-teaser-content h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-0);
+  margin-bottom: 0.25rem;
+}
+
+.history-teaser-content p {
+  font-size: 0.875rem;
+  color: var(--text-2);
+}

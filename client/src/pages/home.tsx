@@ -2,6 +2,7 @@ import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
 import HowItWorks from "@/components/HowItWorks";
+import MarketingMessage, { HistoryTeaser } from "@/components/MarketingMessage";
 import ImpactStats from "@/components/ImpactStats";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import Footer from "@/components/Footer";
@@ -19,6 +20,8 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <ActionCards />
+        <MarketingMessage />
+        <HistoryTeaser />
         <QuickLinks />
         <HowItWorks />
         <ImpactStats />
