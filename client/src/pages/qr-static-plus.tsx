@@ -9,7 +9,7 @@ const features = [
   "Footer text below for clarity or instructions",
   "Multiple font styles and sizes",
   "Clean, readable layouts",
-  "Permanent QR — never expires or changes",
+  "Permanent QR code (no expiration)",
   "USA options available",
 ];
 
@@ -18,7 +18,7 @@ const personalUses = [
     icon: User,
     title: "Personal Items",
     examples: ["IF FOUND, PLEASE CALL", "THIS BELONGS TO JESS", "MEDICAL INFO – SCAN"],
-    description: "Simple words make all the difference.",
+    description: "Simple words make all the difference when it matters.",
     link: "/personal-items-qr",
     linkText: "Personal Item Ideas",
   },
@@ -26,7 +26,7 @@ const personalUses = [
     icon: Calendar,
     title: "Events & Groups",
     examples: ["EVENT SCHEDULE", "JOIN THE GROUP", "PHOTOS FROM TODAY"],
-    description: "People know what they're getting before they scan.",
+    description: "People know exactly what they're getting before they scan.",
     link: "/event-qr-shirts",
     linkText: "Event Ideas",
   },
