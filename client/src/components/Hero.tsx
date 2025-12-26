@@ -1,13 +1,17 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { QRButton } from "@/components/QRButton";
-import heroImage from "@assets/generated_images/Hero_lifestyle_QR_shirt_bd1f5f41.png";
+import blueShirtImage from "@assets/generated_images/blue_t-shirt_with_qr_code.png";
+import hoodieImage from "@assets/generated_images/navy_hoodie_with_qr_code.png";
+import capImage from "@assets/generated_images/Phone_scanning_QR_cap_37352447.png";
+import bagImage from "@assets/generated_images/Gym_bag_QR_mockup_9450e53d.png";
+import mugImage from "@assets/generated_images/white_mug_with_qr_code.png";
 
 const productImages = [
-  { src: heroImage, label: "T-Shirt" },
-  { src: heroImage, label: "Hoodie" },
-  { src: heroImage, label: "Polo" },
-  { src: heroImage, label: "Mug" },
+  { src: hoodieImage, label: "Hoodie" },
+  { src: capImage, label: "Cap" },
+  { src: bagImage, label: "Bag" },
+  { src: mugImage, label: "Mug" },
 ];
 
 function ProductCarousel() {
@@ -76,8 +80,8 @@ export default function Hero() {
           <div className="flex gap-4 items-center">
             <div className="product__media flex-1">
               <img 
-                src={heroImage} 
-                alt="QR Gear shirt mockup" 
+                src={blueShirtImage} 
+                alt="QR Gear blue shirt mockup" 
                 data-testid="img-hero-product"
               />
             </div>
