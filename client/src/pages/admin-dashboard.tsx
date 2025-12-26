@@ -166,19 +166,24 @@ export default function AdminDashboard() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <LayoutDashboard className="qr-admin-bar__icon" />
+              <LayoutDashboard className="qr-admin-bar__icon hidden sm:block" />
               <div>
                 <h1 className="qr-admin-bar__title" data-testid="text-page-title">
                   Dashboard
                 </h1>
-                <p className="qr-admin-bar__subtitle">
+                <p className="qr-admin-bar__subtitle hidden sm:block">
                   Business metrics & health
                 </p>
               </div>
             </div>
           </div>
           <div className="qr-admin-bar__right">
-            <Button asChild variant="outline" className="border-slate-600 text-slate-300 min-h-12">
+            <Button asChild variant="outline" size="icon" className="border-slate-600 text-slate-300 qr-touch-48 sm:hidden">
+              <Link href="/admin/health">
+                <Activity className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="border-slate-600 text-slate-300 qr-touch-48 hidden sm:flex">
               <Link href="/admin/health">
                 <Activity className="h-4 w-4 mr-2" />
                 System Health
