@@ -1744,6 +1744,48 @@ export class DbStorage implements IStorage {
       .returning();
     return result;
   }
+
+  // Email Template operations
+  async getEmailTemplates(): Promise<EmailTemplate[]> {
+    return this.db.select().from(schema.emailTemplates);
+  }
+
+  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
+    const [template] = await this.db.select().from(schema.emailTemplates).where(eq(schema.emailTemplates.id, id));
+    return template;
+  }
+
+  async getEmailTemplateByTrigger(trigger: string): Promise<EmailTemplate | undefined> {
+    const [template] = await this.db.select().from(schema.emailTemplates).where(eq(schema.emailTemplates.trigger, trigger));
+    return template;
+  }
+
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const [result] = await this.db.insert(schema.emailTemplates).values(template).returning();
+    return result;
+  }
+
+  async updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    const [result] = await this.db.update(schema.emailTemplates)
+      .set({ ...template, updatedAt: new Date() })
+      .where(eq(schema.emailTemplates.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteEmailTemplate(id: string): Promise<void> {
+    await this.db.delete(schema.emailTemplates).where(eq(schema.emailTemplates.id, id));
+  }
+
+  // Email Log operations
+  async getEmailLogs(limit: number = 100): Promise<EmailLog[]> {
+    return this.db.select().from(schema.emailLogs).orderBy(sql`${schema.emailLogs.sentAt} DESC`).limit(limit);
+  }
+
+  async logEmail(log: Omit<EmailLog, 'id' | 'sentAt'>): Promise<EmailLog> {
+    const [result] = await this.db.insert(schema.emailLogs).values(log).returning();
+    return result;
+  }
 }
 
 // In-memory storage implementation
@@ -3499,6 +3541,66 @@ class MemStorage implements IStorage {
     const updated = { ...existing, ...redemption };
     this.giftRedemptions.set(id, updated);
     return updated;
+  }
+
+  // Email Template operations (in-memory stubs)
+  private emailTemplates = new Map<string, EmailTemplate>();
+  private emailLogs: EmailLog[] = [];
+
+  async getEmailTemplates(): Promise<EmailTemplate[]> {
+    return Array.from(this.emailTemplates.values());
+  }
+
+  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
+    return this.emailTemplates.get(id);
+  }
+
+  async getEmailTemplateByTrigger(trigger: string): Promise<EmailTemplate | undefined> {
+    return Array.from(this.emailTemplates.values()).find(t => t.trigger === trigger);
+  }
+
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const newTemplate: EmailTemplate = {
+      id: crypto.randomUUID(),
+      trigger: template.trigger,
+      name: template.name,
+      subject: template.subject,
+      htmlContent: template.htmlContent,
+      textContent: template.textContent ?? null,
+      isEnabled: template.isEnabled ?? true,
+      description: template.description ?? null,
+      variables: template.variables ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.emailTemplates.set(newTemplate.id, newTemplate);
+    return newTemplate;
+  }
+
+  async updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    const existing = this.emailTemplates.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...template, updatedAt: new Date() };
+    this.emailTemplates.set(id, updated);
+    return updated;
+  }
+
+  async deleteEmailTemplate(id: string): Promise<void> {
+    this.emailTemplates.delete(id);
+  }
+
+  async getEmailLogs(limit: number = 100): Promise<EmailLog[]> {
+    return this.emailLogs.slice(0, limit);
+  }
+
+  async logEmail(log: Omit<EmailLog, 'id' | 'sentAt'>): Promise<EmailLog> {
+    const newLog: EmailLog = {
+      ...log,
+      id: crypto.randomUUID(),
+      sentAt: new Date(),
+    };
+    this.emailLogs.unshift(newLog);
+    return newLog;
   }
 }
 

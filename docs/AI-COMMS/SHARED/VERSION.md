@@ -1,35 +1,33 @@
 # AI-COMMS Version Tracking
 
-**Current Version:** 1.4.0
-**Last Updated:** December 25, 2025 23:50 UTC
-**Updated By:** Claude 1 (Kingdom Connects)
+**Current Version:** 1.6
+**Last Updated:** December 26, 2025
+**Updated By:** Claude 2 (QR Gear)
 
 ---
 
 ## Version History
 
-| Version | Date | Updated By | Summary |
+| Version | Date | Updated By | Changes |
 |---------|------|------------|---------|
-| 1.4.0 | Dec 25, 2025 | Claude 1 | ANSWERED: Admin dashboard CSS, customer mgmt, health UI, widget integration plan |
-| 1.3.0 | Dec 25, 2025 | Claude 2 | New questions: dashboard metrics, customer mgmt, health monitoring, CSS patterns |
-| 1.2.0 | Dec 24, 2025 | Claude 2 | New agent: library assets, backgrounds, videos |
-| 1.1.0 | Dec 21, 2025 | Claude 2 | IMPLEMENTED Q-003: Products endpoint now filters by isEnabled |
-| 1.0.9 | Dec 21, 2025 | Claude 1 | Q-003 FINAL: Added size, admin dashboard for product curation |
-| 1.0.8 | Dec 21, 2025 | Claude 1 | Q-003 FINAL: Added color selection, user-friendly text labels, Printify API notes |
-| 1.0.7 | Dec 21, 2025 | Claude 1 | Answered Q-003 (product selection flow from Dave) |
-| 1.0.6 | Dec 21, 2025 | Claude 1 | Added QUESTIONS-PROTOCOL.md + QUESTIONS-OUTGOING.md files |
-| 1.0.5 | Dec 21, 2025 | Claude 1 | Added versioning system |
-| 1.0.4 | Dec 21, 2025 | Claude 1 | Added CSS-REFERENCE folder for QR |
-| 1.0.3 | Dec 21, 2025 | Claude 1 | Added MASTER-BUSINESS-OVERVIEW.md |
-| 1.0.2 | Dec 21, 2025 | Claude 2 | QR completed footer, SEO, useButtonState |
-| 1.0.1 | Dec 21, 2025 | Claude 1 | Initial answers for QR questions |
-| 1.0.0 | Dec 21, 2025 | Claude 1 | Created AI-COMMS structure |
+| 1.6 | Dec 26, 2025 | Claude 2 | Added Q-008 (Email Templates), Q-009 (Widget Integration Status) |
+| 1.5 | Dec 25, 2025 | Claude 1 | Added ANSWERS-DEC25.md with KC integration specs |
+| 1.4 | Dec 25, 2025 | Claude 2 | Added README-FOR-CLAUDE1-DEC25.md, QUESTIONS-FOR-KC-DEC25.md |
+| 1.3 | Dec 24, 2025 | Claude 2 | Added PROJECT-STATUS-DEC24.md, AGENT_ISSUES_2024-12-24.md |
+| 1.2 | Dec 21, 2025 | Claude 1 | Added INTEGRATION-RESPONSE.md, ANSWERS-FOR-CLAUDE2.md |
+| 1.1 | Dec 21, 2025 | Claude 2 | Added ANNUAL-PERK-SPEC.md, NOTE-FOR-KC.md |
+| 1.0 | Dec 21, 2025 | Both | Initial structure with all base files |
 
 ---
 
-## Rules
+## Before Merging
 
-1. **Increment version** every time you modify the zip
-2. **Log who updated** and brief summary
-3. **Check version first** when receiving a zip - if yours is newer, merge carefully
-4. Version format: MAJOR.MINOR.PATCH (1.0.X for patches, 1.X.0 for features)
+1. Check version number matches your local copy
+2. If mismatched, review changes in the other AI's files
+3. Merge carefully, don't overwrite others' updates
+
+## After Changes
+
+1. Increment version number
+2. Add entry to Version History table
+3. Note who updated and what changed
