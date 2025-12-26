@@ -859,9 +859,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   
   // Derive available stores based on store type - all stores come from database
   // Handle null/undefined isInternal: treat as External by default
+  console.log("[StoreDebug] storeType:", storeType, "partnerStoresData:", partnerStoresData.map(ps => ({ name: ps.name, isInternal: ps.isInternal })));
   const availableStores: StoreWithAreas[] = partnerStoresData
     .filter(ps => storeType === "Internal" ? ps.isInternal === true : ps.isInternal !== true)
     .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
+  console.log("[StoreDebug] availableStores:", availableStores);
   
   // All DB stores for segment lookup
   const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
