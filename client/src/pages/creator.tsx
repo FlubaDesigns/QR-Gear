@@ -223,7 +223,7 @@ export default function Creator() {
   const lastGeneratedRef = useRef({ content: "", type: "", color: "", bgColor: "" });
 
   const { data: products = [], isLoading: productsLoading, isError: productsError } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
+    queryKey: ["/api/products?store=qr-gear-main&segment=creator"],
   });
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery<QrTemplate[]>({

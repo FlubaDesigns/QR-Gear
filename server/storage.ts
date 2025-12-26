@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { eq, sql, and, or } from "drizzle-orm";
+import { eq, sql, and, or, ilike } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -231,6 +231,7 @@ export interface IStorage {
   // Partner Store Product operations
   getPartnerStoreProducts(partnerStoreId: string): Promise<PartnerStoreProduct[]>;
   getPartnerStoreProduct(partnerStoreId: string, productId: string): Promise<PartnerStoreProduct | undefined>;
+  getProductsForStore(storeSlug: string, segment?: string): Promise<Product[]>;
   addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct>;
   updatePartnerStoreProduct(id: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined>;
   updatePartnerStoreProductByIds(partnerStoreId: string, productId: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined>;
@@ -1001,6 +1002,44 @@ export class DbStorage implements IStorage {
         eq(schema.partnerStoreProducts.productId, productId)
       ));
     return result;
+  }
+
+  async getProductsForStore(storeSlug: string, segment?: string): Promise<Product[]> {
+    // First find the partner store by slug or name (supports partial matching with wildcards)
+    const [store] = await this.db.select().from(schema.partnerStores)
+      .where(or(
+        eq(schema.partnerStores.slug, storeSlug),
+        ilike(schema.partnerStores.slug, `${storeSlug}%`),
+        ilike(schema.partnerStores.name, storeSlug),
+        ilike(schema.partnerStores.name, `%${storeSlug}%`)
+      ));
+    
+    if (!store) {
+      return [];
+    }
+    
+    // Get products linked to this store via partner_store_products
+    const storeProducts = await this.db
+      .select({ product: schema.products })
+      .from(schema.partnerStoreProducts)
+      .innerJoin(schema.products, eq(schema.partnerStoreProducts.productId, schema.products.id))
+      .where(and(
+        eq(schema.partnerStoreProducts.partnerStoreId, store.id),
+        eq(schema.partnerStoreProducts.isEnabled, true),
+        eq(schema.products.isEnabled, true)
+      ));
+    
+    let products = storeProducts.map(sp => sp.product);
+    
+    // Filter by segment if provided (check category field)
+    if (segment) {
+      products = products.filter(p => {
+        const category = p.category?.toLowerCase() || "";
+        return category.includes(`/${segment.toLowerCase()}`);
+      });
+    }
+    
+    return products;
   }
 
   async addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct> {
@@ -2639,6 +2678,37 @@ class MemStorage implements IStorage {
     return Array.from(this.partnerStoreProducts.values()).find(
       p => p.partnerStoreId === partnerStoreId && p.productId === productId
     );
+  }
+
+  async getProductsForStore(storeSlug: string, segment?: string): Promise<Product[]> {
+    // Find store by slug or name (supports partial matching)
+    const slugLower = storeSlug.toLowerCase();
+    const store = Array.from(this.partnerStores.values()).find(
+      s => s.slug === storeSlug || 
+           s.slug.toLowerCase().startsWith(slugLower) ||
+           s.name.toLowerCase() === slugLower ||
+           s.name.toLowerCase().includes(slugLower)
+    );
+    if (!store) return [];
+    
+    // Get product IDs linked to this store
+    const storeProductLinks = Array.from(this.partnerStoreProducts.values())
+      .filter(sp => sp.partnerStoreId === store.id && sp.isEnabled);
+    
+    // Get actual products
+    let products = storeProductLinks
+      .map(sp => this.products.get(sp.productId))
+      .filter((p): p is Product => p !== undefined && p.isEnabled);
+    
+    // Filter by segment if provided
+    if (segment) {
+      products = products.filter(p => {
+        const category = p.category?.toLowerCase() || "";
+        return category.includes(`/${segment.toLowerCase()}`);
+      });
+    }
+    
+    return products;
   }
 
   async addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct> {

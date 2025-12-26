@@ -55,6 +55,7 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - **Segment Creation**: Fixed prefix normalization issue where "Internal:/External:" prefixes prevented store lookup during segment addition
 - **Store Type Filter**: Fixed isInternal filter to use strict equality (=== true) to correctly classify stores with null/undefined values
 - **DOM Nesting**: Fixed Badge component inside p tag causing console warnings on Creator page
+- **Creator Store Product Filtering**: Added `getProductsForStore(storeSlug, segment)` method to storage layer. Creator page now fetches products via `partner_store_products` table join with proper store/segment filtering. Supports partial slug matching for timestamp-suffixed store slugs.
 
 ### Auto-Sync Architecture
 - **Weekly Cron Job**: Syncs Printify catalog to `printifyPrintProviders` table with availableColors/availableSizes
