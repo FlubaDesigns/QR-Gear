@@ -34,6 +34,8 @@ import AdminHealth from "@/pages/admin-health";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminEmailTemplates from "@/pages/admin-email-templates";
 import ShopSegment from "@/pages/shop-segment";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -72,6 +74,8 @@ function Router() {
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       <Route component={NotFound} />
     </Switch>
   );

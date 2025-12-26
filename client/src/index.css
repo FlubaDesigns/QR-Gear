@@ -5,6 +5,7 @@
 @import "./styles/layout.css";
 @import "./styles/buttons.css";
 @import "./styles/forms.css";
+@import "./styles/auth.css";
 
 @tailwind base;
 @tailwind components;

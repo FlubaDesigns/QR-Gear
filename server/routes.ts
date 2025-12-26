@@ -18,6 +18,7 @@ import { submitOrderToPrintify, checkPrintifyOrderStatus } from "./lib/printify-
 import { startCronJobs } from "./lib/cron-jobs";
 import { z } from "zod";
 import QRCode from "qrcode";
+import bcrypt from "bcryptjs";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth
@@ -26,6 +27,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes - returns null if not authenticated (no 401)
   app.get('/api/auth/user', async (req: any, res) => {
     try {
+      // Check for email/password session first
+      if (req.session?.userId) {
+        const user = await storage.getUser(req.session.userId);
+        if (user) {
+          const { passwordHash, ...safeUser } = user;
+          return res.json(safeUser);
+        }
+      }
+      // Fall back to Replit OAuth
       if (!req.isAuthenticated() || !req.user?.claims?.sub) {
         return res.json(null);
       }
@@ -35,6 +45,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.json(null);
+    }
+  });
+
+  // Auth validation schemas
+  const registerSchema = z.object({
+    email: z.string().email("Invalid email format"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+  });
+
+  const loginSchema = z.object({
+    email: z.string().email("Invalid email format"),
+    password: z.string().min(1, "Password is required"),
+  });
+
+  // Email/Password Registration
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const parseResult = registerSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errorMsg = parseResult.error.errors[0]?.message || "Invalid input";
+        return res.status(400).json({ error: errorMsg });
+      }
+      
+      const { email, password, firstName, lastName } = parseResult.data;
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "An account with this email already exists" });
+      }
+      
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 12);
+      
+      // Create user
+      const user = await storage.createUser({
+        email,
+        passwordHash,
+        firstName: firstName || null,
+        lastName: lastName || null,
+      });
+      
+      // Regenerate session for security
+      req.session.regenerate?.(() => {});
+      (req.session as any).userId = user.id;
+      
+      const { passwordHash: _, ...safeUser } = user;
+      res.json({ user: safeUser, message: "Account created successfully" });
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Failed to create account" });
+    }
+  });
+
+  // Email/Password Login
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const parseResult = loginSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errorMsg = parseResult.error.errors[0]?.message || "Invalid input";
+        return res.status(400).json({ error: errorMsg });
+      }
+      
+      const { email, password } = parseResult.data;
+      
+      // Find user
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      // Verify password
+      const isValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      // Regenerate session for security
+      req.session.regenerate?.(() => {});
+      (req.session as any).userId = user.id;
+      
+      const { passwordHash: _, ...safeUser } = user;
+      res.json({ user: safeUser, message: "Logged in successfully" });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Failed to log in" });
+    }
+  });
+
+  // Email/Password Logout
+  app.post('/api/auth/email-logout', async (req: any, res) => {
+    try {
+      req.session.userId = null;
+      res.json({ message: "Logged out successfully" });
+    } catch (error: any) {
+      console.error("Logout error:", error);
+      res.status(500).json({ error: "Failed to log out" });
     }
   });
 

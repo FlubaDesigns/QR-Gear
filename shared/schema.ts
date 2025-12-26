@@ -17,9 +17,17 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  passwordHash: varchar("password_hash"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  // Social media URLs for sharing
+  socialFacebook: varchar("social_facebook"),
+  socialInstagram: varchar("social_instagram"),
+  socialTwitter: varchar("social_twitter"),
+  socialLinkedin: varchar("social_linkedin"),
+  socialTiktok: varchar("social_tiktok"),
+  socialYoutube: varchar("social_youtube"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
