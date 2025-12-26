@@ -63,7 +63,7 @@ export default function ActionCards() {
               className="block"
               data-testid={`action-card-${index}`}
             >
-              <Card className="glass-card border-0 hover-elevate transition-all h-full cursor-pointer">
+              <Card className="glass-card border-0 hover-elevate active:scale-[0.98] transition-all h-full cursor-pointer">
                 <CardContent className="p-6 flex flex-col h-full">
                   <div className={`w-12 h-12 rounded-xl icon-bg-${card.color} flex items-center justify-center mb-4`}>
                     <card.icon className={`w-6 h-6 icon-color-${card.color}`} />

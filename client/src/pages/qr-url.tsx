@@ -1,9 +1,7 @@
-import { Link } from "wouter";
 import { Palette, CheckCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
-import { QRButton } from "@/components/QRButton";
 
 const features = [
   "Pre-designed gift backgrounds",
@@ -45,15 +43,6 @@ export default function QRUrlLanding() {
             </ul>
           </div>
 
-          <Link href="/creator?line=url">
-            <QRButton 
-              variant="accent" 
-              className="min-h-12 px-8"
-              data-testid="button-browse-designs"
-            >
-              Browse Designs Now
-            </QRButton>
-          </Link>
         </div>
       </main>
       <Footer />

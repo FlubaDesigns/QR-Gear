@@ -1,9 +1,7 @@
-import { Link } from "wouter";
 import { QrCode, CheckCircle, Coffee, Dumbbell, Briefcase, Heart } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
-import { QRButton } from "@/components/QRButton";
 
 const features = [
   "Encode any text, URL, or contact info",
@@ -85,15 +83,6 @@ export default function QRStaticLanding() {
             </div>
           </div>
 
-          <Link href="/creator?line=static">
-            <QRButton 
-              variant="accent" 
-              className="min-h-12 px-8"
-              data-testid="button-create-simple-qr"
-            >
-              Create Simple QR Now
-            </QRButton>
-          </Link>
         </div>
       </main>
       <Footer />
