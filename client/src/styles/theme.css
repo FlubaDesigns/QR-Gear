@@ -754,8 +754,11 @@ html[data-theme="light"] .page-grid {
   margin-bottom: 1.5rem;
 }
 
-.vanity-features-title {
+.vanity-features-title,
+.vanity-items-title {
   font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.95);
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
@@ -794,10 +797,7 @@ html[data-theme="light"] .page-grid {
   margin-bottom: 1.5rem;
 }
 
-.vanity-items-title {
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-}
+/* vanity-items-title merged with vanity-features-title above */
 
 .vanity-items-grid {
   display: grid;
@@ -1056,13 +1056,10 @@ html[data-theme="light"] .vanity-item-icon::after {
 }
 
 html[data-theme="light"] .vanity-use-case-icon {
-  background: linear-gradient(135deg, rgba(255, 140, 60, 0.12), rgba(255, 100, 20, 0.05));
-  border: 1px solid rgba(255, 140, 60, 0.15);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
-}
-
-html[data-theme="light"] .vanity-use-case-icon::after {
-  opacity: 0.20;
+  background: rgba(0, 0, 0, 0.06);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 html[data-theme="light"] .vanity-highlight-icon {
@@ -1180,43 +1177,17 @@ html[data-theme="light"] .vanity-highlight-icon {
 }
 
 .vanity-use-case-icon {
-  position: relative;
-  isolation: isolate;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 140, 60, 0.16), rgba(255, 100, 20, 0.06));
-  border: 1px solid rgba(255, 180, 100, 0.18);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  overflow: hidden;
-}
-
-/* Inner ring */
-.vanity-use-case-icon::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: 13px;
-  border: 1px solid rgba(255, 160, 80, 0.10);
-  pointer-events: none;
-}
-
-/* Accent specular shine */
-.vanity-use-case-icon::after {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  background: radial-gradient(180px 90px at 28% 18%, rgba(255, 200, 140, 0.30), transparent 55%);
-  transform: rotate(10deg);
-  pointer-events: none;
-  opacity: 0.55;
-  mix-blend-mode: screen;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .vanity-use-case-icon svg {
