@@ -1472,14 +1472,14 @@ export default function Creator() {
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
                                     <p className="font-medium text-sm leading-tight">{product.name}</p>
-                                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
                                       <span>{product.category}</span>
                                       {product.madeInUSA && (
                                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
                                           <UsaFlag className="w-3 h-2" /> USA
                                         </Badge>
                                       )}
-                                    </p>
+                                    </div>
                                   </div>
                                   <p className="text-lg font-bold text-primary">${product.customerPrice || product.basePrice}</p>
                                 </div>
