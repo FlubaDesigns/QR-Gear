@@ -269,7 +269,8 @@
 /* ========== Motion preferences ========== */
 @media (prefers-reduced-motion: reduce) {
   .qr-btn { transition: none; }
-  .glass::after, .glass-card::after { display: none; }
+  /* Keep glass shine visible, just disable animations */
+  .glass, .glass-card { transition: none; }
 }
 
 /* ========== Elevate Utilities for Tailwind ========== */
