@@ -932,12 +932,24 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
     
     setAddingSegment(true);
     try {
+      // Normalize store name by stripping Internal:/External: prefix
+      const normalizedStoreName = selectedStore.replace(/^(Internal:|External:)/, "").trim();
+      
       // Find the current store in partner stores
-      const currentPartnerStore = partnerStoresData.find(ps => ps.name === selectedStore);
+      const currentPartnerStore = partnerStoresData.find(ps => ps.name === normalizedStoreName || ps.name === selectedStore);
       if (currentPartnerStore) {
         // Update partner store in database
         const currentSegments = currentPartnerStore.availableSegments || [];
-        const updatedSegments = [...currentSegments, newSegmentName.trim()];
+        const segmentToAdd = newSegmentName.trim();
+        
+        // Check for duplicate segment
+        if (currentSegments.includes(segmentToAdd)) {
+          toast({ title: "Warning", description: `Segment "${segmentToAdd}" already exists`, variant: "destructive" });
+          setAddingSegment(false);
+          return;
+        }
+        
+        const updatedSegments = [...currentSegments, segmentToAdd];
         
         const res = await fetch(`/api/admin/partner-stores/${currentPartnerStore.id}`, {
           method: "PUT",
@@ -951,17 +963,17 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         // Invalidate and refetch to get updated data immediately
         await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
         await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
-        toast({ title: "Success", description: `Added segment "${newSegmentName.trim()}" to ${selectedStore}` });
+        toast({ title: "Success", description: `Added segment "${segmentToAdd}" to ${normalizedStoreName}` });
       } else {
         // Store not in database yet - create it with this segment
-        // Generate slug from store name
-        const slug = selectedStore.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        // Generate slug from normalized store name
+        const slug = normalizedStoreName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
         const res = await fetch("/api/admin/partner-stores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ 
-            name: selectedStore,
+            name: normalizedStoreName,
             slug: slug,
             isInternal: storeType === "Internal",
             availableSegments: [newSegmentName.trim()] 
@@ -976,7 +988,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
         // Invalidate and refetch to get updated data immediately
         await queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
         await queryClient.refetchQueries({ queryKey: ["/api/admin/partner-stores"] });
-        toast({ title: "Success", description: `Created "${selectedStore}" with segment "${newSegmentName.trim()}"` });
+        toast({ title: "Success", description: `Created "${normalizedStoreName}" with segment "${newSegmentName.trim()}"` });
       }
       setNewSegmentName("");
     } catch (error: any) {
