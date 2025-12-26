@@ -16,7 +16,7 @@ export default function Navbar() {
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isAdmin, isLoading } = useAuth();
   const { itemCount: guestCartCount } = useGuestCart();
   
   const [darkMode, setDarkMode] = useState(() => {
@@ -91,7 +91,7 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {isAuthenticated && (
+            {isAdmin && (
               <Link
                 href="/admin"
                 className={`text-sm font-medium transition-colors ${
@@ -106,30 +106,30 @@ export default function Navbar() {
 
           <div className="flex items-center gap-3">
             {isAuthenticated && (
-              <>
-                <Link href="/account">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2"
-                    data-testid="button-user-dashboard"
-                  >
-                    <User className="w-4 h-4" />
-                    <span className="hidden sm:inline">My Account</span>
-                  </Button>
-                </Link>
-                <Link href="/admin">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    data-testid="button-admin-dashboard"
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span className="hidden sm:inline">Admin</span>
-                  </Button>
-                </Link>
-              </>
+              <Link href="/account">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  data-testid="button-user-dashboard"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">My Account</span>
+                </Button>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link href="/admin">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  data-testid="button-admin-dashboard"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Button>
+              </Link>
             )}
 
             <Button
@@ -218,12 +218,14 @@ export default function Navbar() {
                         My Account
                       </Button>
                     </Link>
-                    <Link href="/admin" onClick={() => setMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin">
-                        <Shield className="w-4 h-4" />
-                        Admin Panel
-                      </Button>
-                    </Link>
+                    {isAdmin && (
+                      <Link href="/admin" onClick={() => setMenuOpen(false)}>
+                        <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin">
+                          <Shield className="w-4 h-4" />
+                          Admin Panel
+                        </Button>
+                      </Link>
+                    )}
                     <a href="/api/logout">
                       <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-logout">
                         <LogOut className="w-4 h-4" />

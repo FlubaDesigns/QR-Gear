@@ -117,12 +117,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes - returns null if not authenticated (no 401)
   app.get('/api/auth/user', async (req: any, res) => {
     try {
+      // Helper to check admin status
+      const checkIsAdmin = (userId: string) => {
+        const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
+        return adminIds.length === 0 || adminIds.includes(userId);
+      };
+
       // Check for email/password session first
       if (req.session?.userId) {
         const user = await storage.getUser(req.session.userId);
         if (user) {
           const { passwordHash, ...safeUser } = user;
-          return res.json(safeUser);
+          return res.json({ ...safeUser, isAdmin: checkIsAdmin(user.id) });
         }
       }
       // Fall back to Replit OAuth
@@ -131,7 +137,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      res.json(user || null);
+      if (user) {
+        return res.json({ ...user, isAdmin: checkIsAdmin(userId) });
+      }
+      res.json(null);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.json(null);

@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
 import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const actionCards = [
   {
@@ -85,6 +86,8 @@ export default function ActionCards() {
 }
 
 export function QuickLinks() {
+  const { isAdmin } = useAuth();
+  
   return (
     <section className="home-section-muted">
       <div className="container">
@@ -115,18 +118,20 @@ export function QuickLinks() {
             </Link>
           </div>
 
-          <div className="glass-card quick-link-card hover-elevate" data-testid="quick-link-admin">
-            <div className="quick-link-icon icon-color-ice">
-              <Shield />
+          {isAdmin && (
+            <div className="glass-card quick-link-card hover-elevate" data-testid="quick-link-admin">
+              <div className="quick-link-icon icon-color-ice">
+                <Shield />
+              </div>
+              <h3>Admin Dashboard</h3>
+              <p>Manage products, pricing, and store settings</p>
+              <Link href="/admin">
+                <QRButton variant="ghost" size="small" data-testid="button-admin-dashboard">
+                  Admin Panel
+                </QRButton>
+              </Link>
             </div>
-            <h3>Admin Dashboard</h3>
-            <p>Manage products, pricing, and store settings</p>
-            <Link href="/admin">
-              <QRButton variant="ghost" size="small" data-testid="button-admin-dashboard">
-                Admin Panel
-              </QRButton>
-            </Link>
-          </div>
+          )}
         </div>
       </div>
     </section>
