@@ -7,11 +7,11 @@ export default function Hero() {
     <section className="hero">
       <div className="container hero__grid">
         <div className="hero__panel">
-          <div className="kicker">Bridge Physical & Digital</div>
-          <h1>QR Gear That Actually Works</h1>
+          <div className="kicker">Clothing That Connects</div>
+          <h1>Your Shirt Just Got Smarter</h1>
           <p>
-            Apparel and gear with built-in QR codes — designed to be scanned,
-            tracked, updated, and reused in the real world.
+            Real gear with built-in QR codes. Scan to watch a video, save a contact, 
+            or open content you control. No apps. Just point and scan.
           </p>
 
           <div className="hero__actions">
