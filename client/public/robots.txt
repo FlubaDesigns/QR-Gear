@@ -29,6 +29,19 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
+# SEO Landing Pages - Product Lines
+Allow: /qr-static
+Allow: /qr-static-plus
+Allow: /qr-url
+Allow: /qr-video
+Allow: /qr-dynamics
+
+# Main Pages
+Allow: /creator
+Allow: /shop
+Allow: /login
+Allow: /register
+
 # Sitemap
 Sitemap: https://qrgear.com/sitemap.xml
 
