@@ -32,17 +32,19 @@
     <circle cx="29.5" cy="29.5" r="2" fill="url(#steel)"/>
   </g>
 
-  <!-- R: Same height as Q (44px), positioned right after Q -->
+  <!-- R: Same height as Q, leg extends to match Q tail end (x=56 from Q origin = 8+48=56 total) -->
   <g transform="translate(68, 6)" fill="none" stroke="url(#steel)" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
     <path d="M0 0 L0 44" stroke-width="4.5"/>
     <path d="M0 0 L28 0 Q40 0 40 11 Q40 22 28 22 L0 22" stroke-width="4.5"/>
-    <path d="M20 22 L44 48" stroke-width="4.5"/>
+    <!-- R leg extends to x=54 (matching Q's tail endpoint at 8+48=56, so 56-68=-12... need to calc right) -->
+    <!-- Q ends at 8+48=56. R starts at 68. For R leg to reach same x as GEAR end (112), leg goes to 112-68=44 -->
+    <path d="M20 22 L54 54" stroke-width="4.5"/>
   </g>
 
-  <!-- Divider line - aligned with Q left edge to R right edge -->
-  <line x1="8" y1="58" x2="112" y2="58" stroke="url(#steel)" stroke-width="0.8" opacity="0.5"/>
+  <!-- Divider line - aligned with Q left edge to R leg end -->
+  <line x1="8" y1="64" x2="122" y2="64" stroke="url(#steel)" stroke-width="0.8" opacity="0.5"/>
 
-  <!-- GEAR - stretched to align exactly with Q left to R right (8 to 112) -->
-  <text x="8" y="76" font-size="16" font-weight="300" letter-spacing="20" fill="url(#steel)"
+  <!-- GEAR - stretched to align exactly with Q left to R leg end -->
+  <text x="8" y="80" font-size="15" font-weight="300" letter-spacing="22" fill="url(#steel)"
         font-family="'Orbitron', 'Eurostile', 'Bank Gothic', system-ui, sans-serif">GEAR</text>
 </svg>
