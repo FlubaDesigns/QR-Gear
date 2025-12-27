@@ -2974,6 +2974,156 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Admin: Generate mockups for a store product color
+  // Sends product + QR artwork to Printify and retrieves mockup images
+  app.post("/api/admin/partner-stores/:storeId/products/:productId/generate-mockup", isAdmin, async (req: any, res) => {
+    try {
+      const { storeId, productId } = req.params;
+      const { color } = req.body;
+      
+      if (!color) {
+        return res.status(400).json({ error: "color is required" });
+      }
+      
+      // Get the product to get blueprint/provider IDs
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const blueprintId = product.blueprintId;
+      const printProviderId = product.printProviderId;
+      
+      if (!blueprintId || !printProviderId) {
+        return res.status(400).json({ error: "Product missing blueprint or print provider" });
+      }
+      
+      // Get artwork URL - check if this is a custom design product
+      let artworkUrl: string | null = null;
+      
+      // Check if product ID starts with 'custom_' and has a linked design
+      if (productId.startsWith('custom_')) {
+        const designId = productId.replace('custom_', '');
+        const design = await storage.getCustomDesign(designId);
+        if (design) {
+          artworkUrl = design.printifyCompositeUrl || 
+            (design.placementImages as any)?.["front-chest"] ||
+            Object.values(design.placementImages || {})[0] as string;
+        }
+      }
+      
+      if (!artworkUrl) {
+        return res.status(400).json({ error: "No artwork found for this product" });
+      }
+      
+      // Make artwork URL absolute
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : 'http://localhost:5000';
+      const absoluteArtworkUrl = artworkUrl.startsWith('http') ? artworkUrl : `${baseUrl}${artworkUrl}`;
+      
+      console.log(`[Mockup] Generating for product ${productId}, color ${color}`);
+      console.log(`[Mockup] Blueprint: ${blueprintId}, Provider: ${printProviderId}`);
+      console.log(`[Mockup] Artwork: ${absoluteArtworkUrl}`);
+      
+      // Import Printify client
+      const printify = (await import("./lib/printify")).default;
+      const { syncProductVariants, syncProductPlacements } = await import("./lib/printify");
+      
+      // Get variants for this color
+      const { variants } = await syncProductVariants(blueprintId, printProviderId);
+      const colorVariants = variants.filter(v => 
+        v.options?.color && v.options.color.toLowerCase() === color.toLowerCase()
+      );
+      
+      if (colorVariants.length === 0) {
+        return res.status(400).json({ error: `No variants found for color: ${color}` });
+      }
+      
+      const variantIds = colorVariants.slice(0, 1).map(v => v.id); // Just need one variant per color
+      console.log(`[Mockup] Found ${colorVariants.length} variants for ${color}, using: ${variantIds[0]}`);
+      
+      // Upload artwork to Printify
+      const imageUpload = await printify.uploadImage(absoluteArtworkUrl, `mockup-${productId}-${color}.png`);
+      console.log(`[Mockup] Uploaded image ID: ${imageUpload.id}`);
+      
+      // Get placement info
+      const { placements } = await syncProductPlacements(blueprintId, printProviderId);
+      const placement = placements[0]?.position || "front";
+      
+      // Create Printify product to generate mockups
+      const productData = {
+        title: `Mockup - ${product.name} - ${color}`,
+        description: `Mockup generation for ${color}`,
+        blueprint_id: blueprintId,
+        print_provider_id: printProviderId,
+        variants: variantIds.map(vid => ({
+          id: vid,
+          price: 2500,
+          is_enabled: true,
+        })),
+        print_areas: [{
+          variant_ids: variantIds,
+          placeholders: [{
+            position: placement,
+            images: [{
+              id: imageUpload.id,
+              x: 0.5,
+              y: 0.5,
+              scale: 1.0,
+              angle: 0,
+            }],
+          }],
+        }],
+      };
+      
+      const printifyProduct = await printify.createProduct(productData);
+      console.log(`[Mockup] Created Printify product: ${printifyProduct.id}`);
+      
+      // Poll for mockups
+      let attempts = 0;
+      const maxAttempts = 10;
+      let mockupUrl: string | null = null;
+      
+      while (attempts < maxAttempts && !mockupUrl) {
+        const delay = Math.min(2000 * Math.pow(1.5, attempts), 8000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
+        
+        const productDetails = await printify.getProduct(printifyProduct.id);
+        if (productDetails.images && productDetails.images.length > 0) {
+          mockupUrl = productDetails.images[0].src;
+          console.log(`[Mockup] Got mockup URL: ${mockupUrl}`);
+        }
+      }
+      
+      if (!mockupUrl) {
+        // Delete the temp product
+        await printify.deleteProduct(printifyProduct.id).catch(() => {});
+        return res.status(500).json({ error: "Mockup generation timed out" });
+      }
+      
+      // Get current mockups and add this one
+      const storeProduct = await storage.getPartnerStoreProduct(storeId, productId);
+      const existingMockups = (storeProduct?.mockupsByColor as Record<string, any>) || {};
+      existingMockups[color] = { front: mockupUrl };
+      
+      // Save mockups to store product
+      await storage.updatePartnerStoreProductByIds(storeId, productId, {
+        mockupsByColor: existingMockups,
+      });
+      
+      // Delete the temp Printify product
+      await printify.deleteProduct(printifyProduct.id).catch(() => {});
+      
+      console.log(`[Mockup] Saved mockup for ${color}`);
+      res.json({ success: true, color, mockupUrl, mockupsByColor: existingMockups });
+    } catch (error: any) {
+      console.error("[Mockup] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ LIBRARY ASSET ENDPOINTS ============
 
   // Admin: Get all library assets with optional filters

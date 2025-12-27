@@ -284,6 +284,7 @@ export const partnerStoreProducts = pgTable("partner_store_products", {
   enabledSizes: text("enabled_sizes").array(), // Which sizes are enabled for this store's product
   enabledColors: text("enabled_colors").array(), // Which colors are enabled for this store's product
   defaultColor: text("default_color"), // Which color to display by default
+  mockupsByColor: jsonb("mockups_by_color"), // { "Black": { front: "url", back: "url" }, ... }
   sortOrder: integer("sort_order").default(0),
   isEnabled: boolean("is_enabled").default(true),
 });

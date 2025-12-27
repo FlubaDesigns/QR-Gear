@@ -229,10 +229,33 @@ export default function StoreBuildPage() {
     toast({ title: "Options updated" });
   }
 
-  function setDialogDefault(colorName: string) {
+  const [generatingMockup, setGeneratingMockup] = useState<string | null>(null);
+
+  async function setDialogDefault(colorName: string) {
     // Can only set default if color is enabled
     if (dialogColors.includes(colorName)) {
       setDialogDefaultColor(colorName);
+      
+      // Trigger mockup generation for this color
+      if (selectedStoreId && optionsDialogProductId) {
+        setGeneratingMockup(colorName);
+        try {
+          const res = await apiRequest("POST", `/api/admin/partner-stores/${selectedStoreId}/products/${optionsDialogProductId}/generate-mockup`, {
+            color: colorName,
+          });
+          if (res.ok) {
+            toast({ title: "Mockup generated", description: `${colorName} mockup ready` });
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores", selectedStoreId, "products"] });
+          } else {
+            const data = await res.json();
+            toast({ title: "Mockup failed", description: data.error, variant: "destructive" });
+          }
+        } catch (e: any) {
+          toast({ title: "Error", description: e.message, variant: "destructive" });
+        } finally {
+          setGeneratingMockup(null);
+        }
+      }
     }
   }
 
@@ -787,11 +810,15 @@ export default function StoreBuildPage() {
                             <button
                               type="button"
                               onClick={() => setDialogDefault(color.name)}
-                              disabled={!isEnabled}
-                              className={`dialog-default-btn ${isDefault ? 'is-default' : ''} ${!isEnabled ? 'is-disabled' : ''}`}
+                              disabled={!isEnabled || generatingMockup !== null}
+                              className={`dialog-default-btn ${isDefault ? 'is-default' : ''} ${!isEnabled ? 'is-disabled' : ''} ${generatingMockup === color.name ? 'is-loading' : ''}`}
                               data-testid={`dialog-default-${color.name}`}
                             >
-                              <Star className="dialog-default-star" />
+                              {generatingMockup === color.name ? (
+                                <Loader2 className="dialog-default-star animate-spin" />
+                              ) : (
+                                <Star className="dialog-default-star" />
+                              )}
                             </button>
                           </div>
                         );
