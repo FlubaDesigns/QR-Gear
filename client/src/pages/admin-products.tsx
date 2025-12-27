@@ -586,9 +586,11 @@ interface StoreWithAreas {
 interface AddFromPrintifyPanelProps {
   onSuccess: () => void;
   onFilterChange?: (store: string, segment: string, productSource?: string, productCategory?: string) => void;
+  editDesignId?: string | null;
+  onEditComplete?: () => void;
 }
 
-function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPanelProps) {
+function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditComplete }: AddFromPrintifyPanelProps) {
   const { toast } = useToast();
   
   // New stepped flow state
@@ -698,6 +700,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
   const [plainTextQrContent, setPlainTextQrContent] = useState<string>("");
   // External URL for external_url mode (custom URL that QR points to directly)
   const [externalUrl, setExternalUrl] = useState<string>("");
+  
+  // Edit mode state - when editing an existing design
+  const [editingDesignId, setEditingDesignId] = useState<string | null>(null);
+  const [loadingDesignForEdit, setLoadingDesignForEdit] = useState(false);
   
   // Fetch render config (fonts and warp presets) for SVG text warp system
   interface RenderConfig {
@@ -1045,6 +1051,125 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
       setAddingSegment(false);
     }
   }
+
+  // Load an existing design for editing
+  async function loadDesignForEdit(designId: string) {
+    setLoadingDesignForEdit(true);
+    try {
+      const res = await fetch(`/api/customs/${designId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch design");
+      const design = await res.json();
+      
+      // Set editing mode
+      setEditingDesignId(designId);
+      
+      // Set product source to Custom
+      setProductSource("Custom");
+      
+      // Map templateVariant back to qrContentType
+      const contentType = design.templateVariant === "plain-text" ? "plain_text" 
+        : design.templateVariant === "external-url" ? "external_url" 
+        : "rich_media";
+      setQrContentType(contentType);
+      
+      // Set plain text content if applicable
+      if (contentType === "plain_text") {
+        // Plain text content was encoded directly in QR, so we don't have it stored
+        // User will need to re-enter it
+        setPlainTextQrContent("");
+      }
+      
+      // Set external URL if applicable
+      if (design.externalUrl) {
+        setExternalUrl(design.externalUrl);
+      }
+      
+      // Set placements and configs
+      if (design.placements && design.placements.length > 0) {
+        const configs: Record<string, 'full' | 'qr-only'> = {};
+        design.placements.forEach((p: string) => {
+          configs[p] = design.placementConfigs?.[p] || (contentType === "plain_text" ? "qr-only" : "full");
+        });
+        setPlacementConfigs(configs);
+      }
+      
+      // Set background image
+      if (design.backgroundImageUrl) {
+        setBackgroundPreview(design.backgroundImageUrl);
+      }
+      
+      // Set header text
+      if (design.topText) {
+        setHeaderEnabled(true);
+        setHeaderText(design.topText.text || "");
+        setHeaderFontFamily(design.topText.fontFamily || "Arial");
+        setHeaderFontSize(design.topText.fontSize || "120");
+        if (design.topText.color) setHeaderColor(design.topText.color);
+        if (design.topText.letterSpacing) setHeaderLetterSpacing(design.topText.letterSpacing);
+        if (design.topText.warp) setHeaderWarp(design.topText.warp);
+        if (design.topText.strokeColor) setHeaderStrokeColor(design.topText.strokeColor);
+        if (design.topText.strokeWidth) setHeaderStrokeWidth(design.topText.strokeWidth);
+      } else {
+        setHeaderEnabled(false);
+      }
+      
+      // Set footer text
+      if (design.bottomText) {
+        setFooterEnabled(true);
+        setFooterText(design.bottomText.text || "");
+        setFooterFontFamily(design.bottomText.fontFamily || "Arial");
+        setFooterFontSize(design.bottomText.fontSize || "96");
+        if (design.bottomText.color) setFooterColor(design.bottomText.color);
+        if (design.bottomText.letterSpacing) setFooterLetterSpacing(design.bottomText.letterSpacing);
+        if (design.bottomText.warp) setFooterWarp(design.bottomText.warp);
+        if (design.bottomText.strokeColor) setFooterStrokeColor(design.bottomText.strokeColor);
+        if (design.bottomText.strokeWidth) setFooterStrokeWidth(design.bottomText.strokeWidth);
+      } else {
+        setFooterEnabled(false);
+      }
+      
+      // Set landing overlay
+      if (design.landingOverlay?.enabled) {
+        setLandingOverlayEnabled(true);
+        setLandingTitle(design.landingOverlay.title || "");
+        setLandingDescription(design.landingOverlay.description || "");
+      }
+      
+      // Set store info
+      if (design.storeType) {
+        setStoreType(design.storeType as "Internal" | "External");
+      }
+      if (design.storeName) {
+        setSelectedStore(design.storeName);
+      }
+      if (design.segment) {
+        setSelectedSegment(design.segment);
+      }
+      
+      // Set product selection - need to find the category and fetch details
+      if (design.productId) {
+        setSelectedItemId(design.productId);
+        await fetchItemDetails(design.productId);
+      }
+      
+      // Set flags
+      setIsFeatured(design.isFeatured || false);
+      setIsSeasonalPromo(design.isSeasonalPromo || false);
+      
+      toast({ title: "Design loaded", description: "You can now edit and save the design" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setLoadingDesignForEdit(false);
+    }
+  }
+
+  // React to editDesignId prop for loading design for editing
+  useEffect(() => {
+    if (editDesignId) {
+      loadDesignForEdit(editDesignId);
+    }
+  }, [editDesignId]);
 
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/admin/printify/catalog"],
@@ -1554,26 +1679,40 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
       };
       
       // Save custom design and get QR code
-      const res = await apiRequest("POST", "/api/admin/custom-designs", {
-        ...designData,
-        saveTarget,
-        // Template organization metadata (for library saves)
-        templateName: templateMeta?.name,
-        templateCategory: templateMeta?.categoryId,
-        templateSubcategory: templateMeta?.subcategoryId,
-      });
+      // If editing, use PATCH to update existing design
+      const isEditing = !!editingDesignId;
+      const res = isEditing 
+        ? await apiRequest("PATCH", `/api/admin/custom-designs/${editingDesignId}`, {
+            ...designData,
+          })
+        : await apiRequest("POST", "/api/admin/custom-designs", {
+            ...designData,
+            saveTarget,
+            // Template organization metadata (for library saves)
+            templateName: templateMeta?.name,
+            templateCategory: templateMeta?.categoryId,
+            templateSubcategory: templateMeta?.subcategoryId,
+          });
       
       const result = await res.json();
       
       // Store the saved design for viewing print image
       setLastSavedDesign({
-        id: result.id,
+        id: result.id || editingDesignId,
         printifyCompositeUrl: result.printifyCompositeUrl,
       });
       
+      // Clear editing mode if we were editing
+      if (isEditing) {
+        setEditingDesignId(null);
+        onEditComplete?.();
+      }
+      
       toast({ 
-        title: "Custom Design Created!", 
-        description: `Saved as "${result.id}". View the generated print image below.` 
+        title: isEditing ? "Design Updated!" : "Custom Design Created!", 
+        description: isEditing 
+          ? `Design "${editingDesignId}" has been updated.`
+          : `Saved as "${result.id}". View the generated print image below.` 
       });
       
       // Reset custom builder fields but keep lastSavedDesign visible
@@ -3265,7 +3404,33 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                 {/* 6. Save Buttons */}
                 {selectedItemId && (
                   <div className="space-y-3 pt-4 border-t">
-                    <Label className="font-semibold">Save Custom Design</Label>
+                    {/* Editing mode indicator */}
+                    {editingDesignId && (
+                      <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-300 dark:border-amber-700 flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Editing: </span>
+                          <span className="text-sm text-amber-700 dark:text-amber-400 font-mono">{editingDesignId}</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingDesignId(null);
+                            onEditComplete?.();
+                            // Reset form
+                            setProductSource("");
+                            setQrContentType(null);
+                            setSelectedItemId(null);
+                            setCatalogDetails(null);
+                          }}
+                          data-testid="button-cancel-edit"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+                    <Label className="font-semibold">{editingDesignId ? "Update Design" : "Save Custom Design"}</Label>
                     <p className="text-xs text-muted-foreground">
                       {qrContentType === "external_url" 
                         ? "This will create a QR code that points directly to your external URL."
@@ -3318,6 +3483,21 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                       const isExternalUrlValid = qrContentType !== "external_url" || (externalUrl && externalUrl.trim() && externalUrl.match(/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i));
                       const isPlainTextValid = qrContentType !== "plain_text" || (plainTextQrContent && plainTextQrContent.trim());
                       const canSave = isExternalUrlValid && isPlainTextValid && !savingCustom;
+                      
+                      // Show simplified Update button when editing
+                      if (editingDesignId) {
+                        return (
+                          <Button
+                            className="w-full h-12"
+                            disabled={!canSave}
+                            onClick={() => handleSaveCustomDesign("store")}
+                            data-testid="button-update-design"
+                          >
+                            {savingCustom ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
+                            Update Design
+                          </Button>
+                        );
+                      }
                       
                       return (
                         <div className="grid grid-cols-2 gap-3">
@@ -4326,6 +4506,9 @@ function ProductsContent() {
   const [filterProductCategory, setFilterProductCategory] = useState<string>("");
   const [deleteStoreId, setDeleteStoreId] = useState<string | null>(null);
   const [deleteSegmentInfo, setDeleteSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
+  
+  // Edit design state - passed to AddFromPrintifyPanel
+  const [editDesignId, setEditDesignId] = useState<string | null>(null);
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
   const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
     queryKey: ["/api/admin/partner-stores"],
@@ -4528,6 +4711,8 @@ function ProductsContent() {
           setFilterProductSource(source || "");
           setFilterProductCategory(category || "");
         }}
+        editDesignId={editDesignId}
+        onEditComplete={() => setEditDesignId(null)}
       />
 
       <Card>
@@ -4734,8 +4919,25 @@ function ProductsContent() {
                     />
                   </div>
                   
-                  {/* Row 4: Delete button - bottom right */}
-                  <div className="mt-4 pt-4 border-t flex justify-end">
+                  {/* Row 4: Edit and Delete buttons - bottom right */}
+                  <div className="mt-4 pt-4 border-t flex justify-end gap-2">
+                    {/* Edit button - only show for custom designs (product.id starts with 'custom_') */}
+                    {product.id.startsWith("custom_") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Extract design ID from product ID (remove 'custom_' prefix)
+                          const designId = product.id.replace("custom_", "");
+                          setEditDesignId(designId);
+                        }}
+                        disabled={editDesignId !== null}
+                        data-testid={`button-edit-${product.id}`}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
