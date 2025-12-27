@@ -9,7 +9,7 @@ const steps = [
   {
     icon: Type,
     title: "Add Header & Footer Text",
-    description: "Want context? Add custom text above or below your QR code. A name, a date, a call-to-action — printed right on the product alongside your code.",
+    description: "Want context? Add custom text above or below your QR code. A name, a date, a call-to-action — printed over and under your code on the product.",
   },
   {
     icon: Image,
