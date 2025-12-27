@@ -121,6 +121,39 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - `server/routes.ts`: Admin products endpoint enriches with provider data
 - `shared/schema.ts`: `printifyPrintProviders` table definition
 
+### Mockup Caching Architecture (December 2025)
+
+**PRINCIPLE: Database-first mockups with Printify fallback - "digital handshake" pattern.**
+
+#### Data Flow:
+1. **Source Table**: `mockup_cache` stores pre-generated mockup URLs
+   - Keyed by `blueprint_id`, `print_provider_id`, `color_name`, `canonical_placement_id`
+   - Also tracks `artwork_url`, `artwork_variant` (black/white), `mockup_url`
+   - Supports multi-provider architecture
+
+2. **Canonical Placements**: Provider-agnostic placement system
+   - `canonical_placements` table: 15 standard placements (FRONT_CHEST, FRONT_CENTER, BACK_FULL, etc.)
+   - `pod_providers` table: POD provider registry (Printify active, Printful/Gooten/SPOD inactive)
+   - `provider_placement_mappings` table: Translates canonical → provider-specific placement keys
+   - `product_placement_availability` table: Which placements available per product
+
+3. **Mockup Generation Flow** (`server/lib/mockup-service.ts`):
+   - Step 1: Check `mockup_cache` for existing mockup
+   - Step 2: If not found, generate via Printify API (temporary product → poll for images → delete product)
+   - Step 3: Save result to `mockup_cache` for future requests
+   - Supports automatic black/white QR artwork selection based on shirt color luminance
+
+4. **API Endpoints**:
+   - `GET /api/mockups/cached?blueprintId=X&printProviderId=Y` - Get all cached mockups
+   - `POST /api/mockups/get-or-generate` - Database-first with fallback
+   - `GET /api/placements?category=apparel` - Get canonical placements
+   - `POST /api/admin/mockups/pre-generate` - Pre-generate all color mockups for a product
+
+#### Key Files:
+- `server/lib/mockup-service.ts`: Core mockup caching logic with `getMockupWithFallback()`
+- `shared/schema.ts`: `mockupCache`, `canonicalPlacements`, `podProviders`, `providerPlacementMappings`
+- `client/src/hooks/useMockupWithFallback.ts`: Frontend hooks for mockup fetching
+
 ### Auto-Sync Architecture (Legacy Notes)
 - **Product Creation**: Auto-seeds variants from local catalog data (no API calls needed)
 - **Limitation**: Variant IDs are placeholders - real Printify variant IDs fetched during fulfillment or manual sync
