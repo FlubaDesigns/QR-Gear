@@ -10,7 +10,7 @@ import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVaria
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
 import { generatePrintifyComposite } from "./lib/composite-image-generator";
 import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
-import { Client as ObjectStorageClient } from "@replit/object-storage";
+import { ObjectStorageService, objectStorageClient } from "./replit_integrations/object_storage";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { sendOrderConfirmationEmail } from "./lib/email";
@@ -818,22 +818,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files/:filename", async (req, res) => {
     try {
       const { filename } = req.params;
-      const storageClient = new ObjectStorageClient();
+      const bucketName = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
       
-      // Try custom-designs folder first
+      if (!bucketName) {
+        return res.status(500).json({ error: "Object storage not configured" });
+      }
+      
+      // Access file directly using the same pattern as image-upload.ts
+      const bucket = objectStorageClient.bucket(bucketName);
       const filePath = `custom-designs/${filename}`;
-      const { ok, value } = await storageClient.downloadAsBytes(filePath);
+      const file = bucket.file(filePath);
       
-      if (!ok || !value) {
+      const [exists] = await file.exists();
+      if (!exists) {
         return res.status(404).json({ error: "File not found" });
       }
       
-      const extension = filename.split(".").pop() || "png";
-      const mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
-      
-      res.setHeader("Content-Type", mimeType);
+      // Get metadata and stream file
+      const [metadata] = await file.getMetadata();
+      res.setHeader("Content-Type", metadata.contentType || "image/png");
       res.setHeader("Cache-Control", "public, max-age=31536000");
-      res.send(value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array));
+      
+      file.createReadStream().pipe(res);
     } catch (error: any) {
       console.error("File serve error:", error);
       res.status(500).json({ error: error.message });
@@ -844,54 +850,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/library-files/:filename", async (req, res) => {
     try {
       const { filename } = req.params;
-      const storageClient = new ObjectStorageClient();
+      const bucketName = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      
+      if (!bucketName) {
+        return res.status(500).json({ error: "Object storage not configured" });
+      }
+      
+      const bucket = objectStorageClient.bucket(bucketName);
       
       // First, try to find the actual storage path from the database by URL
       const matchingAsset = await storage.getLibraryAssetByUrl(`/api/library-files/${filename}`);
       
-      let foundData: Buffer | null = null;
+      // Search locations in order of priority
+      const searchPaths = matchingAsset?.storageUrl 
+        ? [matchingAsset.storageUrl]
+        : [
+            `library/admin/backgrounds/${filename}`,
+            `library/admin/designs/${filename}`,
+            `library/admin/videos/${filename}`,
+            `library/user/${filename}`,
+          ];
       
-      // If we found the asset in DB, use its exact storage path
-      if (matchingAsset?.storageUrl) {
-        const { ok, value } = await storageClient.downloadAsBytes(matchingAsset.storageUrl);
-        if (ok && value) {
-          foundData = value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array);
+      let foundFile = null;
+      for (const path of searchPaths) {
+        const file = bucket.file(path);
+        const [exists] = await file.exists();
+        if (exists) {
+          foundFile = file;
+          break;
         }
       }
       
-      // Fallback: search common locations if not found via DB
-      if (!foundData) {
-        const possiblePaths = [
-          `library/admin/backgrounds/${filename}`,
-          `library/admin/designs/${filename}`,
-          `library/admin/videos/${filename}`,
-          `library/user/${filename}`,
-        ];
-        
-        for (const path of possiblePaths) {
-          const { ok, value } = await storageClient.downloadAsBytes(path);
-          if (ok && value) {
-            foundData = value instanceof Buffer ? value : Buffer.from(value as unknown as Uint8Array);
-            break;
-          }
-        }
-      }
-      
-      if (!foundData) {
+      if (!foundFile) {
         return res.status(404).json({ error: "Library file not found" });
       }
       
+      // Get metadata and stream file
+      const [metadata] = await foundFile.getMetadata();
       const extension = filename.split(".").pop() || "png";
-      let mimeType: string;
-      if (["mp4", "webm", "mov"].includes(extension)) {
-        mimeType = `video/${extension === "mov" ? "quicktime" : extension}`;
-      } else {
-        mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
+      let mimeType = metadata.contentType;
+      if (!mimeType) {
+        if (["mp4", "webm", "mov"].includes(extension)) {
+          mimeType = `video/${extension === "mov" ? "quicktime" : extension}`;
+        } else {
+          mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
+        }
       }
       
       res.setHeader("Content-Type", mimeType);
       res.setHeader("Cache-Control", "public, max-age=31536000");
-      res.send(foundData);
+      foundFile.createReadStream().pipe(res);
     } catch (error: any) {
       console.error("Library file serve error:", error);
       res.status(500).json({ error: error.message });
