@@ -4527,6 +4527,16 @@ function ProductsContent() {
     textUpcharge?: string;
     cachedMinCost?: number | null;
     cachedMaxCost?: number | null;
+    qrProductType?: string | null;
+  };
+  
+  // Map product type codes to display labels and colors
+  const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
+    "qr-basics": { label: "QR Basics", color: "bg-slate-500" },
+    "qr-plus": { label: "QR Plus", color: "bg-blue-500" },
+    "qr-canvas": { label: "QR Canvas", color: "bg-purple-500" },
+    "qr-play": { label: "QR Play", color: "bg-rose-500" },
+    "qr-dynamics": { label: "QR Dynamics™", color: "bg-emerald-500" },
   };
   
   const { data: products = [], isLoading, refetch } = useQuery<AdminProduct[]>({
@@ -4845,12 +4855,28 @@ function ProductsContent() {
                         />
                         <Label className="text-xs text-muted-foreground">Active</Label>
                       </div>
+                      {/* Product type badge and production flag */}
+                      <div className="flex flex-col items-center gap-1 mt-1">
+                        {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
+                          <Badge 
+                            className={`text-[10px] px-1.5 py-0 text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
+                            data-testid={`badge-qr-type-${product.id}`}
+                          >
+                            {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
+                          </Badge>
+                        )}
+                        {product.madeInUSA && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+                            <span className="text-base">🇺🇸</span>
+                            USA
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm leading-tight">{product.name}</div>
-                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                      <div className="text-xs text-muted-foreground mt-1">
                         <span>{product.category}</span>
-                        {product.madeInUSA && <Badge variant="outline" className="text-[10px] px-1.5 py-0">USA</Badge>}
                       </div>
                       {(() => {
                         // Use stored customerPrice if available, otherwise calculate from baseCost

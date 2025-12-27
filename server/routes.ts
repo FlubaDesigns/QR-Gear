@@ -1387,7 +1387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/products", isAdmin, async (req: any, res) => {
     try {
       const products = await storage.getAllProducts();
-      // Enrich products with their assigned category IDs and cached costs
+      // Enrich products with their assigned category IDs, cached costs, and QR product type
       const enrichedProducts = await Promise.all(
         products.map(async (product) => {
           const assignments = await storage.getProductCategoryAssignments(product.id);
@@ -1406,11 +1406,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
+          // Determine QR product type from linked custom design
+          let qrProductType: string | null = null;
+          const meta = product.metadata as Record<string, unknown> | null;
+          if (meta?.customDesignId) {
+            const design = await storage.getCustomDesign(meta.customDesignId as string);
+            if (design) {
+              const hasTopText = design.topText && typeof design.topText === 'object' && (design.topText as any).text;
+              const hasBottomText = design.bottomText && typeof design.bottomText === 'object' && (design.bottomText as any).text;
+              const hasBackground = !!design.backgroundImageUrl;
+              const hasVideo = !!(design as any).videoUrl;
+              const overlay = design.landingOverlay as any;
+              const hasLandingOverlay = overlay?.enabled;
+              
+              if (design.templateVariant === "plain-text") {
+                qrProductType = "qr-basics";
+              } else if (design.templateVariant === "dynamics") {
+                qrProductType = "qr-dynamics";
+              } else if (design.templateVariant === "external-url") {
+                qrProductType = "qr-basics";
+              } else if (design.templateVariant === "url") {
+                if (hasVideo) {
+                  qrProductType = "qr-play";
+                } else if (hasBackground || hasLandingOverlay) {
+                  qrProductType = "qr-canvas";
+                } else if (hasTopText || hasBottomText) {
+                  qrProductType = "qr-plus";
+                } else {
+                  qrProductType = "qr-canvas";
+                }
+              }
+            }
+          }
+          
           return {
             ...product,
             categoryIds: assignments.map((a) => a.categoryId),
             cachedMinCost,
             cachedMaxCost,
+            qrProductType,
           };
         })
       );
