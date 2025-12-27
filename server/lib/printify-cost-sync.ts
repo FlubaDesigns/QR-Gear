@@ -128,12 +128,22 @@ async function runCostSyncBackground(
       return;
     }
 
-    if (!forceRefresh && provider.minCost && provider.minCost > 0) {
-      console.log(`[Cost Sync] Skipping ${provider.blueprintId}/${provider.providerId} - already has cost $${(provider.minCost / 100).toFixed(2)}`);
+    // Skip only if we have BOTH cost AND colors populated
+    const hasCost = provider.minCost && provider.minCost > 0;
+    const hasColors = provider.availableColors && Array.isArray(provider.availableColors) && provider.availableColors.length > 0;
+    const hasSizes = provider.availableSizes && Array.isArray(provider.availableSizes) && provider.availableSizes.length > 0;
+    
+    if (!forceRefresh && hasCost && hasColors && hasSizes) {
+      console.log(`[Cost Sync] Skipping ${provider.blueprintId}/${provider.providerId} - already has cost $${(provider.minCost / 100).toFixed(2)} and ${(provider.availableColors as any[]).length} colors`);
       skippedCount++;
       processedCount++;
       lastCompletedProviderId = provider.id;
       continue;
+    }
+    
+    // Log why we're syncing this provider
+    if (!hasColors || !hasSizes) {
+      console.log(`[Cost Sync] Refreshing ${provider.blueprintId}/${provider.providerId} - missing colors/sizes`);
     }
 
     let tempProductId: string | null = null;

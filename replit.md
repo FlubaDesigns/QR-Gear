@@ -69,8 +69,40 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - **DOM Nesting**: Fixed Badge component inside p tag causing console warnings on Creator page
 - **Creator Store Product Filtering**: Added `getProductsForStore(storeSlug, segment)` method to storage layer. Creator page now fetches products via `partner_store_products` table join with proper store/segment filtering. Supports partial slug matching for timestamp-suffixed store slugs.
 
-### Auto-Sync Architecture
-- **Weekly Cron Job**: Syncs Printify catalog to `printifyPrintProviders` table with availableColors/availableSizes
+### Printify Local Catalog Architecture (CRITICAL - DO NOT FORGET)
+
+**PRINCIPLE: All product data comes from LOCAL DATABASE, NOT live Printify API calls.**
+
+#### Data Flow:
+1. **Source Table**: `printify_print_providers` stores all Printify catalog data locally
+   - `available_colors` (JSON array with name/hex)
+   - `available_sizes` (text array)
+   - `min_cost`, `max_cost` (production costs in cents)
+   - Keyed by `blueprint_id` + `provider_id`
+
+2. **Weekly Cron Job**: Syncs entire Printify catalog to local table
+   - Runs in `server/lib/cron-jobs.ts` via `startCostSync`
+   - Creates temp placeholder products on Printify to extract real costs/colors
+   - Populates `printify_print_providers.available_colors` and `available_sizes`
+   - **MUST refresh colors even if costs already exist** (forceRefresh or null check)
+
+3. **UI Reads ONLY from Local Database**:
+   - Admin Products API enriches products with provider colors/sizes
+   - Store Builder displays colors from `printify_print_providers` (fallback to `products.available_colors`)
+   - **NEVER call Printify API for colors/sizes in UI**
+
+4. **Allowed Live Printify API Calls**:
+   - **Availability checks**: Before order fulfillment
+   - **Mockup generation**: Creating product with our QR graphic on it (star tap → mockup)
+   - **Order submission**: Sending orders to Printify
+
+#### Key Files:
+- `server/lib/printify-cost-sync.ts`: Weekly sync logic
+- `server/lib/cron-jobs.ts`: Schedules the sync
+- `server/routes.ts`: Admin products endpoint enriches with provider data
+- `shared/schema.ts`: `printifyPrintProviders` table definition
+
+### Auto-Sync Architecture (Legacy Notes)
 - **Product Creation**: Auto-seeds variants from local catalog data (no API calls needed)
 - **Limitation**: Variant IDs are placeholders - real Printify variant IDs fetched during fulfillment or manual sync
 - **Custom Designs**: Auto-sync doesn't apply yet (no printProviderId captured in custom design flow)
