@@ -91,6 +91,9 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
   const availableColors = product.selectedColors || 
     (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
 
+  // Debug log
+  console.log('[ProductCard]', product.id, 'colors:', availableColors, 'defaultColor:', product.defaultColor);
+
   // Mockup generation mutation
   const generateMockup = useMutation({
     mutationFn: async (color: string) => {
@@ -106,7 +109,7 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
     },
     onSuccess: (data, color) => {
       setGeneratingColor(null);
-      setGeneratedColors(prev => new Set([...prev, color]));
+      setGeneratedColors(prev => new Set(Array.from(prev).concat(color)));
       toast({
         title: "Mockup generated!",
         description: `${color} mockup is now available.`,
