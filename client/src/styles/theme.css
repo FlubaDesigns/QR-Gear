@@ -1684,6 +1684,73 @@ html[data-theme="light"] .vanity-highlight-icon {
   outline-offset: 2px;
 }
 
+/* Admin color picker - 48px touch targets for accessibility */
+.admin-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.admin-color-swatch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.admin-color-swatch-inner {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 2px solid var(--glass-stroke);
+  transition: all 0.2s ease;
+}
+
+.admin-color-swatch:hover .admin-color-swatch-inner {
+  transform: scale(1.05);
+}
+
+.admin-color-swatch.is-enabled .admin-color-swatch-inner {
+  box-shadow: 0 0 0 2px var(--ice-2);
+}
+
+.admin-color-swatch.is-default .admin-color-swatch-inner {
+  box-shadow: 0 0 0 3px #facc15;
+  border-color: #eab308;
+}
+
+.admin-color-swatch-star {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  color: #eab308;
+  fill: #facc15;
+}
+
+.admin-color-default-label {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.admin-color-default-label svg {
+  width: 16px;
+  height: 16px;
+  color: #eab308;
+  fill: #facc15;
+}
+
 /* Product card button - 48px minimum for accessibility */
 .product-card-btn {
   min-height: 48px;

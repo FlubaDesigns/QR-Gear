@@ -283,6 +283,7 @@ export const partnerStoreProducts = pgTable("partner_store_products", {
   kcBusinessSlug: text("kc_business_slug"), // Optional: Links to specific KC business page (usable with any placement)
   enabledSizes: text("enabled_sizes").array(), // Which sizes are enabled for this store's product
   enabledColors: text("enabled_colors").array(), // Which colors are enabled for this store's product
+  defaultColor: text("default_color"), // Which color to display by default
   sortOrder: integer("sort_order").default(0),
   isEnabled: boolean("is_enabled").default(true),
 });

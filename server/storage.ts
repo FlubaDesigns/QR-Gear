@@ -1101,6 +1101,7 @@ export class DbStorage implements IStorage {
             sortOrder: index,
             enabledSizes: existingConfig.enabledSizes,
             enabledColors: existingConfig.enabledColors,
+            defaultColor: existingConfig.defaultColor,
             kcPlacements: existingConfig.kcPlacements,
             kcBusinessSlug: existingConfig.kcBusinessSlug,
             customPrice: existingConfig.customPrice,

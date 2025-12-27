@@ -40,12 +40,14 @@ import {
   X,
   Flag,
   Globe2,
+  Star,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 type ProductConfig = {
   enabledSizes: string[];
   enabledColors: string[];
+  defaultColor?: string;
 };
 
 type SavedItem = {
@@ -121,6 +123,7 @@ export default function StoreBuildPage() {
           config: {
             enabledSizes: p.enabledSizes || [],
             enabledColors: p.enabledColors || [],
+            defaultColor: p.defaultColor || undefined,
           },
           savedAt: new Date(),
         }));
@@ -130,10 +133,11 @@ export default function StoreBuildPage() {
       if (!configsInitialized) {
         const configs: Record<string, ProductConfig> = {};
         storeProducts.forEach((sp: any) => {
-          if (sp.enabledSizes?.length > 0 || sp.enabledColors?.length > 0) {
+          if (sp.enabledSizes?.length > 0 || sp.enabledColors?.length > 0 || sp.defaultColor) {
             configs[sp.productId] = {
               enabledSizes: sp.enabledSizes || [],
               enabledColors: sp.enabledColors || [],
+              defaultColor: sp.defaultColor || undefined,
             };
           }
         });
@@ -175,6 +179,7 @@ export default function StoreBuildPage() {
       await apiRequest("PATCH", `/api/admin/partner-stores/${selectedStoreId}/products/${productId}`, {
         enabledSizes: config.enabledSizes,
         enabledColors: config.enabledColors,
+        defaultColor: config.defaultColor || config.enabledColors[0] || null,
         kcPlacements: [selectedPlacement],
       });
     },
@@ -209,9 +214,13 @@ export default function StoreBuildPage() {
 
   function saveOptionsDialog() {
     if (!optionsDialogProductId) return;
+    const existingConfig = productConfigs[optionsDialogProductId];
+    const existingDefault = existingConfig?.defaultColor;
+    // Preserve defaultColor if it's still in the enabled colors list
+    const newDefault = dialogColors.includes(existingDefault || '') ? existingDefault : undefined;
     setProductConfigs(prev => ({
       ...prev,
-      [optionsDialogProductId]: { enabledSizes: dialogSizes, enabledColors: dialogColors },
+      [optionsDialogProductId]: { enabledSizes: dialogSizes, enabledColors: dialogColors, defaultColor: newDefault },
     }));
     closeOptionsDialog();
     toast({ title: "Options updated" });
@@ -249,12 +258,29 @@ export default function StoreBuildPage() {
       const existing = prev[productId];
       const currentSizes = existing?.enabledSizes ?? allSizes;
       const currentColors = existing?.enabledColors ?? allColorNames;
+      const currentDefault = existing?.defaultColor;
       const newColors = currentColors.includes(colorName)
         ? currentColors.filter(c => c !== colorName)
         : [...currentColors, colorName];
+      // If removing the default color, clear it
+      const newDefault = newColors.includes(currentDefault || '') ? currentDefault : undefined;
       return {
         ...prev,
-        [productId]: { enabledSizes: currentSizes, enabledColors: newColors },
+        [productId]: { enabledSizes: currentSizes, enabledColors: newColors, defaultColor: newDefault },
+      };
+    });
+  }
+
+  function setDefaultColor(productId: string, colorName: string, allSizes: string[], allColorNames: string[]) {
+    setProductConfigs(prev => {
+      const existing = prev[productId];
+      const currentSizes = existing?.enabledSizes ?? allSizes;
+      const currentColors = existing?.enabledColors ?? allColorNames;
+      // Ensure the color is enabled before setting as default
+      const newColors = currentColors.includes(colorName) ? currentColors : [...currentColors, colorName];
+      return {
+        ...prev,
+        [productId]: { enabledSizes: currentSizes, enabledColors: newColors, defaultColor: colorName },
       };
     });
   }
@@ -535,28 +561,47 @@ export default function StoreBuildPage() {
                         </div>
                       )}
 
-                      {/* Row 4: Color Swatches (full width) */}
+                      {/* Row 4: Color Swatches with Default Selection (full width) */}
                       {colors.length > 0 && (
                         <div className="mt-3 py-2 px-4 bg-muted/50 rounded-lg border-2 border-border">
-                          <div className="text-sm font-medium text-muted-foreground mb-2">Available Colors:</div>
-                          <div className="flex flex-wrap gap-2">
-                            {colors.map((color, idx) => (
-                              <Tooltip key={idx}>
-                                <TooltipTrigger asChild>
-                                  <div
-                                    className={`w-8 h-8 rounded-md border-2 cursor-pointer ${
-                                      enabledColors.includes(color.name)
-                                        ? 'ring-2 ring-primary ring-offset-2'
-                                        : 'border-muted-foreground/30'
-                                    }`}
-                                    style={{ backgroundColor: color.hex || '#ccc' }}
-                                    data-testid={`color-swatch-${product.id}-${idx}`}
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent>{color.name}</TooltipContent>
-                              </Tooltip>
-                            ))}
+                          <div className="text-sm font-medium text-muted-foreground mb-2">
+                            Display Color (tap to set default):
                           </div>
+                          <div className="admin-color-picker">
+                            {colors.map((color, idx) => {
+                              const isEnabled = enabledColors.includes(color.name);
+                              const isDefault = config?.defaultColor === color.name;
+                              return (
+                                <Tooltip key={idx}>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDefaultColor(product.id, color.name, sizes, colors.map(c => c.name))}
+                                      className={`admin-color-swatch ${isEnabled ? 'is-enabled' : ''} ${isDefault ? 'is-default' : ''}`}
+                                      data-testid={`color-swatch-${product.id}-${idx}`}
+                                    >
+                                      <div
+                                        className="admin-color-swatch-inner"
+                                        ref={(el) => { if (el) el.style.backgroundColor = color.hex || '#ccc'; }}
+                                      />
+                                      {isDefault && (
+                                        <Star className="admin-color-swatch-star" />
+                                      )}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {color.name} {isDefault ? '(Default Display)' : '- Tap to set as default'}
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                          </div>
+                          {config?.defaultColor && (
+                            <div className="admin-color-default-label">
+                              <Star />
+                              Showing: <span className="font-medium">{config.defaultColor}</span>
+                            </div>
+                          )}
                         </div>
                       )}
 

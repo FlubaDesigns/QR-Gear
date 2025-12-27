@@ -2952,11 +2952,12 @@ ${allPages.map(page => `  <url>
   app.patch("/api/admin/partner-stores/:storeId/products/:productId", isAdmin, async (req: any, res) => {
     try {
       const { storeId, productId } = req.params;
-      const { enabledSizes, enabledColors, kcPlacements, kcBusinessSlug, customPrice, customName, isEnabled } = req.body;
+      const { enabledSizes, enabledColors, defaultColor, kcPlacements, kcBusinessSlug, customPrice, customName, isEnabled } = req.body;
       
       const updated = await storage.updatePartnerStoreProductByIds(storeId, productId, {
         enabledSizes,
         enabledColors,
+        defaultColor,
         kcPlacements,
         kcBusinessSlug,
         customPrice,
@@ -3360,11 +3361,30 @@ ${allPages.map(page => `  <url>
         );
       }
       
-      // Fetch actual product details
+      // Fetch actual product details including color options
       const productDetails = await Promise.all(
         filteredProducts.map(async (sp) => {
           const product = await storage.getProduct(sp.productId);
           if (!product || !product.isEnabled) return null;
+          
+          // Get available colors from the store product config or fall back to product's colors
+          // Guard against null/malformed availableColors data
+          let availableColors: string[] = [];
+          if (sp.enabledColors && Array.isArray(sp.enabledColors)) {
+            availableColors = sp.enabledColors;
+          } else if (product.availableColors) {
+            try {
+              const parsed = typeof product.availableColors === 'string' 
+                ? JSON.parse(product.availableColors) 
+                : product.availableColors;
+              if (Array.isArray(parsed)) {
+                availableColors = parsed.map((c: any) => typeof c === 'string' ? c : (c?.name || ''));
+              }
+            } catch {
+              availableColors = [];
+            }
+          }
+          
           return {
             id: product.id,
             name: sp.customName || product.name,
@@ -3372,6 +3392,8 @@ ${allPages.map(page => `  <url>
             customPrice: sp.customPrice,
             sortOrder: sp.sortOrder,
             kcPlacements: sp.kcPlacements,
+            selectedColors: availableColors,
+            defaultColor: sp.defaultColor || availableColors[0] || null,
           };
         })
       );
