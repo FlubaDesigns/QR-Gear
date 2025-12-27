@@ -3823,6 +3823,16 @@ ${allPages.map(page => `  <url>
         storeProduct = await storage.getPartnerStoreProduct(storeId, canonicalProductId);
       }
       
+      // Update main products table mockupsByColor
+      const existingProductMockups = (product.mockupsByColor as Record<string, any>) || {};
+      existingProductMockups[color] = { front: mockupUrl };
+      
+      await storage.updateProduct(canonicalProductId, {
+        mockupsByColor: existingProductMockups,
+      });
+      console.log(`[StorefrontMockup] Saved mockup for ${color} to products table`);
+      
+      // Also update partner store product if it exists
       if (storeProduct) {
         const existingMockups = (storeProduct.mockupsByColor as Record<string, any>) || {};
         existingMockups[color] = { front: mockupUrl };
@@ -3836,7 +3846,7 @@ ${allPages.map(page => `  <url>
       // Delete the temp Printify product
       await printify.deleteProduct(printifyProduct.id).catch(() => {});
       
-      res.json({ success: true, color, mockupUrl });
+      res.json({ success: true, color, mockupUrl, mockupsByColor: existingProductMockups });
     } catch (error: any) {
       console.error("[StorefrontMockup] Error:", error);
       res.status(500).json({ error: error.message });

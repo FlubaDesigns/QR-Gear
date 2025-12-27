@@ -4917,9 +4917,14 @@ function ProductsContent() {
                   {/* Row 1: Image+Active | Name/Category | Price/Markup */}
                   <div className="flex gap-4">
                     <div className="flex flex-col items-center gap-2 flex-shrink-0">
-                      {product.imageUrl && (
-                        <img src={product.imageUrl} alt="" className="w-20 h-20 rounded object-cover" />
-                      )}
+                      {(() => {
+                        const mockups = (product as any).mockupsByColor as Record<string, { front?: string }> | undefined;
+                        const firstMockup = mockups ? Object.values(mockups).find(m => m?.front)?.front : null;
+                        const displayImage = firstMockup || product.imageUrl;
+                        return displayImage ? (
+                          <img src={displayImage} alt="" className="w-20 h-20 rounded object-cover" />
+                        ) : null;
+                      })()}
                       <div className="flex items-center gap-1">
                         <Switch
                           checked={product.isEnabled || false}
