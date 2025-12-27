@@ -521,3 +521,151 @@ export async function getProviderPlacementKey(
 
   return mapping[0]?.providerPlacementKey || null;
 }
+
+/**
+ * Get lifestyle mockup for a specific color with AI composite fallback
+ * Workflow: 1. Check cache 2. Try POD lifestyle 3. AI base + composite QR graphic
+ */
+export async function getLifestyleMockupForColor(
+  params: {
+    blueprintId: number;
+    printProviderId: number;
+    colorName: string;
+    colorHex?: string;
+    qrGraphicUrl: string; // The actual QR graphic to composite
+    productType?: 'shirt' | 'hat' | 'bag' | 'mug' | 'other';
+  },
+  storage: IStorage
+): Promise<{ lifestyleUrl: string | null; fromCache: boolean; qrVariant: 'black' | 'white' }> {
+  const { blueprintId, printProviderId, colorName, colorHex, qrGraphicUrl, productType = 'shirt' } = params;
+  
+  // Determine QR color based on shirt luminance
+  const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
+  const qrVariant = needsWhiteQR ? 'white' : 'black';
+  
+  console.log(`[LifestyleMockup] Getting lifestyle for ${colorName} (hex: ${colorHex}, qrVariant: ${qrVariant})`);
+  
+  // Step 1: Check mockup_cache for existing lifestyle
+  const cached = await db
+    .select()
+    .from(mockupCache)
+    .where(
+      and(
+        eq(mockupCache.blueprintId, blueprintId),
+        eq(mockupCache.printProviderId, printProviderId),
+        eq(mockupCache.colorName, colorName),
+        eq(mockupCache.artworkVariant, qrVariant)
+      )
+    )
+    .limit(1);
+  
+  if (cached.length > 0 && cached[0].lifestyleMockupUrl) {
+    console.log(`[LifestyleMockup] Cache HIT: ${colorName} has lifestyle mockup`);
+    return {
+      lifestyleUrl: cached[0].lifestyleMockupUrl,
+      fromCache: true,
+      qrVariant,
+    };
+  }
+  
+  // Step 2: Try to generate via POD (may include lifestyle)
+  console.log(`[LifestyleMockup] Cache MISS: Trying POD generation for ${colorName}`);
+  
+  try {
+    const podResult = await getMockupWithFallback(
+      {
+        blueprintId,
+        printProviderId,
+        colorName,
+        colorHex,
+        canonicalPlacementId: "FRONT_CHEST",
+        artworkUrl: qrGraphicUrl,
+        artworkVariant: qrVariant,
+      },
+      storage
+    );
+    
+    if (podResult.lifestyleMockupUrl) {
+      console.log(`[LifestyleMockup] POD returned lifestyle mockup`);
+      return {
+        lifestyleUrl: podResult.lifestyleMockupUrl,
+        fromCache: false,
+        qrVariant,
+      };
+    }
+  } catch (err) {
+    console.warn(`[LifestyleMockup] POD generation failed:`, err);
+  }
+  
+  // Step 3: AI fallback - composite QR onto base lifestyle image
+  console.log(`[LifestyleMockup] No POD lifestyle, using AI composite fallback`);
+  
+  try {
+    const { overlayGraphicOnProduct } = await import("./composite-image-generator");
+    const { ObjectStorageService } = await import("../replit_integrations/object_storage");
+    
+    // Get base lifestyle image from storage (product type specific)
+    const baseImageKey = `lifestyle-bases/${productType}-base.png`;
+    const objectStorage = new ObjectStorageService();
+    
+    // Get base lifestyle image from local filesystem
+    const path = await import("path");
+    const fs = await import("fs");
+    
+    const basePath = path.join(process.cwd(), "attached_assets", "lifestyle-bases", `${productType}-model.png`);
+    
+    if (!fs.existsSync(basePath)) {
+      console.warn(`[LifestyleMockup] No base lifestyle image for ${productType} at ${basePath}, using flat mockup`);
+      return {
+        lifestyleUrl: null,
+        fromCache: false,
+        qrVariant,
+      };
+    }
+    
+    const baseImageUrl = basePath;
+    
+    // Composite the QR graphic onto the base
+    const compositeBuffer = await overlayGraphicOnProduct({
+      baseImageUrl,
+      graphicUrl: qrGraphicUrl,
+      productType,
+      position: 'chest',
+      graphicScale: 0.25,
+    });
+    
+    // Save to object storage
+    const compositeKey = `lifestyle-mockups/${blueprintId}-${printProviderId}-${colorName}-${qrVariant}.png`;
+    await objectStorage.uploadBuffer(compositeBuffer, compositeKey, 'image/png');
+    
+    const lifestyleUrl = await objectStorage.getPublicUrl(compositeKey);
+    
+    // Update cache with lifestyle URL
+    await db
+      .update(mockupCache)
+      .set({ lifestyleMockupUrl: lifestyleUrl })
+      .where(
+        and(
+          eq(mockupCache.blueprintId, blueprintId),
+          eq(mockupCache.printProviderId, printProviderId),
+          eq(mockupCache.colorName, colorName),
+          eq(mockupCache.artworkVariant, qrVariant)
+        )
+      );
+    
+    console.log(`[LifestyleMockup] AI composite saved: ${compositeKey}`);
+    
+    return {
+      lifestyleUrl,
+      fromCache: false,
+      qrVariant,
+    };
+  } catch (err) {
+    console.error(`[LifestyleMockup] AI composite failed:`, err);
+    return {
+      lifestyleUrl: null,
+      fromCache: false,
+      qrVariant,
+    };
+  }
+}

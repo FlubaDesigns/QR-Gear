@@ -47,6 +47,10 @@ function ProductCard({
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.defaultColor || null
   );
+  const [dynamicMockups, setDynamicMockups] = useState<MockupsByColor>(
+    product.mockupsByColor || {}
+  );
+  const [isLoadingMockup, setIsLoadingMockup] = useState(false);
 
   // Use availableColorsWithHex if provided, otherwise fallback to names only
   const colorsWithHex: ColorWithHex[] = product.availableColorsWithHex || 
@@ -61,12 +65,60 @@ function ProductCard({
     if (c.hex) colorHexMap[c.name] = c.hex;
   });
 
-  const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
-    if (!product.mockupsByColor) return { url: null, isLifestyle: false };
+  // Fetch mockup when color changes
+  const handleColorChange = async (color: string) => {
+    setSelectedColor(color);
     
+    // Check if we already have a mockup for this color
+    if (dynamicMockups[color]?.lifestyle || dynamicMockups[color]?.front) {
+      return; // Already have it
+    }
+    
+    // Fetch from API if we have the required product data
+    if (product.blueprintId && product.printProviderId && product.frontChestImage) {
+      setIsLoadingMockup(true);
+      try {
+        const response = await apiRequest('/api/mockups/lifestyle', {
+          method: 'POST',
+          body: JSON.stringify({
+            blueprintId: product.blueprintId,
+            printProviderId: product.printProviderId,
+            colorName: color,
+            colorHex: colorHexMap[color],
+            qrGraphicUrl: product.frontChestImage,
+            productType: 'shirt',
+          }),
+        });
+        
+        if (response.lifestyleUrl) {
+          setDynamicMockups(prev => ({
+            ...prev,
+            [color]: { ...prev[color], lifestyle: response.lifestyleUrl }
+          }));
+        }
+      } catch (err) {
+        console.error('[ProductCard] Failed to fetch mockup:', err);
+      } finally {
+        setIsLoadingMockup(false);
+      }
+    }
+  };
+
+  const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
     const color = selectedColor || product.defaultColor || availableColors[0];
-    if (color && product.mockupsByColor[color]) {
-      // Prefer lifestyle mockup (with model) over flat product shot
+    
+    // Check dynamic mockups first (fetched on color change)
+    if (color && dynamicMockups[color]) {
+      if (dynamicMockups[color].lifestyle) {
+        return { url: dynamicMockups[color].lifestyle!, isLifestyle: true };
+      }
+      if (dynamicMockups[color].front) {
+        return { url: dynamicMockups[color].front!, isLifestyle: false };
+      }
+    }
+    
+    // Fallback to pre-loaded mockups
+    if (product.mockupsByColor && color && product.mockupsByColor[color]) {
       if (product.mockupsByColor[color].lifestyle) {
         return { url: product.mockupsByColor[color].lifestyle!, isLifestyle: true };
       }
@@ -87,9 +139,15 @@ function ProductCard({
       onClick={() => onOpenQuickView(product)}
     >
       <div className="product-card-image">
+        {isLoadingMockup && (
+          <div className="product-card-loading">
+            <Loader2 className="animate-spin" />
+          </div>
+        )}
         <img
           src={displayImage}
           alt={product.name}
+          style={{ opacity: isLoadingMockup ? 0.5 : 1 }}
         />
         {!mockupResult.url && product.qrCodeUrl && (
           <img
@@ -115,7 +173,7 @@ function ProductCard({
               style={{ backgroundColor: colorHexMap[color] || getColorHex(color) }}
               onClick={(e) => {
                 e.stopPropagation();
-                setSelectedColor(color);
+                handleColorChange(color);
               }}
               title={color}
               data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}

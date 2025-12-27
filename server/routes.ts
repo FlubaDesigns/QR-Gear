@@ -3365,6 +3365,43 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Get lifestyle mockup for a specific color (with AI composite fallback)
+  // Used by frontend when customer clicks a color swatch
+  app.post("/api/mockups/lifestyle", async (req, res) => {
+    try {
+      const { 
+        blueprintId, 
+        printProviderId, 
+        colorName, 
+        colorHex,
+        qrGraphicUrl,
+        productType = 'shirt'
+      } = req.body;
+
+      if (!blueprintId || !printProviderId || !colorName || !qrGraphicUrl) {
+        return res.status(400).json({ 
+          error: "Missing required fields: blueprintId, printProviderId, colorName, qrGraphicUrl" 
+        });
+      }
+
+      const { getLifestyleMockupForColor } = await import("./lib/mockup-service");
+      
+      const result = await getLifestyleMockupForColor({
+        blueprintId: parseInt(blueprintId),
+        printProviderId: parseInt(printProviderId),
+        colorName,
+        colorHex,
+        qrGraphicUrl,
+        productType,
+      }, storage);
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("[LifestyleMockupAPI] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Pre-generate mockups for all colors of a product
   app.post("/api/admin/mockups/pre-generate", isAdmin, async (req: any, res) => {
     try {
