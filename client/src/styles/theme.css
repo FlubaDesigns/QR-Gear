@@ -1697,13 +1697,23 @@ html[data-theme="light"] .vanity-highlight-icon {
 
 /* USA flag icon sizes */
 .usa-flag-small {
+  display: inline-block;
   width: 1.25rem;
   height: 0.875rem;
+  max-width: 1.25rem;
+  max-height: 0.875rem;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .usa-flag-medium {
+  display: inline-block;
   width: 1.5rem;
   height: 1rem;
+  max-width: 1.5rem;
+  max-height: 1rem;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 /* Section CTA (centered) */
