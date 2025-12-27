@@ -577,9 +577,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Get Printify mockups if available (realistic product images)
+          // First check product.mockupsByColor, then fall back to custom_design.mockupsByColor
           // Normalize mockupsByColor - handle string (older rows), null, or object
           let mockupsByColor: Record<string, any> | null = null;
-          const rawMockups = (matchingDesign as any)?.mockupsByColor;
+          // First try the product's own mockupsByColor (populated by star button mockup generation)
+          const productMockups = (product as any)?.mockupsByColor;
+          const rawMockups = productMockups || (matchingDesign as any)?.mockupsByColor;
           if (rawMockups) {
             if (typeof rawMockups === 'string') {
               try {
