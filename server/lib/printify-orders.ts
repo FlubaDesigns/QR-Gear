@@ -145,7 +145,11 @@ export async function syncPrintifyOrderStatuses(): Promise<void> {
       const { status, trackingNumber, carrier } = await checkPrintifyOrderStatus(order.id);
 
       if (status === 'shipped' && trackingNumber && order.status !== 'shipped') {
-        await storage.updateOrder(order.id, { status: 'shipped' });
+        await storage.updateOrder(order.id, { 
+          status: 'shipped',
+          trackingNumber,
+          carrier: carrier || 'Standard Shipping',
+        });
 
         const user = await storage.getUser(order.userId);
         if (user?.email) {

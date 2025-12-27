@@ -19,6 +19,25 @@ interface OrderWithItems extends Order {
   items: OrderItem[];
 }
 
+function getTrackingUrl(carrier: string | null | undefined, trackingNumber: string): string {
+  const carrierLower = (carrier || '').toLowerCase();
+  
+  if (carrierLower.includes('usps')) {
+    return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`;
+  }
+  if (carrierLower.includes('ups')) {
+    return `https://www.ups.com/track?tracknum=${trackingNumber}`;
+  }
+  if (carrierLower.includes('fedex')) {
+    return `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`;
+  }
+  if (carrierLower.includes('dhl')) {
+    return `https://www.dhl.com/us-en/home/tracking.html?tracking-id=${trackingNumber}`;
+  }
+  // Default to Google search for tracking
+  return `https://www.google.com/search?q=${encodeURIComponent(trackingNumber + ' tracking')}`;
+}
+
 interface DynamicPageWithImage extends DynamicPage {
   activeImage?: {
     url: string;
@@ -349,13 +368,23 @@ export default function Account() {
                     </CardHeader>
                     <CardContent className="pt-0 space-y-3">
                       {order.trackingNumber && (
-                        <div className="flex items-center gap-2 text-sm bg-muted/50 p-3 rounded-lg">
-                          <Truck className="w-4 h-4 text-primary" />
-                          <span>Tracking: {order.trackingNumber}</span>
-                          <Button variant="ghost" size="sm" className="ml-auto gap-1" data-testid={`button-track-${order.id}`}>
-                            <ExternalLink className="w-3 h-3" />
-                            Track
-                          </Button>
+                        <div className="flex items-center gap-2 text-sm bg-muted/50 p-3 rounded-lg flex-wrap">
+                          <Truck className="w-4 h-4 text-primary flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium">{order.carrier || 'Shipping'}</span>
+                            <span className="text-muted-foreground ml-2 break-all">{order.trackingNumber}</span>
+                          </div>
+                          <a 
+                            href={getTrackingUrl(order.carrier, order.trackingNumber)} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="ml-auto flex-shrink-0"
+                          >
+                            <Button variant="ghost" size="sm" className="gap-1" data-testid={`button-track-${order.id}`}>
+                              <ExternalLink className="w-3 h-3" />
+                              Track Package
+                            </Button>
+                          </a>
                         </div>
                       )}
                       

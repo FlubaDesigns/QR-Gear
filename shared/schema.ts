@@ -304,6 +304,7 @@ export const orders = pgTable("orders", {
   printifyOrderId: text("printify_order_id"),
   shippingAddress: jsonb("shipping_address"),
   trackingNumber: text("tracking_number"),
+  carrier: text("carrier"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

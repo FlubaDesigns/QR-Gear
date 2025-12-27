@@ -1,3 +1,5 @@
+import { Link } from "wouter";
+import { Shield } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
@@ -6,6 +8,22 @@ import MarketingMessage, { HistoryTeaser } from "@/components/MarketingMessage";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
+import { useAuth } from "@/hooks/useAuth";
+
+function AdminQuickAccess() {
+  const { isAdmin } = useAuth();
+  
+  if (!isAdmin) return null;
+  
+  return (
+    <div className="admin-quick-bar">
+      <Link href="/admin/dashboard" className="admin-quick-link" data-testid="link-admin-quick">
+        <Shield className="w-4 h-4" />
+        Admin Dashboard
+      </Link>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
@@ -16,6 +34,7 @@ export default function Home() {
         keywords="QR code merchandise, custom promotional products, QR code shirts, QR code hats, business marketing"
       />
       <Navbar />
+      <AdminQuickAccess />
       <main className="flex-1">
         <Hero />
         <ActionCards />

@@ -2182,3 +2182,29 @@ html[data-theme="light"] .vanity-highlight-icon {
   color: var(--text-2);
   line-height: 1.6;
 }
+
+/* =========================================================
+   Admin Quick Access Bar (Homepage top)
+   ========================================================= */
+
+.admin-quick-bar {
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.admin-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--bg-0);
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-height: 48px;
+  padding: 0 1rem;
+}
+
+.admin-quick-link:hover {
+  opacity: 0.9;
+}
