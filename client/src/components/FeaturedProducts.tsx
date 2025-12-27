@@ -24,7 +24,7 @@ interface ColorWithHex {
   hex?: string;
 }
 
-interface FeaturedProduct extends Omit<Product, 'defaultColor'> {
+interface FeaturedProduct extends Omit<Product, 'defaultColor' | 'mockupsByColor'> {
   qrCodeUrl?: string | null;
   frontChestImage?: string | null;
   mockupsByColor?: MockupsByColor | null;
