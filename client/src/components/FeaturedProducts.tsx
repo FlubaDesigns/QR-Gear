@@ -17,6 +17,11 @@ interface MockupsByColor {
   };
 }
 
+interface ColorWithHex {
+  name: string;
+  hex?: string;
+}
+
 interface FeaturedProduct extends Omit<Product, 'defaultColor'> {
   qrCodeUrl?: string | null;
   frontChestImage?: string | null;
@@ -24,6 +29,8 @@ interface FeaturedProduct extends Omit<Product, 'defaultColor'> {
   defaultColor?: string | null;
   selectedColors?: string[] | null;
   defaultMockupImage?: string | null;
+  availableColorsWithHex?: ColorWithHex[];
+  isCustomizable?: boolean;
 }
 
 function ProductCard({ 
@@ -37,8 +44,18 @@ function ProductCard({
     product.defaultColor || null
   );
 
-  const availableColors = product.selectedColors || 
-    (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
+  // Use availableColorsWithHex if provided, otherwise fallback to names only
+  const colorsWithHex: ColorWithHex[] = product.availableColorsWithHex || 
+    (product.selectedColors?.map(name => ({ name })) || 
+    (product.mockupsByColor ? Object.keys(product.mockupsByColor).map(name => ({ name })) : []));
+  
+  const availableColors = colorsWithHex.map(c => c.name);
+  
+  // Create hex lookup map from data
+  const colorHexMap: Record<string, string> = {};
+  colorsWithHex.forEach(c => {
+    if (c.hex) colorHexMap[c.name] = c.hex;
+  });
 
   const getCurrentMockup = (): string | null => {
     if (!product.mockupsByColor) return null;
@@ -85,7 +102,7 @@ function ProductCard({
             <button
               key={color}
               className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
-              style={{ backgroundColor: getColorHex(color) }}
+              style={{ backgroundColor: colorHexMap[color] || getColorHex(color) }}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedColor(color);
@@ -181,11 +198,18 @@ function ProductQuickView({
     }
   }, [isOpen, product]);
 
-  const availableColors = product?.availableColors 
-    ? (Array.isArray(product.availableColors) 
-        ? product.availableColors.map((c: any) => c.name || c) 
-        : Object.keys(product.availableColors))
-    : (product?.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
+  // Use availableColorsWithHex if provided, otherwise fallback to names only
+  const colorsWithHex: ColorWithHex[] = product?.availableColorsWithHex || 
+    (product?.selectedColors?.map(name => ({ name })) || 
+    (product?.mockupsByColor ? Object.keys(product.mockupsByColor).map(name => ({ name })) : []));
+  
+  const availableColors = colorsWithHex.map(c => c.name);
+  
+  // Create hex lookup map from data
+  const colorHexMap: Record<string, string> = {};
+  colorsWithHex.forEach(c => {
+    if (c.hex) colorHexMap[c.name] = c.hex;
+  });
 
   const availableSizes = product?.availableSizes || ['S', 'M', 'L', 'XL', '2XL'];
 
@@ -322,6 +346,7 @@ function ProductQuickView({
               <div className="flex flex-wrap gap-2">
                 {availableColors.map((color: string) => {
                   const hasMockup = localMockups[color]?.front || product.mockupsByColor?.[color]?.front;
+                  const hexColor = colorHexMap[color] || getColorHex(color);
                   return (
                     <button
                       key={color}
@@ -330,7 +355,7 @@ function ProductQuickView({
                           ? 'border-primary ring-2 ring-primary ring-offset-2' 
                           : 'border-border hover:border-primary/50'
                       }`}
-                      style={{ backgroundColor: getColorHex(color) }}
+                      style={{ backgroundColor: hexColor }}
                       onClick={() => handleColorClick(color)}
                       title={color}
                       disabled={generatingColor === color}
@@ -383,11 +408,13 @@ function ProductQuickView({
                 Add to Cart
               </Button>
               
-              <Link href={`/creator?product=${product.id}`}>
-                <Button variant="outline" className="w-full h-12" data-testid="button-customize-design">
-                  Customize Design
-                </Button>
-              </Link>
+              {product.isCustomizable !== false && (
+                <Link href={`/creator?product=${product.id}`}>
+                  <Button variant="outline" className="w-full h-12" data-testid="button-customize-design">
+                    Customize Design
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

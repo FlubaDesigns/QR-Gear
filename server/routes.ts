@@ -637,6 +637,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
+          // Get availableColors with hex values from product data
+          let availableColorsWithHex: Array<{name: string, hex?: string}> = [];
+          const rawAvailableColors = product.availableColors;
+          if (rawAvailableColors) {
+            if (Array.isArray(rawAvailableColors)) {
+              availableColorsWithHex = rawAvailableColors as Array<{name: string, hex?: string}>;
+            }
+          }
+          
+          // Determine if this is a customizable product or store template
+          // Store templates (pre-made designs) are not customizable
+          const metadata = typeof product.metadata === 'object' ? product.metadata as Record<string, any> : {};
+          const isCustomizable = metadata?.allowCustomization !== false && 
+            !product.id.startsWith('custom_') && 
+            !product.id.includes('-template-');
+          
           return {
             ...product,
             qrCodeUrl: matchingDesign?.qrCodeUrl || null,
@@ -646,6 +662,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             defaultColor: validDefaultColor, // Use validated color that exists in mockups
             selectedColors,
             defaultMockupImage, // Pre-computed default image for quick display
+            availableColorsWithHex, // Colors with hex values for color swatches
+            isCustomizable, // Whether user can customize the design
           };
         });
         
