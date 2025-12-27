@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,24 +33,28 @@ interface HealthOverview {
   recentLogs: ProviderHealthLog[];
 }
 
-function StatusIcon({ status }: { status: "healthy" | "degraded" | "down" }) {
+function StatusIcon({ status }: { status: string }) {
   switch (status) {
     case "healthy":
       return <CheckCircle className="w-5 h-5 text-green-500" />;
     case "degraded":
       return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+    case "not_configured":
+      return <AlertCircle className="w-5 h-5 text-gray-500" />;
     case "down":
+    default:
       return <XCircle className="w-5 h-5 text-red-500" />;
   }
 }
 
-function StatusBadge({ status }: { status: "healthy" | "degraded" | "down" }) {
-  const config = {
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; color: string }> = {
     healthy: { label: "Healthy", color: "bg-green-500/10 text-green-600 border-green-500/20" },
     degraded: { label: "Degraded", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
     down: { label: "Down", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+    not_configured: { label: "Not Configured", color: "bg-gray-500/10 text-gray-500 border-gray-500/20" },
   };
-  const { label, color } = config[status];
+  const { label, color } = config[status] || config.down;
   return (
     <Badge variant="outline" className={color}>
       {label}
@@ -163,6 +168,7 @@ export default function AdminHealth() {
 
   return (
     <div className="qr-admin-page">
+      <BreadcrumbTrail />
       <div className="qr-admin-bar">
         <div className="qr-admin-bar__inner">
           <div className="qr-admin-bar__left">

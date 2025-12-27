@@ -1,6 +1,7 @@
 import { Palette, CheckCircle, Brush, Image, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -40,6 +41,7 @@ export default function ArtistQRApparel() {
         keywords="artist merch, custom artist shirts, photographer apparel, wearable portfolio, art QR shirts, designer merchandise, creative apparel"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

@@ -1,6 +1,7 @@
 import { Briefcase, CheckCircle, UtensilsCrossed, HelpCircle, Phone, Store, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -44,6 +45,7 @@ export default function BusinessQRPlus() {
         keywords="business QR, menu QR code, restaurant QR, service business QR, professional QR shirts, customer service QR"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

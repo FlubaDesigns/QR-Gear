@@ -1,6 +1,7 @@
 import { Music, CheckCircle, Sparkles, Disc, Radio, TrendingUp, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -44,6 +45,7 @@ export default function BandDynamicMerch() {
         keywords="band merch QR, dynamic band shirt, updateable merch, tour merchandise, musician QR, album merch"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

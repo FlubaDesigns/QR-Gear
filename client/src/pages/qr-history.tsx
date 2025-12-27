@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { ArrowLeft, Calendar, Car, Smartphone, ShoppingBag, Sparkles } from "lucide-react";
 
 const timeline = [
@@ -46,6 +47,7 @@ const funFacts = [
 export default function QRHistory() {
   return (
     <div className="page-container">
+      <BreadcrumbTrail />
       <section className="hero-section">
         <div className="container">
           <Link href="/">

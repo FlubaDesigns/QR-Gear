@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -211,6 +212,7 @@ export default function Account() {
         description="Manage your QR Gear account, view order history, track shipments, and manage your saved designs."
         keywords="QR Gear account, order history, manage designs"
       />
+      <BreadcrumbTrail />
       <PageBreadcrumb currentPage="My Account" />
       <div className="max-w-6xl mx-auto space-y-6 p-6">
         <div className="glass-card rounded-xl p-6">

@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Trash2, Plus, Minus, Loader2, ShoppingBag, ArrowRight, LogIn } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
@@ -132,6 +133,7 @@ export default function Cart() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
+        <BreadcrumbTrail />
         <PageBreadcrumb currentPage="Cart" />
         <div className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
@@ -148,6 +150,7 @@ export default function Cart() {
         description="Review your custom QR code merchandise before checkout."
       />
       <Navbar />
+      <BreadcrumbTrail />
       <PageBreadcrumb currentPage="Cart" />
       
       <div className="container mx-auto px-4 py-8 max-w-4xl">

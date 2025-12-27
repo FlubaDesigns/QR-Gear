@@ -1,6 +1,7 @@
 import { Building2, CheckCircle, Sparkles, Home, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -44,6 +45,7 @@ export default function RealtorQRShirts() {
         keywords="realtor QR shirt, real estate polo, listing QR code, open house shirt, agent merchandise, property QR"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

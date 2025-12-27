@@ -2,6 +2,7 @@ import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -141,6 +142,7 @@ export default function AdminTags() {
 
   return (
     <div className="min-h-screen">
+      <BreadcrumbTrail />
       <div className="bg-slate-900 dark:bg-slate-950 text-white">
         <div className="container max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">

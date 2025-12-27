@@ -3,6 +3,7 @@ import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -511,5 +512,10 @@ export default function AdminVideosPage() {
     return null;
   }
 
-  return <VideosContent />;
+  return (
+    <div className="min-h-screen">
+      <BreadcrumbTrail />
+      <VideosContent />
+    </div>
+  );
 }

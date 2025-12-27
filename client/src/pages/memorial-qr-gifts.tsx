@@ -1,6 +1,7 @@
 import { Heart, CheckCircle, Star, Camera, Users, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -40,6 +41,7 @@ export default function MemorialQRGifts() {
         keywords="memorial shirts, remembrance gifts, in memory of shirts, tribute apparel, pet memorial, loved one shirts, grief gifts, memorial QR"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

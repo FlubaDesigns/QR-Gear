@@ -3,6 +3,7 @@ import { useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Eye, Calendar, Building2 } from "lucide-react";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 interface HostedImageInfo {
   id: string;
@@ -63,6 +64,7 @@ export default function ViewImage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <BreadcrumbTrail />
       <div className="max-w-3xl mx-auto p-4 py-8">
         {imageInfo.businessName && (
           <div className="flex items-center gap-3 mb-6">

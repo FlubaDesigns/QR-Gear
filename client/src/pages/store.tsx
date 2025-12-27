@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
@@ -104,6 +105,7 @@ export default function Store() {
         keywords="QR code products, custom merchandise, promotional items, QR shirts, QR hats"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="flex-1 bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <PageBreadcrumb currentPage="Shop" />
         <div className="container py-8">

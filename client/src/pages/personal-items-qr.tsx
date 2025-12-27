@@ -1,6 +1,7 @@
 import { Tag, CheckCircle, User, Shirt, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -42,6 +43,7 @@ export default function PersonalItemsQR() {
         keywords="personal QR code, lost and found QR, emergency contact QR, QR for personal items, QR labels for belongings"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

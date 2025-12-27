@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -353,6 +354,7 @@ export default function AdminCategories() {
 
   return (
     <div className="min-h-screen">
+      <BreadcrumbTrail />
       <div className="bg-slate-900 dark:bg-slate-950 text-white">
         <div className="container max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">

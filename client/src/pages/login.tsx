@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, QrCode, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -34,6 +35,7 @@ export default function LoginPage() {
 
   return (
     <div className="qr-auth-container">
+      <BreadcrumbTrail />
       <div className="qr-auth-card">
         <div className="qr-auth-header">
           <div className="qr-auth-logo">

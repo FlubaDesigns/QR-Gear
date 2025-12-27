@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode } from "lucide-react";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 interface StoreProduct {
   id: string;
@@ -97,6 +98,7 @@ export default function ShopSegmentPage() {
 
   return (
     <div className="container max-w-6xl py-8 px-4">
+      <BreadcrumbTrail />
       <Link href="/">
         <Button 
           variant="ghost" 

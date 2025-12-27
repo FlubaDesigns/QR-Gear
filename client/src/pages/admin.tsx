@@ -1,6 +1,7 @@
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import {
   ArrowLeft,
   Package,
@@ -123,6 +124,7 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen">
+      <BreadcrumbTrail />
       <div className="bg-slate-900 dark:bg-slate-950 text-white">
         <div className="container max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">

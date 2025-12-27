@@ -2,6 +2,7 @@ import { useLocation, Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -455,6 +456,7 @@ export default function AdminOrchestration() {
 
   return (
     <div className="qr-admin-page">
+      <BreadcrumbTrail />
       <div className="qr-admin-bar">
         <div className="qr-admin-bar__inner">
           <div className="qr-admin-bar__left">

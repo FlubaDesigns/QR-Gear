@@ -1,6 +1,7 @@
 import { Heart, CheckCircle, Sparkles, Camera, Users, Gift, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -40,6 +41,7 @@ export default function WeddingQRShirts() {
         keywords="wedding favors, wedding shirts, custom wedding gifts, QR wedding favors, photo wedding shirts, unique wedding ideas, personalized wedding gifts"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

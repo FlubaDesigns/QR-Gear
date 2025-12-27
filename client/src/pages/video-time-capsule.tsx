@@ -1,6 +1,7 @@
 import { Clock, CheckCircle, Baby, Heart, GraduationCap, Gift, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -44,6 +45,7 @@ export default function VideoTimeCapsule() {
         keywords="video time capsule, future message, message for child, future self video, time capsule shirt, milestone gift"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

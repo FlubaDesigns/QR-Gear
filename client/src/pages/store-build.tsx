@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import type { PartnerStore, Product } from "@shared/schema";
 
 import { Button } from "@/components/ui/button";
@@ -284,6 +285,7 @@ export default function StoreBuildPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <BreadcrumbTrail />
       <nav className="flex items-center gap-2 px-6 py-4 border-b text-sm" aria-label="Breadcrumb">
         <Link href="/" className="text-muted-foreground hover:text-foreground" data-testid="breadcrumb-home">
           Home

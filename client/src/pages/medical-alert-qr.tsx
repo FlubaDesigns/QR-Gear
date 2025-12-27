@@ -1,6 +1,7 @@
 import { Heart, CheckCircle, AlertTriangle, Pill, Phone, Shield, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -45,6 +46,7 @@ export default function MedicalAlertQR() {
         keywords="medical alert QR, emergency info shirt, allergy alert, medical ID QR, emergency contacts wearable, health info QR"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">

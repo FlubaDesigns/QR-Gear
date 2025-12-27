@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, QrCode, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import type { CustomDesign } from "@shared/schema";
 
 export default function CustomsPage() {
@@ -80,6 +81,7 @@ export default function CustomsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 py-8 px-4">
+      <BreadcrumbTrail />
       <div className="max-w-2xl mx-auto">
         <Card className="overflow-hidden">
           <CardContent className="p-0">

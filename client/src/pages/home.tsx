@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Shield } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
 import HowItWorks from "@/components/HowItWorks";
@@ -34,6 +35,7 @@ export default function Home() {
         keywords="QR code merchandise, custom promotional products, QR code shirts, QR code hats, business marketing"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <AdminQuickAccess />
       <main className="flex-1">
         <Hero />

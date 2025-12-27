@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGuestCart } from "@/hooks/useGuestCart";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/Navbar";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import UsaFlag from "@/components/UsaFlag";
@@ -789,6 +790,7 @@ export default function Creator() {
         keywords="QR code creator, custom QR design, QR merchandise designer, QR Dynamics, living QR codes, dynamic QR products"
       />
       <Navbar />
+      <BreadcrumbTrail />
       <PageBreadcrumb currentPage="Create" />
       <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
         <h1 className="font-heading text-2xl sm:text-4xl font-bold mb-2">QR Code Creator</h1>

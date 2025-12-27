@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingBag, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 interface WidgetSession {
   businessName: string;
@@ -129,6 +130,7 @@ export default function Widget() {
       ref={containerRef}
       className={`bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 ${compact ? 'p-4' : 'p-6 min-h-screen'}`}
     >
+      <BreadcrumbTrail />
       <div className={`mx-auto space-y-6 ${compact ? 'max-w-full' : 'max-w-5xl'}`}>
         <div className="glass-card rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">

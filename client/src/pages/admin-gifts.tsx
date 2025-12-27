@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -213,6 +214,7 @@ export default function AdminGiftsPage() {
 
   return (
     <div className="container max-w-7xl py-6 px-4">
+      <BreadcrumbTrail />
       <div className="flex items-center gap-4 mb-6">
         <Link href="/admin">
           <Button variant="ghost" className="h-12 px-4" data-testid="button-back-admin">
