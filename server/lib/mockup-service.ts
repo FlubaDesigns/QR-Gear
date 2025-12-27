@@ -383,71 +383,92 @@ async function generatePrintifyMockup(params: {
   const printifyProduct = await printify.createProduct(productData);
   console.log(`[MockupService] Created temp Printify product: ${printifyProduct.id}`);
 
-  // Poll for mockups
+  // Poll for RENDERED mockups with artwork
+  // CRITICAL: productDetails.images are BLUEPRINT DEFAULTS without artwork
+  // The actual rendered mockups with our QR design are in print_areas[].placeholders[].images[].src
   let attempts = 0;
-  const maxAttempts = 10;
+  const maxAttempts = 15;
   let mockupImages: { flat?: string; lifestyle?: string } = {};
 
   while (attempts < maxAttempts && !mockupImages.flat) {
-    const delay = Math.min(2000 * Math.pow(1.5, attempts), 8000);
+    const delay = Math.min(2000 * Math.pow(1.5, attempts), 10000);
     await new Promise((resolve) => setTimeout(resolve, delay));
     attempts++;
 
     const productDetails = await printify.getProduct(printifyProduct.id);
-    if (productDetails.images && productDetails.images.length > 0) {
-      // Printify returns images with different types
-      // Parse through all images to find flat and lifestyle versions
-      console.log(`[MockupService] Printify returned ${productDetails.images.length} images`);
+    
+    // Log full response structure for debugging
+    console.log(`[MockupService] Attempt ${attempts}: Checking for rendered mockups...`);
+    
+    // FIRST: Check print_areas for rendered placeholder images (these contain our artwork!)
+    if (productDetails.print_areas && productDetails.print_areas.length > 0) {
+      console.log(`[MockupService] Found ${productDetails.print_areas.length} print_areas`);
+      
+      for (const printArea of productDetails.print_areas) {
+        if (printArea.placeholders && printArea.placeholders.length > 0) {
+          for (const placeholder of printArea.placeholders) {
+            console.log(`[MockupService] Placeholder position: ${placeholder.position}`);
+            
+            if (placeholder.images && placeholder.images.length > 0) {
+              for (const img of placeholder.images) {
+                // The 'src' field contains the RENDERED mockup URL with our artwork
+                if (img.src && !mockupImages.flat) {
+                  console.log(`[MockupService] Found rendered artwork preview: ${img.src.substring(0, 80)}...`);
+                  mockupImages.flat = img.src;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // SECOND: If no print_area images, check product.images (but these may be blueprint defaults)
+    if (!mockupImages.flat && productDetails.images && productDetails.images.length > 0) {
+      console.log(`[MockupService] Fallback: checking ${productDetails.images.length} product images`);
       
       for (let i = 0; i < productDetails.images.length; i++) {
         const img = productDetails.images[i];
         const src = typeof img === 'string' ? img : (img.src || '');
         const isDefault = img.is_default || false;
         const position = (img.position || "").toLowerCase();
-        const variantIds = img.variant_ids || [];
         
-        // Log image details for debugging
-        console.log(`[MockupService] Image ${i}: position="${position}", is_default=${isDefault}, variant_ids=${variantIds.length}`);
+        console.log(`[MockupService] Image ${i}: position="${position}", is_default=${isDefault}, src=${src.substring(0, 60)}...`);
         
-        // First image or default image is typically the flat product shot
+        // Take default or first image as flat
         if (!mockupImages.flat && (isDefault || i === 0)) {
           mockupImages.flat = src;
         }
         
-        // Look for lifestyle indicators in position or metadata
-        // Printify uses various naming conventions: "lifestyle", "model", etc.
-        const lifestyleKeywords = ['lifestyle', 'model', 'worn', 'person'];
+        // Look for lifestyle
+        const lifestyleKeywords = ['lifestyle', 'model', 'worn', 'person', 'other'];
         const isLifestylePosition = lifestyleKeywords.some(kw => position.includes(kw));
-        const isLifestyleUrl = lifestyleKeywords.some(kw => src.toLowerCase().includes(kw));
         
-        if (!mockupImages.lifestyle && (isLifestylePosition || isLifestyleUrl)) {
+        if (!mockupImages.lifestyle && isLifestylePosition) {
           mockupImages.lifestyle = src;
         }
       }
       
-      // If we found more than one image and no lifestyle yet, the 2nd+ images could be lifestyle
-      // Printify often returns: [flat shot, lifestyle shot, back shot, etc.]
+      // If multiple images, second could be lifestyle
       if (productDetails.images.length > 1 && !mockupImages.lifestyle) {
         for (let i = 1; i < productDetails.images.length; i++) {
           const img = productDetails.images[i];
           const src = typeof img === 'string' ? img : (img.src || '');
           const position = (img.position || "").toLowerCase();
           
-          // Skip back/side shots - we want lifestyle (front with model)
           if (position.includes('back') || position.includes('side')) continue;
           
-          // If different from first image and not a back view, could be lifestyle
           if (src && src !== mockupImages.flat) {
             mockupImages.lifestyle = src;
-            console.log(`[MockupService] Using image ${i} as lifestyle candidate`);
+            console.log(`[MockupService] Using image ${i} as lifestyle`);
             break;
           }
         }
       }
-      
-      if (mockupImages.flat) {
-        console.log(`[MockupService] Got mockup URLs after ${attempts} attempts (lifestyle: ${!!mockupImages.lifestyle})`);
-      }
+    }
+    
+    if (mockupImages.flat) {
+      console.log(`[MockupService] Got mockup URLs after ${attempts} attempts (lifestyle: ${!!mockupImages.lifestyle})`);
     }
   }
 

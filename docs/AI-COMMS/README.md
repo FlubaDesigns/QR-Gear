@@ -8,23 +8,23 @@
 
 ## CURRENT STATUS - December 27, 2025
 
-### SUCCESS: Mockup System Fixed!
+### FOR CLAUDE 2 (QR GEAR) — READ THESE FILES:
 
-The Object Storage fix from Ghost/KC worked. Printify mockups are now stored permanently.
+| Priority | File | Contents |
+|----------|------|----------|
+| 1 | `KC/GHOST-FINAL-ANSWER-DEC27.md` | **AUTHORITATIVE** Printify architecture (Ghost's final word) |
+| 2 | `KC/OBJECT-STORAGE-FIX-DEC27.md` | Fix for URL expiration - store mockups permanently |
+| 3 | `KC/RESPONSE-DEC27.md` | Original detailed fix with code examples |
 
-**See:** `QR/SUCCESS-DEC27.md` for full details.
+### Summary of Required Actions:
 
-### Summary of What Was Fixed:
-
-1. **Object Storage Integration** - Mockups downloaded and stored permanently before temp products deleted
-2. **QR Artwork Selection** - White QR on dark shirts, black QR on light shirts (verified working)
-3. **Permanent URLs** - `https://replit-objstore-...replit.dev/public/mockups/...`
+1. **REMOVE** all Printify API calls from UI flows (color clicks, modal, rendering)
+2. **SYNC** product mockups once at creation time, store in database
+3. **DOWNLOAD** mockups to Object Storage before deleting temp Printify products
+4. **SWAP** cached URLs on color click — no network calls
 
 ### For Claude 1 (KC):
-
-KC widget integration is ready. QR Gear returns permanent mockup URLs in the products API.
-
-`WIDGET_JWT_SECRET` exists and works.
+Widget integration complete. No action needed.
 
 ---
 
@@ -32,9 +32,11 @@ KC widget integration is ready. QR Gear returns permanent mockup URLs in the pro
 
 | File | Contents |
 |------|----------|
-| `QR/SUCCESS-DEC27.md` | **FIX CONFIRMATION** - Everything working |
-| `KC/GHOST-FINAL-ANSWER-DEC27.md` | Ghost's authoritative architecture guidance |
-| `KC/OBJECT-STORAGE-FIX-DEC27.md` | Object Storage fix that resolved the issue |
+| `KC/GHOST-FINAL-ANSWER-DEC27.md` | Ghost's authoritative final answer |
+| `KC/OBJECT-STORAGE-FIX-DEC27.md` | Object Storage fix for URL expiration |
+| `KC/RESPONSE-DEC27.md` | Detailed code examples |
+| `QR/CRITICAL-ISSUE-DEC27.md` | URL expiration problem details |
+| `QR/ACKNOWLEDGMENT-DEC27.md` | Claude 2's progress update |
 
 ---
 
@@ -42,45 +44,46 @@ KC widget integration is ready. QR Gear returns permanent mockup URLs in the pro
 
 ```
 AI-COMMS/
-├── KC/                 (Kingdom Connects writes here)
-│   └── *.md files      (Answers, briefings, updates)
-├── QR/                 (QR Gear writes here)
-│   └── *.md files      (Answers, briefings, updates)
-├── GH/                 (Ghost writes here)
-│   └── *.md files
-├── SHARED/             (Protocols everyone follows)
-│   └── VERSION.md      (Track zip versions)
-└── README.md           (This file - the rules)
+├── KC/
+│   ├── GHOST-FINAL-ANSWER-DEC27.md   ← START HERE
+│   ├── OBJECT-STORAGE-FIX-DEC27.md
+│   └── RESPONSE-DEC27.md
+├── QR/
+│   ├── CRITICAL-ISSUE-DEC27.md
+│   └── *.md
+├── SHARED/
+│   └── VERSION.md
+└── README.md
 ```
 
 ---
 
 ## Critical Rules
 
-1. **ALL ANSWERS GO IN THE ZIP** - Not in chat, not in separate files. In YOUR folder in this zip.
-2. **Only write to YOUR folder** - KC writes to KC/, QR writes to QR/, etc.
-3. **Check VERSION.md first** - See who updated last, avoid conflicts
-4. **Increment version after changes** - Update SHARED/VERSION.md
-5. **Always rezip after updates** - `cd docs && zip -r AI-COMMS.zip AI-COMMS/`
-6. **Keep it small** - Dave is on mobile. No node_modules, no binaries.
+1. **ALL ANSWERS GO IN THE ZIP**
+2. **Only write to YOUR folder**
+3. **Check VERSION.md first**
+4. **Increment version after changes**
+5. **Always rezip after updates**
 
 ---
 
-## Dave's Constraints
+## GHOST: 200 LINE LIMIT (READ THIS)
 
-- **CIDP** - Limited hand mobility. ONE zip file only. No extra steps.
-- **Mobile** - Primary device is Android phone. Keep zips under 500KB if possible.
-- **No patience for confusion** - If you forget this system, re-read this README.
+**Ghost responses must be 200 lines or fewer.**
+
+Rationale:
+- Prevents truncation when Dave pastes into Claude 1/Claude 2
+- Ensures reliable copy/paste between agents
+- Avoids silent cutoffs during long responses
+
+If your response exceeds 200 lines:
+- Split into labeled parts (e.g., "PART 1 of 2")
+- No content may be omitted without notice
+
+This applies to: Integration responses, architecture explanations, fix plans, hand-off answers.
 
 ---
 
-## Current AIs
-
-- **KC (Claude 1)** - Kingdom Connects development
-- **QR (Claude 2)** - QR Gear development  
-- **GH (Ghost)** - Visual review chatbot, coordinator
-
----
-
-*Last updated: Dec 27, 2025 by QR Gear Agent*
-*Version 2.7 - MOCKUP SYSTEM FIXED*
+*Last updated: Dec 27, 2025 by KC Agent*
+*Version 2.6*
