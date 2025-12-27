@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
@@ -17,73 +17,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, Filter, X, Star, Loader2, Check } from "lucide-react";
+import { Package, Filter, X } from "lucide-react";
 import UsaFlag from "@/components/UsaFlag";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Product, ProductCategory } from "@shared/schema";
-
-interface StoreProduct extends Product {
-  selectedColors?: string[];
-  defaultColor?: string;
-  mockupsByColor?: Record<string, { front?: string; back?: string }>;
-}
 
 export default function Store() {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
   const [selectedHoliday, setSelectedHoliday] = useState<string>("");
   const [selectedOccasion, setSelectedOccasion] = useState<string>("");
   const [selectedOther, setSelectedOther] = useState<string>("");
-  const [generatingMockups, setGeneratingMockups] = useState<Record<string, Set<string>>>({});
-  const { toast } = useToast();
 
-  const { data: products, isLoading: productsLoading } = useQuery<StoreProduct[]>({
-    queryKey: ["/api/products", "qr-gear-main", "Home"],
-    queryFn: async () => {
-      const res = await fetch("/api/products?store=qr-gear-main&segment=Home");
-      return res.json();
-    },
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
   });
-
-  const generateMockup = useMutation({
-    mutationFn: async ({ productId, color }: { productId: string; color: string }) => {
-      const response = await apiRequest("POST", "/api/storefront/generate-mockup", {
-        productId,
-        color,
-      });
-      return response.json();
-    },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products", "qr-gear-main", "Home"] });
-      toast({
-        title: "Mockup generated",
-        description: `${variables.color} mockup is ready`,
-      });
-    },
-    onError: (error: Error, variables) => {
-      toast({
-        title: "Failed to generate mockup",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-    onSettled: (data, error, variables) => {
-      setGeneratingMockups(prev => {
-        const productSet = new Set(prev[variables.productId] || []);
-        productSet.delete(variables.color);
-        return { ...prev, [variables.productId]: productSet };
-      });
-    },
-  });
-
-  const handleGenerateMockup = (productId: string, color: string) => {
-    setGeneratingMockups(prev => {
-      const productSet = new Set(prev[productId] || []);
-      productSet.add(color);
-      return { ...prev, [productId]: productSet };
-    });
-    generateMockup.mutate({ productId, color });
-  };
 
   const { data: seasons } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories", "season"],
@@ -284,11 +230,7 @@ export default function Store() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {displayProducts.map((product) => {
-                const colors = product.selectedColors || [];
-                const productGenerating = generatingMockups[product.id] || new Set();
-                
-                return (
+              {displayProducts.map((product) => (
                   <Card 
                     key={product.id} 
                     className="glass-card overflow-hidden hover-elevate transition-all duration-200"
@@ -322,40 +264,7 @@ export default function Store() {
                         {product.description || `Custom QR ${product.category}`}
                       </p>
                       
-                      {colors.length > 0 && (
-                        <div className="color-chip-grid" data-testid={`colors-${product.id}`}>
-                          {colors.map((color) => {
-                            const hasMockup = product.mockupsByColor?.[color]?.front;
-                            const isGenerating = productGenerating.has(color);
-                            
-                            return (
-                              <button
-                                key={color}
-                                className={`color-chip ${hasMockup ? 'has-mockup' : ''} ${isGenerating ? 'generating' : ''}`}
-                                onClick={() => !hasMockup && !isGenerating && handleGenerateMockup(product.id, color)}
-                                disabled={isGenerating || !!hasMockup}
-                                title={hasMockup ? `${color} mockup ready` : `Tap to generate ${color} mockup`}
-                                data-testid={`chip-${product.id}-${color}`}
-                              >
-                                <span 
-                                  className="color-chip-dot" 
-                                  style={{ backgroundColor: color.toLowerCase() }}
-                                />
-                                <span className="color-chip-name">{color}</span>
-                                {isGenerating ? (
-                                  <Loader2 className="color-chip-star" />
-                                ) : hasMockup ? (
-                                  <Check className="color-chip-star" />
-                                ) : (
-                                  <Star className="color-chip-star" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center justify-between gap-2 mt-3">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-xs text-muted-foreground">Build to see price</span>
                         <Link href="/creator">
                           <Button 
@@ -368,8 +277,7 @@ export default function Store() {
                       </div>
                     </CardContent>
                   </Card>
-                );
-              })}
+              ))}
             </div>
           )}
         </div>

@@ -3736,10 +3736,6 @@ ${allPages.map(page => `  <url>
       console.log(`[StorefrontMockup] Generating for product ${productId}, color ${color}`);
       console.log(`[StorefrontMockup] Blueprint: ${blueprintId}, Provider: ${printProviderId}`);
       
-      // Import Printify client
-      const printify = (await import("./lib/printify")).default;
-      const { syncProductVariants, syncProductPlacements } = await import("./lib/printify");
-      
       // Get variants for this color
       const { variants } = await syncProductVariants(blueprintId, printProviderId);
       const colorVariants = variants.filter(v => 
