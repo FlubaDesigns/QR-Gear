@@ -591,23 +591,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // For featured products, enrich with mockups and QR artwork from custom_designs
         const designs = await storage.getCustomDesigns();
+        
         const enrichedProducts = enabledProducts.map((product) => {
-          // Calculate retail price using admin settings
-          const baseCost = parseFloat(product.basePrice) || 0;
-          
-          // Use product-specific values if set, otherwise fall back to global settings
-          const qrCost = parseFloat(product.qrProductionCost || "0") || globalQrCost;
-          const markupFixed = parseFloat(product.markupFixed || "0") || globalMarkupFixed;
-          const markupPercent = parseFloat(product.markupPercent || "0") || globalMarkupPercent;
-          
-          // Calculate additional placement costs (from availablePlacements array)
-          const placements = product.availablePlacements || [];
-          const extraPlacementCount = Math.max(0, placements.length - 1);
-          const placementUpcharge = extraPlacementCount * additionalPlacementCost;
-          
-          // Final price = (baseCost + qrCost + placementUpcharge) * (1 + markupPercent/100) + markupFixed
-          const totalCost = baseCost + qrCost + placementUpcharge;
-          const retailPrice = Math.ceil((totalCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+          // IMPORTANT: Use customerPrice set by admin in Admin Products section
+          // Only fall back to calculation if customerPrice is not set
+          let retailPrice: number;
+          if (product.customerPrice) {
+            retailPrice = parseFloat(product.customerPrice);
+          } else {
+            // Fallback calculation only if admin hasn't set customerPrice
+            const baseCost = parseFloat(product.basePrice) || 0;
+            const qrCost = parseFloat(product.qrProductionCost || "0") || globalQrCost;
+            const markupFixed = parseFloat(product.markupFixed || "0") || globalMarkupFixed;
+            const markupPercent = parseFloat(product.markupPercent || "0") || globalMarkupPercent;
+            const placements = product.availablePlacements || [];
+            const extraPlacementCount = Math.max(0, placements.length - 1);
+            const placementUpcharge = extraPlacementCount * additionalPlacementCost;
+            const totalCost = baseCost + qrCost + placementUpcharge;
+            retailPrice = Math.ceil((totalCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+          }
           
           // Try to find the matching custom design by the product ID pattern
           // Custom design IDs are like "qr-gear-main-home-tee-dec2025" 
