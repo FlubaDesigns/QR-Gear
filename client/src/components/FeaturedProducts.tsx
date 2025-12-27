@@ -169,7 +169,16 @@ function ProductCard({
       </div>
       
       {availableColors.length > 1 && (
-        <div className="product-card-colors">
+        <div 
+          className="product-card-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onClickCapture={(e) => {
+            e.stopPropagation();
+          }}
+        >
           {availableColors.slice(0, 5).map((color) => (
             <button
               key={color}
@@ -177,6 +186,7 @@ function ProductCard({
               style={{ backgroundColor: colorHexMap[color] || getColorHex(color) }}
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 handleColorChange(color);
               }}
               title={color}
