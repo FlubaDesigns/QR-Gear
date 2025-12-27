@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100" fill="none">
+  <defs>
+    <linearGradient id="logoGradientDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0C4A6E"/>
+      <stop offset="100%" stop-color="#075985"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Q Letter (QR code style) -->
+  <g fill="url(#logoGradientDark)">
+    <!-- Outer Q shape -->
+    <rect x="8" y="8" width="52" height="52" rx="8" stroke="url(#logoGradientDark)" stroke-width="6" fill="none"/>
+    
+    <!-- Top-left finder square -->
+    <rect x="16" y="16" width="14" height="14" rx="2"/>
+    
+    <!-- Top-right finder square -->
+    <rect x="38" y="16" width="14" height="14" rx="2"/>
+    
+    <!-- Center dot -->
+    <circle cx="34" cy="40" r="4"/>
+    
+    <!-- Bottom connector for Q tail -->
+    <rect x="50" y="50" width="16" height="6" rx="3"/>
+  </g>
+  
+  <!-- R Letter -->
+  <g fill="url(#logoGradientDark)">
+    <!-- R vertical stem -->
+    <rect x="72" y="8" width="8" height="52" rx="4"/>
+    
+    <!-- R top curve -->
+    <path d="M76 8 H100 Q116 8 116 24 Q116 40 100 40 H76" stroke="url(#logoGradientDark)" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- R diagonal leg -->
+    <path d="M90 38 L116 60" stroke="url(#logoGradientDark)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Horizontal divider line -->
+  <line x1="8" y1="70" x2="120" y2="70" stroke="url(#logoGradientDark)" stroke-width="1" opacity="0.6"/>
+  
+  <!-- GEAR text -->
+  <text x="64" y="92" font-family="'Inter', 'SF Pro Display', -apple-system, sans-serif" font-size="20" font-weight="500" letter-spacing="12" text-anchor="middle" fill="url(#logoGradientDark)">GEAR</text>
+</svg>
