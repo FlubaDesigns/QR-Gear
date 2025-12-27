@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRButton } from "@/components/QRButton";
 import UsaFlag from "./UsaFlag";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Loader2, ShoppingCart, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Product } from "@shared/schema";
 
 interface MockupsByColor {
@@ -12,7 +17,7 @@ interface MockupsByColor {
   };
 }
 
-interface FeaturedProduct extends Product {
+interface FeaturedProduct extends Omit<Product, 'defaultColor'> {
   qrCodeUrl?: string | null;
   frontChestImage?: string | null;
   mockupsByColor?: MockupsByColor | null;
@@ -21,7 +26,13 @@ interface FeaturedProduct extends Product {
   defaultMockupImage?: string | null;
 }
 
-function ProductCard({ product }: { product: FeaturedProduct }) {
+function ProductCard({ 
+  product, 
+  onOpenQuickView 
+}: { 
+  product: FeaturedProduct; 
+  onOpenQuickView: (product: FeaturedProduct) => void;
+}) {
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.defaultColor || null
   );
@@ -44,8 +55,9 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
 
   return (
     <div 
-      className="glass-card product-card hover-elevate"
+      className="glass-card product-card hover-elevate cursor-pointer"
       data-testid={`card-product-${product.id}`}
+      onClick={() => onOpenQuickView(product)}
     >
       <div className="product-card-image">
         <img
@@ -69,16 +81,22 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
       
       {availableColors.length > 1 && (
         <div className="product-card-colors">
-          {availableColors.map((color) => (
+          {availableColors.slice(0, 5).map((color) => (
             <button
               key={color}
               className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
               style={{ backgroundColor: getColorHex(color) }}
-              onClick={() => setSelectedColor(color)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedColor(color);
+              }}
               title={color}
               data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
             />
           ))}
+          {availableColors.length > 5 && (
+            <span className="color-swatch-more">+{availableColors.length - 5}</span>
+          )}
         </div>
       )}
       
@@ -89,14 +107,16 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
           <span className="product-card-price">
             {product.basePrice ? `From $${Number(product.basePrice).toFixed(2)}` : "Build to see price"}
           </span>
-          <Link href={`/creator?product=${product.id}`}>
-            <button 
-              className="product-card-btn"
-              data-testid={`button-customize-${product.id}`}
-            >
-              Customize
-            </button>
-          </Link>
+          <button 
+            className="product-card-btn"
+            data-testid={`button-customize-${product.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenQuickView(product);
+            }}
+          >
+            View Options
+          </button>
         </div>
       </div>
     </div>
@@ -133,8 +153,254 @@ function getColorHex(colorName: string): string {
   return colorMap[colorName] || '#CCCCCC';
 }
 
+function ProductQuickView({ 
+  product, 
+  isOpen, 
+  onClose,
+  onMockupGenerated
+}: { 
+  product: FeaturedProduct | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onMockupGenerated: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [generatingColor, setGeneratingColor] = useState<string | null>(null);
+  const [localMockups, setLocalMockups] = useState<Record<string, { front?: string }>>({});
+
+  // Reset state when product changes or modal opens
+  useEffect(() => {
+    if (isOpen && product) {
+      setSelectedColor(product.defaultColor || null);
+      setSelectedSize(null);
+      setLocalMockups(product.mockupsByColor || {});
+      setGeneratingColor(null);
+    }
+  }, [isOpen, product]);
+
+  const availableColors = product?.availableColors 
+    ? (Array.isArray(product.availableColors) 
+        ? product.availableColors.map((c: any) => c.name || c) 
+        : Object.keys(product.availableColors))
+    : (product?.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
+
+  const availableSizes = product?.availableSizes || ['S', 'M', 'L', 'XL', '2XL'];
+
+  const generateMockupMutation = useMutation({
+    mutationFn: async ({ productId, color }: { productId: string; color: string }) => {
+      const res = await apiRequest("POST", "/api/storefront/generate-mockup", {
+        productId,
+        color,
+      });
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      if (data.mockupUrl) {
+        setLocalMockups(prev => ({
+          ...prev,
+          [variables.color]: { front: data.mockupUrl }
+        }));
+        onMockupGenerated();
+      }
+      setGeneratingColor(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Mockup generation failed",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+      setGeneratingColor(null);
+    },
+  });
+
+  const addToCartMutation = useMutation({
+    mutationFn: async () => {
+      if (!product || !selectedColor || !selectedSize) return;
+      const res = await apiRequest("POST", "/api/cart", {
+        productId: product.id,
+        quantity: 1,
+        selectedColor,
+        selectedSize,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Added to cart!",
+        description: `${product?.name} (${selectedColor}, ${selectedSize})`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to add to cart",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleColorClick = (color: string) => {
+    setSelectedColor(color);
+    
+    // Check if we have a mockup for this color
+    const hasMockup = localMockups[color]?.front || product?.mockupsByColor?.[color]?.front;
+    
+    if (!hasMockup && product) {
+      setGeneratingColor(color);
+      generateMockupMutation.mutate({ productId: product.id, color });
+    }
+  };
+
+  const getCurrentMockup = (): string | null => {
+    if (!selectedColor) return product?.defaultMockupImage || product?.imageUrl || null;
+    
+    // Check local mockups first (newly generated)
+    if (localMockups[selectedColor]?.front) {
+      return localMockups[selectedColor].front!;
+    }
+    
+    // Then check product mockups
+    if (product?.mockupsByColor?.[selectedColor]?.front) {
+      return product.mockupsByColor[selectedColor].front!;
+    }
+    
+    return product?.defaultMockupImage || product?.imageUrl || null;
+  };
+
+  if (!product) return null;
+
+  const displayImage = getCurrentMockup() || product.imageUrl || "";
+  const isGenerating = generatingColor === selectedColor;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogTitle className="text-xl font-bold">{product.name}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Select color and size options for {product.name}
+        </DialogDescription>
+        
+        <div className="grid md:grid-cols-2 gap-6 mt-4">
+          <div className="relative">
+            {isGenerating && (
+              <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10 rounded-lg">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Generating mockup...</p>
+                </div>
+              </div>
+            )}
+            <img 
+              src={displayImage} 
+              alt={product.name}
+              className="w-full rounded-lg object-contain max-h-[400px]"
+            />
+            {product.madeInUSA && (
+              <span className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs flex items-center gap-1">
+                <UsaFlag className="usa-flag-small" />
+                Made in USA
+              </span>
+            )}
+          </div>
+          
+          <div className="space-y-6">
+            <div>
+              <p className="text-muted-foreground">{product.description}</p>
+              <p className="text-2xl font-bold mt-2">
+                ${Number(product.basePrice || 0).toFixed(2)}
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-3">Color: {selectedColor || 'Select a color'}</h4>
+              <div className="flex flex-wrap gap-2">
+                {availableColors.map((color: string) => {
+                  const hasMockup = localMockups[color]?.front || product.mockupsByColor?.[color]?.front;
+                  return (
+                    <button
+                      key={color}
+                      className={`w-10 h-10 rounded-full border-2 transition-all relative ${
+                        selectedColor === color 
+                          ? 'border-primary ring-2 ring-primary ring-offset-2' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      style={{ backgroundColor: getColorHex(color) }}
+                      onClick={() => handleColorClick(color)}
+                      title={color}
+                      disabled={generatingColor === color}
+                      data-testid={`quickview-swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      {generatingColor === color && (
+                        <Loader2 className="h-4 w-4 animate-spin absolute inset-0 m-auto text-white drop-shadow-md" />
+                      )}
+                      {hasMockup && generatingColor !== color && (
+                        <Check className="h-3 w-3 absolute bottom-0 right-0 text-green-500 bg-white rounded-full" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-3">Size: {selectedSize || 'Select a size'}</h4>
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map((size: string) => (
+                  <button
+                    key={size}
+                    className={`min-w-[48px] h-12 px-4 rounded border-2 font-medium transition-all ${
+                      selectedSize === size 
+                        ? 'border-primary bg-primary text-primary-foreground' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setSelectedSize(size)}
+                    data-testid={`quickview-size-${size.toLowerCase()}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="pt-4 space-y-3">
+              <Button
+                className="w-full h-14 text-lg"
+                disabled={!selectedColor || !selectedSize || addToCartMutation.isPending}
+                onClick={() => addToCartMutation.mutate()}
+                data-testid="button-add-to-cart"
+              >
+                {addToCartMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                ) : (
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                )}
+                Add to Cart
+              </Button>
+              
+              <Link href={`/creator?product=${product.id}`}>
+                <Button variant="outline" className="w-full h-12" data-testid="button-customize-design">
+                  Customize Design
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function FeaturedProducts() {
-  const { data: products = [], isLoading } = useQuery<FeaturedProduct[]>({
+  const queryClient = useQueryClient();
+  const [selectedProduct, setSelectedProduct] = useState<FeaturedProduct | null>(null);
+  
+  const { data: products = [], isLoading, refetch } = useQuery<FeaturedProduct[]>({
     queryKey: ["/api/products", { featured: true }],
     queryFn: async () => {
       const res = await fetch("/api/products?featured=true");
@@ -181,7 +447,11 @@ export default function FeaturedProducts() {
 
         <div className="products-grid">
           {products.slice(0, 6).map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard 
+              key={product.id} 
+              product={product} 
+              onOpenQuickView={setSelectedProduct}
+            />
           ))}
         </div>
 
@@ -196,6 +466,13 @@ export default function FeaturedProducts() {
           </Link>
         </div>
       </div>
+      
+      <ProductQuickView 
+        product={selectedProduct}
+        isOpen={!!selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+        onMockupGenerated={() => refetch()}
+      />
     </section>
   );
 }
