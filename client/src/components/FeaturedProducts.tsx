@@ -15,6 +15,7 @@ import baseShirtImage from "@assets/generated_images/white_t-shirt_mockup_templa
 interface MockupsByColor {
   [color: string]: {
     front?: string;
+    lifestyle?: string;  // Lifestyle mockup with model
     angles?: string[];
   };
 }
@@ -59,18 +60,24 @@ function ProductCard({
     if (c.hex) colorHexMap[c.name] = c.hex;
   });
 
-  const getCurrentMockup = (): string | null => {
-    if (!product.mockupsByColor) return null;
+  const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
+    if (!product.mockupsByColor) return { url: null, isLifestyle: false };
     
     const color = selectedColor || product.defaultColor || availableColors[0];
-    if (color && product.mockupsByColor[color]?.front) {
-      return product.mockupsByColor[color].front!;
+    if (color && product.mockupsByColor[color]) {
+      // Prefer lifestyle mockup (with model) over flat product shot
+      if (product.mockupsByColor[color].lifestyle) {
+        return { url: product.mockupsByColor[color].lifestyle!, isLifestyle: true };
+      }
+      if (product.mockupsByColor[color].front) {
+        return { url: product.mockupsByColor[color].front!, isLifestyle: false };
+      }
     }
-    return product.defaultMockupImage || null;
+    return { url: product.defaultMockupImage || null, isLifestyle: false };
   };
 
-  const mockupImage = getCurrentMockup();
-  const displayImage = mockupImage || product.imageUrl || "";
+  const mockupResult = getCurrentMockup();
+  const displayImage = mockupResult.url || product.imageUrl || "";
 
   return (
     <div 
@@ -83,7 +90,7 @@ function ProductCard({
           src={displayImage}
           alt={product.name}
         />
-        {!mockupImage && product.qrCodeUrl && (
+        {!mockupResult.url && product.qrCodeUrl && (
           <img
             src={product.qrCodeUrl}
             alt="QR Code"
@@ -188,7 +195,7 @@ function ProductQuickView({
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [generatingColor, setGeneratingColor] = useState<string | null>(null);
-  const [localMockups, setLocalMockups] = useState<Record<string, { front?: string }>>({});
+  const [localMockups, setLocalMockups] = useState<Record<string, { front?: string; lifestyle?: string }>>({});
 
   // Reset state when product changes or modal opens
   useEffect(() => {
@@ -227,7 +234,10 @@ function ProductQuickView({
       if (data.mockupUrl) {
         setLocalMockups(prev => ({
           ...prev,
-          [variables.color]: { front: data.mockupUrl }
+          [variables.color]: { 
+            front: data.mockupUrl,
+            lifestyle: data.lifestyleMockupUrl || undefined
+          }
         }));
         onMockupGenerated();
       }
@@ -286,12 +296,18 @@ function ProductQuickView({
   const getCurrentMockup = (): string | null => {
     if (!selectedColor) return product?.defaultMockupImage || product?.imageUrl || null;
     
-    // Check local mockups first (newly generated)
+    // Check local mockups first (newly generated) - prefer lifestyle
+    if (localMockups[selectedColor]?.lifestyle) {
+      return localMockups[selectedColor].lifestyle!;
+    }
     if (localMockups[selectedColor]?.front) {
       return localMockups[selectedColor].front!;
     }
     
-    // Then check product mockups
+    // Then check product mockups - prefer lifestyle
+    if (product?.mockupsByColor?.[selectedColor]?.lifestyle) {
+      return product.mockupsByColor[selectedColor].lifestyle!;
+    }
     if (product?.mockupsByColor?.[selectedColor]?.front) {
       return product.mockupsByColor[selectedColor].front!;
     }

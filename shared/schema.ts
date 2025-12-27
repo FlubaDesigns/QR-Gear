@@ -1547,8 +1547,9 @@ export const mockupCache = pgTable("mockup_cache", {
   artworkUrl: text("artwork_url"), // The artwork that was applied
   artworkVariant: text("artwork_variant").default("black"), // 'black' or 'white' QR
   // Cached mockup URLs (what we serve to customers)
-  mockupUrl: text("mockup_url").notNull(), // The generated mockup image
+  mockupUrl: text("mockup_url").notNull(), // The generated mockup image (flat product shot)
   mockupUrlHq: text("mockup_url_hq"), // High-quality version if available
+  lifestyleMockupUrl: text("lifestyle_mockup_url"), // Lifestyle mockup with model (if available)
   // Source info
   podProviderId: varchar("pod_provider_id").references(() => podProviders.id),
   providerMockupId: text("provider_mockup_id"), // Provider's internal ID for the mockup

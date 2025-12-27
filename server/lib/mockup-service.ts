@@ -25,6 +25,7 @@ interface MockupRequest {
 
 interface MockupResult {
   mockupUrl: string;
+  lifestyleMockupUrl?: string | null;
   fromCache: boolean;
   generatedAt: Date;
 }
@@ -144,6 +145,7 @@ export async function getMockupWithFallback(
     console.log(`[MockupService] Cache HIT: ${colorName} ${canonicalPlacementId}`);
     return {
       mockupUrl: cached[0].mockupUrl,
+      lifestyleMockupUrl: cached[0].lifestyleMockupUrl,
       fromCache: true,
       generatedAt: cached[0].generatedAt,
     };
@@ -152,7 +154,7 @@ export async function getMockupWithFallback(
   console.log(`[MockupService] Cache MISS: ${colorName} ${canonicalPlacementId} - generating via Printify`);
 
   // Step 2: Generate via Printify
-  const mockupUrl = await generatePrintifyMockup({
+  const mockupResult = await generatePrintifyMockup({
     blueprintId,
     printProviderId,
     colorName,
@@ -160,9 +162,12 @@ export async function getMockupWithFallback(
     canonicalPlacementId,
   });
 
-  if (!mockupUrl) {
+  if (!mockupResult || !mockupResult.flat) {
     throw new Error("Failed to generate mockup from Printify");
   }
+
+  const mockupUrl = mockupResult.flat;
+  const lifestyleMockupUrl = mockupResult.lifestyle || null;
 
   // Step 3: Cache the result
   const now = new Date();
@@ -177,6 +182,7 @@ export async function getMockupWithFallback(
       artworkUrl,
       artworkVariant,
       mockupUrl,
+      lifestyleMockupUrl,
       podProviderId: "printify",
       status: "active",
       generatedAt: now,
@@ -191,6 +197,7 @@ export async function getMockupWithFallback(
       ],
       set: {
         mockupUrl,
+        lifestyleMockupUrl,
         colorHex,
         artworkUrl,
         status: "active",
@@ -198,10 +205,11 @@ export async function getMockupWithFallback(
       },
     });
 
-  console.log(`[MockupService] Generated and cached mockup for ${colorName}`);
+  console.log(`[MockupService] Generated and cached mockup for ${colorName} (lifestyle: ${!!lifestyleMockupUrl})`);
 
   return {
     mockupUrl,
+    lifestyleMockupUrl,
     fromCache: false,
     generatedAt: now,
   };
@@ -210,6 +218,7 @@ export async function getMockupWithFallback(
 /**
  * Generate mockup via Printify API
  * Creates temporary product, waits for mockup, then deletes product
+ * Returns both flat product shot and lifestyle mockup (with model) if available
  */
 async function generatePrintifyMockup(params: {
   blueprintId: number;
@@ -217,7 +226,7 @@ async function generatePrintifyMockup(params: {
   colorName: string;
   artworkUrl: string;
   canonicalPlacementId: string;
-}): Promise<string | null> {
+}): Promise<{ flat?: string; lifestyle?: string } | null> {
   const { blueprintId, printProviderId, colorName, artworkUrl, canonicalPlacementId } = params;
 
   // Import Printify client
@@ -320,17 +329,51 @@ async function generatePrintifyMockup(params: {
   // Poll for mockups
   let attempts = 0;
   const maxAttempts = 10;
-  let mockupUrl: string | null = null;
+  let mockupImages: { flat?: string; lifestyle?: string } = {};
 
-  while (attempts < maxAttempts && !mockupUrl) {
+  while (attempts < maxAttempts && !mockupImages.flat) {
     const delay = Math.min(2000 * Math.pow(1.5, attempts), 8000);
     await new Promise((resolve) => setTimeout(resolve, delay));
     attempts++;
 
     const productDetails = await printify.getProduct(printifyProduct.id);
     if (productDetails.images && productDetails.images.length > 0) {
-      mockupUrl = productDetails.images[0].src;
-      console.log(`[MockupService] Got mockup URL after ${attempts} attempts`);
+      // Printify returns images with different types
+      // Parse through all images to find flat and lifestyle versions
+      for (const img of productDetails.images) {
+        const src = img.src || img;
+        const isDefault = img.is_default || false;
+        const position = (img.position || "").toLowerCase();
+        
+        // First image or default image is typically the flat product shot
+        if (!mockupImages.flat && (isDefault || productDetails.images.indexOf(img) === 0)) {
+          mockupImages.flat = typeof src === 'string' ? src : src.src;
+        }
+        
+        // Look for lifestyle indicators in position or other metadata
+        // Printify uses various naming conventions for lifestyle shots
+        if (!mockupImages.lifestyle && position.includes('lifestyle')) {
+          mockupImages.lifestyle = typeof src === 'string' ? src : src.src;
+        }
+      }
+      
+      // If we found more than one image, the additional ones might be lifestyle
+      if (productDetails.images.length > 1 && !mockupImages.lifestyle) {
+        // Check if any subsequent images look like lifestyle shots
+        for (let i = 1; i < productDetails.images.length; i++) {
+          const img = productDetails.images[i];
+          const src = img.src || img;
+          // Often the 2nd or 3rd image is a lifestyle shot
+          if (typeof src === 'string' && src.includes('lifestyle')) {
+            mockupImages.lifestyle = src;
+            break;
+          }
+        }
+      }
+      
+      if (mockupImages.flat) {
+        console.log(`[MockupService] Got mockup URLs after ${attempts} attempts (lifestyle: ${!!mockupImages.lifestyle})`);
+      }
     }
   }
 
@@ -339,7 +382,7 @@ async function generatePrintifyMockup(params: {
     console.warn(`[MockupService] Failed to delete temp product: ${err.message}`);
   });
 
-  return mockupUrl;
+  return mockupImages;
 }
 
 /**
@@ -348,7 +391,7 @@ async function generatePrintifyMockup(params: {
 export async function getCachedMockupsForProduct(
   blueprintId: number,
   printProviderId: number
-): Promise<Record<string, { front?: string; back?: string }>> {
+): Promise<Record<string, { front?: string; back?: string; lifestyle?: string }>> {
   const cached = await db
     .select()
     .from(mockupCache)
@@ -360,7 +403,7 @@ export async function getCachedMockupsForProduct(
       )
     );
 
-  const result: Record<string, { front?: string; back?: string }> = {};
+  const result: Record<string, { front?: string; back?: string; lifestyle?: string }> = {};
 
   for (const entry of cached) {
     if (!result[entry.colorName]) {
@@ -370,6 +413,10 @@ export async function getCachedMockupsForProduct(
     // Map canonical placement to front/back
     if (entry.canonicalPlacementId === "FRONT_CHEST" || entry.canonicalPlacementId === "FRONT_CENTER") {
       result[entry.colorName].front = entry.mockupUrl;
+      // Include lifestyle mockup if available
+      if (entry.lifestyleMockupUrl) {
+        result[entry.colorName].lifestyle = entry.lifestyleMockupUrl;
+      }
     } else if (entry.canonicalPlacementId === "BACK_FULL" || entry.canonicalPlacementId === "BACK_UPPER") {
       result[entry.colorName].back = entry.mockupUrl;
     }
