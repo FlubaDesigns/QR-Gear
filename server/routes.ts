@@ -3939,7 +3939,7 @@ ${allPages.map(page => `  <url>
   // ============ PUBLIC STOREFRONT MOCKUP GENERATION ============
   
   // Public: Generate mockup for a store product color (no admin required)
-  // Validates the product exists in a partner store before generating
+  // Database-first: checks mockup_cache before generating via Printify
   app.post("/api/storefront/generate-mockup", async (req, res) => {
     try {
       const { productId, color, storeId } = req.body;
@@ -3949,11 +3949,10 @@ ${allPages.map(page => `  <url>
       }
       
       // For custom designs, productId comes as either "hello-world" or "custom_hello-world"
-      // The products table uses "custom_<designId>" format
       const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
       const designId = productId.startsWith('custom_') ? productId.replace('custom_', '') : productId;
       
-      // Get the product from products table (uses canonical ID)
+      // Get the product from products table
       const product = await storage.getProduct(canonicalProductId);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
@@ -3972,8 +3971,7 @@ ${allPages.map(page => `  <url>
         return res.status(404).json({ error: "Design not found" });
       }
       
-      // Get placements which may contain both black and white versions
-      // Safely parse - could be string, object, or null
+      // Parse placement images safely
       let designPlacements: Record<string, string> = {};
       try {
         if (typeof design.placementImages === 'string') {
@@ -3985,11 +3983,9 @@ ${allPages.map(page => `  <url>
         console.error('[StorefrontMockup] Failed to parse placementImages:', e);
       }
       
-      // Get the color's hex value to determine if it's dark or light
-      // Uses fallback chain: product -> local DB -> Printify API
+      // Get color hex with fallback chain
       let colorHex: string | null = null;
       
-      // Step 1: Check product's availableColors
       if (product.availableColors && Array.isArray(product.availableColors)) {
         const colorInfo = (product.availableColors as any[]).find(
           (c: any) => c.name?.toLowerCase() === color.toLowerCase()
@@ -3997,7 +3993,6 @@ ${allPages.map(page => `  <url>
         colorHex = colorInfo?.hex || null;
       }
       
-      // Step 2: Fallback with automatic Printify API call if needed
       if (!colorHex) {
         const { getProviderColorsWithFallback } = await import('./lib/printify.js');
         const colors = await getProviderColorsWithFallback(blueprintId, printProviderId, storage);
@@ -4007,27 +4002,25 @@ ${allPages.map(page => `  <url>
         colorHex = colorInfo?.hex || null;
       }
       
-      // Import the luminance helper
-      const { isColorDark } = await import('./lib/composite-image-generator.js');
-      
       // Determine which artwork to use based on shirt color
-      // Dark shirts need white QR, light shirts need black QR
+      const { isColorDark } = await import('./lib/mockup-service.js');
       const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
       
-      // Check if we have both versions in placements
       const blackArtwork = designPlacements["front-chest"] || designPlacements["front-chest-black"];
       const whiteArtwork = designPlacements["front-chest-white"];
       
-      // Pick the right artwork, with fallback
       let artworkUrl: string;
+      let artworkVariant: "black" | "white" = "black";
+      
       if (needsWhiteQR && whiteArtwork) {
         artworkUrl = whiteArtwork;
-        console.log(`[StorefrontMockup] Using WHITE artwork for dark shirt color: ${color} (${colorHex})`);
+        artworkVariant = "white";
+        console.log(`[StorefrontMockup] Using WHITE artwork for dark shirt: ${color}`);
       } else if (blackArtwork) {
         artworkUrl = blackArtwork;
-        console.log(`[StorefrontMockup] Using BLACK artwork for light shirt color: ${color} (${colorHex})`);
+        artworkVariant = "black";
+        console.log(`[StorefrontMockup] Using BLACK artwork for light shirt: ${color}`);
       } else {
-        // Ultimate fallback
         artworkUrl = design.printifyCompositeUrl || Object.values(designPlacements)[0] as string;
       }
       
@@ -4035,118 +4028,51 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "No artwork found for this product" });
       }
       
-      // Make artwork URL absolute
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : 'http://localhost:5000';
-      const absoluteArtworkUrl = artworkUrl.startsWith('http') ? artworkUrl : `${baseUrl}${artworkUrl}`;
+      console.log(`[StorefrontMockup] Getting mockup for ${color} (database-first with Printify fallback)`);
       
-      console.log(`[StorefrontMockup] Generating for product ${productId}, color ${color}`);
-      console.log(`[StorefrontMockup] Blueprint: ${blueprintId}, Provider: ${printProviderId}`);
+      // Use the mockup service with database-first + Printify fallback
+      const { getMockupWithFallback } = await import('./lib/mockup-service.js');
       
-      // Get variants for this color
-      const { variants } = await syncProductVariants(blueprintId, printProviderId);
-      const colorVariants = variants.filter(v => 
-        v.options?.color && v.options.color.toLowerCase() === color.toLowerCase()
-      );
+      const result = await getMockupWithFallback({
+        blueprintId,
+        printProviderId,
+        colorName: color,
+        colorHex: colorHex || undefined,
+        canonicalPlacementId: "FRONT_CHEST",
+        artworkUrl,
+        artworkVariant,
+      }, storage);
       
-      if (colorVariants.length === 0) {
-        return res.status(400).json({ error: `No variants found for color: ${color}` });
-      }
+      console.log(`[StorefrontMockup] Got mockup (fromCache: ${result.fromCache})`);
       
-      const variantIds = colorVariants.slice(0, 1).map(v => v.id);
-      console.log(`[StorefrontMockup] Found ${colorVariants.length} variants for ${color}`);
-      
-      // Upload artwork to Printify
-      const imageUpload = await printify.uploadImage(absoluteArtworkUrl, `mockup-${productId}-${color}.png`);
-      console.log(`[StorefrontMockup] Uploaded image ID: ${imageUpload.id}`);
-      
-      // Get placement info
-      const { placements: providerPlacements } = await syncProductPlacements(blueprintId, printProviderId);
-      const placement = providerPlacements[0]?.position || "front";
-      
-      // Create Printify product to generate mockups
-      const productData = {
-        title: `Mockup - ${product.name} - ${color}`,
-        description: `Storefront mockup generation for ${color}`,
-        blueprint_id: blueprintId,
-        print_provider_id: printProviderId,
-        variants: variantIds.map(vid => ({
-          id: vid,
-          price: 2500,
-          is_enabled: true,
-        })),
-        print_areas: [{
-          variant_ids: variantIds,
-          placeholders: [{
-            position: placement,
-            images: [{
-              id: imageUpload.id,
-              x: 0.5,
-              y: 0.5,
-              scale: 1.0,
-              angle: 0,
-            }],
-          }],
-        }],
-      };
-      
-      const printifyProduct = await printify.createProduct(productData);
-      console.log(`[StorefrontMockup] Created Printify product: ${printifyProduct.id}`);
-      
-      // Poll for mockups
-      let attempts = 0;
-      const maxAttempts = 10;
-      let mockupUrl: string | null = null;
-      
-      while (attempts < maxAttempts && !mockupUrl) {
-        const delay = Math.min(2000 * Math.pow(1.5, attempts), 8000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        attempts++;
-        
-        const productDetails = await printify.getProduct(printifyProduct.id);
-        if (productDetails.images && productDetails.images.length > 0) {
-          mockupUrl = productDetails.images[0].src;
-          console.log(`[StorefrontMockup] Got mockup URL: ${mockupUrl}`);
-        }
-      }
-      
-      if (!mockupUrl) {
-        await printify.deleteProduct(printifyProduct.id).catch(() => {});
-        return res.status(500).json({ error: "Mockup generation timed out" });
-      }
-      
-      // Find the partner store product to update mockups
-      // Use storeId if provided, otherwise find any store that has this product
-      let storeProduct;
-      if (storeId) {
-        storeProduct = await storage.getPartnerStoreProduct(storeId, canonicalProductId);
-      }
-      
-      // Update main products table mockupsByColor
+      // Also update products table for legacy compatibility
       const existingProductMockups = (product.mockupsByColor as Record<string, any>) || {};
-      existingProductMockups[color] = { front: mockupUrl };
+      existingProductMockups[color] = { front: result.mockupUrl };
       
       await storage.updateProduct(canonicalProductId, {
         mockupsByColor: existingProductMockups,
       });
-      console.log(`[StorefrontMockup] Saved mockup for ${color} to products table`);
       
-      // Also update partner store product if it exists
-      if (storeProduct) {
-        const existingMockups = (storeProduct.mockupsByColor as Record<string, any>) || {};
-        existingMockups[color] = { front: mockupUrl };
-        
-        await storage.updatePartnerStoreProductByIds(storeProduct.partnerStoreId, canonicalProductId, {
-          mockupsByColor: existingMockups,
-        });
-        console.log(`[StorefrontMockup] Saved mockup for ${color} to store product`);
+      // Update partner store product if storeId provided
+      if (storeId) {
+        const storeProduct = await storage.getPartnerStoreProduct(storeId, canonicalProductId);
+        if (storeProduct) {
+          const existingMockups = (storeProduct.mockupsByColor as Record<string, any>) || {};
+          existingMockups[color] = { front: result.mockupUrl };
+          
+          await storage.updatePartnerStoreProductByIds(storeProduct.partnerStoreId, canonicalProductId, {
+            mockupsByColor: existingMockups,
+          });
+        }
       }
       
-      // Delete the temp Printify product
-      await printify.deleteProduct(printifyProduct.id).catch(() => {});
-      
-      res.json({ success: true, color, mockupUrl, mockupsByColor: existingProductMockups });
+      res.json({ 
+        success: true, 
+        color, 
+        mockupUrl: result.mockupUrl, 
+        fromCache: result.fromCache,
+        mockupsByColor: existingProductMockups 
+      });
     } catch (error: any) {
       console.error("[StorefrontMockup] Error:", error);
       res.status(500).json({ error: error.message });
