@@ -3370,7 +3370,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                           {Object.entries(placementConfigs).map(([id, mode], index) => {
                             const placement = QR_PLACEMENTS.find(p => p.id === id);
                             const isFirstPlacement = index === 0;
-                            const additionalPlacementCost = 4.00; // Printify charges ~$4 per additional print area
+                            const additionalPlacementCost = parseFloat(adminSettings?.additionalPlacementCost || "4");
                             const hasTextUpcharge = mode === "full" && (qrContentType === "rich_media" || qrContentType === "external_url") && (
                               (headerEnabled && headerText) || (footerEnabled && footerText)
                             );
@@ -3416,9 +3416,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                                                         (footerEnabled && footerText ? parseFloat(textUpcharge || "2") : 0);
                         const totalTextUpcharge = (qrContentType === "rich_media" || qrContentType === "external_url") ? fullArtworkPlacements.length * textUpchargePerPlacement : 0;
                         
-                        // Calculate additional placement costs ($4 per additional print area)
+                        // Calculate additional placement costs (from admin settings)
                         const additionalPlacementCount = Math.max(0, Object.keys(placementConfigs).length - 1);
-                        const additionalPlacementCost = additionalPlacementCount * 4.00;
+                        const perPlacementCost = parseFloat(adminSettings?.additionalPlacementCost || "4");
+                        const additionalPlacementCost = additionalPlacementCount * perPlacementCost;
                         
                         // Calculate final cost:
                         // - plain_text: no hosting, no text upcharges

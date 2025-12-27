@@ -53,6 +53,11 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - Updated admin navigation with 13 sections including Orders, Gifts.
 
 ### Recent Fixes (December 27, 2025)
+- **Retail Price Calculation**: Featured products now display correct retail price calculated from admin settings:
+  - Formula: `(baseCost + qrCost + placementUpcharge) × (1 + markupPercent/100) + markupFixed`
+  - Pulls values from `admin_settings` table (not hardcoded)
+  - Added `additionalPlacementCost` column to admin_settings ($4 default per extra placement)
+  - Placement count from `availablePlacements` array determines upcharge
 - **Lifestyle Mockup Support**: Added `lifestyleMockupUrl` column to mockup_cache schema. Printify returns both flat product shots and lifestyle images (models wearing products). Frontend now prefers lifestyle mockups when available, gracefully falling back to flat shots. Updated `generatePrintifyMockup`, `getMockupWithFallback`, and `getCachedMockupsForProduct` to capture and serve both image types.
 - **Color Hex Value Sync**: Upgraded color sync to use Printify Catalog API (`syncProductVariants`) instead of placeholder product extraction to get proper hex values. Colors now include `{name, hex}` format for UI display.
 - **Expanded Color Hex Map**: Added 150+ color mappings including heathers, solids, and intelligent keyword-based fallbacks (checks "navy", "heather", "solid" prefixes).

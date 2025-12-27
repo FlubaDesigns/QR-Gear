@@ -308,6 +308,7 @@ export const adminSettings = pgTable("admin_settings", {
   globalMarkupPercent: decimal("global_markup_percent", { precision: 5, scale: 2 }).default("25"),
   globalMarkupFixed: decimal("global_markup_fixed", { precision: 10, scale: 2 }).default("0"),
   globalQrProductionCost: decimal("global_qr_production_cost", { precision: 10, scale: 2 }).default("2"),
+  additionalPlacementCost: decimal("additional_placement_cost", { precision: 10, scale: 2 }).default("4"),
   textAboveUpcharge: decimal("text_above_upcharge", { precision: 10, scale: 2 }).default("2"),
   textBelowUpcharge: decimal("text_below_upcharge", { precision: 10, scale: 2 }).default("2"),
   imageHostingUpcharge: decimal("image_hosting_upcharge", { precision: 10, scale: 2 }).default("5"),

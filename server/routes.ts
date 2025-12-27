@@ -558,20 +558,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (featured === "true") {
         enabledProducts = enabledProducts.filter(p => p.isFeatured);
         
+        // Fetch admin settings for pricing calculations
+        const settings = await storage.getAdminSettings();
+        const globalMarkupPercent = parseFloat(settings?.globalMarkupPercent || "25");
+        const globalMarkupFixed = parseFloat(settings?.globalMarkupFixed || "0");
+        const globalQrCost = parseFloat(settings?.globalQrProductionCost || "2");
+        const additionalPlacementCost = parseFloat(settings?.additionalPlacementCost || "4");
+        
         // For featured products, enrich with mockups and QR artwork from custom_designs
         const designs = await storage.getCustomDesigns();
         const enrichedProducts = enabledProducts.map((product) => {
-          // Calculate retail price from production cost + markup + QR cost
+          // Calculate retail price using admin settings
           const baseCost = parseFloat(product.basePrice) || 0;
-          const qrCost = parseFloat(product.qrProductionCost || "0") || 0;
-          const markupFixed = parseFloat(product.markupFixed || "0") || 0;
-          const markupPercent = parseFloat(product.markupPercent || "0") || 0;
           
-          // Final price = (baseCost + qrCost + markupFixed) * (1 + markupPercent/100)
-          const totalCost = baseCost + qrCost + markupFixed;
-          const retailPrice = markupPercent > 0 
-            ? Math.ceil(totalCost * (1 + markupPercent / 100) * 100) / 100
-            : totalCost;
+          // Use product-specific values if set, otherwise fall back to global settings
+          const qrCost = parseFloat(product.qrProductionCost || "0") || globalQrCost;
+          const markupFixed = parseFloat(product.markupFixed || "0") || globalMarkupFixed;
+          const markupPercent = parseFloat(product.markupPercent || "0") || globalMarkupPercent;
+          
+          // Calculate additional placement costs (from availablePlacements array)
+          const placements = product.availablePlacements || [];
+          const extraPlacementCount = Math.max(0, placements.length - 1);
+          const placementUpcharge = extraPlacementCount * additionalPlacementCost;
+          
+          // Final price = (baseCost + qrCost + placementUpcharge) * (1 + markupPercent/100) + markupFixed
+          const totalCost = baseCost + qrCost + placementUpcharge;
+          const retailPrice = Math.ceil((totalCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+          
           // Try to find the matching custom design by the product ID pattern
           // Custom design IDs are like "qr-gear-main-home-tee-dec2025" 
           // Product IDs are like "custom_qr-gear-main-home-tee-dec2025-1"
