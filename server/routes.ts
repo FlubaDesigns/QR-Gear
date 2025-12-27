@@ -558,7 +558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (featured === "true") {
         enabledProducts = enabledProducts.filter(p => p.isFeatured);
         
-        // For featured products, enrich with QR artwork from custom_designs
+        // For featured products, enrich with mockups and QR artwork from custom_designs
         const designs = await storage.getCustomDesigns();
         const enrichedProducts = enabledProducts.map((product) => {
           // Try to find the matching custom design by the product ID pattern
@@ -576,10 +576,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
             frontChestImage = placements?.["front-chest"] || null;
           }
           
+          // Get Printify mockups if available (realistic product images)
+          // Normalize mockupsByColor - handle string (older rows), null, or object
+          let mockupsByColor: Record<string, any> | null = null;
+          const rawMockups = (matchingDesign as any)?.mockupsByColor;
+          if (rawMockups) {
+            if (typeof rawMockups === 'string') {
+              try {
+                mockupsByColor = JSON.parse(rawMockups);
+              } catch {
+                mockupsByColor = null;
+              }
+            } else if (typeof rawMockups === 'object') {
+              mockupsByColor = rawMockups;
+            }
+          }
+          
+          // Normalize selectedColors - handle string (older rows), null, or array
+          let selectedColors: string[] | null = null;
+          const rawSelectedColors = (matchingDesign as any)?.selectedColors;
+          if (rawSelectedColors) {
+            if (typeof rawSelectedColors === 'string') {
+              try {
+                const parsed = JSON.parse(rawSelectedColors);
+                selectedColors = Array.isArray(parsed) ? parsed : null;
+              } catch {
+                selectedColors = null;
+              }
+            } else if (Array.isArray(rawSelectedColors)) {
+              selectedColors = rawSelectedColors;
+            }
+          }
+          // Fallback to mockupsByColor keys if no selectedColors
+          if (!selectedColors && mockupsByColor) {
+            selectedColors = Object.keys(mockupsByColor);
+          }
+          
+          // Normalize defaultColor
+          const rawDefaultColor = (matchingDesign as any)?.defaultColor;
+          let defaultColor: string | null = typeof rawDefaultColor === 'string' ? rawDefaultColor : null;
+          
+          // Validate defaultColor is in selectedColors or mockupsByColor
+          const validDefaultColor = 
+            (defaultColor && selectedColors?.includes(defaultColor)) ? defaultColor :
+            (defaultColor && mockupsByColor && mockupsByColor[defaultColor]) ? defaultColor :
+            (mockupsByColor ? Object.keys(mockupsByColor)[0] : null);
+          
+          // Get the default mockup image (from validated color or first available)
+          let defaultMockupImage: string | null = null;
+          if (mockupsByColor && validDefaultColor && mockupsByColor[validDefaultColor]?.front) {
+            defaultMockupImage = mockupsByColor[validDefaultColor].front;
+          } else if (mockupsByColor) {
+            // Fallback to first available color
+            const firstColor = Object.keys(mockupsByColor)[0];
+            if (firstColor) {
+              defaultMockupImage = mockupsByColor[firstColor]?.front || null;
+            }
+          }
+          
           return {
             ...product,
             qrCodeUrl: matchingDesign?.qrCodeUrl || null,
             frontChestImage,
+            // New mockup fields (normalized and validated)
+            mockupsByColor,
+            defaultColor: validDefaultColor, // Use validated color that exists in mockups
+            selectedColors,
+            defaultMockupImage, // Pre-computed default image for quick display
           };
         });
         
@@ -4888,6 +4951,10 @@ ${allPages.map(page => `  <url>
       if (!defaultColor) {
         return res.status(400).json({ error: "defaultColor is required" });
       }
+      // Ensure defaultColor is in selectedColors
+      if (!selectedColors.includes(defaultColor)) {
+        return res.status(400).json({ error: "defaultColor must be one of the selectedColors" });
+      }
       if (!blueprintId || !printProviderId) {
         return res.status(400).json({ error: "blueprintId and printProviderId are required" });
       }
@@ -4986,20 +5053,51 @@ ${allPages.map(page => `  <url>
       
       // Poll for product to get mockup images (Printify generates them async)
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 15;
       let productWithMockups: any = null;
+      let mockupsReady = false;
       
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-        productWithMockups = await printify.getProduct(printifyProduct.id);
+      while (attempts < maxAttempts && !mockupsReady) {
+        // Exponential backoff: 2s, 3s, 4.5s, etc (cap at 10s)
+        const delay = Math.min(2000 * Math.pow(1.5, attempts), 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
         
-        if (productWithMockups.images && productWithMockups.images.length > 0) {
-          console.log(`[Publish] Mockups ready: ${productWithMockups.images.length} images`);
-          break;
+        try {
+          productWithMockups = await printify.getProduct(printifyProduct.id);
+          
+          if (productWithMockups.images && productWithMockups.images.length > 0) {
+            console.log(`[Publish] Mockups ready: ${productWithMockups.images.length} images`);
+            mockupsReady = true;
+          }
+        } catch (pollError: any) {
+          // Check for rate limiting
+          if (pollError.message?.includes('429') || pollError.message?.includes('rate')) {
+            console.warn(`[Publish] Rate limited, backing off... attempt ${attempts}/${maxAttempts}`);
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Extra delay on rate limit
+          } else {
+            console.error(`[Publish] Poll error: ${pollError.message}`);
+          }
         }
         
         attempts++;
-        console.log(`[Publish] Waiting for mockups... attempt ${attempts}/${maxAttempts}`);
+        if (!mockupsReady) {
+          console.log(`[Publish] Waiting for mockups... attempt ${attempts}/${maxAttempts}`);
+        }
+      }
+      
+      // Check if mockups were generated
+      if (!mockupsReady || !productWithMockups?.images?.length) {
+        console.error(`[Publish] Mockups not ready after ${maxAttempts} attempts`);
+        await storage.updateCustomDesign(id, {
+          printifyProductId: printifyProduct.id,
+          publishStatus: "failed",
+          publishError: "Mockups not ready after timeout. Try again later.",
+        });
+        return res.status(504).json({ 
+          error: "Mockups not ready after timeout", 
+          printifyProductId: printifyProduct.id,
+          message: "Product created on Printify but mockups not yet available. Try publishing again."
+        });
       }
       
       // Extract mockups organized by color

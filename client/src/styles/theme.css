@@ -1647,6 +1647,43 @@ html[data-theme="light"] .vanity-highlight-icon {
   color: var(--text-2);
 }
 
+/* Color swatches for product variants */
+.product-card-colors {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--glass-stroke);
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--glass-stroke);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  background: none;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+  border-color: var(--accent);
+}
+
+.color-swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.color-swatch:focus {
+  outline: 2px solid var(--ice-1);
+  outline-offset: 2px;
+}
+
 /* Product card button - 48px minimum for accessibility */
 .product-card-btn {
   min-height: 48px;
