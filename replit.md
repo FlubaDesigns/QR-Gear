@@ -139,14 +139,24 @@ Response: { "success": true, "mockupUrl": "...", "fromCache": true }
 
 ---
 
-## Resolved Issues (December 27, 2025)
+## Known Issues (December 27, 2025)
 
-### FeaturedProducts Color Switching - FIXED
-Color swatch clicks now call `/api/storefront/generate-mockup` to fetch Printify native mockups.
-Mockups are cached in `mockup_cache` table for instant subsequent loads.
+### BLOCKING: Printify Mockup URLs Expire
+Printify CDN URLs expire after temp product is deleted. Current mockups return empty content.
 
-### Pricing Display - FIXED
-Home page now shows `customerPrice` set by admin, not recalculated from base costs.
+**Root cause**: `generatePrintifyMockup()` deletes temp product after getting URLs. URLs become invalid.
+
+**Attempted fix**: Download images to Object Storage before deletion. Code added but Object Storage client initialization failing.
+
+**See**: `docs/AI-COMMS/QR/COMPLETE-STATUS-DEC27.md` for full details.
+
+### Pricing Display - WORKING
+Home page shows `customerPrice` set by admin correctly.
+
+### QR Artwork Selection - CODE FIXED
+- `isColorDark()` correctly detects luminance
+- White QR for dark shirts, black QR for light shirts
+- Not visible due to URL expiration issue above
 
 ---
 

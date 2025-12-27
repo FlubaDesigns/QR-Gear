@@ -4,13 +4,15 @@
  * Architecture:
  * 1. Check mockup_cache table for existing mockup
  * 2. If not found, generate via Printify and cache result
- * 3. Return cached URL for instant display
+ * 3. Download images and store in Object Storage for permanent URLs
+ * 4. Return cached URL for instant display
  */
 
 import { db } from "../db";
 import { eq, and } from "drizzle-orm";
 import { mockupCache, canonicalPlacements, providerPlacementMappings, productPlacementAvailability } from "../../shared/schema";
 import type { IStorage } from "../storage";
+import { Client as ObjectStorageClient } from "@replit/object-storage";
 
 interface MockupRequest {
   blueprintId: number;
@@ -69,6 +71,58 @@ export function isColorDark(hexColor: string | undefined | null): boolean {
   const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
   
   return luminance < 0.5;
+}
+
+/**
+ * Download image from URL and upload to Object Storage for permanent storage
+ * Returns the permanent Object Storage URL
+ */
+async function downloadAndStoreImage(
+  imageUrl: string,
+  storagePath: string
+): Promise<string | null> {
+  try {
+    console.log(`[MockupService] Downloading image from ${imageUrl.substring(0, 80)}...`);
+    
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.error(`[MockupService] Failed to download image: ${response.status}`);
+      return null;
+    }
+    
+    const contentLength = response.headers.get('content-length');
+    if (contentLength === '0') {
+      console.error(`[MockupService] Image has zero content length`);
+      return null;
+    }
+    
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length < 1000) {
+      console.error(`[MockupService] Image too small (${buffer.length} bytes), likely invalid`);
+      return null;
+    }
+    
+    console.log(`[MockupService] Downloaded ${buffer.length} bytes, uploading to Object Storage...`);
+    
+    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+    if (!bucketId) {
+      console.error(`[MockupService] DEFAULT_OBJECT_STORAGE_BUCKET_ID not set`);
+      return null;
+    }
+    
+    const client = new ObjectStorageClient({ bucketId });
+    const fullPath = `public/mockups/${storagePath}`;
+    
+    await client.uploadFromBytes(fullPath, buffer);
+    
+    const publicUrl = `https://${bucketId}.replit.dev/${fullPath}`;
+    
+    console.log(`[MockupService] Stored permanently at: ${publicUrl}`);
+    return publicUrl;
+  } catch (err) {
+    console.error(`[MockupService] Failed to download/store image:`, err);
+    return null;
+  }
 }
 
 /**
@@ -394,12 +448,42 @@ async function generatePrintifyMockup(params: {
     }
   }
 
-  // Cleanup: delete temp product
+  // CRITICAL: Download and store images in Object Storage BEFORE deleting the temp product
+  // Printify URLs expire after the product is deleted!
+  const permanentImages: { flat?: string; lifestyle?: string } = {};
+  
+  if (mockupImages.flat) {
+    const flatPath = `${blueprintId}/${printProviderId}/${colorName.replace(/\s+/g, '-').toLowerCase()}-flat.jpg`;
+    const permanentFlatUrl = await downloadAndStoreImage(mockupImages.flat, flatPath);
+    if (permanentFlatUrl) {
+      permanentImages.flat = permanentFlatUrl;
+      console.log(`[MockupService] Stored flat mockup permanently`);
+    } else {
+      // Fall back to Printify URL (may expire)
+      permanentImages.flat = mockupImages.flat;
+      console.warn(`[MockupService] Could not store flat mockup, using Printify URL (may expire)`);
+    }
+  }
+  
+  if (mockupImages.lifestyle) {
+    const lifestylePath = `${blueprintId}/${printProviderId}/${colorName.replace(/\s+/g, '-').toLowerCase()}-lifestyle.jpg`;
+    const permanentLifestyleUrl = await downloadAndStoreImage(mockupImages.lifestyle, lifestylePath);
+    if (permanentLifestyleUrl) {
+      permanentImages.lifestyle = permanentLifestyleUrl;
+      console.log(`[MockupService] Stored lifestyle mockup permanently`);
+    } else {
+      // Fall back to Printify URL (may expire)
+      permanentImages.lifestyle = mockupImages.lifestyle;
+      console.warn(`[MockupService] Could not store lifestyle mockup, using Printify URL (may expire)`);
+    }
+  }
+
+  // Cleanup: delete temp product (now safe because images are stored permanently)
   await printify.deleteProduct(printifyProduct.id).catch((err: Error) => {
     console.warn(`[MockupService] Failed to delete temp product: ${err.message}`);
   });
 
-  return mockupImages;
+  return permanentImages;
 }
 
 /**
