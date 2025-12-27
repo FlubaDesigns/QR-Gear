@@ -1,4 +1,4 @@
-import { Smartphone, Type, Image, RefreshCw } from "lucide-react";
+import { Smartphone, Type, Image, Video, RefreshCw } from "lucide-react";
 
 const steps = [
   {
@@ -15,6 +15,11 @@ const steps = [
     icon: Image,
     title: "Show Your Image",
     description: "When scanned, the QR code opens a page on our site displaying your chosen image. A photo, artwork, or design — beautifully presented and always available.",
+  },
+  {
+    icon: Video,
+    title: "Play Your Video",
+    description: "Share a video message, a memory, or a performance. Scan the code and your video plays instantly. Perfect for tributes, promotions, or personal moments.",
   },
   {
     icon: RefreshCw,

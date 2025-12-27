@@ -2128,7 +2128,7 @@ html[data-theme="light"] .vanity-highlight-icon {
 
 @media (min-width: 1024px) {
   .how-it-works-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 }
 
