@@ -1529,3 +1529,44 @@ export type InsertProviderPlacementMapping = z.infer<typeof insertProviderPlacem
 
 export type ProductPlacementAvailability = typeof productPlacementAvailability.$inferSelect;
 export type InsertProductPlacementAvailability = z.infer<typeof insertProductPlacementAvailabilitySchema>;
+
+// Mockup Cache - stores pre-generated mockups for fast display
+// Database-first: check here before calling POD provider API
+export const mockupCache = pgTable("mockup_cache", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Product identification
+  productId: varchar("product_id").references(() => products.id),
+  blueprintId: integer("blueprint_id"), // Printify blueprint for products not yet in our DB
+  printProviderId: integer("print_provider_id"), // Printify provider ID
+  // Variant details
+  colorName: text("color_name").notNull(),
+  colorHex: text("color_hex"),
+  // Placement
+  canonicalPlacementId: varchar("canonical_placement_id").references(() => canonicalPlacements.id),
+  // Artwork used (for matching)
+  artworkUrl: text("artwork_url"), // The artwork that was applied
+  artworkVariant: text("artwork_variant").default("black"), // 'black' or 'white' QR
+  // Cached mockup URLs (what we serve to customers)
+  mockupUrl: text("mockup_url").notNull(), // The generated mockup image
+  mockupUrlHq: text("mockup_url_hq"), // High-quality version if available
+  // Source info
+  podProviderId: varchar("pod_provider_id").references(() => podProviders.id),
+  providerMockupId: text("provider_mockup_id"), // Provider's internal ID for the mockup
+  // Status and timing
+  status: text("status").default("active"), // 'active', 'stale', 'error'
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"), // Optional expiry for refresh
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  unique("mockup_cache_unique").on(
+    table.blueprintId, 
+    table.printProviderId, 
+    table.colorName, 
+    table.canonicalPlacementId, 
+    table.artworkVariant
+  ),
+]);
+
+export const insertMockupCacheSchema = createInsertSchema(mockupCache).omit({ id: true, createdAt: true });
+export type MockupCache = typeof mockupCache.$inferSelect;
+export type InsertMockupCache = z.infer<typeof insertMockupCacheSchema>;

@@ -3270,6 +3270,127 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ MOCKUP & PLACEMENT API (Database-first with Printify fallback) ============
+
+  // Get all canonical placements (for UI rendering)
+  app.get("/api/placements", async (req, res) => {
+    try {
+      const { category } = req.query;
+      const { getCanonicalPlacements } = await import("./lib/mockup-service");
+      const placements = await getCanonicalPlacements(category as string | undefined);
+      res.json(placements);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get mockup with database-first lookup, Printify fallback
+  // Used by frontend to get mockup for a specific product/color/placement
+  app.post("/api/mockups/get-or-generate", async (req, res) => {
+    try {
+      const { 
+        blueprintId, 
+        printProviderId, 
+        colorName, 
+        colorHex,
+        canonicalPlacementId = "FRONT_CHEST",
+        artworkUrl,
+        artworkVariant = "black"
+      } = req.body;
+
+      if (!blueprintId || !printProviderId || !colorName || !artworkUrl) {
+        return res.status(400).json({ 
+          error: "Missing required fields: blueprintId, printProviderId, colorName, artworkUrl" 
+        });
+      }
+
+      const { getMockupWithFallback } = await import("./lib/mockup-service");
+      
+      const result = await getMockupWithFallback({
+        blueprintId: parseInt(blueprintId),
+        printProviderId: parseInt(printProviderId),
+        colorName,
+        colorHex,
+        canonicalPlacementId,
+        artworkUrl,
+        artworkVariant,
+      }, storage);
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("[MockupAPI] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all cached mockups for a product (for instant color switching)
+  app.get("/api/mockups/cached/:blueprintId/:printProviderId", async (req, res) => {
+    try {
+      const { blueprintId, printProviderId } = req.params;
+      const { getCachedMockupsForProduct } = await import("./lib/mockup-service");
+      
+      const mockups = await getCachedMockupsForProduct(
+        parseInt(blueprintId),
+        parseInt(printProviderId)
+      );
+
+      res.json({ mockups, count: Object.keys(mockups).length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Pre-generate mockups for all colors of a product
+  app.post("/api/admin/mockups/pre-generate", isAdmin, async (req: any, res) => {
+    try {
+      const { blueprintId, printProviderId, artworkBlackUrl, artworkWhiteUrl } = req.body;
+
+      if (!blueprintId || !printProviderId || !artworkBlackUrl) {
+        return res.status(400).json({ 
+          error: "Missing required fields: blueprintId, printProviderId, artworkBlackUrl" 
+        });
+      }
+
+      // Get colors from provider
+      const { getProviderColorsWithFallback } = await import("./lib/printify");
+      const colors = await getProviderColorsWithFallback(
+        parseInt(blueprintId), 
+        parseInt(printProviderId), 
+        storage
+      );
+
+      if (!colors.length) {
+        return res.status(400).json({ error: "No colors found for this provider" });
+      }
+
+      const { preGenerateMockupsForProduct } = await import("./lib/mockup-service");
+      
+      // This runs async - respond immediately
+      res.json({ 
+        message: `Pre-generating mockups for ${colors.length} colors...`,
+        colors: colors.map((c: any) => c.name)
+      });
+
+      // Generate in background
+      preGenerateMockupsForProduct(
+        parseInt(blueprintId),
+        parseInt(printProviderId),
+        artworkBlackUrl,
+        artworkWhiteUrl || null,
+        storage,
+        colors
+      ).then(result => {
+        console.log(`[MockupAPI] Pre-generation complete: ${result.generated} generated, ${result.failed} failed`);
+      }).catch(err => {
+        console.error("[MockupAPI] Pre-generation error:", err);
+      });
+
+    } catch (error: any) {
+      console.error("[MockupAPI] Pre-generate error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ LIBRARY ASSET ENDPOINTS ============
 
   // Admin: Get all library assets with optional filters
