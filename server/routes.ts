@@ -3438,6 +3438,14 @@ ${allPages.map(page => `  <url>
           }
         }
         
+        // Get QR code URL for overlay display
+        const qrCodeUrl = d.qrCodeUrl || null;
+        
+        // Get available colors from the design's selectedColors or product metadata
+        const selectedColors = (d as any).selectedColors || null;
+        const defaultColor = (d as any).defaultColor || null;
+        const mockupsByColor = (d as any).mockupsByColor || null;
+        
         return {
           id: d.id,
           name: d.productName,
@@ -3447,6 +3455,10 @@ ${allPages.map(page => `  <url>
           isSeasonalPromo: d.isSeasonalPromo,
           templateVariant: d.templateVariant,
           qrProductType,
+          qrCodeUrl,
+          selectedColors,
+          defaultColor,
+          mockupsByColor,
           createdAt: d.createdAt,
         };
       });

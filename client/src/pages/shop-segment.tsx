@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode } from "lucide-react";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
+
+interface MockupsByColor {
+  [color: string]: {
+    front?: string;
+    angles?: string[];
+  };
+}
 
 interface StoreProduct {
   id: string;
@@ -15,7 +23,42 @@ interface StoreProduct {
   isSeasonalPromo: boolean;
   templateVariant: string | null;
   qrProductType: string;
+  qrCodeUrl?: string | null;
+  selectedColors?: string[] | null;
+  defaultColor?: string | null;
+  mockupsByColor?: MockupsByColor | null;
   createdAt: string;
+}
+
+// Color name to hex mapping
+function getColorHex(colorName: string): string {
+  const colorMap: Record<string, string> = {
+    'White': '#FFFFFF',
+    'Black': '#000000',
+    'Navy': '#000080',
+    'Navy Blue': '#000080',
+    'Royal Blue': '#4169E1',
+    'Red': '#DC2626',
+    'Heather Gray': '#9CA3AF',
+    'Heather Grey': '#9CA3AF',
+    'Sport Gray': '#6B7280',
+    'Sport Grey': '#6B7280',
+    'Dark Heather': '#374151',
+    'Charcoal': '#36454F',
+    'Natural': '#F5F5DC',
+    'Sand': '#C2B280',
+    'Forest Green': '#228B22',
+    'Kelly Green': '#4CBB17',
+    'Maroon': '#800000',
+    'Orange': '#FF6B00',
+    'Gold': '#FFD700',
+    'Yellow': '#FFFF00',
+    'Light Blue': '#ADD8E6',
+    'Pink': '#FFC0CB',
+    'Purple': '#800080',
+    'Ash': '#B2BEB5',
+  };
+  return colorMap[colorName] || '#CCCCCC';
 }
 
 // Map product type codes to display labels
@@ -32,6 +75,109 @@ interface StoreResponse {
   storeName: string;
   segment: string | null;
   products: StoreProduct[];
+}
+
+// Product card with QR overlay and color swatches
+function StoreProductCard({ product }: { product: StoreProduct }) {
+  const [selectedColor, setSelectedColor] = useState<string | null>(
+    product.defaultColor || null
+  );
+
+  const availableColors = product.selectedColors || 
+    (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
+
+  const getCurrentImage = (): string | null => {
+    // If we have mockups for colors, use the selected color's mockup
+    if (product.mockupsByColor) {
+      const color = selectedColor || product.defaultColor || availableColors[0];
+      if (color && product.mockupsByColor[color]?.front) {
+        return product.mockupsByColor[color].front!;
+      }
+    }
+    return product.imageUrl;
+  };
+
+  const displayImage = getCurrentImage();
+  const hasMockups = !!product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0;
+
+  return (
+    <Card 
+      className="hover-elevate cursor-pointer h-full flex flex-col overflow-hidden"
+      data-testid={`card-product-${product.id}`}
+    >
+      <div className="aspect-square relative bg-muted">
+        {displayImage ? (
+          <img 
+            src={displayImage} 
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <QrCode className="h-16 w-16 text-muted-foreground/50" />
+          </div>
+        )}
+        {/* QR Code overlay - show when no mockups available */}
+        {!hasMockups && product.qrCodeUrl && (
+          <img
+            src={product.qrCodeUrl}
+            alt="QR Code"
+            className="product-card-qr-overlay"
+          />
+        )}
+        {(product.isFeatured || product.isSeasonalPromo) && (
+          <div className="absolute top-2 left-2 flex gap-1">
+            {product.isFeatured && (
+              <Badge variant="default" className="gap-1">
+                <Star className="h-3 w-3" />
+                Featured
+              </Badge>
+            )}
+            {product.isSeasonalPromo && (
+              <Badge variant="secondary" className="gap-1">
+                <Sparkles className="h-3 w-3" />
+                Promo
+              </Badge>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Color swatches */}
+      {availableColors.length > 1 && (
+        <div className="product-card-colors">
+          {availableColors.map((color) => (
+            <button
+              key={color}
+              className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
+              style={{ backgroundColor: getColorHex(color) }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedColor(color);
+              }}
+              title={color}
+              data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
+            />
+          ))}
+        </div>
+      )}
+      
+      <CardContent className="flex-1 p-4">
+        <h3 className="font-semibold text-lg line-clamp-2" data-testid={`text-product-name-${product.id}`}>
+          {product.name}
+        </h3>
+        {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
+          <Badge 
+            className={`mt-2 text-xs text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
+            data-testid={`badge-product-type-${product.id}`}
+          >
+            {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
+          </Badge>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function ShopSegmentPage() {
@@ -148,53 +294,7 @@ export default function ShopSegmentPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {data?.products.map((product) => (
             <Link key={product.id} href={`/customs/${product.id}`}>
-              <Card 
-                className="hover-elevate cursor-pointer h-full flex flex-col overflow-hidden"
-                data-testid={`card-product-${product.id}`}
-              >
-                <div className="aspect-square relative bg-muted">
-                  {product.imageUrl ? (
-                    <img 
-                      src={product.imageUrl} 
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <QrCode className="h-16 w-16 text-muted-foreground/50" />
-                    </div>
-                  )}
-                  {(product.isFeatured || product.isSeasonalPromo) && (
-                    <div className="absolute top-2 left-2 flex gap-1">
-                      {product.isFeatured && (
-                        <Badge variant="default" className="gap-1">
-                          <Star className="h-3 w-3" />
-                          Featured
-                        </Badge>
-                      )}
-                      {product.isSeasonalPromo && (
-                        <Badge variant="secondary" className="gap-1">
-                          <Sparkles className="h-3 w-3" />
-                          Promo
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <CardContent className="flex-1 p-4">
-                  <h3 className="font-semibold text-lg line-clamp-2" data-testid={`text-product-name-${product.id}`}>
-                    {product.name}
-                  </h3>
-                  {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
-                    <Badge 
-                      className={`mt-2 text-xs text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
-                      data-testid={`badge-product-type-${product.id}`}
-                    >
-                      {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
-                    </Badge>
-                  )}
-                </CardContent>
-              </Card>
+              <StoreProductCard product={product} />
             </Link>
           ))}
         </div>
