@@ -86,6 +86,7 @@ export const products = pgTable("products", {
   customerPrice: decimal("customer_price", { precision: 10, scale: 2 }),
   isFeatured: boolean("is_featured").default(false),
   sortOrder: integer("sort_order").default(0),
+  mockupsByColor: jsonb("mockups_by_color"), // { 'White': { front: 'url' }, 'Black': {...} }
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
