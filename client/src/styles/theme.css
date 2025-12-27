@@ -1751,6 +1751,95 @@ html[data-theme="light"] .vanity-highlight-icon {
   fill: #facc15;
 }
 
+/* Dialog color row - 48px minimum touch targets */
+.dialog-color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: hsl(var(--muted));
+  border-radius: 8px;
+  min-height: 56px;
+}
+
+.dialog-color-switch {
+  min-width: 48px;
+  min-height: 28px;
+}
+
+.dialog-color-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+.dialog-color-name {
+  flex: 1;
+  font-size: 1rem;
+  min-width: 0;
+}
+
+.dialog-default-btn {
+  min-width: 48px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dialog-default-btn:hover:not(.is-disabled) {
+  background: hsl(var(--accent) / 0.1);
+  border-color: hsl(var(--accent));
+}
+
+.dialog-default-btn.is-default {
+  background: #fef9c3;
+  border-color: #eab308;
+}
+
+.dialog-default-btn.is-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.dialog-default-star {
+  width: 24px;
+  height: 24px;
+  color: #9ca3af;
+}
+
+.dialog-default-btn.is-default .dialog-default-star {
+  color: #eab308;
+  fill: #facc15;
+}
+
+.dialog-default-label {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fef9c3;
+  border: 1px solid #eab308;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.dialog-default-label-star {
+  width: 20px;
+  height: 20px;
+  color: #eab308;
+  fill: #facc15;
+}
+
 /* Product card button - 48px minimum for accessibility */
 .product-card-btn {
   min-height: 48px;

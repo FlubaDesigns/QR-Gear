@@ -80,6 +80,7 @@ export default function StoreBuildPage() {
   // Temp state for dialog editing (so cancel doesn't save)
   const [dialogSizes, setDialogSizes] = useState<string[]>([]);
   const [dialogColors, setDialogColors] = useState<string[]>([]);
+  const [dialogDefaultColor, setDialogDefaultColor] = useState<string | null>(null);
 
   const [addStoreOpen, setAddStoreOpen] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
@@ -203,6 +204,7 @@ export default function StoreBuildPage() {
     const config = productConfigs[productId];
     setDialogSizes(config?.enabledSizes || allSizes);
     setDialogColors(config?.enabledColors || allColorNames);
+    setDialogDefaultColor(config?.defaultColor || null);
     setOptionsDialogProductId(productId);
   }
 
@@ -210,20 +212,28 @@ export default function StoreBuildPage() {
     setOptionsDialogProductId(null);
     setDialogSizes([]);
     setDialogColors([]);
+    setDialogDefaultColor(null);
   }
 
   function saveOptionsDialog() {
     if (!optionsDialogProductId) return;
-    const existingConfig = productConfigs[optionsDialogProductId];
-    const existingDefault = existingConfig?.defaultColor;
-    // Preserve defaultColor if it's still in the enabled colors list
-    const newDefault = dialogColors.includes(existingDefault || '') ? existingDefault : undefined;
+    // Use the dialog's default color, or fall back to first enabled color
+    const finalDefault = dialogColors.includes(dialogDefaultColor || '') 
+      ? dialogDefaultColor 
+      : dialogColors[0];
     setProductConfigs(prev => ({
       ...prev,
-      [optionsDialogProductId]: { enabledSizes: dialogSizes, enabledColors: dialogColors, defaultColor: newDefault },
+      [optionsDialogProductId]: { enabledSizes: dialogSizes, enabledColors: dialogColors, defaultColor: finalDefault || undefined },
     }));
     closeOptionsDialog();
     toast({ title: "Options updated" });
+  }
+
+  function setDialogDefault(colorName: string) {
+    // Can only set default if color is enabled
+    if (dialogColors.includes(colorName)) {
+      setDialogDefaultColor(colorName);
+    }
   }
 
   function toggleDialogSize(size: string) {
@@ -752,28 +762,47 @@ export default function StoreBuildPage() {
                 {colors.length > 0 && (
                   <div>
                     <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                      Colors
+                      Colors (switch to enable, tap star to set default)
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      {colors.map(color => (
-                        <div
-                          key={color.name}
-                          className="flex items-center gap-3 bg-muted px-4 py-3 rounded-lg min-w-[140px]"
-                        >
-                          <Switch
-                            checked={dialogColors.includes(color.name)}
-                            onCheckedChange={() => toggleDialogColor(color.name)}
-                            className="h-8 w-16"
-                            data-testid={`dialog-switch-color-${color.name}`}
-                          />
+                    <div className="flex flex-col gap-3">
+                      {colors.map(color => {
+                        const isEnabled = dialogColors.includes(color.name);
+                        const isDefault = dialogDefaultColor === color.name;
+                        return (
                           <div
-                            className="w-8 h-8 rounded-full border-2 border-white shadow-md flex-shrink-0"
-                            style={{ backgroundColor: color.hex }}
-                          />
-                          <span className="text-base">{color.name}</span>
-                        </div>
-                      ))}
+                            key={color.name}
+                            className="dialog-color-row"
+                          >
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={() => toggleDialogColor(color.name)}
+                              className="dialog-color-switch"
+                              data-testid={`dialog-switch-color-${color.name}`}
+                            />
+                            <div
+                              className="dialog-color-swatch"
+                              style={{ backgroundColor: color.hex }}
+                            />
+                            <span className="dialog-color-name">{color.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setDialogDefault(color.name)}
+                              disabled={!isEnabled}
+                              className={`dialog-default-btn ${isDefault ? 'is-default' : ''} ${!isEnabled ? 'is-disabled' : ''}`}
+                              data-testid={`dialog-default-${color.name}`}
+                            >
+                              <Star className="dialog-default-star" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
+                    {dialogDefaultColor && (
+                      <div className="dialog-default-label">
+                        <Star className="dialog-default-label-star" />
+                        Default: <span className="font-semibold">{dialogDefaultColor}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
