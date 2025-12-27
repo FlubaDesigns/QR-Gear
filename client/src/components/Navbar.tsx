@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import type { CartItem } from "@shared/schema";
-import logoSvg from "@/assets/logo.svg";
+import logoPng from "@/assets/logo.png";
 
 export default function Navbar() {
   const [location] = useLocation();
@@ -73,7 +73,7 @@ export default function Navbar() {
       <header className="site-header">
         <div className="container header__inner">
           <Link href="/" className="brand" data-testid="link-home">
-            <img src={logoSvg} alt="QR Gear" className="brand__logo-svg" />
+            <img src={logoPng} alt="QR Gear" className="brand__logo-svg" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
