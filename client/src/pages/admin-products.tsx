@@ -1677,6 +1677,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
         markupPercent,
         markupFixed,
         hostingPrice: qrContentType === "rich_media" ? hostingPrice : 0,
+        // Include madeInUSA flag from catalog for product creation
+        madeInUSA: catalogDetails.madeInUSA || false,
+        printProviderId: catalogDetails.selectedProvider?.id || null,
       };
       
       // Save custom design and get QR code

@@ -4432,6 +4432,9 @@ ${allPages.map(page => `  <url>
         markupPercent: z.number().optional().default(0),
         markupFixed: z.number().optional().default(0),
         hostingPrice: z.number().optional().default(0),
+        // USA production flag for product
+        madeInUSA: z.boolean().optional().default(false),
+        printProviderId: z.number().nullable().optional(),
       });
       
       const validatedData = createSchema.parse(req.body);
@@ -4749,6 +4752,8 @@ ${allPages.map(page => `  <url>
             markupFixed: String(validatedData.markupFixed),
             imageUrl: validatedData.productImage || null,
             blueprintId: validatedData.productId || null,
+            printProviderId: validatedData.printProviderId || null,
+            madeInUSA: validatedData.madeInUSA || false,
             isEnabled: true,
             metadata: { customDesignId: design.id, source: "custom" },
           });
@@ -4765,6 +4770,8 @@ ${allPages.map(page => `  <url>
             category: categoryPath,
             imageUrl: validatedData.productImage || null,
             blueprintId: validatedData.productId || null,
+            printProviderId: validatedData.printProviderId || null,
+            madeInUSA: validatedData.madeInUSA || false,
             isEnabled: true,
             metadata: { customDesignId: design.id, source: "custom" },
           });
