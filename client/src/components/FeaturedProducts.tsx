@@ -78,22 +78,21 @@ function ProductCard({
     if (product.blueprintId && product.printProviderId) {
       setIsLoadingMockup(true);
       try {
-        const response = await apiRequest('/api/mockups/lifestyle', {
-          method: 'POST',
-          body: JSON.stringify({
-            blueprintId: product.blueprintId,
-            printProviderId: product.printProviderId,
-            colorName: color,
-            colorHex: colorHexMap[color],
-            qrContent: 'https://qrgear.shop',
-            productType: 'shirt',
-          }),
+        const response = await apiRequest('POST', '/api/mockups/lifestyle', {
+          blueprintId: product.blueprintId,
+          printProviderId: product.printProviderId,
+          colorName: color,
+          colorHex: colorHexMap[color] || getColorHex(color),
+          qrContent: 'https://qrgear.shop',
+          productType: 'shirt',
         });
         
-        if (response.lifestyleUrl) {
+        const data = await response.json();
+        
+        if (data.lifestyleUrl) {
           setDynamicMockups(prev => ({
             ...prev,
-            [color]: { ...prev[color], lifestyle: response.lifestyleUrl }
+            [color]: { ...prev[color], lifestyle: data.lifestyleUrl }
           }));
         }
       } catch (err) {
@@ -103,6 +102,14 @@ function ProductCard({
       }
     }
   };
+  
+  // Fetch initial mockup on mount for default color
+  useEffect(() => {
+    const initialColor = product.defaultColor || availableColors[0];
+    if (initialColor && product.blueprintId && product.printProviderId) {
+      handleColorChange(initialColor);
+    }
+  }, [product.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
     const color = selectedColor || product.defaultColor || availableColors[0];
@@ -190,8 +197,21 @@ function ProductCard({
         <p className="product-card-description">{product.description}</p>
         <div className="product-card-footer">
           <span className="product-card-price">
-            {product.retailPrice ? `From $${Number(product.retailPrice).toFixed(2)}` : 
-             product.basePrice ? `From $${Number(product.basePrice).toFixed(2)}` : "Build to see price"}
+            {(() => {
+              // Show price range if available
+              const priceRange = (product as any).priceRange;
+              if (priceRange?.min && priceRange?.max && priceRange.min !== priceRange.max) {
+                return `$${Number(priceRange.min).toFixed(2)} – $${Number(priceRange.max).toFixed(2)}`;
+              }
+              // Fall back to single price
+              if (product.retailPrice) {
+                return `From $${Number(product.retailPrice).toFixed(2)}`;
+              }
+              if (product.basePrice) {
+                return `From $${Number(product.basePrice).toFixed(2)}`;
+              }
+              return "Build to see price";
+            })()}
           </span>
           <button 
             className="product-card-btn"
