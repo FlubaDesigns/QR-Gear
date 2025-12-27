@@ -1436,3 +1436,96 @@ export type InsertGiftCode = z.infer<typeof insertGiftCodeSchema>;
 
 export type GiftRedemption = typeof giftRedemptions.$inferSelect;
 export type InsertGiftRedemption = z.infer<typeof insertGiftRedemptionSchema>;
+
+// ============================================
+// Provider-Agnostic Placement System
+// Supports multi-POD orchestration (Printify, Printful, Gooten, SPOD, etc.)
+// ============================================
+
+// Canonical placements - our standard placement vocabulary
+// These are provider-agnostic identifiers used throughout the app
+export const canonicalPlacements = pgTable("canonical_placements", {
+  id: varchar("id").primaryKey(), // e.g., 'FRONT_PRIMARY', 'BACK_FULL', 'LEFT_SLEEVE'
+  label: text("label").notNull(), // Human-readable: "Front Chest", "Full Back", "Left Sleeve"
+  description: text("description"),
+  category: text("category").notNull(), // 'apparel', 'headwear', 'drinkware', 'bags', 'accessories'
+  // Preview positioning (for instant client-side mockups)
+  previewX: decimal("preview_x", { precision: 5, scale: 3 }).default("0.5"), // 0-1 horizontal position
+  previewY: decimal("preview_y", { precision: 5, scale: 3 }).default("0.4"), // 0-1 vertical position
+  previewScale: decimal("preview_scale", { precision: 5, scale: 3 }).default("0.3"), // 0-1 scale factor
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// POD Provider Registry - all print-on-demand providers we support
+export const podProviders = pgTable("pod_providers", {
+  id: varchar("id").primaryKey(), // e.g., 'printify', 'printful', 'gooten', 'spod'
+  name: text("name").notNull(), // "Printify", "Printful", etc.
+  logoUrl: text("logo_url"),
+  websiteUrl: text("website_url"),
+  apiBaseUrl: text("api_base_url"),
+  // Provider capabilities
+  supportsWhiteLabel: boolean("supports_white_label").default(false),
+  supportsRush: boolean("supports_rush").default(false),
+  averageShipDays: integer("average_ship_days"),
+  // Status
+  isActive: boolean("is_active").default(true),
+  healthStatus: text("health_status").default("unknown"), // 'healthy', 'degraded', 'down', 'unknown'
+  lastHealthCheck: timestamp("last_health_check"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Provider Placement Mappings - maps provider-specific names to canonical placements
+// This is the core translation layer between providers
+export const providerPlacementMappings = pgTable("provider_placement_mappings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  podProviderId: varchar("pod_provider_id").notNull().references(() => podProviders.id),
+  canonicalPlacementId: varchar("canonical_placement_id").notNull().references(() => canonicalPlacements.id),
+  // Provider's native placement identifier
+  providerPlacementKey: text("provider_placement_key").notNull(), // e.g., "front", "front-chest", "Front"
+  // Optional: provider-specific positioning overrides (if different from canonical)
+  overrideX: decimal("override_x", { precision: 5, scale: 3 }),
+  overrideY: decimal("override_y", { precision: 5, scale: 3 }),
+  overrideScale: decimal("override_scale", { precision: 5, scale: 3 }),
+  // Additional provider-specific metadata
+  metadata: jsonb("metadata"), // { maxDpi: 300, maxWidth: 4000, etc. }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  unique("provider_placement_unique").on(table.podProviderId, table.providerPlacementKey),
+]);
+
+// Product Placement Availability - which placements are available for each product
+// Links products to their available canonical placements
+export const productPlacementAvailability = pgTable("product_placement_availability", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  canonicalPlacementId: varchar("canonical_placement_id").notNull().references(() => canonicalPlacements.id),
+  // Artwork URLs for this placement (both black and white variants)
+  artworkBlackUrl: text("artwork_black_url"),
+  artworkWhiteUrl: text("artwork_white_url"),
+  // Whether this is the default/primary placement for the product
+  isPrimary: boolean("is_primary").default(false),
+  isEnabled: boolean("is_enabled").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  unique("product_placement_unique").on(table.productId, table.canonicalPlacementId),
+]);
+
+export const insertCanonicalPlacementSchema = createInsertSchema(canonicalPlacements).omit({ createdAt: true });
+export const insertPodProviderSchema = createInsertSchema(podProviders).omit({ createdAt: true, updatedAt: true });
+export const insertProviderPlacementMappingSchema = createInsertSchema(providerPlacementMappings).omit({ id: true, createdAt: true });
+export const insertProductPlacementAvailabilitySchema = createInsertSchema(productPlacementAvailability).omit({ id: true, createdAt: true });
+
+export type CanonicalPlacement = typeof canonicalPlacements.$inferSelect;
+export type InsertCanonicalPlacement = z.infer<typeof insertCanonicalPlacementSchema>;
+
+export type PodProvider = typeof podProviders.$inferSelect;
+export type InsertPodProvider = z.infer<typeof insertPodProviderSchema>;
+
+export type ProviderPlacementMapping = typeof providerPlacementMappings.$inferSelect;
+export type InsertProviderPlacementMapping = z.infer<typeof insertProviderPlacementMappingSchema>;
+
+export type ProductPlacementAvailability = typeof productPlacementAvailability.$inferSelect;
+export type InsertProductPlacementAvailability = z.infer<typeof insertProductPlacementAvailabilitySchema>;
