@@ -539,7 +539,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Products - Public endpoint returns only enabled products
   app.get("/api/products", async (req, res) => {
     try {
-      const { store, segment } = req.query;
+      const { store, segment, featured } = req.query;
       
       // If store is provided, use the proper store filtering via partner_store_products
       if (store && typeof store === "string") {
@@ -550,9 +550,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(products);
       }
       
-      // Fallback: return all enabled products (for backward compatibility)
+      // Get all enabled products
       const products = await storage.getAllProducts();
-      const enabledProducts = products.filter(p => p.isEnabled);
+      let enabledProducts = products.filter(p => p.isEnabled);
+      
+      // Filter by featured if requested
+      if (featured === "true") {
+        enabledProducts = enabledProducts.filter(p => p.isFeatured);
+      }
+      
       res.json(enabledProducts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

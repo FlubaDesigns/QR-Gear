@@ -1,34 +1,47 @@
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { QRButton } from "@/components/QRButton";
 import UsaFlag from "./UsaFlag";
-import tshirtImage from "@assets/generated_images/Product_mockup_white_tee_de332d78.png";
-import gymBagImage from "@assets/generated_images/Gym_bag_QR_mockup_9450e53d.png";
-
-const products = [
-  {
-    id: 1,
-    image: tshirtImage,
-    name: "Premium T-Shirt",
-    madeInUSA: true,
-    description: "Soft cotton blend with your custom QR code",
-  },
-  {
-    id: 2,
-    image: gymBagImage,
-    name: "Gym Duffel Bag",
-    madeInUSA: true,
-    description: "Durable bag with private QR for your contact info",
-  },
-  {
-    id: 3,
-    image: tshirtImage,
-    name: "Baseball Cap",
-    madeInUSA: false,
-    description: "Classic cap with front-panel QR code",
-  },
-];
+import type { Product } from "@shared/schema";
 
 export default function FeaturedProducts() {
+  const { data: products = [], isLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products", { featured: true }],
+    queryFn: async () => {
+      const res = await fetch("/api/products?featured=true");
+      if (!res.ok) throw new Error("Failed to fetch featured products");
+      return res.json();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <section className="home-section">
+        <div className="container">
+          <div className="section-header">
+            <h2>Featured Products</h2>
+            <p>Loading featured products...</p>
+          </div>
+          <div className="products-grid">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="glass-card product-card skeleton-card">
+                <div className="product-card-image skeleton-image" />
+                <div className="product-card-content">
+                  <div className="skeleton-text" />
+                  <div className="skeleton-text short" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (products.length === 0) {
+    return null;
+  }
+
   return (
     <section className="home-section">
       <div className="container">
@@ -38,7 +51,7 @@ export default function FeaturedProducts() {
         </div>
 
         <div className="products-grid">
-          {products.map((product) => (
+          {products.slice(0, 6).map((product) => (
             <div 
               key={product.id} 
               className="glass-card product-card hover-elevate"
@@ -46,7 +59,7 @@ export default function FeaturedProducts() {
             >
               <div className="product-card-image">
                 <img
-                  src={product.image}
+                  src={product.imageUrl || ""}
                   alt={product.name}
                 />
                 {product.madeInUSA && (
@@ -60,8 +73,10 @@ export default function FeaturedProducts() {
                 <h3>{product.name}</h3>
                 <p className="product-card-description">{product.description}</p>
                 <div className="product-card-footer">
-                  <span className="product-card-price">Build to see price</span>
-                  <Link href="/creator">
+                  <span className="product-card-price">
+                    {product.basePrice ? `From $${Number(product.basePrice).toFixed(2)}` : "Build to see price"}
+                  </span>
+                  <Link href={`/creator?product=${product.id}`}>
                     <button 
                       className="product-card-btn"
                       data-testid={`button-customize-${product.id}`}
