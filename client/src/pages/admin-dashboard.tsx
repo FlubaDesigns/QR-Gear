@@ -109,18 +109,20 @@ function MetricCard({
   );
 }
 
-function StatusBadge({ status }: { status: "healthy" | "degraded" | "down" }) {
-  const config = {
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; color: string }> = {
     healthy: { label: "Healthy", color: "bg-green-500/10 text-green-600 border-green-500/20" },
     degraded: { label: "Degraded", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
     down: { label: "Down", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+    not_configured: { label: "Not Configured", color: "bg-gray-500/10 text-gray-500 border-gray-500/20" },
   };
-  const { label, color } = config[status];
+  const { label, color } = config[status] || config.down;
   return (
     <Badge variant="outline" className={color}>
       {status === "healthy" && <CheckCircle className="w-3 h-3 mr-1" />}
       {status === "degraded" && <AlertCircle className="w-3 h-3 mr-1" />}
       {status === "down" && <AlertCircle className="w-3 h-3 mr-1" />}
+      {status === "not_configured" && <AlertCircle className="w-3 h-3 mr-1" />}
       {label}
     </Badge>
   );
