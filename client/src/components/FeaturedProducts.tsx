@@ -67,9 +67,14 @@ function ProductCard({
   const handleColorChange = async (color: string) => {
     setSelectedColor(color);
     
-    // Check if we already have this mockup (preloaded or dynamically fetched)
-    const hasPreloaded = product.mockupsByColor?.[color]?.front || product.mockupsByColor?.[color]?.lifestyle;
-    const hasDynamic = dynamicMockups[color]?.front || dynamicMockups[color]?.lifestyle;
+    // Helper to check if URL is valid (HTTP URL)
+    const isValidMockupUrl = (url?: string) => url && url.startsWith('http');
+    
+    // Check if we already have a valid mockup (preloaded or dynamically fetched)
+    const hasPreloaded = isValidMockupUrl(product.mockupsByColor?.[color]?.front) || 
+                         isValidMockupUrl(product.mockupsByColor?.[color]?.lifestyle);
+    const hasDynamic = isValidMockupUrl(dynamicMockups[color]?.front) || 
+                       isValidMockupUrl(dynamicMockups[color]?.lifestyle);
     
     if (hasPreloaded || hasDynamic) return;
     
@@ -101,25 +106,29 @@ function ProductCard({
   const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
     const color = selectedColor || product.defaultColor || availableColors[0];
     
+    // Helper to check if URL is valid (HTTP URL, not broken local path)
+    const isValidUrl = (url?: string) => url && url.startsWith('http');
+    
     // Check dynamic mockups first (fetched on color change)
     if (color && dynamicMockups[color]) {
-      if (dynamicMockups[color].lifestyle) {
+      if (isValidUrl(dynamicMockups[color].lifestyle)) {
         return { url: dynamicMockups[color].lifestyle!, isLifestyle: true };
       }
-      if (dynamicMockups[color].front) {
+      if (isValidUrl(dynamicMockups[color].front)) {
         return { url: dynamicMockups[color].front!, isLifestyle: false };
       }
     }
     
     // Fall back to pre-loaded mockups from product data
     if (product.mockupsByColor && color && product.mockupsByColor[color]) {
-      if (product.mockupsByColor[color].lifestyle) {
+      if (isValidUrl(product.mockupsByColor[color].lifestyle)) {
         return { url: product.mockupsByColor[color].lifestyle!, isLifestyle: true };
       }
-      if (product.mockupsByColor[color].front) {
+      if (isValidUrl(product.mockupsByColor[color].front)) {
         return { url: product.mockupsByColor[color].front!, isLifestyle: false };
       }
     }
+    
     return { url: product.defaultMockupImage || null, isLifestyle: false };
   };
 
