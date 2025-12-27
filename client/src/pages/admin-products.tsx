@@ -2004,11 +2004,13 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         setLandingDescription("");
                         // Clear hosting tier (not used for plain text)
                         setSelectedHostingTier("");
+                        // QR Basics is always QR-only mode (no artwork options)
+                        setPlacementConfigs({"front-chest": "qr-only"});
                       }}
                       data-testid="button-qr-plain-text"
                     >
-                      <span className="font-bold text-base">Plain Text QR</span>
-                      <span className="text-xs opacity-80 whitespace-normal">Offline scannable - no hosting needed</span>
+                      <span className="font-bold text-base">QR Basics</span>
+                      <span className="text-xs opacity-80 whitespace-normal">Text/URL encoded directly - no hosting</span>
                     </Button>
                     <Button
                       variant={qrContentType === "rich_media" ? "default" : "outline"}
@@ -2266,8 +2268,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                                 {label}
                               </Button>
                               
-                              {/* Mode Toggle - only show when selected */}
-                              {isSelected && (
+                              {/* Mode Toggle - only show when selected AND not plain_text (QR Basics is always QR-only) */}
+                              {isSelected && qrContentType !== "plain_text" && (
                                 <div className="flex gap-1 bg-muted rounded-md p-1">
                                   <Button
                                     variant={mode === "full" ? "default" : "ghost"}
@@ -2313,7 +2315,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                         return (
                           <div key={id} className="flex justify-between text-muted-foreground">
                             <span>{placement?.label || id}</span>
-                            <span className="text-xs">{mode === "full" ? "Full Artwork" : "QR Only"}</span>
+                            {qrContentType !== "plain_text" && (
+                              <span className="text-xs">{mode === "full" ? "Full Artwork" : "QR Only"}</span>
+                            )}
                           </div>
                         );
                       })}
