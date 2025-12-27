@@ -4583,6 +4583,8 @@ function ProductsContent() {
   
   // Edit design state - passed to AddFromPrintifyPanel
   const [editDesignId, setEditDesignId] = useState<string | null>(null);
+  // Zoom state for product images
+  const [zoomedProductImage, setZoomedProductImage] = useState<{url: string; title: string} | null>(null);
   type PartnerStoreData = { id: string; name: string; availableSegments: string[] | null; isInternal?: boolean | null };
   const { data: partnerStoresData = [] } = useQuery<PartnerStoreData[]>({
     queryKey: ["/api/admin/partner-stores"],
@@ -4922,7 +4924,13 @@ function ProductsContent() {
                         const firstMockup = mockups ? Object.values(mockups).find(m => m?.front)?.front : null;
                         const displayImage = firstMockup || product.imageUrl;
                         return displayImage ? (
-                          <img src={displayImage} alt="" className="w-20 h-20 rounded object-cover" />
+                          <img 
+                            src={displayImage} 
+                            alt="" 
+                            className="w-20 h-20 rounded object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setZoomedProductImage({ url: displayImage, title: product.name })}
+                            data-testid={`img-product-${product.id}`}
+                          />
                         ) : null;
                       })()}
                       <div className="flex items-center gap-1">
@@ -5145,6 +5153,26 @@ function ProductsContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Zoomed Product Image Dialog */}
+      <Dialog open={!!zoomedProductImage} onOpenChange={(open) => !open && setZoomedProductImage(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogTitle className="sr-only">{zoomedProductImage?.title || "Product Image"}</DialogTitle>
+          {zoomedProductImage && (
+            <div 
+              className="flex flex-col items-center gap-4 cursor-pointer"
+              onClick={() => setZoomedProductImage(null)}
+            >
+              <img 
+                src={zoomedProductImage.url} 
+                alt={zoomedProductImage.title} 
+                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+              />
+              <p className="text-sm text-muted-foreground">{zoomedProductImage.title}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
