@@ -139,24 +139,21 @@ Response: { "success": true, "mockupUrl": "...", "fromCache": true }
 
 ---
 
-## Known Issues (December 27, 2025)
+## Resolved Issues (December 27, 2025)
 
-### BLOCKING: Printify Mockup URLs Expire
-Printify CDN URLs expire after temp product is deleted. Current mockups return empty content.
+### Printify Mockup URLs - FIXED
+Mockups now stored permanently in Replit Object Storage before temp Printify products are deleted.
 
-**Root cause**: `generatePrintifyMockup()` deletes temp product after getting URLs. URLs become invalid.
+**URLs**: `https://replit-objstore-ac4951d5-c3b2-403e-ab38-26bbe6c49386.replit.dev/public/mockups/...`
 
-**Attempted fix**: Download images to Object Storage before deletion. Code added but Object Storage client initialization failing.
-
-**See**: `docs/AI-COMMS/QR/COMPLETE-STATUS-DEC27.md` for full details.
+### QR Artwork Selection - WORKING
+- `isColorDark()` correctly detects luminance
+- White QR for dark shirts (Solid Black = #000000)
+- Black QR for light shirts (Solid White = #FFFFFF)
+- Logs confirm: `needsWhiteQR=true` for dark shirts
 
 ### Pricing Display - WORKING
 Home page shows `customerPrice` set by admin correctly.
-
-### QR Artwork Selection - CODE FIXED
-- `isColorDark()` correctly detects luminance
-- White QR for dark shirts, black QR for light shirts
-- Not visible due to URL expiration issue above
 
 ---
 
