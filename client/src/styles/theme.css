@@ -1701,16 +1701,113 @@ html[data-theme="light"] .vanity-highlight-icon {
   outline-offset: 2px;
 }
 
-/* Swatch container with star button */
+/* ===== Product Color Chip System =====
+   Large pill-shaped buttons with color + star trigger
+   48px+ touch targets for accessibility */
+
+.color-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Pill-shaped color chip with integrated mockup trigger */
+.color-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.5rem 0.75rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-stroke);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-chip:hover:not(.has-mockup) {
+  background: var(--glass-bg-2);
+  border-color: var(--accent);
+}
+
+.color-chip:focus {
+  outline: 2px solid var(--ice-1);
+  outline-offset: 2px;
+}
+
+.color-chip.has-mockup {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  cursor: default;
+}
+
+.color-chip.generating {
+  background: rgba(255, 178, 74, 0.15);
+  border-color: var(--accent-2);
+}
+
+/* Color dot inside chip */
+.color-chip-dot {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Color name text */
+.color-chip-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
+/* Star icon in chip */
+.color-chip-star {
+  width: 20px;
+  height: 20px;
+  color: var(--text-2);
+  transition: all 0.2s ease;
+}
+
+.color-chip:hover:not(.has-mockup) .color-chip-star {
+  color: var(--accent);
+}
+
+.color-chip.has-mockup .color-chip-star {
+  color: #10b981;
+  fill: #10b981;
+}
+
+.color-chip.generating .color-chip-star {
+  color: var(--accent-2);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Legacy swatch container - kept for backwards compatibility */
 .swatch-container {
   position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.swatch-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
 }
 
-/* Mockup generation star button - 48px touch target */
+/* Legacy mockup star button */
 .mockup-star-btn {
   min-width: 48px;
   min-height: 32px;
@@ -1738,36 +1835,6 @@ html[data-theme="light"] .vanity-highlight-icon {
 .mockup-star-btn.has-mockup {
   background: var(--success-bg);
   border-color: var(--success);
-}
-
-.mockup-star-btn.is-loading {
-  background: var(--warning-bg);
-  border-color: var(--warning);
-}
-
-.mockup-star-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--text-2);
-  transition: all 0.2s ease;
-}
-
-.mockup-star-btn:hover:not(:disabled) .mockup-star-icon {
-  color: var(--accent-text);
-}
-
-.mockup-star-icon.check {
-  color: var(--success);
-}
-
-.mockup-star-icon.spin {
-  animation: spin 1s linear infinite;
-  color: var(--warning);
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 /* Admin color picker - 48px touch targets for accessibility */

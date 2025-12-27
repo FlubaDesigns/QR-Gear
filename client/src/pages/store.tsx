@@ -35,7 +35,6 @@ export default function Store() {
   const [selectedOccasion, setSelectedOccasion] = useState<string>("");
   const [selectedOther, setSelectedOther] = useState<string>("");
   const [generatingMockups, setGeneratingMockups] = useState<Record<string, Set<string>>>({});
-  const [generatedMockups, setGeneratedMockups] = useState<Record<string, Set<string>>>({});
   const { toast } = useToast();
 
   const { data: products, isLoading: productsLoading } = useQuery<StoreProduct[]>({
@@ -55,11 +54,6 @@ export default function Store() {
       return response.json();
     },
     onSuccess: (data, variables) => {
-      setGeneratedMockups(prev => {
-        const productSet = new Set(prev[variables.productId] || []);
-        productSet.add(variables.color);
-        return { ...prev, [variables.productId]: productSet };
-      });
       queryClient.invalidateQueries({ queryKey: ["/api/products", "qr-gear-main", "Home"] });
       toast({
         title: "Mockup generated",
@@ -293,7 +287,6 @@ export default function Store() {
               {displayProducts.map((product) => {
                 const colors = product.selectedColors || [];
                 const productGenerating = generatingMockups[product.id] || new Set();
-                const productGenerated = generatedMockups[product.id] || new Set();
                 
                 return (
                   <Card 
@@ -330,36 +323,33 @@ export default function Store() {
                       </p>
                       
                       {colors.length > 0 && (
-                        <div className="swatch-container" data-testid={`swatches-${product.id}`}>
+                        <div className="color-chip-grid" data-testid={`colors-${product.id}`}>
                           {colors.map((color) => {
                             const hasMockup = product.mockupsByColor?.[color]?.front;
                             const isGenerating = productGenerating.has(color);
-                            const justGenerated = productGenerated.has(color);
                             
                             return (
-                              <div key={color} className="swatch-item">
-                                <div
-                                  className="color-swatch"
+                              <button
+                                key={color}
+                                className={`color-chip ${hasMockup ? 'has-mockup' : ''} ${isGenerating ? 'generating' : ''}`}
+                                onClick={() => !hasMockup && !isGenerating && handleGenerateMockup(product.id, color)}
+                                disabled={isGenerating || !!hasMockup}
+                                title={hasMockup ? `${color} mockup ready` : `Tap to generate ${color} mockup`}
+                                data-testid={`chip-${product.id}-${color}`}
+                              >
+                                <span 
+                                  className="color-chip-dot" 
                                   style={{ backgroundColor: color.toLowerCase() }}
-                                  title={color}
-                                  data-testid={`swatch-${product.id}-${color}`}
                                 />
-                                <button
-                                  className={`mockup-star-btn ${hasMockup ? 'has-mockup' : ''} ${isGenerating ? 'generating' : ''} ${justGenerated ? 'success' : ''}`}
-                                  onClick={() => handleGenerateMockup(product.id, color)}
-                                  disabled={isGenerating || hasMockup}
-                                  title={hasMockup ? 'Mockup ready' : `Generate ${color} mockup`}
-                                  data-testid={`star-${product.id}-${color}`}
-                                >
-                                  {isGenerating ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : justGenerated ? (
-                                    <Check className="w-4 h-4" />
-                                  ) : (
-                                    <Star className={`w-4 h-4 ${hasMockup ? 'fill-current' : ''}`} />
-                                  )}
-                                </button>
-                              </div>
+                                <span className="color-chip-name">{color}</span>
+                                {isGenerating ? (
+                                  <Loader2 className="color-chip-star" />
+                                ) : hasMockup ? (
+                                  <Check className="color-chip-star" />
+                                ) : (
+                                  <Star className="color-chip-star" />
+                                )}
+                              </button>
                             );
                           })}
                         </div>
