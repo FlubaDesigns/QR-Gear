@@ -220,3 +220,65 @@ export function getArtworkForColor(
 ): string {
   return isColorDark(hexColor) ? whiteArtworkUrl : blackArtworkUrl;
 }
+
+export interface OverlayOptions {
+  baseImageUrl: string;
+  graphicUrl: string;
+  position?: 'chest' | 'center' | 'back';
+  graphicScale?: number;
+  productType?: 'shirt' | 'hat' | 'bag' | 'mug' | 'other';
+}
+
+export async function overlayGraphicOnProduct(options: OverlayOptions): Promise<Buffer> {
+  const { 
+    baseImageUrl, 
+    graphicUrl, 
+    position = 'chest',
+    graphicScale = 0.25,
+    productType = 'shirt'
+  } = options;
+
+  const baseImage = await loadImage(baseImageUrl);
+  const graphicImage = await loadImage(graphicUrl);
+
+  const canvas = createCanvas(baseImage.width, baseImage.height);
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(baseImage, 0, 0);
+
+  const graphicWidth = baseImage.width * graphicScale;
+  const graphicHeight = (graphicImage.height / graphicImage.width) * graphicWidth;
+
+  let x: number, y: number;
+
+  if (productType === 'shirt') {
+    if (position === 'chest') {
+      x = (baseImage.width - graphicWidth) / 2;
+      y = baseImage.height * 0.28;
+    } else if (position === 'center') {
+      x = (baseImage.width - graphicWidth) / 2;
+      y = (baseImage.height - graphicHeight) / 2;
+    } else {
+      x = (baseImage.width - graphicWidth) / 2;
+      y = baseImage.height * 0.35;
+    }
+  } else if (productType === 'hat') {
+    x = (baseImage.width - graphicWidth) / 2;
+    y = baseImage.height * 0.35;
+  } else if (productType === 'bag') {
+    x = (baseImage.width - graphicWidth) / 2;
+    y = (baseImage.height - graphicHeight) / 2;
+  } else {
+    x = (baseImage.width - graphicWidth) / 2;
+    y = (baseImage.height - graphicHeight) / 2;
+  }
+
+  ctx.drawImage(graphicImage, x, y, graphicWidth, graphicHeight);
+
+  return canvas.toBuffer("image/png");
+}
+
+export async function overlayGraphicOnProductToDataUrl(options: OverlayOptions): Promise<string> {
+  const buffer = await overlayGraphicOnProduct(options);
+  return `data:image/png;base64,${buffer.toString('base64')}`;
+}
