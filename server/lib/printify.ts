@@ -487,48 +487,54 @@ class PrintifyClient {
     const colorMap = new Map<string, { name: string; hex?: string }>();
     const sizeSet = new Set<string>();
     
+    // Known size patterns to filter out from colors
+    const sizePatterns = new Set(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'XXL', 'XXXL', 'ONE SIZE', 'OS']);
+    
+    const isSize = (value: string): boolean => {
+      return sizePatterns.has(value.toUpperCase().trim());
+    };
+    
     for (const variant of product.variants || []) {
-      // Extract color from variant options or title
+      // Extract from variant options array
       if (variant.options) {
         for (const opt of variant.options) {
-          if (opt.type === 'color' || opt.name?.toLowerCase().includes('color')) {
-            const colorName = opt.value || opt.title || '';
-            if (colorName && !colorMap.has(colorName.toLowerCase())) {
-              colorMap.set(colorName.toLowerCase(), { 
-                name: colorName,
+          const value = opt.value || opt.title || '';
+          if (!value) continue;
+          
+          // Check if explicitly typed
+          if (opt.type === 'size' || opt.name?.toLowerCase().includes('size')) {
+            sizeSet.add(value);
+          } else if (opt.type === 'color' || opt.name?.toLowerCase().includes('color')) {
+            // Only add if not a size pattern
+            if (!isSize(value) && !colorMap.has(value.toLowerCase())) {
+              colorMap.set(value.toLowerCase(), { 
+                name: value,
                 hex: opt.hex || undefined
               });
             }
           }
-          if (opt.type === 'size' || opt.name?.toLowerCase().includes('size')) {
-            const sizeName = opt.value || opt.title || '';
-            if (sizeName) sizeSet.add(sizeName);
-          }
         }
       }
       
-      // Fallback: parse from variant title (e.g., "S / White")
+      // Parse from variant title (e.g., "S / White" or "White / S")
       if (variant.title) {
         const parts = variant.title.split('/').map((p: string) => p.trim());
-        if (parts.length >= 1 && parts[0]) {
-          // First part is usually size
-          const potentialSize = parts[0].toUpperCase();
-          if (['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'XXL', 'XXXL', 'ONE SIZE'].includes(potentialSize)) {
-            sizeSet.add(parts[0]);
-          }
-        }
-        if (parts.length >= 2 && parts[1]) {
-          // Second part is usually color
-          const colorName = parts[1];
-          if (!colorMap.has(colorName.toLowerCase())) {
-            colorMap.set(colorName.toLowerCase(), { name: colorName });
+        for (const part of parts) {
+          if (!part) continue;
+          if (isSize(part)) {
+            sizeSet.add(part);
+          } else if (!colorMap.has(part.toLowerCase())) {
+            colorMap.set(part.toLowerCase(), { name: part });
           }
         }
       }
     }
 
+    // Final filter: remove any size-like values that snuck into colors
+    const colors = Array.from(colorMap.values()).filter(c => !isSize(c.name));
+
     return {
-      colors: Array.from(colorMap.values()),
+      colors,
       sizes: Array.from(sizeSet),
     };
   }

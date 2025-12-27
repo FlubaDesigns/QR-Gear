@@ -52,6 +52,9 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - **System Health** (`/admin/health`): Provider status monitoring (Printify, Stripe).
 - Updated admin navigation with 13 sections including Orders, Gifts.
 
+### Recent Fixes (December 27, 2025)
+- **Color/Size Extraction Fix**: Fixed `extractColorsAndSizes` function in `printify.ts` that was incorrectly storing sizes in the colors column. Added explicit size pattern filtering to ensure sizes like "S", "M", "L", "XL" are properly separated from colors. Title parsing now iterates all parts and classifies each as size or color.
+
 ### Recent Fixes (December 26, 2025)
 - **SEO Landing Pages**: All 5 product type landing pages (/qr-static, /qr-static-plus, /qr-url, /qr-video, /qr-dynamics) now show actual content instead of auto-redirecting. Include practical examples, feature lists, and SEO metadata.
 - **Static QR Page**: Added real-world examples (coffee mug, gym bag, networking polo, medical alert) and emphasized 2,000 character encoding capacity.
