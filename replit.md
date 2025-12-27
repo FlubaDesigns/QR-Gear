@@ -53,6 +53,11 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - Updated admin navigation with 13 sections including Orders, Gifts.
 
 ### Recent Fixes (December 27, 2025)
+- **Color Hex Value Sync**: Upgraded color sync to use Printify Catalog API (`syncProductVariants`) instead of placeholder product extraction to get proper hex values. Colors now include `{name, hex}` format for UI display.
+- **Expanded Color Hex Map**: Added 150+ color mappings including heathers, solids, and intelligent keyword-based fallbacks (checks "navy", "heather", "solid" prefixes).
+- **Color Hex Refresh Script**: New `scripts/refresh-color-hex.ts` to backfill hex values for all 580+ providers.
+- **Dual-Color QR Artwork**: Generates both black and white QR code versions. Uses luminance-based color detection (`isColorDark` with sRGB formula <0.5 = dark) to auto-select appropriate artwork based on shirt hex color.
+- **Mockup Generation Fix**: Safe JSON.parse for `placementImages` field with try-catch and type checking for both string and object formats.
 - **Color/Size Extraction Fix**: Fixed `extractColorsAndSizes` function in `printify.ts` that was incorrectly storing sizes in the colors column. Added explicit size pattern filtering to ensure sizes like "S", "M", "L", "XL" are properly separated from colors. Title parsing now iterates all parts and classifies each as size or color.
 
 ### Recent Fixes (December 26, 2025)
