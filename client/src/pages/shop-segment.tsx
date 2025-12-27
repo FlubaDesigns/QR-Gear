@@ -91,9 +91,6 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
   const availableColors = product.selectedColors || 
     (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
 
-  // Debug log
-  console.log('[ProductCard]', product.id, 'colors:', availableColors, 'defaultColor:', product.defaultColor);
-
   // Mockup generation mutation
   const generateMockup = useMutation({
     mutationFn: async (color: string) => {
