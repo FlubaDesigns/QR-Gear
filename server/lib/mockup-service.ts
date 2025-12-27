@@ -340,32 +340,49 @@ async function generatePrintifyMockup(params: {
     if (productDetails.images && productDetails.images.length > 0) {
       // Printify returns images with different types
       // Parse through all images to find flat and lifestyle versions
-      for (const img of productDetails.images) {
-        const src = img.src || img;
+      console.log(`[MockupService] Printify returned ${productDetails.images.length} images`);
+      
+      for (let i = 0; i < productDetails.images.length; i++) {
+        const img = productDetails.images[i];
+        const src = typeof img === 'string' ? img : (img.src || '');
         const isDefault = img.is_default || false;
         const position = (img.position || "").toLowerCase();
+        const variantIds = img.variant_ids || [];
+        
+        // Log image details for debugging
+        console.log(`[MockupService] Image ${i}: position="${position}", is_default=${isDefault}, variant_ids=${variantIds.length}`);
         
         // First image or default image is typically the flat product shot
-        if (!mockupImages.flat && (isDefault || productDetails.images.indexOf(img) === 0)) {
-          mockupImages.flat = typeof src === 'string' ? src : src.src;
+        if (!mockupImages.flat && (isDefault || i === 0)) {
+          mockupImages.flat = src;
         }
         
-        // Look for lifestyle indicators in position or other metadata
-        // Printify uses various naming conventions for lifestyle shots
-        if (!mockupImages.lifestyle && position.includes('lifestyle')) {
-          mockupImages.lifestyle = typeof src === 'string' ? src : src.src;
+        // Look for lifestyle indicators in position or metadata
+        // Printify uses various naming conventions: "lifestyle", "model", etc.
+        const lifestyleKeywords = ['lifestyle', 'model', 'worn', 'person'];
+        const isLifestylePosition = lifestyleKeywords.some(kw => position.includes(kw));
+        const isLifestyleUrl = lifestyleKeywords.some(kw => src.toLowerCase().includes(kw));
+        
+        if (!mockupImages.lifestyle && (isLifestylePosition || isLifestyleUrl)) {
+          mockupImages.lifestyle = src;
         }
       }
       
-      // If we found more than one image, the additional ones might be lifestyle
+      // If we found more than one image and no lifestyle yet, the 2nd+ images could be lifestyle
+      // Printify often returns: [flat shot, lifestyle shot, back shot, etc.]
       if (productDetails.images.length > 1 && !mockupImages.lifestyle) {
-        // Check if any subsequent images look like lifestyle shots
         for (let i = 1; i < productDetails.images.length; i++) {
           const img = productDetails.images[i];
-          const src = img.src || img;
-          // Often the 2nd or 3rd image is a lifestyle shot
-          if (typeof src === 'string' && src.includes('lifestyle')) {
+          const src = typeof img === 'string' ? img : (img.src || '');
+          const position = (img.position || "").toLowerCase();
+          
+          // Skip back/side shots - we want lifestyle (front with model)
+          if (position.includes('back') || position.includes('side')) continue;
+          
+          // If different from first image and not a back view, could be lifestyle
+          if (src && src !== mockupImages.flat) {
             mockupImages.lifestyle = src;
+            console.log(`[MockupService] Using image ${i} as lifestyle candidate`);
             break;
           }
         }
