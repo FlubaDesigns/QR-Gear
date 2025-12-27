@@ -567,13 +567,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const customDesignId = product.id.replace(/^custom_/, '').replace(/-\d+$/, '');
           const matchingDesign = designs.find(d => d.id === customDesignId || d.productId?.toString() === product.blueprintId?.toString());
           
-          // Get the front-chest placement image (the actual print area artwork)
+          // Get all placement images (includes black and white variants for each placement)
+          let placementImages: Record<string, string> | null = null;
           let frontChestImage: string | null = null;
+          let frontChestImageWhite: string | null = null;
           if (matchingDesign?.placementImages) {
             const placements = typeof matchingDesign.placementImages === 'string' 
               ? JSON.parse(matchingDesign.placementImages) 
               : matchingDesign.placementImages;
+            placementImages = placements;
             frontChestImage = placements?.["front-chest"] || null;
+            frontChestImageWhite = placements?.["front-chest-white"] || null;
           }
           
           // Get Printify mockups if available (realistic product images)
