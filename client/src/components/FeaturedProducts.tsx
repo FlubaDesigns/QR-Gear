@@ -148,6 +148,7 @@ function ProductCard({
           </div>
         )}
         <img
+          key={displayImage}
           src={displayImage}
           alt={product.name}
           style={{ opacity: isLoadingMockup ? 0.7 : 1 }}
