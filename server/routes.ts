@@ -3594,8 +3594,24 @@ ${allPages.map(page => `  <url>
       // Get custom designs saved to this store/segment
       const designs = await storage.getCustomDesignsByStoreSegment(storeType, storeName, segment);
       
-      // Get all products to look up available colors
-      const allProducts = await storage.getAllProducts();
+      // Get partner store for this store type/name to lookup product configurations
+      const allStores = await storage.getPartnerStores();
+      const matchingStore = allStores.find(s => 
+        s.name.toLowerCase() === storeName.toLowerCase() &&
+        (storeType === "Internal" ? s.isInternal === true : s.isInternal !== true)
+      );
+      
+      // Get partner store products to get color/mockup configurations
+      let storeProducts: any[] = [];
+      if (matchingStore) {
+        storeProducts = await storage.getPartnerStoreProducts(matchingStore.id);
+      }
+      
+      // Create lookup map for partner store product configs by product ID
+      const storeProductMap = new Map<string, any>();
+      for (const sp of storeProducts) {
+        storeProductMap.set(sp.productId, sp);
+      }
       
       // Transform to product display format with QR product type detection
       // Five product types: QR Basics, QR Plus, QR Canvas, QR Play, QR Dynamics
@@ -3630,10 +3646,14 @@ ${allPages.map(page => `  <url>
         // Get QR code URL for overlay display
         const qrCodeUrl = d.qrCodeUrl || null;
         
-        // Get available colors from the design's selectedColors or product metadata
-        const selectedColors = (d as any).selectedColors || null;
-        const defaultColor = (d as any).defaultColor || null;
-        const mockupsByColor = (d as any).mockupsByColor || null;
+        // Get color/mockup data from partner_store_products (primary) or design (fallback)
+        // Product ID for custom designs is the design ID prefixed with 'custom_'
+        const productId = d.id.startsWith('custom_') ? d.id : `custom_${d.id}`;
+        const storeProduct = storeProductMap.get(productId) || storeProductMap.get(d.id);
+        
+        const selectedColors = storeProduct?.enabledColors || (d as any).selectedColors || null;
+        const defaultColor = storeProduct?.defaultColor || (d as any).defaultColor || null;
+        const mockupsByColor = storeProduct?.mockupsByColor || (d as any).mockupsByColor || null;
         
         return {
           id: d.id,
