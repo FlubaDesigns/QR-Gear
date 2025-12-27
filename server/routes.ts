@@ -4157,7 +4157,8 @@ ${allPages.map(page => `  <url>
       res.json({ 
         success: true, 
         color, 
-        mockupUrl: result.mockupUrl, 
+        mockupUrl: result.mockupUrl,
+        lifestyleMockupUrl: result.lifestyleMockupUrl,
         fromCache: result.fromCache,
         mockupsByColor: existingProductMockups 
       });
