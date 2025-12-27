@@ -1488,9 +1488,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         products.map(async (product) => {
           const assignments = await storage.getProductCategoryAssignments(product.id);
           
-          // Look up cached costs from printifyPrintProviders
+          // Look up cached costs and colors from printifyPrintProviders
           let cachedMinCost: number | null = null;
           let cachedMaxCost: number | null = null;
+          let providerColors: Array<{name: string; hex: string}> | null = null;
+          let providerSizes: string[] | null = null;
           if (product.blueprintId && product.printProviderId) {
             const provider = await storage.getPrintifyPrintProvider(
               product.blueprintId,
@@ -1499,6 +1501,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (provider?.minCost) {
               cachedMinCost = Number(provider.minCost) / 100; // Convert from cents
               cachedMaxCost = provider.maxCost ? Number(provider.maxCost) / 100 : cachedMinCost;
+            }
+            if (provider?.availableColors && Array.isArray(provider.availableColors)) {
+              providerColors = provider.availableColors as Array<{name: string; hex: string}>;
+            }
+            if (provider?.availableSizes && Array.isArray(provider.availableSizes)) {
+              providerSizes = provider.availableSizes as string[];
             }
           }
           
@@ -1535,8 +1543,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
+          // Use provider colors/sizes as primary source, fall back to product's cached values
+          const finalColors = providerColors || (product.availableColors as Array<{name: string; hex: string}>) || [];
+          const finalSizes = providerSizes || (product.availableSizes as string[]) || [];
+          
           return {
             ...product,
+            availableColors: finalColors,
+            availableSizes: finalSizes,
             categoryIds: assignments.map((a) => a.categoryId),
             cachedMinCost,
             cachedMaxCost,

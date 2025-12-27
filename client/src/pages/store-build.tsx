@@ -615,7 +615,7 @@ export default function StoreBuildPage() {
                                     >
                                       <div
                                         className="admin-color-swatch-inner"
-                                        ref={(el) => { if (el) el.style.backgroundColor = color.hex || '#ccc'; }}
+                                        style={{ backgroundColor: color.hex || '#ccc' }}
                                       />
                                       {isDefault && (
                                         <Star className="admin-color-swatch-star" />
