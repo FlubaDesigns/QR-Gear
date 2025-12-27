@@ -4,10 +4,24 @@ import type { Product } from "@shared/schema";
 interface ProductMockupProps {
   product: Product | null;
   qrCodeImage: string;
+  qrCodeImageWhite?: string;
   placement: string;
   productColor: string;
   textAbove?: string;
   textBelow?: string;
+}
+
+function isColorDark(hex: string): boolean {
+  const cleanHex = hex.replace('#', '');
+  if (cleanHex.length !== 6) return false;
+  const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
+  const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
+  const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+  
+  const toLinear = (c: number) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  
+  return luminance < 0.5;
 }
 
 type PlacementStyle = {
@@ -72,6 +86,7 @@ const textSizeClasses: Record<string, string> = {
 export default function ProductMockup({
   product,
   qrCodeImage,
+  qrCodeImageWhite,
   placement,
   productColor,
   textAbove = "",
@@ -93,6 +108,13 @@ export default function ProductMockup({
     const found = colors.find(c => c.name === productColor);
     return found?.hex || null;
   }, [productColor, product]);
+
+  const activeQrImage = useMemo(() => {
+    if (selectedColorHex && isColorDark(selectedColorHex) && qrCodeImageWhite) {
+      return qrCodeImageWhite;
+    }
+    return qrCodeImage;
+  }, [selectedColorHex, qrCodeImage, qrCodeImageWhite]);
 
   if (!product) {
     return (
@@ -122,7 +144,7 @@ export default function ProductMockup({
         data-testid="mockup-product-image"
       />
       
-      {qrCodeImage && (
+      {activeQrImage && (
         <div
           className="absolute flex flex-col items-center gap-0.5"
           style={{
@@ -145,7 +167,7 @@ export default function ProductMockup({
           )}
           
           <img
-            src={qrCodeImage}
+            src={activeQrImage}
             alt="QR Code"
             className="w-full h-auto shadow-md rounded-sm"
             data-testid="mockup-qr-code"

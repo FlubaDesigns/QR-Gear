@@ -3,12 +3,14 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRButton } from "@/components/QRButton";
 import UsaFlag from "./UsaFlag";
+import InstantMockupPreview from "./InstantMockupPreview";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingCart, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Product } from "@shared/schema";
+import baseShirtImage from "@assets/generated_images/white_t-shirt_mockup_template.png";
 
 interface MockupsByColor {
   [color: string]: {
@@ -312,19 +314,44 @@ function ProductQuickView({
         
         <div className="grid md:grid-cols-2 gap-6 mt-4">
           <div className="relative">
-            {isGenerating && (
-              <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10 rounded-lg">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Generating mockup...</p>
-                </div>
-              </div>
-            )}
-            <img 
-              src={displayImage} 
-              alt={product.name}
-              className="w-full rounded-lg object-contain max-h-[400px]"
-            />
+            {(() => {
+              const hasMockup = selectedColor && (localMockups[selectedColor]?.front || product.mockupsByColor?.[selectedColor]?.front);
+              const hexColor = selectedColor ? (colorHexMap[selectedColor] || getColorHex(selectedColor)) : null;
+              const qrArtworkBlack = product.frontChestImage || product.qrCodeUrl;
+              const qrArtworkWhite = (product as any).frontChestImageWhite || null;
+              
+              if (!hasMockup && qrArtworkBlack && hexColor && selectedColor) {
+                return (
+                  <InstantMockupPreview
+                    baseShirtUrl={baseShirtImage}
+                    qrArtworkBlackUrl={qrArtworkBlack}
+                    qrArtworkWhiteUrl={qrArtworkWhite}
+                    colorHex={hexColor}
+                    colorName={selectedColor}
+                    placement="front-chest"
+                    className="w-full max-h-[400px]"
+                  />
+                );
+              }
+              
+              return (
+                <>
+                  {isGenerating && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10 rounded-lg">
+                      <div className="text-center">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Generating HD mockup...</p>
+                      </div>
+                    </div>
+                  )}
+                  <img 
+                    src={displayImage} 
+                    alt={product.name}
+                    className="w-full rounded-lg object-contain max-h-[400px]"
+                  />
+                </>
+              );
+            })()}
             {product.madeInUSA && (
               <span className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs flex items-center gap-1">
                 <UsaFlag className="usa-flag-small" />
