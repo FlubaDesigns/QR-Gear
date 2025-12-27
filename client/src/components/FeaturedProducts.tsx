@@ -47,10 +47,6 @@ function ProductCard({
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.defaultColor || null
   );
-  const [dynamicMockups, setDynamicMockups] = useState<MockupsByColor>(
-    product.mockupsByColor || {}
-  );
-  const [isLoadingMockup, setIsLoadingMockup] = useState(false);
 
   // Use availableColorsWithHex if provided, otherwise fallback to names only
   const colorsWithHex: ColorWithHex[] = product.availableColorsWithHex || 
@@ -65,66 +61,16 @@ function ProductCard({
     if (c.hex) colorHexMap[c.name] = c.hex;
   });
 
-  // Fetch mockup when color changes
-  const handleColorChange = async (color: string) => {
+  // Handle color swatch selection - just update selected color
+  // Mockups are pre-loaded in product.mockupsByColor
+  const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    
-    // Check if we already have a mockup for this color
-    if (dynamicMockups[color]?.lifestyle || dynamicMockups[color]?.front) {
-      return; // Already have it
-    }
-    
-    // Fetch from API if we have the required product data
-    if (product.blueprintId && product.printProviderId) {
-      setIsLoadingMockup(true);
-      try {
-        const response = await apiRequest('POST', '/api/mockups/lifestyle', {
-          blueprintId: product.blueprintId,
-          printProviderId: product.printProviderId,
-          colorName: color,
-          colorHex: colorHexMap[color] || getColorHex(color),
-          qrContent: 'https://qrgear.shop',
-          productType: 'shirt',
-        });
-        
-        const data = await response.json();
-        
-        if (data.lifestyleUrl) {
-          setDynamicMockups(prev => ({
-            ...prev,
-            [color]: { ...prev[color], lifestyle: data.lifestyleUrl }
-          }));
-        }
-      } catch (err) {
-        console.error('[ProductCard] Failed to fetch mockup:', err);
-      } finally {
-        setIsLoadingMockup(false);
-      }
-    }
   };
-  
-  // Fetch initial mockup on mount for default color
-  useEffect(() => {
-    const initialColor = product.defaultColor || availableColors[0];
-    if (initialColor && product.blueprintId && product.printProviderId) {
-      handleColorChange(initialColor);
-    }
-  }, [product.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
     const color = selectedColor || product.defaultColor || availableColors[0];
     
-    // Check dynamic mockups first (fetched on color change)
-    if (color && dynamicMockups[color]) {
-      if (dynamicMockups[color].lifestyle) {
-        return { url: dynamicMockups[color].lifestyle!, isLifestyle: true };
-      }
-      if (dynamicMockups[color].front) {
-        return { url: dynamicMockups[color].front!, isLifestyle: false };
-      }
-    }
-    
-    // Fallback to pre-loaded mockups
+    // Use pre-loaded mockups from product data
     if (product.mockupsByColor && color && product.mockupsByColor[color]) {
       if (product.mockupsByColor[color].lifestyle) {
         return { url: product.mockupsByColor[color].lifestyle!, isLifestyle: true };
@@ -146,15 +92,9 @@ function ProductCard({
       onClick={() => onOpenQuickView(product)}
     >
       <div className="product-card-image">
-        {isLoadingMockup && (
-          <div className="product-card-loading">
-            <Loader2 className="animate-spin" />
-          </div>
-        )}
         <img
           src={displayImage}
           alt={product.name}
-          style={{ opacity: isLoadingMockup ? 0.5 : 1 }}
         />
         {!mockupResult.url && product.qrCodeUrl && (
           <img
@@ -197,21 +137,11 @@ function ProductCard({
         <p className="product-card-description">{product.description}</p>
         <div className="product-card-footer">
           <span className="product-card-price">
-            {(() => {
-              // Show price range if available
-              const priceRange = (product as any).priceRange;
-              if (priceRange?.min && priceRange?.max && priceRange.min !== priceRange.max) {
-                return `$${Number(priceRange.min).toFixed(2)} – $${Number(priceRange.max).toFixed(2)}`;
-              }
-              // Fall back to single price
-              if (product.retailPrice) {
-                return `From $${Number(product.retailPrice).toFixed(2)}`;
-              }
-              if (product.basePrice) {
-                return `From $${Number(product.basePrice).toFixed(2)}`;
-              }
-              return "Build to see price";
-            })()}
+            {product.retailPrice 
+              ? `From $${Number(product.retailPrice).toFixed(2)}`
+              : product.basePrice 
+                ? `From $${Number(product.basePrice).toFixed(2)}`
+                : "Build to see price"}
           </span>
           <button 
             className="product-card-btn"
