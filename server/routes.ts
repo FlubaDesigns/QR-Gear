@@ -3749,9 +3749,17 @@ ${allPages.map(page => `  <url>
       }
       
       // Get placements which may contain both black and white versions
-      const placements = typeof design.placementImages === 'string' 
-        ? JSON.parse(design.placementImages) 
-        : (design.placementImages || {});
+      // Safely parse - could be string, object, or null
+      let designPlacements: Record<string, string> = {};
+      try {
+        if (typeof design.placementImages === 'string') {
+          designPlacements = JSON.parse(design.placementImages);
+        } else if (design.placementImages && typeof design.placementImages === 'object') {
+          designPlacements = design.placementImages as Record<string, string>;
+        }
+      } catch (e) {
+        console.error('[StorefrontMockup] Failed to parse placementImages:', e);
+      }
       
       // Get the color's hex value to determine if it's dark or light
       // First check product's availableColors, then check local catalog
@@ -3782,8 +3790,8 @@ ${allPages.map(page => `  <url>
       const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
       
       // Check if we have both versions in placements
-      const blackArtwork = placements["front-chest"] || placements["front-chest-black"];
-      const whiteArtwork = placements["front-chest-white"];
+      const blackArtwork = designPlacements["front-chest"] || designPlacements["front-chest-black"];
+      const whiteArtwork = designPlacements["front-chest-white"];
       
       // Pick the right artwork, with fallback
       let artworkUrl: string;
@@ -3795,7 +3803,7 @@ ${allPages.map(page => `  <url>
         console.log(`[StorefrontMockup] Using BLACK artwork for light shirt color: ${color} (${colorHex})`);
       } else {
         // Ultimate fallback
-        artworkUrl = design.printifyCompositeUrl || Object.values(placements)[0] as string;
+        artworkUrl = design.printifyCompositeUrl || Object.values(designPlacements)[0] as string;
       }
       
       if (!artworkUrl) {
