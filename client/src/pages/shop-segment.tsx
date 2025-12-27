@@ -146,20 +146,26 @@ function StoreProductCard({ product }: { product: StoreProduct }) {
       {/* Color swatches */}
       {availableColors.length > 1 && (
         <div className="product-card-colors">
-          {availableColors.map((color) => (
-            <button
-              key={color}
-              className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
-              style={{ backgroundColor: getColorHex(color) }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSelectedColor(color);
-              }}
-              title={color}
-              data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
-            />
-          ))}
+          {availableColors.map((color) => {
+            const isDefault = color === product.defaultColor;
+            const isSelected = selectedColor === color;
+            return (
+              <button
+                key={color}
+                className={`color-swatch ${isSelected ? 'selected' : ''} ${isDefault ? 'is-default' : ''}`}
+                style={{ backgroundColor: getColorHex(color) }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSelectedColor(color);
+                }}
+                title={isDefault ? `${color} (Default)` : color}
+                data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {isDefault && <Star className="swatch-star" />}
+              </button>
+            );
+          })}
         </div>
       )}
       

@@ -1679,6 +1679,23 @@ html[data-theme="light"] .vanity-highlight-icon {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
+.color-swatch.is-default {
+  position: relative;
+  border-color: #eab308;
+  box-shadow: 0 0 0 2px #facc15;
+}
+
+.color-swatch .swatch-star {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  color: #eab308;
+  fill: #facc15;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+}
+
 .color-swatch:focus {
   outline: 2px solid var(--ice-1);
   outline-offset: 2px;
