@@ -37,6 +37,8 @@ const apparelPlacements: Record<string, PlacementStyle> = {
   "left-sleeve": { position: { top: "40%", left: "8%" }, size: "12%", textSize: "xs" },
   "right-sleeve": { position: { top: "40%", right: "8%", left: "auto" }, size: "12%", textSize: "xs" },
   "front-center": { position: { top: "40%", left: "50%" }, size: "40%", textSize: "sm" },
+  "hood-front": { position: { top: "15%", left: "50%" }, size: "20%", textSize: "xs" },
+  "hood-back": { position: { top: "20%", left: "50%" }, size: "25%", textSize: "xs" },
 };
 
 const headwearPlacements: Record<string, PlacementStyle> = {

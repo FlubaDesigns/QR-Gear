@@ -1,12 +1,22 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 
+type PlacementType = 
+  | "front-chest" 
+  | "front-center" 
+  | "back" 
+  | "left-sleeve" 
+  | "right-sleeve" 
+  | "front-pocket"
+  | "hood-front"
+  | "hood-back";
+
 interface InstantMockupPreviewProps {
   baseShirtUrl: string;
   qrArtworkBlackUrl: string;
   qrArtworkWhiteUrl?: string;
   colorHex: string;
   colorName: string;
-  placement?: "front-chest" | "front-center" | "back";
+  placement?: PlacementType;
   className?: string;
 }
 
@@ -36,16 +46,17 @@ export default function InstantMockupPreview({
   const [error, setError] = useState<string | null>(null);
 
   const placementConfig = useMemo(() => {
-    switch (placement) {
-      case "front-chest":
-        return { x: 0.5, y: 0.35, scale: 0.25 };
-      case "front-center":
-        return { x: 0.5, y: 0.45, scale: 0.35 };
-      case "back":
-        return { x: 0.5, y: 0.4, scale: 0.4 };
-      default:
-        return { x: 0.5, y: 0.35, scale: 0.25 };
-    }
+    const configs: Record<PlacementType, { x: number; y: number; scale: number }> = {
+      "front-chest": { x: 0.5, y: 0.35, scale: 0.25 },
+      "front-center": { x: 0.5, y: 0.45, scale: 0.35 },
+      "back": { x: 0.5, y: 0.4, scale: 0.4 },
+      "left-sleeve": { x: 0.15, y: 0.4, scale: 0.12 },
+      "right-sleeve": { x: 0.85, y: 0.4, scale: 0.12 },
+      "front-pocket": { x: 0.35, y: 0.32, scale: 0.15 },
+      "hood-front": { x: 0.5, y: 0.15, scale: 0.2 },
+      "hood-back": { x: 0.5, y: 0.2, scale: 0.25 },
+    };
+    return configs[placement] || configs["front-chest"];
   }, [placement]);
 
   const isDark = useMemo(() => isColorDark(colorHex), [colorHex]);

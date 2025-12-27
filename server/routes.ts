@@ -661,6 +661,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...product,
             qrCodeUrl: matchingDesign?.qrCodeUrl || null,
             frontChestImage,
+            frontChestImageWhite,
+            placementImages, // All placements including white variants (e.g., back, back-white, left-sleeve, left-sleeve-white)
             // New mockup fields (normalized and validated)
             mockupsByColor,
             defaultColor: validDefaultColor, // Use validated color that exists in mockups
