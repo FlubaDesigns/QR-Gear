@@ -2114,8 +2114,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                   </div>
                 )}
 
-                {/* Step 3: Select Product from filtered list */}
-                {qrContentType && selectedCategory && categoryData && (
+                {/* Step 3: Select Product from filtered list - hide when product is selected */}
+                {qrContentType && selectedCategory && categoryData && !selectedItemId && (
                   <div className="space-y-2">
                     <Label className="font-semibold">Step 3: Select Product</Label>
                     <div className="max-h-[32rem] sm:max-h-64 overflow-y-auto border-2 border-border rounded-lg p-1 sm:p-3 bg-background space-y-3">
@@ -2225,6 +2225,35 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange }: AddFromPrintifyPane
                           <p className="text-sm text-muted-foreground p-4 text-center">No products match this filter</p>
                         );
                       })()}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Selected Product Summary - shows when product is picked */}
+                {selectedItemId && catalogDetails && (
+                  <div className="p-3 border-2 border-primary rounded-lg bg-primary/5">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={catalogDetails.imageUrl || ""} 
+                        alt={catalogDetails.blueprint?.title || "Selected product"}
+                        className="w-16 h-16 rounded-lg object-cover border"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate">{catalogDetails.blueprint?.title}</div>
+                        <div className="text-sm text-muted-foreground">{catalogDetails.blueprint?.brand}</div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10"
+                        onClick={() => {
+                          setSelectedItemId(null);
+                          setCatalogDetails(null);
+                        }}
+                        data-testid="button-change-product"
+                      >
+                        Change
+                      </Button>
                     </div>
                   </div>
                 )}
