@@ -126,6 +126,23 @@ export const productVariants = pgTable("product_variants", {
   productVariantUnique: unique().on(table.productId, table.printifyVariantId),
 }));
 
+// Product variant media - color-specific mockup images from Printify (admin-only)
+export const productVariantMedia = pgTable("product_variant_media", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  color: text("color").notNull(), // Color name (e.g., "White", "Black")
+  colorHex: text("color_hex"), // Color hex code
+  mockupUrl: text("mockup_url").notNull(), // Base mockup image from Printify
+  overlayUrl: text("overlay_url"), // Mockup with QR overlay (generated on-demand)
+  isPrimary: boolean("is_primary").default(false), // If true, use this as main product image
+  mediaStatus: text("media_status").default("pending"), // 'pending', 'success', 'failed', 'rate_limited'
+  printifyMockupId: text("printify_mockup_id"), // Track Printify's mockup ID for deduplication
+  lastCheckedAt: timestamp("last_checked_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  productColorUnique: unique().on(table.productId, table.color),
+}));
+
 // Pre-designed QR templates (curated backgrounds like "John 3:16")
 export const qrTemplates = pgTable("qr_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
