@@ -148,7 +148,7 @@ function ProductCard({
           </div>
         )}
         <img
-          key={displayImage}
+          key={`${product.id}-${selectedColor || 'default'}-${displayImage}`}
           src={displayImage}
           alt={product.name}
           style={{ opacity: isLoadingMockup ? 0.7 : 1 }}
