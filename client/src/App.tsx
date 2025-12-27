@@ -65,6 +65,7 @@ import RealtorQRShirts from "@/pages/realtor-qr-shirts";
 import BusinessAnalyticsQR from "@/pages/business-analytics-qr";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
+import LogoPreview from "@/pages/logo-preview";
 
 function Router() {
   return (
@@ -131,6 +132,7 @@ function Router() {
       <Route path="/band-dynamic-merch" component={BandDynamicMerch} />
       <Route path="/realtor-qr-shirts" component={RealtorQRShirts} />
       <Route path="/business-analytics-qr" component={BusinessAnalyticsQR} />
+      <Route path="/logo-preview" component={LogoPreview} />
       <Route component={NotFound} />
     </Switch>
   );

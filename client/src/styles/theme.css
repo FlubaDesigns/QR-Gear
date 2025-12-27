@@ -229,6 +229,22 @@ html[data-theme="light"] .bg-grid {
   }
 }
 
+/* Logo Preview Page */
+.logo-preview-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a1628;
+  padding: 2rem;
+}
+
+.logo-preview-image {
+  width: 80vw;
+  max-width: 600px;
+  height: auto;
+}
+
 .site-footer {
   background: var(--footer-bg);
   color: var(--footer-fg);
