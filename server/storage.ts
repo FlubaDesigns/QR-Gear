@@ -77,6 +77,7 @@ import type {
   TemplateCategory,
   InsertTemplateCategory,
   OrderUnified,
+  InsertOrderUnified,
   EmailTemplate,
   InsertEmailTemplate,
   EmailLog,
@@ -328,6 +329,9 @@ export interface IStorage {
   // Batch retrieval operations for admin
   getUsers(): Promise<User[]>;
   getOrders(): Promise<OrderUnified[]>;
+  getOrderUnified(id: string): Promise<OrderUnified | undefined>;
+  createOrderUnified(order: InsertOrderUnified): Promise<OrderUnified>;
+  updateOrderUnified(id: string, order: Partial<InsertOrderUnified>): Promise<OrderUnified | undefined>;
   getProducts(): Promise<Product[]>;
 
   // Provider Health operations
@@ -1629,6 +1633,24 @@ export class DbStorage implements IStorage {
 
   async getOrders(): Promise<OrderUnified[]> {
     return this.db.select().from(schema.ordersUnified).orderBy(sql`${schema.ordersUnified.createdAt} DESC`);
+  }
+
+  async getOrderUnified(id: string): Promise<OrderUnified | undefined> {
+    const [order] = await this.db.select().from(schema.ordersUnified).where(eq(schema.ordersUnified.id, id));
+    return order;
+  }
+
+  async createOrderUnified(order: InsertOrderUnified): Promise<OrderUnified> {
+    const [result] = await this.db.insert(schema.ordersUnified).values(order).returning();
+    return result;
+  }
+
+  async updateOrderUnified(id: string, order: Partial<InsertOrderUnified>): Promise<OrderUnified | undefined> {
+    const [updated] = await this.db.update(schema.ordersUnified).set({
+      ...order,
+      updatedAt: new Date(),
+    }).where(eq(schema.ordersUnified.id, id)).returning();
+    return updated;
   }
 
   async getProducts(): Promise<Product[]> {
@@ -3405,6 +3427,48 @@ class MemStorage implements IStorage {
     return Array.from(this.ordersUnified.values()).sort((a, b) => 
       (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
     );
+  }
+
+  async getOrderUnified(id: string): Promise<OrderUnified | undefined> {
+    return this.ordersUnified.get(id);
+  }
+
+  async createOrderUnified(order: InsertOrderUnified): Promise<OrderUnified> {
+    const newOrder: OrderUnified = {
+      id: crypto.randomUUID(),
+      sourceChannel: order.sourceChannel,
+      externalOrderId: order.externalOrderId ?? null,
+      customerEmail: order.customerEmail ?? null,
+      customerName: order.customerName ?? null,
+      shippingAddress: order.shippingAddress ?? null,
+      items: order.items,
+      subtotal: order.subtotal,
+      shippingTotal: order.shippingTotal ?? null,
+      taxTotal: order.taxTotal ?? null,
+      total: order.total,
+      routedProvider: order.routedProvider ?? null,
+      providerOrderId: order.providerOrderId ?? null,
+      status: order.status ?? "pending",
+      statusHistory: order.statusHistory ?? null,
+      trackingNumber: order.trackingNumber ?? null,
+      trackingUrl: order.trackingUrl ?? null,
+      shippedAt: null,
+      deliveredAt: null,
+      productionCost: order.productionCost ?? null,
+      profit: order.profit ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.ordersUnified.set(newOrder.id, newOrder);
+    return newOrder;
+  }
+
+  async updateOrderUnified(id: string, order: Partial<InsertOrderUnified>): Promise<OrderUnified | undefined> {
+    const existing = this.ordersUnified.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...order, updatedAt: new Date() };
+    this.ordersUnified.set(id, updated);
+    return updated;
   }
 
   async getProducts(): Promise<Product[]> {

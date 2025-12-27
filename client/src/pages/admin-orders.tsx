@@ -184,10 +184,10 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
   
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-      return await apiRequest("PATCH", `/api/orders/${orderId}/status`, { status });
+      return await apiRequest("PATCH", `/api/admin/orders-unified/${orderId}`, { status });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/orders-unified"] });
       toast({ title: "Order status updated" });
     },
     onError: (error) => {
@@ -398,7 +398,7 @@ export default function AdminOrdersPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const { data: orders = [], isLoading, refetch } = useQuery<OrderUnified[]>({
-    queryKey: ["/api/orders"],
+    queryKey: ["/api/admin/orders-unified"],
   });
 
   const filteredOrders = orders.filter((order) => {

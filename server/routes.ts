@@ -20,6 +20,99 @@ import { generateSitemap } from "./lib/sitemap";
 import { z } from "zod";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
+import Stripe from "stripe";
+
+// ============ HEALTH CHECK HELPER ============
+// Returns health status for configured providers only
+// POD providers are checked based on which API keys are configured
+type ProviderStatus = "healthy" | "degraded" | "down" | "not_configured";
+
+interface ProviderHealthResult {
+  providers: {
+    name: string;
+    status: ProviderStatus;
+    configured: boolean;
+  }[];
+  stripe: ProviderStatus;
+  lastCheck: string;
+}
+
+async function checkProviderHealth(): Promise<ProviderHealthResult> {
+  const providers: { name: string; status: ProviderStatus; configured: boolean }[] = [];
+  
+  // Check Printify (only if API key is configured)
+  const printifyKey = process.env.PRINTIFY_API_KEY;
+  if (printifyKey) {
+    try {
+      const response = await fetch("https://api.printify.com/v1/shops.json", {
+        headers: { Authorization: `Bearer ${printifyKey}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      providers.push({
+        name: "Printify",
+        status: response.ok ? "healthy" : "degraded",
+        configured: true,
+      });
+    } catch (e) {
+      providers.push({ name: "Printify", status: "down", configured: true });
+    }
+  }
+
+  // Check Printful (only if API key is configured)
+  const printfulKey = process.env.PRINTFUL_API_KEY;
+  if (printfulKey) {
+    try {
+      const response = await fetch("https://api.printful.com/stores", {
+        headers: { Authorization: `Bearer ${printfulKey}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      providers.push({
+        name: "Printful",
+        status: response.ok ? "healthy" : "degraded",
+        configured: true,
+      });
+    } catch (e) {
+      providers.push({ name: "Printful", status: "down", configured: true });
+    }
+  }
+
+  // Check Apliiq (only if API key is configured)
+  const apliiqKey = process.env.APLIIQ_API_KEY;
+  if (apliiqKey) {
+    // Apliiq doesn't have a simple health endpoint, so just check if configured
+    providers.push({ name: "Apliiq", status: "healthy", configured: true });
+  }
+
+  // If no POD providers configured, show helpful message
+  if (providers.length === 0) {
+    providers.push({ name: "No POD providers", status: "not_configured", configured: false });
+  }
+
+  // Check Stripe
+  let stripeStatus: ProviderStatus = "not_configured";
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (stripeKey) {
+    try {
+      const stripe = new Stripe(stripeKey);
+      await stripe.balance.retrieve();
+      stripeStatus = "healthy";
+    } catch (e) {
+      stripeStatus = "down";
+    }
+  }
+
+  // Return both new format and legacy format for backward compatibility
+  const primaryProvider = providers.find(p => p.configured) || providers[0];
+  return {
+    // New format: array of all configured providers
+    providers,
+    stripe: stripeStatus,
+    lastCheck: new Date().toISOString(),
+    // Legacy format for backward compatibility
+    printify: primaryProvider?.name === "Printify" ? primaryProvider.status : 
+              (printifyKey ? "down" : "not_configured"),
+  };
+}
 
 // ============ AUTO-SYNC HELPER: Seeds variants from local catalog ============
 // Uses locally synced data from Printify (weekly cron job) - NO API calls needed
@@ -1003,6 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create order items from cart - customization contains all product details
+      const orderItemsList: Array<{ productId: number; quantity: number; price: string; customization?: any }> = [];
       for (const item of cartItems) {
         await storage.createOrderItem({
           orderId: order.id,
@@ -1011,6 +1105,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: item.price,
           customization: item.customization as Record<string, unknown>,
         });
+        orderItemsList.push({
+          productId: item.productId,
+          quantity: item.quantity || 1,
+          price: item.price,
+          customization: item.customization,
+        });
+      }
+
+      // Get user for email and unified order
+      const user = await storage.getUser(userId);
+
+      // Create unified order for admin tracking
+      // Extract product details from cart items' customization data
+      try {
+        const unifiedItems = await Promise.all(orderItemsList.map(async (item) => {
+          // Get product info for better tracking
+          const product = await storage.getProduct(item.productId.toString());
+          const customization = item.customization as Record<string, any> || {};
+          
+          return {
+            masterProductId: customization.masterProductId || null,
+            variantSku: customization.variantSku || customization.sku || `product-${item.productId}`,
+            quantity: item.quantity,
+            price: parseFloat(item.price),
+            productTitle: product?.name || customization.productName || `Product #${item.productId}`,
+            size: customization.selectedSize || customization.size || null,
+            color: customization.selectedColor || customization.color || null,
+          };
+        }));
+
+        await storage.createOrderUnified({
+          sourceChannel: "direct",
+          externalOrderId: order.id,
+          customerEmail: user?.email || null,
+          customerName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : null,
+          shippingAddress: null, // Will be collected during fulfillment
+          items: unifiedItems,
+          subtotal: totalAmount.toFixed(2),
+          total: totalAmount.toFixed(2),
+          status: "pending", // Pending fulfillment, payment is complete
+          statusHistory: [
+            { status: "paid", timestamp: new Date().toISOString(), note: "Payment received via Stripe" },
+            { status: "pending", timestamp: new Date().toISOString(), note: "Awaiting fulfillment routing" },
+          ],
+        });
+      } catch (unifiedErr) {
+        console.error("Failed to create unified order:", unifiedErr);
       }
 
       // Clear the cart
@@ -1021,7 +1162,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderItems = await storage.getOrderItems(order.id);
 
       // Send order confirmation email
-      const user = await storage.getUser(userId);
       if (user?.email) {
         sendOrderConfirmationEmail({
           orderId: order.id,
@@ -3568,12 +3708,126 @@ ${allPages.map(page => `  <url>
           lowStock: 0,
           syncErrors: 0,
         },
-        health: {
-          printify: "healthy",
-          stripe: "healthy",
-          lastCheck: new Date().toISOString(),
-        },
+        health: await checkProviderHealth(),
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ UNIFIED ORDERS ENDPOINTS ============
+
+  // Get all unified orders (admin only)
+  app.get("/api/admin/orders-unified", isAdmin, async (req, res) => {
+    try {
+      const orders = await storage.getOrders();
+      res.json(orders);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single unified order (admin only)
+  app.get("/api/admin/orders-unified/:id", isAdmin, async (req, res) => {
+    try {
+      const order = await storage.getOrderUnified(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      res.json(order);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update unified order status (admin only)
+  app.patch("/api/admin/orders-unified/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, trackingNumber, trackingUrl, routedProvider, providerOrderId, productionCost, profit, notes } = req.body;
+      
+      // Get current order for status history
+      const currentOrder = await storage.getOrderUnified(id);
+      if (!currentOrder) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // Build status history entry
+      let statusHistory = (currentOrder.statusHistory as Array<{status: string; timestamp: string; note?: string}>) || [];
+      if (status && status !== currentOrder.status) {
+        statusHistory = [
+          ...statusHistory,
+          { status, timestamp: new Date().toISOString(), note: notes || undefined }
+        ];
+      }
+
+      const updates: Record<string, any> = {};
+      if (status) updates.status = status;
+      if (trackingNumber !== undefined) updates.trackingNumber = trackingNumber;
+      if (trackingUrl !== undefined) updates.trackingUrl = trackingUrl;
+      if (routedProvider !== undefined) updates.routedProvider = routedProvider;
+      if (providerOrderId !== undefined) updates.providerOrderId = providerOrderId;
+      if (productionCost !== undefined) updates.productionCost = productionCost;
+      if (profit !== undefined) updates.profit = profit;
+      if (statusHistory.length > 0) updates.statusHistory = statusHistory;
+
+      // Update timestamps for special statuses
+      if (status === "shipped" && !currentOrder.shippedAt) {
+        updates.shippedAt = new Date();
+      }
+      if (status === "delivered" && !currentOrder.deliveredAt) {
+        updates.deliveredAt = new Date();
+      }
+
+      const updated = await storage.updateOrderUnified(id, updates);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sync order status from Printify (admin only)
+  app.post("/api/admin/orders-unified/:id/sync-printify", isAdmin, async (req, res) => {
+    try {
+      const order = await storage.getOrderUnified(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      if (!order.providerOrderId || order.routedProvider !== "printify") {
+        return res.status(400).json({ error: "Order is not routed to Printify" });
+      }
+
+      // Call Printify to get order status
+      const printifyStatus = await checkPrintifyOrderStatus(order.providerOrderId);
+      
+      if (printifyStatus) {
+        const updates: Record<string, any> = {};
+        
+        // Map Printify status to our status
+        const statusMap: Record<string, string> = {
+          "pending": "pending",
+          "on-hold": "pending",
+          "payment-not-received": "pending",
+          "in-production": "in_production",
+          "fulfilled": "shipped",
+          "canceled": "cancelled",
+        };
+        
+        if (printifyStatus.status) {
+          updates.status = statusMap[printifyStatus.status] || printifyStatus.status;
+        }
+        if (printifyStatus.trackingNumber) {
+          updates.trackingNumber = printifyStatus.trackingNumber;
+        }
+        if (printifyStatus.trackingUrl) {
+          updates.trackingUrl = printifyStatus.trackingUrl;
+        }
+
+        const updated = await storage.updateOrderUnified(req.params.id, updates);
+        res.json({ synced: true, order: updated });
+      } else {
+        res.json({ synced: false, message: "Could not fetch status from Printify" });
+      }
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
