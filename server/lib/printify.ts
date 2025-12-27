@@ -631,6 +631,54 @@ function formatPlacementLabel(position: string): string {
     .join(' ');
 }
 
+/**
+ * Get provider colors with automatic fallback to Printify API
+ * 1. First checks local database (printify_print_providers table)
+ * 2. If colors are missing or empty, calls Printify API to fetch them
+ * 3. Saves fetched colors to local database for future use
+ * 4. Returns colors with hex values
+ */
+export async function getProviderColorsWithFallback(
+  blueprintId: number,
+  printProviderId: number,
+  storage: any // Passed in to avoid circular dependency
+): Promise<Array<{ name: string; hex: string }>> {
+  // Step 1: Check local database first
+  const localProvider = await storage.getPrintifyPrintProvider(blueprintId, printProviderId);
+  
+  if (localProvider?.availableColors && Array.isArray(localProvider.availableColors)) {
+    const colors = localProvider.availableColors as Array<{ name: string; hex: string }>;
+    // Check if colors have hex values
+    const hasHexValues = colors.some(c => c.hex);
+    if (colors.length > 0 && hasHexValues) {
+      console.log(`[ColorFallback] Using local colors for ${blueprintId}/${printProviderId}: ${colors.length} colors`);
+      return colors;
+    }
+  }
+  
+  // Step 2: Colors not in local database or missing hex - fetch from Printify
+  console.log(`[ColorFallback] Local colors missing for ${blueprintId}/${printProviderId}, calling Printify API...`);
+  
+  try {
+    const { colors, sizes } = await syncProductVariants(blueprintId, printProviderId);
+    
+    // Step 3: Save to local database for future use
+    if (colors.length > 0) {
+      await storage.updatePrintifyProviderCosts(blueprintId, printProviderId, {
+        availableColors: colors,
+        availableSizes: sizes,
+      });
+      console.log(`[ColorFallback] Saved ${colors.length} colors from Printify to local database`);
+    }
+    
+    return colors;
+  } catch (error: any) {
+    console.error(`[ColorFallback] Printify API call failed: ${error.message}`);
+    // Return empty array if API fails
+    return [];
+  }
+}
+
 // Fetch colors and sizes from Printify for a blueprint/provider combo
 export async function syncProductVariants(blueprintId: number, printProviderId: number): Promise<{
   colors: Array<{ name: string; hex: string }>;

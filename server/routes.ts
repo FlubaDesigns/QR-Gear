@@ -3107,9 +3107,48 @@ ${allPages.map(page => `  <url>
         const designId = productId.replace('custom_', '');
         const design = await storage.getCustomDesign(designId);
         if (design) {
-          artworkUrl = design.printifyCompositeUrl || 
-            (design.placementImages as any)?.["front-chest"] ||
-            Object.values(design.placementImages || {})[0] as string;
+          // Parse placement images safely
+          let designPlacements: Record<string, string> = {};
+          try {
+            if (typeof design.placementImages === 'string') {
+              designPlacements = JSON.parse(design.placementImages);
+            } else if (design.placementImages && typeof design.placementImages === 'object') {
+              designPlacements = design.placementImages as Record<string, string>;
+            }
+          } catch (e) {
+            console.error('[Mockup] Failed to parse placementImages:', e);
+          }
+          
+          // Get the color's hex value using fallback chain
+          const { getProviderColorsWithFallback } = await import("./lib/printify");
+          const colors = await getProviderColorsWithFallback(blueprintId, printProviderId, storage);
+          const colorInfo = colors.find(
+            (c: any) => c.name?.toLowerCase() === color.toLowerCase()
+          );
+          const colorHex = colorInfo?.hex || null;
+          
+          // Import the luminance helper
+          const { isColorDark } = await import('./lib/composite-image-generator.js');
+          
+          // Determine which artwork to use based on shirt color
+          // Dark shirts need white QR, light shirts need black QR
+          const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
+          
+          // Check if we have both versions in placements
+          const blackArtwork = designPlacements["front-chest"] || designPlacements["front-chest-black"];
+          const whiteArtwork = designPlacements["front-chest-white"];
+          
+          // Pick the right artwork, with fallback
+          if (needsWhiteQR && whiteArtwork) {
+            artworkUrl = whiteArtwork;
+            console.log(`[Mockup] Using WHITE artwork for dark shirt color: ${color} (${colorHex})`);
+          } else if (blackArtwork) {
+            artworkUrl = blackArtwork;
+            console.log(`[Mockup] Using BLACK artwork for light shirt color: ${color} (${colorHex})`);
+          } else {
+            // Ultimate fallback
+            artworkUrl = design.printifyCompositeUrl || Object.values(designPlacements)[0] as string;
+          }
         }
       }
       
@@ -3820,8 +3859,10 @@ ${allPages.map(page => `  <url>
       }
       
       // Get the color's hex value to determine if it's dark or light
-      // First check product's availableColors, then check local catalog
+      // Uses fallback chain: product -> local DB -> Printify API
       let colorHex: string | null = null;
+      
+      // Step 1: Check product's availableColors
       if (product.availableColors && Array.isArray(product.availableColors)) {
         const colorInfo = (product.availableColors as any[]).find(
           (c: any) => c.name?.toLowerCase() === color.toLowerCase()
@@ -3829,15 +3870,14 @@ ${allPages.map(page => `  <url>
         colorHex = colorInfo?.hex || null;
       }
       
-      // Fallback: check printify_print_providers table
+      // Step 2: Fallback with automatic Printify API call if needed
       if (!colorHex) {
-        const providerData = await storage.getPrintifyPrintProvider(blueprintId, printProviderId);
-        if (providerData?.availableColors && Array.isArray(providerData.availableColors)) {
-          const colorInfo = (providerData.availableColors as any[]).find(
-            (c: any) => c.name?.toLowerCase() === color.toLowerCase()
-          );
-          colorHex = colorInfo?.hex || null;
-        }
+        const { getProviderColorsWithFallback } = await import('./lib/printify.js');
+        const colors = await getProviderColorsWithFallback(blueprintId, printProviderId, storage);
+        const colorInfo = colors.find(
+          (c: any) => c.name?.toLowerCase() === color.toLowerCase()
+        );
+        colorHex = colorInfo?.hex || null;
       }
       
       // Import the luminance helper

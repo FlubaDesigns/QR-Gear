@@ -56,7 +56,18 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - **Color Hex Value Sync**: Upgraded color sync to use Printify Catalog API (`syncProductVariants`) instead of placeholder product extraction to get proper hex values. Colors now include `{name, hex}` format for UI display.
 - **Expanded Color Hex Map**: Added 150+ color mappings including heathers, solids, and intelligent keyword-based fallbacks (checks "navy", "heather", "solid" prefixes).
 - **Color Hex Refresh Script**: New `scripts/refresh-color-hex.ts` to backfill hex values for all 580+ providers.
+- **Color Fallback to Printify API**: New `getProviderColorsWithFallback()` function that:
+  1. Checks local database first (`printify_print_providers` table)
+  2. If colors missing or no hex values, automatically calls Printify API
+  3. Saves fetched colors to local database for future use
+  4. Returns colors with hex values - "digital handshake" with Printify as fallback
 - **Dual-Color QR Artwork**: Generates both black and white QR code versions. Uses luminance-based color detection (`isColorDark` with sRGB formula <0.5 = dark) to auto-select appropriate artwork based on shirt hex color.
+- **Mockup Generation Flow**: Both admin and public mockup endpoints now:
+  1. Get colors with automatic Printify fallback
+  2. Select correct artwork (black/white QR) based on shirt color luminance
+  3. Upload artwork to Printify
+  4. Create temporary Printify product with QR graphic on shirt
+  5. Poll for and save mockup images locally
 - **Mockup Generation Fix**: Safe JSON.parse for `placementImages` field with try-catch and type checking for both string and object formats.
 - **Color/Size Extraction Fix**: Fixed `extractColorsAndSizes` function in `printify.ts` that was incorrectly storing sizes in the colors column. Added explicit size pattern filtering to ensure sizes like "S", "M", "L", "XL" are properly separated from colors. Title parsing now iterates all parts and classifies each as size or color.
 
