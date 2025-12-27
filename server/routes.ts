@@ -557,6 +557,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter by featured if requested
       if (featured === "true") {
         enabledProducts = enabledProducts.filter(p => p.isFeatured);
+        
+        // For featured products, enrich with QR code data from custom_designs
+        const enrichedProducts = await Promise.all(
+          enabledProducts.map(async (product) => {
+            // Try to find the matching custom design by the product ID pattern
+            // Custom design IDs are like "qr-gear-main-home-tee-dec2025" 
+            // Product IDs are like "custom_qr-gear-main-home-tee-dec2025-1"
+            const customDesignId = product.id.replace(/^custom_/, '').replace(/-\d+$/, '');
+            const designs = await storage.getAllQRDesigns();
+            const matchingDesign = designs.find(d => d.id === customDesignId || d.productId?.toString() === product.blueprintId?.toString());
+            
+            return {
+              ...product,
+              qrCodeUrl: matchingDesign?.qrCodeUrl || null,
+            };
+          })
+        );
+        
+        return res.json(enrichedProducts);
       }
       
       res.json(enabledProducts);

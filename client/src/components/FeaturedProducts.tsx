@@ -4,8 +4,12 @@ import { QRButton } from "@/components/QRButton";
 import UsaFlag from "./UsaFlag";
 import type { Product } from "@shared/schema";
 
+interface FeaturedProduct extends Product {
+  qrCodeUrl?: string | null;
+}
+
 export default function FeaturedProducts() {
-  const { data: products = [], isLoading } = useQuery<Product[]>({
+  const { data: products = [], isLoading } = useQuery<FeaturedProduct[]>({
     queryKey: ["/api/products", { featured: true }],
     queryFn: async () => {
       const res = await fetch("/api/products?featured=true");
@@ -62,6 +66,13 @@ export default function FeaturedProducts() {
                   src={product.imageUrl || ""}
                   alt={product.name}
                 />
+                {product.qrCodeUrl && (
+                  <img
+                    src={product.qrCodeUrl}
+                    alt="QR Code"
+                    className="product-card-qr-overlay"
+                  />
+                )}
                 {product.madeInUSA && (
                   <span className="product-card-badge">
                     <UsaFlag className="usa-flag-small" />
