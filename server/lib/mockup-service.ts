@@ -9,7 +9,7 @@
 
 import { db } from "../db";
 import { eq, and } from "drizzle-orm";
-import { mockupCache, canonicalPlacements, providerPlacementMappings } from "../../shared/schema";
+import { mockupCache, canonicalPlacements, providerPlacementMappings, productPlacementAvailability } from "../../shared/schema";
 import type { IStorage } from "../storage";
 
 interface MockupRequest {
@@ -17,9 +17,10 @@ interface MockupRequest {
   printProviderId: number;
   colorName: string;
   colorHex?: string;
-  canonicalPlacementId?: string;
+  canonicalPlacementId: string; // Required - must be explicitly provided
   artworkUrl: string;
   artworkVariant?: "black" | "white";
+  productId?: string; // Optional - for placement availability validation
 }
 
 interface MockupResult {
@@ -29,14 +30,36 @@ interface MockupResult {
 }
 
 /**
+ * Validate hex color format
+ * Returns true if valid 6-character hex (with or without #)
+ */
+export function isValidHexColor(hexColor: string | undefined | null): boolean {
+  if (!hexColor) return false;
+  const hex = hexColor.replace("#", "");
+  return /^[0-9A-Fa-f]{6}$/.test(hex);
+}
+
+/**
  * Determine if a color is dark using sRGB luminance formula
  * Returns true if the color is dark (needs white QR)
+ * Returns false for invalid hex colors (default to light/black QR)
  */
-export function isColorDark(hexColor: string): boolean {
-  const hex = hexColor.replace("#", "");
+export function isColorDark(hexColor: string | undefined | null): boolean {
+  if (!isValidHexColor(hexColor)) {
+    console.warn(`[MockupService] Invalid hex color "${hexColor}", defaulting to light (black QR)`);
+    return false;
+  }
+  
+  const hex = hexColor!.replace("#", "");
   const r = parseInt(hex.substr(0, 2), 16) / 255;
   const g = parseInt(hex.substr(2, 2), 16) / 255;
   const b = parseInt(hex.substr(4, 2), 16) / 255;
+  
+  // Validate parsed values
+  if (isNaN(r) || isNaN(g) || isNaN(b)) {
+    console.warn(`[MockupService] Failed to parse hex color "${hexColor}", defaulting to light`);
+    return false;
+  }
   
   // sRGB to linear RGB conversion
   const toLinear = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
@@ -60,10 +83,47 @@ export async function getMockupWithFallback(
     printProviderId,
     colorName,
     colorHex,
-    canonicalPlacementId = "FRONT_CHEST",
+    canonicalPlacementId,
     artworkUrl,
     artworkVariant = "black",
+    productId,
   } = request;
+
+  // Validate canonicalPlacementId is provided
+  if (!canonicalPlacementId) {
+    throw new Error("canonicalPlacementId is required");
+  }
+
+  // Validate placement exists
+  const placementExists = await db
+    .select({ id: canonicalPlacements.id })
+    .from(canonicalPlacements)
+    .where(eq(canonicalPlacements.id, canonicalPlacementId))
+    .limit(1);
+
+  if (placementExists.length === 0) {
+    throw new Error(`Unknown canonical placement: ${canonicalPlacementId}`);
+  }
+
+  // If productId provided, validate placement is available for this product
+  if (productId) {
+    const placementAvailable = await db
+      .select({ id: productPlacementAvailability.id })
+      .from(productPlacementAvailability)
+      .where(
+        and(
+          eq(productPlacementAvailability.productId, productId),
+          eq(productPlacementAvailability.canonicalPlacementId, canonicalPlacementId),
+          eq(productPlacementAvailability.isEnabled, true)
+        )
+      )
+      .limit(1);
+
+    if (placementAvailable.length === 0) {
+      console.warn(`[MockupService] Placement ${canonicalPlacementId} not available for product ${productId}. Proceeding anyway for blueprint-level cache.`);
+      // Note: We log but don't block since mockups are cached at blueprint level
+    }
+  }
 
   // Step 1: Check cache
   const cached = await db
@@ -186,7 +246,7 @@ async function generatePrintifyMockup(params: {
   const imageUpload = await printify.uploadImage(absoluteArtworkUrl, `mockup-${blueprintId}-${colorName}.png`);
   console.log(`[MockupService] Uploaded artwork, ID: ${imageUpload.id}`);
 
-  // Get provider placement key from mapping
+  // Get provider placement key from canonical mapping
   const placementMapping = await db
     .select()
     .from(providerPlacementMappings)
@@ -198,13 +258,27 @@ async function generatePrintifyMockup(params: {
     )
     .limit(1);
 
-  // Get provider placements to determine actual placement key
+  // Get provider placements to determine what's available for this product
   const { placements: providerPlacements } = await syncProductPlacements(blueprintId, printProviderId);
-  
-  // Use mapped placement key or fallback to first available
-  let placementKey = placementMapping[0]?.providerPlacementKey || "front";
   const availablePositions = providerPlacements.map((p) => p.position);
-  if (!availablePositions.includes(placementKey)) {
+  
+  // Validate placement key against available positions
+  let placementKey: string;
+  
+  if (placementMapping.length > 0) {
+    // Have a mapping - check if that position is available for this product
+    const mappedKey = placementMapping[0].providerPlacementKey;
+    if (availablePositions.includes(mappedKey)) {
+      placementKey = mappedKey;
+      console.log(`[MockupService] Using mapped placement: ${canonicalPlacementId} → ${placementKey}`);
+    } else {
+      // Mapped position not available - log warning and use fallback
+      console.warn(`[MockupService] Mapped placement "${mappedKey}" not available for blueprint ${blueprintId}. Available: [${availablePositions.join(', ')}]. Using first available.`);
+      placementKey = availablePositions[0] || "front";
+    }
+  } else {
+    // No mapping found - use first available
+    console.warn(`[MockupService] No placement mapping for ${canonicalPlacementId}. Using first available: ${availablePositions[0] || "front"}`);
     placementKey = availablePositions[0] || "front";
   }
 
