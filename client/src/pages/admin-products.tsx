@@ -682,7 +682,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   
   // Template save dialog state (for hierarchical organization)
   const [templateSaveDialogOpen, setTemplateSaveDialogOpen] = useState(false);
-  const [templateSavePendingTarget, setTemplateSavePendingTarget] = useState<"library" | "both" | null>(null);
+  const [templateSavePendingTarget, setTemplateSavePendingTarget] = useState<"library" | "store" | "both" | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<string>("");
   const [selectedTemplateSubcategory, setSelectedTemplateSubcategory] = useState<string>("");
@@ -1692,6 +1692,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
         : await apiRequest("POST", "/api/admin/custom-designs", {
             ...designData,
             saveTarget,
+            // Project name - required for all saves
+            projectName: templateMeta?.name,
             // Template organization metadata (for library saves)
             templateName: templateMeta?.name,
             templateCategory: templateMeta?.categoryId,
@@ -3522,7 +3524,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                           <button
                             className="flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
-                            onClick={() => handleSaveCustomDesign("store")}
+                            onClick={() => {
+                              setTemplateSavePendingTarget("store");
+                              setTemplateSaveDialogOpen(true);
+                            }}
                             data-testid="button-save-store"
                           >
                             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -3600,7 +3605,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
               </div>
             )}
             
-            {/* Template Save Dialog - Collect name and category for library saves */}
+            {/* Project Save Dialog - Collect project name and category */}
             <Dialog open={templateSaveDialogOpen} onOpenChange={(open) => {
               setTemplateSaveDialogOpen(open);
               if (!open) {
@@ -3616,26 +3621,28 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
             }}>
               <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Save Template to Library</DialogTitle>
+                  <DialogTitle>Save Project</DialogTitle>
                   <DialogDescription>
-                    Organize your template with a name and category for easy finding later.
+                    Name your project and organize it for easy finding later.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  {/* Template Name */}
+                  {/* Project Name - Required for all saves */}
                   <div className="space-y-2">
-                    <Label htmlFor="template-name" className="text-base font-medium">Template Name *</Label>
+                    <Label htmlFor="project-name" className="text-base font-medium">Project Name *</Label>
                     <Input
-                      id="template-name"
-                      placeholder="e.g., Beach Scene Summer 2025"
+                      id="project-name"
+                      placeholder="e.g., Hello World QR"
                       value={templateName}
                       onChange={(e) => setTemplateName(e.target.value)}
                       className="h-12"
-                      data-testid="input-template-name"
+                      data-testid="input-project-name"
                     />
+                    <p className="text-xs text-muted-foreground">This name identifies your project in the library and store</p>
                   </div>
                   
-                  {/* Category Selection */}
+                  {/* Category Selection - Only required for library saves */}
+                  {(templateSavePendingTarget === "library" || templateSavePendingTarget === "both") && (
                   <div className="space-y-2">
                     <Label className="text-base font-medium">Category *</Label>
                     {creatingNewCategory ? (
@@ -3697,9 +3704,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                       </div>
                     )}
                   </div>
+                  )}
                   
-                  {/* Subcategory Selection - only show when category is selected */}
-                  {selectedTemplateCategory && (
+                  {/* Subcategory Selection - only show when category is selected and saving to library */}
+                  {(templateSavePendingTarget === "library" || templateSavePendingTarget === "both") && selectedTemplateCategory && (
                     <div className="space-y-2">
                       <Label className="text-base font-medium">Subcategory (optional)</Label>
                       {creatingNewSubcategory ? (
@@ -3773,14 +3781,20 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                   </Button>
                   <Button
                     onClick={() => {
-                      if (!templateName.trim() || !selectedTemplateCategory) {
-                        toast({ title: "Missing Info", description: "Please enter a name and select a category", variant: "destructive" });
+                      const target = templateSavePendingTarget || "library";
+                      const needsCategory = target === "library" || target === "both";
+                      if (!templateName.trim()) {
+                        toast({ title: "Missing Info", description: "Please enter a project name", variant: "destructive" });
+                        return;
+                      }
+                      if (needsCategory && !selectedTemplateCategory) {
+                        toast({ title: "Missing Info", description: "Please select a category for library saves", variant: "destructive" });
                         return;
                       }
                       setTemplateSaveDialogOpen(false);
-                      handleSaveCustomDesign(templateSavePendingTarget || "library", {
+                      handleSaveCustomDesign(target, {
                         name: templateName.trim(),
-                        categoryId: selectedTemplateCategory,
+                        categoryId: selectedTemplateCategory || "uncategorized",
                         subcategoryId: selectedTemplateSubcategory || undefined,
                       });
                       // Reset form
@@ -3789,11 +3803,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                       setSelectedTemplateSubcategory("");
                       setTemplateSavePendingTarget(null);
                     }}
-                    disabled={!templateName.trim() || !selectedTemplateCategory || savingCustom}
-                    data-testid="button-confirm-template-save"
+                    disabled={!templateName.trim() || ((templateSavePendingTarget === "library" || templateSavePendingTarget === "both") && !selectedTemplateCategory) || savingCustom}
+                    data-testid="button-confirm-project-save"
                   >
                     {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Save to Library
+                    Save Project
                   </Button>
                 </DialogFooter>
               </DialogContent>

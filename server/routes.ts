@@ -4398,6 +4398,7 @@ ${allPages.map(page => `  <url>
   app.post("/api/admin/custom-designs", isAdmin, async (req, res) => {
     try {
       const createSchema = z.object({
+        projectName: z.string().min(1, "Project name is required").max(100),
         productId: z.number(),
         productName: z.string(),
         productImage: z.string().nullable().optional(),
@@ -4490,19 +4491,19 @@ ${allPages.map(page => `  <url>
         }
       }
       
-      // Generate descriptive slug: storename-segment-producttype-date
+      // Generate slug from user-provided project name
       const slugify = (str: string) => str?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || '';
-      const now = new Date();
-      const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-      const dateSlug = `${monthNames[now.getMonth()]}${now.getFullYear()}`;
       
-      // Extract product type from product name (e.g., "Premium Hat" -> "hat")
-      const productType = slugify(validatedData.productName.split(' ').pop() || 'product');
-      const storePart = slugify(validatedData.storeName || 'custom');
-      const segmentPart = slugify(validatedData.segment || 'general');
+      // Build the slug from project name (e.g., "Hello World QR" -> "hello-world-qr")
+      let baseSlug = slugify(validatedData.projectName);
       
-      // Build the slug: mystore-homepage-hat-dec2024
-      let baseSlug = `${storePart}-${segmentPart}-${productType}-${dateSlug}`;
+      // Fallback if project name slugifies to empty (e.g., emoji-only names)
+      if (!baseSlug) {
+        const storePart = slugify(validatedData.storeName || 'custom');
+        const segmentPart = slugify(validatedData.segment || 'general');
+        const timestamp = Date.now().toString(36); // Short unique identifier
+        baseSlug = `${storePart}-${segmentPart}-${timestamp}`;
+      }
       
       // Check for uniqueness and add counter if needed
       let designId = baseSlug;
@@ -4566,6 +4567,7 @@ ${allPages.map(page => `  <url>
       
       const designData = {
         id: designId,
+        projectName: validatedData.projectName,
         productId: validatedData.productId,
         productName: validatedData.productName,
         productImage: validatedData.productImage || null,

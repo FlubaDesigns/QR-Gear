@@ -159,8 +159,8 @@ function TemplatesContent() {
                 )}
               </div>
               <CardContent className="p-4">
-                <p className="font-medium truncate">{design.productName}</p>
-                <p className="text-sm text-muted-foreground truncate">{design.id}</p>
+                <p className="font-medium truncate">{(design as any).projectName || design.productName}</p>
+                <p className="text-sm text-muted-foreground truncate">{design.productName}</p>
                 
                 <div className="flex flex-wrap gap-1 mt-2">
                   {design.storeName && (

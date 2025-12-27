@@ -166,9 +166,10 @@ export const qrTemplates = pgTable("qr_templates", {
 });
 
 // Custom designs created by admin (QR codes linking to /customs/[id])
-// ID format: storename-segment-producttype-date (e.g., "mystore-homepage-hat-dec2024")
+// ID format: slugified project name (e.g., "hello-world-qr")
 export const customDesigns = pgTable("custom_designs", {
-  id: varchar("id").primaryKey(), // Custom slug, no auto-generate
+  id: varchar("id").primaryKey(), // Slugified project name, no auto-generate
+  projectName: text("project_name").notNull(), // User-defined display name (e.g., "Hello World QR")
   productId: integer("product_id").notNull(),
   productName: text("product_name").notNull(),
   productImage: text("product_image"),
