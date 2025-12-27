@@ -3,7 +3,6 @@ import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
 import HowItWorks from "@/components/HowItWorks";
 import MarketingMessage, { HistoryTeaser } from "@/components/MarketingMessage";
-import ImpactStats from "@/components/ImpactStats";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -24,7 +23,6 @@ export default function Home() {
         <HistoryTeaser />
         <QuickLinks />
         <HowItWorks />
-        <ImpactStats />
         <FeaturedProducts />
       </main>
       <Footer />
