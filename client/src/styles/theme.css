@@ -211,6 +211,24 @@ html[data-theme="light"] .bg-grid {
   color: var(--header-fg);
 }
 
+/* Brand Logo */
+.brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.brand__logo-svg {
+  height: 40px;
+  width: auto;
+}
+
+@media (min-width: 768px) {
+  .brand__logo-svg {
+    height: 48px;
+  }
+}
+
 .site-footer {
   background: var(--footer-bg);
   color: var(--footer-fg);
