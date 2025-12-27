@@ -14,8 +14,18 @@ interface StoreProduct {
   isFeatured: boolean;
   isSeasonalPromo: boolean;
   templateVariant: string | null;
+  qrProductType: string;
   createdAt: string;
 }
+
+// Map product type codes to display labels
+const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
+  "qr-basics": { label: "QR Basics", color: "bg-slate-500" },
+  "qr-plus": { label: "QR Plus", color: "bg-blue-500" },
+  "qr-canvas": { label: "QR Canvas", color: "bg-purple-500" },
+  "qr-play": { label: "QR Play", color: "bg-rose-500" },
+  "qr-dynamics": { label: "QR Dynamics™", color: "bg-emerald-500" },
+};
 
 interface StoreResponse {
   storeType: string;
@@ -175,11 +185,12 @@ export default function ShopSegmentPage() {
                   <h3 className="font-semibold text-lg line-clamp-2" data-testid={`text-product-name-${product.id}`}>
                     {product.name}
                   </h3>
-                  {product.templateVariant && (
-                    <Badge variant="outline" className="mt-2 text-xs">
-                      {product.templateVariant === "external-url" ? "External Link" :
-                       product.templateVariant === "plain-text" ? "Text QR" :
-                       product.templateVariant === "dynamics" ? "Dynamic" : "Hosted Image"}
+                  {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
+                    <Badge 
+                      className={`mt-2 text-xs text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
+                      data-testid={`badge-product-type-${product.id}`}
+                    >
+                      {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
                     </Badge>
                   )}
                 </CardContent>

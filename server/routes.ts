@@ -3278,17 +3278,48 @@ ${allPages.map(page => `  <url>
       // Get custom designs saved to this store/segment
       const designs = await storage.getCustomDesignsByStoreSegment(storeType, storeName, segment);
       
-      // Transform to product display format
-      const products = designs.map(d => ({
-        id: d.id,
-        name: d.productName,
-        imageUrl: d.productImage || d.printifyCompositeUrl,
-        segment: d.segment,
-        isFeatured: d.isFeatured,
-        isSeasonalPromo: d.isSeasonalPromo,
-        templateVariant: d.templateVariant,
-        createdAt: d.createdAt,
-      }));
+      // Transform to product display format with QR product type detection
+      // Five product types: QR Basics, QR Plus, QR Canvas, QR Play, QR Dynamics
+      const products = designs.map(d => {
+        let qrProductType = "qr-basics"; // Default fallback
+        const hasTopText = d.topText && typeof d.topText === 'object' && (d.topText as any).text;
+        const hasBottomText = d.bottomText && typeof d.bottomText === 'object' && (d.bottomText as any).text;
+        const hasBackground = !!d.backgroundImageUrl;
+        const hasVideo = !!(d as any).videoUrl; // Check for video content
+        const overlay = d.landingOverlay as any;
+        const hasLandingOverlay = overlay?.enabled;
+        
+        if (d.templateVariant === "plain-text") {
+          qrProductType = "qr-basics"; // Text encoded directly in QR
+        } else if (d.templateVariant === "dynamics") {
+          qrProductType = "qr-dynamics"; // Updateable destination
+        } else if (d.templateVariant === "external-url") {
+          qrProductType = "qr-basics"; // External URL redirects, similar to basics
+        } else if (d.templateVariant === "url") {
+          // Hosted landing page - determine subtype
+          if (hasVideo) {
+            qrProductType = "qr-play"; // Video playback
+          } else if (hasBackground || hasLandingOverlay) {
+            qrProductType = "qr-canvas"; // Custom background/landing page
+          } else if (hasTopText || hasBottomText) {
+            qrProductType = "qr-plus"; // Printed text, no background
+          } else {
+            qrProductType = "qr-canvas"; // Default hosted type
+          }
+        }
+        
+        return {
+          id: d.id,
+          name: d.productName,
+          imageUrl: d.productImage || d.printifyCompositeUrl,
+          segment: d.segment,
+          isFeatured: d.isFeatured,
+          isSeasonalPromo: d.isSeasonalPromo,
+          templateVariant: d.templateVariant,
+          qrProductType,
+          createdAt: d.createdAt,
+        };
+      });
       
       res.json({
         storeType,
