@@ -3408,6 +3408,9 @@ ${allPages.map(page => `  <url>
       // Get custom designs saved to this store/segment
       const designs = await storage.getCustomDesignsByStoreSegment(storeType, storeName, segment);
       
+      // Get all products to look up available colors
+      const allProducts = await storage.getAllProducts();
+      
       // Transform to product display format with QR product type detection
       // Five product types: QR Basics, QR Plus, QR Canvas, QR Play, QR Dynamics
       const products = designs.map(d => {

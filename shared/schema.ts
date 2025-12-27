@@ -77,6 +77,7 @@ export const products = pgTable("products", {
   availablePlacements: text("available_placements").array(),
   availableColors: jsonb("available_colors"),
   availableSizes: text("available_sizes").array(),
+  defaultColor: text("default_color"),
   metadata: jsonb("metadata"),
   isEnabled: boolean("is_enabled").default(false),
   markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }).default("0"),
