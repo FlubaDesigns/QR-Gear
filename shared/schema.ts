@@ -210,6 +210,17 @@ export const customDesigns = pgTable("custom_designs", {
   // For user/partner templates - their private sandbox
   ownerUserId: varchar("owner_user_id").references(() => users.id),
   campaignName: text("campaign_name"), // User's campaign/project folder (e.g., "12 Days of Deals")
+  // Printify integration for realistic mockups
+  blueprintId: integer("blueprint_id"), // Printify blueprint ID (e.g., 5 for t-shirt)
+  printProviderId: integer("print_provider_id"), // Printify print provider ID
+  printifyProductId: text("printify_product_id"), // Created Printify product ID for orders
+  printReadyArtUrl: text("print_ready_art_url"), // URL to uploaded print-ready artwork (QR + text)
+  selectedColors: text("selected_colors").array(), // Colors admin chose for mockups ['White', 'Black', 'Navy']
+  defaultColor: text("default_color"), // Color to display first (e.g., 'Navy')
+  mockupsByColor: jsonb("mockups_by_color"), // { 'White': { front: 'url', angles: ['url1','url2'] }, 'Black': {...} }
+  selectedVariantIds: jsonb("selected_variant_ids"), // { 'White-M': 12345, 'Black-L': 12346 } for order fulfillment
+  publishStatus: text("publish_status").default("draft"), // 'draft', 'pending', 'processing', 'complete', 'failed'
+  publishError: text("publish_error"), // Error message if publish failed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
