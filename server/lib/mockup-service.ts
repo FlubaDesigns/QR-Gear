@@ -111,11 +111,14 @@ async function downloadAndStoreImage(
     }
     
     const client = new ObjectStorageClient({ bucketId });
-    const fullPath = `public/mockups/${storagePath}`;
+    // Use custom-designs folder - same as QR artwork - served via /api/files/:filename
+    const filename = `mockup-${storagePath.replace(/\//g, '-')}`;
+    const fullPath = `custom-designs/${filename}`;
     
     await client.uploadFromBytes(fullPath, buffer);
     
-    const publicUrl = `https://${bucketId}.replit.dev/${fullPath}`;
+    // Return URL that works through existing /api/files route
+    const publicUrl = `/api/files/${filename}`;
     
     console.log(`[MockupService] Stored permanently at: ${publicUrl}`);
     return publicUrl;
