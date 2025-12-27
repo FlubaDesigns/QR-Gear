@@ -73,6 +73,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccessibleIconButton } from "@/components/ui/accessible-icon-button";
 import { FontPicker } from "@/components/ui/font-picker";
 import { getSwatchColor } from "@/lib/admin-utils";
+import UsaFlag from "@/components/UsaFlag";
 
 interface CatalogSyncStatus {
   latestSync: {
@@ -4867,7 +4868,7 @@ function ProductsContent() {
                         )}
                         {product.madeInUSA && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
-                            <span className="text-base">🇺🇸</span>
+                            <UsaFlag className="w-4 h-3" />
                             USA
                           </Badge>
                         )}
