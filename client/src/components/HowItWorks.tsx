@@ -1,20 +1,25 @@
-import { Smartphone, RefreshCw, Globe } from "lucide-react";
+import { Smartphone, Type, Image, RefreshCw } from "lucide-react";
 
-const features = [
+const steps = [
   {
     icon: Smartphone,
-    title: "Instant Scan",
-    description: "Scan with any phone. No app. No friction.",
+    title: "Scan with Any Phone",
+    description: "Point your camera at the QR code. A link appears — tap it. That's it. No app download needed. Works on iPhone, Android, any modern phone.",
+  },
+  {
+    icon: Type,
+    title: "Add Header & Footer Text",
+    description: "Want context? Add custom text above or below your QR code. A name, a date, a call-to-action — printed right on the product alongside your code.",
+  },
+  {
+    icon: Image,
+    title: "Show Your Image",
+    description: "When scanned, the QR code opens a page on our site displaying your chosen image. A photo, artwork, or design — beautifully presented and always available.",
   },
   {
     icon: RefreshCw,
-    title: "Customize & Update",
-    description: "Change destinations anytime without reprinting.",
-  },
-  {
-    icon: Globe,
-    title: "Connect & Track",
-    description: "Perfect for brands, creators, events, and outreach.",
+    title: "Go Dynamic & Update Anytime",
+    description: "With QR Dynamics, the code points to a page you control. Change your image, video, or message whenever you want — no reprinting needed. Your content stays fresh.",
   },
 ];
 
@@ -24,23 +29,22 @@ export default function HowItWorks() {
       <div className="container">
         <div className="section-header">
           <h2>How It Works</h2>
-          <p>Three simple steps to your custom QR gear</p>
+          <p>From scan to story in seconds</p>
         </div>
 
-        <div className="features-grid">
-          {features.map((feature, index) => (
+        <div className="how-it-works-grid">
+          {steps.map((step, index) => (
             <div 
               key={index} 
-              className="glass-card feature-card"
-              data-testid={`feature-card-${index}`}
+              className="glass-card how-step-card"
+              data-testid={`how-step-${index}`}
             >
-              <div className="feature-card-header">
-                <div className="feature-card-icon icon-bg-ice">
-                  <feature.icon className="icon-color-ice" />
-                </div>
-                <h3>{feature.title}</h3>
+              <div className="how-step-number">{index + 1}</div>
+              <div className="how-step-icon icon-bg-ice">
+                <step.icon className="icon-color-ice" />
               </div>
-              <p>{feature.description}</p>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
             </div>
           ))}
         </div>

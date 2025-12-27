@@ -2109,3 +2109,76 @@ html[data-theme="light"] .vanity-highlight-icon {
   font-size: 0.875rem;
   color: var(--text-2);
 }
+
+/* =========================================================
+   How It Works - Step Cards
+   ========================================================= */
+
+.how-it-works-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .how-it-works-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .how-it-works-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.how-step-card {
+  padding: 1.5rem;
+  text-align: center;
+  position: relative;
+}
+
+.how-step-number {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ice-2);
+  opacity: 0.5;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--glass-fill);
+}
+
+.how-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+}
+
+.how-step-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.how-step-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-0);
+  margin-bottom: 0.75rem;
+}
+
+.how-step-card p {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  line-height: 1.6;
+}
