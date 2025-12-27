@@ -154,6 +154,12 @@ Accessibility: User has CIDP (limited hand mobility) - agent should be fully aut
 - `shared/schema.ts`: `mockupCache`, `canonicalPlacements`, `podProviders`, `providerPlacementMappings`
 - `client/src/hooks/useMockupWithFallback.ts`: Frontend hooks for mockup fetching
 
+#### Known MVP Limitations:
+- Mockups are cached at blueprint/provider level (not product level) for efficiency
+- productPlacementAvailability check logs warning but doesn't block generation
+- Only FRONT_CHEST placement is used for MVP; other placements are defined but not fully tested
+- isColorDark() defaults to black QR when hex color is invalid/missing
+
 ### Auto-Sync Architecture (Legacy Notes)
 - **Product Creation**: Auto-seeds variants from local catalog data (no API calls needed)
 - **Limitation**: Variant IDs are placeholders - real Printify variant IDs fetched during fulfillment or manual sync
