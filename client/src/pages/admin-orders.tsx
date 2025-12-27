@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { 
+  ArrowLeft,
   Package, 
   Truck, 
   CheckCircle, 
@@ -433,23 +435,60 @@ export default function AdminOrdersPage() {
     profit: orders.reduce((acc, o) => acc + (o.profit ? parseFloat(o.profit) : 0), 0),
   };
 
+  const [, navigate] = useLocation();
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="qr-admin-page">
       <BreadcrumbTrail />
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold">Unified Orders</h1>
-          <Button 
-            variant="outline" 
-            onClick={() => refetch()}
-            disabled={isLoading}
-            className="min-h-12 min-w-12 px-3 gap-2"
-            data-testid="button-refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+      <div className="qr-admin-bar">
+        <div className="qr-admin-bar__inner">
+          <div className="qr-admin-bar__left">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/admin/dashboard")}
+              className="text-white hover:bg-white/10 min-h-12 min-w-12"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Truck className="qr-admin-bar__icon hidden sm:block" />
+              <div>
+                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
+                  Orders
+                </h1>
+                <p className="qr-admin-bar__subtitle hidden sm:block">
+                  Manage all orders
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="qr-admin-bar__right">
+            <Button 
+              variant="outline" 
+              onClick={() => refetch()}
+              disabled={isLoading}
+              className="border-slate-600 text-slate-300 qr-touch-48"
+              data-testid="button-refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""} sm:mr-2`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+          </div>
         </div>
+      </div>
+
+      <main className="qr-admin-main">
+        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/admin">Admin</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <Link href="/admin/dashboard">Dashboard</Link>
+          <span className="qr-admin-breadcrumb__separator">/</span>
+          <span className="qr-admin-breadcrumb__current" aria-current="page">
+            Orders
+          </span>
+        </nav>
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <Card>
@@ -630,7 +669,7 @@ export default function AdminOrdersPage() {
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
         />
-      </div>
+      </main>
     </div>
   );
 }
