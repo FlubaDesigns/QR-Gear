@@ -3091,8 +3091,8 @@ ${allPages.map(page => `  <url>
       console.log(`[Mockup] Uploaded image ID: ${imageUpload.id}`);
       
       // Get placement info
-      const { placements } = await syncProductPlacements(blueprintId, printProviderId);
-      const placement = placements[0]?.position || "front";
+      const { placements: providerPlacements } = await syncProductPlacements(blueprintId, printProviderId);
+      const placement = providerPlacements[0]?.position || "front";
       
       // Create Printify product to generate mockups
       const productData = {
@@ -3748,9 +3748,55 @@ ${allPages.map(page => `  <url>
         return res.status(404).json({ error: "Design not found" });
       }
       
-      const artworkUrl = design.printifyCompositeUrl || 
-        (design.placementImages as any)?.["front-chest"] ||
-        Object.values(design.placementImages || {})[0] as string;
+      // Get placements which may contain both black and white versions
+      const placements = typeof design.placementImages === 'string' 
+        ? JSON.parse(design.placementImages) 
+        : (design.placementImages || {});
+      
+      // Get the color's hex value to determine if it's dark or light
+      // First check product's availableColors, then check local catalog
+      let colorHex: string | null = null;
+      if (product.availableColors && Array.isArray(product.availableColors)) {
+        const colorInfo = (product.availableColors as any[]).find(
+          (c: any) => c.name?.toLowerCase() === color.toLowerCase()
+        );
+        colorHex = colorInfo?.hex || null;
+      }
+      
+      // Fallback: check printify_print_providers table
+      if (!colorHex) {
+        const providerData = await storage.getPrintifyPrintProvider(blueprintId, printProviderId);
+        if (providerData?.availableColors && Array.isArray(providerData.availableColors)) {
+          const colorInfo = (providerData.availableColors as any[]).find(
+            (c: any) => c.name?.toLowerCase() === color.toLowerCase()
+          );
+          colorHex = colorInfo?.hex || null;
+        }
+      }
+      
+      // Import the luminance helper
+      const { isColorDark } = await import('./lib/composite-image-generator.js');
+      
+      // Determine which artwork to use based on shirt color
+      // Dark shirts need white QR, light shirts need black QR
+      const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
+      
+      // Check if we have both versions in placements
+      const blackArtwork = placements["front-chest"] || placements["front-chest-black"];
+      const whiteArtwork = placements["front-chest-white"];
+      
+      // Pick the right artwork, with fallback
+      let artworkUrl: string;
+      if (needsWhiteQR && whiteArtwork) {
+        artworkUrl = whiteArtwork;
+        console.log(`[StorefrontMockup] Using WHITE artwork for dark shirt color: ${color} (${colorHex})`);
+      } else if (blackArtwork) {
+        artworkUrl = blackArtwork;
+        console.log(`[StorefrontMockup] Using BLACK artwork for light shirt color: ${color} (${colorHex})`);
+      } else {
+        // Ultimate fallback
+        artworkUrl = design.printifyCompositeUrl || Object.values(placements)[0] as string;
+      }
       
       if (!artworkUrl) {
         return res.status(400).json({ error: "No artwork found for this product" });
@@ -3783,8 +3829,8 @@ ${allPages.map(page => `  <url>
       console.log(`[StorefrontMockup] Uploaded image ID: ${imageUpload.id}`);
       
       // Get placement info
-      const { placements } = await syncProductPlacements(blueprintId, printProviderId);
-      const placement = placements[0]?.position || "front";
+      const { placements: providerPlacements } = await syncProductPlacements(blueprintId, printProviderId);
+      const placement = providerPlacements[0]?.position || "front";
       
       // Create Printify product to generate mockups
       const productData = {
@@ -5106,12 +5152,16 @@ ${allPages.map(page => `  <url>
       const { renderDesignToPng, renderQrOnlyToPng } = await import("./lib/svg-renderer");
       
       // Helper function for canvas fallback when SVG fails
-      const generateFullArtworkWithFallback = async (placementId: string): Promise<string | null> => {
+      // qrColor: 'black' for light shirts, 'white' for dark shirts
+      const generateFullArtworkWithFallback = async (placementId: string, qrColor: 'black' | 'white' = 'black'): Promise<string | null> => {
+        // For white QR, also make text white
+        const textColor = qrColor === 'white' ? "#FFFFFF" : "#000000";
+        
         const headerStyle = validatedData.topText ? {
           text: validatedData.topText.text,
           fontFamily: validatedData.topText.fontFamily || "Arial",
           fontSize: parseInt(validatedData.topText.fontSize) || 120,
-          color: (validatedData.topText as any).color || "#000000",
+          color: textColor, // Use appropriate color for shirt
           letterSpacing: (validatedData.topText as any).letterSpacing || 0,
           warpPreset: (validatedData.topText as any).warpPreset || "straight",
           strokeColor: (validatedData.topText as any).strokeColor,
@@ -5122,7 +5172,7 @@ ${allPages.map(page => `  <url>
           text: validatedData.bottomText.text,
           fontFamily: validatedData.bottomText.fontFamily || "Arial",
           fontSize: parseInt(validatedData.bottomText.fontSize) || 96,
-          color: (validatedData.bottomText as any).color || "#000000",
+          color: textColor, // Use appropriate color for shirt
           letterSpacing: (validatedData.bottomText as any).letterSpacing || 0,
           warpPreset: (validatedData.bottomText as any).warpPreset || "straight",
           strokeColor: (validatedData.bottomText as any).strokeColor,
@@ -5136,15 +5186,17 @@ ${allPages.map(page => `  <url>
             header: headerStyle,
             footer: footerStyle,
             qrUrl,
+            qrColor, // Pass color to SVG renderer
           });
           
-          const fileName = `svg-composite-${design.id}-${placementId}-${Date.now()}.png`;
+          const colorSuffix = qrColor === 'white' ? '-white' : '';
+          const fileName = `svg-composite-${design.id}-${placementId}${colorSuffix}-${Date.now()}.png`;
           const uploadResult = await uploadImageFromBuffer(
             renderResult.pngBuffer,
             fileName,
             'image/png'
           );
-          console.log(`[Custom Design] Generated full artwork for ${placementId}: ${uploadResult.publicUrl}`);
+          console.log(`[Custom Design] Generated ${qrColor.toUpperCase()} full artwork for ${placementId}: ${uploadResult.publicUrl}`);
           return uploadResult.publicUrl;
         } catch (svgError: any) {
           console.error(`[Custom Design] SVG render failed for ${placementId}, falling back to canvas:`, svgError.message);
@@ -5154,7 +5206,7 @@ ${allPages.map(page => `  <url>
             text: validatedData.topText.text,
             fontFamily: validatedData.topText.fontFamily || "Arial",
             fontSize: validatedData.topText.fontSize || "120",
-            color: (validatedData.topText as any).color || "#000000",
+            color: textColor, // Use appropriate color for shirt
             letterSpacing: (validatedData.topText as any).letterSpacing || 0,
             warpPreset: (validatedData.topText as any).warpPreset || "straight",
             strokeColor: (validatedData.topText as any).strokeColor,
@@ -5165,7 +5217,7 @@ ${allPages.map(page => `  <url>
             text: validatedData.bottomText.text,
             fontFamily: validatedData.bottomText.fontFamily || "Arial",
             fontSize: validatedData.bottomText.fontSize || "96",
-            color: (validatedData.bottomText as any).color || "#000000",
+            color: textColor, // Use appropriate color for shirt
             letterSpacing: (validatedData.bottomText as any).letterSpacing || 0,
             warpPreset: (validatedData.bottomText as any).warpPreset || "straight",
             strokeColor: (validatedData.bottomText as any).strokeColor,
@@ -5177,9 +5229,10 @@ ${allPages.map(page => `  <url>
             fallbackTopText,
             fallbackBottomText,
             4500,
-            5400
+            5400,
+            qrColor // Pass color to canvas renderer
           );
-          console.log(`[Custom Design] Generated canvas fallback for ${placementId}: ${canvasUrl}`);
+          console.log(`[Custom Design] Generated ${qrColor.toUpperCase()} canvas fallback for ${placementId}: ${canvasUrl}`);
           return canvasUrl;
         }
       }
@@ -5187,6 +5240,7 @@ ${allPages.map(page => `  <url>
       for (const [placementId, mode] of Object.entries(finalPlacementConfigs)) {
         try {
           let imageUrl: string | null = null;
+          let whiteImageUrl: string | null = null;
           
           if (mode === "qr-only") {
             // Generate QR-only image (just QR centered, no text)
@@ -5199,9 +5253,23 @@ ${allPages.map(page => `  <url>
             );
             console.log(`[Custom Design] Generated QR-only for ${placementId}: ${uploadResult.publicUrl}`);
             imageUrl = uploadResult.publicUrl;
+            
+            // Generate white version for dark shirts
+            const qrOnlyWhiteResult = await renderQrOnlyToPng({ qrUrl, qrColor: 'white' });
+            const whiteFileName = `qr-only-white-${design.id}-${placementId}-${Date.now()}.png`;
+            const whiteUploadResult = await uploadImageFromBuffer(
+              qrOnlyWhiteResult.pngBuffer,
+              whiteFileName,
+              'image/png'
+            );
+            console.log(`[Custom Design] Generated WHITE QR-only for ${placementId}: ${whiteUploadResult.publicUrl}`);
+            whiteImageUrl = whiteUploadResult.publicUrl;
           } else {
-            // Generate full artwork (header + QR + footer) with canvas fallback
-            imageUrl = await generateFullArtworkWithFallback(placementId);
+            // Generate full artwork (header + QR + footer) - BLACK version for light shirts
+            imageUrl = await generateFullArtworkWithFallback(placementId, 'black');
+            
+            // Generate WHITE version for dark shirts
+            whiteImageUrl = await generateFullArtworkWithFallback(placementId, 'white');
           }
           
           if (imageUrl) {
@@ -5211,6 +5279,12 @@ ${allPages.map(page => `  <url>
             if (!primaryCompositeUrl && mode === "full") {
               primaryCompositeUrl = imageUrl;
             }
+          }
+          
+          // Store white version with "-white" suffix
+          if (whiteImageUrl) {
+            placementImages[`${placementId}-white`] = whiteImageUrl;
+            console.log(`[Custom Design] Stored white version as ${placementId}-white`);
           }
         } catch (renderError: any) {
           console.error(`[Custom Design] Render failed for ${placementId}:`, renderError.message);
@@ -5430,8 +5504,8 @@ ${allPages.map(page => `  <url>
       
       // Get placement info
       const { syncProductPlacements } = await import("./lib/printify");
-      const { placements } = await syncProductPlacements(blueprintId, printProviderId);
-      const placement = placements[0]?.position || "front";
+      const { placements: providerPlacements } = await syncProductPlacements(blueprintId, printProviderId);
+      const placement = providerPlacements[0]?.position || "front";
       
       // Create Printify product with all selected variants
       const productData = {

@@ -20,6 +20,7 @@ export interface CompositeImageOptions {
   topText?: TextStyle | null;
   bottomText?: TextStyle | null;
   qrUrl: string;
+  qrColor?: 'black' | 'white';
 }
 
 const FONT_MAP: Record<string, string> = {
@@ -44,6 +45,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     topText,
     bottomText,
     qrUrl,
+    qrColor = 'black',
   } = options;
 
   const canvas = createCanvas(width, height);
@@ -84,10 +86,14 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     currentY += padding;
   }
 
+  // Support black or white QR codes for different shirt colors
+  const qrDark = qrColor === 'white' ? "#FFFFFF" : "#000000";
+  const qrLight = "transparent";  // Transparent background for overlay on shirts
+  
   const qrDataUrl = await QRCode.toDataURL(qrUrl, {
     width: qrSize,
     margin: 2,
-    color: { dark: "#000000", light: "#ffffff" },
+    color: { dark: qrDark, light: qrLight },
   });
   
   const qrImage = await loadImage(qrDataUrl);
@@ -155,15 +161,62 @@ export async function generatePrintifyComposite(
   topText: TextStyle | null,
   bottomText: TextStyle | null,
   printWidth: number = 1200,
-  printHeight: number = 1800
+  printHeight: number = 1800,
+  qrColor: 'black' | 'white' = 'black'
 ): Promise<string> {
+  // Use transparent background so the shirt color shows through
   return generateCompositeImage({
     width: printWidth,
     height: printHeight,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "transparent",
     qrSize: Math.min(printWidth, printHeight) * 0.4,
     topText,
     bottomText,
     qrUrl,
+    qrColor,
   });
+}
+
+// Generate both black and white versions of the composite
+export async function generateDualColorComposites(
+  qrUrl: string,
+  topText: TextStyle | null,
+  bottomText: TextStyle | null,
+  printWidth: number = 1200,
+  printHeight: number = 1800
+): Promise<{ blackVersion: string; whiteVersion: string }> {
+  const [blackVersion, whiteVersion] = await Promise.all([
+    generatePrintifyComposite(qrUrl, topText, bottomText, printWidth, printHeight, 'black'),
+    generatePrintifyComposite(qrUrl, topText, bottomText, printWidth, printHeight, 'white'),
+  ]);
+  
+  return { blackVersion, whiteVersion };
+}
+
+// Calculate luminance of a hex color to determine if it's "dark" or "light"
+// Returns true if the color is dark (needs white QR), false if light (needs black QR)
+export function isColorDark(hexColor: string): boolean {
+  // Remove # if present
+  const hex = hexColor.replace('#', '');
+  
+  // Parse RGB values
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  // Calculate relative luminance using sRGB formula
+  // Higher values = lighter color
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // If luminance is below 0.5, color is "dark" and needs white QR
+  return luminance < 0.5;
+}
+
+// Get the appropriate artwork URL based on shirt color
+export function getArtworkForColor(
+  hexColor: string, 
+  blackArtworkUrl: string, 
+  whiteArtworkUrl: string
+): string {
+  return isColorDark(hexColor) ? whiteArtworkUrl : blackArtworkUrl;
 }

@@ -33,6 +33,13 @@ export interface RenderRequest {
   footer?: TextStyle;
   qrUrl: string;
   qrSize?: number;
+  qrColor?: 'black' | 'white'; // Color of QR code for light/dark shirts
+}
+
+export interface QrOnlyRequest {
+  qrUrl: string;
+  qrSize?: number;
+  qrColor?: 'black' | 'white'; // Color of QR code for light/dark shirts
 }
 
 export interface RenderResult {
@@ -166,12 +173,13 @@ function getWarpPath(preset: WarpPreset, centerY: number, width: number): { path
   }
 }
 
-function generateQrSvg(url: string, size: number): string {
+function generateQrSvg(url: string, size: number, qrColor: 'black' | 'white' = 'black'): string {
+  const color = qrColor === 'white' ? '#FFFFFF' : '#000000';
   const qr = new QRCode({
     content: url,
     width: size,
     height: size,
-    color: '#000000',
+    color: color,
     background: 'transparent',
     ecl: 'H',
     padding: 0,
@@ -302,7 +310,8 @@ export function buildDesignSvg(request: RenderRequest): string {
     allContent += headerResult.textContent;
   }
   
-  const qrSvgRaw = generateQrSvg(request.qrUrl, qrSize);
+  const qrColor = request.qrColor || 'black';
+  const qrSvgRaw = generateQrSvg(request.qrUrl, qrSize, qrColor);
   const qrSvgMatch = qrSvgRaw.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
   const qrInnerContent = qrSvgMatch ? qrSvgMatch[1] : '';
   
@@ -365,21 +374,17 @@ export async function renderDesignToPng(request: RenderRequest): Promise<RenderR
   return renderSvgToPng(svg);
 }
 
-export interface QrOnlyRequest {
-  qrUrl: string;
-  qrSize?: number;
-}
-
 /**
  * Render just a QR code centered on the canvas (no text)
  * Used for "qr-only" placement mode on smaller print areas like sleeves
  */
 export async function renderQrOnlyToPng(request: QrOnlyRequest): Promise<RenderResult> {
   const qrSize = request.qrSize || 2400; // Larger QR for print quality
+  const qrColor = request.qrColor || 'black';
   const qrX = (CANVAS_WIDTH - qrSize) / 2;
   const qrY = (CANVAS_HEIGHT - qrSize) / 2;
   
-  const qrSvgRaw = generateQrSvg(request.qrUrl, qrSize);
+  const qrSvgRaw = generateQrSvg(request.qrUrl, qrSize, qrColor);
   const qrSvgMatch = qrSvgRaw.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
   const qrInnerContent = qrSvgMatch ? qrSvgMatch[1] : '';
   
