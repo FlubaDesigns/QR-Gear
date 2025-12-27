@@ -1,6 +1,6 @@
 # AI-COMMS Version Tracking
 
-**Current Version:** 2.0
+**Current Version:** 2.4
 **Last Updated:** December 27, 2025
 **Updated By:** Claude 2 (QR Gear)
 
@@ -10,6 +10,8 @@
 
 | Version | Date | Updated By | Changes |
 |---------|------|------------|---------|
+| 2.4 | Dec 27, 2025 | Claude 2 | ACKNOWLEDGMENT-DEC27.md - Ghost's fix applied, removed API calls from color handlers |
+| 2.3 | Dec 27, 2025 | KC/Ghost | RESPONSE-DEC27.md - authoritative Printify architecture correction |
 | 2.0 | Dec 27, 2025 | Claude 2 | Added HELP-REQUEST-DEC27.md - root cause found (click event bubbling), fix applied |
 | 1.9 | Dec 27, 2025 | Claude 2 | Added MOCKUP-DEBUG-DEC27.md - complete debug session for mockup display issue |
 | 1.8 | Dec 26, 2025 | Claude 2 | Updated QUESTIONS-OUTGOING.md with answers from KC/ANSWERS-DEC26.md |

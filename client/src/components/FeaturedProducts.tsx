@@ -47,8 +47,6 @@ function ProductCard({
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.defaultColor || null
   );
-  const [isLoadingMockup, setIsLoadingMockup] = useState(false);
-  const [dynamicMockups, setDynamicMockups] = useState<MockupsByColor>({});
 
   // Use availableColorsWithHex if provided, otherwise fallback to names only
   const colorsWithHex: ColorWithHex[] = product.availableColorsWithHex || 
@@ -63,44 +61,10 @@ function ProductCard({
     if (c.hex) colorHexMap[c.name] = c.hex;
   });
 
-  // Handle color swatch selection - fetch Printify mockup if not cached
-  const handleColorChange = async (color: string) => {
+  // Handle color swatch selection - NO API CALL, just swap from pre-cached mockups
+  // Per Ghost's guidance: mockups are fetched ONCE at product creation and stored in DB
+  const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    
-    // Helper to check if URL is valid (HTTP URL)
-    const isValidMockupUrl = (url?: string) => url && url.startsWith('http');
-    
-    // Check if we already have a valid mockup (preloaded or dynamically fetched)
-    const hasPreloaded = isValidMockupUrl(product.mockupsByColor?.[color]?.front) || 
-                         isValidMockupUrl(product.mockupsByColor?.[color]?.lifestyle);
-    const hasDynamic = isValidMockupUrl(dynamicMockups[color]?.front) || 
-                       isValidMockupUrl(dynamicMockups[color]?.lifestyle);
-    
-    if (hasPreloaded || hasDynamic) return;
-    
-    // Fetch from Printify mockup service
-    setIsLoadingMockup(true);
-    try {
-      const response = await fetch('/api/storefront/generate-mockup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, color }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.mockupUrl) {
-          setDynamicMockups(prev => ({
-            ...prev,
-            [color]: { front: data.mockupUrl, lifestyle: data.lifestyleMockupUrl }
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch mockup:', error);
-    } finally {
-      setIsLoadingMockup(false);
-    }
   };
 
   const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
@@ -109,17 +73,7 @@ function ProductCard({
     // Helper to check if URL is valid (HTTP URL, not broken local path)
     const isValidUrl = (url?: string) => url && url.startsWith('http');
     
-    // Check dynamic mockups first (fetched on color change)
-    if (color && dynamicMockups[color]) {
-      if (isValidUrl(dynamicMockups[color].lifestyle)) {
-        return { url: dynamicMockups[color].lifestyle!, isLifestyle: true };
-      }
-      if (isValidUrl(dynamicMockups[color].front)) {
-        return { url: dynamicMockups[color].front!, isLifestyle: false };
-      }
-    }
-    
-    // Fall back to pre-loaded mockups from product data
+    // Use pre-loaded mockups from product data (already cached in DB)
     if (product.mockupsByColor && color && product.mockupsByColor[color]) {
       if (isValidUrl(product.mockupsByColor[color].lifestyle)) {
         return { url: product.mockupsByColor[color].lifestyle!, isLifestyle: true };
@@ -142,16 +96,10 @@ function ProductCard({
       onClick={() => onOpenQuickView(product)}
     >
       <div className="product-card-image">
-        {isLoadingMockup && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
-            <Loader2 className="w-6 h-6 animate-spin text-white" />
-          </div>
-        )}
         <img
-          key={`${product.id}-${selectedColor || 'default'}-${displayImage}`}
+          key={`${product.id}-${selectedColor || 'default'}`}
           src={displayImage}
           alt={product.name}
-          style={{ opacity: isLoadingMockup ? 0.7 : 1 }}
         />
         {!mockupResult.url && product.qrCodeUrl && (
           <img
