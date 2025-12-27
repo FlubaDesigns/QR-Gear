@@ -4094,11 +4094,22 @@ ${allPages.map(page => `  <url>
       const { isColorDark } = await import('./lib/mockup-service.js');
       const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
       
-      const blackArtwork = designPlacements["front-chest"] || designPlacements["front-chest-black"];
-      const whiteArtwork = designPlacements["front-chest-white"];
+      // Support multiple naming conventions: front-chest, front-center, or just "front"
+      const blackArtwork = designPlacements["front-chest"] || 
+                           designPlacements["front-chest-black"] || 
+                           designPlacements["front-center"] ||
+                           designPlacements["front-center-black"] ||
+                           designPlacements["front"];
+      const whiteArtwork = designPlacements["front-chest-white"] || 
+                           designPlacements["front-center-white"] ||
+                           designPlacements["front-white"];
       
       let artworkUrl: string;
       let artworkVariant: "black" | "white" = "black";
+      
+      console.log(`[StorefrontMockup] Color ${color} hex=${colorHex}, needsWhiteQR=${needsWhiteQR}`);
+      console.log(`[StorefrontMockup] Available placements: ${Object.keys(designPlacements).join(', ')}`);
+      console.log(`[StorefrontMockup] Black artwork: ${blackArtwork}, White artwork: ${whiteArtwork}`);
       
       if (needsWhiteQR && whiteArtwork) {
         artworkUrl = whiteArtwork;
@@ -4110,6 +4121,7 @@ ${allPages.map(page => `  <url>
         console.log(`[StorefrontMockup] Using BLACK artwork for light shirt: ${color}`);
       } else {
         artworkUrl = design.printifyCompositeUrl || Object.values(designPlacements)[0] as string;
+        console.log(`[StorefrontMockup] Using fallback artwork: ${artworkUrl}`);
       }
       
       if (!artworkUrl) {
@@ -4134,19 +4146,28 @@ ${allPages.map(page => `  <url>
       console.log(`[StorefrontMockup] Got mockup (fromCache: ${result.fromCache})`);
       
       // Also update products table for legacy compatibility
+      // Store BOTH flat and lifestyle mockups - frontend prefers lifestyle when available
       const existingProductMockups = (product.mockupsByColor as Record<string, any>) || {};
-      existingProductMockups[color] = { front: result.mockupUrl };
+      existingProductMockups[color] = { 
+        front: result.mockupUrl,
+        lifestyle: result.lifestyleMockupUrl || undefined
+      };
       
       await storage.updateProduct(canonicalProductId, {
         mockupsByColor: existingProductMockups,
       });
+      
+      console.log(`[StorefrontMockup] Updated mockups for ${color}: flat=${!!result.mockupUrl}, lifestyle=${!!result.lifestyleMockupUrl}`);
       
       // Update partner store product if storeId provided
       if (storeId) {
         const storeProduct = await storage.getPartnerStoreProduct(storeId, canonicalProductId);
         if (storeProduct) {
           const existingMockups = (storeProduct.mockupsByColor as Record<string, any>) || {};
-          existingMockups[color] = { front: result.mockupUrl };
+          existingMockups[color] = { 
+            front: result.mockupUrl,
+            lifestyle: result.lifestyleMockupUrl || undefined
+          };
           
           await storage.updatePartnerStoreProductByIds(storeProduct.partnerStoreId, canonicalProductId, {
             mockupsByColor: existingMockups,
