@@ -561,6 +561,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For featured products, enrich with mockups and QR artwork from custom_designs
         const designs = await storage.getCustomDesigns();
         const enrichedProducts = enabledProducts.map((product) => {
+          // Calculate retail price from production cost + markup + QR cost
+          const baseCost = parseFloat(product.basePrice) || 0;
+          const qrCost = parseFloat(product.qrProductionCost || "0") || 0;
+          const markupFixed = parseFloat(product.markupFixed || "0") || 0;
+          const markupPercent = parseFloat(product.markupPercent || "0") || 0;
+          
+          // Final price = (baseCost + qrCost + markupFixed) * (1 + markupPercent/100)
+          const totalCost = baseCost + qrCost + markupFixed;
+          const retailPrice = markupPercent > 0 
+            ? Math.ceil(totalCost * (1 + markupPercent / 100) * 100) / 100
+            : totalCost;
           // Try to find the matching custom design by the product ID pattern
           // Custom design IDs are like "qr-gear-main-home-tee-dec2025" 
           // Product IDs are like "custom_qr-gear-main-home-tee-dec2025-1"
@@ -659,6 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...product,
+            retailPrice, // Calculated final price with markup and QR cost
             qrCodeUrl: matchingDesign?.qrCodeUrl || null,
             frontChestImage,
             frontChestImageWhite,

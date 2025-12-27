@@ -34,6 +34,7 @@ interface FeaturedProduct extends Omit<Product, 'defaultColor' | 'mockupsByColor
   defaultMockupImage?: string | null;
   availableColorsWithHex?: ColorWithHex[];
   isCustomizable?: boolean;
+  retailPrice?: number; // Final price with markup and QR cost
 }
 
 function ProductCard({ 
