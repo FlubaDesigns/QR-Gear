@@ -6,6 +6,7 @@ import type { Product } from "@shared/schema";
 
 interface FeaturedProduct extends Product {
   qrCodeUrl?: string | null;
+  frontChestImage?: string | null;
 }
 
 export default function FeaturedProducts() {

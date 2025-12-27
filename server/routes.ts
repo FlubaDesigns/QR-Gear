@@ -558,7 +558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (featured === "true") {
         enabledProducts = enabledProducts.filter(p => p.isFeatured);
         
-        // For featured products, enrich with QR code data from custom_designs
+        // For featured products, enrich with QR artwork from custom_designs
         const designs = await storage.getCustomDesigns();
         const enrichedProducts = enabledProducts.map((product) => {
           // Try to find the matching custom design by the product ID pattern
@@ -567,9 +567,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const customDesignId = product.id.replace(/^custom_/, '').replace(/-\d+$/, '');
           const matchingDesign = designs.find(d => d.id === customDesignId || d.productId?.toString() === product.blueprintId?.toString());
           
+          // Get the front-chest placement image (the actual print area artwork)
+          let frontChestImage: string | null = null;
+          if (matchingDesign?.placementImages) {
+            const placements = typeof matchingDesign.placementImages === 'string' 
+              ? JSON.parse(matchingDesign.placementImages) 
+              : matchingDesign.placementImages;
+            frontChestImage = placements?.["front-chest"] || null;
+          }
+          
           return {
             ...product,
             qrCodeUrl: matchingDesign?.qrCodeUrl || null,
+            frontChestImage,
           };
         });
         

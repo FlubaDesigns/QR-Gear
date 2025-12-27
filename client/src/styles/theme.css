@@ -1588,20 +1588,17 @@ html[data-theme="light"] .vanity-highlight-icon {
   object-fit: cover;
 }
 
-/* QR code overlay centered on product image */
+/* QR code overlay positioned on shirt front chest area */
 .product-card-qr-overlay {
   position: absolute;
-  top: 50%;
+  top: 38%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 20%;
+  width: 22%;
   height: auto;
-  max-width: 64px;
+  max-width: 88px;
   object-fit: contain;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  background: white;
-  padding: 2px;
+  pointer-events: none;
 }
 
 .product-card-badge {
