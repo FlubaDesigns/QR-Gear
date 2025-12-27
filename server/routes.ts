@@ -514,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // QR Code Generation
+  // QR Code Generation (POST - returns JSON with data URL)
   app.post("/api/qr/generate", async (req, res) => {
     try {
       const { content, type, style } = req.body;
@@ -529,6 +529,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : await generateImageQRCode(content, style);
 
       res.json({ qrCode: qrCodeDataUrl });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // QR Code Image (GET - returns actual PNG image for canvas/img loading)
+  app.get("/api/qr/image", async (req, res) => {
+    try {
+      const { text, color = "black" } = req.query;
+
+      if (!text || typeof text !== "string") {
+        return res.status(400).json({ error: "Missing 'text' query parameter" });
+      }
+
+      const qrColor = color === "white" ? "#FFFFFF" : "#000000";
+      const qrCodeDataUrl = await generateTextQRCode(text, { color: qrColor, backgroundColor: "transparent" });
+      
+      // Convert data URL to buffer
+      const base64Data = qrCodeDataUrl.replace(/^data:image\/png;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.send(buffer);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3374,13 +3398,13 @@ ${allPages.map(page => `  <url>
         printProviderId, 
         colorName, 
         colorHex,
-        qrGraphicUrl,
+        qrContent = "https://qrgear.shop",
         productType = 'shirt'
       } = req.body;
 
-      if (!blueprintId || !printProviderId || !colorName || !qrGraphicUrl) {
+      if (!blueprintId || !printProviderId || !colorName) {
         return res.status(400).json({ 
-          error: "Missing required fields: blueprintId, printProviderId, colorName, qrGraphicUrl" 
+          error: "Missing required fields: blueprintId, printProviderId, colorName" 
         });
       }
 
@@ -3391,7 +3415,7 @@ ${allPages.map(page => `  <url>
         printProviderId: parseInt(printProviderId),
         colorName,
         colorHex,
-        qrGraphicUrl,
+        qrContent,
         productType,
       }, storage);
 

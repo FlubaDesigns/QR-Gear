@@ -75,7 +75,7 @@ function ProductCard({
     }
     
     // Fetch from API if we have the required product data
-    if (product.blueprintId && product.printProviderId && product.frontChestImage) {
+    if (product.blueprintId && product.printProviderId) {
       setIsLoadingMockup(true);
       try {
         const response = await apiRequest('/api/mockups/lifestyle', {
@@ -85,7 +85,7 @@ function ProductCard({
             printProviderId: product.printProviderId,
             colorName: color,
             colorHex: colorHexMap[color],
-            qrGraphicUrl: product.frontChestImage,
+            qrContent: 'https://qrgear.shop',
             productType: 'shirt',
           }),
         });

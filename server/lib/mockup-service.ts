@@ -532,12 +532,12 @@ export async function getLifestyleMockupForColor(
     printProviderId: number;
     colorName: string;
     colorHex?: string;
-    qrGraphicUrl: string; // The actual QR graphic to composite
+    qrContent: string; // Text/URL to encode in QR (we generate artwork in-memory)
     productType?: 'shirt' | 'hat' | 'bag' | 'mug' | 'other';
   },
   storage: IStorage
 ): Promise<{ lifestyleUrl: string | null; fromCache: boolean; qrVariant: 'black' | 'white' }> {
-  const { blueprintId, printProviderId, colorName, colorHex, qrGraphicUrl, productType = 'shirt' } = params;
+  const { blueprintId, printProviderId, colorName, colorHex, qrContent, productType = 'shirt' } = params;
   
   // Determine QR color based on shirt luminance
   const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
@@ -568,45 +568,16 @@ export async function getLifestyleMockupForColor(
     };
   }
   
-  // Step 2: Try to generate via POD (may include lifestyle)
-  console.log(`[LifestyleMockup] Cache MISS: Trying POD generation for ${colorName}`);
-  
-  try {
-    const podResult = await getMockupWithFallback(
-      {
-        blueprintId,
-        printProviderId,
-        colorName,
-        colorHex,
-        canonicalPlacementId: "FRONT_CHEST",
-        artworkUrl: qrGraphicUrl,
-        artworkVariant: qrVariant,
-      },
-      storage
-    );
-    
-    if (podResult.lifestyleMockupUrl) {
-      console.log(`[LifestyleMockup] POD returned lifestyle mockup`);
-      return {
-        lifestyleUrl: podResult.lifestyleMockupUrl,
-        fromCache: false,
-        qrVariant,
-      };
-    }
-  } catch (err) {
-    console.warn(`[LifestyleMockup] POD generation failed:`, err);
-  }
+  // Step 2: Skip POD for now - Printify rarely has lifestyle images
+  // Go directly to AI composite fallback for consistent results
+  console.log(`[LifestyleMockup] Using AI composite (POD lifestyle rarely available)`);
   
   // Step 3: AI fallback - composite QR onto base lifestyle image
   console.log(`[LifestyleMockup] No POD lifestyle, using AI composite fallback`);
   
   try {
     const { overlayGraphicOnProduct } = await import("./composite-image-generator");
-    const { ObjectStorageService } = await import("../replit_integrations/object_storage");
-    
-    // Get base lifestyle image from storage (product type specific)
-    const baseImageKey = `lifestyle-bases/${productType}-base.png`;
-    const objectStorage = new ObjectStorageService();
+    const { generateTextQRCode } = await import("./qr-generator");
     
     // Get base lifestyle image from local filesystem
     const path = await import("path");
@@ -623,40 +594,33 @@ export async function getLifestyleMockupForColor(
       };
     }
     
-    const baseImageUrl = basePath;
+    // Generate QR artwork as data URL in-memory (no network calls needed!)
+    // Use contrasting background for visibility - qrcode library doesn't support transparency
+    const qrColor = qrVariant === 'white' ? '#FFFFFF' : '#000000';
+    const qrBackground = qrVariant === 'white' ? '#000000' : '#FFFFFF';
+    const qrDataUrl = await generateTextQRCode(qrContent, { 
+      color: qrColor, 
+      backgroundColor: qrBackground 
+    });
     
-    // Composite the QR graphic onto the base
+    console.log(`[LifestyleMockup] Generated ${qrVariant} QR data URL, compositing onto ${productType} base`);
+    
+    // Composite the QR graphic onto the base (canvas loadImage accepts data URLs!)
     const compositeBuffer = await overlayGraphicOnProduct({
-      baseImageUrl,
-      graphicUrl: qrGraphicUrl,
+      baseImageUrl: basePath,
+      graphicUrl: qrDataUrl,
       productType,
       position: 'chest',
       graphicScale: 0.25,
     });
     
-    // Save to object storage
-    const compositeKey = `lifestyle-mockups/${blueprintId}-${printProviderId}-${colorName}-${qrVariant}.png`;
-    await objectStorage.uploadBuffer(compositeBuffer, compositeKey, 'image/png');
+    // Return as data URL (faster for previews, no storage needed)
+    const lifestyleDataUrl = `data:image/png;base64,${compositeBuffer.toString('base64')}`;
     
-    const lifestyleUrl = await objectStorage.getPublicUrl(compositeKey);
-    
-    // Update cache with lifestyle URL
-    await db
-      .update(mockupCache)
-      .set({ lifestyleMockupUrl: lifestyleUrl })
-      .where(
-        and(
-          eq(mockupCache.blueprintId, blueprintId),
-          eq(mockupCache.printProviderId, printProviderId),
-          eq(mockupCache.colorName, colorName),
-          eq(mockupCache.artworkVariant, qrVariant)
-        )
-      );
-    
-    console.log(`[LifestyleMockup] AI composite saved: ${compositeKey}`);
+    console.log(`[LifestyleMockup] AI composite complete for ${colorName} (${qrVariant} QR)`);
     
     return {
-      lifestyleUrl,
+      lifestyleUrl: lifestyleDataUrl,
       fromCache: false,
       qrVariant,
     };
