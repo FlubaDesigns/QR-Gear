@@ -132,7 +132,8 @@ function ProductCard({
         <p className="product-card-description">{product.description}</p>
         <div className="product-card-footer">
           <span className="product-card-price">
-            {product.basePrice ? `From $${Number(product.basePrice).toFixed(2)}` : "Build to see price"}
+            {product.retailPrice ? `From $${Number(product.retailPrice).toFixed(2)}` : 
+             product.basePrice ? `From $${Number(product.basePrice).toFixed(2)}` : "Build to see price"}
           </span>
           <button 
             className="product-card-btn"
