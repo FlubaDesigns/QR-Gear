@@ -676,45 +676,186 @@ export async function syncProductVariants(blueprintId: number, printProviderId: 
   return { colors, sizes, variants };
 }
 
-// Common color name to hex mapping
+// Comprehensive color name to hex mapping for Printify apparel
 function getColorHex(colorName: string): string {
   const colorMap: Record<string, string> = {
+    // Basic colors
     'White': '#FFFFFF',
     'Black': '#000000',
-    'Navy': '#000080',
-    'Navy Blue': '#000080',
-    'Royal Blue': '#4169E1',
     'Red': '#DC2626',
+    'Blue': '#2563EB',
+    'Green': '#16A34A',
+    'Yellow': '#FACC15',
+    'Orange': '#F97316',
+    'Purple': '#9333EA',
+    'Pink': '#EC4899',
+    'Brown': '#92400E',
+    'Gray': '#6B7280',
+    'Grey': '#6B7280',
+    
+    // Heather variants
     'Heather Gray': '#9CA3AF',
     'Heather Grey': '#9CA3AF',
+    'Athletic Heather': '#9CA3AF',
+    'Dark Heather': '#374151',
+    'Dark Grey Heather': '#4B5563',
+    'Heather Navy': '#1E3A5F',
+    'Heather Peach': '#FBBF94',
+    'Heather Mauve': '#C4A5A5',
+    'Heather Olive': '#6B7355',
+    'Heather Red': '#B91C1C',
+    'Heather Blue': '#60A5FA',
+    'Heather Green': '#22C55E',
+    'Heather Purple': '#A855F7',
+    'Heather Prism Dusty Blue': '#7DA7BC',
+    'Heather Prism Ice Blue': '#B8D4E3',
+    'Heather Prism Mint': '#98E4D2',
+    'Heather Prism Peach': '#F5C8A3',
+    'Heather Prism Lilac': '#D8B4E2',
+    'Heather Raspberry': '#9B1B57',
+    'Heather Midnight Navy': '#1E3A5F',
+    'Heather True Royal': '#3B5DC9',
+    'Heather Deep Teal': '#0D5C63',
+    'Heather Forest': '#1D4D2B',
+    
+    // Sport/Athletic
     'Sport Gray': '#6B7280',
     'Sport Grey': '#6B7280',
-    'Dark Heather': '#374151',
-    'Charcoal': '#36454F',
-    'Natural': '#F5F5DC',
-    'Sand': '#C2B280',
-    'Khaki': '#C2B280',
-    'Brown': '#8B4513',
-    'Forest Green': '#228B22',
-    'Kelly Green': '#4CBB17',
-    'Maroon': '#800000',
-    'Cardinal': '#C41E3A',
-    'Orange': '#FF6B00',
-    'Gold': '#FFD700',
-    'Yellow': '#FFFF00',
-    'Light Blue': '#ADD8E6',
+    
+    // Blues
+    'Navy': '#1E3A5F',
+    'Navy Blue': '#1E3A5F',
+    'Midnight Navy': '#1A2744',
+    'True Navy': '#1E3A5F',
+    'Royal': '#4169E1',
+    'Royal Blue': '#4169E1',
+    'True Royal': '#4169E1',
+    'Light Blue': '#93C5FD',
+    'Sky Blue': '#87CEEB',
     'Carolina Blue': '#56A0D3',
-    'Pink': '#FFC0CB',
-    'Light Pink': '#FFB6C1',
-    'Purple': '#800080',
-    'Ash': '#B2BEB5',
-    'Ice Grey': '#D3D3D3',
-    'Irish Green': '#009A44',
-    'Military Green': '#4B5320',
-    'Olive': '#808000',
+    'Ocean': '#006994',
+    'Ocean Blue': '#006994',
+    'Teal': '#0D9488',
+    'Deep Teal': '#0D5C63',
     'Sapphire': '#0F52BA',
     'Indigo': '#4B0082',
+    'Aqua': '#06B6D4',
+    'Turquoise': '#40E0D0',
+    'Cobalt': '#0047AB',
+    'Steel Blue': '#4682B4',
+    'Slate': '#708090',
+    'Denim': '#1560BD',
+    
+    // Greens
+    'Forest Green': '#228B22',
+    'Dark Green': '#006400',
+    'Kelly Green': '#4CBB17',
+    'Irish Green': '#009A44',
     'Turf Green': '#3C8D0D',
+    'Military Green': '#4B5320',
+    'Olive': '#6B8E23',
+    'Olive Drab': '#6B8E23',
+    'Sage': '#9CAF88',
+    'Mint': '#98FB98',
+    'Seafoam': '#71EEB8',
+    'Lime': '#84CC16',
+    'Leaf': '#568203',
+    'Hunter Green': '#355E3B',
+    
+    // Reds & Pinks
+    'Cardinal': '#C41E3A',
+    'Cardinal Red': '#C41E3A',
+    'Maroon': '#800000',
+    'Burgundy': '#722F37',
+    'Crimson': '#DC143C',
+    'Cherry Red': '#DE3163',
+    'Light Pink': '#FFB6C1',
+    'Hot Pink': '#FF69B4',
+    'Fuchsia': '#FF00FF',
+    'Magenta': '#FF00FF',
+    'Berry': '#8E4585',
+    'Coral': '#FF7F50',
+    'Salmon': '#FA8072',
+    'Rose': '#FF007F',
+    'Heliconia': '#E31557',
+    'Azalea': '#FF3399',
+    
+    // Purples
+    'Violet': '#8B5CF6',
+    'Lavender': '#E6E6FA',
+    'Plum': '#8E4585',
+    'Lilac': '#C8A2C8',
+    'Orchid': '#DA70D6',
+    'Purple Rush': '#652DC1',
+    'Team Purple': '#652DC1',
+    
+    // Browns & Neutrals
+    'Charcoal': '#36454F',
+    'Natural': '#F5F5DC',
+    'Cream': '#FFFDD0',
+    'Solid Cream': '#FFFDD0',
+    'Beige': '#F5F5DC',
+    'Sand': '#C2B280',
+    'Tan': '#D2B48C',
+    'Khaki': '#C3B091',
+    'Chocolate': '#7B3F00',
+    'Dark Chocolate': '#3D1C02',
+    'Solid Dark Chocolate': '#3D1C02',
+    'Coffee': '#6F4E37',
+    'Espresso': '#3C2218',
+    'Chestnut': '#954535',
+    'Coyote Brown': '#81613C',
+    'Russet': '#80461B',
+    
+    // Grays
+    'Ice Grey': '#D3D3D3',
+    'Ice Gray': '#D3D3D3',
+    'Light Gray': '#D1D5DB',
+    'Light Grey': '#D1D5DB',
+    'Silver': '#C0C0C0',
+    'Ash': '#B2BEB5',
+    'Graphite': '#383838',
+    'Charcoal Heather': '#4B5563',
+    'Heavy Metal': '#2E3339',
+    'Solid Heavy Metal': '#2E3339',
+    'Smoke': '#738276',
+    'Storm': '#4F5D75',
+    
+    // Golds & Yellows
+    'Gold': '#FFD700',
+    'Daisy': '#FFD93D',
+    'Sunshine': '#FFD93D',
+    'Lemon': '#FFF44F',
+    'Banana': '#FFE135',
+    'Mustard': '#FFDB58',
+    'Honey': '#EB9605',
+    
+    // Oranges
+    'Burnt Orange': '#CC5500',
+    'Tangerine': '#FF9966',
+    'Sunset': '#FAD6A5',
+    'Peach': '#FFCBA4',
+    'Apricot': '#FBCEB1',
+    'Tennessee Orange': '#FF8200',
+    'Texas Orange': '#BF5700',
+    
+    // Solid prefix variants (Printify uses these)
+    'Solid Black': '#000000',
+    'Solid White': '#FFFFFF',
+    'Solid Red': '#DC2626',
+    'Solid Navy': '#1E3A5F',
+    'Solid Natural': '#F5F5DC',
+    'Solid Kelly Green': '#4CBB17',
+    'Solid Light Blue': '#93C5FD',
+    'Solid Light Grey': '#D1D5DB',
+    'Solid Light Gray': '#D1D5DB',
+    'Solid Light Pink': '#FFB6C1',
+    'Solid Midnight Navy': '#1A2744',
+    'Solid Military Green': '#4B5320',
+    'Solid Purple Rush': '#652DC1',
+    'Solid Royal': '#4169E1',
+    'Solid Turquoise': '#40E0D0',
+    'Solid Cardinal Red': '#C41E3A',
   };
   
   // Try exact match first
@@ -726,7 +867,29 @@ function getColorHex(colorName: string): string {
     if (key.toLowerCase() === lowerName) return value;
   }
   
-  // Default to a neutral gray if unknown
+  // Try partial match for compound names (e.g., "Heather Prism Dusty Blue" matches "Dusty Blue")
+  for (const [key, value] of Object.entries(colorMap)) {
+    if (lowerName.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerName)) {
+      return value;
+    }
+  }
+  
+  // Intelligent fallback based on color keywords in name
+  if (lowerName.includes('black')) return '#000000';
+  if (lowerName.includes('white')) return '#FFFFFF';
+  if (lowerName.includes('navy')) return '#1E3A5F';
+  if (lowerName.includes('red')) return '#DC2626';
+  if (lowerName.includes('blue')) return '#2563EB';
+  if (lowerName.includes('green')) return '#16A34A';
+  if (lowerName.includes('yellow')) return '#FACC15';
+  if (lowerName.includes('orange')) return '#F97316';
+  if (lowerName.includes('purple')) return '#9333EA';
+  if (lowerName.includes('pink')) return '#EC4899';
+  if (lowerName.includes('gray') || lowerName.includes('grey')) return '#6B7280';
+  if (lowerName.includes('brown') || lowerName.includes('chocolate')) return '#92400E';
+  if (lowerName.includes('heather')) return '#9CA3AF';
+  
+  // Default to neutral gray for truly unknown colors
   return '#808080';
 }
 

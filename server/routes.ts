@@ -2514,6 +2514,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Refresh color hex values for all providers using the catalog API
+  // This updates existing providers with proper hex codes without creating placeholder products
+  app.post("/api/admin/catalog/refresh-color-hex", isAdmin, async (req: any, res) => {
+    try {
+      if (!printify.isConfigured) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+
+      // Get all providers that have colors but missing hex values
+      const allProviders = await storage.getAllPrintifyProviders();
+      const providersNeedingHex = allProviders.filter(p => {
+        if (!p.availableColors || !Array.isArray(p.availableColors)) return false;
+        // Check if any color is missing hex
+        return (p.availableColors as any[]).some(c => !c.hex);
+      });
+
+      console.log(`[Color Hex Refresh] Found ${providersNeedingHex.length} providers needing hex values`);
+
+      let successCount = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
+
+      // Process in batches to avoid rate limiting
+      for (const provider of providersNeedingHex) {
+        try {
+          const catalogData = await syncProductVariants(provider.blueprintId, provider.providerId);
+          
+          await storage.updatePrintifyProviderCosts(provider.blueprintId, provider.providerId, {
+            availableColors: catalogData.colors,
+            availableSizes: catalogData.sizes,
+          });
+
+          successCount++;
+          console.log(`[Color Hex Refresh] Updated ${provider.blueprintId}/${provider.providerId} with ${catalogData.colors.length} colors`);
+          
+          // Rate limiting - 1 request per second
+          await new Promise(r => setTimeout(r, 1000));
+        } catch (err: any) {
+          failedCount++;
+          errors.push(`${provider.blueprintId}/${provider.providerId}: ${err.message}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Color hex refresh complete`,
+        totalProcessed: providersNeedingHex.length,
+        successCount,
+        failedCount,
+        errors: errors.slice(0, 10), // First 10 errors only
+      });
+
+    } catch (error: any) {
+      console.error('[Color Hex Refresh] Error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========================================
   // END LOCAL CATALOG SYNC ENDPOINTS
   // ========================================

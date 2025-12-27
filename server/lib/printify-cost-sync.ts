@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { printify } from "./printify";
+import { printify, syncProductVariants } from "./printify";
 import type { PrintifyCostSync, PrintifyPrintProvider } from "@shared/schema";
 
 interface CostSyncOptions {
@@ -160,14 +160,19 @@ async function runCostSyncBackground(
       tempProductId = placeholderProduct.id;
 
       const costs = printify.extractCostsFromProduct(placeholderProduct);
-      const colorsAndSizes = printify.extractColorsAndSizes(placeholderProduct);
+      
+      // Get colors with hex codes from catalog API instead of placeholder product
+      // This ensures we have proper color data with hex values for UI display
+      const catalogData = await syncProductVariants(provider.blueprintId, provider.providerId);
+      const colorsWithHex = catalogData.colors;
+      const sizes = catalogData.sizes;
 
       await storage.updatePrintifyProviderCosts(provider.blueprintId, provider.providerId, {
         minCost: costs.minCost,
         maxCost: costs.maxCost,
         placeholderProductId: placeholderProduct.id,
-        availableColors: colorsAndSizes.colors,
-        availableSizes: colorsAndSizes.sizes,
+        availableColors: colorsWithHex,
+        availableSizes: sizes,
       });
 
       // Auto-update product prices with new cost data
@@ -191,7 +196,7 @@ async function runCostSyncBackground(
         console.log(`[Cost Sync] Updated ${updatedCount} product(s) with price $${retailPrice.toFixed(2)}`);
       }
 
-      console.log(`[Cost Sync] ${provider.blueprintId}/${provider.providerId}: $${(costs.minCost / 100).toFixed(2)} - $${(costs.maxCost / 100).toFixed(2)}, ${colorsAndSizes.colors.length} colors, ${colorsAndSizes.sizes.length} sizes`);
+      console.log(`[Cost Sync] ${provider.blueprintId}/${provider.providerId}: $${(costs.minCost / 100).toFixed(2)} - $${(costs.maxCost / 100).toFixed(2)}, ${colorsWithHex.length} colors, ${sizes.length} sizes`);
       successCount++;
 
     } catch (err: any) {
