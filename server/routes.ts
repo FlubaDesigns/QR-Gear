@@ -4760,6 +4760,7 @@ ${allPages.map(page => `  <url>
             blueprintId: validatedData.productId || null,
             printProviderId: validatedData.printProviderId || null,
             madeInUSA: validatedData.madeInUSA || false,
+            isFeatured: validatedData.isFeatured || false,
             isEnabled: true,
             metadata: { customDesignId: design.id, source: "custom" },
           });
@@ -4778,6 +4779,7 @@ ${allPages.map(page => `  <url>
             blueprintId: validatedData.productId || null,
             printProviderId: validatedData.printProviderId || null,
             madeInUSA: validatedData.madeInUSA || false,
+            isFeatured: validatedData.isFeatured || false,
             isEnabled: true,
             metadata: { customDesignId: design.id, source: "custom" },
           });
