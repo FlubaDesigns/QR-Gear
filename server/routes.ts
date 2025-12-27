@@ -4729,8 +4729,8 @@ ${allPages.map(page => `  <url>
     }
   });
   
-  // Admin: Update custom design (partial update)
-  app.put("/api/admin/custom-designs/:id", isAdmin, async (req, res) => {
+  // Admin: Update custom design (partial update) - supports both PUT and PATCH
+  async function handleCustomDesignUpdate(req: any, res: any) {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -4747,7 +4747,10 @@ ${allPages.map(page => `  <url>
       console.error("[Custom Design Update] Error:", error);
       res.status(500).json({ error: error.message });
     }
-  });
+  }
+  
+  app.put("/api/admin/custom-designs/:id", isAdmin, handleCustomDesignUpdate);
+  app.patch("/api/admin/custom-designs/:id", isAdmin, handleCustomDesignUpdate);
   
   // Admin: Delete custom design
   app.delete("/api/admin/custom-designs/:id", isAdmin, async (req, res) => {
