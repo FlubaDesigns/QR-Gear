@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
@@ -17,19 +17,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, Filter, X } from "lucide-react";
+import { Package, Filter, X, Star, Loader2, Check } from "lucide-react";
 import UsaFlag from "@/components/UsaFlag";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Product, ProductCategory } from "@shared/schema";
+
+interface StoreProduct extends Product {
+  selectedColors?: string[];
+  defaultColor?: string;
+  mockupsByColor?: Record<string, { front?: string; back?: string }>;
+}
 
 export default function Store() {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
   const [selectedHoliday, setSelectedHoliday] = useState<string>("");
   const [selectedOccasion, setSelectedOccasion] = useState<string>("");
   const [selectedOther, setSelectedOther] = useState<string>("");
+  const [generatingMockups, setGeneratingMockups] = useState<Record<string, Set<string>>>({});
+  const [generatedMockups, setGeneratedMockups] = useState<Record<string, Set<string>>>({});
+  const { toast } = useToast();
 
-  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
+  const { data: products, isLoading: productsLoading } = useQuery<StoreProduct[]>({
+    queryKey: ["/api/products", "qr-gear-main", "Home"],
+    queryFn: async () => {
+      const res = await fetch("/api/products?store=qr-gear-main&segment=Home");
+      return res.json();
+    },
   });
+
+  const generateMockup = useMutation({
+    mutationFn: async ({ productId, color }: { productId: string; color: string }) => {
+      const response = await apiRequest("POST", "/api/storefront/generate-mockup", {
+        productId,
+        color,
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      setGeneratedMockups(prev => {
+        const productSet = new Set(prev[variables.productId] || []);
+        productSet.add(variables.color);
+        return { ...prev, [variables.productId]: productSet };
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/products", "qr-gear-main", "Home"] });
+      toast({
+        title: "Mockup generated",
+        description: `${variables.color} mockup is ready`,
+      });
+    },
+    onError: (error: Error, variables) => {
+      toast({
+        title: "Failed to generate mockup",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: (data, error, variables) => {
+      setGeneratingMockups(prev => {
+        const productSet = new Set(prev[variables.productId] || []);
+        productSet.delete(variables.color);
+        return { ...prev, [variables.productId]: productSet };
+      });
+    },
+  });
+
+  const handleGenerateMockup = (productId: string, color: string) => {
+    setGeneratingMockups(prev => {
+      const productSet = new Set(prev[productId] || []);
+      productSet.add(color);
+      return { ...prev, [productId]: productSet };
+    });
+    generateMockup.mutate({ productId, color });
+  };
 
   const { data: seasons } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories", "season"],
@@ -230,53 +290,96 @@ export default function Store() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {displayProducts.map((product) => (
-                <Card 
-                  key={product.id} 
-                  className="glass-card overflow-hidden hover-elevate transition-all duration-200"
-                  data-testid={`card-product-${product.id}`}
-                >
-                  <div className="relative aspect-square bg-muted">
-                    {product.imageUrl ? (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="w-12 h-12 text-muted-foreground" />
-                      </div>
-                    )}
-                    {product.madeInUSA && (
-                      <Badge 
-                        className="absolute top-3 right-3 gap-1.5"
-                        variant="secondary"
-                      >
-                        <UsaFlag className="w-4 h-3" />
-                        USA
-                      </Badge>
-                    )}
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-foreground mb-1 truncate">{product.name}</h3>
-                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                      {product.description || `Custom QR ${product.category}`}
-                    </p>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">Build to see price</span>
-                      <Link href="/creator">
-                        <Button 
-                          size="sm"
-                          data-testid={`button-customize-${product.id}`}
+              {displayProducts.map((product) => {
+                const colors = product.selectedColors || [];
+                const productGenerating = generatingMockups[product.id] || new Set();
+                const productGenerated = generatedMockups[product.id] || new Set();
+                
+                return (
+                  <Card 
+                    key={product.id} 
+                    className="glass-card overflow-hidden hover-elevate transition-all duration-200"
+                    data-testid={`card-product-${product.id}`}
+                  >
+                    <div className="relative aspect-square bg-muted">
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-12 h-12 text-muted-foreground" />
+                        </div>
+                      )}
+                      {product.madeInUSA && (
+                        <Badge 
+                          className="absolute top-3 right-3 gap-1.5"
+                          variant="secondary"
                         >
-                          Customize
-                        </Button>
-                      </Link>
+                          <UsaFlag className="w-4 h-3" />
+                          USA
+                        </Badge>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold text-foreground mb-1 truncate">{product.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                        {product.description || `Custom QR ${product.category}`}
+                      </p>
+                      
+                      {colors.length > 0 && (
+                        <div className="swatch-container" data-testid={`swatches-${product.id}`}>
+                          {colors.map((color) => {
+                            const hasMockup = product.mockupsByColor?.[color]?.front;
+                            const isGenerating = productGenerating.has(color);
+                            const justGenerated = productGenerated.has(color);
+                            
+                            return (
+                              <div key={color} className="swatch-item">
+                                <div
+                                  className="color-swatch"
+                                  style={{ backgroundColor: color.toLowerCase() }}
+                                  title={color}
+                                  data-testid={`swatch-${product.id}-${color}`}
+                                />
+                                <button
+                                  className={`mockup-star-btn ${hasMockup ? 'has-mockup' : ''} ${isGenerating ? 'generating' : ''} ${justGenerated ? 'success' : ''}`}
+                                  onClick={() => handleGenerateMockup(product.id, color)}
+                                  disabled={isGenerating || hasMockup}
+                                  title={hasMockup ? 'Mockup ready' : `Generate ${color} mockup`}
+                                  data-testid={`star-${product.id}-${color}`}
+                                >
+                                  {isGenerating ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : justGenerated ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : (
+                                    <Star className={`w-4 h-4 ${hasMockup ? 'fill-current' : ''}`} />
+                                  )}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between gap-2 mt-3">
+                        <span className="text-xs text-muted-foreground">Build to see price</span>
+                        <Link href="/creator">
+                          <Button 
+                            size="sm"
+                            data-testid={`button-customize-${product.id}`}
+                          >
+                            Customize
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
