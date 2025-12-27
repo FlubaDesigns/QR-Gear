@@ -56,6 +56,7 @@ import {
   QrCode,
   ImageIcon,
   ExternalLink,
+  Star,
 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import type { Product, ProductCategory, HostingTier, AdminSettings } from "@shared/schema";
@@ -268,6 +269,41 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
     new Set(savedEnabledColors || colors.map(c => c.name))
   );
   const [saving, setSaving] = useState(false);
+  const [generatingMockup, setGeneratingMockup] = useState<string | null>(null);
+  
+  const mockupsByColor = (product as any).mockupsByColor as Record<string, { front?: string }> | undefined;
+  
+  const generateMockupMutation = useMutation({
+    mutationFn: async (color: string) => {
+      const response = await apiRequest("POST", "/api/storefront/generate-mockup", {
+        productId: product.id,
+        color,
+      });
+      return response.json();
+    },
+    onSuccess: (data, color) => {
+      toast({
+        title: "Mockup generated",
+        description: `${color} mockup is ready`,
+      });
+      onUpdate();
+    },
+    onError: (error: Error, color) => {
+      toast({
+        title: "Failed to generate mockup",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setGeneratingMockup(null);
+    },
+  });
+  
+  const handleGenerateMockup = (color: string) => {
+    setGeneratingMockup(color);
+    generateMockupMutation.mutate(color);
+  };
   
   const toggleSize = async (size: string) => {
     const newSizes = new Set(enabledSizes);
@@ -378,21 +414,41 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
             Colors {saving && <Loader2 className="w-3 h-3 inline animate-spin ml-1" />}
           </Label>
           <div className="flex flex-wrap gap-2">
-            {colors.map(color => (
-              <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
-                <Switch
-                  id={`color-${product.id}-${color.name}`}
-                  checked={enabledColors.has(color.name)}
-                  onCheckedChange={() => toggleColor(color.name)}
-                  disabled={saving}
-                  data-testid={`switch-color-${product.id}-${color.name}`}
-                />
-                <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-5 h-5" />
-                <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
-                  {color.name}
-                </Label>
-              </div>
-            ))}
+            {colors.map(color => {
+              const hasMockup = mockupsByColor?.[color.name]?.front;
+              const isGenerating = generatingMockup === color.name;
+              
+              return (
+                <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                  <Switch
+                    id={`color-${product.id}-${color.name}`}
+                    checked={enabledColors.has(color.name)}
+                    onCheckedChange={() => toggleColor(color.name)}
+                    disabled={saving}
+                    data-testid={`switch-color-${product.id}-${color.name}`}
+                  />
+                  <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-5 h-5" />
+                  <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
+                    {color.name}
+                  </Label>
+                  <button
+                    className={`mockup-star-btn ${hasMockup ? 'has-mockup' : ''}`}
+                    onClick={() => handleGenerateMockup(color.name)}
+                    disabled={isGenerating || !!hasMockup}
+                    title={hasMockup ? 'Mockup ready' : `Generate ${color.name} mockup`}
+                    data-testid={`star-${product.id}-${color.name}`}
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : hasMockup ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Star className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
