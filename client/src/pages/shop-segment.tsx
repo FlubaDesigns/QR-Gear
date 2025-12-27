@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode } from "lucide-react";
+import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode, Check } from "lucide-react";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface MockupsByColor {
   [color: string]: {
@@ -78,13 +80,49 @@ interface StoreResponse {
 }
 
 // Product card with QR overlay and color swatches
-function StoreProductCard({ product }: { product: StoreProduct }) {
+function StoreProductCard({ product, storeType, storeName }: { product: StoreProduct; storeType: string; storeName: string }) {
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.defaultColor || null
   );
+  const [generatingColor, setGeneratingColor] = useState<string | null>(null);
+  const [generatedColors, setGeneratedColors] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   const availableColors = product.selectedColors || 
     (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
+
+  // Mockup generation mutation
+  const generateMockup = useMutation({
+    mutationFn: async (color: string) => {
+      // Send the product ID as-is - backend handles the custom_ prefix
+      const res = await apiRequest("POST", "/api/storefront/generate-mockup", {
+        productId: product.id,
+        color,
+      });
+      return res.json();
+    },
+    onMutate: (color) => {
+      setGeneratingColor(color);
+    },
+    onSuccess: (data, color) => {
+      setGeneratingColor(null);
+      setGeneratedColors(prev => new Set([...prev, color]));
+      toast({
+        title: "Mockup generated!",
+        description: `${color} mockup is now available.`,
+      });
+      // Refresh store data
+      queryClient.invalidateQueries({ queryKey: ["/api/store", storeType, storeName] });
+    },
+    onError: (error: any, color) => {
+      setGeneratingColor(null);
+      toast({
+        title: "Mockup generation failed",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const getCurrentImage = (): string | null => {
     // If we have mockups for colors, use the selected color's mockup
@@ -143,27 +181,52 @@ function StoreProductCard({ product }: { product: StoreProduct }) {
         )}
       </div>
       
-      {/* Color swatches */}
-      {availableColors.length > 1 && (
+      {/* Color swatches with mockup generation stars */}
+      {availableColors.length > 0 && (
         <div className="product-card-colors">
           {availableColors.map((color) => {
             const isDefault = color === product.defaultColor;
             const isSelected = selectedColor === color;
+            const hasMockupForColor = product.mockupsByColor?.[color]?.front;
+            const isGenerating = generatingColor === color;
+            const wasGenerated = generatedColors.has(color);
+            
             return (
-              <button
-                key={color}
-                className={`color-swatch ${isSelected ? 'selected' : ''} ${isDefault ? 'is-default' : ''}`}
-                style={{ backgroundColor: getColorHex(color) }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSelectedColor(color);
-                }}
-                title={isDefault ? `${color} (Default)` : color}
-                data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                {isDefault && <Star className="swatch-star" />}
-              </button>
+              <div key={color} className="swatch-container">
+                <button
+                  className={`color-swatch ${isSelected ? 'selected' : ''} ${isDefault ? 'is-default' : ''}`}
+                  style={{ backgroundColor: getColorHex(color) }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedColor(color);
+                  }}
+                  title={color}
+                  data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
+                />
+                {/* Star button for mockup generation */}
+                <button
+                  className={`mockup-star-btn ${hasMockupForColor || wasGenerated ? 'has-mockup' : ''} ${isGenerating ? 'is-loading' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isGenerating && !hasMockupForColor) {
+                      generateMockup.mutate(color);
+                    }
+                  }}
+                  disabled={isGenerating || !!hasMockupForColor}
+                  title={hasMockupForColor ? `${color} mockup ready` : isGenerating ? 'Generating...' : `Generate ${color} mockup`}
+                  data-testid={`star-${color.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="mockup-star-icon spin" />
+                  ) : hasMockupForColor || wasGenerated ? (
+                    <Check className="mockup-star-icon check" />
+                  ) : (
+                    <Star className="mockup-star-icon" />
+                  )}
+                </button>
+              </div>
             );
           })}
         </div>
@@ -300,7 +363,7 @@ export default function ShopSegmentPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {data?.products.map((product) => (
             <Link key={product.id} href={`/customs/${product.id}`}>
-              <StoreProductCard product={product} />
+              <StoreProductCard product={product} storeType={storeType} storeName={storeName} />
             </Link>
           ))}
         </div>

@@ -1701,6 +1701,75 @@ html[data-theme="light"] .vanity-highlight-icon {
   outline-offset: 2px;
 }
 
+/* Swatch container with star button */
+.swatch-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Mockup generation star button - 48px touch target */
+.mockup-star-btn {
+  min-width: 48px;
+  min-height: 32px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-stroke);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mockup-star-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mockup-star-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.mockup-star-btn.has-mockup {
+  background: var(--success-bg);
+  border-color: var(--success);
+}
+
+.mockup-star-btn.is-loading {
+  background: var(--warning-bg);
+  border-color: var(--warning);
+}
+
+.mockup-star-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-2);
+  transition: all 0.2s ease;
+}
+
+.mockup-star-btn:hover:not(:disabled) .mockup-star-icon {
+  color: var(--accent-text);
+}
+
+.mockup-star-icon.check {
+  color: var(--success);
+}
+
+.mockup-star-icon.spin {
+  animation: spin 1s linear infinite;
+  color: var(--warning);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Admin color picker - 48px touch targets for accessibility */
 .admin-color-picker {
   display: flex;

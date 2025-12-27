@@ -3683,6 +3683,162 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ PUBLIC STOREFRONT MOCKUP GENERATION ============
+  
+  // Public: Generate mockup for a store product color (no admin required)
+  // Validates the product exists in a partner store before generating
+  app.post("/api/storefront/generate-mockup", async (req, res) => {
+    try {
+      const { productId, color, storeId } = req.body;
+      
+      if (!productId || !color) {
+        return res.status(400).json({ error: "productId and color are required" });
+      }
+      
+      // For custom designs, productId comes as either "hello-world" or "custom_hello-world"
+      // The products table uses "custom_<designId>" format
+      const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
+      const designId = productId.startsWith('custom_') ? productId.replace('custom_', '') : productId;
+      
+      // Get the product from products table (uses canonical ID)
+      const product = await storage.getProduct(canonicalProductId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const blueprintId = product.blueprintId;
+      const printProviderId = product.printProviderId;
+      
+      if (!blueprintId || !printProviderId) {
+        return res.status(400).json({ error: "Product missing blueprint or print provider" });
+      }
+      
+      // Get artwork URL from custom design
+      const design = await storage.getCustomDesign(designId);
+      if (!design) {
+        return res.status(404).json({ error: "Design not found" });
+      }
+      
+      const artworkUrl = design.printifyCompositeUrl || 
+        (design.placementImages as any)?.["front-chest"] ||
+        Object.values(design.placementImages || {})[0] as string;
+      
+      if (!artworkUrl) {
+        return res.status(400).json({ error: "No artwork found for this product" });
+      }
+      
+      // Make artwork URL absolute
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : 'http://localhost:5000';
+      const absoluteArtworkUrl = artworkUrl.startsWith('http') ? artworkUrl : `${baseUrl}${artworkUrl}`;
+      
+      console.log(`[StorefrontMockup] Generating for product ${productId}, color ${color}`);
+      console.log(`[StorefrontMockup] Blueprint: ${blueprintId}, Provider: ${printProviderId}`);
+      
+      // Import Printify client
+      const printify = (await import("./lib/printify")).default;
+      const { syncProductVariants, syncProductPlacements } = await import("./lib/printify");
+      
+      // Get variants for this color
+      const { variants } = await syncProductVariants(blueprintId, printProviderId);
+      const colorVariants = variants.filter(v => 
+        v.options?.color && v.options.color.toLowerCase() === color.toLowerCase()
+      );
+      
+      if (colorVariants.length === 0) {
+        return res.status(400).json({ error: `No variants found for color: ${color}` });
+      }
+      
+      const variantIds = colorVariants.slice(0, 1).map(v => v.id);
+      console.log(`[StorefrontMockup] Found ${colorVariants.length} variants for ${color}`);
+      
+      // Upload artwork to Printify
+      const imageUpload = await printify.uploadImage(absoluteArtworkUrl, `mockup-${productId}-${color}.png`);
+      console.log(`[StorefrontMockup] Uploaded image ID: ${imageUpload.id}`);
+      
+      // Get placement info
+      const { placements } = await syncProductPlacements(blueprintId, printProviderId);
+      const placement = placements[0]?.position || "front";
+      
+      // Create Printify product to generate mockups
+      const productData = {
+        title: `Mockup - ${product.name} - ${color}`,
+        description: `Storefront mockup generation for ${color}`,
+        blueprint_id: blueprintId,
+        print_provider_id: printProviderId,
+        variants: variantIds.map(vid => ({
+          id: vid,
+          price: 2500,
+          is_enabled: true,
+        })),
+        print_areas: [{
+          variant_ids: variantIds,
+          placeholders: [{
+            position: placement,
+            images: [{
+              id: imageUpload.id,
+              x: 0.5,
+              y: 0.5,
+              scale: 1.0,
+              angle: 0,
+            }],
+          }],
+        }],
+      };
+      
+      const printifyProduct = await printify.createProduct(productData);
+      console.log(`[StorefrontMockup] Created Printify product: ${printifyProduct.id}`);
+      
+      // Poll for mockups
+      let attempts = 0;
+      const maxAttempts = 10;
+      let mockupUrl: string | null = null;
+      
+      while (attempts < maxAttempts && !mockupUrl) {
+        const delay = Math.min(2000 * Math.pow(1.5, attempts), 8000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
+        
+        const productDetails = await printify.getProduct(printifyProduct.id);
+        if (productDetails.images && productDetails.images.length > 0) {
+          mockupUrl = productDetails.images[0].src;
+          console.log(`[StorefrontMockup] Got mockup URL: ${mockupUrl}`);
+        }
+      }
+      
+      if (!mockupUrl) {
+        await printify.deleteProduct(printifyProduct.id).catch(() => {});
+        return res.status(500).json({ error: "Mockup generation timed out" });
+      }
+      
+      // Find the partner store product to update mockups
+      // Use storeId if provided, otherwise find any store that has this product
+      let storeProduct;
+      if (storeId) {
+        storeProduct = await storage.getPartnerStoreProduct(storeId, canonicalProductId);
+      }
+      
+      if (storeProduct) {
+        const existingMockups = (storeProduct.mockupsByColor as Record<string, any>) || {};
+        existingMockups[color] = { front: mockupUrl };
+        
+        await storage.updatePartnerStoreProductByIds(storeProduct.partnerStoreId, canonicalProductId, {
+          mockupsByColor: existingMockups,
+        });
+        console.log(`[StorefrontMockup] Saved mockup for ${color} to store product`);
+      }
+      
+      // Delete the temp Printify product
+      await printify.deleteProduct(printifyProduct.id).catch(() => {});
+      
+      res.json({ success: true, color, mockupUrl });
+    } catch (error: any) {
+      console.error("[StorefrontMockup] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ DYNAMIC PAGES ENDPOINTS ============
   
   // Get user's dynamic pages with active image info
