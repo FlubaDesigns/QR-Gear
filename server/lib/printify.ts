@@ -356,51 +356,100 @@ class PrintifyClient {
    * CRITICAL: This is the ONLY way to get Printify to render artwork onto mockups.
    * Draft products never have is_rendered=true; we must use this endpoint.
    * 
-   * Returns task/preview data that can be polled for completion.
+   * Flow:
+   * 1. POST /shops/{shop_id}/products/{product_id}/publishing/preview.json - starts render task
+   * 2. Poll GET /shops/{shop_id}/publishing/requests/{request_id}.json until status === "completed"
+   * 3. Extract mockups[].images[] from completed response
    */
   async requestPublishingPreview(productId: string): Promise<{ 
-    previews?: Array<{ 
-      variant_ids: number[]; 
-      mockups: Array<{ src: string; position: string }>; 
-    }>;
-    images?: Array<{ src: string; variant_ids: number[]; position?: string; is_default?: boolean }>;
+    id?: string;
     status?: string;
+    mockups?: Array<{ 
+      variant_ids: number[]; 
+      images: Array<{ src: string; position?: string; is_default?: boolean }>; 
+    }>;
   }> {
     console.log(`[Printify] Requesting publishing preview for product ${productId}...`);
-    // This endpoint triggers mockup generation and returns preview data
-    return this.request(`/shops/${this.getShopId()}/products/${productId}/publishing_succeeded.json`, {
+    
+    // Step 1: Start the publishing preview task
+    const previewRequest = await this.request<{ id: string }>(`/shops/${this.getShopId()}/products/${productId}/publishing/preview.json`, {
       method: 'POST',
-      body: JSON.stringify({
-        title: true,
-        description: true,
-        images: true,
-        variants: true,
-        tags: true,
-        keyFeatures: true,
-        shipping_template: true,
-      }),
-    }).catch(async (err) => {
-      // Fallback: try the images endpoint which may have rendered mockups
-      console.log(`[Printify] Publishing succeeded endpoint failed, trying images endpoint: ${err.message}`);
-      return this.request(`/shops/${this.getShopId()}/products/${productId}/images.json`);
+      body: JSON.stringify({}),
     });
+    
+    console.log(`[Printify] Publishing preview request started, ID: ${previewRequest.id}`);
+    return { id: previewRequest.id, status: 'pending' };
   }
 
   /**
-   * Force mockup refresh by updating the product (triggers re-render)
-   * Some Printify integrations require a product update to trigger mockup generation.
+   * Poll publishing preview status until completed
+   * Returns the mockup URLs when ready
    */
-  async forceProductMockupRefresh(productId: string): Promise<PrintifyProduct> {
-    console.log(`[Printify] Forcing mockup refresh for product ${productId}...`);
-    // Update the product with same data to trigger re-render
-    const product = await this.getProduct(productId);
-    return this.request(`/shops/${this.getShopId()}/products/${productId}.json`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        title: product.title,
-        description: product.description,
-      }),
-    });
+  async getPublishingPreviewStatus(requestId: string): Promise<{
+    status: string;
+    mockups?: Array<{ 
+      variant_ids: number[]; 
+      images: Array<{ src: string; position?: string; is_default?: boolean }>; 
+    }>;
+  }> {
+    return this.request(`/shops/${this.getShopId()}/publishing/requests/${requestId}.json`);
+  }
+
+  /**
+   * Full publishing preview flow - start task, poll until complete, return mockups
+   * Timeout after specified milliseconds
+   */
+  async getRenderedMockups(productId: string, timeoutMs: number = 60000): Promise<Array<{ src: string; position?: string; is_default?: boolean }> | null> {
+    try {
+      // Start the preview task
+      const previewResult = await this.requestPublishingPreview(productId);
+      if (!previewResult.id) {
+        console.error(`[Printify] No preview request ID returned`);
+        return null;
+      }
+
+      const requestId = previewResult.id;
+      const startTime = Date.now();
+      let attempts = 0;
+
+      // Poll until completed or timeout
+      while (Date.now() - startTime < timeoutMs) {
+        attempts++;
+        const delay = Math.min(3000 * Math.pow(1.2, attempts - 1), 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[Printify] Preview poll attempt ${attempts} (${elapsedSec}s)...`);
+
+        try {
+          const status = await this.getPublishingPreviewStatus(requestId);
+          console.log(`[Printify] Preview status: ${status.status}`);
+
+          if (status.status === 'completed' && status.mockups && status.mockups.length > 0) {
+            // Extract all images from mockups
+            const allImages: Array<{ src: string; position?: string; is_default?: boolean }> = [];
+            for (const mockup of status.mockups) {
+              if (mockup.images) {
+                allImages.push(...mockup.images);
+              }
+            }
+            console.log(`[Printify] Got ${allImages.length} rendered mockup images!`);
+            return allImages;
+          } else if (status.status === 'failed') {
+            console.error(`[Printify] Preview rendering failed`);
+            return null;
+          }
+        } catch (pollErr: any) {
+          console.log(`[Printify] Preview poll error: ${pollErr.message}`);
+        }
+      }
+
+      console.warn(`[Printify] Preview rendering timed out after ${timeoutMs/1000}s`);
+      return null;
+    } catch (err: any) {
+      console.error(`[Printify] Publishing preview error: ${err.message}`);
+      return null;
+    }
   }
 
   /**
