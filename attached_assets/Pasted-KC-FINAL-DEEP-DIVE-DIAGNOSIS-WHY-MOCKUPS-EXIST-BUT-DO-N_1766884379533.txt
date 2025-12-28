@@ -1,0 +1,178 @@
+KC — FINAL DEEP-DIVE DIAGNOSIS: WHY MOCKUPS EXIST BUT DO NOT DISPLAY
+
+Status:
+The frontend swatch bubbling fix WAS necessary but NOT sufficient. If the mockups still do not change, the root cause is almost certainly ONE of the issues below. These are not theoretical — they exactly match the current behavior.
+
+==================================================
+ROOT CAUSE #1 (MOST LIKELY): COLOR KEY MISMATCH
+==================================================
+
+The database field `products.mockups_by_color` is a MAP keyed by a STRING.
+Example keys stored in DB:
+  "Solid Black"
+  "Heather Grey"
+  "Navy"
+
+But the UI frequently uses a DIFFERENT string:
+  "Black"
+  "heather-grey"
+  "navy"
+  or a Printify variant label that does not match exactly.
+
+Result:
+- mockups_by_color EXISTS
+- logs say “mockup found”
+- lookup returns undefined
+- UI falls back to default image
+- appears as if DB is not working (but it is)
+
+THIS IS THE #1 REASON SYSTEMS LIKE THIS FAIL.
+
+----------------------------------
+CLIENT FIX (REQUIRED)
+----------------------------------
+
+Normalize BOTH sides before lookup.
+
+Add this helper:
+
+const norm = (s: string) =>
+  (s || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, "-");
+
+When resolving the image:
+
+const raw = product.mockupsByColor || product.mockups_by_color || {};
+const normalizedMap = Object.fromEntries(
+  Object.entries(raw).map(([k, v]) => [norm(k), v])
+);
+
+const selectedKey = norm(selectedColorName);
+const displayImage =
+  normalizedMap[selectedKey]?.mockup_url || product.imageUrl;
+
+<img
+  key={displayImage || "default"}
+  src={displayImage}
+  alt={product.title}
+/>
+
+----------------------------------
+SERVER IMPROVEMENT (OPTIONAL BUT STRONGLY RECOMMENDED)
+----------------------------------
+
+Store BOTH original and normalized keys:
+
+products.mockups_by_color["Solid Black"] = {...}
+products.mockups_by_color_norm["solid-black"] = {...}
+
+Then the client always uses `mockups_by_color_norm`.
+
+==================================================
+ROOT CAUSE #2: API RESPONSE DROPS THE FIELD
+==================================================
+
+DB column name:
+  mockups_by_color
+
+Frontend expects:
+  mockupsByColor
+
+If `/api/products` does not explicitly return this field, the UI will ALWAYS see `{}`.
+
+This is a silent failure and extremely common.
+
+----------------------------------
+VERIFY
+----------------------------------
+
+Open DevTools → Network → `/api/products`
+Check one product object.
+
+If you do NOT see:
+  mockups_by_color OR mockupsByColor
+
+Then this is the bug.
+
+----------------------------------
+SERVER FIX
+----------------------------------
+
+In server/routes.ts or the DB mapper:
+
+return {
+  ...row,
+  mockupsByColor: row.mockups_by_color,
+  availableColors: row.available_colors,
+  customerPrice: row.customer_price,
+};
+
+==================================================
+ROOT CAUSE #3: IMAGE DOES NOT REMOUNT
+==================================================
+
+Even if the URL changes, React may reuse the <img> node.
+This causes the image to visually stay the same.
+
+----------------------------------
+FIX
+----------------------------------
+
+Force remount:
+
+<img
+  key={displayImage || "default"}
+  src={displayImage}
+  alt={product.title}
+/>
+
+==================================================
+CONFIRMATION STEPS (DO THIS ONCE)
+==================================================
+
+When clicking a color swatch, log:
+
+console.log("selectedColorName:", selectedColorName);
+console.log(
+  "mockup keys:",
+  Object.keys(product.mockupsByColor || product.mockups_by_color || {})
+);
+
+If you see:
+  selectedColorName = "Black"
+  keys = ["Solid Black", "Navy", ...]
+
+Then ROOT CAUSE #1 is CONFIRMED.
+
+==================================================
+DESIRED FINAL ARCHITECTURE (CORRECT)
+==================================================
+
+1) Product is created in Printify
+2) Printify generates mockups for ALL colors
+3) Server downloads each mockup
+4) Server uploads to Object Storage (permanent URL)
+5) Server stores:
+   products.mockups_by_color[color] = { mockup_url, lifestyle_mockup_url }
+6) Storefront color switch is instant
+7) No Printify calls during browsing
+8) No expired URLs
+9) Deterministic UI behavior
+
+==================================================
+BOTTOM LINE
+==================================================
+
+The system is NOT fundamentally broken.
+The backend is producing data.
+The failure is almost certainly:
+- string key mismatch OR
+- API response mapping OR
+- React image reuse
+
+Normalize keys + confirm API payload.
+That will make the mockups finally switch correctly.

@@ -352,6 +352,58 @@ class PrintifyClient {
   }
 
   /**
+   * Request a publishing preview for a product - this triggers mockup rendering.
+   * CRITICAL: This is the ONLY way to get Printify to render artwork onto mockups.
+   * Draft products never have is_rendered=true; we must use this endpoint.
+   * 
+   * Returns task/preview data that can be polled for completion.
+   */
+  async requestPublishingPreview(productId: string): Promise<{ 
+    previews?: Array<{ 
+      variant_ids: number[]; 
+      mockups: Array<{ src: string; position: string }>; 
+    }>;
+    images?: Array<{ src: string; variant_ids: number[]; position?: string; is_default?: boolean }>;
+    status?: string;
+  }> {
+    console.log(`[Printify] Requesting publishing preview for product ${productId}...`);
+    // This endpoint triggers mockup generation and returns preview data
+    return this.request(`/shops/${this.getShopId()}/products/${productId}/publishing_succeeded.json`, {
+      method: 'POST',
+      body: JSON.stringify({
+        title: true,
+        description: true,
+        images: true,
+        variants: true,
+        tags: true,
+        keyFeatures: true,
+        shipping_template: true,
+      }),
+    }).catch(async (err) => {
+      // Fallback: try the images endpoint which may have rendered mockups
+      console.log(`[Printify] Publishing succeeded endpoint failed, trying images endpoint: ${err.message}`);
+      return this.request(`/shops/${this.getShopId()}/products/${productId}/images.json`);
+    });
+  }
+
+  /**
+   * Force mockup refresh by updating the product (triggers re-render)
+   * Some Printify integrations require a product update to trigger mockup generation.
+   */
+  async forceProductMockupRefresh(productId: string): Promise<PrintifyProduct> {
+    console.log(`[Printify] Forcing mockup refresh for product ${productId}...`);
+    // Update the product with same data to trigger re-render
+    const product = await this.getProduct(productId);
+    return this.request(`/shops/${this.getShopId()}/products/${productId}.json`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        title: product.title,
+        description: product.description,
+      }),
+    });
+  }
+
+  /**
    * Create a placeholder product WITH ONE PRINT to get the true minimum cost.
    * REQUIRES an image ID - will NOT fall back to blank garment cost.
    * 

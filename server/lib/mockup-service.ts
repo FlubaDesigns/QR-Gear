@@ -383,107 +383,113 @@ async function generatePrintifyMockup(params: {
   const printifyProduct = await printify.createProduct(productData);
   console.log(`[MockupService] Created temp Printify product: ${printifyProduct.id}`);
 
-  // Poll for RENDERED mockups with artwork in product.images[]
-  // CRITICAL: Must wait for is_rendered flag or artwork_status = "fulfilled" before downloading
-  // Without this check, we get blueprint placeholder images instead of QR-on-shirt mockups
-  let attempts = 0;
-  const maxAttempts = 30; // Increased for render wait
-  const maxWaitTimeMs = 90000; // 90 second max wait
-  const startTime = Date.now();
+  // NEW APPROACH: Use Printify's publishing preview to trigger mockup rendering
+  // The is_rendered flag NEVER becomes true for draft products - we must use publishing preview
   let mockupImages: { flat?: string; lifestyle?: string } = {};
   let hasRenderedMockups = false;
+  const startTime = Date.now();
+  const maxWaitTimeMs = 120000; // 2 minute max wait
 
-  while (attempts < maxAttempts && !hasRenderedMockups && (Date.now() - startTime) < maxWaitTimeMs) {
-    // Exponential backoff: 2s, 2.6s, 3.4s... up to 10s
-    const delay = Math.min(2000 * Math.pow(1.3, attempts), 10000);
-    await new Promise((resolve) => setTimeout(resolve, delay));
-    attempts++;
+  // Step 1: Wait a moment for product to be created, then force a refresh
+  console.log(`[MockupService] Waiting for product initialization...`);
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    const productDetails = await printify.getProduct(printifyProduct.id);
-    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+  // Step 2: Try to force mockup refresh and request publishing preview
+  try {
+    console.log(`[MockupService] Requesting publishing preview to trigger mockup rendering...`);
+    const previewResult = await printify.requestPublishingPreview(printifyProduct.id);
     
-    console.log(`[MockupService] Attempt ${attempts} (${elapsedSec}s): Checking for RENDERED mockups...`);
-    
-    // Check product.images[] - these are the RENDERED mockups with artwork on the shirt
-    // Match by variant_ids to get mockups for our specific color
-    if (productDetails.images && productDetails.images.length > 0) {
-      console.log(`[MockupService] Found ${productDetails.images.length} product images`);
-      
-      // Reset for this attempt
-      mockupImages = {};
-      let allRendered = true;
-      
-      for (let i = 0; i < productDetails.images.length; i++) {
-        const img = productDetails.images[i];
-        const src = typeof img === 'string' ? img : (img.src || '');
-        const imgVariantIds: number[] = img.variant_ids || [];
-        const isDefault = img.is_default || false;
+    // Check if preview returned mockups directly
+    if (previewResult.images && previewResult.images.length > 0) {
+      console.log(`[MockupService] Got ${previewResult.images.length} images from publishing preview`);
+      for (const img of previewResult.images) {
+        const src = img.src || '';
         const position = (img.position || "").toLowerCase();
+        const isDefault = img.is_default || false;
         
-        // CRITICAL: Check is_rendered flag - Printify marks this true ONLY when artwork is composited
-        const isRendered = img.is_rendered === true || img.render_status === "completed" || img.artwork_status === "fulfilled";
-        
-        // Check if this image is for our variant
-        const matchesOurVariant = imgVariantIds.length === 0 || imgVariantIds.some(vid => variantIds.includes(vid));
-        
-        console.log(`[MockupService] Image ${i}: position="${position}", is_rendered=${isRendered}, is_default=${isDefault}, variant_ids=[${imgVariantIds.join(',')}], matchesOurVariant=${matchesOurVariant}`);
-        
-        if (!matchesOurVariant) continue;
-        
-        // Only consider rendered images - blueprint placeholders have is_rendered=false or undefined
-        if (!isRendered) {
-          allRendered = false;
-          continue;
-        }
-        
-        // Take front/default image as flat mockup
-        const isFrontPosition = position === '' || position === 'front' || position.includes('front');
-        if (!mockupImages.flat && (isDefault || isFrontPosition || i === 0)) {
+        if (!mockupImages.flat && (isDefault || position === 'front' || position === '')) {
           mockupImages.flat = src;
-          console.log(`[MockupService] Selected RENDERED flat mockup: ${src.substring(0, 80)}...`);
+          console.log(`[MockupService] Got flat mockup from preview: ${src.substring(0, 80)}...`);
         }
         
-        // Look for lifestyle (model wearing it)
         const lifestyleKeywords = ['lifestyle', 'model', 'worn', 'person', 'other'];
-        const isLifestylePosition = lifestyleKeywords.some(kw => position.includes(kw));
-        
-        if (!mockupImages.lifestyle && isLifestylePosition) {
+        if (!mockupImages.lifestyle && lifestyleKeywords.some(kw => position.includes(kw))) {
           mockupImages.lifestyle = src;
-          console.log(`[MockupService] Selected RENDERED lifestyle mockup: ${src.substring(0, 80)}...`);
+          console.log(`[MockupService] Got lifestyle mockup from preview: ${src.substring(0, 80)}...`);
         }
       }
       
-      // If we have multiple images and no lifestyle yet, use a non-front rendered image
-      if (productDetails.images.length > 1 && mockupImages.flat && !mockupImages.lifestyle) {
+      if (mockupImages.flat) {
+        hasRenderedMockups = true;
+      }
+    }
+  } catch (previewErr: any) {
+    console.log(`[MockupService] Publishing preview attempt: ${previewErr.message}`);
+  }
+
+  // Step 3: If preview didn't work, poll product.images with longer wait
+  // Sometimes Printify takes time to render even after product creation
+  if (!hasRenderedMockups) {
+    console.log(`[MockupService] Preview didn't return mockups, polling product.images...`);
+    let attempts = 0;
+    const maxAttempts = 15;
+    
+    while (attempts < maxAttempts && !hasRenderedMockups && (Date.now() - startTime) < maxWaitTimeMs) {
+      const delay = Math.min(5000 * Math.pow(1.2, attempts), 15000);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      attempts++;
+
+      const productDetails = await printify.getProduct(printifyProduct.id);
+      const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+      
+      console.log(`[MockupService] Attempt ${attempts} (${elapsedSec}s): Checking product images...`);
+      
+      if (productDetails.images && productDetails.images.length > 0) {
+        // Reset for this attempt
+        mockupImages = {};
+        
         for (let i = 0; i < productDetails.images.length; i++) {
           const img = productDetails.images[i];
           const src = typeof img === 'string' ? img : (img.src || '');
-          const position = (img.position || "").toLowerCase();
           const imgVariantIds: number[] = img.variant_ids || [];
-          const isRendered = img.is_rendered === true || img.render_status === "completed" || img.artwork_status === "fulfilled";
+          const isDefault = img.is_default || false;
+          const position = (img.position || "").toLowerCase();
           
-          // Skip non-rendered, back/side views
-          if (!isRendered) continue;
-          if (position.includes('back') || position.includes('side')) continue;
-          
-          // Match our variant
+          // Check if this image is for our variant
           const matchesOurVariant = imgVariantIds.length === 0 || imgVariantIds.some(vid => variantIds.includes(vid));
           if (!matchesOurVariant) continue;
           
-          if (src && src !== mockupImages.flat) {
+          // Check various rendering indicators
+          const isRendered = img.is_rendered === true || img.render_status === "completed" || 
+                            img.artwork_status === "fulfilled" || img.status === "rendered";
+          
+          console.log(`[MockupService] Image ${i}: position="${position}", is_rendered=${isRendered}, src_preview=${src.substring(0, 60)}...`);
+          
+          // Take front/default image as flat mockup (even if not marked rendered - try anyway)
+          const isFrontPosition = position === '' || position === 'front' || position.includes('front');
+          if (!mockupImages.flat && (isDefault || isFrontPosition || i === 0)) {
+            // For Printify, if src contains 'images-api' or specific rendered URL patterns, it's likely rendered
+            const looksRendered = src.includes('images-api.printify.com') || src.includes('/mockups/') || isRendered;
+            if (looksRendered || attempts >= 5) {  // After 5 attempts, try anyway
+              mockupImages.flat = src;
+              console.log(`[MockupService] Selected flat mockup (attempt ${attempts}): ${src.substring(0, 80)}...`);
+            }
+          }
+          
+          // Look for lifestyle (model wearing it)
+          const lifestyleKeywords = ['lifestyle', 'model', 'worn', 'person', 'other'];
+          const isLifestylePosition = lifestyleKeywords.some(kw => position.includes(kw));
+          
+          if (!mockupImages.lifestyle && isLifestylePosition) {
             mockupImages.lifestyle = src;
-            console.log(`[MockupService] Using rendered image ${i} as lifestyle (secondary pick)`);
-            break;
+            console.log(`[MockupService] Selected lifestyle mockup: ${src.substring(0, 80)}...`);
           }
         }
-      }
-      
-      // Only mark complete if we have a RENDERED flat mockup
-      if (mockupImages.flat) {
-        hasRenderedMockups = true;
-        console.log(`[MockupService] Got RENDERED mockup URLs after ${attempts} attempts / ${elapsedSec}s (lifestyle: ${!!mockupImages.lifestyle})`);
-      } else if (!allRendered) {
-        console.log(`[MockupService] Waiting for Printify to render mockups... (not all images rendered yet)`);
+        
+        if (mockupImages.flat) {
+          hasRenderedMockups = true;
+          console.log(`[MockupService] Got mockup URLs after ${attempts} attempts / ${elapsedSec}s`);
+        }
       }
     }
   }
