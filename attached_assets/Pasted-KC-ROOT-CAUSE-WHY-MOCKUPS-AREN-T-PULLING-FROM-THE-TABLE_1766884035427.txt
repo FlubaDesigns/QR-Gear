@@ -1,0 +1,100 @@
+KC — ROOT CAUSE (WHY “MOCKUPS AREN’T PULLING FROM THE TABLE” EVEN THOUGH THEY EXIST)
+
+High confidence diagnosis: this is primarily a FRONTEND interaction bug that makes it LOOK like the backend/database isn’t working.
+
+WHAT’S HAPPENING
+1) The customer clicks a COLOR SWATCH.
+2) handleColorChange(color) runs and updates selectedColor.
+3) BUT the swatches are nested inside a clickable product card.
+4) The parent card click handler ALSO fires (event bubbles).
+5) That card click opens Quick View / modal (or triggers navigation).
+6) When the modal opens/closes, state is reset (or selectedColor defaults).
+7) Result: the image “never changes” on screen, even though:
+   - /api/storefront/generate-mockup returns a valid mockup URL
+   - products.mockups_by_color contains the mockups
+   - mockup_cache contains entries
+   - getCurrentMockup() finds the correct URL for the selected color
+
+In other words: DB is not the primary problem. UI is clobbering state before you ever see the updated mockup.
+
+SYMPTOMS THAT MATCH THIS EXACTLY
+- Logs show “found mockup URL for color X”
+- But the displayed <img> stays on the default color
+- Color selection appears to “snap back”
+- Clicking swatches sometimes opens quick view / triggers the card click
+- Behavior is worse on mobile (touch triggers parent click more easily)
+
+THE FIX (FRONTEND) — STOP EVENT BUBBLING + FORCE IMAGE REMOUNT
+
+1) STOP EVENT BUBBLING ON THE SWATCH BUTTONS
+Use pointerdown + click capture to prevent the parent from firing:
+
+<button
+  type="button"
+  onPointerDown={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }}
+  onClickCapture={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }}
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleColorChange(color);
+  }}
+>
+  ...
+</button>
+
+2) ADD A GUARD IN THE CARD CLICK HANDLER (BULLETPROOF)
+If the user clicked inside the swatch area, do NOT open quick view:
+
+const onCardClick = (e: React.MouseEvent) => {
+  const target = e.target as HTMLElement;
+  if (target.closest(".product-card-colors")) return; // ignore swatch clicks
+  onOpenQuickView(product);
+};
+
+Then:
+<div onClick={onCardClick}> ... </div>
+
+3) FORCE THE IMAGE TO REMOUNT WHEN URL CHANGES (REACT QUIRK FIX)
+Sometimes React reuses the <img> node; force remount on change:
+
+<img
+  key={displayImage || "default"}
+  src={displayImage || product.imageUrl}
+  ...
+/>
+
+WHY THIS MATTERS
+Even if the backend is 100% correct, the UI can still make it look broken. This is the fastest, most likely fix for “the agent can’t retrieve mockups from the table.”
+
+SECONDARY CHECK (BACKEND/API MAPPING) — COMMON SILENT FAILURE
+Even if products.mockups_by_color is populated, the storefront may not receive it if your API response mapping forgets it:
+
+DB column: mockups_by_color
+Frontend expects: mockupsByColor
+
+If /api/products does NOT include mockups_by_color (or does not transform it to mockupsByColor), the frontend will see an empty object and default image will always be used.
+
+Confirm in server/storage.ts or server/routes.ts:
+- the SELECT includes mockups_by_color
+- the JSON response includes it (and uses consistent naming)
+- JSON fields are not being dropped when serializing
+
+DESIRED BEHAVIOR (YOUR ARCHITECTURE GOAL)
+When product is created:
+1) Printify generates mockups for ALL available colors
+2) Server downloads each mockup
+3) Server uploads them to Object Storage (permanent URL)
+4) Server stores them in products.mockups_by_color[color] = { mockup_url, lifestyle_mockup_url? }
+5) Storefront color click becomes instant (no Printify call at browse-time)
+
+This makes color switching deterministic and fast, and prevents Printify URL expiration issues.
+
+BOTTOM LINE
+Fix the swatch click bubble + force <img> remount first.
+That addresses the “DB not returning mockups” illusion and should immediately make the color preview switch correctly.

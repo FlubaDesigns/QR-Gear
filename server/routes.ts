@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, or, isNull, lte, gte } from "drizzle-orm";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
-import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema, productBundles, bundleItems, masterProducts, products, insertEmailTemplateSchema } from "@shared/schema";
+import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema, productBundles, bundleItems, masterProducts, products, insertEmailTemplateSchema, mockupCache } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants, detectCategory } from "./lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
@@ -1717,6 +1717,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteProduct(id);
       res.json({ success: true });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Regenerate mockups for a product using local generator
+  app.post("/api/admin/products/:id/regenerate-mockups", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const product = await storage.getProduct(id);
+      
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      if (!product.blueprintId || !product.printProviderId) {
+        return res.status(400).json({ error: "Product missing blueprint or provider info" });
+      }
+      
+      // Get custom design artwork
+      const metadata = product.metadata as { customDesignId?: string } | null;
+      const designId = metadata?.customDesignId;
+      if (!designId) {
+        return res.status(400).json({ error: "Product has no custom design associated" });
+      }
+      
+      const design = await storage.getCustomDesign(designId);
+      if (!design) {
+        return res.status(404).json({ error: "Custom design not found" });
+      }
+      
+      const placementImages = design.placementImages as Record<string, string>;
+      const artworkBlackUrl = placementImages?.["front-center"] || placementImages?.["front-chest"];
+      const artworkWhiteUrl = placementImages?.["front-center-white"] || placementImages?.["front-chest-white"];
+      
+      if (!artworkBlackUrl) {
+        return res.status(400).json({ error: "No artwork found for this design" });
+      }
+      
+      // Use local mockup generator for all colors
+      const { generateAllColorMockups } = await import("./lib/local-mockup-generator");
+      
+      const colors = (product.availableColors as Array<{ name: string; hex: string }>) || [];
+      
+      console.log(`[Admin] Regenerating mockups for ${product.name} with ${colors.length} colors`);
+      
+      const mockupsByColor = await generateAllColorMockups(
+        product.blueprintId,
+        product.printProviderId,
+        colors,
+        artworkBlackUrl,
+        artworkWhiteUrl || artworkBlackUrl
+      );
+      
+      // Update product with new mockups
+      await storage.updateProduct(id, { mockupsByColor });
+      
+      // Clear mockup cache for this product to force refresh
+      await db.delete(mockupCache).where(
+        and(
+          eq(mockupCache.blueprintId, product.blueprintId),
+          eq(mockupCache.printProviderId, product.printProviderId)
+        )
+      );
+      
+      res.json({
+        success: true,
+        message: `Regenerated mockups for ${Object.keys(mockupsByColor).length} colors`,
+        mockupsByColor
+      });
+    } catch (error: any) {
+      console.error("[Admin] Failed to regenerate mockups:", error);
       res.status(500).json({ error: error.message });
     }
   });

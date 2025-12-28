@@ -384,25 +384,34 @@ async function generatePrintifyMockup(params: {
   console.log(`[MockupService] Created temp Printify product: ${printifyProduct.id}`);
 
   // Poll for RENDERED mockups with artwork in product.images[]
-  // NOTE: print_areas[].placeholders[].images[].src is just the UPLOADED artwork URL, NOT rendered mockups!
-  // The ACTUAL rendered mockups (showing QR on shirt) are in product.images[] with matching variant_ids
+  // CRITICAL: Must wait for is_rendered flag or artwork_status = "fulfilled" before downloading
+  // Without this check, we get blueprint placeholder images instead of QR-on-shirt mockups
   let attempts = 0;
-  const maxAttempts = 20;
+  const maxAttempts = 30; // Increased for render wait
+  const maxWaitTimeMs = 90000; // 90 second max wait
+  const startTime = Date.now();
   let mockupImages: { flat?: string; lifestyle?: string } = {};
+  let hasRenderedMockups = false;
 
-  while (attempts < maxAttempts && !mockupImages.flat) {
-    const delay = Math.min(3000 * Math.pow(1.3, attempts), 15000);
+  while (attempts < maxAttempts && !hasRenderedMockups && (Date.now() - startTime) < maxWaitTimeMs) {
+    // Exponential backoff: 2s, 2.6s, 3.4s... up to 10s
+    const delay = Math.min(2000 * Math.pow(1.3, attempts), 10000);
     await new Promise((resolve) => setTimeout(resolve, delay));
     attempts++;
 
     const productDetails = await printify.getProduct(printifyProduct.id);
+    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
     
-    console.log(`[MockupService] Attempt ${attempts}: Checking product.images for rendered mockups...`);
+    console.log(`[MockupService] Attempt ${attempts} (${elapsedSec}s): Checking for RENDERED mockups...`);
     
     // Check product.images[] - these are the RENDERED mockups with artwork on the shirt
     // Match by variant_ids to get mockups for our specific color
     if (productDetails.images && productDetails.images.length > 0) {
       console.log(`[MockupService] Found ${productDetails.images.length} product images`);
+      
+      // Reset for this attempt
+      mockupImages = {};
+      let allRendered = true;
       
       for (let i = 0; i < productDetails.images.length; i++) {
         const img = productDetails.images[i];
@@ -411,25 +420,27 @@ async function generatePrintifyMockup(params: {
         const isDefault = img.is_default || false;
         const position = (img.position || "").toLowerCase();
         
+        // CRITICAL: Check is_rendered flag - Printify marks this true ONLY when artwork is composited
+        const isRendered = img.is_rendered === true || img.render_status === "completed" || img.artwork_status === "fulfilled";
+        
         // Check if this image is for our variant
         const matchesOurVariant = imgVariantIds.length === 0 || imgVariantIds.some(vid => variantIds.includes(vid));
         
-        console.log(`[MockupService] Image ${i}: position="${position}", is_default=${isDefault}, variant_ids=[${imgVariantIds.join(',')}], matchesOurVariant=${matchesOurVariant}`);
+        console.log(`[MockupService] Image ${i}: position="${position}", is_rendered=${isRendered}, is_default=${isDefault}, variant_ids=[${imgVariantIds.join(',')}], matchesOurVariant=${matchesOurVariant}`);
         
         if (!matchesOurVariant) continue;
         
-        // Check if this looks like a rendered mockup (not just blueprint default)
-        // Rendered mockups typically have URLs with 'printify' or specific product patterns
-        const looksRendered = src.includes('images-api.printify.com') || 
-                              src.includes('printify-prod') ||
-                              src.includes('/mockup/') ||
-                              imgVariantIds.length > 0;
+        // Only consider rendered images - blueprint placeholders have is_rendered=false or undefined
+        if (!isRendered) {
+          allRendered = false;
+          continue;
+        }
         
         // Take front/default image as flat mockup
         const isFrontPosition = position === '' || position === 'front' || position.includes('front');
         if (!mockupImages.flat && (isDefault || isFrontPosition || i === 0)) {
           mockupImages.flat = src;
-          console.log(`[MockupService] Selected flat mockup: ${src.substring(0, 80)}...`);
+          console.log(`[MockupService] Selected RENDERED flat mockup: ${src.substring(0, 80)}...`);
         }
         
         // Look for lifestyle (model wearing it)
@@ -438,19 +449,21 @@ async function generatePrintifyMockup(params: {
         
         if (!mockupImages.lifestyle && isLifestylePosition) {
           mockupImages.lifestyle = src;
-          console.log(`[MockupService] Selected lifestyle mockup: ${src.substring(0, 80)}...`);
+          console.log(`[MockupService] Selected RENDERED lifestyle mockup: ${src.substring(0, 80)}...`);
         }
       }
       
-      // If we have multiple images and no lifestyle yet, use a non-front image
+      // If we have multiple images and no lifestyle yet, use a non-front rendered image
       if (productDetails.images.length > 1 && mockupImages.flat && !mockupImages.lifestyle) {
         for (let i = 0; i < productDetails.images.length; i++) {
           const img = productDetails.images[i];
           const src = typeof img === 'string' ? img : (img.src || '');
           const position = (img.position || "").toLowerCase();
           const imgVariantIds: number[] = img.variant_ids || [];
+          const isRendered = img.is_rendered === true || img.render_status === "completed" || img.artwork_status === "fulfilled";
           
-          // Skip back/side views
+          // Skip non-rendered, back/side views
+          if (!isRendered) continue;
           if (position.includes('back') || position.includes('side')) continue;
           
           // Match our variant
@@ -459,16 +472,51 @@ async function generatePrintifyMockup(params: {
           
           if (src && src !== mockupImages.flat) {
             mockupImages.lifestyle = src;
-            console.log(`[MockupService] Using image ${i} as lifestyle (secondary pick)`);
+            console.log(`[MockupService] Using rendered image ${i} as lifestyle (secondary pick)`);
             break;
           }
         }
       }
+      
+      // Only mark complete if we have a RENDERED flat mockup
+      if (mockupImages.flat) {
+        hasRenderedMockups = true;
+        console.log(`[MockupService] Got RENDERED mockup URLs after ${attempts} attempts / ${elapsedSec}s (lifestyle: ${!!mockupImages.lifestyle})`);
+      } else if (!allRendered) {
+        console.log(`[MockupService] Waiting for Printify to render mockups... (not all images rendered yet)`);
+      }
+    }
+  }
+  
+  // FALLBACK: If Printify didn't render in time, use local mockup generator
+  if (!mockupImages.flat) {
+    console.warn(`[MockupService] Printify did not render mockups in ${maxWaitTimeMs/1000}s - using local generator fallback`);
+    
+    // Delete the temp product before falling back
+    await printify.deleteProduct(printifyProduct.id).catch((err: Error) => {
+      console.warn(`[MockupService] Failed to delete temp product: ${err.message}`);
+    });
+    
+    // Use local mockup generator
+    const { generateLocalMockup } = await import("./local-mockup-generator");
+    
+    // Determine artwork variant based on color
+    const colorHex = colorVariants[0]?.options?.color_code || "#FFFFFF";
+    const isDarkColor = isColorDark(colorHex);
+    
+    const localMockup = await generateLocalMockup({
+      shirtColor: colorName,
+      shirtHex: colorHex,
+      artworkUrl: absoluteArtworkUrl,
+      artworkVariant: isDarkColor ? 'white' : 'black'
+    }, blueprintId, printProviderId);
+    
+    if (localMockup) {
+      console.log(`[MockupService] Generated local fallback mockup: ${localMockup.flatUrl}`);
+      return { flat: localMockup.flatUrl, lifestyle: localMockup.lifestyleUrl || undefined };
     }
     
-    if (mockupImages.flat) {
-      console.log(`[MockupService] Got mockup URLs after ${attempts} attempts (lifestyle: ${!!mockupImages.lifestyle})`);
-    }
+    return null;
   }
 
   // CRITICAL: Download and store images in Object Storage BEFORE deleting the temp product
