@@ -6,21 +6,24 @@
 
 ---
 
-## CURRENT STATUS - December 27, 2025
+## CURRENT STATUS - December 28, 2025
 
-### FOR GHOST — READ THESE FILES:
+### NEW FILES FOR HANDOFF:
 
 | Priority | File | Contents |
 |----------|------|----------|
-| **1** | **`HANDOFF-DEC27.md`** | **ALL FIELD NAMES, MAPPINGS, AND PROBLEM SUMMARY** |
-| 2 | `SCHEMA/DATABASE-SCHEMA.md` | All database tables with every column |
-| 3 | `KC/GHOST-FINAL-ANSWER-DEC27.md` | Printify architecture |
+| **1** | **`QR/DATABASE-CONTENTS-DEC28.md`** | **ACTUAL DATA IN ALL TABLES WITH FILE LOCATIONS** |
+| **2** | **`QR/SITEMAP-DEC28.md`** | **ALL 61 PAGES WITH ROUTES** |
+| **3** | **`QR/PROJECT-STRUCTURE-DEC28.md`** | **COMPLETE FILE/FOLDER MAP** |
+| 4 | `HANDOFF-DEC27.md` | Field names and problem summary |
+| 5 | `SCHEMA/DATABASE-SCHEMA.md` | All database tables with columns |
+| 6 | `KC/GHOST-FINAL-ANSWER-DEC27.md` | Printify architecture |
 
 ### The Bug:
-We save `print_areas[].placeholders[].images[].src` which is the **UPLOADED ARTWORK URL**, not the rendered mockup showing QR on the shirt.
+Mockup images saved in `mockups_by_color` are **Printify blueprint stock photos**, NOT rendered mockups showing QR artwork on shirts.
 
 ### The Fix:
-Use Printify Mockup Generator API or wait for `product.images[]` after publishing.
+Generate mockups locally by compositing QR artwork onto shirt templates using canvas, OR use Printify Mockup Generator API.
 
 ---
 
@@ -28,13 +31,17 @@ Use Printify Mockup Generator API or wait for `product.images[]` after publishin
 
 ```
 AI-COMMS/
-├── HANDOFF-DEC27.md                ← ALL FIELD NAMES AND MAPPINGS
+├── README.md                       ← THIS FILE
+├── HANDOFF-DEC27.md                ← Field names and mappings
 ├── SCHEMA/
 │   └── DATABASE-SCHEMA.md          ← All tables/columns
 ├── KC/
 │   ├── GHOST-FINAL-ANSWER-DEC27.md
 │   └── *.md
 ├── QR/
+│   ├── DATABASE-CONTENTS-DEC28.md  ← ACTUAL DATA WITH FILE LOCATIONS
+│   ├── SITEMAP-DEC28.md            ← ALL 61 ROUTES
+│   ├── PROJECT-STRUCTURE-DEC28.md  ← FILE/FOLDER MAP
 │   └── *.md
 ├── SHARED/
 │   └── VERSION.md
