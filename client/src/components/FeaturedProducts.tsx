@@ -89,16 +89,24 @@ function ProductCard({
   const mockupResult = getCurrentMockup();
   const displayImage = mockupResult.url || product.imageUrl || "";
 
+  // FIX #2: Guard the Card Click Handler - ignore clicks on swatch area
+  const onCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest(".product-card-colors")) return; // ignore swatch clicks
+    onOpenQuickView(product);
+  };
+
   return (
     <div 
       className="glass-card product-card hover-elevate cursor-pointer"
       data-testid={`card-product-${product.id}`}
-      onClick={() => onOpenQuickView(product)}
+      onClick={onCardClick}
     >
       <div className="product-card-image">
+        {/* FIX #3: Force Image Remount with key={displayImage} */}
         <img
-          key={`${product.id}-${selectedColor || 'default'}`}
-          src={displayImage}
+          key={displayImage || "default"}
+          src={displayImage || product.imageUrl || ""}
           alt={product.name}
         />
         {!mockupResult.url && product.qrCodeUrl && (
@@ -117,24 +125,25 @@ function ProductCard({
       </div>
       
       {availableColors.length > 1 && (
-        <div 
-          className="product-card-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onClickCapture={(e) => {
-            e.stopPropagation();
-          }}
-        >
+        <div className="product-card-colors">
           {availableColors.slice(0, 5).map((color) => (
+            // FIX #1: Stop Event Bubbling on Swatch Buttons (Ghost's exact spec)
             <button
+              type="button"
               key={color}
               className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
               style={{ backgroundColor: colorHexMap[color] || getColorHex(color) }}
-              onClick={(e) => {
-                e.stopPropagation();
+              onPointerDown={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClickCapture={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 handleColorChange(color);
               }}
               title={color}
