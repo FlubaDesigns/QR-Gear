@@ -70,8 +70,8 @@ function ProductCard({
   const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
     const color = selectedColor || product.defaultColor || availableColors[0];
     
-    // Helper to check if URL is valid (HTTP URL, not broken local path)
-    const isValidUrl = (url?: string) => url && url.startsWith('http');
+    // Helper to check if URL is valid (HTTP URL or local /api/files path)
+    const isValidUrl = (url?: string) => url && (url.startsWith('http') || url.startsWith('/api/files'));
     
     // Use pre-loaded mockups from product data (already cached in DB)
     if (product.mockupsByColor && color && product.mockupsByColor[color]) {
