@@ -351,14 +351,18 @@ async function generatePrintfulMockup(params: {
   const printfiles = await printfulClient.getPrintfiles(printfulProductId);
   const frontPrintfile = printfiles.printfiles?.find((p: any) => p.printfile_id === 1) || printfiles.printfiles?.[0];
   
-  // Default position for front chest
+  // Position for front chest - larger QR code for visibility
+  const areaWidth = frontPrintfile?.width || 1800;
+  const areaHeight = frontPrintfile?.height || 2400;
+  const qrSize = 1000;  // Large QR code (55% of print width)
+  
   const position = {
-    area_width: frontPrintfile?.width || 1800,
-    area_height: frontPrintfile?.height || 2400,
-    width: 500,
-    height: 500,
-    top: 600,  // Upper chest area
-    left: (frontPrintfile?.width || 1800) / 2 - 250,  // Centered
+    area_width: areaWidth,
+    area_height: areaHeight,
+    width: qrSize,
+    height: qrSize,
+    top: 400,  // Upper chest area
+    left: (areaWidth - qrSize) / 2,  // Centered horizontally
   };
 
   // Step 4: Map canonical placement to Printful placement
