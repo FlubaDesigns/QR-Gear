@@ -1793,6 +1793,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate ALL color mockups for a product using Printful (admin-created products)
+  // This generates mockups for every available color, not just enabled ones
+  app.post("/api/admin/products/:id/generate-all-mockups", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const product = await storage.getProduct(id);
+      
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      if (!product.blueprintId) {
+        return res.status(400).json({ error: "Product missing blueprint info" });
+      }
+      
+      // Get custom design artwork
+      const metadata = product.metadata as { customDesignId?: string } | null;
+      const designId = metadata?.customDesignId || id.replace('custom_', '');
+      
+      const design = await storage.getCustomDesign(designId);
+      if (!design) {
+        return res.status(404).json({ error: "Custom design not found" });
+      }
+      
+      // Get ALL available colors from the product
+      const allColors = (product.availableColors as Array<{ name: string; hex: string }>) || [];
+      
+      if (allColors.length === 0) {
+        return res.status(400).json({ error: "No colors available for this product" });
+      }
+      
+      console.log(`[Admin] Generating Printful mockups for ${product.name} - ${allColors.length} colors`);
+      
+      // Parse placement images
+      let designPlacements: Record<string, string> = {};
+      try {
+        if (typeof design.placementImages === 'string') {
+          designPlacements = JSON.parse(design.placementImages);
+        } else if (design.placementImages && typeof design.placementImages === 'object') {
+          designPlacements = design.placementImages as Record<string, string>;
+        }
+      } catch (e) {
+        console.error('[Admin] Failed to parse placementImages:', e);
+      }
+      
+      const blackArtwork = designPlacements["front-chest"] || 
+                           designPlacements["front-center"] ||
+                           designPlacements["front"];
+      const whiteArtwork = designPlacements["front-chest-white"] || 
+                           designPlacements["front-center-white"];
+      
+      if (!blackArtwork) {
+        return res.status(400).json({ error: "No artwork found for this design" });
+      }
+      
+      // Import mockup service
+      const { getMockupWithFallback, isColorDark } = await import('./lib/mockup-service.js');
+      
+      const results: { color: string; success: boolean; mockupUrl?: string; lifestyleUrl?: string; error?: string }[] = [];
+      const mockupsByColor: Record<string, { front?: string; lifestyle?: string }> = {};
+      
+      // Generate mockups for each color with rate limiting (1 per 2 seconds to avoid 429)
+      for (const colorInfo of allColors) {
+        const color = colorInfo.name;
+        const colorHex = colorInfo.hex;
+        
+        try {
+          // Determine artwork variant based on shirt color
+          const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
+          const artworkUrl = (needsWhiteQR && whiteArtwork) ? whiteArtwork : blackArtwork;
+          const artworkVariant = (needsWhiteQR && whiteArtwork) ? "white" as const : "black" as const;
+          
+          console.log(`[Admin] Generating mockup for ${color} (${artworkVariant} QR)...`);
+          
+          const result = await getMockupWithFallback({
+            blueprintId: product.blueprintId,
+            printProviderId: product.printProviderId || 0,
+            colorName: color,
+            colorHex,
+            canonicalPlacementId: "FRONT_CHEST",
+            artworkUrl,
+            artworkVariant,
+          }, storage);
+          
+          mockupsByColor[color] = {
+            front: result.mockupUrl,
+            lifestyle: result.lifestyleMockupUrl || undefined,
+          };
+          
+          results.push({
+            color,
+            success: true,
+            mockupUrl: result.mockupUrl,
+            lifestyleUrl: result.lifestyleMockupUrl || undefined,
+          });
+          
+          console.log(`[Admin] ✓ ${color} mockup generated (lifestyle: ${!!result.lifestyleMockupUrl})`);
+          
+          // Rate limit: wait 2 seconds between Printful API calls to avoid 429
+          if (allColors.indexOf(colorInfo) < allColors.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } catch (error: any) {
+          console.error(`[Admin] ✗ ${color} mockup failed:`, error.message);
+          results.push({
+            color,
+            success: false,
+            error: error.message,
+          });
+        }
+      }
+      
+      // Update product with all mockups
+      await storage.updateProduct(id, { mockupsByColor });
+      
+      const successCount = results.filter(r => r.success).length;
+      
+      res.json({
+        success: true,
+        message: `Generated ${successCount}/${allColors.length} mockups`,
+        results,
+        mockupsByColor,
+      });
+    } catch (error: any) {
+      console.error("[Admin] Failed to generate all mockups:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Apply synced costs to product prices - uses costs from printify_print_providers
   app.post("/api/admin/products/apply-costs", isAdmin, async (req: any, res) => {
     try {
