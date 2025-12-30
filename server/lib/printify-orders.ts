@@ -106,6 +106,7 @@ export async function submitOrderToPrintify(
 export async function checkPrintifyOrderStatus(orderId: string): Promise<{
   status: string;
   trackingNumber?: string;
+  trackingUrl?: string;
   carrier?: string;
 }> {
   try {
@@ -124,6 +125,7 @@ export async function checkPrintifyOrderStatus(orderId: string): Promise<{
       return {
         status,
         trackingNumber: latestShipment.tracking_number,
+        trackingUrl: latestShipment.tracking_url,
         carrier: latestShipment.carrier,
       };
     }

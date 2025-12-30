@@ -35,6 +35,7 @@ interface ProviderHealthResult {
   }[];
   stripe: ProviderStatus;
   lastCheck: string;
+  printify?: ProviderStatus;
 }
 
 async function checkProviderHealth(): Promise<ProviderHealthResult> {
@@ -1278,7 +1279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create order items from cart - customization contains all product details
-      const orderItemsList: Array<{ productId: number; quantity: number; price: string; customization?: any }> = [];
+      const orderItemsList: Array<{ productId: string; quantity: number; price: string; customization?: any }> = [];
       for (const item of cartItems) {
         await storage.createOrderItem({
           orderId: order.id,
@@ -2670,6 +2671,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const catalogData = await syncProductVariants(provider.blueprintId, provider.providerId);
           
           await storage.updatePrintifyProviderCosts(provider.blueprintId, provider.providerId, {
+            minCost: 0, // Preserve existing costs when just updating colors
+            maxCost: 0,
             availableColors: catalogData.colors,
             availableSizes: catalogData.sizes,
           });
@@ -3366,8 +3369,7 @@ ${allPages.map(page => `  <url>
       console.log(`[Mockup] Artwork: ${absoluteArtworkUrl}`);
       
       // Import Printify client
-      const printify = (await import("./lib/printify")).default;
-      const { syncProductVariants, syncProductPlacements } = await import("./lib/printify");
+      const { printify, syncProductVariants, syncProductPlacements } = await import("./lib/printify");
       
       // Get variants for this color
       const { variants } = await syncProductVariants(blueprintId, printProviderId);
@@ -5882,8 +5884,7 @@ ${allPages.map(page => `  <url>
       });
       
       // Import Printify client
-      const { syncProductVariants } = await import("./lib/printify");
-      const printify = (await import("./lib/printify")).default;
+      const { syncProductVariants, printify } = await import("./lib/printify");
       
       console.log(`[Publish] Starting mockup generation for design ${id}`);
       console.log(`[Publish] Blueprint: ${blueprintId}, Provider: ${printProviderId}`);
