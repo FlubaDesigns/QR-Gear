@@ -314,6 +314,8 @@ export const adminSettings = pgTable("admin_settings", {
   imageHostingUpcharge: decimal("image_hosting_upcharge", { precision: 10, scale: 2 }).default("5"),
   dynamicQrUpcharge: decimal("dynamic_qr_upcharge", { precision: 10, scale: 2 }).default("25"),
   showPricesBeforeCustomization: boolean("show_prices_before_customization").default(false),
+  defaultFulfillmentProvider: text("default_fulfillment_provider").default("printify"), // 'printify' or 'printful'
+  defaultMockupProvider: text("default_mockup_provider").default("printful"), // 'printify' or 'printful'
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

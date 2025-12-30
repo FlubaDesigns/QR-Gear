@@ -112,10 +112,16 @@ interface CostSyncStatusData {
 }
 
 const POD_PROVIDERS = [
-  { id: 'printify', name: 'Printify', configured: true },
-  { id: 'printful', name: 'Printful', configured: false },
-  { id: 'apliiq', name: 'Apliiq', configured: false },
+  { id: 'printify', name: 'Printify', configured: true, role: 'fulfillment' },
+  { id: 'printful', name: 'Printful', configured: true, role: 'mockups' },
+  { id: 'apliiq', name: 'Apliiq', configured: false, role: 'fulfillment' },
 ];
+
+interface PrintfulCatalogStatus {
+  isConfigured: boolean;
+  productCount: number;
+  variantCount: number;
+}
 
 function CatalogSyncSection() {
   const { toast } = useToast();
@@ -134,6 +140,13 @@ function CatalogSyncSection() {
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     staleTime: 10000,
+  });
+
+  const { data: printfulStatus, refetch: refetchPrintful } = useQuery<PrintfulCatalogStatus>({
+    queryKey: ["/api/admin/catalog/printful-status"],
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    staleTime: 30000,
   });
 
   const isSyncRunning = syncStatus?.latestSync?.status === 'running';
@@ -165,6 +178,20 @@ function CatalogSyncSection() {
       toast({ title: "Sync failed", description: error.message, variant: "destructive" });
     },
   });
+
+  const syncPrintfulMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/catalog/sync-printful");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Printful Sync Started", description: "Syncing Printful catalog in background..." });
+      setTimeout(() => refetchPrintful(), 5000);
+    },
+    onError: (error: any) => {
+      toast({ title: "Printful sync failed", description: error.message, variant: "destructive" });
+    },
+  });
   
   const lastSync = syncStatus?.latestSync;
   const provider = POD_PROVIDERS.find(p => p.id === selectedProvider);
@@ -177,49 +204,71 @@ function CatalogSyncSection() {
   return (
     <Card className="mb-4">
       <CardContent className="pt-4 px-3 sm:px-6">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-              <SelectTrigger className="w-[140px] !min-h-[48px]" data-testid="select-pod-provider">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {POD_PROVIDERS.map(p => (
-                  <SelectItem key={p.id} value={p.id} disabled={!p.configured}>
-                    {p.name} {!p.configured && '(Soon)'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Button
-              onClick={() => syncAllMutation.mutate()}
-              disabled={isAnySyncRunning || syncAllMutation.isPending || !provider?.configured}
-              data-testid="button-sync-all"
-              className="!min-h-[48px]"
-            >
-              {isAnySyncRunning ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing...</>
-              ) : (
-                <><RefreshCw className="h-4 w-4 mr-2" /> Sync</>
-              )}
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              {syncStatus?.totalBlueprints ? (
-                <Badge variant="secondary" className="text-xs">
-                  {syncStatus.totalBlueprints} products
-                </Badge>
-              ) : null}
-              {costSyncStatus?.stats && (
-                <span>{costSyncStatus.stats.withCosts}/{costSyncStatus.stats.total} with costs</span>
-              )}
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3 border rounded-lg">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <Store className="h-4 w-4" />
+                  <span className="font-medium text-sm">Printify</span>
+                  <Badge variant="outline" className="text-xs">Fulfillment</Badge>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => syncAllMutation.mutate()}
+                  disabled={isAnySyncRunning || syncAllMutation.isPending}
+                  data-testid="button-sync-printify"
+                  className="!min-h-[40px]"
+                >
+                  {isAnySyncRunning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                {syncStatus?.totalBlueprints ? (
+                  <span>{syncStatus.totalBlueprints} blueprints</span>
+                ) : null}
+                {costSyncStatus?.stats && (
+                  <span>{costSyncStatus.stats.withCosts} with costs</span>
+                )}
+              </div>
             </div>
-            {!isLoading && !isError && lastSync && lastSync.status === 'completed' && (
-              <span>Last: {formatDate(lastSync.completedAt || lastSync.startedAt)}</span>
-            )}
+
+            <div className="p-3 border rounded-lg">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  <span className="font-medium text-sm">Printful</span>
+                  <Badge variant="outline" className="text-xs">Mockups</Badge>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => syncPrintfulMutation.mutate()}
+                  disabled={syncPrintfulMutation.isPending || !printfulStatus?.isConfigured}
+                  data-testid="button-sync-printful"
+                  className="!min-h-[40px]"
+                >
+                  {syncPrintfulMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                {printfulStatus?.isConfigured ? (
+                  <>
+                    <span>{printfulStatus.productCount} products</span>
+                    <span>{printfulStatus.variantCount} variants</span>
+                  </>
+                ) : (
+                  <span className="text-amber-600">Not configured</span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         

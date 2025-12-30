@@ -297,3 +297,135 @@ class PrintfulClient {
 
 export const printfulClient = new PrintfulClient();
 export type { PrintfulProduct, PrintfulVariant, PrintfulMockupResult, PrintfulMockupTask };
+
+/**
+ * Sync Printful catalog to local database
+ * This populates the printful_products and printful_variants tables
+ */
+export async function syncPrintfulCatalog(db: any, options?: { productIds?: number[] }): Promise<{
+  productsAdded: number;
+  productsUpdated: number;
+  variantsAdded: number;
+  variantsUpdated: number;
+  errors: string[];
+}> {
+  const { printfulProducts, printfulVariants } = await import('@shared/schema');
+  const { eq } = await import('drizzle-orm');
+  
+  const result = {
+    productsAdded: 0,
+    productsUpdated: 0,
+    variantsAdded: 0,
+    variantsUpdated: 0,
+    errors: [] as string[],
+  };
+
+  if (!printfulClient.isConfigured) {
+    result.errors.push('Printful API key not configured');
+    return result;
+  }
+
+  try {
+    console.log('[Printful Sync] Starting catalog sync...');
+    
+    // Get all products from Printful
+    const allProducts = await printfulClient.getProducts();
+    const productsToSync = options?.productIds 
+      ? allProducts.filter(p => options.productIds!.includes(p.id))
+      : allProducts;
+    
+    console.log(`[Printful Sync] Found ${productsToSync.length} products to sync`);
+
+    for (const product of productsToSync) {
+      try {
+        // Check if product exists
+        const existing = await db.select().from(printfulProducts).where(eq(printfulProducts.id, product.id)).limit(1);
+        
+        // Get detailed product info with variants
+        const details = await printfulClient.getProduct(product.id);
+        
+        // Get printfile info for dimensions
+        let printfileInfo: any = null;
+        try {
+          printfileInfo = await printfulClient.getPrintfiles(product.id);
+        } catch (e) {
+          // Some products don't support printfiles
+        }
+
+        const productData = {
+          id: product.id,
+          type: product.type,
+          typeName: product.type_name,
+          brand: product.brand || null,
+          model: product.model || null,
+          title: details.product.type_name || product.type_name,
+          image: product.image || null,
+          variantCount: details.variants.length,
+          currency: product.currency || 'USD',
+          minPrice: details.variants.length > 0 ? Math.min(...details.variants.map(v => parseFloat(v.price))).toString() : null,
+          maxPrice: details.variants.length > 0 ? Math.max(...details.variants.map(v => parseFloat(v.price))).toString() : null,
+          printfileWidth: printfileInfo?.printfiles?.[0]?.width || null,
+          printfileHeight: printfileInfo?.printfiles?.[0]?.height || null,
+          printfileDpi: printfileInfo?.printfiles?.[0]?.dpi || null,
+          avgFulfillmentTime: product.avg_fulfillment_time || null,
+          originCountry: product.origin_country || null,
+          isDiscontinued: product.is_discontinued || false,
+          availablePlacements: printfileInfo?.available_placements?.map((p: any) => p.placement) || null,
+          lastSyncedAt: new Date(),
+        };
+
+        if (existing.length > 0) {
+          await db.update(printfulProducts).set(productData).where(eq(printfulProducts.id, product.id));
+          result.productsUpdated++;
+        } else {
+          await db.insert(printfulProducts).values(productData);
+          result.productsAdded++;
+        }
+
+        // Sync variants
+        for (const variant of details.variants) {
+          const existingVariant = await db.select().from(printfulVariants).where(eq(printfulVariants.id, variant.id)).limit(1);
+          
+          const variantData = {
+            id: variant.id,
+            productId: product.id,
+            name: variant.name,
+            size: variant.size || null,
+            color: variant.color || null,
+            colorCode: variant.color_code || null,
+            colorCode2: variant.color_code2 || null,
+            image: variant.image || null,
+            price: variant.price,
+            inStock: variant.in_stock !== false,
+            availabilityStatus: variant.availability_status || 'active',
+            lastSyncedAt: new Date(),
+          };
+
+          if (existingVariant.length > 0) {
+            await db.update(printfulVariants).set(variantData).where(eq(printfulVariants.id, variant.id));
+            result.variantsUpdated++;
+          } else {
+            await db.insert(printfulVariants).values(variantData);
+            result.variantsAdded++;
+          }
+        }
+
+        // Rate limiting - Printful has 120 requests/min limit
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (productError: any) {
+        console.error(`[Printful Sync] Error syncing product ${product.id}:`, productError.message);
+        result.errors.push(`Product ${product.id}: ${productError.message}`);
+      }
+    }
+
+    console.log(`[Printful Sync] Complete - Products: ${result.productsAdded} added, ${result.productsUpdated} updated`);
+    console.log(`[Printful Sync] Complete - Variants: ${result.variantsAdded} added, ${result.variantsUpdated} updated`);
+    
+  } catch (error: any) {
+    console.error('[Printful Sync] Fatal error:', error.message);
+    result.errors.push(`Fatal error: ${error.message}`);
+  }
+
+  return result;
+}

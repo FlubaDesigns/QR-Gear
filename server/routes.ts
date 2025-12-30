@@ -2701,6 +2701,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================
+  // PRINTFUL CATALOG SYNC ENDPOINTS
+  // ========================================
+
+  // Sync Printful catalog to local database
+  app.post("/api/admin/catalog/sync-printful", isAdmin, async (req: any, res) => {
+    try {
+      const { syncPrintfulCatalog, printfulClient } = await import("./lib/printful");
+      
+      if (!printfulClient.isConfigured) {
+        return res.status(503).json({ error: "Printful API key not configured" });
+      }
+
+      const productIds = req.body?.productIds; // Optional: sync specific products only
+      
+      // Start sync in background and return immediately
+      res.json({ 
+        success: true, 
+        message: "Printful catalog sync started in background",
+        productIds: productIds || "all",
+      });
+
+      // Run sync asynchronously
+      try {
+        const result = await syncPrintfulCatalog(db, productIds ? { productIds } : undefined);
+        console.log('[Printful Sync] Background sync complete:', result);
+      } catch (syncError: any) {
+        console.error('[Printful Sync] Background sync error:', syncError.message);
+      }
+      
+    } catch (error: any) {
+      console.error('[Printful Sync] Error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get Printful catalog status
+  app.get("/api/admin/catalog/printful-status", isAdmin, async (req: any, res) => {
+    try {
+      const { printfulClient } = await import("./lib/printful");
+      const { printfulProducts, printfulVariants } = await import("@shared/schema");
+      const { count } = await import("drizzle-orm");
+      
+      const [productCount] = await db.select({ count: count() }).from(printfulProducts);
+      const [variantCount] = await db.select({ count: count() }).from(printfulVariants);
+      
+      res.json({
+        isConfigured: printfulClient.isConfigured,
+        productCount: productCount?.count || 0,
+        variantCount: variantCount?.count || 0,
+      });
+      
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get Printful products list
+  app.get("/api/admin/catalog/printful-products", isAdmin, async (req: any, res) => {
+    try {
+      const { printfulProducts } = await import("@shared/schema");
+      const { desc } = await import("drizzle-orm");
+      
+      const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
+      res.json(products);
+      
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================
   // END LOCAL CATALOG SYNC ENDPOINTS
   // ========================================
 
