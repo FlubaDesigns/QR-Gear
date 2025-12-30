@@ -1604,3 +1604,69 @@ export const printifyPrintfulMapping = pgTable("printify_printful_mapping", {
 export const insertPrintifyPrintfulMappingSchema = createInsertSchema(printifyPrintfulMapping).omit({ id: true, createdAt: true, updatedAt: true });
 export type PrintifyPrintfulMapping = typeof printifyPrintfulMapping.$inferSelect;
 export type InsertPrintifyPrintfulMapping = z.infer<typeof insertPrintifyPrintfulMappingSchema>;
+
+// ============================================================================
+// PRINTFUL CATALOG TABLES
+// Stores Printful's product catalog for local lookups and mockup generation
+// ============================================================================
+
+// Printful Products - Main catalog of available products
+export const printfulProducts = pgTable("printful_products", {
+  id: integer("id").primaryKey(), // Printful's product ID (e.g., 71 for Bella+Canvas 3001)
+  type: text("type").notNull(), // e.g., "T-SHIRT", "POSTER", "MUG"
+  typeName: text("type_name").notNull(), // e.g., "T-Shirt", "Poster", "Mug"
+  brand: text("brand"), // e.g., "Bella+Canvas", "Gildan"
+  model: text("model"), // e.g., "3001", "64000"
+  title: text("title").notNull(), // Full product name
+  image: text("image"), // Product image URL
+  variantCount: integer("variant_count").default(0),
+  currency: text("currency").default("USD"),
+  // Pricing info
+  minPrice: decimal("min_price", { precision: 10, scale: 2 }),
+  maxPrice: decimal("max_price", { precision: 10, scale: 2 }),
+  // Print area info
+  printfileWidth: integer("printfile_width"), // Default printfile width
+  printfileHeight: integer("printfile_height"), // Default printfile height
+  printfileDpi: integer("printfile_dpi"),
+  // Product details
+  description: text("description"),
+  avgFulfillmentTime: integer("avg_fulfillment_time"), // In days
+  originCountry: text("origin_country"),
+  isDiscontinued: boolean("is_discontinued").default(false),
+  // Available placements (front, back, etc.)
+  availablePlacements: text("available_placements").array(),
+  // Sync tracking
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPrintfulProductSchema = createInsertSchema(printfulProducts).omit({ createdAt: true });
+export type PrintfulProduct = typeof printfulProducts.$inferSelect;
+export type InsertPrintfulProduct = z.infer<typeof insertPrintfulProductSchema>;
+
+// Printful Variants - Individual size/color combinations
+export const printfulVariants = pgTable("printful_variants", {
+  id: integer("id").primaryKey(), // Printful's variant ID
+  productId: integer("product_id").notNull().references(() => printfulProducts.id),
+  name: text("name").notNull(), // e.g., "Black / M"
+  size: text("size"), // e.g., "S", "M", "L", "XL"
+  color: text("color"), // e.g., "Black", "White", "Navy"
+  colorCode: text("color_code"), // Hex color, e.g., "#000000"
+  colorCode2: text("color_code2"), // Secondary color for heathered/mixed colors
+  image: text("image"), // Variant-specific image URL
+  // Pricing
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  // Availability
+  inStock: boolean("in_stock").default(true),
+  availabilityStatus: text("availability_status"), // e.g., "active", "discontinued"
+  // Sync tracking
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("printful_variants_product_idx").on(table.productId),
+  index("printful_variants_color_idx").on(table.color),
+]);
+
+export const insertPrintfulVariantSchema = createInsertSchema(printfulVariants).omit({ createdAt: true });
+export type PrintfulVariant = typeof printfulVariants.$inferSelect;
+export type InsertPrintfulVariant = z.infer<typeof insertPrintfulVariantSchema>;
