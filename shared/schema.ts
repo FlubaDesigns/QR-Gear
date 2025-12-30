@@ -1572,3 +1572,35 @@ export const mockupCache = pgTable("mockup_cache", {
 export const insertMockupCacheSchema = createInsertSchema(mockupCache).omit({ id: true, createdAt: true });
 export type MockupCache = typeof mockupCache.$inferSelect;
 export type InsertMockupCache = z.infer<typeof insertMockupCacheSchema>;
+
+// Printify-to-Printful Product Mapping
+// Maps Printify blueprints to Printful products for mockup generation
+// Since Printify can't render mockups for unpublished products, we use Printful's mockup generator
+export const printifyPrintfulMapping = pgTable("printify_printful_mapping", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Printify side (what we use for fulfillment)
+  printifyBlueprintId: integer("printify_blueprint_id").notNull(),
+  printifyPrintProviderId: integer("printify_print_provider_id"),
+  printifyBrand: text("printify_brand"),
+  printifyModel: text("printify_model"),
+  // Printful side (what we use for mockups)
+  printfulProductId: integer("printful_product_id").notNull(),
+  printfulBrand: text("printful_brand"),
+  printfulModel: text("printful_model"),
+  // Placement mapping (Printify placement -> Printful placement)
+  placementMapping: jsonb("placement_mapping"), // { 'front-chest': 'front', 'back': 'back' }
+  // Color mapping (in case names differ)
+  colorMapping: jsonb("color_mapping"), // { 'Solid Black': 'Black', 'Solid White': 'White' }
+  // Status
+  isActive: boolean("is_active").default(true),
+  matchConfidence: text("match_confidence").default("auto"), // 'exact', 'auto', 'manual'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  unique("printify_printful_unique").on(table.printifyBlueprintId, table.printifyPrintProviderId),
+]);
+
+export const insertPrintifyPrintfulMappingSchema = createInsertSchema(printifyPrintfulMapping).omit({ id: true, createdAt: true, updatedAt: true });
+export type PrintifyPrintfulMapping = typeof printifyPrintfulMapping.$inferSelect;
+export type InsertPrintifyPrintfulMapping = z.infer<typeof insertPrintifyPrintfulMappingSchema>;
