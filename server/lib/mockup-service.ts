@@ -371,7 +371,9 @@ async function generatePrintfulMockup(params: {
     printfulPlacement = 'back';
   }
 
-  // Step 5: Create mockup task
+  // Step 5: Create mockup task with lifestyle option groups
+  const lifestyleOptionGroups = ["Men's Lifestyle", "Women's Lifestyle"];
+  
   const task = await printfulClient.createMockupTask(
     printfulProductId,
     [targetVariant.id],
@@ -379,7 +381,9 @@ async function generatePrintfulMockup(params: {
       placement: printfulPlacement,
       image_url: absoluteArtworkUrl,
       position,
-    }]
+    }],
+    'jpg',
+    lifestyleOptionGroups
   );
 
   if (!task.task_key) {

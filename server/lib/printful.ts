@@ -154,15 +154,21 @@ class PrintfulClient {
       image_url: string;
       position?: { area_width: number; area_height: number; width: number; height: number; top: number; left: number };
     }>,
-    format: 'jpg' | 'png' = 'jpg'
+    format: 'jpg' | 'png' = 'jpg',
+    optionGroups?: string[]
   ): Promise<PrintfulMockupTask> {
-    const body = {
+    const body: any = {
       variant_ids: variantIds,
       format,
       files,
     };
+    
+    // Request lifestyle mockups if option groups specified
+    if (optionGroups && optionGroups.length > 0) {
+      body.option_groups = optionGroups;
+    }
 
-    console.log('[Printful] Creating mockup task for product', productId, 'variants:', variantIds);
+    console.log('[Printful] Creating mockup task for product', productId, 'variants:', variantIds, 'option_groups:', optionGroups);
     
     return this.request<PrintfulMockupTask>('POST', `/mockup-generator/create-task/${productId}`, body);
   }
