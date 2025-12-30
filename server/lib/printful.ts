@@ -276,7 +276,23 @@ class PrintfulClient {
   }
 
   /**
+   * Common color name synonyms between Printify and Printful
+   */
+  private colorSynonyms: Record<string, string[]> = {
+    'heather grey': ['sport grey', 'athletic heather', 'heather gray'],
+    'sport grey': ['heather grey', 'heather gray', 'athletic heather'],
+    'solid black': ['black'],
+    'black': ['solid black'],
+    'solid white': ['white'],
+    'white': ['solid white'],
+    'navy': ['navy blue', 'dark navy'],
+    'navy blue': ['navy', 'dark navy'],
+    'heather': ['heather grey', 'sport grey'],
+  };
+
+  /**
    * Get variants for a product, optionally filtered by color
+   * Includes synonym matching for cross-provider compatibility
    */
   async getVariantsByColor(productId: number, colorName?: string): Promise<PrintfulVariant[]> {
     const { variants } = await this.getProduct(productId);
@@ -286,12 +302,83 @@ class PrintfulClient {
     // Normalize color name for matching
     const normalizedColor = colorName.toLowerCase().replace(/\s+/g, '');
     
+    // Build list of colors to try (original + synonyms)
+    const colorsToTry = [colorName.toLowerCase()];
+    const synonyms = this.colorSynonyms[colorName.toLowerCase()];
+    if (synonyms) {
+      colorsToTry.push(...synonyms);
+    }
+    
     return variants.filter(v => {
-      const variantColor = v.color.toLowerCase().replace(/\s+/g, '');
-      return variantColor === normalizedColor || 
-             variantColor.includes(normalizedColor) ||
-             normalizedColor.includes(variantColor);
+      const variantColor = v.color.toLowerCase();
+      const variantColorNormalized = variantColor.replace(/\s+/g, '');
+      
+      return colorsToTry.some(c => {
+        const cNormalized = c.replace(/\s+/g, '');
+        return variantColorNormalized === cNormalized || 
+               variantColorNormalized.includes(cNormalized) ||
+               cNormalized.includes(variantColorNormalized);
+      });
     });
+  }
+
+  /**
+   * Create an order in Printful
+   */
+  async createOrder(orderData: {
+    recipient: {
+      name: string;
+      address1: string;
+      address2?: string;
+      city: string;
+      state_code: string;
+      country_code: string;
+      zip: string;
+      phone?: string;
+      email?: string;
+    };
+    items: Array<{
+      variant_id: number;
+      quantity: number;
+      files: Array<{
+        type: string;
+        url: string;
+        position?: any;
+      }>;
+    }>;
+    external_id?: string;
+    shipping?: string;
+  }): Promise<any> {
+    console.log('[Printful] Creating order:', JSON.stringify(orderData, null, 2));
+    return this.request<any>('POST', '/orders', orderData);
+  }
+
+  /**
+   * Get order status
+   */
+  async getOrder(orderId: string | number): Promise<any> {
+    return this.request<any>('GET', `/orders/${orderId}`);
+  }
+
+  /**
+   * Confirm a draft order (submit for fulfillment)
+   */
+  async confirmOrder(orderId: string | number): Promise<any> {
+    console.log('[Printful] Confirming order:', orderId);
+    return this.request<any>('POST', `/orders/${orderId}/confirm`);
+  }
+
+  /**
+   * Estimate shipping costs
+   */
+  async estimateShipping(recipient: {
+    address1: string;
+    city: string;
+    state_code: string;
+    country_code: string;
+    zip: string;
+  }, items: Array<{ variant_id: number; quantity: number }>): Promise<any> {
+    return this.request<any>('POST', '/shipping/rates', { recipient, items });
   }
 }
 

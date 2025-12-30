@@ -73,17 +73,46 @@ function ProductCard({
     // Helper to check if URL is valid (HTTP URL or local /api/files path)
     const isValidUrl = (url?: string) => url && (url.startsWith('http') || url.startsWith('/api/files'));
     
-    // Use pre-loaded mockups from product data (already cached in DB)
-    if (product.mockupsByColor && color && product.mockupsByColor[color]) {
-      if (isValidUrl(product.mockupsByColor[color].lifestyle)) {
-        return { url: product.mockupsByColor[color].lifestyle!, isLifestyle: true };
+    // Helper to normalize color names for matching (strip common prefixes)
+    const normalizeColor = (c: string) => c.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim();
+    
+    // Try to find mockup - first exact match, then normalized match, then any available
+    const findMockup = (targetColor: string | undefined): { url: string; isLifestyle: boolean } | null => {
+      if (!product.mockupsByColor || !targetColor) return null;
+      
+      // 1. Exact match
+      if (product.mockupsByColor[targetColor]) {
+        const m = product.mockupsByColor[targetColor];
+        if (isValidUrl(m.lifestyle)) return { url: m.lifestyle!, isLifestyle: true };
+        if (isValidUrl(m.front)) return { url: m.front!, isLifestyle: false };
       }
-      if (isValidUrl(product.mockupsByColor[color].front)) {
-        return { url: product.mockupsByColor[color].front!, isLifestyle: false };
+      
+      // 2. Normalized match (e.g., "Solid Black" matches "Black")
+      const normalizedTarget = normalizeColor(targetColor);
+      for (const [mockupColor, mockup] of Object.entries(product.mockupsByColor)) {
+        if (normalizeColor(mockupColor) === normalizedTarget) {
+          if (isValidUrl(mockup.lifestyle)) return { url: mockup.lifestyle!, isLifestyle: true };
+          if (isValidUrl(mockup.front)) return { url: mockup.front!, isLifestyle: false };
+        }
+      }
+      
+      return null;
+    };
+    
+    // Try selected color first
+    const selectedMockup = findMockup(color);
+    if (selectedMockup) return selectedMockup;
+    
+    // Fallback: Use ANY available mockup (better than nothing)
+    if (product.mockupsByColor) {
+      for (const mockup of Object.values(product.mockupsByColor)) {
+        if (isValidUrl(mockup.lifestyle)) return { url: mockup.lifestyle!, isLifestyle: true };
+        if (isValidUrl(mockup.front)) return { url: mockup.front!, isLifestyle: false };
       }
     }
     
-    return { url: product.defaultMockupImage || null, isLifestyle: false };
+    // Final fallback: default mockup image or Printify catalog image
+    return { url: product.defaultMockupImage || product.imageUrl || null, isLifestyle: false };
   };
 
   const mockupResult = getCurrentMockup();
