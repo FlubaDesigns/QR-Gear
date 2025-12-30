@@ -23,29 +23,41 @@ QR Gear is an e-commerce platform for personalized promotional merchandise with 
 
 **NEVER** recalculate prices from base costs. The admin-configured `customerPrice` IS the final price.
 
-### 2. Mockup System (WORKING - Uses Printful for Rendering)
+### 2. Mockup System (WORKING - Printful for Rendering)
 **Location**: `server/lib/mockup-service.ts`, `server/lib/printful.ts`
 
-**Dual-Provider Architecture**:
-- **Printful**: Used for mockup rendering (has dedicated Mockup Generator API)
-- **Printify**: Used for order fulfillment (cannot render mockups for unpublished products)
+**Printful-First Architecture**:
+- **Printful**: Used for mockup rendering AND order fulfillment
+- Mockups include **lifestyle images** (person wearing the shirt)
+- QR code size: **1000x1000 pixels** (55% of print area) for visibility
 
 **Flow**:
 1. Check `mockup_cache` table first (database-first)
 2. On cache miss → Look up `printify_printful_mapping` table
-3. Call Printful's Mockup Generator API with correct product/variant
-4. Download rendered mockup to Object Storage for permanent URL
-5. Cache result in database
+3. Call Printful's Mockup Generator API with lifestyle option groups
+4. Download both flat AND lifestyle mockups to Object Storage
+5. Cache result in database with both URLs
 
-**Mapping Table**: `printify_printful_mapping`
-- Maps Printify blueprint IDs to Printful product IDs
-- Auto-creates mappings for known products (Bella+Canvas 3001 = Printful 71)
-- Supports color name mapping (e.g., "Solid Black" → "Black")
+**Current Product Mapping**:
+- Blueprint 6 (Bella+Canvas 3001) → Printful Product 71
+- Colors: Black, White, Sport Grey → Athletic Heather
+
+**Mockup Storage** (`products.mockups_by_color`):
+```json
+{
+  "Black": {
+    "front": "/api/files/mockup-printful-6-black-flat.jpg",
+    "lifestyle": "/api/files/mockup-printful-6-black-lifestyle.jpg"
+  }
+}
+```
+
+**Frontend Priority**: Lifestyle mockups displayed over flat mockups
 
 **API Endpoint**: `POST /api/storefront/generate-mockup`
 ```json
 Request: { "productId": "custom_hello-world", "color": "Black" }
-Response: { "success": true, "mockupUrl": "/api/files/mockup-printful-5-black-flat.jpg", "fromCache": true }
+Response: { "success": true, "mockupUrl": "...", "lifestyleMockupUrl": "...", "fromCache": false }
 ```
 
 ### 3. Printify Local Catalog (WORKING - DO NOT CALL API FOR COLORS/SIZES)
