@@ -26,6 +26,7 @@ export default function Store() {
   const [selectedHoliday, setSelectedHoliday] = useState<string>("");
   const [selectedOccasion, setSelectedOccasion] = useState<string>("");
   const [selectedOther, setSelectedOther] = useState<string>("");
+  const [usaOnly, setUsaOnly] = useState<boolean>(false);
 
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -84,17 +85,25 @@ export default function Store() {
   });
 
   const enabledProducts = products?.filter(p => p.isEnabled) || [];
-  const displayProducts = activeCategoryId
+  
+  // Apply category filter first, then USA filter
+  let displayProducts = activeCategoryId
     ? (categoryProducts || [])
     : enabledProducts;
+  
+  // Apply USA filter if active
+  if (usaOnly) {
+    displayProducts = displayProducts.filter(p => p.madeInUSA);
+  }
 
-  const hasActiveFilters = !!activeCategoryId;
+  const hasActiveFilters = !!activeCategoryId || usaOnly;
 
   const clearFilters = () => {
     setSelectedSeason("");
     setSelectedHoliday("");
     setSelectedOccasion("");
     setSelectedOther("");
+    setUsaOnly(false);
   };
 
   return (
@@ -133,6 +142,20 @@ export default function Store() {
                 )}
               </div>
               
+              <div className="mb-4">
+                <Button
+                  variant={usaOnly ? "default" : "outline"}
+                  size="lg"
+                  className={`min-h-[48px] gap-2 text-base font-semibold px-6 ${usaOnly ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+                  onClick={() => setUsaOnly(!usaOnly)}
+                  data-testid="button-usa-filter"
+                >
+                  <UsaFlag className="w-6 h-5" />
+                  Made in USA
+                  {usaOnly && <X className="w-4 h-4 ml-1" />}
+                </Button>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Season</label>
