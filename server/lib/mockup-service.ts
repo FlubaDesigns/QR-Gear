@@ -10,9 +10,10 @@
 
 import { db } from "../db";
 import { eq, and } from "drizzle-orm";
-import { mockupCache, canonicalPlacements, providerPlacementMappings, productPlacementAvailability } from "../../shared/schema";
+import { mockupCache, canonicalPlacements, providerPlacementMappings, productPlacementAvailability, printifyPrintfulMapping } from "../../shared/schema";
 import type { IStorage } from "../storage";
 import { Client as ObjectStorageClient } from "@replit/object-storage";
+import { printfulClient } from "./printful";
 
 interface MockupRequest {
   blueprintId: number;
@@ -208,19 +209,21 @@ export async function getMockupWithFallback(
     };
   }
 
-  console.log(`[MockupService] Cache MISS: ${colorName} ${canonicalPlacementId} - generating via Printify`);
+  console.log(`[MockupService] Cache MISS: ${colorName} ${canonicalPlacementId} - generating via Printful`);
 
-  // Step 2: Generate via Printify
-  const mockupResult = await generatePrintifyMockup({
+  // Step 2: Generate via Printful's Mockup Generator API
+  // Printful has a dedicated mockup generator that works without publishing products
+  const mockupResult = await generatePrintfulMockup({
     blueprintId,
     printProviderId,
     colorName,
+    colorHex,
     artworkUrl,
     canonicalPlacementId,
   });
 
   if (!mockupResult || !mockupResult.flat) {
-    throw new Error("Failed to generate mockup from Printify");
+    throw new Error("Failed to generate mockup from Printful");
   }
 
   const mockupUrl = mockupResult.flat;
@@ -273,21 +276,55 @@ export async function getMockupWithFallback(
 }
 
 /**
- * Generate mockup via Printify API
- * Creates temporary product, waits for mockup, then deletes product
- * Returns both flat product shot and lifestyle mockup (with model) if available
+ * Generate mockup via Printful's Mockup Generator API
+ * Printful has a dedicated mockup generator that works without publishing products.
+ * This is more reliable than Printify's approach which requires temporary product creation.
  */
-async function generatePrintifyMockup(params: {
+async function generatePrintfulMockup(params: {
   blueprintId: number;
   printProviderId: number;
   colorName: string;
+  colorHex?: string;
   artworkUrl: string;
   canonicalPlacementId: string;
 }): Promise<{ flat?: string; lifestyle?: string } | null> {
-  const { blueprintId, printProviderId, colorName, artworkUrl, canonicalPlacementId } = params;
+  const { blueprintId, printProviderId, colorName, colorHex, artworkUrl, canonicalPlacementId } = params;
 
-  // Import Printify client
-  const { printify, syncProductVariants, syncProductPlacements } = await import("./printify");
+  console.log(`[MockupService/Printful] Generating mockup for blueprint ${blueprintId}, color ${colorName}`);
+
+  // Step 1: Look up the Printify-to-Printful mapping
+  const mapping = await db
+    .select()
+    .from(printifyPrintfulMapping)
+    .where(
+      and(
+        eq(printifyPrintfulMapping.printifyBlueprintId, blueprintId),
+        eq(printifyPrintfulMapping.isActive, true)
+      )
+    )
+    .limit(1);
+
+  if (mapping.length === 0) {
+    console.warn(`[MockupService/Printful] No mapping found for blueprint ${blueprintId}. Creating auto-mapping...`);
+    
+    // Try to auto-create mapping for common products
+    const autoMapping = await createAutoMapping(blueprintId);
+    if (!autoMapping) {
+      console.error(`[MockupService/Printful] Could not create auto-mapping for blueprint ${blueprintId}`);
+      return null;
+    }
+    mapping.push(autoMapping);
+  }
+
+  const printfulProductId = mapping[0].printfulProductId;
+  const colorMappingData = mapping[0].colorMapping as Record<string, string> | null;
+  
+  // Map Printify color name to Printful color name if needed
+  let printfulColorName = colorName;
+  if (colorMappingData && colorMappingData[colorName]) {
+    printfulColorName = colorMappingData[colorName];
+    console.log(`[MockupService/Printful] Mapped color: ${colorName} → ${printfulColorName}`);
+  }
 
   // Make artwork URL absolute
   const baseUrl = process.env.REPLIT_DEV_DOMAIN
@@ -295,219 +332,155 @@ async function generatePrintifyMockup(params: {
     : "http://localhost:5000";
   const absoluteArtworkUrl = artworkUrl.startsWith("http") ? artworkUrl : `${baseUrl}${artworkUrl}`;
 
-  // Get variants for this color
-  const { variants } = await syncProductVariants(blueprintId, printProviderId);
-  const colorVariants = variants.filter(
-    (v) => v.options?.color && v.options.color.toLowerCase() === colorName.toLowerCase()
-  );
+  console.log(`[MockupService/Printful] Using Printful product ${printfulProductId} for color ${printfulColorName}`);
+  console.log(`[MockupService/Printful] Artwork URL: ${absoluteArtworkUrl}`);
 
-  if (colorVariants.length === 0) {
-    console.error(`[MockupService] No variants found for color: ${colorName}`);
+  // Step 2: Get Printful variants for this color
+  const variants = await printfulClient.getVariantsByColor(printfulProductId, printfulColorName);
+  
+  if (variants.length === 0) {
+    console.error(`[MockupService/Printful] No Printful variants found for color: ${printfulColorName}`);
     return null;
   }
 
-  const variantIds = colorVariants.slice(0, 1).map((v) => v.id);
+  // Take one variant (typically M size for best mockup)
+  const targetVariant = variants.find(v => v.size === 'M') || variants[0];
+  console.log(`[MockupService/Printful] Using variant: ${targetVariant.id} (${targetVariant.size}, ${targetVariant.color})`);
 
-  // Upload artwork to Printify
-  const imageUpload = await printify.uploadImage(absoluteArtworkUrl, `mockup-${blueprintId}-${colorName}.png`);
-  console.log(`[MockupService] Uploaded artwork, ID: ${imageUpload.id}`);
-
-  // Get provider placement key from canonical mapping
-  const placementMapping = await db
-    .select()
-    .from(providerPlacementMappings)
-    .where(
-      and(
-        eq(providerPlacementMappings.podProviderId, "printify"),
-        eq(providerPlacementMappings.canonicalPlacementId, canonicalPlacementId)
-      )
-    )
-    .limit(1);
-
-  // Get provider placements to determine what's available for this product
-  const { placements: providerPlacements } = await syncProductPlacements(blueprintId, printProviderId);
-  const availablePositions = providerPlacements.map((p) => p.position);
+  // Step 3: Get printfile info for positioning
+  const printfiles = await printfulClient.getPrintfiles(printfulProductId);
+  const frontPrintfile = printfiles.printfiles?.find((p: any) => p.printfile_id === 1) || printfiles.printfiles?.[0];
   
-  // Validate placement key against available positions
-  let placementKey: string;
-  
-  if (placementMapping.length > 0) {
-    // Have a mapping - check if that position is available for this product
-    const mappedKey = placementMapping[0].providerPlacementKey;
-    if (availablePositions.includes(mappedKey)) {
-      placementKey = mappedKey;
-      console.log(`[MockupService] Using mapped placement: ${canonicalPlacementId} → ${placementKey}`);
-    } else {
-      // Mapped position not available - log warning and use fallback
-      console.warn(`[MockupService] Mapped placement "${mappedKey}" not available for blueprint ${blueprintId}. Available: [${availablePositions.join(', ')}]. Using first available.`);
-      placementKey = availablePositions[0] || "front";
-    }
-  } else {
-    // No mapping found - use first available
-    console.warn(`[MockupService] No placement mapping for ${canonicalPlacementId}. Using first available: ${availablePositions[0] || "front"}`);
-    placementKey = availablePositions[0] || "front";
-  }
-
-  // Create Printify product to generate mockups
-  const productData = {
-    title: `Mockup Gen - ${blueprintId} - ${colorName}`,
-    description: `Auto-generated mockup`,
-    blueprint_id: blueprintId,
-    print_provider_id: printProviderId,
-    variants: variantIds.map((vid) => ({
-      id: vid,
-      price: 2500,
-      is_enabled: true,
-    })),
-    print_areas: [
-      {
-        variant_ids: variantIds,
-        placeholders: [
-          {
-            position: placementKey,
-            images: [
-              {
-                id: imageUpload.id,
-                x: 0.5,
-                y: 0.5,
-                scale: 1.0,
-                angle: 0,
-              },
-            ],
-          },
-        ],
-      },
-    ],
+  // Default position for front chest
+  const position = {
+    area_width: frontPrintfile?.width || 1800,
+    area_height: frontPrintfile?.height || 2400,
+    width: 500,
+    height: 500,
+    top: 600,  // Upper chest area
+    left: (frontPrintfile?.width || 1800) / 2 - 250,  // Centered
   };
 
-  const printifyProduct = await printify.createProduct(productData);
-  console.log(`[MockupService] Created temp Printify product: ${printifyProduct.id}`);
-
-  // NEW APPROACH: Use Printify's publishing preview API to trigger mockup rendering
-  // The is_rendered flag NEVER becomes true for draft products - we MUST use publishing preview
-  let mockupImages: { flat?: string; lifestyle?: string } = {};
-  let hasRenderedMockups = false;
-  const startTime = Date.now();
-
-  // Step 1: Wait for product to be created
-  console.log(`[MockupService] Waiting for product initialization...`);
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // Step 2: Use the publishing preview flow - this is the ONLY way to get rendered mockups
-  console.log(`[MockupService] Triggering publishing preview for rendered mockups...`);
-  const renderedImages = await printify.getRenderedMockups(printifyProduct.id, 90000);
-
-  if (renderedImages && renderedImages.length > 0) {
-    console.log(`[MockupService] Got ${renderedImages.length} rendered images from publishing preview!`);
-    
-    for (const img of renderedImages) {
-      const src = img.src || '';
-      const position = (img.position || "").toLowerCase();
-      const isDefault = img.is_default || false;
-      
-      // Take front/default image as flat mockup
-      if (!mockupImages.flat && (isDefault || position === 'front' || position === '' || position.includes('front'))) {
-        mockupImages.flat = src;
-        console.log(`[MockupService] Got rendered flat mockup: ${src.substring(0, 80)}...`);
-      }
-      
-      // Look for lifestyle (model wearing it)
-      const lifestyleKeywords = ['lifestyle', 'model', 'worn', 'person', 'other'];
-      if (!mockupImages.lifestyle && lifestyleKeywords.some(kw => position.includes(kw))) {
-        mockupImages.lifestyle = src;
-        console.log(`[MockupService] Got rendered lifestyle mockup: ${src.substring(0, 80)}...`);
-      }
-    }
-    
-    // If no lifestyle found, try to use a non-front image
-    if (mockupImages.flat && !mockupImages.lifestyle && renderedImages.length > 1) {
-      for (const img of renderedImages) {
-        const src = img.src || '';
-        const position = (img.position || "").toLowerCase();
-        if (src !== mockupImages.flat && !position.includes('back')) {
-          mockupImages.lifestyle = src;
-          console.log(`[MockupService] Using secondary rendered image as lifestyle: ${src.substring(0, 80)}...`);
-          break;
-        }
-      }
-    }
-    
-    if (mockupImages.flat) {
-      hasRenderedMockups = true;
-      const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`[MockupService] Successfully got rendered mockups in ${elapsedSec}s`);
-    }
-  } else {
-    console.log(`[MockupService] Publishing preview returned no images`);
+  // Step 4: Map canonical placement to Printful placement
+  let printfulPlacement = 'front';
+  if (canonicalPlacementId === 'BACK_FULL' || canonicalPlacementId === 'BACK_UPPER') {
+    printfulPlacement = 'back';
   }
-  
-  // FALLBACK: If Printify didn't render in time, use local mockup generator
-  if (!mockupImages.flat) {
-    console.warn(`[MockupService] Printify publishing preview failed - using local generator fallback`);
-    
-    // Delete the temp product before falling back
-    await printify.deleteProduct(printifyProduct.id).catch((err: Error) => {
-      console.warn(`[MockupService] Failed to delete temp product: ${err.message}`);
-    });
-    
-    // Use local mockup generator
-    const { generateLocalMockup } = await import("./local-mockup-generator");
-    
-    // Determine artwork variant based on color
-    const colorHex = colorVariants[0]?.options?.color_code || "#FFFFFF";
-    const isDarkColor = isColorDark(colorHex);
-    
-    const localMockup = await generateLocalMockup({
-      shirtColor: colorName,
-      shirtHex: colorHex,
-      artworkUrl: absoluteArtworkUrl,
-      artworkVariant: isDarkColor ? 'white' : 'black'
-    }, blueprintId, printProviderId);
-    
-    if (localMockup) {
-      console.log(`[MockupService] Generated local fallback mockup: ${localMockup.flatUrl}`);
-      return { flat: localMockup.flatUrl, lifestyle: localMockup.lifestyleUrl || undefined };
-    }
-    
+
+  // Step 5: Create mockup task
+  const task = await printfulClient.createMockupTask(
+    printfulProductId,
+    [targetVariant.id],
+    [{
+      placement: printfulPlacement,
+      image_url: absoluteArtworkUrl,
+      position,
+    }]
+  );
+
+  if (!task.task_key) {
+    console.error(`[MockupService/Printful] Mockup task creation failed`);
     return null;
   }
 
-  // CRITICAL: Download and store images in Object Storage BEFORE deleting the temp product
-  // Printify URLs expire after the product is deleted!
+  console.log(`[MockupService/Printful] Task created: ${task.task_key}`);
+
+  // Step 6: Wait for task completion
+  const result = await printfulClient.waitForMockupTask(task.task_key, 60000);
+
+  if (!result.mockups || result.mockups.length === 0) {
+    console.error(`[MockupService/Printful] No mockups returned`);
+    return null;
+  }
+
+  // Step 7: Extract mockup URLs
+  const mockupImages: { flat?: string; lifestyle?: string } = {};
+  
+  const mainMockup = result.mockups[0];
+  mockupImages.flat = mainMockup.mockup_url;
+  console.log(`[MockupService/Printful] Got flat mockup: ${mockupImages.flat.substring(0, 80)}...`);
+
+  // Look for lifestyle mockup in extra images
+  if (mainMockup.extra && mainMockup.extra.length > 0) {
+    // Prefer images with option_group "Model" or "Lifestyle" 
+    const lifestyleExtra = mainMockup.extra.find((e: any) => 
+      e.option_group?.toLowerCase().includes('model') || 
+      e.option_group?.toLowerCase().includes('lifestyle') ||
+      e.title?.toLowerCase().includes('lifestyle')
+    );
+    
+    if (lifestyleExtra?.url) {
+      mockupImages.lifestyle = lifestyleExtra.url;
+      console.log(`[MockupService/Printful] Got lifestyle mockup: ${lifestyleExtra.url.substring(0, 80)}...`);
+    }
+  }
+
+  // Step 8: Download and store in Object Storage for permanent URLs
   const permanentImages: { flat?: string; lifestyle?: string } = {};
   
   if (mockupImages.flat) {
-    const flatPath = `${blueprintId}/${printProviderId}/${colorName.replace(/\s+/g, '-').toLowerCase()}-flat.jpg`;
+    const flatPath = `printful/${blueprintId}/${colorName.replace(/\s+/g, '-').toLowerCase()}-flat.jpg`;
     const permanentFlatUrl = await downloadAndStoreImage(mockupImages.flat, flatPath);
     if (permanentFlatUrl) {
       permanentImages.flat = permanentFlatUrl;
-      console.log(`[MockupService] Stored flat mockup permanently`);
+      console.log(`[MockupService/Printful] Stored flat mockup permanently: ${permanentFlatUrl}`);
     } else {
-      // Fall back to Printify URL (may expire)
       permanentImages.flat = mockupImages.flat;
-      console.warn(`[MockupService] Could not store flat mockup, using Printify URL (may expire)`);
+      console.warn(`[MockupService/Printful] Could not store, using Printful S3 URL directly`);
     }
   }
   
   if (mockupImages.lifestyle) {
-    const lifestylePath = `${blueprintId}/${printProviderId}/${colorName.replace(/\s+/g, '-').toLowerCase()}-lifestyle.jpg`;
+    const lifestylePath = `printful/${blueprintId}/${colorName.replace(/\s+/g, '-').toLowerCase()}-lifestyle.jpg`;
     const permanentLifestyleUrl = await downloadAndStoreImage(mockupImages.lifestyle, lifestylePath);
     if (permanentLifestyleUrl) {
       permanentImages.lifestyle = permanentLifestyleUrl;
-      console.log(`[MockupService] Stored lifestyle mockup permanently`);
+      console.log(`[MockupService/Printful] Stored lifestyle mockup permanently`);
     } else {
-      // Fall back to Printify URL (may expire)
       permanentImages.lifestyle = mockupImages.lifestyle;
-      console.warn(`[MockupService] Could not store lifestyle mockup, using Printify URL (may expire)`);
     }
   }
 
-  // Cleanup: delete temp product (now safe because images are stored permanently)
-  await printify.deleteProduct(printifyProduct.id).catch((err: Error) => {
-    console.warn(`[MockupService] Failed to delete temp product: ${err.message}`);
-  });
-
   return permanentImages;
+}
+
+/**
+ * Auto-create a mapping between Printify blueprint and Printful product
+ * Uses common product mappings for known blueprints
+ */
+async function createAutoMapping(printifyBlueprintId: number): Promise<typeof printifyPrintfulMapping.$inferSelect | null> {
+  // Common mappings: Printify Blueprint ID → Printful Product ID
+  const knownMappings: Record<number, { printfulId: number; brand: string; model: string; colorMapping?: Record<string, string> }> = {
+    // Bella+Canvas 3001 Unisex Short Sleeve Jersey T-Shirt
+    6: { printfulId: 71, brand: 'Bella+Canvas', model: '3001', colorMapping: { 'Solid Black': 'Black', 'Solid White': 'White' } },
+    // Gildan 64000 Unisex Softstyle T-Shirt
+    5: { printfulId: 145, brand: 'Gildan', model: '64000' },
+    // Add more mappings as needed
+  };
+
+  const mapping = knownMappings[printifyBlueprintId];
+  if (!mapping) {
+    console.warn(`[MockupService/Printful] No known mapping for blueprint ${printifyBlueprintId}`);
+    return null;
+  }
+
+  console.log(`[MockupService/Printful] Creating auto-mapping: Blueprint ${printifyBlueprintId} → Printful ${mapping.printfulId}`);
+
+  // Insert the mapping
+  const [inserted] = await db
+    .insert(printifyPrintfulMapping)
+    .values({
+      printifyBlueprintId,
+      printfulProductId: mapping.printfulId,
+      printfulBrand: mapping.brand,
+      printfulModel: mapping.model,
+      colorMapping: mapping.colorMapping || null,
+      matchConfidence: 'auto',
+      isActive: true,
+    })
+    .returning();
+
+  return inserted;
 }
 
 /**
