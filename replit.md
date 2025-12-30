@@ -23,23 +23,30 @@ QR Gear is an e-commerce platform for personalized promotional merchandise with 
 
 **NEVER** recalculate prices from base costs. The admin-configured `customerPrice` IS the final price.
 
-### 2. Mockup System (WORKING - Uses Printify Native)
-**Location**: `server/lib/mockup-service.ts`
+### 2. Mockup System (WORKING - Uses Printful for Rendering)
+**Location**: `server/lib/mockup-service.ts`, `server/lib/printful.ts`
+
+**Dual-Provider Architecture**:
+- **Printful**: Used for mockup rendering (has dedicated Mockup Generator API)
+- **Printify**: Used for order fulfillment (cannot render mockups for unpublished products)
 
 **Flow**:
 1. Check `mockup_cache` table first (database-first)
-2. On cache miss → Create temp Printify product
-3. Upload QR artwork (black or white based on shirt color luminance)
-4. Get mockup images from Printify
-5. Cache results, delete temp product
+2. On cache miss → Look up `printify_printful_mapping` table
+3. Call Printful's Mockup Generator API with correct product/variant
+4. Download rendered mockup to Object Storage for permanent URL
+5. Cache result in database
+
+**Mapping Table**: `printify_printful_mapping`
+- Maps Printify blueprint IDs to Printful product IDs
+- Auto-creates mappings for known products (Bella+Canvas 3001 = Printful 71)
+- Supports color name mapping (e.g., "Solid Black" → "Black")
 
 **API Endpoint**: `POST /api/storefront/generate-mockup`
 ```json
-Request: { "productId": "custom_hello-world", "color": "White" }
-Response: { "success": true, "mockupUrl": "...", "fromCache": true }
+Request: { "productId": "custom_hello-world", "color": "Black" }
+Response: { "success": true, "mockupUrl": "/api/files/mockup-printful-5-black-flat.jpg", "fromCache": true }
 ```
-
-**FeaturedProducts Issue**: Currently only reads preloaded `mockupsByColor`. Needs to call `/api/storefront/generate-mockup` on color swatch click.
 
 ### 3. Printify Local Catalog (WORKING - DO NOT CALL API FOR COLORS/SIZES)
 **Source of truth**: `printify_print_providers` table
@@ -118,8 +125,9 @@ Response: { "success": true, "mockupUrl": "...", "fromCache": true }
 | `shared/schema.ts` | Database schema definitions |
 | `server/routes.ts` | All API endpoints |
 | `server/storage.ts` | Database operations |
-| `server/lib/mockup-service.ts` | Printify mockup generation & caching |
-| `server/lib/printify.ts` | Printify API wrapper |
+| `server/lib/mockup-service.ts` | Mockup generation & caching (uses Printful) |
+| `server/lib/printful.ts` | Printful API wrapper (mockup generation) |
+| `server/lib/printify.ts` | Printify API wrapper (order fulfillment) |
 | `server/lib/qr-generator.ts` | QR code generation |
 | `server/lib/cron-jobs.ts` | Weekly catalog sync |
 | `client/src/components/FeaturedProducts.tsx` | Home page product grid |
@@ -139,12 +147,15 @@ Response: { "success": true, "mockupUrl": "...", "fromCache": true }
 
 ---
 
-## Resolved Issues (December 27, 2025)
+## Resolved Issues (December 30, 2025)
 
-### Printify Mockup URLs - FIXED
-Mockups now stored permanently in Replit Object Storage before temp Printify products are deleted.
+### Printify Mockup Limitation - SOLVED
+Printify cannot render mockups for unpublished/draft products. Solution: Use Printful's Mockup Generator API instead.
 
-**URLs**: `https://replit-objstore-ac4951d5-c3b2-403e-ab38-26bbe6c49386.replit.dev/public/mockups/...`
+**Dual-Provider Approach**:
+- Printful for mockup rendering (dedicated API, no publishing required)
+- Printify for order fulfillment (unchanged)
+- Mockups stored permanently in Object Storage: `/api/files/mockup-printful-*.jpg`
 
 ### QR Artwork Selection - WORKING
 - `isColorDark()` correctly detects luminance
@@ -161,4 +172,4 @@ Home page shows `customerPrice` set by admin correctly.
 - **Frontend**: React, TypeScript, Vite, TanStack Query, shadcn/ui
 - **Backend**: Node.js, Express, TypeScript
 - **Database**: PostgreSQL (Neon), Drizzle ORM
-- **External**: Printify, Stripe, Firebase, Resend
+- **External**: Printify (fulfillment), Printful (mockups), Stripe, Firebase, Resend
