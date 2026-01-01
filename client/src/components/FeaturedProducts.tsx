@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRButton } from "@/components/QRButton";
 import UsaFlag from "./UsaFlag";
 import InstantMockupPreview from "./InstantMockupPreview";
+import ProductImageGallery from "./ProductImageGallery";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingCart, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
 import type { Product } from "@shared/schema";
 import baseShirtImage from "@assets/generated_images/white_t-shirt_mockup_template.png";
 
@@ -356,32 +358,16 @@ function ProductQuickView({
     }
   };
 
-  const getCurrentMockup = (): string | null => {
-    if (!selectedColor) return product?.defaultMockupImage || product?.imageUrl || null;
-    
-    // Check local mockups first (newly generated) - prefer lifestyle
-    if (localMockups[selectedColor]?.lifestyle) {
-      return localMockups[selectedColor].lifestyle!;
-    }
-    if (localMockups[selectedColor]?.front) {
-      return localMockups[selectedColor].front!;
-    }
-    
-    // Then check product mockups - prefer lifestyle
-    if (product?.mockupsByColor?.[selectedColor]?.lifestyle) {
-      return product.mockupsByColor[selectedColor].lifestyle!;
-    }
-    if (product?.mockupsByColor?.[selectedColor]?.front) {
-      return product.mockupsByColor[selectedColor].front!;
-    }
-    
-    return product?.defaultMockupImage || product?.imageUrl || null;
-  };
+  // Build gallery images using shared utility
+  const galleryImages = useMemo(() => {
+    return buildMockupGalleryImages(product, selectedColor, localMockups);
+  }, [selectedColor, localMockups, product]);
 
   if (!product) return null;
 
-  const displayImage = getCurrentMockup() || product.imageUrl || "";
+  const displayImage = galleryImages[0]?.url || product.imageUrl || "";
   const isGenerating = generatingColor === selectedColor;
+  const hasMultipleImages = galleryImages.length > 1;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -394,7 +380,7 @@ function ProductQuickView({
         <div className="grid md:grid-cols-2 gap-6 mt-4">
           <div className="relative">
             {(() => {
-              const hasMockup = selectedColor && (localMockups[selectedColor]?.front || product.mockupsByColor?.[selectedColor]?.front);
+              const hasMockup = galleryImages.length > 0 && galleryImages[0].url !== product.imageUrl;
               const hexColor = selectedColor ? (colorHexMap[selectedColor] || getColorHex(selectedColor)) : null;
               const qrArtworkBlack = product.frontChestImage || product.qrCodeUrl;
               const qrArtworkWhite = (product as any).frontChestImageWhite || null;
@@ -414,7 +400,7 @@ function ProductQuickView({
               }
               
               return (
-                <>
+                <div className="relative">
                   {isGenerating && (
                     <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10 rounded-lg">
                       <div className="text-center">
@@ -423,16 +409,20 @@ function ProductQuickView({
                       </div>
                     </div>
                   )}
-                  <img 
-                    src={displayImage} 
-                    alt={product.name}
-                    className="w-full rounded-lg object-contain max-h-[400px]"
-                  />
-                </>
+                  {hasMultipleImages ? (
+                    <ProductImageGallery images={galleryImages} className="max-h-[400px]" />
+                  ) : (
+                    <img 
+                      src={displayImage} 
+                      alt={product.name}
+                      className="w-full rounded-lg object-contain max-h-[400px]"
+                    />
+                  )}
+                </div>
               );
             })()}
             {product.madeInUSA && (
-              <span className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs flex items-center gap-1">
+              <span className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs flex items-center gap-1 z-20">
                 <UsaFlag className="usa-flag-small" />
                 Made in USA
               </span>

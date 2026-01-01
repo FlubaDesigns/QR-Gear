@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode, Check } from "lucide-react";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
+import ProductImageGallery from "@/components/ProductImageGallery";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
 
 interface MockupsByColor {
   [color: string]: {
     front?: string;
+    lifestyle?: string;
     angles?: string[];
   };
 }
@@ -124,19 +127,14 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
     },
   });
 
-  const getCurrentImage = (): string | null => {
-    // If we have mockups for colors, use the selected color's mockup
-    if (product.mockupsByColor) {
-      const color = selectedColor || product.defaultColor || availableColors[0];
-      if (color && product.mockupsByColor[color]?.front) {
-        return product.mockupsByColor[color].front!;
-      }
-    }
-    return product.imageUrl;
-  };
-
-  const displayImage = getCurrentImage();
+  // Build gallery images using shared utility
+  const galleryImages = useMemo(() => {
+    return buildMockupGalleryImages(product, selectedColor);
+  }, [product, selectedColor]);
+  
+  const displayImage = galleryImages[0]?.url || product.imageUrl;
   const hasMockups = !!product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0;
+  const hasMultipleImages = galleryImages.length > 1;
 
   return (
     <Card 
@@ -144,7 +142,9 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
       data-testid={`card-product-${product.id}`}
     >
       <div className="aspect-square relative bg-muted">
-        {displayImage ? (
+        {hasMultipleImages ? (
+          <ProductImageGallery images={galleryImages} />
+        ) : displayImage ? (
           <img 
             src={displayImage} 
             alt={product.name}
