@@ -1681,6 +1681,9 @@ export default function Creator() {
                                     </button>
                                   ))}
                                 </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Design placement shown is approximate. Actual proportions may vary by size.
+                                </p>
                               </div>
                             )}
 
