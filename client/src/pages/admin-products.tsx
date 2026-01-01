@@ -465,7 +465,6 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
           <div className="flex flex-wrap gap-2">
             {colors.map(color => {
               const hasMockup = mockupsByColor?.[color.name]?.front;
-              const isGenerating = generatingMockup === color.name;
               
               return (
                 <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
@@ -480,24 +479,44 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
                   <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
                     {color.name}
                   </Label>
-                  <button
-                    className={`mockup-star-btn ${hasMockup ? 'has-mockup' : ''}`}
-                    onClick={() => handleGenerateMockup(color.name)}
-                    disabled={isGenerating || !!hasMockup}
-                    title={hasMockup ? 'Mockup ready' : `Generate ${color.name} mockup`}
-                    data-testid={`star-${product.id}-${color.name}`}
-                  >
-                    {isGenerating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : hasMockup ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Star className="w-4 h-4" />
-                    )}
-                  </button>
+                  {hasMockup && (
+                    <Check className="w-4 h-4 text-green-500" />
+                  )}
                 </div>
               );
             })}
+          </div>
+          
+          {/* Mockup Generation Section */}
+          <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium">Generate Mockup:</span>
+              <select
+                className="h-9 px-3 rounded border bg-background text-sm"
+                value={generatingMockup || ""}
+                onChange={(e) => setGeneratingMockup(e.target.value || null)}
+                data-testid={`select-color-${product.id}`}
+              >
+                <option value="">Select color...</option>
+                {colors.filter(c => enabledColors.has(c.name)).map(c => (
+                  <option key={c.name} value={c.name}>
+                    {c.name} {mockupsByColor?.[c.name]?.front ? '✓' : ''}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                className="h-9"
+                disabled={!generatingMockup || generateMockupMutation.isPending}
+                onClick={() => generatingMockup && generateMockupMutation.mutate(generatingMockup)}
+                data-testid={`button-generate-${product.id}`}
+              >
+                {generateMockupMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : null}
+                Generate
+              </Button>
+            </div>
           </div>
         </div>
       )}
