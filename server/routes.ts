@@ -4636,6 +4636,156 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ MOCKUP JOB QUEUE ENDPOINTS ============
+  // Portable job queue for rate-limited mockup generation
+
+  // Create batch mockup jobs for a product
+  app.post("/api/admin/mockup-jobs/batch", isAdmin, async (req: any, res) => {
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const { productId, qrSize = "medium" } = req.body;
+      
+      if (!productId) {
+        return res.status(400).json({ error: "productId is required" });
+      }
+      
+      if (!["small", "medium", "large"].includes(qrSize)) {
+        return res.status(400).json({ error: "qrSize must be 'small', 'medium', or 'large'" });
+      }
+      
+      const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
+      const designId = productId.startsWith('custom_') ? productId.replace('custom_', '') : productId;
+      
+      const product = await storage.getProduct(canonicalProductId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const { blueprintId, printProviderId, availableColors } = product;
+      if (!blueprintId || !printProviderId) {
+        return res.status(400).json({ error: "Product missing blueprint or print provider" });
+      }
+      
+      const colors = Array.isArray(availableColors) ? availableColors : [];
+      if (colors.length === 0) {
+        return res.status(400).json({ error: "Product has no colors defined" });
+      }
+      
+      const design = await storage.getCustomDesign(designId);
+      if (!design) {
+        return res.status(404).json({ error: "Design not found" });
+      }
+      
+      // Get artwork
+      let designPlacements: Record<string, string> = {};
+      if (typeof design.placementImages === 'string') {
+        designPlacements = JSON.parse(design.placementImages);
+      } else if (design.placementImages && typeof design.placementImages === 'object') {
+        designPlacements = design.placementImages as Record<string, string>;
+      }
+      
+      const blackArtwork = designPlacements["front-chest"] || designPlacements["front-center"] || designPlacements["front"];
+      const whiteArtwork = designPlacements["front-chest-white"] || designPlacements["front-center-white"];
+      
+      if (!blackArtwork) {
+        return res.status(400).json({ error: "No artwork found for product" });
+      }
+      
+      // Create jobs for all colors
+      const jobs = await mockupJobQueue.createBatchJobs({
+        productId: canonicalProductId,
+        colors: colors as Array<{ name: string; hex: string }>,
+        qrSize: qrSize as "small" | "medium" | "large",
+        blueprintId,
+        printProviderId,
+        artworkUrl: blackArtwork,
+        artworkVariant: "black",
+      });
+      
+      res.json({
+        success: true,
+        message: `Created ${jobs.length} mockup jobs`,
+        jobCount: jobs.length,
+        qrSize,
+        jobIds: jobs.map(j => j.id),
+      });
+    } catch (error: any) {
+      console.error("[MockupJobQueue] Batch create error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get queue stats
+  app.get("/api/admin/mockup-jobs/stats", isAdmin, async (req: any, res) => {
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const stats = await mockupJobQueue.getStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get jobs for a product
+  app.get("/api/admin/mockup-jobs/product/:productId", isAdmin, async (req: any, res) => {
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const { productId } = req.params;
+      const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
+      const jobs = await mockupJobQueue.getJobsByProduct(canonicalProductId);
+      res.json(jobs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single job status
+  app.get("/api/admin/mockup-jobs/:jobId", isAdmin, async (req: any, res) => {
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const job = await mockupJobQueue.getJob(req.params.jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      res.json(job);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Cancel pending jobs for a product
+  app.delete("/api/admin/mockup-jobs/product/:productId", isAdmin, async (req: any, res) => {
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const { productId } = req.params;
+      const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
+      const cancelled = await mockupJobQueue.cancelJobsByProduct(canonicalProductId);
+      res.json({ success: true, cancelledCount: cancelled });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Start/stop worker (admin control)
+  app.post("/api/admin/mockup-jobs/worker/:action", isAdmin, async (req: any, res) => {
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const { action } = req.params;
+      
+      if (action === "start") {
+        mockupJobQueue.startWorker();
+        res.json({ success: true, message: "Worker started" });
+      } else if (action === "stop") {
+        mockupJobQueue.stopWorker();
+        res.json({ success: true, message: "Worker stopped" });
+      } else {
+        res.status(400).json({ error: "Action must be 'start' or 'stop'" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ DYNAMIC PAGES ENDPOINTS ============
   
   // Get user's dynamic pages with active image info

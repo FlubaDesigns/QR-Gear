@@ -187,7 +187,16 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Start the mockup job queue worker
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      mockupJobQueue.startWorker();
+      log("Mockup job queue worker started");
+    } catch (err) {
+      console.error("Failed to start mockup job queue worker:", err);
+    }
   });
 })();
