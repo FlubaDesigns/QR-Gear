@@ -366,7 +366,9 @@ async function generatePrintfulMockupInternal(params: {
     large: 0.65,   // ~12" on a 12"x16" area (near max)
   };
   const sizePercent = sizePercentages[params.qrSize || 'medium'] || sizePercentages.medium;
-  const qrSize = Math.max(Math.round(areaWidth * sizePercent), 1200);
+  // Minimum QR size is 15% of print area (ensures visibility without overriding user choice)
+  const minQrSize = Math.round(areaWidth * 0.15);
+  const qrSize = Math.max(Math.round(areaWidth * sizePercent), minQrSize);
   
   console.log(`[MockupService/Printful] Print area: ${areaWidth}x${areaHeight}, QR size: ${qrSize}px (${Math.round(qrSize/areaWidth*100)}%)`);
   
