@@ -1692,6 +1692,10 @@ export const mockupJobs = pgTable("mockup_jobs", {
   priority: integer("priority").default(10), // Lower = higher priority
   attempts: integer("attempts").default(0),
   maxAttempts: integer("max_attempts").default(5),
+  // Priority boost tracking (for user-requested prioritization)
+  priorityUpdatedAt: timestamp("priority_updated_at"),
+  priorityOwner: varchar("priority_owner"), // viewerId for tracking who boosted
+  priorityExpiresAt: timestamp("priority_expires_at"), // TTL for priority boost
   // Results
   resultData: jsonb("result_data"), // { mockupUrl, lifestyleUrl } on success
   errorMessage: text("error_message"),
@@ -1704,6 +1708,7 @@ export const mockupJobs = pgTable("mockup_jobs", {
   index("mockup_jobs_status_idx").on(table.status),
   index("mockup_jobs_product_idx").on(table.productId),
   index("mockup_jobs_next_retry_idx").on(table.nextRetryAt),
+  index("mockup_jobs_priority_idx").on(table.priority, table.priorityUpdatedAt),
 ]);
 
 export const insertMockupJobSchema = createInsertSchema(mockupJobs).omit({ id: true, createdAt: true });

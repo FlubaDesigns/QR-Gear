@@ -117,9 +117,54 @@ export class MockupJobQueue {
     };
   }
 
+  async bumpPriority(params: {
+    productId: string;
+    colorName: string;
+    qrSize: string;
+    viewerId: string;
+  }): Promise<MockupJob | null> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minute TTL
+    
+    // Find the job for this color + qrSize combo
+    const [existingJob] = await db.select().from(mockupJobs)
+      .where(
+        and(
+          eq(mockupJobs.productId, params.productId),
+          eq(mockupJobs.colorName, params.colorName),
+          eq(mockupJobs.qrSize, params.qrSize)
+        )
+      )
+      .limit(1);
+    
+    if (!existingJob) {
+      return null;
+    }
+    
+    // Only bump if job is still pending or delayed
+    if (existingJob.status !== "pending" && existingJob.status !== "delayed") {
+      return existingJob; // Already processing/completed/failed
+    }
+    
+    // Set priority to -1 (highest) and update tracking fields
+    const [updatedJob] = await db.update(mockupJobs)
+      .set({
+        priority: -1,
+        priorityUpdatedAt: now,
+        priorityOwner: params.viewerId,
+        priorityExpiresAt: expiresAt,
+      })
+      .where(eq(mockupJobs.id, existingJob.id))
+      .returning();
+    
+    console.log(`[MockupQueue] Bumped priority for ${params.colorName}/${params.qrSize} (job ${existingJob.id})`);
+    return updatedJob;
+  }
+
   async getNextJob(): Promise<MockupJob | null> {
     const now = new Date();
     
+    // Order by priority first, then by priorityUpdatedAt (most recently boosted), then createdAt
     const [job] = await db.select().from(mockupJobs)
       .where(
         or(
@@ -130,7 +175,7 @@ export class MockupJobQueue {
           )
         )
       )
-      .orderBy(asc(mockupJobs.priority), asc(mockupJobs.createdAt))
+      .orderBy(asc(mockupJobs.priority), desc(mockupJobs.priorityUpdatedAt), asc(mockupJobs.createdAt))
       .limit(1);
 
     return job || null;

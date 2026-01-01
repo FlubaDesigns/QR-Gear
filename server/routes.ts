@@ -4754,6 +4754,39 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Priority bump for a specific color + QR size combo (public - for customer UX)
+  app.post("/api/mockup-jobs/prioritize", async (req: any, res) => {
+    try {
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const { productId, colorName, qrSize, viewerId } = req.body;
+      
+      if (!productId || !colorName || !qrSize || !viewerId) {
+        return res.status(400).json({ error: "Missing required fields: productId, colorName, qrSize, viewerId" });
+      }
+      
+      const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
+      const job = await mockupJobQueue.bumpPriority({
+        productId: canonicalProductId,
+        colorName,
+        qrSize,
+        viewerId,
+      });
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found for this color/size combination" });
+      }
+      
+      res.json({ 
+        success: true, 
+        jobId: job.id, 
+        status: job.status,
+        priority: job.priority,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Cancel pending jobs for a product - admin only (prevent abuse)
   app.delete("/api/mockup-jobs/product/:productId", isAdmin, async (req: any, res) => {
     try {
