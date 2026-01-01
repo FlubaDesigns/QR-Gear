@@ -4442,12 +4442,15 @@ ${allPages.map(page => `  <url>
       // Set the newly generated mockup as the default display image
       const defaultImage = result.lifestyleMockupUrl || result.mockupUrl;
       
-      await storage.updateProduct(canonicalProductId, {
+      console.log(`[StorefrontMockup] Updating product ${canonicalProductId} with defaultColor=${color}, imageUrl=${defaultImage}`);
+      
+      const updateResult = await storage.updateProduct(canonicalProductId, {
         mockupsByColor: existingProductMockups,
         defaultColor: color,
         imageUrl: defaultImage, // Update imageUrl so product cards show this mockup
       });
       
+      console.log(`[StorefrontMockup] Update result: defaultColor=${updateResult?.defaultColor}, imageUrl=${updateResult?.imageUrl}`);
       console.log(`[StorefrontMockup] Updated mockups for ${color}: flat=${!!result.mockupUrl}, lifestyle=${!!result.lifestyleMockupUrl}`);
       
       // Update partner store product if storeId provided
