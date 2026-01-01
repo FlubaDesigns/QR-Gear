@@ -188,5 +188,52 @@ Home page shows `customerPrice` set by admin correctly.
 ## Stack Summary
 - **Frontend**: React, TypeScript, Vite, TanStack Query, shadcn/ui
 - **Backend**: Node.js, Express, TypeScript
-- **Database**: PostgreSQL (Neon), Drizzle ORM
+- **Database**: PostgreSQL (Neon), Drizzle ORM + Firestore (dual-write capable)
 - **External**: Printify (fulfillment), Printful (mockups), Stripe, Firebase, Resend
+
+---
+
+## Dual Storage System (Firebase Migration)
+
+### Architecture
+The system supports three storage modes controlled by `STORAGE_MODE` environment variable:
+
+| Mode | Reads From | Writes To | Use Case |
+|------|------------|-----------|----------|
+| `postgres-only` | Postgres | Postgres | Default, Replit development |
+| `dual-write` | Postgres | Postgres + Firestore | Migration testing |
+| `firestore-only` | Firestore | Firestore | Firebase deployment |
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `server/lib/storage-factory.ts` | Storage mode switching |
+| `server/lib/firestore-adapter.ts` | Firestore implementation of IStorage |
+| `server/lib/dual-write-adapter.ts` | Writes to both backends |
+| `server/lib/firebase-admin.ts` | Firebase Admin SDK initialization |
+| `docs/FIRESTORE_DATA_MODEL.md` | Firestore collection mapping |
+
+### Environment Variables
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `STORAGE_MODE` | Storage backend mode | `postgres-only` |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID | `qrgear-c1ffd` |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Service account JSON (for server) | Required for Firestore |
+
+### Enabling Dual-Write (Beta Testing)
+1. Set `STORAGE_MODE=dual-write` in environment
+2. Provide `FIREBASE_SERVICE_ACCOUNT_KEY` secret (JSON stringified)
+3. Restart the application
+4. All product/design/order writes will sync to Firestore
+
+### Core Methods Implemented in FirestoreAdapter
+- Products: CRUD, getEnabled, toggleEnabled
+- Custom Designs: CRUD, getForLibrary, getByStoreSegment
+- Orders: CRUD, getByUser, getByStatus, getByStripeSession
+- Users: CRUD, getByEmail, upsert
+- Admin Settings: get, upsert
+
+### Data Portability
+- JSON blob fields (mockupsByColor, graphicsConfig, placementImages) transfer directly
+- Timestamps convert from Postgres to Firestore Timestamp
+- IDs preserved for cross-system references
