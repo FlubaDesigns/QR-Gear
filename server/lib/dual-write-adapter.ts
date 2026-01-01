@@ -304,7 +304,7 @@ export class DualWriteAdapter implements IStorage {
   async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
     const result = await this.primary.createOrderItem(item);
     try {
-      await this.secondary.createOrderItem({ ...item, id: result.id } as InsertOrderItem);
+      await this.secondary.createOrderItem(result as unknown as InsertOrderItem);
     } catch (error) {
       this.logDualWriteError('createOrderItem', error);
     }

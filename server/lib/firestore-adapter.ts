@@ -104,27 +104,26 @@ export class FirestoreAdapter implements IStorage {
   }
   
   async createProduct(product: InsertProduct): Promise<Product> {
-    const docRef = this.db.collection('products').doc(product.id);
-    const data = {
-      ...product,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    await docRef.set(data);
+    const productData = product as any;
+    const docRef = this.db.collection('products').doc(productData.id);
+    const now = new Date();
+    const data = this.prepareForFirestore({
+      ...productData,
+      createdAt: productData.createdAt || now,
+      updatedAt: productData.updatedAt || now,
+    });
+    await docRef.set(data, { merge: true });
     const doc = await docRef.get();
     return this.docToProduct(doc);
   }
   
   async updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined> {
     const docRef = this.db.collection('products').doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) return undefined;
-    
-    await docRef.update({
-      ...product,
-      updatedAt: new Date(),
-    });
-    
+    const data = this.prepareForFirestore({ ...product as any, id });
+    if (!data.updatedAt) {
+      data.updatedAt = new Date();
+    }
+    await docRef.set(data, { merge: true });
     const updated = await docRef.get();
     return this.docToProduct(updated);
   }
@@ -183,27 +182,26 @@ export class FirestoreAdapter implements IStorage {
   }
   
   async createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign> {
-    const docRef = this.db.collection('customDesigns').doc(design.id);
-    const data = {
-      ...design,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    await docRef.set(data);
+    const designData = design as any;
+    const docRef = this.db.collection('customDesigns').doc(designData.id);
+    const now = new Date();
+    const data = this.prepareForFirestore({
+      ...designData,
+      createdAt: designData.createdAt || now,
+      updatedAt: designData.updatedAt || now,
+    });
+    await docRef.set(data, { merge: true });
     const doc = await docRef.get();
     return this.docToCustomDesign(doc);
   }
   
   async updateCustomDesign(id: string, design: Partial<InsertCustomDesign>): Promise<CustomDesign | undefined> {
     const docRef = this.db.collection('customDesigns').doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) return undefined;
-    
-    await docRef.update({
-      ...design,
-      updatedAt: new Date(),
-    });
-    
+    const data = this.prepareForFirestore({ ...design as any, id });
+    if (!data.updatedAt) {
+      data.updatedAt = new Date();
+    }
+    await docRef.set(data, { merge: true });
     const updated = await docRef.get();
     return this.docToCustomDesign(updated);
   }
@@ -261,28 +259,30 @@ export class FirestoreAdapter implements IStorage {
   }
   
   async createOrder(order: InsertOrder): Promise<Order> {
-    const docRef = this.db.collection('orders').doc();
-    const data = {
-      ...order,
+    const orderData = order as any;
+    const docId = orderData.id?.toString() || undefined;
+    const docRef = docId 
+      ? this.db.collection('orders').doc(docId)
+      : this.db.collection('orders').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({
+      ...orderData,
       id: docRef.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    await docRef.set(data);
+      createdAt: orderData.createdAt || now,
+      updatedAt: orderData.updatedAt || now,
+    });
+    await docRef.set(data, { merge: true });
     const doc = await docRef.get();
     return this.docToOrder(doc);
   }
   
   async updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined> {
     const docRef = this.db.collection('orders').doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) return undefined;
-    
-    await docRef.update({
-      ...order,
-      updatedAt: new Date(),
-    });
-    
+    const data = this.prepareForFirestore({ ...order as any, id });
+    if (!data.updatedAt) {
+      data.updatedAt = new Date();
+    }
+    await docRef.set(data, { merge: true });
     const updated = await docRef.get();
     return this.docToOrder(updated);
   }
@@ -308,28 +308,30 @@ export class FirestoreAdapter implements IStorage {
   }
   
   async createOrderUnified(order: InsertOrderUnified): Promise<OrderUnified> {
-    const docRef = this.db.collection('ordersUnified').doc();
-    const data = {
-      ...order,
+    const orderData = order as any;
+    const docId = orderData.id?.toString() || undefined;
+    const docRef = docId
+      ? this.db.collection('ordersUnified').doc(docId)
+      : this.db.collection('ordersUnified').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({
+      ...orderData,
       id: docRef.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    await docRef.set(data);
+      createdAt: orderData.createdAt || now,
+      updatedAt: orderData.updatedAt || now,
+    });
+    await docRef.set(data, { merge: true });
     const doc = await docRef.get();
     return this.docToOrderUnified(doc);
   }
   
   async updateOrderUnified(id: string, order: Partial<InsertOrderUnified>): Promise<OrderUnified | undefined> {
     const docRef = this.db.collection('ordersUnified').doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) return undefined;
-    
-    await docRef.update({
-      ...order,
-      updatedAt: new Date(),
-    });
-    
+    const data = this.prepareForFirestore({ ...order as any, id });
+    if (!data.updatedAt) {
+      data.updatedAt = new Date();
+    }
+    await docRef.set(data, { merge: true });
     const updated = await docRef.get();
     return this.docToOrderUnified(updated);
   }
@@ -355,15 +357,32 @@ export class FirestoreAdapter implements IStorage {
   }
   
   async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
-    const docRef = this.db.collection('orders').doc(item.orderId)
-      .collection('items').doc();
-    const data = {
-      ...item,
-      id: docRef.id,
-    };
-    await docRef.set(data);
+    const itemData = item as any;
+    const docId = itemData.id?.toString() || undefined;
+    const docRef = docId 
+      ? this.db.collection('orders').doc(item.orderId).collection('items').doc(docId)
+      : this.db.collection('orders').doc(item.orderId).collection('items').doc();
+    const data = this.prepareForFirestore({ ...itemData, id: docId || docRef.id });
+    await docRef.set(data, { merge: true });
     const doc = await docRef.get();
     return this.docToOrderItem(doc, item.orderId);
+  }
+  
+  private prepareForFirestore(data: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value === undefined) continue;
+      if (value instanceof Date) {
+        result[key] = value;
+      } else if (typeof value === 'string' && (key.endsWith('At') || key === 'createdAt' || key === 'updatedAt')) {
+        result[key] = new Date(value);
+      } else if (value !== null && typeof value === 'object' && !Array.isArray(value) && value.constructor === Object) {
+        result[key] = this.prepareForFirestore(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
   }
   
   private docToOrderItem(doc: FirebaseFirestore.DocumentSnapshot, orderId: string): OrderItem {
