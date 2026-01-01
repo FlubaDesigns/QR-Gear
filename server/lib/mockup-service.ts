@@ -213,7 +213,7 @@ export async function getMockupWithFallback(
 
   // Step 2: Generate via Printful's Mockup Generator API
   // Printful has a dedicated mockup generator that works without publishing products
-  const mockupResult = await generatePrintfulMockup({
+  const mockupResult = await generatePrintfulMockupInternal({
     blueprintId,
     printProviderId,
     colorName,
@@ -276,11 +276,11 @@ export async function getMockupWithFallback(
 }
 
 /**
- * Generate mockup via Printful's Mockup Generator API
+ * Internal: Generate mockup via Printful's Mockup Generator API
  * Printful has a dedicated mockup generator that works without publishing products.
  * This is more reliable than Printify's approach which requires temporary product creation.
  */
-async function generatePrintfulMockup(params: {
+async function generatePrintfulMockupInternal(params: {
   blueprintId: number;
   printProviderId: number;
   colorName: string;
@@ -731,5 +731,41 @@ export async function getLifestyleMockupForColor(
       fromCache: false,
       qrVariant,
     };
+  }
+}
+
+/**
+ * Exported wrapper for job queue - generates a Printful mockup with standard parameters
+ * This is the interface the job queue uses, abstracting internal implementation details
+ */
+export async function generatePrintfulMockup(params: {
+  productId: string;
+  blueprintId: number;
+  printProviderId: number;
+  colorName: string;
+  artworkUrl: string;
+  artworkVariant: "black" | "white";
+  qrSize: "small" | "medium" | "large";
+}): Promise<{ mockupUrl?: string; lifestyleUrl?: string; error?: string }> {
+  try {
+    const result = await generatePrintfulMockupInternal({
+      blueprintId: params.blueprintId,
+      printProviderId: params.printProviderId,
+      colorName: params.colorName,
+      artworkUrl: params.artworkUrl,
+      canonicalPlacementId: "FRONT_CHEST",
+      qrSize: params.qrSize,
+    });
+
+    if (!result) {
+      return { error: "Mockup generation failed - no result returned" };
+    }
+
+    return {
+      mockupUrl: result.flat,
+      lifestyleUrl: result.lifestyle,
+    };
+  } catch (err: any) {
+    return { error: err.message || "Unknown error during mockup generation" };
   }
 }
