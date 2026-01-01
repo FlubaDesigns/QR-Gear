@@ -123,6 +123,8 @@ const QR_PLACEMENTS = [
 ];
 
 type PlacementMode = 'full' | 'qr-only';
+type QRSize = 'small' | 'medium' | 'large';
+type PlacementConfig = { mode: PlacementMode; qrSize: QRSize };
 
 const standardSizes = [
   { value: "XS", label: "XS" },
@@ -211,12 +213,13 @@ export default function Creator() {
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
   const [qrCodeImage, setQrCodeImage] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementMode>>({
-    "front-chest": "full"
+  const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementConfig>>({
+    "front-chest": { mode: "full", qrSize: "medium" }
   });
   const placement = Object.keys(placementConfigs)[0] || "front-chest";
   const [productColor, setProductColor] = useState("");
-  const [graphicSize, setGraphicSize] = useState<"small" | "medium" | "large">("medium");
+  // Primary graphic size (first placement's size, used for backwards compatibility)
+  const graphicSize = placementConfigs[placement]?.qrSize || "medium";
   const [textAbove, setTextAbove] = useState("");
   const [textBelow, setTextBelow] = useState("");
   
@@ -1723,7 +1726,11 @@ export default function Creator() {
                                         : "bg-background border-muted hover:border-foreground/50"
                                     }`}
                                     onClick={() => {
-                                      setGraphicSize(size);
+                                      // Update QR size for the primary placement
+                                      setPlacementConfigs(prev => ({
+                                        ...prev,
+                                        [placement]: { ...prev[placement], qrSize: size }
+                                      }));
                                       handlePriorityBump(selectedProduct?.id || null, productColor, size, placement);
                                     }}
                                     data-testid={`button-graphic-size-${size}`}
@@ -1771,7 +1778,9 @@ export default function Creator() {
                               <div className="space-y-3">
                                 {QR_PLACEMENTS.map(({ id, label, Icon }) => {
                                   const isSelected = id in placementConfigs;
-                                  const mode = placementConfigs[id] || "full";
+                                  const config = placementConfigs[id];
+                                  const mode = config?.mode || "full";
+                                  const qrSize = config?.qrSize || "medium";
                                   
                                   return (
                                     <div 
@@ -1785,12 +1794,22 @@ export default function Creator() {
                                           onClick={() => {
                                             const newConfigs = { ...placementConfigs };
                                             if (isSelected) {
+                                              // Only allow deselecting if we have more than 1 placement
                                               if (Object.keys(newConfigs).length > 1) {
                                                 delete newConfigs[id];
                                               }
                                             } else {
-                                              newConfigs[id] = "full";
-                                              handlePriorityBump(selectedProduct?.id || null, productColor, graphicSize, id);
+                                              // Limit to 2 placements for multi-graphic support
+                                              if (Object.keys(newConfigs).length >= 2) {
+                                                toast({
+                                                  title: "Maximum 2 placements",
+                                                  description: "You can add graphics to up to 2 positions on your product.",
+                                                  variant: "destructive"
+                                                });
+                                                return;
+                                              }
+                                              newConfigs[id] = { mode: "full", qrSize: "medium" };
+                                              handlePriorityBump(selectedProduct?.id || null, productColor, "medium", id);
                                             }
                                             setPlacementConfigs(newConfigs);
                                           }}
@@ -1801,35 +1820,59 @@ export default function Creator() {
                                         </Button>
                                         
                                         {isSelected && (
-                                          <div className="flex gap-1 bg-muted rounded-md p-1">
-                                            <Button
-                                              variant={mode === "full" ? "default" : "ghost"}
-                                              size="sm"
-                                              className="h-10 px-3 text-xs qr-touch-48"
-                                              onClick={() => {
-                                                setPlacementConfigs({
-                                                  ...placementConfigs,
-                                                  [id]: "full"
-                                                });
-                                              }}
-                                              data-testid={`placement-${id}-full`}
-                                            >
-                                              Full Artwork
-                                            </Button>
-                                            <Button
-                                              variant={mode === "qr-only" ? "default" : "ghost"}
-                                              size="sm"
-                                              className="h-10 px-3 text-xs qr-touch-48"
-                                              onClick={() => {
-                                                setPlacementConfigs({
-                                                  ...placementConfigs,
-                                                  [id]: "qr-only"
-                                                });
-                                              }}
-                                              data-testid={`placement-${id}-qr-only`}
-                                            >
-                                              QR Only
-                                            </Button>
+                                          <div className="flex flex-col gap-2">
+                                            {/* Mode selector */}
+                                            <div className="flex gap-1 bg-muted rounded-md p-1">
+                                              <Button
+                                                variant={mode === "full" ? "default" : "ghost"}
+                                                size="sm"
+                                                className="h-10 px-3 text-xs qr-touch-48"
+                                                onClick={() => {
+                                                  setPlacementConfigs(prev => ({
+                                                    ...prev,
+                                                    [id]: { ...prev[id], mode: "full" }
+                                                  }));
+                                                }}
+                                                data-testid={`placement-${id}-full`}
+                                              >
+                                                Full Artwork
+                                              </Button>
+                                              <Button
+                                                variant={mode === "qr-only" ? "default" : "ghost"}
+                                                size="sm"
+                                                className="h-10 px-3 text-xs qr-touch-48"
+                                                onClick={() => {
+                                                  setPlacementConfigs(prev => ({
+                                                    ...prev,
+                                                    [id]: { ...prev[id], mode: "qr-only" }
+                                                  }));
+                                                }}
+                                                data-testid={`placement-${id}-qr-only`}
+                                              >
+                                                QR Only
+                                              </Button>
+                                            </div>
+                                            {/* QR Size selector per placement */}
+                                            <div className="flex gap-1 bg-muted/50 rounded-md p-1">
+                                              {(["small", "medium", "large"] as const).map((size) => (
+                                                <Button
+                                                  key={size}
+                                                  variant={qrSize === size ? "secondary" : "ghost"}
+                                                  size="sm"
+                                                  className="h-8 px-2 text-xs qr-touch-48"
+                                                  onClick={() => {
+                                                    setPlacementConfigs(prev => ({
+                                                      ...prev,
+                                                      [id]: { ...prev[id], qrSize: size }
+                                                    }));
+                                                    handlePriorityBump(selectedProduct?.id || null, productColor, size, id);
+                                                  }}
+                                                  data-testid={`placement-${id}-size-${size}`}
+                                                >
+                                                  {size === "small" ? "S" : size === "medium" ? "M" : "L"}
+                                                </Button>
+                                              ))}
+                                            </div>
                                           </div>
                                         )}
                                       </div>

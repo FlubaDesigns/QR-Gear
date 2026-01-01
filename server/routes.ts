@@ -4448,73 +4448,31 @@ ${allPages.map(page => `  <url>
         console.log(`[StorefrontMockup] Using fallback artwork: ${artworkUrl}`);
       }
       
-      if (!artworkUrl) {
-        return res.status(400).json({ error: "No artwork found for this product" });
+      // Mockup not found in database - check if it's pending in the job queue
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      const pendingJobs = await mockupJobQueue.getJobsByProduct(canonicalProductId);
+      const colorJobs = pendingJobs.filter(j => 
+        j.colorName.toLowerCase() === color.toLowerCase() && 
+        ['pending', 'processing', 'delayed'].includes(j.status)
+      );
+      
+      if (colorJobs.length > 0) {
+        // Mockup is being generated, return pending status
+        console.log(`[StorefrontMockup] Mockup for ${color} is pending (${colorJobs.length} jobs in queue)`);
+        return res.json({ 
+          success: false, 
+          pending: true,
+          color, 
+          message: `Mockup for ${color} is being generated. Please wait.`,
+          jobCount: colorJobs.length
+        });
       }
       
-      console.log(`[StorefrontMockup] Getting mockup for ${color} (database-first with Printify fallback)`);
-      
-      // Use the mockup service with database-first + Printify fallback
-      const { getMockupWithFallback } = await import('./lib/mockup-service.js');
-      
-      const result = await getMockupWithFallback({
-        blueprintId,
-        printProviderId,
-        colorName: color,
-        colorHex: colorHex || undefined,
-        canonicalPlacementId: "FRONT_CHEST",
-        artworkUrl,
-        artworkVariant,
-        qrSize: resolvedQrSize,
-      }, storage);
-      
-      console.log(`[StorefrontMockup] Got mockup (fromCache: ${result.fromCache})`);
-      
-      // Also update products table for legacy compatibility
-      // Store BOTH flat and lifestyle mockups - frontend prefers lifestyle when available
-      const existingProductMockups = (product.mockupsByColor as Record<string, any>) || {};
-      existingProductMockups[color] = { 
-        front: result.mockupUrl,
-        lifestyle: result.lifestyleMockupUrl || undefined
-      };
-      
-      // Set the newly generated mockup as the default display image
-      const defaultImage = result.lifestyleMockupUrl || result.mockupUrl;
-      
-      console.log(`[StorefrontMockup] Updating product ${canonicalProductId} with defaultColor=${color}, imageUrl=${defaultImage}`);
-      
-      const updateResult = await storage.updateProduct(canonicalProductId, {
-        mockupsByColor: existingProductMockups,
-        defaultColor: color,
-        imageUrl: defaultImage, // Update imageUrl so product cards show this mockup
-      });
-      
-      console.log(`[StorefrontMockup] Update result: defaultColor=${updateResult?.defaultColor}, imageUrl=${updateResult?.imageUrl}`);
-      console.log(`[StorefrontMockup] Updated mockups for ${color}: flat=${!!result.mockupUrl}, lifestyle=${!!result.lifestyleMockupUrl}`);
-      
-      // Update partner store product if storeId provided
-      if (storeId) {
-        const storeProduct = await storage.getPartnerStoreProduct(storeId, canonicalProductId);
-        if (storeProduct) {
-          const existingMockups = (storeProduct.mockupsByColor as Record<string, any>) || {};
-          existingMockups[color] = { 
-            front: result.mockupUrl,
-            lifestyle: result.lifestyleMockupUrl || undefined
-          };
-          
-          await storage.updatePartnerStoreProductByIds(storeProduct.partnerStoreId, canonicalProductId, {
-            mockupsByColor: existingMockups,
-          });
-        }
-      }
-      
-      res.json({ 
-        success: true, 
-        color, 
-        mockupUrl: result.mockupUrl,
-        lifestyleMockupUrl: result.lifestyleMockupUrl,
-        fromCache: result.fromCache,
-        mockupsByColor: existingProductMockups 
+      // No mockup exists and none pending - this color wasn't queued
+      console.log(`[StorefrontMockup] No mockup found for ${color} and none pending`);
+      return res.status(404).json({ 
+        error: `No mockup available for ${color}. Mockups are generated when the product is saved.`,
+        color 
       });
     } catch (error: any) {
       console.error("[StorefrontMockup] Error:", error);
@@ -6353,6 +6311,57 @@ ${allPages.map(page => `  <url>
         }
         
         console.log(`[Custom Design] Created/updated product catalog entry: ${productId} in category: ${categoryPath} with price $${customerPrice.toFixed(2)}`);
+        
+        // AUTO-GENERATE MOCKUPS: Queue batch mockup jobs for all colors
+        if (validatedData.productId && validatedData.printProviderId) {
+          try {
+            const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+            
+            // Get available colors from local catalog
+            const { printifyPrintProviders } = await import('@shared/schema');
+            const [provider] = await db.select()
+              .from(printifyPrintProviders)
+              .where(
+                and(
+                  eq(printifyPrintProviders.blueprintId, validatedData.productId),
+                  eq(printifyPrintProviders.providerId, validatedData.printProviderId)
+                )
+              );
+            
+            const availableColors = provider?.availableColors as Array<{name: string; hex: string}> || [];
+            
+            if (availableColors.length > 0) {
+              // Get artwork URL from placementImages
+              const artworkUrl = (placementImages as any)?.["front-chest"] || 
+                                 Object.values(placementImages || {})[0] as string;
+              
+              if (artworkUrl) {
+                // Determine artwork variant (black or white) - use black for now, white version is stored separately
+                const artworkVariant = "black" as const;
+                
+                const jobs = await mockupJobQueue.createBatchJobs({
+                  productId,
+                  colors: availableColors,
+                  qrSizes: ["small", "medium", "large"],
+                  placements: ["front-chest"],
+                  blueprintId: validatedData.productId,
+                  printProviderId: validatedData.printProviderId,
+                  artworkUrl,
+                  artworkVariant,
+                });
+                
+                console.log(`[Custom Design] Queued ${jobs.length} mockup jobs for ${availableColors.length} colors x 3 sizes`);
+              } else {
+                console.warn(`[Custom Design] No artwork URL found for auto-mockup generation`);
+              }
+            } else {
+              console.warn(`[Custom Design] No colors found in local catalog for blueprint ${validatedData.productId} provider ${validatedData.printProviderId}`);
+            }
+          } catch (mockupError: any) {
+            console.error(`[Custom Design] Failed to queue mockup jobs:`, mockupError.message);
+            // Don't fail the entire request, mockups can be generated later
+          }
+        }
       }
       
       res.json(updatedDesign);

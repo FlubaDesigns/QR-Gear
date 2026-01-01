@@ -24,19 +24,24 @@ QR Gear is an e-commerce platform for personalized promotional merchandise with 
 **NEVER** recalculate prices from base costs. The admin-configured `customerPrice` IS the final price.
 
 ### 2. Mockup System (WORKING - Printful for Rendering)
-**Location**: `server/lib/mockup-service.ts`, `server/lib/printful.ts`
+**Location**: `server/lib/mockup-service.ts`, `server/lib/printful.ts`, `server/lib/mockup-job-queue.ts`
 
 **Printful-First Architecture**:
-- **Printful**: Used for mockup rendering AND order fulfillment
+- **Printful**: Used for mockup rendering
+- **Printify**: Used for order fulfillment
 - Mockups include **lifestyle images** (person wearing the shirt)
-- QR code size: **1000x1000 pixels** (55% of print area) for visibility
+- QR sizes: small (25%), medium (45%), large (65%) of print area
 
-**Flow**:
-1. Check `mockup_cache` table first (database-first)
-2. On cache miss → Look up `printify_printful_mapping` table
-3. Call Printful's Mockup Generator API with lifestyle option groups
-4. Download both flat AND lifestyle mockups to Object Storage
-5. Cache result in database with both URLs
+**CRITICAL WORKFLOW**:
+1. **Save to Store/Template/Both** → Auto-queues ALL mockups (all colors × 3 sizes)
+2. **Click Generate later** → ONLY retrieves from database, NEVER regenerates
+3. Background job queue processes mockups at Printful's rate limit
+
+**Generation Flow**:
+1. Product saved → `mockupJobQueue.createBatchJobs()` queues all colors × sizes
+2. Worker processes jobs one at a time respecting rate limits
+3. Each job: Call Printful API → Download images → Store in Object Storage → Update product.mockupsByColor
+4. Generate endpoint only retrieves from database (returns "pending" if not ready)
 
 **Current Product Mapping**:
 - Blueprint 6 (Bella+Canvas 3001) → Printful Product 71

@@ -220,6 +220,10 @@ export const customDesigns = pgTable("custom_designs", {
   selectedColors: text("selected_colors").array(), // Colors admin chose for mockups ['White', 'Black', 'Navy']
   defaultColor: text("default_color"), // Color to display first (e.g., 'Navy')
   mockupsByColor: jsonb("mockups_by_color"), // { 'White': { front: 'url', angles: ['url1','url2'] }, 'Black': {...} }
+  // Multi-graphic configuration (up to 2 graphics with different placements/sizes)
+  // Format: [{ id: 'graphic-1', imageUrl: '/api/files/...', placement: 'front-chest', qrSize: 'medium' }, ...]
+  // qrSize: 'small' (25%), 'medium' (45%), 'large' (65%) of print area
+  graphicsConfig: jsonb("graphics_config"),
   selectedVariantIds: jsonb("selected_variant_ids"), // { 'White-M': 12345, 'Black-L': 12346 } for order fulfillment
   publishStatus: text("publish_status").default("draft"), // 'draft', 'pending', 'processing', 'complete', 'failed'
   publishError: text("publish_error"), // Error message if publish failed
@@ -230,6 +234,18 @@ export const customDesigns = pgTable("custom_designs", {
 export const insertCustomDesignSchema = createInsertSchema(customDesigns).omit({ createdAt: true, updatedAt: true });
 export type InsertCustomDesign = z.infer<typeof insertCustomDesignSchema>;
 export type CustomDesign = typeof customDesigns.$inferSelect;
+
+// Multi-graphic configuration type (portable for Firestore migration)
+export type GraphicPlacement = 'front-chest' | 'back' | 'left-shoulder' | 'right-shoulder';
+export type QRSize = 'small' | 'medium' | 'large'; // 25%, 45%, 65% of print area
+
+export interface GraphicConfig {
+  id: string;              // Unique ID for this graphic (e.g., 'graphic-1')
+  imageUrl: string;        // URL to the artwork image
+  placement: GraphicPlacement;
+  qrSize: QRSize;
+  artworkVariant?: 'black' | 'white'; // Which QR color variant
+}
 
 // Template categories for organizing library templates (admin can add new ones)
 // Supports hierarchical structure: Category > Subcategory

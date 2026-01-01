@@ -314,15 +314,47 @@ class PrintfulClient {
     // Light blue variants
     'solid light blue': ['light blue', 'baby blue', 'sky blue', 'carolina blue'],
     'light blue': ['solid light blue', 'baby blue', 'sky blue', 'carolina blue'],
+    'carolina blue': ['light blue', 'solid light blue', 'sky blue'],
     // Forest/Kelly green
     'solid forest green': ['forest green', 'forest', 'kelly green'],
     'solid kelly green': ['kelly green', 'kelly', 'forest green'],
+    'forest green': ['solid forest green', 'irish green'],
+    'irish green': ['forest green', 'solid forest green', 'kelly green'],
     // Purple variants
     'solid purple rush': ['purple', 'purple rush', 'team purple'],
     'purple': ['solid purple rush', 'purple rush', 'team purple'],
     // Maroon
     'solid maroon': ['maroon', 'burgundy', 'wine'],
     'maroon': ['solid maroon', 'burgundy', 'wine'],
+    // Yellow/Gold variants - Printify "Solid Banana Cream" to Printful "Gold"
+    'banana cream': ['gold', 'yellow', 'daisy'],
+    'solid banana cream': ['gold', 'yellow', 'daisy'],
+    'gold': ['banana cream', 'solid banana cream', 'yellow'],
+    // Pink variants
+    'solid light pink': ['light pink', 'pink', 'soft pink'],
+    'light pink': ['solid light pink', 'pink'],
+    // Orange variants
+    'solid orange': ['orange', 'burnt orange'],
+    'orange': ['solid orange', 'burnt orange'],
+    // Charcoal/Dark grey
+    'solid dark heather': ['dark heather', 'charcoal', 'graphite heather'],
+    'dark heather': ['solid dark heather', 'charcoal', 'graphite heather'],
+    'charcoal': ['dark heather', 'graphite heather'],
+    // Sand/Tan
+    'solid sand': ['sand', 'tan', 'khaki'],
+    'sand': ['solid sand', 'tan', 'khaki'],
+    // Ash
+    'solid ash': ['ash', 'ash grey', 'ash gray'],
+    'ash': ['solid ash', 'ash grey'],
+    // Indigo/Deep blue
+    'solid indigo': ['indigo blue', 'indigo', 'deep blue'],
+    'indigo blue': ['solid indigo', 'indigo'],
+    // Heliconia/Hot pink
+    'solid heliconia': ['heliconia', 'hot pink', 'fuchsia'],
+    'heliconia': ['solid heliconia', 'hot pink', 'fuchsia'],
+    // Chocolate/Brown
+    'solid dark chocolate': ['dark chocolate', 'brown', 'chocolate'],
+    'dark chocolate': ['solid dark chocolate', 'brown', 'chocolate'],
   };
 
   /**
