@@ -87,38 +87,42 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.defaultColor || null
   );
-  const [generatingColor, setGeneratingColor] = useState<string | null>(null);
-  const [generatedColors, setGeneratedColors] = useState<Set<string>>(new Set());
+  const [selectedQrSize, setSelectedQrSize] = useState<"small" | "medium" | "large">("medium");
+  const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  
+  const qrSizeOptions = [
+    { value: "small" as const, label: "S", description: "25%" },
+    { value: "medium" as const, label: "M", description: "45%" },
+    { value: "large" as const, label: "L", description: "65%" },
+  ];
 
   const availableColors = product.selectedColors || 
     (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
 
   // Mockup generation mutation
   const generateMockup = useMutation({
-    mutationFn: async (color: string) => {
-      // Send the product ID as-is - backend handles the custom_ prefix
+    mutationFn: async ({ color, qrSize }: { color: string; qrSize: string }) => {
       const res = await apiRequest("POST", "/api/storefront/generate-mockup", {
         productId: product.id,
         color,
+        qrSize,
       });
       return res.json();
     },
-    onMutate: (color) => {
-      setGeneratingColor(color);
+    onMutate: () => {
+      setIsGenerating(true);
     },
-    onSuccess: (data, color) => {
-      setGeneratingColor(null);
-      setGeneratedColors(prev => new Set(Array.from(prev).concat(color)));
+    onSuccess: (data) => {
+      setIsGenerating(false);
       toast({
         title: "Mockup generated!",
-        description: `${color} mockup is now available.`,
+        description: `${selectedColor} mockup is now available.`,
       });
-      // Refresh store data
       queryClient.invalidateQueries({ queryKey: ["/api/store", storeType, storeName] });
     },
-    onError: (error: any, color) => {
-      setGeneratingColor(null);
+    onError: (error: any) => {
+      setIsGenerating(false);
       toast({
         title: "Mockup generation failed",
         description: error.message || "Please try again.",
@@ -126,6 +130,8 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
       });
     },
   });
+  
+  const hasMockupForCurrentSelection = selectedColor && product.mockupsByColor?.[selectedColor]?.front;
 
   // Build gallery images using shared utility
   const galleryImages = useMemo(() => {
@@ -179,20 +185,22 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
         )}
       </div>
       
-      {/* Color swatches with mockup generation stars */}
+      {/* Color swatches - clean, no stars */}
       {availableColors.length > 0 && (
-        <div className="product-card-colors">
-          {availableColors.map((color) => {
-            const isDefault = color === product.defaultColor;
-            const isSelected = selectedColor === color;
-            const hasMockupForColor = product.mockupsByColor?.[color]?.front;
-            const isGenerating = generatingColor === color;
-            const wasGenerated = generatedColors.has(color);
-            
-            return (
-              <div key={color} className="swatch-container">
+        <div className="px-3 py-2 border-t">
+          <div className="flex flex-wrap gap-1.5">
+            {availableColors.slice(0, 12).map((color) => {
+              const isSelected = selectedColor === color;
+              const hasMockupForColor = product.mockupsByColor?.[color]?.front;
+              
+              return (
                 <button
-                  className={`color-swatch ${isSelected ? 'selected' : ''} ${isDefault ? 'is-default' : ''}`}
+                  key={color}
+                  className={`w-7 h-7 rounded-full border-2 transition-all relative ${
+                    isSelected 
+                      ? 'border-primary ring-2 ring-primary/30' 
+                      : 'border-border hover:border-primary/50'
+                  }`}
                   style={{ backgroundColor: getColorHex(color) }}
                   onClick={(e) => {
                     e.preventDefault();
@@ -201,32 +209,65 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
                   }}
                   title={color}
                   data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
-                />
-                {/* Star button for mockup generation */}
-                <button
-                  className={`mockup-star-btn ${hasMockupForColor || wasGenerated ? 'has-mockup' : ''} ${isGenerating ? 'is-loading' : ''}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!isGenerating && !hasMockupForColor) {
-                      generateMockup.mutate(color);
-                    }
-                  }}
-                  disabled={isGenerating || !!hasMockupForColor}
-                  title={hasMockupForColor ? `${color} mockup ready` : isGenerating ? 'Generating...' : `Generate ${color} mockup`}
-                  data-testid={`star-${color.toLowerCase().replace(/\s+/g, '-')}`}
                 >
-                  {isGenerating ? (
-                    <Loader2 className="mockup-star-icon spin" />
-                  ) : hasMockupForColor || wasGenerated ? (
-                    <Check className="mockup-star-icon check" />
-                  ) : (
-                    <Star className="mockup-star-icon" />
+                  {hasMockupForColor && (
+                    <Check className="h-3 w-3 absolute -top-1 -right-1 text-green-500 bg-white rounded-full" />
                   )}
                 </button>
-              </div>
-            );
-          })}
+              );
+            })}
+            {availableColors.length > 12 && (
+              <span className="text-xs text-muted-foreground self-center ml-1">
+                +{availableColors.length - 12}
+              </span>
+            )}
+          </div>
+          
+          {/* QR Size selector */}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-muted-foreground">QR Size:</span>
+            <div className="flex gap-1">
+              {qrSizeOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`px-2 py-1 text-xs rounded border transition-all min-h-[32px] ${
+                    selectedQrSize === opt.value
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background border-border hover:border-primary/50'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedQrSize(opt.value);
+                  }}
+                  data-testid={`qr-size-${opt.value}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Generate button */}
+            <Button
+              size="sm"
+              className="ml-auto h-8"
+              disabled={!selectedColor || isGenerating || !!hasMockupForCurrentSelection}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (selectedColor) {
+                  generateMockup.mutate({ color: selectedColor, qrSize: selectedQrSize });
+                }
+              }}
+              data-testid="button-generate-mockup"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : hasMockupForCurrentSelection ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                "Generate"
+              )}
+            </Button>
+          </div>
         </div>
       )}
       
