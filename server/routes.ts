@@ -4338,6 +4338,22 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "Product missing blueprint or print provider" });
       }
       
+      // Check if mockup already exists in product's mockupsByColor
+      const existingMockups = (product.mockupsByColor as Record<string, any>) || {};
+      const existingMockup = existingMockups[color];
+      
+      if (existingMockup && existingMockup.front) {
+        console.log(`[StorefrontMockup] Using existing mockup for ${color} from product.mockupsByColor`);
+        return res.json({ 
+          success: true, 
+          color, 
+          mockupUrl: existingMockup.front,
+          lifestyleMockupUrl: existingMockup.lifestyle || null,
+          fromCache: true,
+          mockupsByColor: existingMockups 
+        });
+      }
+      
       // Get artwork URL from custom design
       const design = await storage.getCustomDesign(designId);
       if (!design) {
