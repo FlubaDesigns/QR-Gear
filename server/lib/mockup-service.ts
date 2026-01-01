@@ -24,6 +24,7 @@ interface MockupRequest {
   artworkUrl: string;
   artworkVariant?: "black" | "white";
   productId?: string; // Optional - for placement availability validation
+  qrSize?: 'small' | 'medium' | 'large'; // QR code size: small=25%, medium=45%, large=65%
 }
 
 interface MockupResult {
@@ -146,6 +147,7 @@ export async function getMockupWithFallback(
     artworkUrl,
     artworkVariant = "black",
     productId,
+    qrSize = "medium",
   } = request;
 
   // Validate canonicalPlacementId is provided
@@ -220,6 +222,7 @@ export async function getMockupWithFallback(
     colorHex,
     artworkUrl,
     canonicalPlacementId,
+    qrSize,
   });
 
   if (!mockupResult || !mockupResult.flat) {
@@ -362,7 +365,7 @@ async function generatePrintfulMockupInternal(params: {
     medium: 0.45,  // ~8" on a 12"x16" area  
     large: 0.65,   // ~12" on a 12"x16" area (near max)
   };
-  const sizePercent = sizePercentages[(params as any).qrSize] || sizePercentages.medium;
+  const sizePercent = sizePercentages[params.qrSize || 'medium'] || sizePercentages.medium;
   const qrSize = Math.max(Math.round(areaWidth * sizePercent), 1200);
   
   console.log(`[MockupService/Printful] Print area: ${areaWidth}x${areaHeight}, QR size: ${qrSize}px (${Math.round(qrSize/areaWidth*100)}%)`);

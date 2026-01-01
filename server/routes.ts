@@ -4303,11 +4303,23 @@ ${allPages.map(page => `  <url>
   // Database-first: checks mockup_cache before generating via Printify
   app.post("/api/storefront/generate-mockup", async (req, res) => {
     try {
-      const { productId, color, storeId } = req.body;
+      const { productId, color, storeId, qrSize, qrSizePercent } = req.body;
       
       if (!productId || !color) {
         return res.status(400).json({ error: "productId and color are required" });
       }
+      
+      // Convert qrSizePercent to qrSize name, or use provided qrSize
+      let resolvedQrSize: 'small' | 'medium' | 'large' = 'medium';
+      if (qrSize && ['small', 'medium', 'large'].includes(qrSize)) {
+        resolvedQrSize = qrSize;
+      } else if (qrSizePercent) {
+        if (qrSizePercent <= 30) resolvedQrSize = 'small';
+        else if (qrSizePercent <= 50) resolvedQrSize = 'medium';
+        else resolvedQrSize = 'large';
+      }
+      
+      console.log(`[StorefrontMockup] QR size: ${resolvedQrSize} (from percent: ${qrSizePercent || 'default'})`);
       
       // For custom designs, productId comes as either "hello-world" or "custom_hello-world"
       const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
@@ -4414,6 +4426,7 @@ ${allPages.map(page => `  <url>
         canonicalPlacementId: "FRONT_CHEST",
         artworkUrl,
         artworkVariant,
+        qrSize: resolvedQrSize,
       }, storage);
       
       console.log(`[StorefrontMockup] Got mockup (fromCache: ${result.fromCache})`);
@@ -4428,6 +4441,7 @@ ${allPages.map(page => `  <url>
       
       await storage.updateProduct(canonicalProductId, {
         mockupsByColor: existingProductMockups,
+        defaultColor: color, // Set as default so it shows immediately
       });
       
       console.log(`[StorefrontMockup] Updated mockups for ${color}: flat=${!!result.mockupUrl}, lifestyle=${!!result.lifestyleMockupUrl}`);

@@ -318,11 +318,12 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
     new Set(savedEnabledColors || colors.map(c => c.name))
   );
   const [saving, setSaving] = useState(false);
-  const [generatingMockup, setGeneratingMockup] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedQrSize, setSelectedQrSize] = useState<'S' | 'M' | 'L'>('M');
   
   const mockupsByColor = (product as any).mockupsByColor as Record<string, { front?: string }> | undefined;
   
+  const qrSizeMap = { S: 'small', M: 'medium', L: 'large' } as const;
   const qrSizePercent = { S: 25, M: 45, L: 65 };
   
   const generateMockupMutation = useMutation({
@@ -330,7 +331,7 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
       const response = await apiRequest("POST", "/api/storefront/generate-mockup", {
         productId: product.id,
         color,
-        qrSizePercent: qrSizePercent[selectedQrSize],
+        qrSize: qrSizeMap[selectedQrSize],
       });
       return response.json();
     },
@@ -348,15 +349,7 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
         variant: "destructive",
       });
     },
-    onSettled: () => {
-      setGeneratingMockup(null);
-    },
   });
-  
-  const handleGenerateMockup = (color: string) => {
-    setGeneratingMockup(color);
-    generateMockupMutation.mutate(color);
-  };
   
   const toggleSize = async (size: string) => {
     const newSizes = new Set(enabledSizes);
@@ -497,8 +490,8 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
               <span className="text-sm font-medium">Generate Mockup:</span>
               <select
                 className="h-9 px-3 rounded border bg-background text-sm"
-                value={generatingMockup || ""}
-                onChange={(e) => setGeneratingMockup(e.target.value || null)}
+                value={selectedColor || ""}
+                onChange={(e) => setSelectedColor(e.target.value || null)}
                 data-testid={`select-color-${product.id}`}
               >
                 <option value="">Select color...</option>
@@ -530,8 +523,8 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
               <Button
                 size="sm"
                 className="h-9"
-                disabled={!generatingMockup || generateMockupMutation.isPending}
-                onClick={() => generatingMockup && generateMockupMutation.mutate(generatingMockup)}
+                disabled={!selectedColor || generateMockupMutation.isPending}
+                onClick={() => selectedColor && generateMockupMutation.mutate(selectedColor)}
                 data-testid={`button-generate-${product.id}`}
               >
                 {generateMockupMutation.isPending ? (
