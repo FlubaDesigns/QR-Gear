@@ -66,27 +66,30 @@ export class MockupJobQueue {
   async createBatchJobs(params: {
     productId: string;
     colors: Array<{ name: string; hex: string }>;
-    qrSize: "small" | "medium" | "large";
+    qrSizes?: Array<"small" | "medium" | "large">;
     blueprintId: number;
     printProviderId: number;
     artworkUrl: string;
     artworkVariant: "black" | "white";
   }): Promise<MockupJob[]> {
     const jobs: MockupJob[] = [];
+    const qrSizes = params.qrSizes || ["small", "medium", "large"];
     
-    for (let i = 0; i < params.colors.length; i++) {
-      const color = params.colors[i];
-      const job = await this.createJob({
-        productId: params.productId,
-        colorName: color.name,
-        qrSize: params.qrSize,
-        blueprintId: params.blueprintId,
-        printProviderId: params.printProviderId,
-        artworkUrl: params.artworkUrl,
-        artworkVariant: params.artworkVariant,
-        priority: i,
-      });
-      jobs.push(job);
+    let priority = 0;
+    for (const color of params.colors) {
+      for (const qrSize of qrSizes) {
+        const job = await this.createJob({
+          productId: params.productId,
+          colorName: color.name,
+          qrSize,
+          blueprintId: params.blueprintId,
+          printProviderId: params.printProviderId,
+          artworkUrl: params.artworkUrl,
+          artworkVariant: params.artworkVariant,
+          priority: priority++,
+        });
+        jobs.push(job);
+      }
     }
 
     return jobs;
