@@ -1,15 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// API base URL - empty for same-origin, or set to external URL for cross-origin
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-function getApiUrl(path: string): string {
-  if (!API_BASE_URL) return path;
-  // Remove leading slash if base URL already has trailing slash
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}`;
-}
-
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -22,12 +12,11 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const fullUrl = getApiUrl(url);
-  const res = await fetch(fullUrl, {
+  const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: API_BASE_URL ? "omit" : "include",
+    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -40,9 +29,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = getApiUrl(queryKey.join("/") as string);
-    const res = await fetch(url, {
-      credentials: API_BASE_URL ? "omit" : "include",
+    const res = await fetch(queryKey.join("/") as string, {
+      credentials: "include",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
