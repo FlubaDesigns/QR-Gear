@@ -8,6 +8,7 @@ import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
 import { webhookRouter } from './webhooks';
+import { initializeWrappedStorage, getStorageMode } from './storage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -164,6 +165,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize storage (dual-write, firestore-only, or postgres-only)
+  const storageMode = getStorageMode();
+  if (storageMode !== 'postgres-only') {
+    log(`Initializing storage in ${storageMode} mode...`);
+    await initializeWrappedStorage();
+  }
+  
   // Initialize Stripe
   await initStripe();
   

@@ -3760,47 +3760,61 @@ const baseStorage: IStorage = db ? new DbStorage() : new MemStorage();
 // The storage factory wraps the base storage when STORAGE_MODE is set to 'dual-write' or 'firestore-only'
 let wrappedStorage: IStorage | null = null;
 let storageInitialized = false;
+let initPromise: Promise<IStorage> | null = null;
 
-async function initializeWrappedStorage(): Promise<IStorage> {
+export async function initializeWrappedStorage(): Promise<IStorage> {
   if (wrappedStorage && storageInitialized) {
     return wrappedStorage;
   }
   
-  const mode = process.env.STORAGE_MODE || 'postgres-only';
-  console.log(`[Storage] Initializing with mode: ${mode}`);
-  
-  if (mode === 'dual-write') {
-    try {
-      const { FirestoreAdapter } = await import('./lib/firestore-adapter');
-      const { DualWriteAdapter } = await import('./lib/dual-write-adapter');
-      const firestoreAdapter = new FirestoreAdapter();
-      wrappedStorage = new DualWriteAdapter(baseStorage, firestoreAdapter);
-      console.log('[Storage] Dual-write mode enabled - writes sync to Firestore');
-    } catch (error) {
-      console.error('[Storage] Failed to initialize dual-write mode, falling back to postgres-only:', error);
-      wrappedStorage = baseStorage;
-    }
-  } else if (mode === 'firestore-only') {
-    try {
-      const { FirestoreAdapter } = await import('./lib/firestore-adapter');
-      wrappedStorage = new FirestoreAdapter();
-      console.log('[Storage] Firestore-only mode enabled');
-    } catch (error) {
-      console.error('[Storage] Failed to initialize firestore-only mode, falling back to postgres-only:', error);
-      wrappedStorage = baseStorage;
-    }
-  } else {
-    wrappedStorage = baseStorage;
+  // Return existing promise if already initializing
+  if (initPromise) {
+    return initPromise;
   }
   
-  storageInitialized = true;
-  return wrappedStorage;
+  initPromise = (async () => {
+    const mode = process.env.STORAGE_MODE || 'postgres-only';
+    console.log(`[Storage] Initializing with mode: ${mode}`);
+    
+    if (mode === 'dual-write') {
+      try {
+        const { FirestoreAdapter } = await import('./lib/firestore-adapter');
+        const { DualWriteAdapter } = await import('./lib/dual-write-adapter');
+        const firestoreAdapter = new FirestoreAdapter();
+        wrappedStorage = new DualWriteAdapter(baseStorage, firestoreAdapter);
+        console.log('[Storage] Dual-write mode enabled - writes sync to Firestore');
+      } catch (error) {
+        console.error('[Storage] Failed to initialize dual-write mode, falling back to postgres-only:', error);
+        wrappedStorage = baseStorage;
+      }
+    } else if (mode === 'firestore-only') {
+      try {
+        const { FirestoreAdapter } = await import('./lib/firestore-adapter');
+        wrappedStorage = new FirestoreAdapter();
+        console.log('[Storage] Firestore-only mode enabled');
+      } catch (error) {
+        console.error('[Storage] Failed to initialize firestore-only mode, falling back to postgres-only:', error);
+        wrappedStorage = baseStorage;
+      }
+    } else {
+      wrappedStorage = baseStorage;
+    }
+    
+    storageInitialized = true;
+    return wrappedStorage;
+  })();
+  
+  return initPromise;
 }
 
-// Initialize on first access (synchronously return base, async init in background)
-const storageMode = process.env.STORAGE_MODE || 'postgres-only';
-if (storageMode !== 'postgres-only') {
-  initializeWrappedStorage().catch(err => console.error('[Storage] Init error:', err));
+// Returns true if storage is ready for use
+export function isStorageReady(): boolean {
+  return storageInitialized;
+}
+
+// Get the current storage mode
+export function getStorageMode(): string {
+  return process.env.STORAGE_MODE || 'postgres-only';
 }
 
 // Export a proxy that uses the wrapped storage once initialized

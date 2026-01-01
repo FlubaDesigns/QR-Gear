@@ -11,7 +11,11 @@ export function initializeFirebase(): Firestore {
   }
 
   try {
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'qrgear-c1ffd';
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
+    
+    if (!projectId) {
+      throw new Error('Firebase project ID not configured. Set VITE_FIREBASE_PROJECT_ID or FIREBASE_PROJECT_ID environment variable.');
+    }
     
     // Check if we have a service account key
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;

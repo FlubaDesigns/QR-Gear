@@ -220,11 +220,18 @@ The system supports three storage modes controlled by `STORAGE_MODE` environment
 | `VITE_FIREBASE_PROJECT_ID` | Firebase project ID | `qrgear-c1ffd` |
 | `FIREBASE_SERVICE_ACCOUNT_KEY` | Service account JSON (for server) | Required for Firestore |
 
-### Enabling Dual-Write (Beta Testing)
-1. Set `STORAGE_MODE=dual-write` in environment
-2. Provide `FIREBASE_SERVICE_ACCOUNT_KEY` secret (JSON stringified)
-3. Restart the application
+### Enabling Dual-Write (Beta Testing) - ACTIVE
+**Status**: Working as of January 1, 2026
+
+1. Set `STORAGE_MODE=dual-write` in environment ✅
+2. Provide `FIREBASE_SERVICE_ACCOUNT_KEY` secret (JSON stringified) ✅
+3. Restart the application ✅
 4. All product/design/order writes will sync to Firestore
+
+**Startup Logs Confirm**:
+- `[Firebase] Initialized with service account credentials for project: qrgear-c1ffd`
+- `[DualWriteAdapter] Initialized with Postgres (primary) and Firestore (secondary)`
+- `[Storage] Dual-write mode enabled - writes sync to Firestore`
 
 ### Core Methods Implemented in FirestoreAdapter
 - Products: CRUD, getEnabled, toggleEnabled
