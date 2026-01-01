@@ -291,9 +291,38 @@ class PrintfulClient {
     'black': ['solid black'],
     'solid white': ['white'],
     'white': ['solid white'],
-    'navy': ['navy blue', 'dark navy'],
-    'navy blue': ['navy', 'dark navy'],
+    'navy': ['navy blue', 'dark navy', 'midnight navy'],
+    'navy blue': ['navy', 'dark navy', 'midnight navy'],
+    'midnight navy': ['navy', 'navy blue', 'dark navy'],
     'heather': ['heather grey', 'sport grey'],
+    // Blue variants - Printify uses "Solid Cool Blue", Printful uses "Royal"
+    'cool blue': ['royal', 'true royal', 'royal blue'],
+    'solid cool blue': ['royal', 'true royal', 'royal blue', 'cool blue'],
+    'solid royal': ['royal', 'true royal', 'royal blue'],
+    'royal': ['solid royal', 'true royal', 'royal blue', 'cool blue'],
+    // Tahiti/Turquoise/Teal variants
+    'tahiti blue': ['teal', 'turquoise', 'aqua', 'ocean blue', 'tropical blue'],
+    'solid tahiti blue': ['teal', 'turquoise', 'aqua', 'ocean blue', 'tropical blue'],
+    'solid turquoise': ['turquoise', 'teal', 'aqua'],
+    'turquoise': ['solid turquoise', 'teal', 'aqua'],
+    // Military/Army green
+    'solid military green': ['military green', 'army', 'olive', 'army green'],
+    'military green': ['solid military green', 'army', 'olive', 'army green'],
+    // Red variants
+    'solid red': ['red', 'true red', 'cardinal'],
+    'red': ['solid red', 'true red', 'cardinal'],
+    // Light blue variants
+    'solid light blue': ['light blue', 'baby blue', 'sky blue', 'carolina blue'],
+    'light blue': ['solid light blue', 'baby blue', 'sky blue', 'carolina blue'],
+    // Forest/Kelly green
+    'solid forest green': ['forest green', 'forest', 'kelly green'],
+    'solid kelly green': ['kelly green', 'kelly', 'forest green'],
+    // Purple variants
+    'solid purple rush': ['purple', 'purple rush', 'team purple'],
+    'purple': ['solid purple rush', 'purple rush', 'team purple'],
+    // Maroon
+    'solid maroon': ['maroon', 'burgundy', 'wine'],
+    'maroon': ['solid maroon', 'burgundy', 'wine'],
   };
 
   /**
@@ -305,27 +334,41 @@ class PrintfulClient {
     
     if (!colorName) return variants;
     
-    // Normalize color name for matching
-    const normalizedColor = colorName.toLowerCase().replace(/\s+/g, '');
+    // Strip "Solid " prefix that Printify uses but Printful doesn't
+    const strippedColor = colorName.toLowerCase().replace(/^solid\s+/i, '');
+    const originalColor = colorName.toLowerCase();
     
-    // Build list of colors to try (original + synonyms)
-    const colorsToTry = [colorName.toLowerCase()];
-    const synonyms = this.colorSynonyms[colorName.toLowerCase()];
-    if (synonyms) {
-      colorsToTry.push(...synonyms);
-    }
+    // Build list of colors to try (original + stripped + synonyms)
+    const colorsToTry = new Set<string>([originalColor, strippedColor]);
     
-    return variants.filter(v => {
+    // Add synonyms for both original and stripped versions
+    const originalSynonyms = this.colorSynonyms[originalColor];
+    const strippedSynonyms = this.colorSynonyms[strippedColor];
+    if (originalSynonyms) originalSynonyms.forEach(s => colorsToTry.add(s));
+    if (strippedSynonyms) strippedSynonyms.forEach(s => colorsToTry.add(s));
+    
+    const colorsArray = Array.from(colorsToTry);
+    
+    const matches = variants.filter(v => {
       const variantColor = v.color.toLowerCase();
       const variantColorNormalized = variantColor.replace(/\s+/g, '');
       
-      return colorsToTry.some(c => {
+      return colorsArray.some(c => {
         const cNormalized = c.replace(/\s+/g, '');
         return variantColorNormalized === cNormalized || 
                variantColorNormalized.includes(cNormalized) ||
                cNormalized.includes(variantColorNormalized);
       });
     });
+    
+    // Log for debugging
+    if (matches.length === 0) {
+      console.log(`[Printful] Color "${colorName}" not found. Tried: ${colorsArray.join(', ')}`);
+      const uniqueColors = Array.from(new Set(variants.map(v => v.color)));
+      console.log(`[Printful] Available colors: ${uniqueColors.join(', ')}`);
+    }
+    
+    return matches;
   }
 
   /**
