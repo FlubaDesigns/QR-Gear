@@ -134,22 +134,20 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
   
   const displayImage = galleryImages[0]?.url || product.imageUrl;
   const hasMockups = !!product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0;
-  const hasMultipleImages = galleryImages.length > 1;
 
   return (
     <Card 
       className="hover-elevate cursor-pointer h-full flex flex-col overflow-hidden"
       data-testid={`card-product-${product.id}`}
     >
-      <div className="aspect-square relative bg-muted">
-        {hasMultipleImages ? (
+      <div 
+        className="aspect-square relative bg-muted"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {galleryImages.length > 0 ? (
           <ProductImageGallery images={galleryImages} />
         ) : displayImage ? (
-          <img 
-            src={displayImage} 
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
+          <ProductImageGallery images={[{ url: displayImage, alt: product.name }]} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <QrCode className="h-16 w-16 text-muted-foreground/50" />
