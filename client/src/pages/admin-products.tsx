@@ -319,14 +319,18 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
   );
   const [saving, setSaving] = useState(false);
   const [generatingMockup, setGeneratingMockup] = useState<string | null>(null);
+  const [selectedQrSize, setSelectedQrSize] = useState<'S' | 'M' | 'L'>('M');
   
   const mockupsByColor = (product as any).mockupsByColor as Record<string, { front?: string }> | undefined;
+  
+  const qrSizePercent = { S: 25, M: 45, L: 65 };
   
   const generateMockupMutation = useMutation({
     mutationFn: async (color: string) => {
       const response = await apiRequest("POST", "/api/storefront/generate-mockup", {
         productId: product.id,
         color,
+        qrSizePercent: qrSizePercent[selectedQrSize],
       });
       return response.json();
     },
@@ -504,6 +508,25 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
                   </option>
                 ))}
               </select>
+              
+              {/* QR Size Selector */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground mr-1">QR:</span>
+                {(['S', 'M', 'L'] as const).map(size => (
+                  <Button
+                    key={size}
+                    size="sm"
+                    variant={selectedQrSize === size ? 'default' : 'outline'}
+                    className="h-8 w-8 p-0"
+                    onClick={() => setSelectedQrSize(size)}
+                    data-testid={`button-qr-${size}-${product.id}`}
+                  >
+                    {size}
+                  </Button>
+                ))}
+                <span className="text-xs text-muted-foreground ml-1">({qrSizePercent[selectedQrSize]}%)</span>
+              </div>
+              
               <Button
                 size="sm"
                 className="h-9"
