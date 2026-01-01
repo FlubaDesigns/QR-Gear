@@ -233,12 +233,60 @@ The system supports three storage modes controlled by `STORAGE_MODE` environment
 - `[DualWriteAdapter] Initialized with Postgres (primary) and Firestore (secondary)`
 - `[Storage] Dual-write mode enabled - writes sync to Firestore`
 
-### Core Methods Implemented in FirestoreAdapter
-- Products: CRUD, getEnabled, toggleEnabled
-- Custom Designs: CRUD, getForLibrary, getByStoreSegment
-- Orders: CRUD, getByUser, getByStatus, getByStripeSession
-- Users: CRUD, getByEmail, upsert
+### FirestoreAdapter - FULLY IMPLEMENTED (January 1, 2026)
+**Status**: All 150+ IStorage methods implemented for standalone Firebase operation
+
+**Core Business Entities:**
+- Products: Full CRUD, getEnabled, getFeatured, toggleEnabled, updateMockups
+- Custom Designs: Full CRUD, getForLibrary, getByStoreSegment
+- Orders: Full CRUD, getByUser, getByStatus, getByStripeSession
+- Users: Full CRUD, getByEmail, upsert
+- Cart Items: Full CRUD, clearCart
+
+**Product Configuration:**
+- Product Categories: Full CRUD, getByTaxonomy, assignments
+- Product Variants: Full CRUD, toggle enabled
+- QR Templates: Full CRUD
+- Hosting Tiers: Full CRUD
+- Coupons: Full CRUD, increment redemption
+- Pricing Rules: Full CRUD
+
+**Partner & Multi-channel:**
+- Partner Stores: Full CRUD, getBySlug
+- Partner Store Products: Full CRUD, sync products
+- Master Products: Full CRUD
+- Design Versions: Full CRUD, getActive
+- Channel Configs: Full CRUD
+- Publish States: upsert, get by channel
+
+**Admin & Background Jobs:**
 - Admin Settings: get, upsert
+- Printify Blueprints: Full CRUD, clear all
+- Printify Print Providers: Full CRUD, update costs
+- Catalog Sync: create, update, get history
+- Cost Sync: create, update, get active
+- Provider Health: log, get stats, get by type
+
+**Content & Media:**
+- Dynamic Pages: Full CRUD, increment views
+- Dynamic Page Assets: Full CRUD, set active
+- Library Assets: Full CRUD, increment usage
+- Hosted Images: Full CRUD, increment views
+- QR Designs: Full CRUD, public gallery
+- Template Categories: Full CRUD
+
+**Gifting:**
+- Gift Packages: Full CRUD
+- Gift Codes: Full CRUD, getByCode
+- Gift Redemptions: Full CRUD
+
+**Communication:**
+- Email Templates: Full CRUD, getByTrigger
+- Email Logs: get, log
+- Hosting Reminders: create, getByImageAndDays
+
+**Browsing & History:**
+- Browsing History: get, add, clear
 
 ### Data Portability
 - JSON blob fields (mockupsByColor, graphicsConfig, placementImages) transfer directly

@@ -480,39 +480,91 @@ export class FirestoreAdapter implements IStorage {
   }
   
   // ============================================
-  // STUBS - Methods that throw "not implemented"
-  // These will be implemented as needed during migration
+  // BROWSING HISTORY
   // ============================================
   
-  // Browsing History
   async getBrowsingHistory(userId: string): Promise<BrowsingHistory[]> {
-    return notImplemented('getBrowsingHistory');
-  }
-  async addBrowsingHistory(entry: InsertBrowsingHistory): Promise<BrowsingHistory> {
-    return notImplemented('addBrowsingHistory');
-  }
-  async clearBrowsingHistory(userId: string): Promise<void> {
-    return notImplemented('clearBrowsingHistory');
+    const snapshot = await this.db.collection('browsingHistory')
+      .where('userId', '==', userId)
+      .orderBy('viewedAt', 'desc')
+      .limit(50)
+      .get();
+    return snapshot.docs.map(doc => this.docToBrowsingHistory(doc));
   }
   
-  // QR Design
+  async addBrowsingHistory(entry: InsertBrowsingHistory): Promise<BrowsingHistory> {
+    const docRef = this.db.collection('browsingHistory').doc();
+    const data = this.prepareForFirestore({
+      ...entry,
+      id: docRef.id,
+      viewedAt: new Date(),
+    });
+    await docRef.set(data);
+    return this.docToBrowsingHistory(await docRef.get());
+  }
+  
+  async clearBrowsingHistory(userId: string): Promise<void> {
+    const snapshot = await this.db.collection('browsingHistory')
+      .where('userId', '==', userId)
+      .get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+  }
+  
+  private docToBrowsingHistory(doc: FirebaseFirestore.DocumentSnapshot): BrowsingHistory {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, viewedAt: firestoreToDate(data.viewedAt) } as BrowsingHistory;
+  }
+  
+  // ============================================
+  // QR DESIGNS
+  // ============================================
+  
   async getQrDesign(id: string): Promise<QrDesign | undefined> {
-    return notImplemented('getQrDesign');
+    const doc = await this.db.collection('qrDesigns').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToQrDesign(doc);
   }
+  
   async getQrDesignsByUser(userId: string): Promise<QrDesign[]> {
-    return notImplemented('getQrDesignsByUser');
+    const snapshot = await this.db.collection('qrDesigns')
+      .where('userId', '==', userId)
+      .get();
+    return snapshot.docs.map(doc => this.docToQrDesign(doc));
   }
+  
   async getPublicGalleryDesigns(): Promise<QrDesign[]> {
-    return notImplemented('getPublicGalleryDesigns');
+    const snapshot = await this.db.collection('qrDesigns')
+      .where('isPublic', '==', true)
+      .get();
+    return snapshot.docs.map(doc => this.docToQrDesign(doc));
   }
+  
   async createQrDesign(design: InsertQrDesign): Promise<QrDesign> {
-    return notImplemented('createQrDesign');
+    const docRef = this.db.collection('qrDesigns').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...design, id: docRef.id, createdAt: now, updatedAt: now });
+    await docRef.set(data);
+    return this.docToQrDesign(await docRef.get());
   }
+  
   async updateQrDesign(id: string, design: Partial<InsertQrDesign>): Promise<QrDesign | undefined> {
-    return notImplemented('updateQrDesign');
+    const docRef = this.db.collection('qrDesigns').doc(id);
+    const existing = await docRef.get();
+    if (!existing.exists) return undefined;
+    const data = this.prepareForFirestore({ ...design, updatedAt: new Date() });
+    await docRef.update(data);
+    return this.docToQrDesign(await docRef.get());
   }
+  
   async deleteQrDesign(id: string): Promise<void> {
-    return notImplemented('deleteQrDesign');
+    await this.db.collection('qrDesigns').doc(id).delete();
+  }
+  
+  private docToQrDesign(doc: FirebaseFirestore.DocumentSnapshot): QrDesign {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as QrDesign;
   }
   
   // Cart (Implemented for standalone operation)
@@ -567,541 +619,1305 @@ export class FirestoreAdapter implements IStorage {
     } as CartItem;
   }
   
-  // Hosted Image
+  // ============================================
+  // HOSTED IMAGES
+  // ============================================
+  
   async getHostedImage(id: string): Promise<HostedImage | undefined> {
-    return notImplemented('getHostedImage');
+    const doc = await this.db.collection('hostedImages').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToHostedImage(doc);
   }
+  
   async getHostedImagesByUser(userId: string): Promise<HostedImage[]> {
-    return notImplemented('getHostedImagesByUser');
+    const snapshot = await this.db.collection('hostedImages').where('userId', '==', userId).get();
+    return snapshot.docs.map(doc => this.docToHostedImage(doc));
   }
+  
   async getAllHostedImages(): Promise<HostedImage[]> {
-    return notImplemented('getAllHostedImages');
+    const snapshot = await this.db.collection('hostedImages').get();
+    return snapshot.docs.map(doc => this.docToHostedImage(doc));
   }
+  
   async createHostedImage(image: InsertHostedImage): Promise<HostedImage> {
-    return notImplemented('createHostedImage');
+    const docRef = this.db.collection('hostedImages').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...image, id: docRef.id, createdAt: now, views: 0 });
+    await docRef.set(data);
+    return this.docToHostedImage(await docRef.get());
   }
+  
   async updateHostedImage(id: string, image: Partial<InsertHostedImage>): Promise<HostedImage | undefined> {
-    return notImplemented('updateHostedImage');
+    const docRef = this.db.collection('hostedImages').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(image));
+    return this.docToHostedImage(await docRef.get());
   }
+  
   async incrementImageViews(id: string): Promise<void> {
-    return notImplemented('incrementImageViews');
+    const docRef = this.db.collection('hostedImages').doc(id);
+    const { FieldValue } = await import('firebase-admin/firestore');
+    await docRef.update({ views: FieldValue.increment(1) });
   }
+  
   async deleteHostedImage(id: string): Promise<void> {
-    return notImplemented('deleteHostedImage');
+    await this.db.collection('hostedImages').doc(id).delete();
   }
   
-  // Hosting Reminder
+  private docToHostedImage(doc: FirebaseFirestore.DocumentSnapshot): HostedImage {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), expiresAt: firestoreToDateNullable(data.expiresAt) } as HostedImage;
+  }
+  
+  // ============================================
+  // HOSTING REMINDERS
+  // ============================================
+  
   async getHostingReminderByImageAndDays(imageId: string, daysRemaining: number): Promise<HostingReminder | undefined> {
-    return notImplemented('getHostingReminderByImageAndDays');
+    const snapshot = await this.db.collection('hostingReminders')
+      .where('imageId', '==', imageId)
+      .where('daysRemaining', '==', daysRemaining)
+      .limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToHostingReminder(snapshot.docs[0]);
   }
+  
   async createHostingReminder(reminder: InsertHostingReminder): Promise<HostingReminder> {
-    return notImplemented('createHostingReminder');
+    const docRef = this.db.collection('hostingReminders').doc();
+    const data = this.prepareForFirestore({ ...reminder, id: docRef.id, sentAt: new Date() });
+    await docRef.set(data);
+    return this.docToHostingReminder(await docRef.get());
   }
   
-  // Pricing Rules
+  private docToHostingReminder(doc: FirebaseFirestore.DocumentSnapshot): HostingReminder {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, sentAt: firestoreToDate(data.sentAt) } as HostingReminder;
+  }
+  
+  // ============================================
+  // PRICING RULES
+  // ============================================
+  
   async getPricingRules(): Promise<PricingRule[]> {
-    return notImplemented('getPricingRules');
+    const snapshot = await this.db.collection('pricingRules').get();
+    return snapshot.docs.map(doc => this.docToPricingRule(doc));
   }
+  
   async getPricingRule(id: string): Promise<PricingRule | undefined> {
-    return notImplemented('getPricingRule');
+    const doc = await this.db.collection('pricingRules').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToPricingRule(doc);
   }
+  
   async createPricingRule(rule: InsertPricingRule): Promise<PricingRule> {
-    return notImplemented('createPricingRule');
+    const docRef = this.db.collection('pricingRules').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...rule, id: docRef.id, createdAt: now });
+    await docRef.set(data);
+    return this.docToPricingRule(await docRef.get());
   }
+  
   async updatePricingRule(id: string, rule: Partial<InsertPricingRule>): Promise<PricingRule | undefined> {
-    return notImplemented('updatePricingRule');
+    const docRef = this.db.collection('pricingRules').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(rule));
+    return this.docToPricingRule(await docRef.get());
   }
+  
   async deletePricingRule(id: string): Promise<void> {
-    return notImplemented('deletePricingRule');
+    await this.db.collection('pricingRules').doc(id).delete();
   }
   
-  // Hosting Tiers
+  private docToPricingRule(doc: FirebaseFirestore.DocumentSnapshot): PricingRule {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as PricingRule;
+  }
+  
+  // ============================================
+  // HOSTING TIERS
+  // ============================================
+  
   async getHostingTiers(): Promise<HostingTier[]> {
-    return notImplemented('getHostingTiers');
+    const snapshot = await this.db.collection('hostingTiers').get();
+    return snapshot.docs.map(doc => this.docToHostingTier(doc));
   }
+  
   async getHostingTier(id: string): Promise<HostingTier | undefined> {
-    return notImplemented('getHostingTier');
+    const doc = await this.db.collection('hostingTiers').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToHostingTier(doc);
   }
+  
   async getHostingTierByCode(code: string): Promise<HostingTier | undefined> {
-    return notImplemented('getHostingTierByCode');
+    const snapshot = await this.db.collection('hostingTiers').where('code', '==', code).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToHostingTier(snapshot.docs[0]);
   }
+  
   async createHostingTier(tier: InsertHostingTier): Promise<HostingTier> {
-    return notImplemented('createHostingTier');
+    const docRef = this.db.collection('hostingTiers').doc();
+    const data = this.prepareForFirestore({ ...tier, id: docRef.id });
+    await docRef.set(data);
+    return this.docToHostingTier(await docRef.get());
   }
+  
   async updateHostingTier(id: string, tier: Partial<InsertHostingTier>): Promise<HostingTier | undefined> {
-    return notImplemented('updateHostingTier');
+    const docRef = this.db.collection('hostingTiers').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(tier));
+    return this.docToHostingTier(await docRef.get());
   }
+  
   async deleteHostingTier(id: string): Promise<void> {
-    return notImplemented('deleteHostingTier');
+    await this.db.collection('hostingTiers').doc(id).delete();
   }
   
-  // Coupons
+  private docToHostingTier(doc: FirebaseFirestore.DocumentSnapshot): HostingTier {
+    const data = doc.data()!;
+    return { ...data, id: doc.id } as HostingTier;
+  }
+  
+  // ============================================
+  // COUPONS
+  // ============================================
+  
   async getCoupons(): Promise<Coupon[]> {
-    return notImplemented('getCoupons');
+    const snapshot = await this.db.collection('coupons').get();
+    return snapshot.docs.map(doc => this.docToCoupon(doc));
   }
+  
   async getActiveCoupons(): Promise<Coupon[]> {
-    return notImplemented('getActiveCoupons');
+    const snapshot = await this.db.collection('coupons').where('isActive', '==', true).get();
+    return snapshot.docs.map(doc => this.docToCoupon(doc));
   }
+  
   async getCoupon(id: string): Promise<Coupon | undefined> {
-    return notImplemented('getCoupon');
+    const doc = await this.db.collection('coupons').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToCoupon(doc);
   }
+  
   async getCouponByCode(code: string): Promise<Coupon | undefined> {
-    return notImplemented('getCouponByCode');
+    const snapshot = await this.db.collection('coupons').where('code', '==', code).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToCoupon(snapshot.docs[0]);
   }
+  
   async createCoupon(coupon: InsertCoupon): Promise<Coupon> {
-    return notImplemented('createCoupon');
+    const docRef = this.db.collection('coupons').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...coupon, id: docRef.id, createdAt: now, timesRedeemed: 0 });
+    await docRef.set(data);
+    return this.docToCoupon(await docRef.get());
   }
+  
   async updateCoupon(id: string, coupon: Partial<InsertCoupon>): Promise<Coupon | undefined> {
-    return notImplemented('updateCoupon');
+    const docRef = this.db.collection('coupons').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(coupon));
+    return this.docToCoupon(await docRef.get());
   }
+  
   async deleteCoupon(id: string): Promise<void> {
-    return notImplemented('deleteCoupon');
+    await this.db.collection('coupons').doc(id).delete();
   }
+  
   async incrementCouponRedemption(id: string): Promise<void> {
-    return notImplemented('incrementCouponRedemption');
+    const docRef = this.db.collection('coupons').doc(id);
+    const { FieldValue } = await import('firebase-admin/firestore');
+    await docRef.update({ timesRedeemed: FieldValue.increment(1) });
   }
   
-  // QR Templates
+  private docToCoupon(doc: FirebaseFirestore.DocumentSnapshot): Coupon {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), expiresAt: firestoreToDateNullable(data.expiresAt), updatedAt: firestoreToDate(data.updatedAt) } as unknown as Coupon;
+  }
+  
+  // ============================================
+  // QR TEMPLATES
+  // ============================================
+  
   async getQrTemplates(): Promise<QrTemplate[]> {
-    return notImplemented('getQrTemplates');
+    const snapshot = await this.db.collection('qrTemplates').get();
+    return snapshot.docs.map(doc => this.docToQrTemplate(doc));
   }
+  
   async getActiveQrTemplates(): Promise<QrTemplate[]> {
-    return notImplemented('getActiveQrTemplates');
+    const snapshot = await this.db.collection('qrTemplates').where('isActive', '==', true).get();
+    return snapshot.docs.map(doc => this.docToQrTemplate(doc));
   }
+  
   async getQrTemplate(id: string): Promise<QrTemplate | undefined> {
-    return notImplemented('getQrTemplate');
+    const doc = await this.db.collection('qrTemplates').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToQrTemplate(doc);
   }
+  
   async createQrTemplate(template: InsertQrTemplate): Promise<QrTemplate> {
-    return notImplemented('createQrTemplate');
+    const docRef = this.db.collection('qrTemplates').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...template, id: docRef.id, createdAt: now, updatedAt: now });
+    await docRef.set(data);
+    return this.docToQrTemplate(await docRef.get());
   }
+  
   async updateQrTemplate(id: string, template: Partial<InsertQrTemplate>): Promise<QrTemplate | undefined> {
-    return notImplemented('updateQrTemplate');
+    const docRef = this.db.collection('qrTemplates').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore({ ...template, updatedAt: new Date() }));
+    return this.docToQrTemplate(await docRef.get());
   }
+  
   async deleteQrTemplate(id: string): Promise<void> {
-    return notImplemented('deleteQrTemplate');
+    await this.db.collection('qrTemplates').doc(id).delete();
   }
   
-  // Dynamic Pages
+  private docToQrTemplate(doc: FirebaseFirestore.DocumentSnapshot): QrTemplate {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as unknown as QrTemplate;
+  }
+  
+  // ============================================
+  // DYNAMIC PAGES
+  // ============================================
+  
   async getDynamicPage(id: string): Promise<DynamicPage | undefined> {
-    return notImplemented('getDynamicPage');
+    const doc = await this.db.collection('dynamicPages').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToDynamicPage(doc);
   }
+  
   async getDynamicPageBySlug(slug: string): Promise<DynamicPage | undefined> {
-    return notImplemented('getDynamicPageBySlug');
+    const snapshot = await this.db.collection('dynamicPages').where('slug', '==', slug).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToDynamicPage(snapshot.docs[0]);
   }
+  
   async getDynamicPagesByUser(userId: string): Promise<DynamicPage[]> {
-    return notImplemented('getDynamicPagesByUser');
+    const snapshot = await this.db.collection('dynamicPages').where('userId', '==', userId).get();
+    return snapshot.docs.map(doc => this.docToDynamicPage(doc));
   }
+  
   async createDynamicPage(page: InsertDynamicPage): Promise<DynamicPage> {
-    return notImplemented('createDynamicPage');
+    const docRef = this.db.collection('dynamicPages').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...page, id: docRef.id, createdAt: now, updatedAt: now, views: 0 });
+    await docRef.set(data);
+    return this.docToDynamicPage(await docRef.get());
   }
+  
   async updateDynamicPage(id: string, page: Partial<InsertDynamicPage>): Promise<DynamicPage | undefined> {
-    return notImplemented('updateDynamicPage');
+    const docRef = this.db.collection('dynamicPages').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore({ ...page, updatedAt: new Date() }));
+    return this.docToDynamicPage(await docRef.get());
   }
+  
   async deleteDynamicPage(id: string): Promise<void> {
-    return notImplemented('deleteDynamicPage');
+    await this.db.collection('dynamicPages').doc(id).delete();
   }
+  
   async incrementDynamicPageViews(id: string): Promise<void> {
-    return notImplemented('incrementDynamicPageViews');
+    const docRef = this.db.collection('dynamicPages').doc(id);
+    const { FieldValue } = await import('firebase-admin/firestore');
+    await docRef.update({ views: FieldValue.increment(1) });
   }
   
-  // Dynamic Page Assets
+  private docToDynamicPage(doc: FirebaseFirestore.DocumentSnapshot): DynamicPage {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as DynamicPage;
+  }
+  
+  // ============================================
+  // DYNAMIC PAGE ASSETS
+  // ============================================
+  
   async getDynamicPageAsset(id: string): Promise<DynamicPageAsset | undefined> {
-    return notImplemented('getDynamicPageAsset');
+    const doc = await this.db.collection('dynamicPageAssets').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToDynamicPageAsset(doc);
   }
+  
   async getDynamicPageAssets(pageId: string): Promise<DynamicPageAsset[]> {
-    return notImplemented('getDynamicPageAssets');
+    const snapshot = await this.db.collection('dynamicPageAssets').where('pageId', '==', pageId).get();
+    return snapshot.docs.map(doc => this.docToDynamicPageAsset(doc));
   }
+  
   async createDynamicPageAsset(asset: InsertDynamicPageAsset): Promise<DynamicPageAsset> {
-    return notImplemented('createDynamicPageAsset');
+    const docRef = this.db.collection('dynamicPageAssets').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...asset, id: docRef.id, createdAt: now });
+    await docRef.set(data);
+    return this.docToDynamicPageAsset(await docRef.get());
   }
+  
   async updateDynamicPageAsset(id: string, asset: Partial<InsertDynamicPageAsset>): Promise<DynamicPageAsset | undefined> {
-    return notImplemented('updateDynamicPageAsset');
+    const docRef = this.db.collection('dynamicPageAssets').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(asset));
+    return this.docToDynamicPageAsset(await docRef.get());
   }
+  
   async deleteDynamicPageAsset(id: string): Promise<void> {
-    return notImplemented('deleteDynamicPageAsset');
+    await this.db.collection('dynamicPageAssets').doc(id).delete();
   }
+  
   async setActiveAsset(pageId: string, assetId: string): Promise<void> {
-    return notImplemented('setActiveAsset');
+    const snapshot = await this.db.collection('dynamicPageAssets').where('pageId', '==', pageId).get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.update(doc.ref, { isActive: doc.id === assetId }));
+    await batch.commit();
   }
   
-  // Product Categories
+  private docToDynamicPageAsset(doc: FirebaseFirestore.DocumentSnapshot): DynamicPageAsset {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as DynamicPageAsset;
+  }
+  
+  // ============================================
+  // PRODUCT CATEGORIES
+  // ============================================
+  
   async getProductCategories(): Promise<ProductCategory[]> {
-    return notImplemented('getProductCategories');
+    const snapshot = await this.db.collection('productCategories').get();
+    return snapshot.docs.map(doc => this.docToProductCategory(doc));
   }
+  
   async getAllProductCategories(): Promise<ProductCategory[]> {
-    return notImplemented('getAllProductCategories');
+    return this.getProductCategories();
   }
+  
   async getActiveProductCategories(): Promise<ProductCategory[]> {
-    return notImplemented('getActiveProductCategories');
+    const snapshot = await this.db.collection('productCategories').where('isActive', '==', true).get();
+    return snapshot.docs.map(doc => this.docToProductCategory(doc));
   }
+  
   async getProductCategoriesByTaxonomy(taxonomyType: string): Promise<ProductCategory[]> {
-    return notImplemented('getProductCategoriesByTaxonomy');
+    const snapshot = await this.db.collection('productCategories').where('taxonomyType', '==', taxonomyType).get();
+    return snapshot.docs.map(doc => this.docToProductCategory(doc));
   }
+  
   async getProductCategory(id: string): Promise<ProductCategory | undefined> {
-    return notImplemented('getProductCategory');
+    const doc = await this.db.collection('productCategories').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToProductCategory(doc);
   }
+  
   async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
-    return notImplemented('createProductCategory');
+    const docRef = this.db.collection('productCategories').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...category, id: docRef.id, createdAt: now });
+    await docRef.set(data);
+    return this.docToProductCategory(await docRef.get());
   }
+  
   async updateProductCategory(id: string, category: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
-    return notImplemented('updateProductCategory');
+    const docRef = this.db.collection('productCategories').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(category));
+    return this.docToProductCategory(await docRef.get());
   }
+  
   async deleteProductCategory(id: string): Promise<void> {
-    return notImplemented('deleteProductCategory');
+    await this.db.collection('productCategories').doc(id).delete();
   }
   
-  // Product Category Assignments
+  private docToProductCategory(doc: FirebaseFirestore.DocumentSnapshot): ProductCategory {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as ProductCategory;
+  }
+  
+  // ============================================
+  // PRODUCT CATEGORY ASSIGNMENTS
+  // ============================================
+  
   async getProductCategoryAssignments(productId: string): Promise<ProductCategoryAssignment[]> {
-    return notImplemented('getProductCategoryAssignments');
+    const snapshot = await this.db.collection('productCategoryAssignments').where('productId', '==', productId).get();
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductCategoryAssignment));
   }
+  
   async getProductsByCategory(categoryId: string): Promise<Product[]> {
-    return notImplemented('getProductsByCategory');
+    const assignments = await this.db.collection('productCategoryAssignments').where('categoryId', '==', categoryId).get();
+    const productIds = assignments.docs.map(doc => doc.data().productId);
+    if (productIds.length === 0) return [];
+    const products: Product[] = [];
+    for (const pid of productIds) {
+      const p = await this.getProduct(pid);
+      if (p) products.push(p);
+    }
+    return products;
   }
+  
   async assignProductToCategory(assignment: InsertProductCategoryAssignment): Promise<ProductCategoryAssignment> {
-    return notImplemented('assignProductToCategory');
+    const docRef = this.db.collection('productCategoryAssignments').doc();
+    const data = this.prepareForFirestore({ ...assignment, id: docRef.id });
+    await docRef.set(data);
+    return { ...data, id: docRef.id } as ProductCategoryAssignment;
   }
+  
   async removeProductFromCategory(productId: string, categoryId: string): Promise<void> {
-    return notImplemented('removeProductFromCategory');
+    const snapshot = await this.db.collection('productCategoryAssignments')
+      .where('productId', '==', productId)
+      .where('categoryId', '==', categoryId).get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
   }
+  
   async syncProductCategories(productId: string, categoryIds: string[]): Promise<void> {
-    return notImplemented('syncProductCategories');
+    const existing = await this.db.collection('productCategoryAssignments').where('productId', '==', productId).get();
+    const batch = this.db.batch();
+    existing.docs.forEach(doc => batch.delete(doc.ref));
+    for (const categoryId of categoryIds) {
+      const docRef = this.db.collection('productCategoryAssignments').doc();
+      batch.set(docRef, { id: docRef.id, productId, categoryId });
+    }
+    await batch.commit();
   }
   
-  // Partner Stores
+  // ============================================
+  // PARTNER STORES
+  // ============================================
+  
   async getPartnerStores(): Promise<PartnerStore[]> {
-    return notImplemented('getPartnerStores');
+    const snapshot = await this.db.collection('partnerStores').get();
+    return snapshot.docs.map(doc => this.docToPartnerStore(doc));
   }
+  
   async getPartnerStore(id: string): Promise<PartnerStore | undefined> {
-    return notImplemented('getPartnerStore');
+    const doc = await this.db.collection('partnerStores').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToPartnerStore(doc);
   }
+  
   async getPartnerStoreBySlug(slug: string): Promise<PartnerStore | undefined> {
-    return notImplemented('getPartnerStoreBySlug');
+    const snapshot = await this.db.collection('partnerStores').where('slug', '==', slug).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToPartnerStore(snapshot.docs[0]);
   }
+  
   async createPartnerStore(store: InsertPartnerStore): Promise<PartnerStore> {
-    return notImplemented('createPartnerStore');
+    const docRef = this.db.collection('partnerStores').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...store, id: docRef.id, createdAt: now, updatedAt: now });
+    await docRef.set(data);
+    return this.docToPartnerStore(await docRef.get());
   }
+  
   async updatePartnerStore(id: string, store: Partial<InsertPartnerStore>): Promise<PartnerStore | undefined> {
-    return notImplemented('updatePartnerStore');
+    const docRef = this.db.collection('partnerStores').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore({ ...store, updatedAt: new Date() }));
+    return this.docToPartnerStore(await docRef.get());
   }
+  
   async deletePartnerStore(id: string): Promise<void> {
-    return notImplemented('deletePartnerStore');
+    await this.db.collection('partnerStores').doc(id).delete();
   }
   
-  // Partner Store Products
+  private docToPartnerStore(doc: FirebaseFirestore.DocumentSnapshot): PartnerStore {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as PartnerStore;
+  }
+  
+  // ============================================
+  // PARTNER STORE PRODUCTS
+  // ============================================
+  
   async getPartnerStoreProducts(partnerStoreId: string): Promise<PartnerStoreProduct[]> {
-    return notImplemented('getPartnerStoreProducts');
+    const snapshot = await this.db.collection('partnerStoreProducts').where('partnerStoreId', '==', partnerStoreId).get();
+    return snapshot.docs.map(doc => this.docToPartnerStoreProduct(doc));
   }
+  
   async getPartnerStoreProduct(partnerStoreId: string, productId: string): Promise<PartnerStoreProduct | undefined> {
-    return notImplemented('getPartnerStoreProduct');
+    const snapshot = await this.db.collection('partnerStoreProducts')
+      .where('partnerStoreId', '==', partnerStoreId)
+      .where('productId', '==', productId).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToPartnerStoreProduct(snapshot.docs[0]);
   }
+  
   async getProductsForStore(storeSlug: string, segment?: string): Promise<Product[]> {
-    return notImplemented('getProductsForStore');
+    const store = await this.getPartnerStoreBySlug(storeSlug);
+    if (!store) return [];
+    let query = this.db.collection('partnerStoreProducts').where('partnerStoreId', '==', store.id);
+    if (segment) query = query.where('segment', '==', segment);
+    const snapshot = await query.get();
+    const productIds = snapshot.docs.map(doc => doc.data().productId);
+    const products: Product[] = [];
+    for (const pid of productIds) {
+      const p = await this.getProduct(pid);
+      if (p) products.push(p);
+    }
+    return products;
   }
+  
   async addPartnerStoreProduct(product: InsertPartnerStoreProduct): Promise<PartnerStoreProduct> {
-    return notImplemented('addPartnerStoreProduct');
+    const docRef = this.db.collection('partnerStoreProducts').doc();
+    const data = this.prepareForFirestore({ ...product, id: docRef.id, addedAt: new Date() });
+    await docRef.set(data);
+    return this.docToPartnerStoreProduct(await docRef.get());
   }
+  
   async updatePartnerStoreProduct(id: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined> {
-    return notImplemented('updatePartnerStoreProduct');
+    const docRef = this.db.collection('partnerStoreProducts').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(product));
+    return this.docToPartnerStoreProduct(await docRef.get());
   }
+  
   async updatePartnerStoreProductByIds(partnerStoreId: string, productId: string, product: Partial<InsertPartnerStoreProduct>): Promise<PartnerStoreProduct | undefined> {
-    return notImplemented('updatePartnerStoreProductByIds');
+    const existing = await this.getPartnerStoreProduct(partnerStoreId, productId);
+    if (!existing) return undefined;
+    return this.updatePartnerStoreProduct(existing.id, product);
   }
+  
   async removePartnerStoreProduct(id: string): Promise<void> {
-    return notImplemented('removePartnerStoreProduct');
+    await this.db.collection('partnerStoreProducts').doc(id).delete();
   }
+  
   async syncPartnerStoreProducts(partnerStoreId: string, productIds: string[]): Promise<void> {
-    return notImplemented('syncPartnerStoreProducts');
+    const existing = await this.db.collection('partnerStoreProducts').where('partnerStoreId', '==', partnerStoreId).get();
+    const batch = this.db.batch();
+    existing.docs.forEach(doc => batch.delete(doc.ref));
+    for (const productId of productIds) {
+      const docRef = this.db.collection('partnerStoreProducts').doc();
+      batch.set(docRef, { id: docRef.id, partnerStoreId, productId, addedAt: new Date() });
+    }
+    await batch.commit();
   }
   
-  // Product Variants
+  private docToPartnerStoreProduct(doc: FirebaseFirestore.DocumentSnapshot): PartnerStoreProduct {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, addedAt: firestoreToDate(data.addedAt) } as unknown as PartnerStoreProduct;
+  }
+  
+  // ============================================
+  // PRODUCT VARIANTS
+  // ============================================
+  
   async getProductVariants(productId: string): Promise<ProductVariant[]> {
-    return notImplemented('getProductVariants');
+    const snapshot = await this.db.collection('productVariants').where('productId', '==', productId).get();
+    return snapshot.docs.map(doc => this.docToProductVariant(doc));
   }
+  
   async upsertProductVariant(variant: InsertProductVariant): Promise<ProductVariant> {
-    return notImplemented('upsertProductVariant');
+    const v = variant as any;
+    const existingSnapshot = await this.db.collection('productVariants')
+      .where('productId', '==', v.productId)
+      .where('variantId', '==', v.variantId).limit(1).get();
+    
+    if (!existingSnapshot.empty) {
+      const docRef = existingSnapshot.docs[0].ref;
+      await docRef.update(this.prepareForFirestore({ ...v, updatedAt: new Date() }));
+      return this.docToProductVariant(await docRef.get());
+    }
+    
+    const docRef = this.db.collection('productVariants').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...v, id: docRef.id, createdAt: now, updatedAt: now });
+    await docRef.set(data);
+    return this.docToProductVariant(await docRef.get());
   }
+  
   async toggleVariantEnabled(id: string, enabled: boolean): Promise<ProductVariant | undefined> {
-    return notImplemented('toggleVariantEnabled');
+    const docRef = this.db.collection('productVariants').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update({ isEnabled: enabled, updatedAt: new Date() });
+    return this.docToProductVariant(await docRef.get());
   }
   
-  // Printify Blueprints
+  private docToProductVariant(doc: FirebaseFirestore.DocumentSnapshot): ProductVariant {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as unknown as ProductVariant;
+  }
+  
+  // ============================================
+  // PRINTIFY BLUEPRINTS
+  // ============================================
+  
   async getPrintifyBlueprints(): Promise<PrintifyBlueprint[]> {
-    return notImplemented('getPrintifyBlueprints');
+    const snapshot = await this.db.collection('printifyBlueprints').get();
+    return snapshot.docs.map(doc => this.docToPrintifyBlueprint(doc));
   }
+  
   async getPrintifyBlueprint(id: number): Promise<PrintifyBlueprint | undefined> {
-    return notImplemented('getPrintifyBlueprint');
+    const doc = await this.db.collection('printifyBlueprints').doc(String(id)).get();
+    if (!doc.exists) return undefined;
+    return this.docToPrintifyBlueprint(doc);
   }
+  
   async upsertPrintifyBlueprint(blueprint: InsertPrintifyBlueprint): Promise<PrintifyBlueprint> {
-    return notImplemented('upsertPrintifyBlueprint');
+    const docRef = this.db.collection('printifyBlueprints').doc(String(blueprint.id));
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...blueprint, syncedAt: now });
+    await docRef.set(data, { merge: true });
+    return this.docToPrintifyBlueprint(await docRef.get());
   }
+  
   async deletePrintifyBlueprint(id: number): Promise<void> {
-    return notImplemented('deletePrintifyBlueprint');
+    await this.db.collection('printifyBlueprints').doc(String(id)).delete();
   }
+  
   async clearPrintifyBlueprints(): Promise<void> {
-    return notImplemented('clearPrintifyBlueprints');
+    const snapshot = await this.db.collection('printifyBlueprints').get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
   }
   
-  // Printify Print Providers
+  private docToPrintifyBlueprint(doc: FirebaseFirestore.DocumentSnapshot): PrintifyBlueprint {
+    const data = doc.data()!;
+    return { ...data, id: parseInt(doc.id), createdAt: firestoreToDate(data.createdAt), lastSyncedAt: firestoreToDate(data.syncedAt || data.lastSyncedAt) } as unknown as PrintifyBlueprint;
+  }
+  
+  // ============================================
+  // PRINTIFY PRINT PROVIDERS
+  // ============================================
+  
   async getAllPrintifyProviders(): Promise<PrintifyPrintProvider[]> {
-    return notImplemented('getAllPrintifyProviders');
+    const snapshot = await this.db.collection('printifyPrintProviders').get();
+    return snapshot.docs.map(doc => this.docToPrintifyPrintProvider(doc));
   }
+  
   async getPrintifyPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]> {
-    return notImplemented('getPrintifyPrintProviders');
+    const snapshot = await this.db.collection('printifyPrintProviders').where('blueprintId', '==', blueprintId).get();
+    return snapshot.docs.map(doc => this.docToPrintifyPrintProvider(doc));
   }
+  
   async getPrintifyPrintProvider(blueprintId: number, providerId: number): Promise<PrintifyPrintProvider | undefined> {
-    return notImplemented('getPrintifyPrintProvider');
+    const docId = `${blueprintId}_${providerId}`;
+    const doc = await this.db.collection('printifyPrintProviders').doc(docId).get();
+    if (!doc.exists) return undefined;
+    return this.docToPrintifyPrintProvider(doc);
   }
+  
   async upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider> {
-    return notImplemented('upsertPrintifyPrintProvider');
+    const docId = `${provider.blueprintId}_${provider.providerId}`;
+    const docRef = this.db.collection('printifyPrintProviders').doc(docId);
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...provider, syncedAt: now });
+    await docRef.set(data, { merge: true });
+    return this.docToPrintifyPrintProvider(await docRef.get());
   }
+  
   async updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string; availableColors?: any[]; availableSizes?: string[] }): Promise<PrintifyPrintProvider | undefined> {
-    return notImplemented('updatePrintifyProviderCosts');
+    const docId = `${blueprintId}_${providerId}`;
+    const docRef = this.db.collection('printifyPrintProviders').doc(docId);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore({ ...costs, costSyncedAt: new Date() }));
+    return this.docToPrintifyPrintProvider(await docRef.get());
   }
+  
   async updateProductPricesByProvider(blueprintId: number, providerId: number, basePrice: string): Promise<number> {
-    return notImplemented('updateProductPricesByProvider');
+    const snapshot = await this.db.collection('products')
+      .where('blueprintId', '==', blueprintId)
+      .where('printProviderId', '==', providerId).get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.update(doc.ref, { basePrice }));
+    await batch.commit();
+    return snapshot.size;
   }
+  
   async deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void> {
-    return notImplemented('deletePrintifyPrintProvidersByBlueprint');
+    const snapshot = await this.db.collection('printifyPrintProviders').where('blueprintId', '==', blueprintId).get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
   }
+  
   async clearPrintifyPrintProviders(): Promise<void> {
-    return notImplemented('clearPrintifyPrintProviders');
+    const snapshot = await this.db.collection('printifyPrintProviders').get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
   }
   
-  // Catalog Sync
+  private docToPrintifyPrintProvider(doc: FirebaseFirestore.DocumentSnapshot): PrintifyPrintProvider {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, lastSyncedAt: firestoreToDate(data.syncedAt || data.lastSyncedAt), costsFetchedAt: firestoreToDateNullable(data.costSyncedAt || data.costsFetchedAt) } as unknown as PrintifyPrintProvider;
+  }
+  
+  // ============================================
+  // CATALOG SYNC
+  // ============================================
+  
   async createCatalogSync(sync: InsertPrintifyCatalogSync): Promise<PrintifyCatalogSync> {
-    return notImplemented('createCatalogSync');
+    const docRef = this.db.collection('catalogSyncs').doc();
+    const data = this.prepareForFirestore({ ...sync, id: docRef.id, startedAt: new Date() });
+    await docRef.set(data);
+    return this.docToCatalogSync(await docRef.get());
   }
+  
   async updateCatalogSync(id: string, sync: Partial<InsertPrintifyCatalogSync>): Promise<PrintifyCatalogSync | undefined> {
-    return notImplemented('updateCatalogSync');
+    const docRef = this.db.collection('catalogSyncs').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(sync));
+    return this.docToCatalogSync(await docRef.get());
   }
+  
   async getLatestCatalogSync(): Promise<PrintifyCatalogSync | undefined> {
-    return notImplemented('getLatestCatalogSync');
+    const snapshot = await this.db.collection('catalogSyncs').orderBy('startedAt', 'desc').limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToCatalogSync(snapshot.docs[0]);
   }
+  
   async getCatalogSyncHistory(): Promise<PrintifyCatalogSync[]> {
-    return notImplemented('getCatalogSyncHistory');
+    const snapshot = await this.db.collection('catalogSyncs').orderBy('startedAt', 'desc').limit(50).get();
+    return snapshot.docs.map(doc => this.docToCatalogSync(doc));
   }
   
-  // Cost Sync
+  private docToCatalogSync(doc: FirebaseFirestore.DocumentSnapshot): PrintifyCatalogSync {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, startedAt: firestoreToDate(data.startedAt), completedAt: firestoreToDateNullable(data.completedAt) } as PrintifyCatalogSync;
+  }
+  
+  // ============================================
+  // COST SYNC
+  // ============================================
+  
   async createCostSync(sync: InsertPrintifyCostSync): Promise<PrintifyCostSync> {
-    return notImplemented('createCostSync');
+    const docRef = this.db.collection('costSyncs').doc();
+    const data = this.prepareForFirestore({ ...sync, id: docRef.id, startedAt: new Date() });
+    await docRef.set(data);
+    return this.docToCostSync(await docRef.get());
   }
+  
   async updateCostSync(id: string, sync: Partial<InsertPrintifyCostSync>): Promise<PrintifyCostSync | undefined> {
-    return notImplemented('updateCostSync');
+    const docRef = this.db.collection('costSyncs').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(sync));
+    return this.docToCostSync(await docRef.get());
   }
+  
   async getLatestCostSync(): Promise<PrintifyCostSync | undefined> {
-    return notImplemented('getLatestCostSync');
+    const snapshot = await this.db.collection('costSyncs').orderBy('startedAt', 'desc').limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToCostSync(snapshot.docs[0]);
   }
+  
   async getActiveCostSync(): Promise<PrintifyCostSync | undefined> {
-    return notImplemented('getActiveCostSync');
+    const snapshot = await this.db.collection('costSyncs').where('status', '==', 'running').limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToCostSync(snapshot.docs[0]);
   }
+  
   async getCostSyncHistory(): Promise<PrintifyCostSync[]> {
-    return notImplemented('getCostSyncHistory');
+    const snapshot = await this.db.collection('costSyncs').orderBy('startedAt', 'desc').limit(50).get();
+    return snapshot.docs.map(doc => this.docToCostSync(doc));
   }
+  
   async getProviderCostStats(): Promise<{ total: number; withCosts: number; stale: number }> {
-    return notImplemented('getProviderCostStats');
+    const providers = await this.getAllPrintifyProviders();
+    const staleDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return {
+      total: providers.length,
+      withCosts: providers.filter(p => p.minCost !== null).length,
+      stale: providers.filter(p => p.costsFetchedAt && new Date(p.costsFetchedAt) < staleDate).length
+    };
   }
   
-  // Template Categories
+  private docToCostSync(doc: FirebaseFirestore.DocumentSnapshot): PrintifyCostSync {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, startedAt: firestoreToDate(data.startedAt), completedAt: firestoreToDateNullable(data.completedAt) } as PrintifyCostSync;
+  }
+  
+  // ============================================
+  // TEMPLATE CATEGORIES
+  // ============================================
+  
   async getTemplateCategories(): Promise<TemplateCategory[]> {
-    return notImplemented('getTemplateCategories');
+    const snapshot = await this.db.collection('templateCategories').get();
+    return snapshot.docs.map(doc => this.docToTemplateCategory(doc));
   }
+  
   async getTemplateCategoriesByParent(parentId: string | null): Promise<TemplateCategory[]> {
-    return notImplemented('getTemplateCategoriesByParent');
+    let query = this.db.collection('templateCategories') as FirebaseFirestore.Query;
+    if (parentId === null) {
+      query = query.where('parentId', '==', null);
+    } else {
+      query = query.where('parentId', '==', parentId);
+    }
+    const snapshot = await query.get();
+    return snapshot.docs.map(doc => this.docToTemplateCategory(doc));
   }
+  
   async createTemplateCategory(category: InsertTemplateCategory): Promise<TemplateCategory> {
-    return notImplemented('createTemplateCategory');
+    const docRef = this.db.collection('templateCategories').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...category, id: docRef.id, createdAt: now });
+    await docRef.set(data);
+    return this.docToTemplateCategory(await docRef.get());
   }
+  
   async updateTemplateCategory(id: string, category: Partial<InsertTemplateCategory>): Promise<TemplateCategory | undefined> {
-    return notImplemented('updateTemplateCategory');
+    const docRef = this.db.collection('templateCategories').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(category));
+    return this.docToTemplateCategory(await docRef.get());
   }
+  
   async deleteTemplateCategory(id: string): Promise<void> {
-    return notImplemented('deleteTemplateCategory');
+    await this.db.collection('templateCategories').doc(id).delete();
   }
   
-  // Library Assets
+  private docToTemplateCategory(doc: FirebaseFirestore.DocumentSnapshot): TemplateCategory {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as TemplateCategory;
+  }
+  
+  // ============================================
+  // LIBRARY ASSETS
+  // ============================================
+  
   async getLibraryAsset(id: string): Promise<LibraryAsset | undefined> {
-    return notImplemented('getLibraryAsset');
+    const doc = await this.db.collection('libraryAssets').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToLibraryAsset(doc);
   }
+  
   async getLibraryAssetByUrl(url: string): Promise<LibraryAsset | undefined> {
-    return notImplemented('getLibraryAssetByUrl');
+    const snapshot = await this.db.collection('libraryAssets').where('url', '==', url).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToLibraryAsset(snapshot.docs[0]);
   }
+  
   async getLibraryAssets(filters?: { ownerType?: string; assetType?: string; mediaType?: string; userId?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
-    return notImplemented('getLibraryAssets');
+    let query = this.db.collection('libraryAssets') as FirebaseFirestore.Query;
+    if (filters?.ownerType) query = query.where('ownerType', '==', filters.ownerType);
+    if (filters?.assetType) query = query.where('assetType', '==', filters.assetType);
+    if (filters?.mediaType) query = query.where('mediaType', '==', filters.mediaType);
+    if (filters?.userId) query = query.where('userId', '==', filters.userId);
+    if (filters?.category) query = query.where('category', '==', filters.category);
+    const snapshot = await query.get();
+    return snapshot.docs.map(doc => this.docToLibraryAsset(doc));
   }
+  
   async getAdminLibraryAssets(filters?: { assetType?: string; mediaType?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
-    return notImplemented('getAdminLibraryAssets');
+    return this.getLibraryAssets({ ...filters, ownerType: 'admin' });
   }
+  
   async getUserLibraryAssets(userId: string, filters?: { assetType?: string; mediaType?: string }): Promise<LibraryAsset[]> {
-    return notImplemented('getUserLibraryAssets');
+    return this.getLibraryAssets({ ...filters, userId, ownerType: 'user' });
   }
+  
   async createLibraryAsset(asset: InsertLibraryAsset): Promise<LibraryAsset> {
-    return notImplemented('createLibraryAsset');
+    const docRef = this.db.collection('libraryAssets').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...asset, id: docRef.id, createdAt: now, usageCount: 0 });
+    await docRef.set(data);
+    return this.docToLibraryAsset(await docRef.get());
   }
+  
   async updateLibraryAsset(id: string, asset: Partial<InsertLibraryAsset>): Promise<LibraryAsset | undefined> {
-    return notImplemented('updateLibraryAsset');
+    const docRef = this.db.collection('libraryAssets').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(asset));
+    return this.docToLibraryAsset(await docRef.get());
   }
+  
   async deleteLibraryAsset(id: string): Promise<void> {
-    return notImplemented('deleteLibraryAsset');
+    await this.db.collection('libraryAssets').doc(id).delete();
   }
+  
   async incrementLibraryAssetUsage(id: string): Promise<void> {
-    return notImplemented('incrementLibraryAssetUsage');
+    const docRef = this.db.collection('libraryAssets').doc(id);
+    const { FieldValue } = await import('firebase-admin/firestore');
+    await docRef.update({ usageCount: FieldValue.increment(1) });
   }
   
-  // Master Products
+  private docToLibraryAsset(doc: FirebaseFirestore.DocumentSnapshot): LibraryAsset {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as LibraryAsset;
+  }
+  
+  // ============================================
+  // MASTER PRODUCTS
+  // ============================================
+  
   async getAllMasterProducts(): Promise<MasterProduct[]> {
-    return notImplemented('getAllMasterProducts');
+    const snapshot = await this.db.collection('masterProducts').get();
+    return snapshot.docs.map(doc => this.docToMasterProduct(doc));
   }
+  
   async getMasterProduct(id: string): Promise<MasterProduct | undefined> {
-    return notImplemented('getMasterProduct');
+    const doc = await this.db.collection('masterProducts').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToMasterProduct(doc);
   }
+  
   async createMasterProduct(product: InsertMasterProduct): Promise<MasterProduct> {
-    return notImplemented('createMasterProduct');
+    const docRef = this.db.collection('masterProducts').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...product, id: docRef.id, createdAt: now, updatedAt: now });
+    await docRef.set(data);
+    return this.docToMasterProduct(await docRef.get());
   }
+  
   async updateMasterProduct(id: string, product: Partial<InsertMasterProduct>): Promise<MasterProduct | undefined> {
-    return notImplemented('updateMasterProduct');
+    const docRef = this.db.collection('masterProducts').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore({ ...product, updatedAt: new Date() }));
+    return this.docToMasterProduct(await docRef.get());
   }
+  
   async deleteMasterProduct(id: string): Promise<void> {
-    return notImplemented('deleteMasterProduct');
+    await this.db.collection('masterProducts').doc(id).delete();
   }
   
-  // Design Versions
+  private docToMasterProduct(doc: FirebaseFirestore.DocumentSnapshot): MasterProduct {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as MasterProduct;
+  }
+  
+  // ============================================
+  // DESIGN VERSIONS
+  // ============================================
+  
   async getDesignVersions(masterProductId: string): Promise<ProductDesignVersion[]> {
-    return notImplemented('getDesignVersions');
+    const snapshot = await this.db.collection('designVersions').where('masterProductId', '==', masterProductId).get();
+    return snapshot.docs.map(doc => this.docToDesignVersion(doc));
   }
+  
   async getActiveDesignVersion(masterProductId: string): Promise<ProductDesignVersion | undefined> {
-    return notImplemented('getActiveDesignVersion');
+    const snapshot = await this.db.collection('designVersions')
+      .where('masterProductId', '==', masterProductId)
+      .where('isActive', '==', true).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToDesignVersion(snapshot.docs[0]);
   }
+  
   async createDesignVersion(version: InsertProductDesignVersion): Promise<ProductDesignVersion> {
-    return notImplemented('createDesignVersion');
+    const docRef = this.db.collection('designVersions').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...version, id: docRef.id, createdAt: now });
+    await docRef.set(data);
+    return this.docToDesignVersion(await docRef.get());
   }
+  
   async updateDesignVersion(id: string, version: Partial<InsertProductDesignVersion>): Promise<ProductDesignVersion | undefined> {
-    return notImplemented('updateDesignVersion');
+    const docRef = this.db.collection('designVersions').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(version));
+    return this.docToDesignVersion(await docRef.get());
   }
   
-  // Channel Configs
+  private docToDesignVersion(doc: FirebaseFirestore.DocumentSnapshot): ProductDesignVersion {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as ProductDesignVersion;
+  }
+  
+  // ============================================
+  // CHANNEL CONFIGS
+  // ============================================
+  
   async getAllChannelConfigs(): Promise<ChannelConfig[]> {
-    return notImplemented('getAllChannelConfigs');
+    const snapshot = await this.db.collection('channelConfigs').get();
+    return snapshot.docs.map(doc => this.docToChannelConfig(doc));
   }
+  
   async getChannelConfig(channelType: string): Promise<ChannelConfig | undefined> {
-    return notImplemented('getChannelConfig');
+    const doc = await this.db.collection('channelConfigs').doc(channelType).get();
+    if (!doc.exists) return undefined;
+    return this.docToChannelConfig(doc);
   }
+  
   async createChannelConfig(config: InsertChannelConfig): Promise<ChannelConfig> {
-    return notImplemented('createChannelConfig');
+    const docRef = this.db.collection('channelConfigs').doc(config.channelType);
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...config, createdAt: now, updatedAt: now });
+    await docRef.set(data);
+    return this.docToChannelConfig(await docRef.get());
   }
+  
   async updateChannelConfig(channelType: string, config: Partial<InsertChannelConfig>): Promise<ChannelConfig | undefined> {
-    return notImplemented('updateChannelConfig');
+    const docRef = this.db.collection('channelConfigs').doc(channelType);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore({ ...config, updatedAt: new Date() }));
+    return this.docToChannelConfig(await docRef.get());
   }
   
-  // Publish States
+  private docToChannelConfig(doc: FirebaseFirestore.DocumentSnapshot): ChannelConfig {
+    const data = doc.data()!;
+    return { ...data, channelType: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as ChannelConfig;
+  }
+  
+  // ============================================
+  // PUBLISH STATES
+  // ============================================
+  
   async getPublishStates(masterProductId: string): Promise<ChannelPublishState[]> {
-    return notImplemented('getPublishStates');
+    const snapshot = await this.db.collection('publishStates').where('masterProductId', '==', masterProductId).get();
+    return snapshot.docs.map(doc => this.docToPublishState(doc));
   }
+  
   async getPublishState(masterProductId: string, channelType: string): Promise<ChannelPublishState | undefined> {
-    return notImplemented('getPublishState');
+    const docId = `${masterProductId}_${channelType}`;
+    const doc = await this.db.collection('publishStates').doc(docId).get();
+    if (!doc.exists) return undefined;
+    return this.docToPublishState(doc);
   }
+  
   async upsertPublishState(state: InsertChannelPublishState): Promise<ChannelPublishState> {
-    return notImplemented('upsertPublishState');
+    const docId = `${state.masterProductId}_${state.channelType}`;
+    const docRef = this.db.collection('publishStates').doc(docId);
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...state, updatedAt: now });
+    await docRef.set(data, { merge: true });
+    return this.docToPublishState(await docRef.get());
   }
   
-  // Provider Health
+  private docToPublishState(doc: FirebaseFirestore.DocumentSnapshot): ChannelPublishState {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), publishedAt: firestoreToDateNullable(data.publishedAt), updatedAt: firestoreToDate(data.updatedAt), lastSyncedAt: firestoreToDateNullable(data.lastSyncedAt) } as unknown as ChannelPublishState;
+  }
+  
+  // ============================================
+  // PROVIDER HEALTH
+  // ============================================
+  
   async logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog> {
-    return notImplemented('logProviderHealth');
+    const docRef = this.db.collection('providerHealthLogs').doc();
+    const data = this.prepareForFirestore({ ...log, id: docRef.id, checkedAt: new Date() });
+    await docRef.set(data);
+    return this.docToProviderHealthLog(await docRef.get());
   }
-  async getProviderHealthLogs(limit?: number): Promise<ProviderHealthLog[]> {
-    return notImplemented('getProviderHealthLogs');
+  
+  async getProviderHealthLogs(limit: number = 100): Promise<ProviderHealthLog[]> {
+    const snapshot = await this.db.collection('providerHealthLogs').orderBy('checkedAt', 'desc').limit(limit).get();
+    return snapshot.docs.map(doc => this.docToProviderHealthLog(doc));
   }
-  async getProviderHealthLogsByType(providerType: string, limit?: number): Promise<ProviderHealthLog[]> {
-    return notImplemented('getProviderHealthLogsByType');
+  
+  async getProviderHealthLogsByType(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
+    const snapshot = await this.db.collection('providerHealthLogs')
+      .where('providerType', '==', providerType)
+      .orderBy('checkedAt', 'desc').limit(limit).get();
+    return snapshot.docs.map(doc => this.docToProviderHealthLog(doc));
   }
+  
   async getLatestProviderHealth(providerType: string): Promise<ProviderHealthLog | undefined> {
-    return notImplemented('getLatestProviderHealth');
+    const logs = await this.getProviderHealthLogsByType(providerType, 1);
+    return logs[0];
   }
+  
   async getAllLatestProviderHealth(): Promise<ProviderHealthLog[]> {
-    return notImplemented('getAllLatestProviderHealth');
-  }
-  async getProviderHealthStats(providerType: string, hours?: number): Promise<{ uptimePercent: number; avgResponseTime: number; totalChecks: number }> {
-    return notImplemented('getProviderHealthStats');
+    const allLogs = await this.getProviderHealthLogs(500);
+    const latestByType = new Map<string, ProviderHealthLog>();
+    for (const log of allLogs) {
+      if (!latestByType.has(log.providerType)) {
+        latestByType.set(log.providerType, log);
+      }
+    }
+    return Array.from(latestByType.values());
   }
   
-  // Gift Packages
+  async getProviderHealthStats(providerType: string, hours: number = 24): Promise<{ uptimePercent: number; avgResponseTime: number; totalChecks: number }> {
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const snapshot = await this.db.collection('providerHealthLogs')
+      .where('providerType', '==', providerType)
+      .where('checkedAt', '>=', cutoff).get();
+    const logs = snapshot.docs.map(doc => this.docToProviderHealthLog(doc));
+    if (logs.length === 0) return { uptimePercent: 0, avgResponseTime: 0, totalChecks: 0 };
+    const upCount = logs.filter(l => l.isHealthy).length;
+    const avgTime = logs.reduce((sum, l) => sum + (l.responseTimeMs || 0), 0) / logs.length;
+    return { uptimePercent: (upCount / logs.length) * 100, avgResponseTime: avgTime, totalChecks: logs.length };
+  }
+  
+  private docToProviderHealthLog(doc: FirebaseFirestore.DocumentSnapshot): ProviderHealthLog {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, checkTime: firestoreToDate(data.checkedAt || data.checkTime) } as unknown as ProviderHealthLog;
+  }
+  
+  // ============================================
+  // GIFT PACKAGES
+  // ============================================
+  
   async getAllGiftPackages(): Promise<GiftPackage[]> {
-    return notImplemented('getAllGiftPackages');
+    const snapshot = await this.db.collection('giftPackages').get();
+    return snapshot.docs.map(doc => this.docToGiftPackage(doc));
   }
+  
   async getActiveGiftPackages(): Promise<GiftPackage[]> {
-    return notImplemented('getActiveGiftPackages');
+    const snapshot = await this.db.collection('giftPackages').where('isActive', '==', true).get();
+    return snapshot.docs.map(doc => this.docToGiftPackage(doc));
   }
+  
   async getGiftPackage(id: string): Promise<GiftPackage | undefined> {
-    return notImplemented('getGiftPackage');
+    const doc = await this.db.collection('giftPackages').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToGiftPackage(doc);
   }
+  
   async createGiftPackage(pkg: InsertGiftPackage): Promise<GiftPackage> {
-    return notImplemented('createGiftPackage');
+    const docRef = this.db.collection('giftPackages').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...pkg, id: docRef.id, createdAt: now });
+    await docRef.set(data);
+    return this.docToGiftPackage(await docRef.get());
   }
+  
   async updateGiftPackage(id: string, pkg: Partial<InsertGiftPackage>): Promise<GiftPackage | undefined> {
-    return notImplemented('updateGiftPackage');
+    const docRef = this.db.collection('giftPackages').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(pkg));
+    return this.docToGiftPackage(await docRef.get());
   }
+  
   async deleteGiftPackage(id: string): Promise<void> {
-    return notImplemented('deleteGiftPackage');
+    await this.db.collection('giftPackages').doc(id).delete();
   }
   
-  // Gift Codes
+  private docToGiftPackage(doc: FirebaseFirestore.DocumentSnapshot): GiftPackage {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as GiftPackage;
+  }
+  
+  // ============================================
+  // GIFT CODES
+  // ============================================
+  
   async getGiftCode(id: string): Promise<GiftCode | undefined> {
-    return notImplemented('getGiftCode');
+    const doc = await this.db.collection('giftCodes').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToGiftCode(doc);
   }
+  
   async getGiftCodeByCode(code: string): Promise<GiftCode | undefined> {
-    return notImplemented('getGiftCodeByCode');
+    const snapshot = await this.db.collection('giftCodes').where('code', '==', code).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToGiftCode(snapshot.docs[0]);
   }
+  
   async getGiftCodesByBuyer(buyerUserId: string): Promise<GiftCode[]> {
-    return notImplemented('getGiftCodesByBuyer');
+    const snapshot = await this.db.collection('giftCodes').where('buyerUserId', '==', buyerUserId).get();
+    return snapshot.docs.map(doc => this.docToGiftCode(doc));
   }
+  
   async createGiftCode(code: InsertGiftCode): Promise<GiftCode> {
-    return notImplemented('createGiftCode');
+    const docRef = this.db.collection('giftCodes').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...code, id: docRef.id, createdAt: now });
+    await docRef.set(data);
+    return this.docToGiftCode(await docRef.get());
   }
+  
   async updateGiftCode(id: string, code: Partial<InsertGiftCode>): Promise<GiftCode | undefined> {
-    return notImplemented('updateGiftCode');
+    const docRef = this.db.collection('giftCodes').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(code));
+    return this.docToGiftCode(await docRef.get());
   }
   
-  // Gift Redemptions
+  private docToGiftCode(doc: FirebaseFirestore.DocumentSnapshot): GiftCode {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), expiresAt: firestoreToDateNullable(data.expiresAt) } as GiftCode;
+  }
+  
+  // ============================================
+  // GIFT REDEMPTIONS
+  // ============================================
+  
   async getGiftRedemption(id: string): Promise<GiftRedemption | undefined> {
-    return notImplemented('getGiftRedemption');
+    const doc = await this.db.collection('giftRedemptions').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToGiftRedemption(doc);
   }
+  
   async getGiftRedemptionByCode(giftCodeId: string): Promise<GiftRedemption | undefined> {
-    return notImplemented('getGiftRedemptionByCode');
+    const snapshot = await this.db.collection('giftRedemptions').where('giftCodeId', '==', giftCodeId).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToGiftRedemption(snapshot.docs[0]);
   }
+  
   async getGiftRedemptionsByRecipient(recipientEmail: string): Promise<GiftRedemption[]> {
-    return notImplemented('getGiftRedemptionsByRecipient');
+    const snapshot = await this.db.collection('giftRedemptions').where('recipientEmail', '==', recipientEmail).get();
+    return snapshot.docs.map(doc => this.docToGiftRedemption(doc));
   }
+  
   async createGiftRedemption(redemption: InsertGiftRedemption): Promise<GiftRedemption> {
-    return notImplemented('createGiftRedemption');
+    const docRef = this.db.collection('giftRedemptions').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...redemption, id: docRef.id, redeemedAt: now });
+    await docRef.set(data);
+    return this.docToGiftRedemption(await docRef.get());
   }
+  
   async updateGiftRedemption(id: string, redemption: Partial<InsertGiftRedemption>): Promise<GiftRedemption | undefined> {
-    return notImplemented('updateGiftRedemption');
+    const docRef = this.db.collection('giftRedemptions').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore(redemption));
+    return this.docToGiftRedemption(await docRef.get());
   }
   
-  // Email Templates
+  private docToGiftRedemption(doc: FirebaseFirestore.DocumentSnapshot): GiftRedemption {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, redeemedAt: firestoreToDate(data.redeemedAt) } as GiftRedemption;
+  }
+  
+  // ============================================
+  // EMAIL TEMPLATES
+  // ============================================
+  
   async getEmailTemplates(): Promise<EmailTemplate[]> {
-    return notImplemented('getEmailTemplates');
-  }
-  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
-    return notImplemented('getEmailTemplate');
-  }
-  async getEmailTemplateByTrigger(trigger: string): Promise<EmailTemplate | undefined> {
-    return notImplemented('getEmailTemplateByTrigger');
-  }
-  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
-    return notImplemented('createEmailTemplate');
-  }
-  async updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
-    return notImplemented('updateEmailTemplate');
-  }
-  async deleteEmailTemplate(id: string): Promise<void> {
-    return notImplemented('deleteEmailTemplate');
+    const snapshot = await this.db.collection('emailTemplates').get();
+    return snapshot.docs.map(doc => this.docToEmailTemplate(doc));
   }
   
-  // Email Logs
-  async getEmailLogs(limit?: number): Promise<EmailLog[]> {
-    return notImplemented('getEmailLogs');
+  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
+    const doc = await this.db.collection('emailTemplates').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToEmailTemplate(doc);
   }
+  
+  async getEmailTemplateByTrigger(trigger: string): Promise<EmailTemplate | undefined> {
+    const snapshot = await this.db.collection('emailTemplates').where('trigger', '==', trigger).limit(1).get();
+    if (snapshot.empty) return undefined;
+    return this.docToEmailTemplate(snapshot.docs[0]);
+  }
+  
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const docRef = this.db.collection('emailTemplates').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...template, id: docRef.id, createdAt: now, updatedAt: now });
+    await docRef.set(data);
+    return this.docToEmailTemplate(await docRef.get());
+  }
+  
+  async updateEmailTemplate(id: string, template: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    const docRef = this.db.collection('emailTemplates').doc(id);
+    if (!(await docRef.get()).exists) return undefined;
+    await docRef.update(this.prepareForFirestore({ ...template, updatedAt: new Date() }));
+    return this.docToEmailTemplate(await docRef.get());
+  }
+  
+  async deleteEmailTemplate(id: string): Promise<void> {
+    await this.db.collection('emailTemplates').doc(id).delete();
+  }
+  
+  private docToEmailTemplate(doc: FirebaseFirestore.DocumentSnapshot): EmailTemplate {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt), updatedAt: firestoreToDate(data.updatedAt) } as EmailTemplate;
+  }
+  
+  // ============================================
+  // EMAIL LOGS
+  // ============================================
+  
+  async getEmailLogs(limit: number = 100): Promise<EmailLog[]> {
+    const snapshot = await this.db.collection('emailLogs').orderBy('sentAt', 'desc').limit(limit).get();
+    return snapshot.docs.map(doc => this.docToEmailLog(doc));
+  }
+  
   async logEmail(log: Omit<EmailLog, 'id' | 'sentAt'>): Promise<EmailLog> {
-    return notImplemented('logEmail');
+    const docRef = this.db.collection('emailLogs').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...log, id: docRef.id, sentAt: now });
+    await docRef.set(data);
+    return this.docToEmailLog(await docRef.get());
+  }
+  
+  private docToEmailLog(doc: FirebaseFirestore.DocumentSnapshot): EmailLog {
+    const data = doc.data()!;
+    return { ...data, id: doc.id, sentAt: firestoreToDate(data.sentAt) } as EmailLog;
   }
 }
