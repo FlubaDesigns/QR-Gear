@@ -515,21 +515,56 @@ export class FirestoreAdapter implements IStorage {
     return notImplemented('deleteQrDesign');
   }
   
-  // Cart
+  // Cart (Implemented for standalone operation)
   async getCartItemsByUser(userId: string): Promise<CartItem[]> {
-    return notImplemented('getCartItemsByUser');
+    const snapshot = await this.db.collection('cartItems')
+      .where('userId', '==', userId)
+      .get();
+    return snapshot.docs.map(doc => this.docToCartItem(doc));
   }
+  
   async addCartItem(item: InsertCartItem): Promise<CartItem> {
-    return notImplemented('addCartItem');
+    const docRef = this.db.collection('cartItems').doc();
+    const now = new Date();
+    const data = this.prepareForFirestore({
+      ...item,
+      id: docRef.id,
+      createdAt: now,
+    });
+    await docRef.set(data);
+    const doc = await docRef.get();
+    return this.docToCartItem(doc);
   }
+  
   async updateCartItem(id: string, quantity: number): Promise<CartItem | undefined> {
-    return notImplemented('updateCartItem');
+    const docRef = this.db.collection('cartItems').doc(id);
+    const existing = await docRef.get();
+    if (!existing.exists) return undefined;
+    await docRef.update({ quantity });
+    const updated = await docRef.get();
+    return this.docToCartItem(updated);
   }
+  
   async deleteCartItem(id: string): Promise<void> {
-    return notImplemented('deleteCartItem');
+    await this.db.collection('cartItems').doc(id).delete();
   }
+  
   async clearCart(userId: string): Promise<void> {
-    return notImplemented('clearCart');
+    const snapshot = await this.db.collection('cartItems')
+      .where('userId', '==', userId)
+      .get();
+    const batch = this.db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+  }
+  
+  private docToCartItem(doc: FirebaseFirestore.DocumentSnapshot): CartItem {
+    const data = doc.data()!;
+    return {
+      ...data,
+      id: doc.id,
+      createdAt: firestoreToDate(data.createdAt),
+    } as CartItem;
   }
   
   // Hosted Image
