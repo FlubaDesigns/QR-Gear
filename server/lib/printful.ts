@@ -504,7 +504,8 @@ export async function syncPrintfulCatalog(db: any, options?: { productIds?: numb
         }
 
         // Rate limiting - Printful has 120 requests/min limit
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Each product makes ~3 API calls, so wait 2 seconds between products
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (productError: any) {
         console.error(`[Printful Sync] Error syncing product ${product.id}:`, productError.message);
