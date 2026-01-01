@@ -4462,6 +4462,180 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test endpoint: Generate mockups at all 3 sizes for comparison
+  // Temporarily public for testing - TODO: add isAdmin back
+  app.post("/api/admin/test-mockup-sizes", async (req: any, res) => {
+    try {
+      const { productId, color } = req.body;
+      
+      if (!productId || !color) {
+        return res.status(400).json({ error: "productId and color are required" });
+      }
+      
+      const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
+      const designId = productId.startsWith('custom_') ? productId.replace('custom_', '') : productId;
+      
+      const product = await storage.getProduct(canonicalProductId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const { blueprintId, printProviderId } = product;
+      if (!blueprintId || !printProviderId) {
+        return res.status(400).json({ error: "Product missing blueprint or print provider" });
+      }
+      
+      const design = await storage.getCustomDesign(designId);
+      if (!design) {
+        return res.status(404).json({ error: "Design not found" });
+      }
+      
+      // Get artwork
+      let designPlacements: Record<string, string> = {};
+      if (typeof design.placementImages === 'string') {
+        designPlacements = JSON.parse(design.placementImages);
+      } else if (design.placementImages && typeof design.placementImages === 'object') {
+        designPlacements = design.placementImages as Record<string, string>;
+      }
+      
+      // Get color hex
+      let colorHex: string | null = null;
+      if (product.availableColors && Array.isArray(product.availableColors)) {
+        const colorInfo = (product.availableColors as any[]).find(
+          (c: any) => c.name?.toLowerCase() === color.toLowerCase()
+        );
+        colorHex = colorInfo?.hex || null;
+      }
+      
+      const { isColorDark } = await import('./lib/mockup-service.js');
+      const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
+      
+      const blackArtwork = designPlacements["front-chest"] || designPlacements["front-center"] || designPlacements["front"];
+      const whiteArtwork = designPlacements["front-chest-white"] || designPlacements["front-center-white"];
+      
+      const artworkUrl = needsWhiteQR && whiteArtwork ? whiteArtwork : blackArtwork;
+      
+      if (!artworkUrl) {
+        return res.status(400).json({ error: "No artwork found" });
+      }
+      
+      // Generate mockups at all 3 sizes with delays to avoid rate limits
+      const { printfulClient } = await import('./lib/printful.js');
+      const { printifyPrintfulMapping } = await import('@shared/schema');
+      const { eq, and } = await import('drizzle-orm');
+      
+      // Get Printful mapping
+      const mapping = await db.select().from(printifyPrintfulMapping)
+        .where(and(
+          eq(printifyPrintfulMapping.printifyBlueprintId, blueprintId),
+          eq(printifyPrintfulMapping.isActive, true)
+        )).limit(1);
+      
+      if (mapping.length === 0) {
+        return res.status(400).json({ error: "No Printful mapping for this blueprint" });
+      }
+      
+      const printfulProductId = mapping[0].printfulProductId;
+      const variants = await printfulClient.getVariantsByColor(printfulProductId, color);
+      
+      if (variants.length === 0) {
+        return res.status(400).json({ error: `No Printful variants for color: ${color}` });
+      }
+      
+      const targetVariant = variants.find(v => v.size === 'M') || variants[0];
+      const printfiles = await printfulClient.getPrintfiles(printfulProductId);
+      const frontPrintfile = printfiles.printfiles?.find((p: any) => p.printfile_id === 1) || printfiles.printfiles?.[0];
+      
+      const areaWidth = frontPrintfile?.width || 4500;
+      const areaHeight = frontPrintfile?.height || 5400;
+      
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : "http://localhost:5000";
+      const absoluteArtworkUrl = artworkUrl.startsWith("http") ? artworkUrl : `${baseUrl}${artworkUrl}`;
+      
+      const sizes = [
+        { name: 'small', percent: 0.25 },
+        { name: 'medium', percent: 0.45 },
+        { name: 'large', percent: 0.65 },
+      ];
+      
+      const results: { size: string; qrPixels: number; mockupUrl?: string; lifestyleUrl?: string; error?: string }[] = [];
+      
+      for (const sizeConfig of sizes) {
+        try {
+          console.log(`[TestMockupSizes] Generating ${sizeConfig.name} (${Math.round(sizeConfig.percent * 100)}%)...`);
+          
+          const qrSize = Math.round(areaWidth * sizeConfig.percent);
+          
+          const position = {
+            area_width: areaWidth,
+            area_height: areaHeight,
+            width: qrSize,
+            height: qrSize,
+            top: Math.round(areaHeight * 0.15),
+            left: Math.round((areaWidth - qrSize) / 2),
+          };
+          
+          const task = await printfulClient.createMockupTask(
+            printfulProductId,
+            [targetVariant.id],
+            [{
+              placement: 'front',
+              image_url: absoluteArtworkUrl,
+              position,
+            }],
+            'jpg',
+            ["Men's Lifestyle"]
+          );
+          
+          if (!task.task_key) {
+            results.push({ size: sizeConfig.name, qrPixels: qrSize, error: 'Task creation failed' });
+            continue;
+          }
+          
+          const result = await printfulClient.waitForMockupTask(task.task_key, 60000);
+          
+          if (!result.mockups || result.mockups.length === 0) {
+            results.push({ size: sizeConfig.name, qrPixels: qrSize, error: 'No mockups returned' });
+            continue;
+          }
+          
+          const mainMockup = result.mockups[0];
+          let lifestyleUrl = mainMockup.extra?.find((e: any) => 
+            e.option_group?.toLowerCase().includes('lifestyle')
+          )?.url;
+          
+          results.push({
+            size: sizeConfig.name,
+            qrPixels: qrSize,
+            mockupUrl: mainMockup.mockup_url,
+            lifestyleUrl: lifestyleUrl || mainMockup.mockup_url,
+          });
+          
+          // Rate limit delay between sizes
+          if (sizeConfig !== sizes[sizes.length - 1]) {
+            console.log(`[TestMockupSizes] Waiting 3 seconds for rate limit...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+        } catch (err: any) {
+          results.push({ size: sizeConfig.name, qrPixels: 0, error: err.message });
+        }
+      }
+      
+      res.json({
+        success: true,
+        color,
+        areaWidth,
+        areaHeight,
+        results,
+      });
+    } catch (error: any) {
+      console.error("[TestMockupSizes] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ DYNAMIC PAGES ENDPOINTS ============
   
   // Get user's dynamic pages with active image info

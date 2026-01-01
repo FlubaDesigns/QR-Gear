@@ -1672,3 +1672,40 @@ export const printfulVariants = pgTable("printful_variants", {
 export const insertPrintfulVariantSchema = createInsertSchema(printfulVariants).omit({ createdAt: true });
 export type PrintfulVariant = typeof printfulVariants.$inferSelect;
 export type InsertPrintfulVariant = z.infer<typeof insertPrintfulVariantSchema>;
+
+// ============================================================================
+// MOCKUP JOB QUEUE
+// Portable job queue for rate-limited mockup generation
+// Designed to be easily migrated to Firestore
+// ============================================================================
+
+export const mockupJobs = pgTable("mockup_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Job identification
+  productId: varchar("product_id").notNull(),
+  colorName: text("color_name").notNull(),
+  qrSize: text("qr_size").notNull().default("medium"), // 'small', 'medium', 'large'
+  // Job data (portable JSON blob)
+  jobData: jsonb("job_data").notNull(), // { blueprintId, providerId, artworkUrl, etc }
+  // Status tracking
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed, delayed
+  priority: integer("priority").default(10), // Lower = higher priority
+  attempts: integer("attempts").default(0),
+  maxAttempts: integer("max_attempts").default(5),
+  // Results
+  resultData: jsonb("result_data"), // { mockupUrl, lifestyleUrl } on success
+  errorMessage: text("error_message"),
+  // Timing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  nextRetryAt: timestamp("next_retry_at"), // For exponential backoff
+}, (table) => [
+  index("mockup_jobs_status_idx").on(table.status),
+  index("mockup_jobs_product_idx").on(table.productId),
+  index("mockup_jobs_next_retry_idx").on(table.nextRetryAt),
+]);
+
+export const insertMockupJobSchema = createInsertSchema(mockupJobs).omit({ id: true, createdAt: true });
+export type MockupJob = typeof mockupJobs.$inferSelect;
+export type InsertMockupJob = z.infer<typeof insertMockupJobSchema>;

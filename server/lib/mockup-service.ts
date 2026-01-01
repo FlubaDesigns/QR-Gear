@@ -287,6 +287,7 @@ async function generatePrintfulMockup(params: {
   colorHex?: string;
   artworkUrl: string;
   canonicalPlacementId: string;
+  qrSize?: 'small' | 'medium' | 'large';
 }): Promise<{ flat?: string; lifestyle?: string } | null> {
   const { blueprintId, printProviderId, colorName, colorHex, artworkUrl, canonicalPlacementId } = params;
 
@@ -351,12 +352,18 @@ async function generatePrintfulMockup(params: {
   const printfiles = await printfulClient.getPrintfiles(printfulProductId);
   const frontPrintfile = printfiles.printfiles?.find((p: any) => p.printfile_id === 1) || printfiles.printfiles?.[0];
   
-  // Position for front chest - QR code at 60% of print area width for visibility
+  // Position for front chest - QR code size based on user preference
   const areaWidth = frontPrintfile?.width || 4500;  // Printful's actual area for t-shirts
   const areaHeight = frontPrintfile?.height || 5400;
   
-  // QR size: 60% of print area width, minimum 2400px for clarity
-  const qrSize = Math.max(Math.round(areaWidth * 0.6), 2400);
+  // QR size based on size preference: small=25%, medium=45%, large=65% of print area
+  const sizePercentages: Record<string, number> = {
+    small: 0.25,   // ~4" on a 12"x16" area
+    medium: 0.45,  // ~8" on a 12"x16" area  
+    large: 0.65,   // ~12" on a 12"x16" area (near max)
+  };
+  const sizePercent = sizePercentages[(params as any).qrSize] || sizePercentages.medium;
+  const qrSize = Math.max(Math.round(areaWidth * sizePercent), 1200);
   
   console.log(`[MockupService/Printful] Print area: ${areaWidth}x${areaHeight}, QR size: ${qrSize}px (${Math.round(qrSize/areaWidth*100)}%)`);
   
