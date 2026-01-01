@@ -4640,7 +4640,8 @@ ${allPages.map(page => `  <url>
   // Portable job queue for rate-limited mockup generation
 
   // Create batch mockup jobs for a product
-  app.post("/api/admin/mockup-jobs/batch", isAdmin, async (req: any, res) => {
+  // Public - anyone can create a shirt without login
+  app.post("/api/mockup-jobs/batch", async (req: any, res) => {
     try {
       const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
       const { productId, qrSize = "medium" } = req.body;
@@ -4715,8 +4716,8 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Get queue stats
-  app.get("/api/admin/mockup-jobs/stats", isAdmin, async (req: any, res) => {
+  // Get queue stats - public
+  app.get("/api/mockup-jobs/stats", async (req: any, res) => {
     try {
       const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
       const stats = await mockupJobQueue.getStats();
@@ -4726,8 +4727,8 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Get jobs for a product
-  app.get("/api/admin/mockup-jobs/product/:productId", isAdmin, async (req: any, res) => {
+  // Get jobs for a product - public
+  app.get("/api/mockup-jobs/product/:productId", async (req: any, res) => {
     try {
       const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
       const { productId } = req.params;
@@ -4739,8 +4740,8 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Get single job status
-  app.get("/api/admin/mockup-jobs/:jobId", isAdmin, async (req: any, res) => {
+  // Get single job status - public
+  app.get("/api/mockup-jobs/:jobId", async (req: any, res) => {
     try {
       const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
       const job = await mockupJobQueue.getJob(req.params.jobId);
@@ -4753,8 +4754,8 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Cancel pending jobs for a product
-  app.delete("/api/admin/mockup-jobs/product/:productId", isAdmin, async (req: any, res) => {
+  // Cancel pending jobs for a product - admin only (prevent abuse)
+  app.delete("/api/mockup-jobs/product/:productId", isAdmin, async (req: any, res) => {
     try {
       const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
       const { productId } = req.params;

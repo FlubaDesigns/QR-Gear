@@ -134,20 +134,16 @@ export class MockupJobQueue {
   }
 
   async markProcessing(jobId: string): Promise<void> {
+    const [job] = await db.select().from(mockupJobs).where(eq(mockupJobs.id, jobId));
+    if (!job) return;
+    
     await db.update(mockupJobs)
       .set({ 
         status: "processing", 
         startedAt: new Date(),
-        attempts: db.select().from(mockupJobs).where(eq(mockupJobs.id, jobId)).then(([j]) => (j?.attempts || 0) + 1) as any
+        attempts: (job.attempts || 0) + 1,
       })
       .where(eq(mockupJobs.id, jobId));
-    
-    const [job] = await db.select().from(mockupJobs).where(eq(mockupJobs.id, jobId));
-    if (job) {
-      await db.update(mockupJobs)
-        .set({ attempts: (job.attempts || 0) + 1 })
-        .where(eq(mockupJobs.id, jobId));
-    }
   }
 
   async markCompleted(jobId: string, result: JobResult): Promise<void> {

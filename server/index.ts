@@ -118,10 +118,19 @@ const uploadLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const mockupJobLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: "Mockup generation limit reached, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use("/api/checkout", strictLimiter);
 app.use("/api/orders", generalLimiter);
 app.use("/api/images/upload", uploadLimiter);
 app.use("/api/qr/generate", generalLimiter);
+app.use("/api/mockup-jobs/batch", mockupJobLimiter);
 app.use("/api/", generalLimiter);
 
 app.use((req, res, next) => {
