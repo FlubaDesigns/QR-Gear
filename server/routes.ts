@@ -4358,6 +4358,15 @@ ${allPages.map(page => `  <url>
       
       if (existingMockup && existingMockup.front) {
         console.log(`[StorefrontMockup] Using existing mockup for "${color}" (matched: "${matchedColorKey}") from product.mockupsByColor`);
+        
+        // Update product's default image and color to show this mockup
+        const defaultImage = existingMockup.lifestyle || existingMockup.front;
+        await storage.updateProduct(canonicalProductId, {
+          defaultColor: matchedColorKey,
+          imageUrl: defaultImage,
+        });
+        console.log(`[StorefrontMockup] Updated product defaultColor=${matchedColorKey}, imageUrl=${defaultImage}`);
+        
         return res.json({ 
           success: true, 
           color, 
