@@ -216,6 +216,7 @@ export default function Creator() {
   });
   const placement = Object.keys(placementConfigs)[0] || "front-chest";
   const [productColor, setProductColor] = useState("");
+  const [graphicSize, setGraphicSize] = useState<"small" | "medium" | "large">("medium");
   const [textAbove, setTextAbove] = useState("");
   const [textBelow, setTextBelow] = useState("");
   
@@ -358,6 +359,50 @@ export default function Creator() {
       });
     },
   });
+
+  // Get or create a persistent viewer ID for mockup priority
+  const getViewerId = (): string => {
+    const key = "qr-gear-viewer-id";
+    let viewerId = localStorage.getItem(key);
+    if (!viewerId) {
+      viewerId = crypto.randomUUID();
+      localStorage.setItem(key, viewerId);
+    }
+    return viewerId;
+  };
+
+  // Priority bump mutation - fires when user changes color/placement/size
+  const prioritizeMockupMutation = useMutation({
+    mutationFn: async (data: {
+      productId: string;
+      colorName: string;
+      qrSize: "small" | "medium" | "large";
+      placement: string;
+    }) => {
+      const response = await apiRequest("POST", "/api/mockup-jobs/prioritize", {
+        ...data,
+        viewerId: getViewerId(),
+      });
+      return await response.json();
+    },
+  });
+
+  // Trigger priority bump when user changes customization options
+  const handlePriorityBump = (
+    productId: string | null,
+    colorName: string,
+    qrSize: "small" | "medium" | "large",
+    placementId: string
+  ) => {
+    if (!productId || !colorName) return;
+    const canonicalProductId = productId.startsWith("custom_") ? productId : `custom_${productId}`;
+    prioritizeMockupMutation.mutate({
+      productId: canonicalProductId,
+      colorName,
+      qrSize,
+      placement: placementId,
+    });
+  };
 
   const uploadImageMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -1652,7 +1697,10 @@ export default function Creator() {
                                           : "border-muted hover:border-foreground/50"
                                       }`}
                                       style={{ backgroundColor: color.hex }}
-                                      onClick={() => setProductColor(color.name)}
+                                      onClick={() => {
+                                        setProductColor(color.name);
+                                        handlePriorityBump(selectedProduct?.id || null, color.name, graphicSize, placement);
+                                      }}
                                       title={color.name}
                                       data-testid={`button-swatch-${color.name}`}
                                     />
@@ -1661,9 +1709,37 @@ export default function Creator() {
                               </div>
                             )}
 
+                            {/* Graphic Size Selector */}
+                            <div className="mb-4">
+                              <Label className="text-sm mb-2 block">Graphic Size: <span className="font-normal text-muted-foreground">{graphicSize === "small" ? "Small (25%)" : graphicSize === "medium" ? "Medium (45%)" : "Large (65%)"}</span></Label>
+                              <div className="flex flex-wrap gap-2">
+                                {(["small", "medium", "large"] as const).map((size) => (
+                                  <button
+                                    key={size}
+                                    type="button"
+                                    className={`px-4 py-2 text-sm rounded border transition-all qr-touch-48 ${
+                                      graphicSize === size
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-background border-muted hover:border-foreground/50"
+                                    }`}
+                                    onClick={() => {
+                                      setGraphicSize(size);
+                                      handlePriorityBump(selectedProduct?.id || null, productColor, size, placement);
+                                    }}
+                                    data-testid={`button-graphic-size-${size}`}
+                                  >
+                                    {size === "small" ? "Small" : size === "medium" ? "Medium" : "Large"}
+                                  </button>
+                                ))}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Controls how large the QR graphic appears on your product
+                              </p>
+                            </div>
+
                             {visibleSizes.length > 0 && (
                               <div className="mb-4">
-                                <Label className="text-sm mb-2 block">Size: <span className="font-normal text-muted-foreground">{selectedSize}</span></Label>
+                                <Label className="text-sm mb-2 block">Garment Size: <span className="font-normal text-muted-foreground">{selectedSize}</span></Label>
                                 <div className="flex flex-wrap gap-2">
                                   {visibleSizes.map((size: string) => (
                                     <button
@@ -1714,6 +1790,7 @@ export default function Creator() {
                                               }
                                             } else {
                                               newConfigs[id] = "full";
+                                              handlePriorityBump(selectedProduct?.id || null, productColor, graphicSize, id);
                                             }
                                             setPlacementConfigs(newConfigs);
                                           }}
