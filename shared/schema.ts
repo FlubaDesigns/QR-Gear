@@ -1685,6 +1685,7 @@ export const mockupJobs = pgTable("mockup_jobs", {
   productId: varchar("product_id").notNull(),
   colorName: text("color_name").notNull(),
   qrSize: text("qr_size").notNull().default("medium"), // 'small', 'medium', 'large'
+  placement: text("placement").notNull().default("front-chest"), // 'front-chest', 'back', 'left-shoulder', etc.
   // Job data (portable JSON blob)
   jobData: jsonb("job_data").notNull(), // { blueprintId, providerId, artworkUrl, etc }
   // Status tracking
@@ -1709,6 +1710,7 @@ export const mockupJobs = pgTable("mockup_jobs", {
   index("mockup_jobs_product_idx").on(table.productId),
   index("mockup_jobs_next_retry_idx").on(table.nextRetryAt),
   index("mockup_jobs_priority_idx").on(table.priority, table.priorityUpdatedAt),
+  index("mockup_jobs_lookup_idx").on(table.productId, table.colorName, table.qrSize, table.placement),
 ]);
 
 export const insertMockupJobSchema = createInsertSchema(mockupJobs).omit({ id: true, createdAt: true });

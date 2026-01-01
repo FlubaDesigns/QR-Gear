@@ -4641,17 +4641,23 @@ ${allPages.map(page => `  <url>
 
   // Create batch mockup jobs for a product
   // Public - anyone can create a shirt without login
+  // Options:
+  //   fullGeneration: true = all placements × all QR sizes (for admin catalog products)
+  //   placements: ["front-chest", "back"] = specific placements to generate
+  //   qrSizes: ["small", "medium", "large"] = specific QR sizes to generate
   app.post("/api/mockup-jobs/batch", async (req: any, res) => {
     try {
       const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
-      const { productId, qrSize = "medium" } = req.body;
+      const { productId, fullGeneration = false, placements, qrSizes } = req.body;
       
       if (!productId) {
         return res.status(400).json({ error: "productId is required" });
       }
       
-      if (!["small", "medium", "large"].includes(qrSize)) {
-        return res.status(400).json({ error: "qrSize must be 'small', 'medium', or 'large'" });
+      // Validate qrSizes if provided
+      const validQrSizes = ["small", "medium", "large"];
+      if (qrSizes && !qrSizes.every((s: string) => validQrSizes.includes(s))) {
+        return res.status(400).json({ error: "qrSizes must be array of 'small', 'medium', or 'large'" });
       }
       
       const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
@@ -4692,22 +4698,44 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "No artwork found for product" });
       }
       
-      // Create jobs for all colors
+      // Determine which placements and QR sizes to generate
+      const ALL_PLACEMENTS = ["front-chest", "back", "left-shoulder", "right-shoulder"];
+      const ALL_QR_SIZES: Array<"small" | "medium" | "large"> = ["small", "medium", "large"];
+      
+      let targetPlacements: string[];
+      let targetQrSizes: Array<"small" | "medium" | "large">;
+      
+      if (fullGeneration) {
+        // Admin catalog: generate ALL combinations
+        targetPlacements = placements || ALL_PLACEMENTS;
+        targetQrSizes = qrSizes || ALL_QR_SIZES;
+      } else {
+        // Custom order: generate specified or default
+        targetPlacements = placements || ["front-chest"];
+        targetQrSizes = qrSizes || ALL_QR_SIZES;
+      }
+      
+      // Create jobs for all combinations
       const jobs = await mockupJobQueue.createBatchJobs({
         productId: canonicalProductId,
         colors: colors as Array<{ name: string; hex: string }>,
-        qrSize: qrSize as "small" | "medium" | "large",
+        qrSizes: targetQrSizes,
+        placements: targetPlacements,
         blueprintId,
         printProviderId,
         artworkUrl: blackArtwork,
         artworkVariant: "black",
       });
       
+      const totalCombos = `${colors.length} colors × ${targetQrSizes.length} QR sizes × ${targetPlacements.length} placements`;
+      
       res.json({
         success: true,
-        message: `Created ${jobs.length} mockup jobs`,
+        message: `Created ${jobs.length} mockup jobs (${totalCombos})`,
         jobCount: jobs.length,
-        qrSize,
+        placements: targetPlacements,
+        qrSizes: targetQrSizes,
+        colorCount: colors.length,
         jobIds: jobs.map(j => j.id),
       });
     } catch (error: any) {
@@ -4754,14 +4782,14 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Priority bump for a specific color + QR size combo (public - for customer UX)
+  // Priority bump for a specific color + QR size + placement combo (public - for customer UX)
   app.post("/api/mockup-jobs/prioritize", async (req: any, res) => {
     try {
       const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
-      const { productId, colorName, qrSize, viewerId } = req.body;
+      const { productId, colorName, qrSize, placement, viewerId } = req.body;
       
-      if (!productId || !colorName || !qrSize || !viewerId) {
-        return res.status(400).json({ error: "Missing required fields: productId, colorName, qrSize, viewerId" });
+      if (!productId || !colorName || !qrSize || !placement || !viewerId) {
+        return res.status(400).json({ error: "Missing required fields: productId, colorName, qrSize, placement, viewerId" });
       }
       
       const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
@@ -4769,6 +4797,7 @@ ${allPages.map(page => `  <url>
         productId: canonicalProductId,
         colorName,
         qrSize,
+        placement,
         viewerId,
       });
       

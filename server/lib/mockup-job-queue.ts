@@ -36,6 +36,7 @@ export class MockupJobQueue {
     productId: string;
     colorName: string;
     qrSize: "small" | "medium" | "large";
+    placement: string;
     blueprintId: number;
     printProviderId: number;
     artworkUrl: string;
@@ -53,6 +54,7 @@ export class MockupJobQueue {
       productId: params.productId,
       colorName: params.colorName,
       qrSize: params.qrSize,
+      placement: params.placement,
       jobData,
       status: "pending",
       priority: params.priority ?? 10,
@@ -67,6 +69,7 @@ export class MockupJobQueue {
     productId: string;
     colors: Array<{ name: string; hex: string }>;
     qrSizes?: Array<"small" | "medium" | "large">;
+    placements?: string[];
     blueprintId: number;
     printProviderId: number;
     artworkUrl: string;
@@ -74,21 +77,25 @@ export class MockupJobQueue {
   }): Promise<MockupJob[]> {
     const jobs: MockupJob[] = [];
     const qrSizes = params.qrSizes || ["small", "medium", "large"];
+    const placements = params.placements || ["front-chest"];
     
     let priority = 0;
-    for (const color of params.colors) {
-      for (const qrSize of qrSizes) {
-        const job = await this.createJob({
-          productId: params.productId,
-          colorName: color.name,
-          qrSize,
-          blueprintId: params.blueprintId,
-          printProviderId: params.printProviderId,
-          artworkUrl: params.artworkUrl,
-          artworkVariant: params.artworkVariant,
-          priority: priority++,
-        });
-        jobs.push(job);
+    for (const placement of placements) {
+      for (const color of params.colors) {
+        for (const qrSize of qrSizes) {
+          const job = await this.createJob({
+            productId: params.productId,
+            colorName: color.name,
+            qrSize,
+            placement,
+            blueprintId: params.blueprintId,
+            printProviderId: params.printProviderId,
+            artworkUrl: params.artworkUrl,
+            artworkVariant: params.artworkVariant,
+            priority: priority++,
+          });
+          jobs.push(job);
+        }
       }
     }
 
@@ -121,18 +128,20 @@ export class MockupJobQueue {
     productId: string;
     colorName: string;
     qrSize: string;
+    placement: string;
     viewerId: string;
   }): Promise<MockupJob | null> {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minute TTL
     
-    // Find the job for this color + qrSize combo
+    // Find the job for this color + qrSize + placement combo
     const [existingJob] = await db.select().from(mockupJobs)
       .where(
         and(
           eq(mockupJobs.productId, params.productId),
           eq(mockupJobs.colorName, params.colorName),
-          eq(mockupJobs.qrSize, params.qrSize)
+          eq(mockupJobs.qrSize, params.qrSize),
+          eq(mockupJobs.placement, params.placement)
         )
       )
       .limit(1);
@@ -157,7 +166,7 @@ export class MockupJobQueue {
       .where(eq(mockupJobs.id, existingJob.id))
       .returning();
     
-    console.log(`[MockupQueue] Bumped priority for ${params.colorName}/${params.qrSize} (job ${existingJob.id})`);
+    console.log(`[MockupQueue] Bumped priority for ${params.colorName}/${params.qrSize}/${params.placement} (job ${existingJob.id})`);
     return updatedJob;
   }
 
