@@ -4339,11 +4339,25 @@ ${allPages.map(page => `  <url>
       }
       
       // Check if mockup already exists in product's mockupsByColor
+      // Normalize color names for comparison (case-insensitive, trim whitespace)
       const existingMockups = (product.mockupsByColor as Record<string, any>) || {};
-      const existingMockup = existingMockups[color];
+      const normalizeColor = (c: string) => c.toLowerCase().trim();
+      const requestColorNorm = normalizeColor(color);
+      
+      // Find matching mockup with case-insensitive comparison
+      let existingMockup: any = null;
+      let matchedColorKey: string = color;
+      
+      for (const [storedColor, mockup] of Object.entries(existingMockups)) {
+        if (normalizeColor(storedColor) === requestColorNorm && mockup && (mockup as any).front) {
+          existingMockup = mockup;
+          matchedColorKey = storedColor;
+          break;
+        }
+      }
       
       if (existingMockup && existingMockup.front) {
-        console.log(`[StorefrontMockup] Using existing mockup for ${color} from product.mockupsByColor`);
+        console.log(`[StorefrontMockup] Using existing mockup for "${color}" (matched: "${matchedColorKey}") from product.mockupsByColor`);
         return res.json({ 
           success: true, 
           color, 
