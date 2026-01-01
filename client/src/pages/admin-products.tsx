@@ -5005,9 +5005,14 @@ function ProductsContent() {
                   <div className="flex gap-4">
                     <div className="flex flex-col items-center gap-2 flex-shrink-0">
                       {(() => {
-                        const mockups = (product as any).mockupsByColor as Record<string, { front?: string }> | undefined;
+                        const mockups = (product as any).mockupsByColor as Record<string, { front?: string; lifestyle?: string }> | undefined;
+                        const defaultColor = (product as any).defaultColor as string | undefined;
+                        // Use defaultColor mockup first, then fall back to first available mockup
+                        const defaultMockup = defaultColor && mockups?.[defaultColor] 
+                          ? (mockups[defaultColor].lifestyle || mockups[defaultColor].front)
+                          : null;
                         const firstMockup = mockups ? Object.values(mockups).find(m => m?.front)?.front : null;
-                        const displayImage = firstMockup || product.imageUrl;
+                        const displayImage = defaultMockup || firstMockup || product.imageUrl;
                         return displayImage ? (
                           <img 
                             src={displayImage} 
