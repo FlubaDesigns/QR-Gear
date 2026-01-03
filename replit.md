@@ -1,328 +1,44 @@
 # QR Gear - System Reference Guide
 
 ## Overview
-QR Gear is an e-commerce platform for personalized promotional merchandise with custom QR codes. Uses Printify for print-on-demand fulfillment.
+QR Gear is an e-commerce platform specializing in personalized promotional merchandise featuring custom QR codes. The platform integrates with Printify for print-on-demand fulfillment. Its core purpose is to enable users to design and order custom QR-enhanced products efficiently. The project aims to capture a niche market for businesses and individuals seeking unique, branded merchandise.
 
 ## User Preferences
 - **Communication**: Simple, everyday language
 - **Accessibility**: User has CIDP (limited hand mobility) - agent must be fully autonomous
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
 
----
-
-## CRITICAL: DO NOT CHANGE THESE SYSTEMS
-
-### 1. Pricing System (WORKING - DO NOT RECALCULATE)
-**Source of truth**: `products.customer_price` column
-
-| What | Where | Notes |
-|------|-------|-------|
-| Admin sets price | `/admin/products` page | Saves to `customer_price` |
-| API returns price | `/api/products?featured=true` | Uses `customerPrice` directly |
-| Frontend displays | `FeaturedProducts.tsx` | Shows `product.retailPrice` |
-
-**NEVER** recalculate prices from base costs. The admin-configured `customerPrice` IS the final price.
-
-### 2. Mockup System (WORKING - Printful for Rendering)
-**Location**: `server/lib/mockup-service.ts`, `server/lib/printful.ts`, `server/lib/mockup-job-queue.ts`
-
-**Printful-First Architecture**:
-- **Printful**: Used for mockup rendering
-- **Printify**: Used for order fulfillment
-- Mockups include **lifestyle images** (person wearing the shirt)
-- QR sizes: small (25%), medium (45%), large (65%) of print area
-
-**CRITICAL WORKFLOW**:
-1. **Save to Store/Template/Both** → Auto-queues ALL mockups (all colors × 3 sizes)
-2. **Click Generate later** → ONLY retrieves from database, NEVER regenerates
-3. Background job queue processes mockups at Printful's rate limit
-
-**Generation Flow**:
-1. Product saved → `mockupJobQueue.createBatchJobs()` queues all colors × sizes
-2. Worker processes jobs one at a time respecting rate limits
-3. Each job: Call Printful API → Download images → Store in Object Storage → Update product.mockupsByColor
-4. Generate endpoint only retrieves from database (returns "pending" if not ready)
-
-**Current Product Mapping**:
-- Blueprint 6 (Bella+Canvas 3001) → Printful Product 71
-- Colors: Black, White, Sport Grey → Athletic Heather
-
-**Mockup Storage** (`products.mockups_by_color`):
-```json
-{
-  "Black": {
-    "front": "/api/files/mockup-printful-6-black-flat.jpg",
-    "lifestyle": "/api/files/mockup-printful-6-black-lifestyle.jpg"
-  }
-}
-```
-
-**Frontend Priority**: Lifestyle mockups displayed over flat mockups
-
-**API Endpoint**: `POST /api/storefront/generate-mockup`
-```json
-Request: { "productId": "custom_hello-world", "color": "Black" }
-Response: { "success": true, "mockupUrl": "...", "lifestyleMockupUrl": "...", "fromCache": false }
-```
-
-### 3. Printify Local Catalog (WORKING - DO NOT CALL API FOR COLORS/SIZES)
-**Source of truth**: `printify_print_providers` table
-
-| Column | Type | Purpose |
-|--------|------|---------|
-| `blueprint_id` | int | Printify blueprint ID |
-| `provider_id` | int | Print provider ID |
-| `min_cost` | int | Minimum cost in cents |
-| `max_cost` | int | Maximum cost in cents |
-| `available_colors` | jsonb | `[{name, hex}, ...]` |
-| `available_sizes` | text[] | `["S", "M", "L", ...]` |
-
-**Synced weekly** via cron job in `server/lib/cron-jobs.ts`
-
----
-
-## Database Schema Reference
-
-### products table
-| Column | Type | Purpose |
-|--------|------|---------|
-| `id` | varchar | Primary key (e.g., `custom_hello-world`) |
-| `customer_price` | decimal | **Admin-configured retail price** - USE THIS |
-| `base_price` | decimal | Printify production cost (internal only) |
-| `blueprint_id` | int | Printify blueprint ID |
-| `print_provider_id` | int | Printify provider ID |
-| `mockups_by_color` | jsonb | `{"White": {"front": "url", "lifestyle": "url"}}` |
-| `available_colors` | jsonb | `[{name, hex}, ...]` |
-| `is_featured` | boolean | Show on home page |
-| `is_enabled` | boolean | Product is active |
-
-### mockup_cache table
-| Column | Type | Purpose |
-|--------|------|---------|
-| `id` | uuid | Primary key |
-| `blueprint_id` | int | Product blueprint |
-| `print_provider_id` | int | Print provider |
-| `color_name` | text | Color name |
-| `canonical_placement_id` | text | e.g., "FRONT_CHEST" |
-| `mockup_url` | text | Flat product mockup URL |
-| `lifestyle_mockup_url` | text | Model wearing product URL |
-| `artwork_variant` | text | "black" or "white" QR |
-
-### custom_designs table
-| Column | Type | Purpose |
-|--------|------|---------|
-| `id` | varchar | Design ID |
-| `placement_images` | jsonb | `{"front-chest": "url", "front-chest-white": "url"}` |
-| `mockups_by_color` | jsonb | Cached mockups per color |
-
----
-
-## Key API Endpoints
-
-### Public
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/products` | GET | List products (add `?featured=true` for home page) |
-| `/api/products/:id` | GET | Get single product |
-| `/api/storefront/generate-mockup` | POST | Generate Printify mockup for color |
-| `/api/cart` | GET/POST/DELETE | Shopping cart operations |
-
-### Admin
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/admin/products` | GET/POST/PUT | Manage products |
-| `/api/admin/settings` | GET/PUT | Global settings |
-
----
-
-## Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| `shared/schema.ts` | Database schema definitions |
-| `server/routes.ts` | All API endpoints |
-| `server/storage.ts` | Database operations |
-| `server/lib/mockup-service.ts` | Mockup generation & caching (uses Printful) |
-| `server/lib/printful.ts` | Printful API wrapper (mockup generation) |
-| `server/lib/printify.ts` | Printify API wrapper (order fulfillment) |
-| `server/lib/qr-generator.ts` | QR code generation |
-| `server/lib/cron-jobs.ts` | Weekly catalog sync |
-| `client/src/components/FeaturedProducts.tsx` | Home page product grid |
-
----
-
-## Architecture Decisions
-
-### QR Artwork Selection (Automatic)
-- **Dark shirts** (luminance < 0.5) → White QR code
-- **Light shirts** (luminance >= 0.5) → Black QR code
-- Artwork stored in `custom_designs.placement_images` as both variants
-
-### Mockup Priority
-1. `lifestyle_mockup_url` - Model wearing product (preferred)
-2. `mockup_url` - Flat product shot (fallback)
-
----
-
-## Resolved Issues (December 30, 2025)
-
-### Printify Mockup Limitation - SOLVED
-Printify cannot render mockups for unpublished/draft products. Solution: Use Printful's Mockup Generator API instead.
-
-**Dual-Provider Approach**:
-- Printful for mockup rendering (dedicated API, no publishing required)
-- Printify for order fulfillment (unchanged)
-- Mockups stored permanently in Object Storage: `/api/files/mockup-printful-*.jpg`
-
-### QR Artwork Selection - WORKING
-- `isColorDark()` correctly detects luminance
-- White QR for dark shirts (Solid Black = #000000)
-- Black QR for light shirts (Solid White = #FFFFFF)
-- Logs confirm: `needsWhiteQR=true` for dark shirts
-
-### Pricing Display - WORKING
-Home page shows `customerPrice` set by admin correctly.
-
----
-
-## Stack Summary
-- **Frontend**: React, TypeScript, Vite, TanStack Query, shadcn/ui
-- **Backend**: Node.js, Express, TypeScript
-- **Database**: PostgreSQL (Neon), Drizzle ORM + Firestore (dual-write capable)
-- **External**: Printify (fulfillment), Printful (mockups), Stripe, Firebase, Resend
-
----
-
-## Dual Storage System (Firebase Migration)
-
-### Architecture
-The system supports three storage modes controlled by `STORAGE_MODE` environment variable:
-
-| Mode | Reads From | Writes To | Use Case |
-|------|------------|-----------|----------|
-| `postgres-only` | Postgres | Postgres | Default, Replit development |
-| `dual-write` | Postgres | Postgres + Firestore | Migration testing |
-| `firestore-only` | Firestore | Firestore | Firebase deployment |
-
-### Key Files
-| File | Purpose |
-|------|---------|
-| `server/lib/storage-factory.ts` | Storage mode switching |
-| `server/lib/firestore-adapter.ts` | Firestore implementation of IStorage |
-| `server/lib/dual-write-adapter.ts` | Writes to both backends |
-| `server/lib/firebase-admin.ts` | Firebase Admin SDK initialization |
-| `docs/FIRESTORE_DATA_MODEL.md` | Firestore collection mapping |
-
-### Environment Variables
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `STORAGE_MODE` | Storage backend mode | `postgres-only` |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID | `qrgear-c1ffd` |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Service account JSON (for server) | Required for Firestore |
-
-### Enabling Dual-Write (Beta Testing) - ACTIVE
-**Status**: Working as of January 1, 2026
-
-1. Set `STORAGE_MODE=dual-write` in environment ✅
-2. Provide `FIREBASE_SERVICE_ACCOUNT_KEY` secret (JSON stringified) ✅
-3. Restart the application ✅
-4. All product/design/order writes will sync to Firestore
-
-**Startup Logs Confirm**:
-- `[Firebase] Initialized with service account credentials for project: qrgear-c1ffd`
-- `[DualWriteAdapter] Initialized with Postgres (primary) and Firestore (secondary)`
-- `[Storage] Dual-write mode enabled - writes sync to Firestore`
-
-### FirestoreAdapter - FULLY IMPLEMENTED (January 1, 2026)
-**Status**: All 150+ IStorage methods implemented for standalone Firebase operation
-
-**Core Business Entities:**
-- Products: Full CRUD, getEnabled, getFeatured, toggleEnabled, updateMockups
-- Custom Designs: Full CRUD, getForLibrary, getByStoreSegment
-- Orders: Full CRUD, getByUser, getByStatus, getByStripeSession
-- Users: Full CRUD, getByEmail, upsert
-- Cart Items: Full CRUD, clearCart
-
-**Product Configuration:**
-- Product Categories: Full CRUD, getByTaxonomy, assignments
-- Product Variants: Full CRUD, toggle enabled
-- QR Templates: Full CRUD
-- Hosting Tiers: Full CRUD
-- Coupons: Full CRUD, increment redemption
-- Pricing Rules: Full CRUD
-
-**Partner & Multi-channel:**
-- Partner Stores: Full CRUD, getBySlug
-- Partner Store Products: Full CRUD, sync products
-- Master Products: Full CRUD
-- Design Versions: Full CRUD, getActive
-- Channel Configs: Full CRUD
-- Publish States: upsert, get by channel
-
-**Admin & Background Jobs:**
-- Admin Settings: get, upsert
-- Printify Blueprints: Full CRUD, clear all
-- Printify Print Providers: Full CRUD, update costs
-- Catalog Sync: create, update, get history
-- Cost Sync: create, update, get active
-- Provider Health: log, get stats, get by type
-
-**Content & Media:**
-- Dynamic Pages: Full CRUD, increment views
-- Dynamic Page Assets: Full CRUD, set active
-- Library Assets: Full CRUD, increment usage
-- Hosted Images: Full CRUD, increment views
-- QR Designs: Full CRUD, public gallery
-- Template Categories: Full CRUD
-
-**Gifting:**
-- Gift Packages: Full CRUD
-- Gift Codes: Full CRUD, getByCode
-- Gift Redemptions: Full CRUD
-
-**Communication:**
-- Email Templates: Full CRUD, getByTrigger
-- Email Logs: get, log
-- Hosting Reminders: create, getByImageAndDays
-
-**Browsing & History:**
-- Browsing History: get, add, clear
-
-### Firebase Storage - FULLY IMPLEMENTED (January 3, 2026)
-**Status**: Complete file storage layer with dual backend support
-
-**Key File**: `server/lib/firebase-storage-service.ts`
-
-**Functions**:
-| Function | Purpose |
-|----------|---------|
-| `uploadToFirebaseStorage()` | Upload buffer to Firebase Storage with metadata |
-| `downloadAndStreamFile()` | Stream file from Firebase to HTTP response |
-| `getFileFromFirebaseStorage()` | Get file buffer and metadata |
-| `deleteFromFirebaseStorage()` | Delete file from Firebase Storage |
-| `fileExistsInFirebaseStorage()` | Check if file exists |
-| `downloadAndStoreFromUrl()` | Download external image and store in Firebase or Replit |
-| `useFirebaseStorage()` | Check if Firebase Storage is enabled |
-
-**Storage Modes**:
-| Mode | Firebase Storage | Replit Object Storage |
-|------|-----------------|----------------------|
-| `postgres-only` | Disabled | Primary |
-| `dual-write` | Primary (with Replit fallback) | Fallback |
-| `firestore-only` | Primary | Disabled |
-
-**File Serving Routes** (`server/routes.ts`):
-- `/api/files/:filename` - Custom design files, mockups
-- `/api/library-files/:filename` - Library assets
-
-**Fallback Behavior**:
-1. Try Firebase Storage first (if enabled)
-2. If not found, fall back to Replit Object Storage
-3. All functions short-circuit in `postgres-only` mode
-
-**Bucket**: `qrgear-c1ffd.firebasestorage.app`
-
-### Data Portability
-- JSON blob fields (mockupsByColor, graphicsConfig, placementImages) transfer directly
-- Timestamps convert from Postgres to Firestore Timestamp
-- IDs preserved for cross-system references
+## System Architecture
+
+### UI/UX Decisions
+The storefront displays lifestyle mockups over flat product shots for a more engaging user experience. Product pricing shown to customers is the admin-configured retail price (`customer_price`).
+
+### Technical Implementations
+- **Pricing System**: Prices are set by the admin and stored in `products.customer_price`. This value is the single source of truth for retail pricing and is never recalculated from base costs.
+- **Mockup System**: Utilizes Printful for generating high-quality mockups, including lifestyle images, as Printify does not support mockups for unpublished products. Mockups are generated for all product colors and three QR code sizes (25%, 45%, 65% of print area) via a background job queue to respect Printful's API rate limits. Mockups are stored in object storage.
+- **QR Artwork Selection**: Automatic selection of QR code color (black or white) based on the background product color's luminance to ensure scannability. Dark backgrounds receive white QRs, and light backgrounds receive black QRs.
+- **Printify Local Catalog**: Product colors and sizes are synced weekly from Printify into the `printify_print_providers` table. This local catalog serves as the source of truth, avoiding direct API calls for product options.
+- **Database Schema**: Key tables include `products` (storing product details, prices, mockups, and Printify IDs), `mockup_cache` (for generated mockup variations), and `custom_designs` (for design images and cached mockups).
+- **Dual Storage System**: The system supports `postgres-only`, `dual-write`, and `firestore-only` modes, controlled by the `STORAGE_MODE` environment variable. In `dual-write` mode, data is written to both PostgreSQL and Firestore, with PostgreSQL as the primary source for reads. This facilitates migration to a Firebase-centric deployment.
+- **File Storage**: Supports dual backend for files, utilizing Firebase Storage as primary (when enabled) with Replit Object Storage as a fallback.
+
+### Feature Specifications
+- **Product Management**: Admins can manage products, set retail prices, and enable/disable product visibility.
+- **Custom QR Code Integration**: Products can be customized with QR codes.
+- **Shopping Cart**: Standard e-commerce cart operations are supported.
+
+### System Design Choices
+- **Printful-First Mockup Architecture**: Decouples mockup generation (Printful) from order fulfillment (Printify) to overcome Printify's limitations with draft products.
+- **Node.js, Express, TypeScript Backend**: Provides a robust and scalable API layer.
+- **React, TypeScript, Vite Frontend**: Modern and efficient user interface.
+- **PostgreSQL with Drizzle ORM / Firestore**: Flexible and performant database solutions, supporting a migration path to Firebase.
+
+## External Dependencies
+- **Printify**: For print-on-demand fulfillment services.
+- **Printful**: For generating product mockups, including lifestyle images.
+- **Stripe**: For payment processing.
+- **Firebase**: For hosting, Firestore database (migration target), Firebase Storage, and Cloud Functions for the backend API.
+- **Neon**: Managed PostgreSQL database service.
+- **Resend**: For email services.
+- **TanStack Query**: For data fetching and state management in the frontend.
+- **shadcn/ui**: UI component library.

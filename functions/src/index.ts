@@ -27,6 +27,16 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false }));
 
+// Normalize paths - handle both direct function calls and Firebase Hosting rewrites
+// Direct: /products (no /api prefix)
+// Hosting rewrite: /api/products (has /api prefix)
+app.use((req: Request, _res: Response, next: NextFunction): void => {
+  if (req.path.startsWith('/api/')) {
+    req.url = req.url.replace('/api', '');
+  }
+  next();
+});
+
 async function verifyAuth(req: Request): Promise<admin.auth.DecodedIdToken | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -86,7 +96,7 @@ function docsToArray(snapshot: FirebaseFirestore.QuerySnapshot): any[] {
   return snapshot.docs.map(doc => docToObject(doc));
 }
 
-app.get('/api/health', (_req: Request, res: Response): void => {
+app.get('/health', (_req: Request, res: Response): void => {
   res.json({ 
     status: 'ok', 
     mode: 'firebase-functions', 
@@ -95,7 +105,7 @@ app.get('/api/health', (_req: Request, res: Response): void => {
   });
 });
 
-app.get('/api/products', async (req: Request, res: Response): Promise<void> => {
+app.get('/products', async (req: Request, res: Response): Promise<void> => {
   try {
     const featured = req.query.featured === 'true';
     let query: FirebaseFirestore.Query = db.collection('products').where('isEnabled', '==', true);
@@ -110,7 +120,7 @@ app.get('/api/products', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-app.get('/api/products/:id', async (req: Request, res: Response): Promise<void> => {
+app.get('/products/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('products').doc(req.params.id).get();
     if (!doc.exists) {
@@ -123,7 +133,7 @@ app.get('/api/products/:id', async (req: Request, res: Response): Promise<void> 
   }
 });
 
-app.get('/api/designs/:id', async (req: Request, res: Response): Promise<void> => {
+app.get('/designs/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('customDesigns').doc(req.params.id).get();
     if (!doc.exists) {
@@ -136,7 +146,7 @@ app.get('/api/designs/:id', async (req: Request, res: Response): Promise<void> =
   }
 });
 
-app.get('/api/auth/user', async (req: Request, res: Response): Promise<void> => {
+app.get('/auth/user', async (req: Request, res: Response): Promise<void> => {
   try {
     const decodedToken = await verifyAuth(req);
     if (!decodedToken) {
@@ -164,7 +174,7 @@ app.get('/api/auth/user', async (req: Request, res: Response): Promise<void> => 
   }
 });
 
-app.get('/api/cart', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get('/cart', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
     const snapshot = await db.collection('cartItems').where('userId', '==', userId).get();
@@ -174,7 +184,7 @@ app.get('/api/cart', requireAuth, async (req: Request, res: Response): Promise<v
   }
 });
 
-app.post('/api/cart', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
     const docRef = await db.collection('cartItems').add({
@@ -189,7 +199,7 @@ app.post('/api/cart', requireAuth, async (req: Request, res: Response): Promise<
   }
 });
 
-app.put('/api/cart/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.put('/cart/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { quantity } = req.body;
     await db.collection('cartItems').doc(req.params.id).update({ quantity });
@@ -200,7 +210,7 @@ app.put('/api/cart/:id', requireAuth, async (req: Request, res: Response): Promi
   }
 });
 
-app.delete('/api/cart/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.delete('/cart/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     await db.collection('cartItems').doc(req.params.id).delete();
     res.json({ success: true });
@@ -209,7 +219,7 @@ app.delete('/api/cart/:id', requireAuth, async (req: Request, res: Response): Pr
   }
 });
 
-app.get('/api/orders', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get('/orders', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
     const snapshot = await db.collection('orders')
@@ -222,7 +232,7 @@ app.get('/api/orders', requireAuth, async (req: Request, res: Response): Promise
   }
 });
 
-app.get('/api/orders/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get('/orders/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('orders').doc(req.params.id).get();
     if (!doc.exists) {
@@ -235,7 +245,7 @@ app.get('/api/orders/:id', requireAuth, async (req: Request, res: Response): Pro
   }
 });
 
-app.post('/api/orders', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.post('/orders', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
     const docRef = await db.collection('orders').add({
@@ -252,7 +262,7 @@ app.post('/api/orders', requireAuth, async (req: Request, res: Response): Promis
   }
 });
 
-app.get('/api/qr-templates', async (_req: Request, res: Response): Promise<void> => {
+app.get('/qr-templates', async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('qrTemplates').get();
     res.json(docsToArray(snapshot));
@@ -261,7 +271,7 @@ app.get('/api/qr-templates', async (_req: Request, res: Response): Promise<void>
   }
 });
 
-app.get('/api/qr-templates/:id', async (req: Request, res: Response): Promise<void> => {
+app.get('/qr-templates/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('qrTemplates').doc(req.params.id).get();
     if (!doc.exists) {
@@ -274,7 +284,7 @@ app.get('/api/qr-templates/:id', async (req: Request, res: Response): Promise<vo
   }
 });
 
-app.get('/api/hosting-tiers', async (_req: Request, res: Response): Promise<void> => {
+app.get('/hosting-tiers', async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('hostingTiers').orderBy('sortOrder', 'asc').get();
     res.json(docsToArray(snapshot));
@@ -283,7 +293,7 @@ app.get('/api/hosting-tiers', async (_req: Request, res: Response): Promise<void
   }
 });
 
-app.get('/api/stores/:slug', async (req: Request, res: Response): Promise<void> => {
+app.get('/stores/:slug', async (req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('partnerStores')
       .where('slug', '==', req.params.slug)
@@ -299,7 +309,7 @@ app.get('/api/stores/:slug', async (req: Request, res: Response): Promise<void> 
   }
 });
 
-app.get('/api/settings', async (_req: Request, res: Response): Promise<void> => {
+app.get('/settings', async (_req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('settings').doc('admin').get();
     res.json(doc.exists ? doc.data() : {});
@@ -308,7 +318,7 @@ app.get('/api/settings', async (_req: Request, res: Response): Promise<void> => 
   }
 });
 
-app.get('/api/stripe/publishable-key', async (_req: Request, res: Response): Promise<void> => {
+app.get('/stripe/publishable-key', async (_req: Request, res: Response): Promise<void> => {
   const key = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
   if (!key) {
     res.status(500).json({ error: 'Stripe not configured' });
@@ -317,7 +327,7 @@ app.get('/api/stripe/publishable-key', async (_req: Request, res: Response): Pro
   res.json({ publishableKey: key });
 });
 
-app.post('/api/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
@@ -359,7 +369,7 @@ app.post('/api/checkout', requireAuth, async (req: Request, res: Response): Prom
   }
 });
 
-app.get('/api/checkout/verify/:sessionId', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get('/checkout/verify/:sessionId', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
@@ -380,7 +390,7 @@ app.get('/api/checkout/verify/:sessionId', requireAuth, async (req: Request, res
   }
 });
 
-app.get('/api/gallery', async (req: Request, res: Response): Promise<void> => {
+app.get('/gallery', async (req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('qrDesigns')
       .where('isPublic', '==', true)
@@ -393,7 +403,7 @@ app.get('/api/gallery', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-app.get('/api/files/:filename', async (req: Request, res: Response): Promise<void> => {
+app.get('/files/:filename', async (req: Request, res: Response): Promise<void> => {
   try {
     const { filename } = req.params;
     const bucket = storage.bucket();
@@ -416,7 +426,7 @@ app.get('/api/files/:filename', async (req: Request, res: Response): Promise<voi
   }
 });
 
-app.get('/api/library-files/:filename', async (req: Request, res: Response): Promise<void> => {
+app.get('/library-files/:filename', async (req: Request, res: Response): Promise<void> => {
   try {
     const { filename } = req.params;
     const bucket = storage.bucket();
@@ -438,7 +448,7 @@ app.get('/api/library-files/:filename', async (req: Request, res: Response): Pro
   }
 });
 
-app.get('/api/admin/settings', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+app.get('/admin/settings', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('settings').doc('admin').get();
     res.json(doc.exists ? doc.data() : {});
@@ -447,7 +457,7 @@ app.get('/api/admin/settings', requireAdmin, async (_req: Request, res: Response
   }
 });
 
-app.put('/api/admin/settings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+app.put('/admin/settings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     await db.collection('settings').doc('admin').set(req.body, { merge: true });
     const doc = await db.collection('settings').doc('admin').get();
@@ -457,7 +467,7 @@ app.put('/api/admin/settings', requireAdmin, async (req: Request, res: Response)
   }
 });
 
-app.get('/api/admin/products', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+app.get('/admin/products', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('products').get();
     res.json(docsToArray(snapshot));
@@ -466,7 +476,7 @@ app.get('/api/admin/products', requireAdmin, async (_req: Request, res: Response
   }
 });
 
-app.post('/api/admin/products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+app.post('/admin/products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const productId = req.body.id || `product_${Date.now()}`;
     await db.collection('products').doc(productId).set({
@@ -481,7 +491,7 @@ app.post('/api/admin/products', requireAdmin, async (req: Request, res: Response
   }
 });
 
-app.patch('/api/admin/products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+app.patch('/admin/products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     await db.collection('products').doc(req.params.id).update({
       ...req.body,
@@ -494,7 +504,7 @@ app.patch('/api/admin/products/:id', requireAdmin, async (req: Request, res: Res
   }
 });
 
-app.patch('/api/admin/products/:id/toggle', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+app.patch('/admin/products/:id/toggle', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('products').doc(req.params.id).get();
     if (!doc.exists) {
@@ -513,7 +523,7 @@ app.patch('/api/admin/products/:id/toggle', requireAdmin, async (req: Request, r
   }
 });
 
-app.delete('/api/admin/products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+app.delete('/admin/products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     await db.collection('products').doc(req.params.id).delete();
     res.json({ success: true });
@@ -522,7 +532,7 @@ app.delete('/api/admin/products/:id', requireAdmin, async (req: Request, res: Re
   }
 });
 
-app.get('/api/admin/orders', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+app.get('/admin/orders', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
     res.json(docsToArray(snapshot));
@@ -531,7 +541,7 @@ app.get('/api/admin/orders', requireAdmin, async (_req: Request, res: Response):
   }
 });
 
-app.patch('/api/admin/orders/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+app.patch('/admin/orders/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     await db.collection('orders').doc(req.params.id).update({
       ...req.body,
@@ -544,7 +554,7 @@ app.patch('/api/admin/orders/:id', requireAdmin, async (req: Request, res: Respo
   }
 });
 
-app.get('/api/admin/users', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+app.get('/admin/users', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('users').get();
     res.json(docsToArray(snapshot));
@@ -553,7 +563,7 @@ app.get('/api/admin/users', requireAdmin, async (_req: Request, res: Response): 
   }
 });
 
-app.get('/api/categories', async (_req: Request, res: Response): Promise<void> => {
+app.get('/categories', async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('productCategories').get();
     res.json(docsToArray(snapshot));
@@ -562,7 +572,7 @@ app.get('/api/categories', async (_req: Request, res: Response): Promise<void> =
   }
 });
 
-app.get('/api/browsing-history', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.get('/browsing-history', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
     const snapshot = await db.collection('browsingHistory')
@@ -576,7 +586,7 @@ app.get('/api/browsing-history', requireAuth, async (req: Request, res: Response
   }
 });
 
-app.post('/api/browsing-history', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.post('/browsing-history', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
     const docRef = await db.collection('browsingHistory').add({
@@ -591,7 +601,7 @@ app.post('/api/browsing-history', requireAuth, async (req: Request, res: Respons
   }
 });
 
-app.get('/api/coupons/:code', async (req: Request, res: Response): Promise<void> => {
+app.get('/coupons/:code', async (req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('coupons')
       .where('code', '==', req.params.code.toUpperCase())

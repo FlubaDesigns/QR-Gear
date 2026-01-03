@@ -60,6 +60,15 @@ app.use((req, res, next) => {
 });
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: false }));
+// Normalize paths - handle both direct function calls and Firebase Hosting rewrites
+// Direct: /products (no /api prefix)
+// Hosting rewrite: /api/products (has /api prefix)
+app.use((req, _res, next) => {
+    if (req.path.startsWith('/api/')) {
+        req.url = req.url.replace('/api', '');
+    }
+    next();
+});
 async function verifyAuth(req) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -113,7 +122,7 @@ function docToObject(doc) {
 function docsToArray(snapshot) {
     return snapshot.docs.map(doc => docToObject(doc));
 }
-app.get('/api/health', (_req, res) => {
+app.get('/health', (_req, res) => {
     res.json({
         status: 'ok',
         mode: 'firebase-functions',
@@ -121,7 +130,7 @@ app.get('/api/health', (_req, res) => {
         version: '1.0.0'
     });
 });
-app.get('/api/products', async (req, res) => {
+app.get('/products', async (req, res) => {
     try {
         const featured = req.query.featured === 'true';
         let query = db.collection('products').where('isEnabled', '==', true);
@@ -136,7 +145,7 @@ app.get('/api/products', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/products/:id', async (req, res) => {
+app.get('/products/:id', async (req, res) => {
     try {
         const doc = await db.collection('products').doc(req.params.id).get();
         if (!doc.exists) {
@@ -149,7 +158,7 @@ app.get('/api/products/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/designs/:id', async (req, res) => {
+app.get('/designs/:id', async (req, res) => {
     try {
         const doc = await db.collection('customDesigns').doc(req.params.id).get();
         if (!doc.exists) {
@@ -162,7 +171,7 @@ app.get('/api/designs/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/auth/user', async (req, res) => {
+app.get('/auth/user', async (req, res) => {
     try {
         const decodedToken = await verifyAuth(req);
         if (!decodedToken) {
@@ -187,7 +196,7 @@ app.get('/api/auth/user', async (req, res) => {
         res.status(401).json({ message: 'Unauthorized', error: error.message });
     }
 });
-app.get('/api/cart', requireAuth, async (req, res) => {
+app.get('/cart', requireAuth, async (req, res) => {
     try {
         const userId = req.user.uid;
         const snapshot = await db.collection('cartItems').where('userId', '==', userId).get();
@@ -197,7 +206,7 @@ app.get('/api/cart', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/cart', requireAuth, async (req, res) => {
+app.post('/cart', requireAuth, async (req, res) => {
     try {
         const userId = req.user.uid;
         const docRef = await db.collection('cartItems').add({
@@ -212,7 +221,7 @@ app.post('/api/cart', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.put('/api/cart/:id', requireAuth, async (req, res) => {
+app.put('/cart/:id', requireAuth, async (req, res) => {
     try {
         const { quantity } = req.body;
         await db.collection('cartItems').doc(req.params.id).update({ quantity });
@@ -223,7 +232,7 @@ app.put('/api/cart/:id', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.delete('/api/cart/:id', requireAuth, async (req, res) => {
+app.delete('/cart/:id', requireAuth, async (req, res) => {
     try {
         await db.collection('cartItems').doc(req.params.id).delete();
         res.json({ success: true });
@@ -232,7 +241,7 @@ app.delete('/api/cart/:id', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/orders', requireAuth, async (req, res) => {
+app.get('/orders', requireAuth, async (req, res) => {
     try {
         const userId = req.user.uid;
         const snapshot = await db.collection('orders')
@@ -245,7 +254,7 @@ app.get('/api/orders', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/orders/:id', requireAuth, async (req, res) => {
+app.get('/orders/:id', requireAuth, async (req, res) => {
     try {
         const doc = await db.collection('orders').doc(req.params.id).get();
         if (!doc.exists) {
@@ -258,7 +267,7 @@ app.get('/api/orders/:id', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/orders', requireAuth, async (req, res) => {
+app.post('/orders', requireAuth, async (req, res) => {
     try {
         const userId = req.user.uid;
         const docRef = await db.collection('orders').add({
@@ -275,7 +284,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/qr-templates', async (_req, res) => {
+app.get('/qr-templates', async (_req, res) => {
     try {
         const snapshot = await db.collection('qrTemplates').get();
         res.json(docsToArray(snapshot));
@@ -284,7 +293,7 @@ app.get('/api/qr-templates', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/qr-templates/:id', async (req, res) => {
+app.get('/qr-templates/:id', async (req, res) => {
     try {
         const doc = await db.collection('qrTemplates').doc(req.params.id).get();
         if (!doc.exists) {
@@ -297,7 +306,7 @@ app.get('/api/qr-templates/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/hosting-tiers', async (_req, res) => {
+app.get('/hosting-tiers', async (_req, res) => {
     try {
         const snapshot = await db.collection('hostingTiers').orderBy('sortOrder', 'asc').get();
         res.json(docsToArray(snapshot));
@@ -306,7 +315,7 @@ app.get('/api/hosting-tiers', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/stores/:slug', async (req, res) => {
+app.get('/stores/:slug', async (req, res) => {
     try {
         const snapshot = await db.collection('partnerStores')
             .where('slug', '==', req.params.slug)
@@ -322,7 +331,7 @@ app.get('/api/stores/:slug', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/settings', async (_req, res) => {
+app.get('/settings', async (_req, res) => {
     try {
         const doc = await db.collection('settings').doc('admin').get();
         res.json(doc.exists ? doc.data() : {});
@@ -331,7 +340,7 @@ app.get('/api/settings', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/stripe/publishable-key', async (_req, res) => {
+app.get('/stripe/publishable-key', async (_req, res) => {
     const key = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
     if (!key) {
         res.status(500).json({ error: 'Stripe not configured' });
@@ -339,7 +348,7 @@ app.get('/api/stripe/publishable-key', async (_req, res) => {
     }
     res.json({ publishableKey: key });
 });
-app.post('/api/checkout', requireAuth, async (req, res) => {
+app.post('/checkout', requireAuth, async (req, res) => {
     try {
         const stripeKey = process.env.STRIPE_SECRET_KEY;
         if (!stripeKey) {
@@ -377,7 +386,7 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/checkout/verify/:sessionId', requireAuth, async (req, res) => {
+app.get('/checkout/verify/:sessionId', requireAuth, async (req, res) => {
     try {
         const stripeKey = process.env.STRIPE_SECRET_KEY;
         if (!stripeKey) {
@@ -396,7 +405,7 @@ app.get('/api/checkout/verify/:sessionId', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/gallery', async (req, res) => {
+app.get('/gallery', async (req, res) => {
     try {
         const snapshot = await db.collection('qrDesigns')
             .where('isPublic', '==', true)
@@ -409,7 +418,7 @@ app.get('/api/gallery', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/files/:filename', async (req, res) => {
+app.get('/files/:filename', async (req, res) => {
     try {
         const { filename } = req.params;
         const bucket = storage.bucket();
@@ -429,7 +438,7 @@ app.get('/api/files/:filename', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/library-files/:filename', async (req, res) => {
+app.get('/library-files/:filename', async (req, res) => {
     try {
         const { filename } = req.params;
         const bucket = storage.bucket();
@@ -448,7 +457,7 @@ app.get('/api/library-files/:filename', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/admin/settings', requireAdmin, async (_req, res) => {
+app.get('/admin/settings', requireAdmin, async (_req, res) => {
     try {
         const doc = await db.collection('settings').doc('admin').get();
         res.json(doc.exists ? doc.data() : {});
@@ -457,7 +466,7 @@ app.get('/api/admin/settings', requireAdmin, async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.put('/api/admin/settings', requireAdmin, async (req, res) => {
+app.put('/admin/settings', requireAdmin, async (req, res) => {
     try {
         await db.collection('settings').doc('admin').set(req.body, { merge: true });
         const doc = await db.collection('settings').doc('admin').get();
@@ -467,7 +476,7 @@ app.put('/api/admin/settings', requireAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/admin/products', requireAdmin, async (_req, res) => {
+app.get('/admin/products', requireAdmin, async (_req, res) => {
     try {
         const snapshot = await db.collection('products').get();
         res.json(docsToArray(snapshot));
@@ -476,7 +485,7 @@ app.get('/api/admin/products', requireAdmin, async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/admin/products', requireAdmin, async (req, res) => {
+app.post('/admin/products', requireAdmin, async (req, res) => {
     try {
         const productId = req.body.id || `product_${Date.now()}`;
         await db.collection('products').doc(productId).set({
@@ -491,7 +500,7 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.patch('/api/admin/products/:id', requireAdmin, async (req, res) => {
+app.patch('/admin/products/:id', requireAdmin, async (req, res) => {
     try {
         await db.collection('products').doc(req.params.id).update({
             ...req.body,
@@ -504,7 +513,7 @@ app.patch('/api/admin/products/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.patch('/api/admin/products/:id/toggle', requireAdmin, async (req, res) => {
+app.patch('/admin/products/:id/toggle', requireAdmin, async (req, res) => {
     try {
         const doc = await db.collection('products').doc(req.params.id).get();
         if (!doc.exists) {
@@ -523,7 +532,7 @@ app.patch('/api/admin/products/:id/toggle', requireAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.delete('/api/admin/products/:id', requireAdmin, async (req, res) => {
+app.delete('/admin/products/:id', requireAdmin, async (req, res) => {
     try {
         await db.collection('products').doc(req.params.id).delete();
         res.json({ success: true });
@@ -532,7 +541,7 @@ app.delete('/api/admin/products/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/admin/orders', requireAdmin, async (_req, res) => {
+app.get('/admin/orders', requireAdmin, async (_req, res) => {
     try {
         const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
         res.json(docsToArray(snapshot));
@@ -541,7 +550,7 @@ app.get('/api/admin/orders', requireAdmin, async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.patch('/api/admin/orders/:id', requireAdmin, async (req, res) => {
+app.patch('/admin/orders/:id', requireAdmin, async (req, res) => {
     try {
         await db.collection('orders').doc(req.params.id).update({
             ...req.body,
@@ -554,7 +563,7 @@ app.patch('/api/admin/orders/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/admin/users', requireAdmin, async (_req, res) => {
+app.get('/admin/users', requireAdmin, async (_req, res) => {
     try {
         const snapshot = await db.collection('users').get();
         res.json(docsToArray(snapshot));
@@ -563,7 +572,7 @@ app.get('/api/admin/users', requireAdmin, async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/categories', async (_req, res) => {
+app.get('/categories', async (_req, res) => {
     try {
         const snapshot = await db.collection('productCategories').get();
         res.json(docsToArray(snapshot));
@@ -572,7 +581,7 @@ app.get('/api/categories', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/browsing-history', requireAuth, async (req, res) => {
+app.get('/browsing-history', requireAuth, async (req, res) => {
     try {
         const userId = req.user.uid;
         const snapshot = await db.collection('browsingHistory')
@@ -586,7 +595,7 @@ app.get('/api/browsing-history', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/browsing-history', requireAuth, async (req, res) => {
+app.post('/browsing-history', requireAuth, async (req, res) => {
     try {
         const userId = req.user.uid;
         const docRef = await db.collection('browsingHistory').add({
@@ -601,7 +610,7 @@ app.post('/api/browsing-history', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/coupons/:code', async (req, res) => {
+app.get('/coupons/:code', async (req, res) => {
     try {
         const snapshot = await db.collection('coupons')
             .where('code', '==', req.params.code.toUpperCase())
