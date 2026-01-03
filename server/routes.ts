@@ -10,10 +10,9 @@ import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVaria
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
 import { generatePrintifyComposite } from "./lib/composite-image-generator";
 import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
-import { ObjectStorageService, objectStorageClient } from "./replit_integrations/object_storage";
 import { downloadAndStreamFile, getFileFromFirebaseStorage, useFirebaseStorage } from "./lib/firebase-storage-service";
 import { insertHostedImageSchema } from "@shared/schema";
-import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
+import { setupAuth, isAuthenticated, isAdmin } from "./firebaseAuth";
 import { sendOrderConfirmationEmail } from "./lib/email";
 import { submitOrderToPrintify, checkPrintifyOrderStatus } from "./lib/printify-orders";
 import { startCronJobs } from "./lib/cron-jobs";
@@ -894,105 +893,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve uploaded files from object storage (Firebase Storage or Replit Object Storage)
-  // Supports fallback: tries Firebase first (if enabled), then falls back to Replit
+  // Serve uploaded files from Firebase Storage
   app.get("/api/files/:filename", async (req, res) => {
     try {
       const { filename } = req.params;
       
-      // downloadAndStreamFile checks useFirebaseStorage() internally and returns false if disabled
       const served = await downloadAndStreamFile(filename, res, 'custom-designs', 31536000);
       if (served) {
         return;
       }
-      // Fall through to try Replit storage if Firebase doesn't have the file (or is disabled)
       
-      const bucketName = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-      
-      if (!bucketName) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      
-      const bucket = objectStorageClient.bucket(bucketName);
-      const filePath = `custom-designs/${filename}`;
-      const file = bucket.file(filePath);
-      
-      const [exists] = await file.exists();
-      if (!exists) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      
-      const [metadata] = await file.getMetadata();
-      res.setHeader("Content-Type", metadata.contentType || "image/png");
-      res.setHeader("Cache-Control", "public, max-age=31536000");
-      
-      file.createReadStream().pipe(res);
+      return res.status(404).json({ error: "File not found" });
     } catch (error: any) {
       console.error("File serve error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Serve library files from object storage (supports multiple folder structures)
-  // Supports fallback: tries Firebase first (if enabled), then falls back to Replit
+  // Serve library files from Firebase Storage
   app.get("/api/library-files/:filename", async (req, res) => {
     try {
       const { filename } = req.params;
       
-      // downloadAndStreamFile checks useFirebaseStorage() internally and returns false if disabled
       const served = await downloadAndStreamFile(filename, res, 'library', 31536000);
       if (served) {
         return;
       }
-      // Fall through to try Replit storage if Firebase doesn't have the file (or is disabled)
       
-      const bucketName = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-      
-      if (!bucketName) {
-        return res.status(500).json({ error: "Object storage not configured" });
-      }
-      
-      const bucket = objectStorageClient.bucket(bucketName);
-      
-      const matchingAsset = await storage.getLibraryAssetByUrl(`/api/library-files/${filename}`);
-      
-      const searchPaths = matchingAsset?.storageUrl 
-        ? [matchingAsset.storageUrl]
-        : [
-            `library/admin/backgrounds/${filename}`,
-            `library/admin/designs/${filename}`,
-            `library/admin/videos/${filename}`,
-            `library/user/${filename}`,
-          ];
-      
-      let foundFile = null;
-      for (const path of searchPaths) {
-        const file = bucket.file(path);
-        const [exists] = await file.exists();
-        if (exists) {
-          foundFile = file;
-          break;
-        }
-      }
-      
-      if (!foundFile) {
-        return res.status(404).json({ error: "Library file not found" });
-      }
-      
-      const [metadata] = await foundFile.getMetadata();
-      const extension = filename.split(".").pop() || "png";
-      let mimeType = metadata.contentType;
-      if (!mimeType) {
-        if (["mp4", "webm", "mov"].includes(extension)) {
-          mimeType = `video/${extension === "mov" ? "quicktime" : extension}`;
-        } else {
-          mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
-        }
-      }
-      
-      res.setHeader("Content-Type", mimeType);
-      res.setHeader("Cache-Control", "public, max-age=31536000");
-      foundFile.createReadStream().pipe(res);
+      return res.status(404).json({ error: "Library file not found" });
     } catch (error: any) {
       console.error("Library file serve error:", error);
       res.status(500).json({ error: error.message });
