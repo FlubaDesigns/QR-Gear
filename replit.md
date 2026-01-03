@@ -7,6 +7,7 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Communication**: Simple, everyday language
 - **Accessibility**: User has CIDP (limited hand mobility) - agent must be fully autonomous
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
+- **Deployment**: ALL fixes must be deployed to Firebase production after making changes in dev. Never just fix in dev without deploying.
 
 ## System Architecture
 
