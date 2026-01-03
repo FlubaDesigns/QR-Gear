@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, QrCode, Loader2 } from "lucide-react";
-import { signInWithEmail, signInWithGoogle, auth } from "@/lib/firebase";
-import { apiRequest } from "@/lib/queryClient";
+import { signInWithEmail, signInWithGoogle } from "@/lib/firebase";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 export default function LoginPage() {
@@ -15,25 +14,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFirebaseCallback = async (idToken: string) => {
-    const res = await apiRequest("POST", "/api/auth/firebase-callback", { idToken });
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Session creation failed");
-    }
-    return res.json();
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithEmail(email, password);
-      const idToken = await userCredential.user.getIdToken();
-      await handleFirebaseCallback(idToken);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      await signInWithEmail(email, password);
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/");
     } catch (err: any) {
       console.error("Login error:", err);
@@ -56,10 +44,8 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithGoogle();
-      const idToken = await userCredential.user.getIdToken();
-      await handleFirebaseCallback(idToken);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      await signInWithGoogle();
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/");
     } catch (err: any) {
       console.error("Google sign-in error:", err);

@@ -25,7 +25,6 @@ export default function Navbar() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      await fetch("/api/logout");
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setMenuOpen(false);
       setLocation("/");

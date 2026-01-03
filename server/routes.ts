@@ -11,6 +11,7 @@ import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } f
 import { generatePrintifyComposite } from "./lib/composite-image-generator";
 import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { downloadAndStreamFile, getFileFromFirebaseStorage, useFirebaseStorage } from "./lib/firebase-storage-service";
+import { verifyFirebaseToken } from "./lib/firebase-admin";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./firebaseAuth";
 import { sendOrderConfirmationEmail } from "./lib/email";
@@ -258,7 +259,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return adminIds.length === 0 || adminIds.includes(userId);
       };
 
-      // Check for email/password session first
+      // Check for Firebase ID token in Authorization header first
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        const idToken = authHeader.substring(7);
+        const decodedToken = await verifyFirebaseToken(idToken);
+        if (decodedToken) {
+          const firebaseUserId = decodedToken.uid;
+          // Try to find existing user by Firebase UID
+          let user = await storage.getUser(firebaseUserId);
+          if (!user) {
+            // Create user from Firebase token data
+            user = await storage.createUser({
+              id: firebaseUserId,
+              email: decodedToken.email || null,
+              firstName: decodedToken.name?.split(' ')[0] || null,
+              lastName: decodedToken.name?.split(' ').slice(1).join(' ') || null,
+              profileImageUrl: decodedToken.picture || null,
+            });
+          }
+          const { passwordHash, ...safeUser } = user;
+          return res.json({ ...safeUser, isAdmin: checkIsAdmin(firebaseUserId) });
+        }
+      }
+
+      // Check for email/password session
       if (req.session?.userId) {
         const user = await storage.getUser(req.session.userId);
         if (user) {
@@ -266,15 +291,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json({ ...safeUser, isAdmin: checkIsAdmin(user.id) });
         }
       }
-      // Fall back to Replit OAuth
-      if (!req.isAuthenticated() || !req.user?.claims?.sub) {
-        return res.json(null);
+
+      // Fall back to Replit OAuth (legacy)
+      if (req.isAuthenticated?.() && req.user?.claims?.sub) {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (user) {
+          return res.json({ ...user, isAdmin: checkIsAdmin(userId) });
+        }
       }
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (user) {
-        return res.json({ ...user, isAdmin: checkIsAdmin(userId) });
-      }
+
       res.json(null);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -477,10 +503,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const featuredProducts = productsToShow.slice(0, 12);
 
       // Generate QR code linking to KC business listing
-      const qrCodeDataUrl = await generateTextQRCode(payload.kcListingUrl, {
-        color: "#1e40af",
-        backgroundColor: "#ffffff",
-      });
+      const qrCodeDataUrl = payload.kcListingUrl 
+        ? await generateTextQRCode(payload.kcListingUrl, {
+            color: "#1e40af",
+            backgroundColor: "#ffffff",
+          })
+        : null;
 
       res.json({
         businessName: payload.businessName,

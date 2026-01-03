@@ -1,6 +1,7 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
+import { getAuth, Auth } from 'firebase-admin/auth';
 
 let db: Firestore | null = null;
 let storageInstance: Storage | null = null;
@@ -93,4 +94,22 @@ export function getStorageBucketName(): string {
 
 export function isFirebaseInitialized(): boolean {
   return initialized && db !== null;
+}
+
+export function getFirebaseAuth(): Auth {
+  if (!initialized) {
+    initializeFirebase();
+  }
+  return getAuth();
+}
+
+export async function verifyFirebaseToken(idToken: string) {
+  try {
+    const auth = getFirebaseAuth();
+    const decodedToken = await auth.verifyIdToken(idToken);
+    return decodedToken;
+  } catch (error) {
+    console.error('[Firebase Auth] Token verification failed:', error);
+    return null;
+  }
 }
