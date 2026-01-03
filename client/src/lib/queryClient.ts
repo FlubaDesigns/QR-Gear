@@ -1,21 +1,14 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { auth } from "./firebase";
 
-function getApiBaseUrl(): string {
+function getApiUrl(path: string): string {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
     if (host.includes("qrgear-c1ffd.web.app") || host.includes("qrgear-c1ffd.firebaseapp.com")) {
-      return "https://us-central1-qrgear-c1ffd.cloudfunctions.net/api";
+      if (path.startsWith("/api")) {
+        return "https://us-central1-qrgear-c1ffd.cloudfunctions.net/api" + path.slice(4);
+      }
     }
-  }
-  return "";
-}
-
-const API_BASE_URL = getApiBaseUrl();
-
-function getApiUrl(path: string): string {
-  if (API_BASE_URL && path.startsWith("/api")) {
-    return API_BASE_URL + path.slice(4);
   }
   return path;
 }
