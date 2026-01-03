@@ -288,6 +288,40 @@ The system supports three storage modes controlled by `STORAGE_MODE` environment
 **Browsing & History:**
 - Browsing History: get, add, clear
 
+### Firebase Storage - FULLY IMPLEMENTED (January 3, 2026)
+**Status**: Complete file storage layer with dual backend support
+
+**Key File**: `server/lib/firebase-storage-service.ts`
+
+**Functions**:
+| Function | Purpose |
+|----------|---------|
+| `uploadToFirebaseStorage()` | Upload buffer to Firebase Storage with metadata |
+| `downloadAndStreamFile()` | Stream file from Firebase to HTTP response |
+| `getFileFromFirebaseStorage()` | Get file buffer and metadata |
+| `deleteFromFirebaseStorage()` | Delete file from Firebase Storage |
+| `fileExistsInFirebaseStorage()` | Check if file exists |
+| `downloadAndStoreFromUrl()` | Download external image and store in Firebase or Replit |
+| `useFirebaseStorage()` | Check if Firebase Storage is enabled |
+
+**Storage Modes**:
+| Mode | Firebase Storage | Replit Object Storage |
+|------|-----------------|----------------------|
+| `postgres-only` | Disabled | Primary |
+| `dual-write` | Primary (with Replit fallback) | Fallback |
+| `firestore-only` | Primary | Disabled |
+
+**File Serving Routes** (`server/routes.ts`):
+- `/api/files/:filename` - Custom design files, mockups
+- `/api/library-files/:filename` - Library assets
+
+**Fallback Behavior**:
+1. Try Firebase Storage first (if enabled)
+2. If not found, fall back to Replit Object Storage
+3. All functions short-circuit in `postgres-only` mode
+
+**Bucket**: `qrgear-c1ffd.firebasestorage.app`
+
 ### Data Portability
 - JSON blob fields (mockupsByColor, graphicsConfig, placementImages) transfer directly
 - Timestamps convert from Postgres to Firestore Timestamp
