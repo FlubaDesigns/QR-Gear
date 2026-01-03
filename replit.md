@@ -20,7 +20,8 @@ The storefront displays lifestyle mockups over flat product shots for a more eng
 - **Printify Local Catalog**: Product colors and sizes are synced weekly from Printify into the `printify_print_providers` table. This local catalog serves as the source of truth, avoiding direct API calls for product options.
 - **Database Schema**: Key tables include `products` (storing product details, prices, mockups, and Printify IDs), `mockup_cache` (for generated mockup variations), and `custom_designs` (for design images and cached mockups).
 - **Dual Storage System**: The system supports `postgres-only`, `dual-write`, and `firestore-only` modes, controlled by the `STORAGE_MODE` environment variable. In `dual-write` mode, data is written to both PostgreSQL and Firestore, with PostgreSQL as the primary source for reads. This facilitates migration to a Firebase-centric deployment.
-- **File Storage**: Supports dual backend for files, utilizing Firebase Storage as primary (when enabled) with Replit Object Storage as a fallback.
+- **File Storage**: Uses Firebase Storage exclusively for all file operations. No Replit dependencies.
+- **Authentication**: Uses Firebase Authentication for all user sessions. Replit OIDC removed.
 
 ### Feature Specifications
 - **Product Management**: Admins can manage products, set retail prices, and enable/disable product visibility.
@@ -44,6 +45,19 @@ The storefront displays lifestyle mockups over flat product shots for a more eng
 - **shadcn/ui**: UI component library.
 
 ## Firebase Deployment
+
+### Full Firebase Independence
+The system is now fully independent from Replit services:
+- **Database**: Firestore (default STORAGE_MODE is 'firestore-only')
+- **File Storage**: Firebase Storage exclusively
+- **Authentication**: Firebase Auth exclusively
+- **API Backend**: Firebase Cloud Functions
+
+### Deploying Cloud Functions
+To deploy updated Cloud Functions:
+1. Login: `npx firebase login`
+2. Build: `cd functions && npm run build`
+3. Deploy: `npx firebase deploy --only functions`
 
 ### Cloud Functions Configuration
 The Firebase Cloud Functions require environment variables to be set via Google Cloud Console:
