@@ -16,6 +16,9 @@ export interface WidgetTokenPayload {
   memberId?: string;
   memberEmail?: string;
   
+  // KC Segment ID (format: KC-{TYPE}-{slug}, e.g., KC-BIZ-joes-plumbing)
+  segmentId?: string;
+  
   // Listing URL for QR destination
   kcListingUrl?: string;
   ownerEmail?: string;
