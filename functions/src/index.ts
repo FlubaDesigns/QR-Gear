@@ -394,10 +394,15 @@ app.get('/gallery', async (req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('qrDesigns')
       .where('isPublic', '==', true)
-      .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
-    res.json(docsToArray(snapshot));
+    const items = docsToArray(snapshot);
+    items.sort((a: any, b: any) => {
+      const dateA = a.createdAt?._seconds || 0;
+      const dateB = b.createdAt?._seconds || 0;
+      return dateB - dateA;
+    });
+    res.json(items);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
