@@ -185,14 +185,15 @@ export default function Account() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button 
-                className="w-full btn btn-gold gap-2" 
-                onClick={() => window.location.href = '/api/login'}
-                data-testid="button-login"
-              >
-                <UserIcon className="w-4 h-4" />
-                Sign In
-              </Button>
+              <Link href="/login">
+                <Button 
+                  className="w-full btn btn-gold gap-2" 
+                  data-testid="button-login"
+                >
+                  <UserIcon className="w-4 h-4" />
+                  Sign In
+                </Button>
+              </Link>
               <p className="text-center text-sm text-muted-foreground">
                 Sign in with Google, GitHub, or email
               </p>

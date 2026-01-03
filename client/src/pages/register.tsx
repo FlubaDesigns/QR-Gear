@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, QrCode, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { signInWithGoogle } from "@/lib/firebase";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 export default function RegisterPage() {
@@ -45,6 +46,19 @@ export default function RegisterPage() {
     }
 
     registerMutation.mutate({ email, password, firstName, lastName });
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError("");
+    try {
+      await signInWithGoogle();
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/");
+    } catch (err: any) {
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError(err.message || "Google sign up failed");
+      }
+    }
   };
 
   return (
@@ -171,9 +185,14 @@ export default function RegisterPage() {
           <div className="qr-auth-divider-line" />
         </div>
 
-        <a href="/api/login" className="qr-auth-button qr-auth-button-secondary" data-testid="button-replit-register">
-          Continue with Replit
-        </a>
+        <button 
+          onClick={handleGoogleSignUp}
+          className="qr-auth-button qr-auth-button-secondary" 
+          disabled={registerMutation.isPending}
+          data-testid="button-google-register"
+        >
+          Continue with Google
+        </button>
 
         <div className="qr-auth-footer">
           Already have an account?{" "}
