@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, QrCode, Loader2 } from "lucide-react";
+import { signInWithEmail, signInWithGoogle, auth } from "@/lib/firebase";
 import { apiRequest } from "@/lib/queryClient";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
@@ -12,25 +13,64 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: { email: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/auth/login", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setLocation("/");
-    },
-    onError: (err: any) => {
-      setError(err.message || "Invalid email or password");
-    },
-  });
+  const handleFirebaseCallback = async (idToken: string) => {
+    const res = await apiRequest("POST", "/api/auth/firebase-callback", { idToken });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || "Session creation failed");
+    }
+    return res.json();
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    loginMutation.mutate({ email, password });
+    setIsLoading(true);
+
+    try {
+      const userCredential = await signInWithEmail(email, password);
+      const idToken = await userCredential.user.getIdToken();
+      await handleFirebaseCallback(idToken);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+        setError("Invalid email or password");
+      } else if (err.code === "auth/invalid-credential") {
+        setError("Invalid email or password");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Too many failed attempts. Please try again later.");
+      } else {
+        setError(err.message || "Sign in failed");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const userCredential = await signInWithGoogle();
+      const idToken = await userCredential.user.getIdToken();
+      await handleFirebaseCallback(idToken);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/");
+    } catch (err: any) {
+      console.error("Google sign-in error:", err);
+      if (err.code === "auth/popup-closed-by-user") {
+        setError("");
+      } else {
+        setError(err.message || "Google sign in failed");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -59,7 +99,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              disabled={loginMutation.isPending}
+              disabled={isLoading}
               data-testid="input-email"
             />
           </div>
@@ -75,7 +115,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={loginMutation.isPending}
+                disabled={isLoading}
                 data-testid="input-password"
               />
               <button
@@ -93,10 +133,10 @@ export default function LoginPage() {
           <button
             type="submit"
             className="qr-auth-button qr-auth-button-primary"
-            disabled={loginMutation.isPending}
+            disabled={isLoading}
             data-testid="button-login"
           >
-            {loginMutation.isPending ? (
+            {isLoading ? (
               <>
                 <Loader2 className="qr-auth-spinner" />
                 Signing in...
@@ -113,9 +153,14 @@ export default function LoginPage() {
           <div className="qr-auth-divider-line" />
         </div>
 
-        <a href="/api/login" className="qr-auth-button qr-auth-button-secondary" data-testid="button-replit-login">
-          Continue with Replit
-        </a>
+        <button 
+          onClick={handleGoogleSignIn}
+          className="qr-auth-button qr-auth-button-secondary" 
+          disabled={isLoading}
+          data-testid="button-google-login"
+        >
+          Continue with Google
+        </button>
 
         <div className="qr-auth-footer">
           Don't have an account?{" "}

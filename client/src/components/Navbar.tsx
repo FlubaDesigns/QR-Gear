@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShoppingCart, Menu, X, Settings, User, Shield, LogIn, LogOut, Sun, Moon, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,15 +10,29 @@ import { useGuestCart } from "@/hooks/useGuestCart";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { signOut } from "@/lib/firebase";
 import type { CartItem } from "@shared/schema";
 import logoPng from "@/assets/logo.png";
 
 export default function Navbar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { user, isAuthenticated, isAdmin, isLoading } = useAuth();
   const { itemCount: guestCartCount } = useGuestCart();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      await fetch("/api/logout");
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setMenuOpen(false);
+      setLocation("/");
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
   
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -204,10 +218,10 @@ export default function Navbar() {
                 ))}
               </div>
 
-              <div className="border-t md:border-t-0 pt-4 md:pt-0">
+              <div className="border-t md:border-t-0 pt-4 md:pt-0 flex flex-col gap-1">
                 {isAuthenticated ? (
                   <>
-                    <div className="text-sm text-muted-foreground mb-3 px-4" data-testid="text-username">
+                    <div className="text-sm text-muted-foreground mb-2 px-4" data-testid="text-username">
                       Signed in as {user?.firstName || user?.email || 'User'}
                     </div>
                     <Link href="/account" onClick={() => setMenuOpen(false)}>
@@ -224,27 +238,24 @@ export default function Navbar() {
                         </Button>
                       </Link>
                     )}
-                    <a href="/api/logout">
-                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-logout">
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                      </Button>
-                    </a>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start gap-2" 
+                      onClick={handleSignOut}
+                      data-testid="button-logout"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </Button>
                   </>
                 ) : (
                   <>
-                    <a href="/api/login">
-                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-login-user">
-                        <User className="w-4 h-4" />
-                        Sign In as Customer
+                    <Link href="/login" onClick={() => setMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-login">
+                        <LogIn className="w-4 h-4" />
+                        Sign In
                       </Button>
-                    </a>
-                    <a href="/api/login">
-                      <Button variant="default" className="w-full justify-start gap-2" data-testid="button-login-admin">
-                        <Shield className="w-4 h-4" />
-                        Sign In as Admin
-                      </Button>
-                    </a>
+                    </Link>
                   </>
                 )}
               </div>
