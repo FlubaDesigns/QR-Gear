@@ -12,7 +12,7 @@ import { db } from "../db";
 import { eq, and } from "drizzle-orm";
 import { mockupCache, canonicalPlacements, providerPlacementMappings, productPlacementAvailability, printifyPrintfulMapping } from "../../shared/schema";
 import type { IStorage } from "../storage";
-import { Client as ObjectStorageClient } from "@replit/object-storage";
+import { downloadAndStoreFromUrl } from "./firebase-storage-service";
 import { printfulClient } from "./printful";
 
 interface MockupRequest {
@@ -76,58 +76,14 @@ export function isColorDark(hexColor: string | undefined | null): boolean {
 }
 
 /**
- * Download image from URL and upload to Object Storage for permanent storage
- * Returns the permanent Object Storage URL
+ * Download image from URL and upload to Firebase Storage for permanent storage
+ * Returns the permanent Firebase Storage URL
  */
 async function downloadAndStoreImage(
   imageUrl: string,
   storagePath: string
 ): Promise<string | null> {
-  try {
-    console.log(`[MockupService] Downloading image from ${imageUrl.substring(0, 80)}...`);
-    
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      console.error(`[MockupService] Failed to download image: ${response.status}`);
-      return null;
-    }
-    
-    const contentLength = response.headers.get('content-length');
-    if (contentLength === '0') {
-      console.error(`[MockupService] Image has zero content length`);
-      return null;
-    }
-    
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length < 1000) {
-      console.error(`[MockupService] Image too small (${buffer.length} bytes), likely invalid`);
-      return null;
-    }
-    
-    console.log(`[MockupService] Downloaded ${buffer.length} bytes, uploading to Object Storage...`);
-    
-    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-    if (!bucketId) {
-      console.error(`[MockupService] DEFAULT_OBJECT_STORAGE_BUCKET_ID not set`);
-      return null;
-    }
-    
-    const client = new ObjectStorageClient({ bucketId });
-    // Use custom-designs folder - same as QR artwork - served via /api/files/:filename
-    const filename = `mockup-${storagePath.replace(/\//g, '-')}`;
-    const fullPath = `custom-designs/${filename}`;
-    
-    await client.uploadFromBytes(fullPath, buffer);
-    
-    // Return URL that works through existing /api/files route
-    const publicUrl = `/api/files/${filename}`;
-    
-    console.log(`[MockupService] Stored permanently at: ${publicUrl}`);
-    return publicUrl;
-  } catch (err) {
-    console.error(`[MockupService] Failed to download/store image:`, err);
-    return null;
-  }
+  return downloadAndStoreFromUrl(imageUrl, storagePath);
 }
 
 /**
