@@ -1,6 +1,25 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { auth } from "./firebase";
 
+function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.includes("qrgear-c1ffd.web.app") || host.includes("qrgear-c1ffd.firebaseapp.com")) {
+      return "https://us-central1-qrgear-c1ffd.cloudfunctions.net/api";
+    }
+  }
+  return "";
+}
+
+const API_BASE_URL = getApiBaseUrl();
+
+function getApiUrl(path: string): string {
+  if (API_BASE_URL && path.startsWith("/api")) {
+    return API_BASE_URL + path.slice(4);
+  }
+  return path;
+}
+
 async function getAuthHeader(): Promise<Record<string, string>> {
   const user = auth.currentUser;
   if (user) {
@@ -27,7 +46,7 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const authHeader = await getAuthHeader();
-  const res = await fetch(url, {
+  const res = await fetch(getApiUrl(url), {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
@@ -48,7 +67,8 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const authHeader = await getAuthHeader();
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = getApiUrl(queryKey.join("/") as string);
+    const res = await fetch(url, {
       credentials: "include",
       headers: authHeader,
     });

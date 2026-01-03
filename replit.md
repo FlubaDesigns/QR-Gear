@@ -54,11 +54,23 @@ The system is now fully independent from Replit services:
 - **Authentication**: Firebase Auth exclusively
 - **API Backend**: Firebase Cloud Functions
 
-### Deploying Cloud Functions
-To deploy updated Cloud Functions:
-1. Login: `npx firebase login`
-2. Build: `cd functions && npm run build`
-3. Deploy: `npx firebase deploy --only functions`
+### API URL Architecture
+The frontend auto-detects the environment and routes API calls correctly:
+- **Dev (Replit)**: Uses relative `/api` paths via Vite proxy
+- **Production (Firebase Hosting)**: Auto-detects `qrgear-c1ffd.web.app` hostname and routes to `https://us-central1-qrgear-c1ffd.cloudfunctions.net/api`
+
+This is handled in `client/src/lib/queryClient.ts` - no manual configuration needed.
+
+### Quick Deploy Command (ALWAYS USE THIS)
+After any code change, run this single command to deploy everything:
+```bash
+npm run build && cd functions && npm run build && cd .. && export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json && echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json && npx firebase deploy --only functions,hosting --force && rm -f /tmp/firebase-sa.json
+```
+
+### Deploying Cloud Functions Only
+To deploy only Cloud Functions:
+1. Build: `cd functions && npm run build`
+2. Deploy: `export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json && echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json && npx firebase deploy --only functions && rm -f /tmp/firebase-sa.json`
 
 ### Cloud Functions Configuration
 The Firebase Cloud Functions require environment variables to be set via Google Cloud Console:
