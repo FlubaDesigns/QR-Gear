@@ -42,3 +42,28 @@ The storefront displays lifestyle mockups over flat product shots for a more eng
 - **Resend**: For email services.
 - **TanStack Query**: For data fetching and state management in the frontend.
 - **shadcn/ui**: UI component library.
+
+## Firebase Deployment
+
+### Cloud Functions Configuration
+The Firebase Cloud Functions require environment variables to be set via Google Cloud Console:
+
+1. Go to: https://console.cloud.google.com/functions
+2. Select the `api` function in `us-central1`
+3. Click "Edit" → "Runtime, build, connections and security settings"
+4. Under "Runtime environment variables", add:
+   - `PRINTFUL_API_KEY`: Your Printful API key
+   - `STRIPE_SECRET_KEY`: Your Stripe secret key
+   - `STRIPE_WEBHOOK_SECRET`: Your Stripe webhook secret
+5. Deploy/Save the changes
+
+### Deployed Endpoints
+- **API Base URL**: https://us-central1-qrgear-c1ffd.cloudfunctions.net/api
+- **Health Check**: GET /health
+- **Storefront Mockup**: POST /storefront/generate-mockup
+
+### Mockup Caching
+Mockups are cached in Firestore `mockupCache` collection with key format: `{blueprintId}_{colorName}_{artworkVariant}`
+
+## Library Maintenance
+See `updates.md` for a schedule of libraries requiring regular updates.
