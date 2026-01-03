@@ -11,12 +11,16 @@ interface WidgetSession {
   businessLogoUrl?: string;
   kcListingUrl: string;
   qrCodeDataUrl: string;
+  segment?: string | null;
+  totalProducts?: number;
   products: Array<{
     id: string;
     name: string;
     imageUrl: string;
     basePrice: string;
     category: string;
+    segment?: string;
+    mockupsByColor?: Record<string, { front?: string; lifestyle?: string }>;
   }>;
 }
 
@@ -32,6 +36,7 @@ function notifyParent(type: string, data?: Record<string, unknown>) {
 export default function Widget() {
   const { toast } = useToast();
   const [token, setToken] = useState<string | null>(null);
+  const [segment, setSegment] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
   const [theme, setTheme] = useState<string>('auto');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +44,7 @@ export default function Widget() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenParam = params.get("token");
+    const segmentParam = params.get("segment");
     const compactParam = params.get("compact");
     const themeParam = params.get("theme");
     
@@ -52,6 +58,7 @@ export default function Widget() {
       });
     }
     
+    setSegment(segmentParam);
     setCompact(compactParam === 'true');
     setTheme(themeParam || 'auto');
   }, [toast]);
@@ -69,7 +76,16 @@ export default function Widget() {
   }, []);
 
   const { data: session, isLoading, error } = useQuery<WidgetSession>({
-    queryKey: ["/api/widget/session", { token }],
+    queryKey: ["/api/widget/session", { token, segment }],
+    queryFn: async () => {
+      let url = `/api/widget/session?token=${encodeURIComponent(token!)}`;
+      if (segment) {
+        url += `&segment=${encodeURIComponent(segment)}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to load session');
+      return res.json();
+    },
     enabled: !!token,
   });
 

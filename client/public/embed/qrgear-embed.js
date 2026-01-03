@@ -2,19 +2,36 @@
  * QR Gear Embeddable Widget
  * Drop this script on any page to embed the QR Gear mini-store
  * 
- * Usage with pre-signed token (recommended - most secure):
+ * FULL STORE EMBED (all products):
  * <div id="qrgear-widget" data-token="your-pre-signed-jwt-token"></div>
+ * <script src="https://qrgear.com/embed/qrgear-embed.js"></script>
+ * 
+ * SEGMENT-SPECIFIC EMBED (filtered by segment):
+ * <div id="qrgear-widget" 
+ *      data-token="your-pre-signed-jwt-token"
+ *      data-segment="religious"></div>
+ * <script src="https://qrgear.com/embed/qrgear-embed.js"></script>
+ * 
+ * PARTNER STORE EMBED:
+ * <div id="qrgear-widget" 
+ *      data-token="your-pre-signed-jwt-token"
+ *      data-partner-id="kingdom-connects"></div>
  * <script src="https://qrgear.com/embed/qrgear-embed.js"></script>
  * 
  * Or initialize programmatically:
  * QRGear.init({
  *   container: '#qrgear-widget',
  *   token: 'your-pre-signed-jwt-token',
+ *   segment: 'religious',        // Optional: filter by segment
+ *   partnerId: 'kingdom-connects', // Optional: use partner's product catalog
  *   theme: 'light',
  *   height: 600,
  *   onReady: function() { console.log('Widget loaded'); },
  *   onOrder: function(data) { console.log('Order started', data); }
  * });
+ * 
+ * Available segments: 'religious', 'business', 'sports', 'events', etc.
+ * Segments are configured per partner in the admin panel.
  */
 (function(window, document) {
   'use strict';
@@ -57,6 +74,8 @@
       return {
         container: options.container || options.el,
         token: options.token,
+        segment: options.segment || null,
+        partnerId: options.partnerId || null,
         theme: options.theme || 'auto',
         height: options.height || 600,
         compact: options.compact !== false,
@@ -92,9 +111,16 @@
       var iframe = document.createElement('iframe');
       iframe.id = widgetId;
       iframe.className = 'qrgear-iframe';
-      iframe.src = WIDGET_BASE_URL + '/widget?token=' + encodeURIComponent(config.token) + 
+      var iframeSrc = WIDGET_BASE_URL + '/widget?token=' + encodeURIComponent(config.token) + 
                    '&compact=' + config.compact +
                    '&theme=' + config.theme;
+      if (config.segment) {
+        iframeSrc += '&segment=' + encodeURIComponent(config.segment);
+      }
+      if (config.partnerId) {
+        iframeSrc += '&partnerId=' + encodeURIComponent(config.partnerId);
+      }
+      iframe.src = iframeSrc;
       iframe.style.width = '100%';
       iframe.style.height = config.height + 'px';
       iframe.style.border = 'none';
@@ -223,6 +249,8 @@
       var config = {
         container: container,
         token: container.dataset.token,
+        segment: container.dataset.segment || null,
+        partnerId: container.dataset.partnerId || container.dataset.partner || null,
         theme: container.dataset.theme || 'auto',
         height: parseInt(container.dataset.height) || 600,
         compact: container.dataset.compact !== 'false'

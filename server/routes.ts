@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -21,6 +21,45 @@ import { z } from "zod";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
+
+// ============ WIDGET CORS MIDDLEWARE ============
+// Allows widget endpoints to be accessed from partner domains
+const widgetCorsMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  
+  // Get allowed origins from environment (for backward compatibility)
+  const envAllowedOrigins = (process.env.ALLOWED_WIDGET_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
+  
+  // Also check partner store allowed origins from database
+  let partnerAllowedOrigins: string[] = [];
+  try {
+    const stores = await storage.getPartnerStores();
+    for (const store of stores) {
+      if (store.allowedOrigins) {
+        partnerAllowedOrigins.push(...store.allowedOrigins);
+      }
+    }
+  } catch (e) {
+    // Ignore errors - fall back to env origins
+  }
+  
+  const allAllowedOrigins = Array.from(new Set([...envAllowedOrigins, ...partnerAllowedOrigins]));
+  
+  if (origin && allAllowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  
+  next();
+};
 
 // ============ HEALTH CHECK HELPER ============
 // Returns health status for configured providers only
@@ -362,10 +401,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Widget API
-  app.get("/api/widget/session", async (req, res) => {
+  // Widget API - Apply CORS middleware for cross-origin embedding
+  app.get("/api/widget/session", widgetCorsMiddleware, async (req, res) => {
     try {
       const token = req.query.token as string;
+      const segment = req.query.segment as string | undefined;
       
       if (!token) {
         return res.status(400).json({ error: "Token required" });
@@ -377,15 +417,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid or expired token" });
       }
 
-      // Get featured products (limit to 6 for widget)
-      const allProducts = await storage.getAllProducts();
-      const featuredProducts = allProducts.slice(0, 6).map(p => ({
-        id: p.id,
-        name: p.name,
-        imageUrl: p.imageUrl || "",
-        basePrice: p.basePrice,
-        category: p.category,
-      }));
+      // Validate segment access if segment requested
+      if (segment && payload.allowedSegments && payload.allowedSegments.length > 0) {
+        if (!payload.allowedSegments.includes(segment)) {
+          return res.status(403).json({ error: "Segment not authorized for this token" });
+        }
+      }
+
+      // Get products - filter by partner and/or segment if provided
+      let productsToShow: any[] = [];
+      
+      if (payload.partnerId) {
+        // Get partner store products
+        const store = await storage.getPartnerStoreBySlug(payload.partnerId);
+        if (store) {
+          const storeProducts = await storage.getPartnerStoreProducts(store.id);
+          const enabledProducts = storeProducts.filter(sp => sp.isEnabled);
+          
+          // Fetch actual product details
+          for (const sp of enabledProducts) {
+            const product = await storage.getProduct(sp.productId);
+            if (product && product.isEnabled) {
+              productsToShow.push({
+                id: product.id,
+                name: sp.customName || product.name,
+                imageUrl: product.imageUrl || "",
+                basePrice: sp.customPrice || product.basePrice,
+                category: product.category,
+                segment: product.productLine,
+                mockupsByColor: sp.mockupsByColor || product.mockupsByColor,
+              });
+            }
+          }
+        }
+      } else {
+        // Fall back to all products
+        const allProducts = await storage.getAllProducts();
+        productsToShow = allProducts.filter(p => p.isEnabled).map(p => ({
+          id: p.id,
+          name: p.name,
+          imageUrl: p.imageUrl || "",
+          basePrice: p.basePrice,
+          category: p.category,
+          segment: p.productLine,
+          mockupsByColor: p.mockupsByColor,
+        }));
+      }
+
+      // Filter by segment if specified
+      if (segment) {
+        productsToShow = productsToShow.filter(p => 
+          p.segment === segment || p.category === segment
+        );
+      }
+
+      // Limit to 12 products for widget display
+      const featuredProducts = productsToShow.slice(0, 12);
 
       // Generate QR code linking to KC business listing
       const qrCodeDataUrl = await generateTextQRCode(payload.kcListingUrl, {
@@ -399,6 +486,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         kcListingUrl: payload.kcListingUrl,
         qrCodeDataUrl,
         products: featuredProducts,
+        segment: segment || null,
+        totalProducts: productsToShow.length,
       });
     } catch (error: any) {
       console.error("Widget session error:", error);

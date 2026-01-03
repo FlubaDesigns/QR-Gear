@@ -11,6 +11,8 @@ export interface WidgetTokenPayload {
   businessLogoUrl?: string | null;
   kcListingUrl: string;
   ownerEmail?: string;
+  partnerId?: string;
+  allowedSegments?: string[];
   iat?: number;
   exp?: number;
 }
@@ -22,6 +24,8 @@ export const widgetTokenSchema = z.object({
   businessLogoUrl: z.string().url().optional().nullable(),
   kcListingUrl: z.string().url(),
   ownerEmail: z.string().email().optional(),
+  partnerId: z.string().optional(),
+  allowedSegments: z.array(z.string()).optional(),
 });
 
 export function signWidgetToken(payload: WidgetTokenPayload): string {
@@ -47,7 +51,11 @@ export function verifyWidgetToken(token: string): WidgetTokenPayload | null {
   }
 }
 
-export function createWidgetUrl(baseUrl: string, payload: WidgetTokenPayload): string {
+export function createWidgetUrl(baseUrl: string, payload: WidgetTokenPayload, segment?: string): string {
   const token = signWidgetToken(payload);
-  return `${baseUrl}/widget?token=${encodeURIComponent(token)}`;
+  let url = `${baseUrl}/widget?token=${encodeURIComponent(token)}`;
+  if (segment) {
+    url += `&segment=${encodeURIComponent(segment)}`;
+  }
+  return url;
 }
