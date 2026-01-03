@@ -40,339 +40,596 @@ exports.api = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
-// Initialize Firebase Admin
+const stripe_1 = __importDefault(require("stripe"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
+const storage = admin.storage();
 const app = (0, express_1.default)();
-// CORS middleware (inline to avoid extra dependency)
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
     if (req.method === 'OPTIONS') {
         res.sendStatus(200);
         return;
     }
     next();
 });
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: false }));
-// Storage interface for Firestore
-class FirestoreStorage {
-    // Products
-    async getProducts() {
-        const snapshot = await db.collection('products').get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+async function verifyAuth(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
     }
-    async getProduct(id) {
-        const doc = await db.collection('products').doc(id).get();
-        if (!doc.exists)
-            return null;
-        return { ...doc.data(), id: doc.id };
+    try {
+        const token = authHeader.split('Bearer ')[1];
+        return await admin.auth().verifyIdToken(token);
     }
-    async getEnabledProducts() {
-        const snapshot = await db.collection('products').where('isEnabled', '==', true).get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    async getFeaturedProducts() {
-        const snapshot = await db.collection('products')
-            .where('isEnabled', '==', true)
-            .where('isFeatured', '==', true)
-            .get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    // Custom Designs
-    async getCustomDesign(id) {
-        const doc = await db.collection('customDesigns').doc(id).get();
-        if (!doc.exists)
-            return null;
-        return { ...doc.data(), id: doc.id };
-    }
-    async getCustomDesigns() {
-        const snapshot = await db.collection('customDesigns').get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    // Users
-    async getUser(id) {
-        const doc = await db.collection('users').doc(id).get();
-        if (!doc.exists)
-            return null;
-        return { ...doc.data(), id: doc.id };
-    }
-    async getUserByEmail(email) {
-        const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
-        if (snapshot.empty)
-            return null;
-        const doc = snapshot.docs[0];
-        return { ...doc.data(), id: doc.id };
-    }
-    // Cart
-    async getCartItems(userId) {
-        const snapshot = await db.collection('cartItems').where('userId', '==', userId).get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    async addToCart(item) {
-        const docRef = await db.collection('cartItems').add({
-            ...item,
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-        const doc = await docRef.get();
-        return { ...doc.data(), id: doc.id };
-    }
-    async removeFromCart(id) {
-        await db.collection('cartItems').doc(id).delete();
-    }
-    async clearCart(userId) {
-        const snapshot = await db.collection('cartItems').where('userId', '==', userId).get();
-        const batch = db.batch();
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-    }
-    // Orders
-    async getOrders() {
-        const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    async getOrder(id) {
-        const doc = await db.collection('orders').doc(id).get();
-        if (!doc.exists)
-            return null;
-        return { ...doc.data(), id: doc.id };
-    }
-    async getUserOrders(userId) {
-        const snapshot = await db.collection('orders')
-            .where('userId', '==', userId)
-            .orderBy('createdAt', 'desc')
-            .get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    async createOrder(order) {
-        const docRef = await db.collection('orders').add({
-            ...order,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-        const doc = await docRef.get();
-        return { ...doc.data(), id: doc.id };
-    }
-    // Admin Settings
-    async getAdminSettings() {
-        const doc = await db.collection('settings').doc('admin').get();
-        if (!doc.exists)
-            return null;
-        return doc.data();
-    }
-    // QR Templates
-    async getQrTemplates() {
-        const snapshot = await db.collection('qrTemplates').get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    async getQrTemplate(id) {
-        const doc = await db.collection('qrTemplates').doc(id).get();
-        if (!doc.exists)
-            return null;
-        return { ...doc.data(), id: doc.id };
-    }
-    // Hosting Tiers
-    async getHostingTiers() {
-        const snapshot = await db.collection('hostingTiers').orderBy('sortOrder', 'asc').get();
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    }
-    // Partner Stores
-    async getPartnerStore(id) {
-        const doc = await db.collection('partnerStores').doc(id).get();
-        if (!doc.exists)
-            return null;
-        return { ...doc.data(), id: doc.id };
-    }
-    async getPartnerStoreBySlug(slug) {
-        const snapshot = await db.collection('partnerStores').where('slug', '==', slug).limit(1).get();
-        if (snapshot.empty)
-            return null;
-        const doc = snapshot.docs[0];
-        return { ...doc.data(), id: doc.id };
+    catch {
+        return null;
     }
 }
-const storage = new FirestoreStorage();
-// API Routes
-// Health check
+async function requireAuth(req, res, next) {
+    const user = await verifyAuth(req);
+    if (!user) {
+        res.status(401).json({ message: 'Unauthorized' });
+        return;
+    }
+    req.user = user;
+    next();
+}
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || '').split(',').filter(Boolean);
+async function requireAdmin(req, res, next) {
+    const user = await verifyAuth(req);
+    if (!user) {
+        res.status(401).json({ message: 'Unauthorized' });
+        return;
+    }
+    const userDoc = await db.collection('users').doc(user.uid).get();
+    const userData = userDoc.data();
+    const isAdmin = userData?.isAdmin || ADMIN_USER_IDS.includes(user.uid);
+    if (!isAdmin) {
+        res.status(403).json({ message: 'Admin access required' });
+        return;
+    }
+    req.user = user;
+    next();
+}
+function docToObject(doc) {
+    if (!doc.exists)
+        return null;
+    const data = doc.data();
+    Object.keys(data).forEach(key => {
+        if (data[key] instanceof admin.firestore.Timestamp) {
+            data[key] = data[key].toDate();
+        }
+    });
+    return { ...data, id: doc.id };
+}
+function docsToArray(snapshot) {
+    return snapshot.docs.map(doc => docToObject(doc));
+}
 app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', mode: 'firebase', timestamp: new Date().toISOString() });
+    res.json({
+        status: 'ok',
+        mode: 'firebase-functions',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+    });
 });
-// Products
 app.get('/api/products', async (req, res) => {
     try {
         const featured = req.query.featured === 'true';
-        const products = featured
-            ? await storage.getFeaturedProducts()
-            : await storage.getEnabledProducts();
-        res.json(products);
+        let query = db.collection('products').where('isEnabled', '==', true);
+        if (featured) {
+            query = query.where('isFeatured', '==', true);
+        }
+        const snapshot = await query.get();
+        res.json(docsToArray(snapshot));
     }
     catch (error) {
+        console.error('Error fetching products:', error);
         res.status(500).json({ error: error.message });
     }
 });
 app.get('/api/products/:id', async (req, res) => {
     try {
-        const product = await storage.getProduct(req.params.id);
-        if (!product) {
+        const doc = await db.collection('products').doc(req.params.id).get();
+        if (!doc.exists) {
             res.status(404).json({ error: 'Product not found' });
             return;
         }
-        res.json(product);
+        res.json(docToObject(doc));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// Custom Designs
 app.get('/api/designs/:id', async (req, res) => {
     try {
-        const design = await storage.getCustomDesign(req.params.id);
-        if (!design) {
+        const doc = await db.collection('customDesigns').doc(req.params.id).get();
+        if (!doc.exists) {
             res.status(404).json({ error: 'Design not found' });
             return;
         }
-        res.json(design);
+        res.json(docToObject(doc));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// Auth endpoint (simplified - uses Firebase Auth on client)
 app.get('/api/auth/user', async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        const decodedToken = await verifyAuth(req);
+        if (!decodedToken) {
             res.status(401).json({ message: 'Unauthorized' });
             return;
         }
-        const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        const user = await storage.getUser(decodedToken.uid);
-        if (!user) {
-            // Create user if doesn't exist
+        const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+        if (!userDoc.exists) {
             const newUser = {
-                id: decodedToken.uid,
                 email: decodedToken.email,
                 displayName: decodedToken.name || decodedToken.email?.split('@')[0],
+                isAdmin: ADMIN_USER_IDS.includes(decodedToken.uid),
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             };
             await db.collection('users').doc(decodedToken.uid).set(newUser);
-            res.json(newUser);
+            res.json({ ...newUser, id: decodedToken.uid });
             return;
         }
-        res.json(user);
+        res.json(docToObject(userDoc));
     }
     catch (error) {
         res.status(401).json({ message: 'Unauthorized', error: error.message });
     }
 });
-// Cart
-app.get('/api/cart', async (req, res) => {
+app.get('/api/cart', requireAuth, async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.status(401).json({ message: 'Unauthorized' });
-            return;
-        }
-        const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        const items = await storage.getCartItems(decodedToken.uid);
-        res.json(items);
+        const userId = req.user.uid;
+        const snapshot = await db.collection('cartItems').where('userId', '==', userId).get();
+        res.json(docsToArray(snapshot));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/cart', async (req, res) => {
+app.post('/api/cart', requireAuth, async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.status(401).json({ message: 'Unauthorized' });
-            return;
-        }
-        const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        const item = await storage.addToCart({ ...req.body, userId: decodedToken.uid });
-        res.json(item);
+        const userId = req.user.uid;
+        const docRef = await db.collection('cartItems').add({
+            ...req.body,
+            userId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-app.delete('/api/cart/:id', async (_req, res) => {
+app.put('/api/cart/:id', requireAuth, async (req, res) => {
     try {
-        await storage.removeFromCart(_req.params.id);
+        const { quantity } = req.body;
+        await db.collection('cartItems').doc(req.params.id).update({ quantity });
+        const doc = await db.collection('cartItems').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/api/cart/:id', requireAuth, async (req, res) => {
+    try {
+        await db.collection('cartItems').doc(req.params.id).delete();
         res.json({ success: true });
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// Orders
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireAuth, async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.status(401).json({ message: 'Unauthorized' });
+        const userId = req.user.uid;
+        const snapshot = await db.collection('orders')
+            .where('userId', '==', userId)
+            .orderBy('createdAt', 'desc')
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/orders/:id', requireAuth, async (req, res) => {
+    try {
+        const doc = await db.collection('orders').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Order not found' });
             return;
         }
-        const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        const orders = await storage.getUserOrders(decodedToken.uid);
-        res.json(orders);
+        res.json(docToObject(doc));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// QR Templates
+app.post('/api/orders', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.uid;
+        const docRef = await db.collection('orders').add({
+            ...req.body,
+            userId,
+            status: 'pending',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/api/qr-templates', async (_req, res) => {
     try {
-        const templates = await storage.getQrTemplates();
-        res.json(templates);
+        const snapshot = await db.collection('qrTemplates').get();
+        res.json(docsToArray(snapshot));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// Hosting Tiers
+app.get('/api/qr-templates/:id', async (req, res) => {
+    try {
+        const doc = await db.collection('qrTemplates').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'QR Template not found' });
+            return;
+        }
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/api/hosting-tiers', async (_req, res) => {
     try {
-        const tiers = await storage.getHostingTiers();
-        res.json(tiers);
+        const snapshot = await db.collection('hostingTiers').orderBy('sortOrder', 'asc').get();
+        res.json(docsToArray(snapshot));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// Partner Stores
 app.get('/api/stores/:slug', async (req, res) => {
     try {
-        const store = await storage.getPartnerStoreBySlug(req.params.slug);
-        if (!store) {
+        const snapshot = await db.collection('partnerStores')
+            .where('slug', '==', req.params.slug)
+            .limit(1)
+            .get();
+        if (snapshot.empty) {
             res.status(404).json({ error: 'Store not found' });
             return;
         }
-        res.json(store);
+        res.json(docToObject(snapshot.docs[0]));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// Admin Settings (public portions)
 app.get('/api/settings', async (_req, res) => {
     try {
-        const settings = await storage.getAdminSettings();
-        res.json(settings || {});
+        const doc = await db.collection('settings').doc('admin').get();
+        res.json(doc.exists ? doc.data() : {});
     }
     catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-// Export the Express app as a Cloud Function
+app.get('/api/stripe/publishable-key', async (_req, res) => {
+    const key = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    if (!key) {
+        res.status(500).json({ error: 'Stripe not configured' });
+        return;
+    }
+    res.json({ publishableKey: key });
+});
+app.post('/api/checkout', requireAuth, async (req, res) => {
+    try {
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeKey) {
+            res.status(500).json({ error: 'Stripe not configured' });
+            return;
+        }
+        const stripe = new stripe_1.default(stripeKey);
+        const userId = req.user.uid;
+        const { items, successUrl, cancelUrl } = req.body;
+        const lineItems = items.map((item) => ({
+            price_data: {
+                currency: 'usd',
+                product_data: {
+                    name: item.name,
+                    images: item.image ? [item.image] : [],
+                },
+                unit_amount: Math.round(item.price * 100),
+            },
+            quantity: item.quantity,
+        }));
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: lineItems,
+            mode: 'payment',
+            success_url: successUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: cancelUrl || `${req.headers.origin}/cart`,
+            metadata: {
+                userId,
+            },
+        });
+        res.json({ sessionId: session.id, url: session.url });
+    }
+    catch (error) {
+        console.error('Checkout error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/checkout/verify/:sessionId', requireAuth, async (req, res) => {
+    try {
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeKey) {
+            res.status(500).json({ error: 'Stripe not configured' });
+            return;
+        }
+        const stripe = new stripe_1.default(stripeKey);
+        const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+        res.json({
+            status: session.payment_status,
+            customerEmail: session.customer_details?.email,
+            amountTotal: session.amount_total ? session.amount_total / 100 : 0,
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/gallery', async (req, res) => {
+    try {
+        const snapshot = await db.collection('qrDesigns')
+            .where('isPublic', '==', true)
+            .orderBy('createdAt', 'desc')
+            .limit(50)
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/files/:filename', async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const bucket = storage.bucket();
+        const file = bucket.file(`custom-designs/${filename}`);
+        const [exists] = await file.exists();
+        if (!exists) {
+            res.status(404).json({ error: 'File not found' });
+            return;
+        }
+        const [metadata] = await file.getMetadata();
+        res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        file.createReadStream().pipe(res);
+    }
+    catch (error) {
+        console.error('File serving error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/library-files/:filename', async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const bucket = storage.bucket();
+        const file = bucket.file(`library/${filename}`);
+        const [exists] = await file.exists();
+        if (!exists) {
+            res.status(404).json({ error: 'File not found' });
+            return;
+        }
+        const [metadata] = await file.getMetadata();
+        res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        file.createReadStream().pipe(res);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/admin/settings', requireAdmin, async (_req, res) => {
+    try {
+        const doc = await db.collection('settings').doc('admin').get();
+        res.json(doc.exists ? doc.data() : {});
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/api/admin/settings', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('settings').doc('admin').set(req.body, { merge: true });
+        const doc = await db.collection('settings').doc('admin').get();
+        res.json(doc.data());
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/admin/products', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('products').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/api/admin/products', requireAdmin, async (req, res) => {
+    try {
+        const productId = req.body.id || `product_${Date.now()}`;
+        await db.collection('products').doc(productId).set({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        const doc = await db.collection('products').doc(productId).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.patch('/api/admin/products/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('products').doc(req.params.id).update({
+            ...req.body,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        const doc = await db.collection('products').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.patch('/api/admin/products/:id/toggle', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('products').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Product not found' });
+            return;
+        }
+        const current = doc.data().isEnabled || false;
+        await db.collection('products').doc(req.params.id).update({
+            isEnabled: !current,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        const updated = await db.collection('products').doc(req.params.id).get();
+        res.json(docToObject(updated));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/api/admin/products/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('products').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/admin/orders', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.patch('/api/admin/orders/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('orders').doc(req.params.id).update({
+            ...req.body,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        const doc = await db.collection('orders').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/admin/users', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('users').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/categories', async (_req, res) => {
+    try {
+        const snapshot = await db.collection('productCategories').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/browsing-history', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.uid;
+        const snapshot = await db.collection('browsingHistory')
+            .where('userId', '==', userId)
+            .orderBy('viewedAt', 'desc')
+            .limit(20)
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/api/browsing-history', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.uid;
+        const docRef = await db.collection('browsingHistory').add({
+            ...req.body,
+            userId,
+            viewedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/api/coupons/:code', async (req, res) => {
+    try {
+        const snapshot = await db.collection('coupons')
+            .where('code', '==', req.params.code.toUpperCase())
+            .where('isActive', '==', true)
+            .limit(1)
+            .get();
+        if (snapshot.empty) {
+            res.status(404).json({ error: 'Coupon not found or expired' });
+            return;
+        }
+        const coupon = docToObject(snapshot.docs[0]);
+        if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+            res.status(400).json({ error: 'Coupon has expired' });
+            return;
+        }
+        if (coupon.maxRedemptions && coupon.redemptionCount >= coupon.maxRedemptions) {
+            res.status(400).json({ error: 'Coupon has reached maximum redemptions' });
+            return;
+        }
+        res.json(coupon);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.use((err, _req, res, _next) => {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+});
 exports.api = functions.https.onRequest(app);
 //# sourceMappingURL=index.js.map
