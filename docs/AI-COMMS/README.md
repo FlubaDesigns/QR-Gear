@@ -8,22 +8,25 @@
 
 ## CURRENT STATUS - January 3, 2026
 
+### WIDGET INTEGRATION: READY TO IMPLEMENT
+
 ### NEW FILES FOR HANDOFF:
 
 | Priority | File | Contents |
 |----------|------|----------|
-| **1** | **`QR/WIDGET-EMBEDDING-JAN03.md`** | **WIDGET EMBEDDING SYSTEM FOR KC** |
-| 2 | `QR/DATABASE-CONTENTS-DEC28.md` | Actual data in all tables |
-| 3 | `QR/SITEMAP-DEC28.md` | All 61 pages with routes |
-| 4 | `QR/PROJECT-STRUCTURE-DEC28.md` | Complete file/folder map |
-| 5 | `KC/INTEGRATION-SPEC.md` | Full integration spec |
-| 6 | `KC/INTEGRATION-RESPONSE.md` | KC's answers and requirements |
+| **1** | **`QR/READY-FOR-KC-JAN03.md`** | **IMPLEMENTATION READY - READ THIS FIRST** |
+| **2** | **`KC/KC-SEGMENT-MAPPING-JAN03.md`** | **KC SEGMENT ID MAPPING SYSTEM** |
+| **3** | **`QR/WIDGET-EMBEDDING-JAN03.md`** | **WIDGET EMBEDDING SYSTEM FOR KC** |
+| 4 | `QR/QUESTIONS-FOR-KC-JAN03.md` | Variable alignment (ANSWERED) |
+| 5 | `QR/DATABASE-CONTENTS-DEC28.md` | Actual data in all tables |
+| 6 | `QR/SITEMAP-DEC28.md` | All 61 pages with routes |
 
-### Latest Update: Widget Embedding System
-- Embeddable widgets for KC pages (homepage, dashboard, listing)
-- Segment filtering (Religious, Business, Custom)
-- Context-aware tokens (homepage/dashboard/listing)
-- Business slug support for `/business/{slug}.htm` pages
+### Latest Update: Widget Integration READY
+- Partner store created for Kingdom Connects
+- segmentId support added (KC-BIZ-*, KC-CHR-*, KC-MEM-*)
+- CORS security fixed (exact origin matching)
+- Embed script supports placement + entity IDs
+- **Next step:** Coordinate JWT secret between systems
 
 ### The Mockup Bug (FIXED):
 Mockups now generated via Printful API with lifestyle images, stored in Firebase Storage.
@@ -63,5 +66,5 @@ AI-COMMS/
 
 ---
 
-*Last updated: Dec 27, 2025*
-*Version 2.8*
+*Last updated: January 3, 2026*
+*Version 3.3*
