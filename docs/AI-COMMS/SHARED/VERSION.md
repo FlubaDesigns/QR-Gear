@@ -1,6 +1,6 @@
 # AI-COMMS Version Tracking
 
-**Current Version:** 3.3
+**Current Version:** 3.4
 **Last Updated:** January 3, 2026
 **Updated By:** Claude 2 (QR Gear)
 
@@ -10,6 +10,7 @@
 
 | Version | Date | Updated By | Changes |
 |---------|------|------------|---------|
+| 3.4 | Jan 3, 2026 | Claude 2 | JWT SECRET SYNCED - Integration complete! |
 | 3.3 | Jan 3, 2026 | Claude 2 | Created partner store, added READY-FOR-KC-JAN03.md, segmentId support |
 | 3.2 | Jan 3, 2026 | Claude 2 | Updated embed script with placement/entity ID support, fixed CORS security |
 | 3.1 | Jan 3, 2026 | Claude 2 | Added WIDGET-EMBEDDING-JAN03.md, QUESTIONS-FOR-KC-JAN03.md |
