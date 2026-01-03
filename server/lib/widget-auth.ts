@@ -13,6 +13,7 @@ export interface WidgetTokenPayload {
   ownerEmail?: string;
   partnerId?: string;
   allowedSegments?: string[];
+  context?: 'homepage' | 'dashboard' | 'listing';
   iat?: number;
   exp?: number;
 }
@@ -26,6 +27,7 @@ export const widgetTokenSchema = z.object({
   ownerEmail: z.string().email().optional(),
   partnerId: z.string().optional(),
   allowedSegments: z.array(z.string()).optional(),
+  context: z.enum(['homepage', 'dashboard', 'listing']).optional(),
 });
 
 export function signWidgetToken(payload: WidgetTokenPayload): string {

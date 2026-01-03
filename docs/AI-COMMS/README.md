@@ -6,24 +6,27 @@
 
 ---
 
-## CURRENT STATUS - December 28, 2025
+## CURRENT STATUS - January 3, 2026
 
 ### NEW FILES FOR HANDOFF:
 
 | Priority | File | Contents |
 |----------|------|----------|
-| **1** | **`QR/DATABASE-CONTENTS-DEC28.md`** | **ACTUAL DATA IN ALL TABLES WITH FILE LOCATIONS** |
-| **2** | **`QR/SITEMAP-DEC28.md`** | **ALL 61 PAGES WITH ROUTES** |
-| **3** | **`QR/PROJECT-STRUCTURE-DEC28.md`** | **COMPLETE FILE/FOLDER MAP** |
-| 4 | `HANDOFF-DEC27.md` | Field names and problem summary |
-| 5 | `SCHEMA/DATABASE-SCHEMA.md` | All database tables with columns |
-| 6 | `KC/GHOST-FINAL-ANSWER-DEC27.md` | Printify architecture |
+| **1** | **`QR/WIDGET-EMBEDDING-JAN03.md`** | **WIDGET EMBEDDING SYSTEM FOR KC** |
+| 2 | `QR/DATABASE-CONTENTS-DEC28.md` | Actual data in all tables |
+| 3 | `QR/SITEMAP-DEC28.md` | All 61 pages with routes |
+| 4 | `QR/PROJECT-STRUCTURE-DEC28.md` | Complete file/folder map |
+| 5 | `KC/INTEGRATION-SPEC.md` | Full integration spec |
+| 6 | `KC/INTEGRATION-RESPONSE.md` | KC's answers and requirements |
 
-### The Bug:
-Mockup images saved in `mockups_by_color` are **Printify blueprint stock photos**, NOT rendered mockups showing QR artwork on shirts.
+### Latest Update: Widget Embedding System
+- Embeddable widgets for KC pages (homepage, dashboard, listing)
+- Segment filtering (Religious, Business, Custom)
+- Context-aware tokens (homepage/dashboard/listing)
+- Business slug support for `/business/{slug}.htm` pages
 
-### The Fix:
-Generate mockups locally by compositing QR artwork onto shirt templates using canvas, OR use Printify Mockup Generator API.
+### The Mockup Bug (FIXED):
+Mockups now generated via Printful API with lifestyle images, stored in Firebase Storage.
 
 ---
 
