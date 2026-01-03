@@ -2,27 +2,44 @@
  * QR Gear Embeddable Widget
  * Drop this script on any page to embed the QR Gear mini-store
  * 
- * FULL STORE EMBED (all products):
- * <div id="qrgear-widget" data-token="your-pre-signed-jwt-token"></div>
- * <script src="https://qrgear.com/embed/qrgear-embed.js"></script>
+ * PLACEMENT TYPES:
+ * - homepage: General products for all visitors
+ * - church: Church-specific products (requires data-church-id)
+ * - business: Business-specific products (requires data-business-id)
+ * - member: Member dashboard products (requires data-member-id)
  * 
- * SEGMENT-SPECIFIC EMBED (filtered by segment):
+ * HOMEPAGE EMBED:
  * <div id="qrgear-widget" 
  *      data-token="your-pre-signed-jwt-token"
- *      data-segment="religious"></div>
- * <script src="https://qrgear.com/embed/qrgear-embed.js"></script>
+ *      data-placement="homepage"></div>
  * 
- * PARTNER STORE EMBED:
+ * CHURCH PAGE EMBED:
  * <div id="qrgear-widget" 
  *      data-token="your-pre-signed-jwt-token"
- *      data-partner-id="kingdom-connects"></div>
- * <script src="https://qrgear.com/embed/qrgear-embed.js"></script>
+ *      data-placement="church"
+ *      data-church-id="faith-community"></div>
+ * 
+ * BUSINESS PAGE EMBED:
+ * <div id="qrgear-widget" 
+ *      data-token="your-pre-signed-jwt-token"
+ *      data-placement="business"
+ *      data-business-id="joes-plumbing"></div>
+ * 
+ * MEMBER DASHBOARD EMBED:
+ * <div id="qrgear-widget" 
+ *      data-token="your-pre-signed-jwt-token"
+ *      data-placement="member"
+ *      data-member-id="user@email.com"></div>
  * 
  * Or initialize programmatically:
  * QRGear.init({
  *   container: '#qrgear-widget',
  *   token: 'your-pre-signed-jwt-token',
- *   segment: 'religious',        // Optional: filter by segment
+ *   placement: 'church',           // homepage, church, business, member
+ *   churchId: 'faith-community',   // For church placement
+ *   businessId: 'joes-plumbing',   // For business placement
+ *   memberId: 'user@email.com',    // For member placement
+ *   segment: 'religious',          // Optional: filter by segment
  *   partnerId: 'kingdom-connects', // Optional: use partner's product catalog
  *   theme: 'light',
  *   height: 600,
@@ -30,7 +47,7 @@
  *   onOrder: function(data) { console.log('Order started', data); }
  * });
  * 
- * Available segments: 'religious', 'business', 'sports', 'events', etc.
+ * Available segments: 'religious', 'business', 'custom'
  * Segments are configured per partner in the admin panel.
  */
 (function(window, document) {
@@ -74,6 +91,10 @@
       return {
         container: options.container || options.el,
         token: options.token,
+        placement: options.placement || 'homepage',
+        churchId: options.churchId || null,
+        businessId: options.businessId || null,
+        memberId: options.memberId || null,
         segment: options.segment || null,
         partnerId: options.partnerId || null,
         theme: options.theme || 'auto',
@@ -113,12 +134,22 @@
       iframe.className = 'qrgear-iframe';
       var iframeSrc = WIDGET_BASE_URL + '/widget?token=' + encodeURIComponent(config.token) + 
                    '&compact=' + config.compact +
-                   '&theme=' + config.theme;
+                   '&theme=' + config.theme +
+                   '&placement=' + encodeURIComponent(config.placement);
       if (config.segment) {
         iframeSrc += '&segment=' + encodeURIComponent(config.segment);
       }
       if (config.partnerId) {
         iframeSrc += '&partnerId=' + encodeURIComponent(config.partnerId);
+      }
+      if (config.churchId) {
+        iframeSrc += '&churchId=' + encodeURIComponent(config.churchId);
+      }
+      if (config.businessId) {
+        iframeSrc += '&businessId=' + encodeURIComponent(config.businessId);
+      }
+      if (config.memberId) {
+        iframeSrc += '&memberId=' + encodeURIComponent(config.memberId);
       }
       iframe.src = iframeSrc;
       iframe.style.width = '100%';
@@ -249,6 +280,10 @@
       var config = {
         container: container,
         token: container.dataset.token,
+        placement: container.dataset.placement || 'homepage',
+        churchId: container.dataset.churchId || null,
+        businessId: container.dataset.businessId || null,
+        memberId: container.dataset.memberId || null,
         segment: container.dataset.segment || null,
         partnerId: container.dataset.partnerId || container.dataset.partner || null,
         theme: container.dataset.theme || 'auto',

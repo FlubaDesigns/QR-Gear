@@ -24,6 +24,7 @@ import Stripe from "stripe";
 
 // ============ WIDGET CORS MIDDLEWARE ============
 // Allows widget endpoints to be accessed from partner domains
+// SECURITY: Uses exact origin matching to prevent subdomain attacks
 const widgetCorsMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
   
@@ -35,7 +36,7 @@ const widgetCorsMiddleware = async (req: Request, res: Response, next: NextFunct
   try {
     const stores = await storage.getPartnerStores();
     for (const store of stores) {
-      if (store.allowedOrigins) {
+      if (store.allowedOrigins && Array.isArray(store.allowedOrigins)) {
         partnerAllowedOrigins.push(...store.allowedOrigins);
       }
     }
@@ -45,7 +46,8 @@ const widgetCorsMiddleware = async (req: Request, res: Response, next: NextFunct
   
   const allAllowedOrigins = Array.from(new Set([...envAllowedOrigins, ...partnerAllowedOrigins]));
   
-  if (origin && allAllowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+  // SECURITY: Use exact match only - no prefix matching to prevent subdomain attacks
+  if (origin && allAllowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');

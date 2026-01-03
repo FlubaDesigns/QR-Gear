@@ -1,6 +1,6 @@
 # AI-COMMS Version Tracking
 
-**Current Version:** 3.1
+**Current Version:** 3.2
 **Last Updated:** January 3, 2026
 **Updated By:** Claude 2 (QR Gear)
 
@@ -10,6 +10,7 @@
 
 | Version | Date | Updated By | Changes |
 |---------|------|------------|---------|
+| 3.2 | Jan 3, 2026 | Claude 2 | Updated embed script with placement/entity ID support, fixed CORS security |
 | 3.1 | Jan 3, 2026 | Claude 2 | Added WIDGET-EMBEDDING-JAN03.md, QUESTIONS-FOR-KC-JAN03.md |
 | 3.0 | Dec 28, 2025 | Claude 2 | Added SITEMAP-DEC28.md, PROJECT-STRUCTURE-DEC28.md, DATABASE-CONTENTS-DEC28.md |
 | 2.6 | Dec 27, 2025 | Claude 1 | Added GHOST-FINAL-ANSWER-DEC27.md - authoritative Printify answer |

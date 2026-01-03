@@ -21,40 +21,50 @@ The QR Gear embeddable widget allows partner websites (like Kingdom Connects) to
 
 ---
 
-## Embed Contexts (KC Locations)
+## Embed Placements (KC Locations)
 
-### 1. Homepage (`context: "homepage"`)
+### 1. Homepage (`placement: "homepage"`)
 ```html
 <div id="qrgear-widget" 
      data-token="JWT_TOKEN"
-     data-context="homepage"></div>
+     data-placement="homepage"></div>
 <script src="https://qrgear.web.app/embed/qrgear-embed.js"></script>
 ```
 - Shows general/featured products
-- No business-specific content
+- No entity-specific content
 
-### 2. Dashboard (`context: "dashboard"`)
+### 2. Church Listing (`placement: "church"`)
 ```html
 <div id="qrgear-widget" 
      data-token="JWT_TOKEN"
-     data-context="dashboard"
-     data-business-slug="joes-plumbing"></div>
+     data-placement="church"
+     data-church-id="faith-community-church"></div>
 <script src="https://qrgear.web.app/embed/qrgear-embed.js"></script>
 ```
-- Shows products relevant to logged-in user's business
-- Token contains user's email and businessSlug
+- Shows products for specific church
+- QR codes auto-link to that church page
 
-### 3. Listing Page (`context: "listing"`)
+### 3. Business Listing (`placement: "business"`)
 ```html
-<!-- On /business/joes-plumbing.htm -->
 <div id="qrgear-widget" 
      data-token="JWT_TOKEN"
-     data-context="listing"
-     data-business-slug="joes-plumbing"></div>
+     data-placement="business"
+     data-business-id="joes-plumbing"></div>
 <script src="https://qrgear.web.app/embed/qrgear-embed.js"></script>
 ```
-- Shows products for specific business/church
+- Shows products for specific business
 - QR codes auto-link to that business page
+
+### 4. Member Dashboard (`placement: "member"`)
+```html
+<div id="qrgear-widget" 
+     data-token="JWT_TOKEN"
+     data-placement="member"
+     data-member-id="user@email.com"></div>
+<script src="https://qrgear.web.app/embed/qrgear-embed.js"></script>
+```
+- Shows products relevant to logged-in member
+- Token contains user's email and memberId
 
 ---
 
@@ -62,11 +72,18 @@ The QR Gear embeddable widget allows partner websites (like Kingdom Connects) to
 
 ```javascript
 {
-  // Business Info (from KC)
-  businessId: "kc-uuid-123",
+  // Entity Info (from KC) - use appropriate IDs based on placement
+  businessId: "joes-plumbing",      // For business placement
   businessName: "Joe's Plumbing",
   businessSlug: "joes-plumbing",
   businessLogoUrl: "https://kc.org/logos/joes.png",
+  
+  churchId: "faith-community",      // For church placement
+  churchName: "Faith Community Church",
+  churchSlug: "faith-community",
+  
+  memberId: "user@email.com",       // For member placement
+  memberEmail: "user@email.com",
   
   // Destination URL (auto-generated)
   kcListingUrl: "https://kingdomconnects.org/business/joes-plumbing.htm",
@@ -76,7 +93,7 @@ The QR Gear embeddable widget allows partner websites (like Kingdom Connects) to
   
   // Partner config
   partnerId: "kingdom-connects",
-  context: "listing",  // "homepage" | "dashboard" | "listing"
+  placement: "business",  // "homepage" | "church" | "business" | "member"
   
   // Segment access
   allowedSegments: ["Religious", "Business", "Custom"]
@@ -105,13 +122,12 @@ KC's available segments (from partner_stores.availableSegments):
 
 ## URL Patterns
 
-| Page Type | URL Pattern | Context |
-|-----------|-------------|---------|
-| Homepage | `/` | `homepage` |
-| Business Dashboard | `/dashboard/business` | `dashboard` |
-| Member Dashboard | `/dashboard/member` | `dashboard` |
-| Business Listing | `/business/{slug}.htm` | `listing` |
-| Church Listing | `/church/{slug}.htm` | `listing` |
+| Page Type | URL Pattern | Placement | Entity ID Attribute |
+|-----------|-------------|-----------|---------------------|
+| Homepage | `/` | `homepage` | (none) |
+| Church Listing | `/church/{slug}.htm` | `church` | `data-church-id` |
+| Business Listing | `/business/{slug}.htm` | `business` | `data-business-id` |
+| Member Dashboard | `/dashboard/member` | `member` | `data-member-id` |
 
 ---
 
