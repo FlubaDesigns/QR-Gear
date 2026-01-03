@@ -25,8 +25,8 @@ interface UploadResult {
 }
 
 function useFirebaseStorage(): boolean {
-  const mode = process.env.STORAGE_MODE || 'postgres-only';
-  return mode === 'dual-write' || mode === 'firestore-only';
+  // Always use Firebase Storage - no Replit fallback
+  return true;
 }
 
 function ensureFirebaseInitialized() {
@@ -278,40 +278,21 @@ export async function downloadAndStoreFromUrl(
       mimeType = 'image/jpeg';
     }
     
-    if (useFirebaseStorage()) {
-      ensureFirebaseInitialized();
-      
-      const bucket = getStorageBucket();
-      const fullPath = `custom-designs/${filename}`;
-      
-      const file = bucket.file(fullPath);
-      await file.save(buffer, {
-        metadata: {
-          contentType: mimeType,
-        },
-      });
-      
-      const publicUrl = `/api/files/${filename}`;
-      console.log(`[FirebaseStorage] Stored permanently at: ${publicUrl}`);
-      return publicUrl;
-    } else {
-      const { Client: ObjectStorageClient } = await import('@replit/object-storage');
-      
-      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-      if (!bucketId) {
-        console.error(`[Storage] DEFAULT_OBJECT_STORAGE_BUCKET_ID not set`);
-        return null;
-      }
-      
-      const client = new ObjectStorageClient({ bucketId });
-      const fullPath = `custom-designs/${filename}`;
-      
-      await client.uploadFromBytes(fullPath, buffer);
-      
-      const publicUrl = `/api/files/${filename}`;
-      console.log(`[ReplitStorage] Stored permanently at: ${publicUrl}`);
-      return publicUrl;
-    }
+    ensureFirebaseInitialized();
+    
+    const bucket = getStorageBucket();
+    const fullPath = `custom-designs/${filename}`;
+    
+    const file = bucket.file(fullPath);
+    await file.save(buffer, {
+      metadata: {
+        contentType: mimeType,
+      },
+    });
+    
+    const publicUrl = `/api/files/${filename}`;
+    console.log(`[FirebaseStorage] Stored permanently at: ${publicUrl}`);
+    return publicUrl;
   } catch (err) {
     console.error(`[Storage] Failed to download/store image:`, err);
     return null;

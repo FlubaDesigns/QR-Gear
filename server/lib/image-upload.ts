@@ -19,8 +19,8 @@ interface UploadResult {
 }
 
 function useFirebaseStorage(): boolean {
-  const mode = process.env.STORAGE_MODE || 'postgres-only';
-  return mode === 'dual-write' || mode === 'firestore-only';
+  // Always use Firebase Storage - no Replit fallback
+  return true;
 }
 
 export async function uploadImage(
@@ -40,96 +40,18 @@ export async function uploadImage(
     throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
 
-  if (useFirebaseStorage()) {
-    return uploadToFirebaseStorage(buffer, originalName, mimeType, 'hosted-images');
-  }
-
-  const { objectStorageClient } = await import('../replit_integrations/object_storage');
-  
-  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-  if (!bucketId) {
-    throw new Error('DEFAULT_OBJECT_STORAGE_BUCKET_ID not set. Please set up object storage.');
-  }
-
-  const extension = mimeType.split('/')[1] || 'jpg';
-  const uniqueId = crypto.randomBytes(8).toString('hex');
-  const objectName = `hosted-images/${uniqueId}.${extension}`;
-
-  const bucket = objectStorageClient.bucket(bucketId);
-  const file = bucket.file(objectName);
-
-  await file.save(buffer, {
-    metadata: {
-      contentType: mimeType,
-    },
-  });
-
-  return {
-    fileName: objectName,
-    storageUrl: objectName,
-    publicUrl: `/api/images/${uniqueId}`,
-    sizeBytes: buffer.length,
-    mimeType,
-  };
+  // Always use Firebase Storage
+  return uploadToFirebaseStorage(buffer, originalName, mimeType, 'hosted-images');
 }
 
 export async function getImageBuffer(fileName: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
-  if (useFirebaseStorage()) {
-    return getFileFromFirebaseStorage(fileName, 'hosted-images');
-  }
-
-  try {
-    const { objectStorageClient } = await import('../replit_integrations/object_storage');
-    
-    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-    if (!bucketId) {
-      return null;
-    }
-
-    const bucket = objectStorageClient.bucket(bucketId);
-    const file = bucket.file(fileName);
-
-    const [exists] = await file.exists();
-    if (!exists) {
-      return null;
-    }
-
-    const [contents] = await file.download();
-    const extension = fileName.split('.').pop() || 'jpg';
-    const mimeType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
-
-    return {
-      buffer: contents,
-      mimeType,
-    };
-  } catch (error) {
-    console.error('Error downloading image:', error);
-    return null;
-  }
+  // Always use Firebase Storage
+  return getFileFromFirebaseStorage(fileName, 'hosted-images');
 }
 
 export async function deleteImage(fileName: string): Promise<boolean> {
-  if (useFirebaseStorage()) {
-    return deleteFromFirebaseStorage(fileName, 'hosted-images');
-  }
-
-  try {
-    const { objectStorageClient } = await import('../replit_integrations/object_storage');
-    
-    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-    if (!bucketId) {
-      return false;
-    }
-
-    const bucket = objectStorageClient.bucket(bucketId);
-    const file = bucket.file(fileName);
-
-    await file.delete();
-    return true;
-  } catch (error) {
-    console.error('Error deleting image:', error);
-    return false;
-  }
+  // Always use Firebase Storage
+  return deleteFromFirebaseStorage(fileName, 'hosted-images');
 }
 
 export async function uploadImageFromBuffer(
@@ -148,41 +70,8 @@ export async function uploadImageFromBuffer(
 
   const folder = folderPath || 'custom-designs';
 
-  if (useFirebaseStorage()) {
-    return uploadToFirebaseStorage(buffer, originalName, mimeType, folder);
-  }
-
-  const { objectStorageClient } = await import('../replit_integrations/object_storage');
-  
-  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-  if (!bucketId) {
-    throw new Error('DEFAULT_OBJECT_STORAGE_BUCKET_ID not set. Please set up object storage.');
-  }
-
-  const extension = mimeType.split('/')[1] || 'jpg';
-  const uniqueId = crypto.randomBytes(8).toString('hex');
-  const objectName = `${folder}/${uniqueId}.${extension}`;
-
-  const bucket = objectStorageClient.bucket(bucketId);
-  const file = bucket.file(objectName);
-
-  await file.save(buffer, {
-    metadata: {
-      contentType: mimeType,
-    },
-  });
-
-  const publicUrl = folder.startsWith('library/')
-    ? `/api/library-files/${uniqueId}.${extension}`
-    : `/api/files/${uniqueId}.${extension}`;
-
-  return {
-    fileName: objectName,
-    storageUrl: objectName,
-    publicUrl,
-    sizeBytes: buffer.length,
-    mimeType,
-  };
+  // Always use Firebase Storage
+  return uploadToFirebaseStorage(buffer, originalName, mimeType, folder);
 }
 
 export { ALLOWED_MIME_TYPES, MAX_FILE_SIZE };
