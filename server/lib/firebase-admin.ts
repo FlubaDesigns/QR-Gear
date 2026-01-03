@@ -1,7 +1,9 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getStorage, Storage } from 'firebase-admin/storage';
 
 let db: Firestore | null = null;
+let storageInstance: Storage | null = null;
 let initialized = false;
 let app: App | null = null;
 
@@ -51,7 +53,10 @@ export function initializeFirebase(): Firestore {
     }
 
     db = getFirestore();
+    storageInstance = getStorage();
     initialized = true;
+    
+    console.log('[Firebase] Storage bucket:', getStorageBucketName());
     
     return db;
   } catch (error) {
@@ -65,6 +70,25 @@ export function getFirestoreDb(): Firestore {
     return initializeFirebase();
   }
   return db;
+}
+
+export function getFirebaseStorage(): Storage {
+  if (!storageInstance) {
+    initializeFirebase();
+  }
+  return storageInstance!;
+}
+
+export function getStorageBucket() {
+  const storage = getFirebaseStorage();
+  const bucketName = getStorageBucketName();
+  return storage.bucket(bucketName);
+}
+
+export function getStorageBucketName(): string {
+  return process.env.VITE_FIREBASE_STORAGE_BUCKET || 
+         process.env.FIREBASE_STORAGE_BUCKET || 
+         `${process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`;
 }
 
 export function isFirebaseInitialized(): boolean {
