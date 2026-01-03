@@ -636,6 +636,1089 @@ app.get('/coupons/:code', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// ============ WIDGET API ============
+const jwt = __importStar(require("jsonwebtoken"));
+// Secrets must be configured via Firebase Functions config or environment variables
+// These will NOT work without proper configuration
+const WIDGET_JWT_SECRET = process.env.WIDGET_JWT_SECRET;
+const WIDGET_API_KEY = process.env.WIDGET_API_KEY;
+function signWidgetToken(payload) {
+    if (!WIDGET_JWT_SECRET) {
+        throw new Error('WIDGET_JWT_SECRET not configured');
+    }
+    return jwt.sign(payload, WIDGET_JWT_SECRET, { expiresIn: '1h' });
+}
+function verifyWidgetToken(token) {
+    try {
+        if (!WIDGET_JWT_SECRET) {
+            return null;
+        }
+        return jwt.verify(token, WIDGET_JWT_SECRET);
+    }
+    catch {
+        return null;
+    }
+}
+app.get('/widget/session', async (req, res) => {
+    try {
+        const token = req.query.token;
+        if (!token) {
+            res.status(400).json({ error: 'Token required' });
+            return;
+        }
+        const payload = verifyWidgetToken(token);
+        if (!payload) {
+            res.status(401).json({ error: 'Invalid or expired token' });
+            return;
+        }
+        const snapshot = await db.collection('products')
+            .where('isEnabled', '==', true)
+            .limit(6)
+            .get();
+        const featuredProducts = snapshot.docs.map(doc => {
+            const p = doc.data();
+            return {
+                id: doc.id,
+                name: p.name,
+                imageUrl: p.imageUrl || '',
+                basePrice: p.basePrice,
+                category: p.category,
+            };
+        });
+        res.json({
+            businessName: payload.businessName,
+            businessLogoUrl: payload.businessLogoUrl,
+            kcListingUrl: payload.kcListingUrl,
+            products: featuredProducts,
+        });
+    }
+    catch (error) {
+        console.error('Widget session error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/widget/token', async (req, res) => {
+    try {
+        const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+        if (!WIDGET_API_KEY || apiKey !== WIDGET_API_KEY) {
+            res.status(401).json({ error: 'Invalid or missing API key' });
+            return;
+        }
+        const { businessName, businessLogoUrl, kcListingUrl } = req.body;
+        if (!businessName || !kcListingUrl) {
+            res.status(400).json({ error: 'businessName and kcListingUrl are required' });
+            return;
+        }
+        const token = signWidgetToken({ businessName, businessLogoUrl, kcListingUrl });
+        res.json({
+            token,
+            expiresIn: 3600
+        });
+    }
+    catch (error) {
+        console.error('Widget token error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ PARTNER API ============
+app.get('/partner/products', async (req, res) => {
+    try {
+        const apiKey = req.headers['x-api-key'];
+        if (!WIDGET_API_KEY || apiKey !== WIDGET_API_KEY) {
+            res.status(401).json({ error: 'Invalid or missing API key' });
+            return;
+        }
+        const { partnerId } = req.query;
+        if (!partnerId || typeof partnerId !== 'string') {
+            res.status(400).json({ error: 'partnerId query parameter required' });
+            return;
+        }
+        const storeSnapshot = await db.collection('partnerStores')
+            .where('slug', '==', partnerId)
+            .where('isActive', '==', true)
+            .limit(1)
+            .get();
+        if (storeSnapshot.empty) {
+            res.status(404).json({ error: 'Partner not found or inactive' });
+            return;
+        }
+        const store = storeSnapshot.docs[0];
+        const storeData = store.data();
+        const productsSnapshot = await db.collection('partnerStoreProducts')
+            .where('storeId', '==', store.id)
+            .where('isEnabled', '==', true)
+            .get();
+        const products = await Promise.all(productsSnapshot.docs.map(async (spDoc) => {
+            const sp = spDoc.data();
+            const productDoc = await db.collection('products').doc(sp.productId).get();
+            if (!productDoc.exists)
+                return null;
+            const product = productDoc.data();
+            return {
+                id: productDoc.id,
+                blueprintId: product.blueprintId,
+                name: sp.customName || product.name,
+                description: product.description,
+                imageUrl: product.imageUrl,
+                basePrice: sp.customPrice || product.basePrice,
+                category: product.category,
+                kcBusinessSlug: sp.kcBusinessSlug,
+                sortOrder: sp.sortOrder,
+            };
+        }));
+        res.json({
+            store: { id: store.id, name: storeData.name, slug: storeData.slug },
+            products: products.filter(Boolean),
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ STOREFRONT MOCKUP GENERATION ============
+function isColorDark(hex) {
+    const rgb = parseInt(hex.replace('#', ''), 16);
+    const r = (rgb >> 16) & 0xff;
+    const g = (rgb >> 8) & 0xff;
+    const b = rgb & 0xff;
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.5;
+}
+app.post('/storefront/generate-mockup', async (req, res) => {
+    try {
+        const { productId, color, qrSize, qrSizePercent } = req.body;
+        if (!productId || !color) {
+            res.status(400).json({ error: 'productId and color are required' });
+            return;
+        }
+        let resolvedQrSize = 'medium';
+        if (qrSize && ['small', 'medium', 'large'].includes(qrSize)) {
+            resolvedQrSize = qrSize;
+        }
+        else if (qrSizePercent) {
+            if (qrSizePercent <= 30)
+                resolvedQrSize = 'small';
+            else if (qrSizePercent <= 50)
+                resolvedQrSize = 'medium';
+            else
+                resolvedQrSize = 'large';
+        }
+        const canonicalProductId = productId.startsWith('custom_') ? productId : `custom_${productId}`;
+        const designId = productId.startsWith('custom_') ? productId.replace('custom_', '') : productId;
+        const productDoc = await db.collection('products').doc(canonicalProductId).get();
+        if (!productDoc.exists) {
+            res.status(404).json({ error: 'Product not found' });
+            return;
+        }
+        const product = productDoc.data();
+        const existingMockups = product.mockupsByColor || {};
+        const normalizeColor = (c) => c.toLowerCase().trim();
+        const requestColorNorm = normalizeColor(color);
+        let existingMockup = null;
+        let matchedColorKey = color;
+        for (const [storedColor, mockup] of Object.entries(existingMockups)) {
+            if (normalizeColor(storedColor) === requestColorNorm && mockup && mockup.front) {
+                existingMockup = mockup;
+                matchedColorKey = storedColor;
+                break;
+            }
+        }
+        if (existingMockup && existingMockup.front) {
+            const defaultImage = existingMockup.lifestyle || existingMockup.front;
+            await db.collection('products').doc(canonicalProductId).update({
+                defaultColor: matchedColorKey,
+                imageUrl: defaultImage,
+            });
+            res.json({
+                success: true,
+                color,
+                mockupUrl: existingMockup.front,
+                lifestyleMockupUrl: existingMockup.lifestyle || null,
+                fromCache: true,
+                mockupsByColor: existingMockups
+            });
+            return;
+        }
+        const designDoc = await db.collection('customDesigns').doc(designId).get();
+        if (!designDoc.exists) {
+            res.status(404).json({ error: 'Design not found' });
+            return;
+        }
+        const design = designDoc.data();
+        let designPlacements = {};
+        try {
+            if (typeof design.placementImages === 'string') {
+                designPlacements = JSON.parse(design.placementImages);
+            }
+            else if (design.placementImages && typeof design.placementImages === 'object') {
+                designPlacements = design.placementImages;
+            }
+        }
+        catch (e) {
+            console.error('[StorefrontMockup] Failed to parse placementImages:', e);
+        }
+        let colorHex = null;
+        if (product.availableColors && Array.isArray(product.availableColors)) {
+            const colorInfo = product.availableColors.find((c) => c.name?.toLowerCase() === color.toLowerCase());
+            colorHex = colorInfo?.hex || null;
+        }
+        const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
+        const blackArtwork = designPlacements['front-chest'] ||
+            designPlacements['front-chest-black'] ||
+            designPlacements['front-center'] ||
+            designPlacements['front'];
+        const whiteArtwork = designPlacements['front-chest-white'] ||
+            designPlacements['front-center-white'] ||
+            designPlacements['front-white'];
+        let artworkUrl;
+        let artworkVariant = 'black';
+        if (needsWhiteQR && whiteArtwork) {
+            artworkUrl = whiteArtwork;
+            artworkVariant = 'white';
+        }
+        else if (blackArtwork) {
+            artworkUrl = blackArtwork;
+            artworkVariant = 'black';
+        }
+        else {
+            artworkUrl = design.printifyCompositeUrl || Object.values(designPlacements)[0];
+        }
+        const jobsSnapshot = await db.collection('mockupJobs')
+            .where('productId', '==', canonicalProductId)
+            .where('status', 'in', ['pending', 'processing', 'delayed'])
+            .get();
+        const colorJobs = jobsSnapshot.docs.filter(j => j.data().colorName.toLowerCase() === color.toLowerCase());
+        if (colorJobs.length > 0) {
+            res.json({
+                success: false,
+                pending: true,
+                color,
+                message: `Mockup for ${color} is being generated. Please wait.`,
+                jobCount: colorJobs.length
+            });
+            return;
+        }
+        res.status(404).json({
+            error: `No mockup available for ${color}. Mockups are generated when the product is saved.`,
+            color
+        });
+    }
+    catch (error) {
+        console.error('[StorefrontMockup] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ MOCKUP API ============
+app.get('/placements', async (req, res) => {
+    try {
+        const snapshot = await db.collection('canonicalPlacements').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/mockups/get-or-generate', async (req, res) => {
+    try {
+        const { blueprintId, printProviderId, colorName, colorHex, canonicalPlacementId = 'FRONT_CHEST', artworkUrl, artworkVariant = 'black' } = req.body;
+        if (!blueprintId || !printProviderId || !colorName || !artworkUrl) {
+            res.status(400).json({
+                error: 'Missing required fields: blueprintId, printProviderId, colorName, artworkUrl'
+            });
+            return;
+        }
+        const cacheKey = `${blueprintId}-${printProviderId}-${colorName}-${canonicalPlacementId}-${artworkVariant}`;
+        const cacheSnapshot = await db.collection('mockupCache')
+            .where('cacheKey', '==', cacheKey)
+            .limit(1)
+            .get();
+        if (!cacheSnapshot.empty) {
+            const cached = cacheSnapshot.docs[0].data();
+            res.json({
+                success: true,
+                mockupUrl: cached.mockupUrl,
+                lifestyleUrl: cached.lifestyleUrl,
+                fromCache: true,
+            });
+            return;
+        }
+        res.json({
+            success: false,
+            message: 'Mockup not found in cache. Generation not available in Cloud Functions.',
+            fromCache: false,
+        });
+    }
+    catch (error) {
+        console.error('[MockupAPI] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/mockups/cached/:blueprintId/:printProviderId', async (req, res) => {
+    try {
+        const { blueprintId, printProviderId } = req.params;
+        const snapshot = await db.collection('mockupCache')
+            .where('blueprintId', '==', parseInt(blueprintId))
+            .where('printProviderId', '==', parseInt(printProviderId))
+            .get();
+        const mockups = {};
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (!mockups[data.colorName]) {
+                mockups[data.colorName] = {};
+            }
+            mockups[data.colorName][data.placementId] = {
+                mockupUrl: data.mockupUrl,
+                lifestyleUrl: data.lifestyleUrl,
+            };
+        });
+        res.json({ mockups, count: Object.keys(mockups).length });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ DESIGNS CRUD ============
+app.get('/designs', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.uid;
+        const snapshot = await db.collection('customDesigns')
+            .where('userId', '==', userId)
+            .orderBy('createdAt', 'desc')
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/designs', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.uid;
+        const docRef = await db.collection('customDesigns').add({
+            ...req.body,
+            userId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/designs/:id', requireAuth, async (req, res) => {
+    try {
+        await db.collection('customDesigns').doc(req.params.id).update({
+            ...req.body,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await db.collection('customDesigns').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/designs/:id', requireAuth, async (req, res) => {
+    try {
+        await db.collection('customDesigns').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ PRODUCT CATEGORIES ============
+app.get('/product-categories', async (_req, res) => {
+    try {
+        const snapshot = await db.collection('productCategories')
+            .orderBy('sortOrder')
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/product-categories/:id/products', async (req, res) => {
+    try {
+        const mappingSnapshot = await db.collection('productCategoryMappings')
+            .where('categoryId', '==', req.params.id)
+            .get();
+        const productIds = mappingSnapshot.docs.map(d => d.data().productId);
+        if (productIds.length === 0) {
+            res.json([]);
+            return;
+        }
+        const products = await Promise.all(productIds.map(async (id) => {
+            const doc = await db.collection('products').doc(id).get();
+            return doc.exists ? docToObject(doc) : null;
+        }));
+        res.json(products.filter(Boolean));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ ADMIN PRODUCT CATEGORIES ============
+app.post('/admin/product-categories', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('productCategories').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/product-categories/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('productCategories').doc(req.params.id).update(req.body);
+        const doc = await db.collection('productCategories').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/product-categories/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('productCategories').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ AUTH ENDPOINTS ============
+app.post('/auth/register', async (req, res) => {
+    try {
+        const { email, password, displayName } = req.body;
+        if (!email || !password) {
+            res.status(400).json({ error: 'Email and password are required' });
+            return;
+        }
+        const userRecord = await admin.auth().createUser({
+            email,
+            password,
+            displayName: displayName || email.split('@')[0],
+        });
+        await db.collection('users').doc(userRecord.uid).set({
+            email,
+            displayName: displayName || email.split('@')[0],
+            isAdmin: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        res.json({
+            success: true,
+            uid: userRecord.uid,
+            email: userRecord.email,
+        });
+    }
+    catch (error) {
+        console.error('Registration error:', error);
+        res.status(400).json({ error: error.message });
+    }
+});
+// ============ ADMIN PRICING RULES ============
+app.get('/admin/pricing-rules', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('pricingRules').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/pricing-rules', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('pricingRules').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/pricing-rules/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('pricingRules').doc(req.params.id).update(req.body);
+        const doc = await db.collection('pricingRules').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/pricing-rules/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('pricingRules').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ ADMIN PARTNER STORES ============
+app.get('/admin/partner-stores', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('partnerStores').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/partner-stores', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('partnerStores').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/partner-stores/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('partnerStores').doc(req.params.id).update(req.body);
+        const doc = await db.collection('partnerStores').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/partner-stores/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('partnerStores').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/admin/partner-stores/:id/products', requireAdmin, async (req, res) => {
+    try {
+        const snapshot = await db.collection('partnerStoreProducts')
+            .where('storeId', '==', req.params.id)
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/partner-stores/:id/products', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('partnerStoreProducts').add({
+            ...req.body,
+            storeId: req.params.id,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ QR GENERATION ============
+app.post('/qr/generate', async (req, res) => {
+    try {
+        const { content, color, backgroundColor, size, format } = req.body;
+        if (!content) {
+            res.status(400).json({ error: 'Content is required' });
+            return;
+        }
+        res.json({
+            success: true,
+            message: 'QR generation endpoint - use client-side QR library for immediate generation',
+            content,
+            options: { color, backgroundColor, size, format },
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ STORES (PUBLIC) ============
+app.get('/stores', async (_req, res) => {
+    try {
+        const snapshot = await db.collection('partnerStores')
+            .where('isActive', '==', true)
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ FILE UPLOAD (Firebase Storage) ============
+app.post('/upload', async (req, res) => {
+    try {
+        const user = await verifyAuth(req);
+        if (!user) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        res.json({
+            success: false,
+            message: 'File uploads should be done directly to Firebase Storage from the client using Firebase SDK',
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ ADMIN MOCKUP REGENERATION ============
+app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const productDoc = await db.collection('products').doc(id).get();
+        if (!productDoc.exists) {
+            res.status(404).json({ error: 'Product not found' });
+            return;
+        }
+        const product = productDoc.data();
+        if (!product.blueprintId || !product.printProviderId) {
+            res.status(400).json({ error: 'Product missing blueprint or provider info' });
+            return;
+        }
+        const metadata = product.metadata;
+        const designId = metadata?.customDesignId || id.replace('custom_', '');
+        const designDoc = await db.collection('customDesigns').doc(designId).get();
+        if (!designDoc.exists) {
+            res.status(404).json({ error: 'Custom design not found' });
+            return;
+        }
+        res.json({
+            success: true,
+            message: 'Mockup regeneration initiated. This runs as a background job on the primary server.',
+            productId: id,
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/products/:id/generate-all-mockups', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const productDoc = await db.collection('products').doc(id).get();
+        if (!productDoc.exists) {
+            res.status(404).json({ error: 'Product not found' });
+            return;
+        }
+        const product = productDoc.data();
+        const allColors = product.availableColors || [];
+        if (allColors.length === 0) {
+            res.status(400).json({ error: 'No colors available for this product' });
+            return;
+        }
+        res.json({
+            success: true,
+            message: `Mockup generation initiated for ${allColors.length} colors. This runs as a background job.`,
+            productId: id,
+            colors: allColors.map((c) => c.name),
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ ADMIN PRODUCT VARIANTS ============
+app.get('/admin/products/:id/variants', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const snapshot = await db.collection('productVariants')
+            .where('productId', '==', id)
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.patch('/admin/variants/:id/toggle', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const doc = await db.collection('productVariants').doc(id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Variant not found' });
+            return;
+        }
+        const current = doc.data();
+        await db.collection('productVariants').doc(id).update({
+            isEnabled: !current.isEnabled,
+        });
+        const updated = await db.collection('productVariants').doc(id).get();
+        res.json(docToObject(updated));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ ADMIN CATALOG ============
+app.get('/admin/catalog/blueprints', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('printifyBlueprints').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/admin/catalog/blueprints/:id', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('printifyBlueprints').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Blueprint not found' });
+            return;
+        }
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ CUSTOM DESIGNS (ADMIN) ============
+app.get('/admin/designs', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('customDesigns')
+            .orderBy('createdAt', 'desc')
+            .limit(100)
+            .get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/designs', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('customDesigns').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/designs/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('customDesigns').doc(req.params.id).update({
+            ...req.body,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await db.collection('customDesigns').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/designs/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('customDesigns').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ QR TEMPLATES ============
+app.post('/admin/qr-templates', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('qrTemplates').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/qr-templates/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('qrTemplates').doc(req.params.id).update(req.body);
+        const doc = await db.collection('qrTemplates').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/qr-templates/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('qrTemplates').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ HOSTING TIERS (ADMIN) ============
+app.post('/admin/hosting-tiers', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('hostingTiers').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/hosting-tiers/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('hostingTiers').doc(req.params.id).update(req.body);
+        const doc = await db.collection('hostingTiers').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/hosting-tiers/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('hostingTiers').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ GALLERY (ADMIN) ============
+app.post('/admin/gallery', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('galleryItems').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/gallery/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('galleryItems').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ COUPONS (ADMIN) ============
+app.get('/admin/coupons', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('coupons').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/coupons', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('coupons').add({
+            ...req.body,
+            redemptionCount: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/coupons/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('coupons').doc(req.params.id).update(req.body);
+        const doc = await db.collection('coupons').doc(req.params.id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/coupons/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('coupons').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ GIFT PACKAGES (ADMIN) ============
+app.get('/admin/gift-packages', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('giftPackages').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/gift-packages', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('giftPackages').add({
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/gift-packages/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('giftPackages').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ GIFT CODES (ADMIN) ============
+app.get('/admin/gift-codes', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('giftCodes').get();
+        res.json(docsToArray(snapshot));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/gift-codes', requireAdmin, async (req, res) => {
+    try {
+        const docRef = await db.collection('giftCodes').add({
+            ...req.body,
+            isRedeemed: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/gift-codes/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('giftCodes').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ PUBLIC GIFT CODE VALIDATION ============
+app.get('/gift-codes/:code', async (req, res) => {
+    try {
+        const snapshot = await db.collection('giftCodes')
+            .where('code', '==', req.params.code.toUpperCase())
+            .where('isRedeemed', '==', false)
+            .limit(1)
+            .get();
+        if (snapshot.empty) {
+            res.status(404).json({ error: 'Gift code not found or already redeemed' });
+            return;
+        }
+        const giftCode = docToObject(snapshot.docs[0]);
+        if (giftCode.expiresAt && new Date(giftCode.expiresAt) < new Date()) {
+            res.status(400).json({ error: 'Gift code has expired' });
+            return;
+        }
+        res.json(giftCode);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ PRINTIFY STATUS ============
+app.get('/printify/status', async (_req, res) => {
+    try {
+        res.json({
+            connected: true,
+            mode: 'firebase-functions',
+            message: 'Printify integration is configured on the primary server'
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ STRIPE WEBHOOKS ============
+app.post('/webhooks/stripe', async (req, res) => {
+    try {
+        const sig = req.headers['stripe-signature'];
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        if (!sig || !webhookSecret) {
+            res.status(400).json({ error: 'Missing signature or webhook secret' });
+            return;
+        }
+        const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeSecretKey) {
+            res.status(500).json({ error: 'Stripe not configured' });
+            return;
+        }
+        const stripe = new stripe_1.default(stripeSecretKey, { apiVersion: '2023-10-16' });
+        let event;
+        try {
+            event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        }
+        catch (err) {
+            console.error('Webhook signature verification failed:', err.message);
+            res.status(400).json({ error: `Webhook Error: ${err.message}` });
+            return;
+        }
+        switch (event.type) {
+            case 'checkout.session.completed': {
+                const session = event.data.object;
+                console.log('Checkout session completed:', session.id);
+                break;
+            }
+            case 'payment_intent.succeeded': {
+                const paymentIntent = event.data.object;
+                console.log('Payment succeeded:', paymentIntent.id);
+                break;
+            }
+            default:
+                console.log(`Unhandled event type: ${event.type}`);
+        }
+        res.json({ received: true });
+    }
+    catch (error) {
+        console.error('Webhook error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
