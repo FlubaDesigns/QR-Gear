@@ -96,6 +96,293 @@ function docsToArray(snapshot: FirebaseFirestore.QuerySnapshot): any[] {
   return snapshot.docs.map(doc => docToObject(doc));
 }
 
+// ============ PRINTFUL CLIENT (No Replit Dependencies) ============
+
+const PRINTFUL_API_BASE = 'https://api.printful.com';
+
+// Get Printful API key from environment variables
+function getPrintfulApiKey(): string {
+  return process.env.PRINTFUL_API_KEY || '';
+}
+
+interface PrintfulMockupTask {
+  task_key: string;
+  status: 'pending' | 'completed' | 'failed';
+  mockups?: { placement: string; variant_ids: number[]; mockup_url: string; extra?: any[] }[];
+  error?: string;
+}
+
+interface PrintfulVariant {
+  id: number;
+  product_id: number;
+  name: string;
+  size: string;
+  color: string;
+  color_code: string;
+  image: string;
+  price: string;
+  in_stock: boolean;
+}
+
+class PrintfulClient {
+  private get headers() {
+    return {
+      'Authorization': `Bearer ${getPrintfulApiKey()}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  get isConfigured(): boolean {
+    const key = getPrintfulApiKey();
+    return !!key && key.length > 10;
+  }
+
+  private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
+    const url = `${PRINTFUL_API_BASE}${endpoint}`;
+    const options: RequestInit = { method, headers: this.headers };
+    if (body) options.body = JSON.stringify(body);
+    
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Printful API error: ${response.status} - ${errorText}`);
+    }
+    const data = await response.json();
+    return data.result as T;
+  }
+
+  async getProduct(productId: number): Promise<{ product: any; variants: PrintfulVariant[] }> {
+    return this.request<{ product: any; variants: PrintfulVariant[] }>('GET', `/products/${productId}`);
+  }
+
+  async getPrintfiles(productId: number): Promise<any> {
+    return this.request<any>('GET', `/mockup-generator/printfiles/${productId}`);
+  }
+
+  async getVariantsByColor(productId: number, colorName: string): Promise<PrintfulVariant[]> {
+    const productData = await this.getProduct(productId);
+    const lowerColor = colorName.toLowerCase().replace(/^solid\s+/i, '');
+    return productData.variants.filter(v => 
+      v.color.toLowerCase() === lowerColor || 
+      v.color.toLowerCase().includes(lowerColor) ||
+      v.name.toLowerCase().includes(lowerColor)
+    );
+  }
+
+  async createMockupTask(
+    productId: number,
+    variantIds: number[],
+    files: Array<{ placement: string; image_url: string; position?: any }>,
+    format: 'jpg' | 'png' = 'jpg',
+    optionGroups?: string[]
+  ): Promise<PrintfulMockupTask> {
+    const body: any = { variant_ids: variantIds, format, files };
+    if (optionGroups?.length) body.option_groups = optionGroups;
+    console.log('[Printful] Creating mockup task for product', productId);
+    return this.request<PrintfulMockupTask>('POST', `/mockup-generator/create-task/${productId}`, body);
+  }
+
+  async getMockupTaskResult(taskKey: string): Promise<PrintfulMockupTask> {
+    return this.request<PrintfulMockupTask>('GET', `/mockup-generator/task?task_key=${encodeURIComponent(taskKey)}`);
+  }
+
+  async waitForMockupTask(taskKey: string, maxWaitMs: number = 60000): Promise<PrintfulMockupTask> {
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+      const result = await this.getMockupTaskResult(taskKey);
+      if (result.status === 'completed') return result;
+      if (result.status === 'failed') throw new Error(`Printful mockup failed: ${result.error}`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    throw new Error(`Printful mockup task timed out after ${maxWaitMs}ms`);
+  }
+}
+
+const printfulClient = new PrintfulClient();
+
+// ============ COLOR LUMINANCE HELPERS ============
+
+function isValidHexColor(hexColor: string | undefined | null): boolean {
+  if (!hexColor) return false;
+  const hex = hexColor.replace("#", "");
+  return /^[0-9A-Fa-f]{6}$/.test(hex);
+}
+
+function isColorDark(hexColor: string | undefined | null): boolean {
+  if (!isValidHexColor(hexColor)) return false;
+  const hex = hexColor!.replace("#", "");
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+  const toLinear = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return luminance < 0.5;
+}
+
+// ============ FIREBASE STORAGE UPLOAD ============
+
+async function downloadAndStoreImage(imageUrl: string, storagePath: string): Promise<string | null> {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error(`Failed to download: ${response.status}`);
+    
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const bucket = storage.bucket();
+    const file = bucket.file(storagePath);
+    
+    await file.save(buffer, {
+      metadata: { contentType: 'image/jpeg' },
+      public: true,
+    });
+    
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+    console.log(`[Storage] Uploaded to: ${publicUrl}`);
+    return publicUrl;
+  } catch (error: any) {
+    console.error('[Storage] Upload failed:', error.message);
+    return null;
+  }
+}
+
+// ============ MOCKUP GENERATION (Full Implementation) ============
+
+interface MockupRequest {
+  blueprintId: number;
+  printProviderId: number;
+  colorName: string;
+  colorHex?: string;
+  artworkUrl: string;
+  artworkVariant?: 'black' | 'white';
+}
+
+interface MockupResult {
+  mockupUrl: string;
+  lifestyleMockupUrl?: string | null;
+  fromCache: boolean;
+}
+
+// Default Printify blueprint to Printful product mappings (fallback)
+const DEFAULT_BLUEPRINT_MAPPINGS: Record<number, number> = {
+  5: 71,      // Bella Canvas 3001 Unisex Jersey Tee
+  6: 71,      // Gildan alternative
+  145: 380,   // Heavyweight tee
+  474: 71,    // Cotton Crew
+};
+
+// Look up Printful product ID from Firestore mapping or fallback
+async function getPrintfulProductId(blueprintId: number): Promise<number | null> {
+  // Check Firestore mapping first
+  const mappingSnapshot = await db.collection('printifyPrintfulMapping')
+    .where('printifyBlueprintId', '==', blueprintId)
+    .where('isActive', '==', true)
+    .limit(1)
+    .get();
+  
+  if (!mappingSnapshot.empty) {
+    const mapping = mappingSnapshot.docs[0].data();
+    return mapping.printfulProductId;
+  }
+  
+  // Fallback to hardcoded defaults
+  return DEFAULT_BLUEPRINT_MAPPINGS[blueprintId] || null;
+}
+
+async function generateMockupFromPrintful(request: MockupRequest): Promise<MockupResult> {
+  const { blueprintId, colorName, colorHex, artworkUrl, artworkVariant = 'black' } = request;
+  
+  // Check Firestore cache first
+  const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}`;
+  const cacheDoc = await db.collection('mockupCache').doc(cacheKey).get();
+  
+  if (cacheDoc.exists) {
+    const cached = cacheDoc.data()!;
+    if (cached.status === 'active' && cached.mockupUrl) {
+      console.log(`[Mockup] Cache HIT: ${colorName}`);
+      return {
+        mockupUrl: cached.mockupUrl,
+        lifestyleMockupUrl: cached.lifestyleMockupUrl,
+        fromCache: true,
+      };
+    }
+  }
+  
+  console.log(`[Mockup] Cache MISS: ${colorName} - generating via Printful`);
+  
+  if (!printfulClient.isConfigured) {
+    throw new Error('Printful API key not configured');
+  }
+  
+  // Map Printify blueprint to Printful product (from Firestore or fallback)
+  const printfulProductId = await getPrintfulProductId(blueprintId);
+  if (!printfulProductId) {
+    throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printifyPrintfulMapping collection.`);
+  }
+  
+  // Get variants for this color
+  const variants = await printfulClient.getVariantsByColor(printfulProductId, colorName);
+  if (variants.length === 0) {
+    throw new Error(`No Printful variants found for color: ${colorName}`);
+  }
+  
+  const variantId = variants[0].id;
+  
+  // Get printfile specs
+  const printfileData = await printfulClient.getPrintfiles(printfulProductId);
+  const frontPrintfile = printfileData?.printfiles?.find((p: any) => 
+    p.placement === 'front' || p.placement === 'default'
+  );
+  
+  // Create mockup task
+  const task = await printfulClient.createMockupTask(
+    printfulProductId,
+    [variantId],
+    [{ placement: 'front', image_url: artworkUrl }],
+    'jpg',
+    ['Lifestyle']
+  );
+  
+  // Wait for completion
+  const result = await printfulClient.waitForMockupTask(task.task_key, 90000);
+  
+  if (!result.mockups || result.mockups.length === 0) {
+    throw new Error('No mockups returned from Printful');
+  }
+  
+  // Find flat and lifestyle mockups
+  let flatMockup = result.mockups.find(m => !m.placement.includes('lifestyle'));
+  let lifestyleMockup = result.mockups.find(m => m.placement.includes('lifestyle'));
+  
+  if (!flatMockup) flatMockup = result.mockups[0];
+  
+  // Download and store in Firebase Storage
+  const timestamp = Date.now();
+  const storagePath = `mockups/${blueprintId}/${colorName.replace(/\s+/g, '_')}_${artworkVariant}_${timestamp}.jpg`;
+  const permanentUrl = await downloadAndStoreImage(flatMockup.mockup_url, storagePath);
+  
+  let lifestyleUrl: string | null = null;
+  if (lifestyleMockup) {
+    const lifestylePath = `mockups/${blueprintId}/${colorName.replace(/\s+/g, '_')}_${artworkVariant}_lifestyle_${timestamp}.jpg`;
+    lifestyleUrl = await downloadAndStoreImage(lifestyleMockup.mockup_url, lifestylePath);
+  }
+  
+  // Cache in Firestore
+  await db.collection('mockupCache').doc(cacheKey).set({
+    blueprintId,
+    colorName,
+    artworkVariant,
+    mockupUrl: permanentUrl || flatMockup.mockup_url,
+    lifestyleMockupUrl: lifestyleUrl,
+    status: 'active',
+    generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  
+  return {
+    mockupUrl: permanentUrl || flatMockup.mockup_url,
+    lifestyleMockupUrl: lifestyleUrl,
+    fromCache: false,
+  };
+}
+
 app.get('/health', (_req: Request, res: Response): void => {
   res.json({ 
     status: 'ok', 
@@ -805,15 +1092,6 @@ app.get('/partner/products', async (req: Request, res: Response): Promise<void> 
 
 // ============ STOREFRONT MOCKUP GENERATION ============
 
-function isColorDark(hex: string): boolean {
-  const rgb = parseInt(hex.replace('#', ''), 16);
-  const r = (rgb >> 16) & 0xff;
-  const g = (rgb >> 8) & 0xff;
-  const b = rgb & 0xff;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance < 0.5;
-}
-
 app.post('/storefront/generate-mockup', async (req: Request, res: Response): Promise<void> => {
   try {
     const { productId, color, qrSize, qrSizePercent } = req.body;
@@ -924,30 +1202,57 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
       artworkUrl = design.printifyCompositeUrl || Object.values(designPlacements)[0] as string;
     }
     
-    const jobsSnapshot = await db.collection('mockupJobs')
-      .where('productId', '==', canonicalProductId)
-      .where('status', 'in', ['pending', 'processing', 'delayed'])
-      .get();
-    
-    const colorJobs = jobsSnapshot.docs.filter(j => 
-      j.data().colorName.toLowerCase() === color.toLowerCase()
-    );
-    
-    if (colorJobs.length > 0) {
-      res.json({ 
-        success: false, 
-        pending: true,
-        color, 
-        message: `Mockup for ${color} is being generated. Please wait.`,
-        jobCount: colorJobs.length
+    // Generate mockup via Printful if not cached
+    if (!printfulClient.isConfigured) {
+      res.status(404).json({ 
+        error: `No mockup available for ${color}. Printful API key not configured.`,
+        color 
       });
       return;
     }
     
-    res.status(404).json({ 
-      error: `No mockup available for ${color}. Mockups are generated when the product is saved.`,
-      color 
-    });
+    try {
+      console.log(`[StorefrontMockup] Generating mockup for ${color} via Printful...`);
+      const mockupResult = await generateMockupFromPrintful({
+        blueprintId: product.blueprintId,
+        printProviderId: product.printProviderId || 0,
+        colorName: color,
+        colorHex: colorHex || undefined,
+        artworkUrl,
+        artworkVariant,
+      });
+      
+      // Update product with new mockup
+      const updatedMockups = {
+        ...existingMockups,
+        [color]: {
+          front: mockupResult.mockupUrl,
+          lifestyle: mockupResult.lifestyleMockupUrl,
+        },
+      };
+      
+      const defaultImage = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
+      await db.collection('products').doc(canonicalProductId).update({
+        mockupsByColor: updatedMockups,
+        defaultColor: color,
+        imageUrl: defaultImage,
+      });
+      
+      res.json({
+        success: true,
+        color,
+        mockupUrl: mockupResult.mockupUrl,
+        lifestyleMockupUrl: mockupResult.lifestyleMockupUrl,
+        fromCache: mockupResult.fromCache,
+        mockupsByColor: updatedMockups,
+      });
+    } catch (genError: any) {
+      console.error(`[StorefrontMockup] Printful generation failed:`, genError.message);
+      res.status(500).json({ 
+        error: `Failed to generate mockup for ${color}: ${genError.message}`,
+        color 
+      });
+    }
   } catch (error: any) {
     console.error('[StorefrontMockup] Error:', error);
     res.status(500).json({ error: error.message });
@@ -1001,11 +1306,39 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
       return;
     }
     
-    res.json({
-      success: false,
-      message: 'Mockup not found in cache. Generation not available in Cloud Functions.',
-      fromCache: false,
-    });
+    // Generate via Printful if not in cache
+    if (!printfulClient.isConfigured) {
+      res.json({
+        success: false,
+        message: 'Mockup not in cache and Printful API key not configured.',
+        fromCache: false,
+      });
+      return;
+    }
+    
+    try {
+      const mockupResult = await generateMockupFromPrintful({
+        blueprintId,
+        printProviderId,
+        colorName,
+        colorHex,
+        artworkUrl,
+        artworkVariant: artworkVariant as 'black' | 'white',
+      });
+      
+      res.json({
+        success: true,
+        mockupUrl: mockupResult.mockupUrl,
+        lifestyleUrl: mockupResult.lifestyleMockupUrl,
+        fromCache: mockupResult.fromCache,
+      });
+    } catch (genError: any) {
+      res.status(500).json({
+        success: false,
+        error: genError.message,
+        fromCache: false,
+      });
+    }
   } catch (error: any) {
     console.error('[MockupAPI] Error:', error);
     res.status(500).json({ error: error.message });
@@ -1370,17 +1703,22 @@ app.post('/upload', async (req: Request, res: Response): Promise<void> => {
 app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const productDoc = await db.collection('products').doc(id).get();
+    const { color } = req.body;
     
+    const productDoc = await db.collection('products').doc(id).get();
     if (!productDoc.exists) {
       res.status(404).json({ error: 'Product not found' });
       return;
     }
     
     const product = productDoc.data()!;
+    if (!product.blueprintId) {
+      res.status(400).json({ error: 'Product missing blueprint info' });
+      return;
+    }
     
-    if (!product.blueprintId || !product.printProviderId) {
-      res.status(400).json({ error: 'Product missing blueprint or provider info' });
+    if (!printfulClient.isConfigured) {
+      res.status(500).json({ error: 'Printful API key not configured' });
       return;
     }
     
@@ -1393,10 +1731,66 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req: Req
       return;
     }
     
+    const design = designDoc.data()!;
+    let designPlacements: Record<string, string> = {};
+    if (typeof design.placementImages === 'object') {
+      designPlacements = design.placementImages as Record<string, string>;
+    }
+    
+    const blackArtwork = designPlacements['front-chest'] || designPlacements['front'];
+    const whiteArtwork = designPlacements['front-chest-white'];
+    
+    // Get colors to regenerate
+    const allColors = (product.availableColors as Array<{ name: string; hex: string }>) || [];
+    const colorsToProcess = color ? allColors.filter(c => c.name === color) : allColors;
+    
+    if (colorsToProcess.length === 0) {
+      res.status(400).json({ error: 'No colors to process' });
+      return;
+    }
+    
+    const results: any[] = [];
+    const mockupsByColor: Record<string, any> = product.mockupsByColor || {};
+    
+    for (const colorInfo of colorsToProcess) {
+      try {
+        const needsWhiteQR = isColorDark(colorInfo.hex);
+        const artworkUrl = (needsWhiteQR && whiteArtwork) ? whiteArtwork : blackArtwork;
+        const artworkVariant = (needsWhiteQR && whiteArtwork) ? 'white' as const : 'black' as const;
+        
+        const mockupResult = await generateMockupFromPrintful({
+          blueprintId: product.blueprintId,
+          printProviderId: product.printProviderId || 0,
+          colorName: colorInfo.name,
+          colorHex: colorInfo.hex,
+          artworkUrl,
+          artworkVariant,
+        });
+        
+        mockupsByColor[colorInfo.name] = {
+          front: mockupResult.mockupUrl,
+          lifestyle: mockupResult.lifestyleMockupUrl,
+        };
+        
+        results.push({ color: colorInfo.name, success: true, mockupUrl: mockupResult.mockupUrl });
+        
+        // Rate limit between colors
+        if (colorsToProcess.indexOf(colorInfo) < colorsToProcess.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (err: any) {
+        results.push({ color: colorInfo.name, success: false, error: err.message });
+      }
+    }
+    
+    // Update product with new mockups
+    await db.collection('products').doc(id).update({ mockupsByColor });
+    
     res.json({
       success: true,
-      message: 'Mockup regeneration initiated. This runs as a background job on the primary server.',
-      productId: id,
+      message: `Regenerated mockups for ${results.filter(r => r.success).length}/${colorsToProcess.length} colors`,
+      results,
+      mockupsByColor,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1421,9 +1815,15 @@ app.post('/admin/products/:id/generate-all-mockups', requireAdmin, async (req: R
       return;
     }
     
+    if (!printfulClient.isConfigured) {
+      res.status(500).json({ error: 'Printful API key not configured' });
+      return;
+    }
+    
+    // Start generation in background (respond immediately for long operations)
     res.json({
       success: true,
-      message: `Mockup generation initiated for ${allColors.length} colors. This runs as a background job.`,
+      message: `Mockup generation started for ${allColors.length} colors. Use regenerate-mockups endpoint for synchronous generation.`,
       productId: id,
       colors: allColors.map((c: any) => c.name),
     });
@@ -1844,4 +2244,5 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Export the API function
 export const api = functions.https.onRequest(app);
