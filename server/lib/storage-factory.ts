@@ -11,11 +11,12 @@ let currentMode: StorageMode = 'postgres-only';
 let storageInstance: IStorage | null = null;
 
 export function getStorageMode(): StorageMode {
-  const envMode = process.env.STORAGE_MODE as StorageMode | undefined;
-  if (envMode && ['postgres-only', 'dual-write', 'firestore-only'].includes(envMode)) {
+  // Default to firestore-only for Firebase independence (no Replit dependencies)
+  const envMode = (process.env.STORAGE_MODE || 'firestore-only') as StorageMode;
+  if (['postgres-only', 'dual-write', 'firestore-only'].includes(envMode)) {
     return envMode;
   }
-  return 'postgres-only';
+  return 'firestore-only';
 }
 
 export function setStorageMode(mode: StorageMode): void {

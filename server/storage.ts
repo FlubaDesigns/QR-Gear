@@ -3812,9 +3812,9 @@ export function isStorageReady(): boolean {
   return storageInitialized;
 }
 
-// Get the current storage mode
+// Get the current storage mode (defaults to firestore-only for Firebase independence)
 export function getStorageMode(): string {
-  return process.env.STORAGE_MODE || 'postgres-only';
+  return process.env.STORAGE_MODE || 'firestore-only';
 }
 
 // Export a proxy that uses the wrapped storage once initialized
