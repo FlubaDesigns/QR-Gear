@@ -586,6 +586,86 @@ app.post('/checkout', requireAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+app.post('/checkout/embedded', requireAuth, async (req, res) => {
+    try {
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeKey) {
+            res.status(500).json({ error: 'Stripe not configured' });
+            return;
+        }
+        const stripe = new stripe_1.default(stripeKey);
+        const userId = req.user.uid;
+        const { returnUrl } = req.body;
+        const cartSnapshot = await db.collection('cartItems').where('userId', '==', userId).get();
+        if (cartSnapshot.empty) {
+            res.status(400).json({ error: 'Cart is empty' });
+            return;
+        }
+        const cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const lineItems = cartItems.map((item) => {
+            const customization = item.customization || {};
+            const productName = customization.productName || 'Custom QR Product';
+            const productImage = customization.productImage;
+            const price = parseFloat(item.price);
+            if (isNaN(price) || price <= 0) {
+                throw new Error(`Invalid price for item: ${productName}`);
+            }
+            return {
+                price_data: {
+                    currency: 'usd',
+                    product_data: {
+                        name: productName,
+                        images: productImage ? [productImage] : [],
+                    },
+                    unit_amount: Math.round(price * 100),
+                },
+                quantity: item.quantity || 1,
+            };
+        });
+        const cartItemIds = cartItems.map((item) => item.id);
+        const session = await stripe.checkout.sessions.create({
+            ui_mode: 'embedded',
+            payment_method_types: ['card'],
+            line_items: lineItems,
+            mode: 'payment',
+            return_url: returnUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+            metadata: {
+                userId,
+                cartItemIds: JSON.stringify(cartItemIds),
+            },
+        });
+        res.json({ clientSecret: session.client_secret });
+    }
+    catch (error) {
+        console.error('Embedded checkout error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/checkout/session-status', requireAuth, async (req, res) => {
+    try {
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeKey) {
+            res.status(500).json({ error: 'Stripe not configured' });
+            return;
+        }
+        const sessionId = req.query.session_id;
+        if (!sessionId) {
+            res.status(400).json({ error: 'session_id is required' });
+            return;
+        }
+        const stripe = new stripe_1.default(stripeKey);
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        res.json({
+            status: session.status,
+            paymentStatus: session.payment_status,
+            customerEmail: session.customer_details?.email,
+            amountTotal: session.amount_total ? session.amount_total / 100 : 0,
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/checkout/verify/:sessionId', requireAuth, async (req, res) => {
     try {
         const stripeKey = process.env.STRIPE_SECRET_KEY;

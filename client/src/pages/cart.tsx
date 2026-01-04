@@ -68,23 +68,7 @@ export default function Cart() {
     handleMerge();
   }, [isAuthenticated, guestItems.length]);
 
-  const checkoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/checkout");
-      return await response.json();
-    },
-    onSuccess: (data: { url: string }) => {
-      window.location.href = data.url;
-    },
-    onError: () => {
-      toast({
-        title: "Checkout failed",
-        description: "Please try again or contact support",
-        variant: "destructive",
-      });
-    },
-  });
-
+  
   const isLoading = authLoading || (isAuthenticated && cartLoading);
 
   const displayItems = isAuthenticated ? serverCartItems : guestItems;
@@ -123,10 +107,10 @@ export default function Cart() {
         title: "Sign in required",
         description: "Please sign in to complete your purchase",
       });
-      setLocation("/account");
+      setLocation("/login?redirect=/checkout");
       return;
     }
-    checkoutMutation.mutate();
+    setLocation("/checkout");
   };
 
   if (isLoading) {
@@ -294,14 +278,10 @@ export default function Cart() {
                     className="w-full" 
                     size="lg"
                     onClick={handleCheckout}
-                    disabled={checkoutMutation.isPending || !isAuthenticated}
+                    disabled={!isAuthenticated}
                     data-testid="button-checkout"
                   >
-                    {checkoutMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                    )}
+                    <ArrowRight className="w-4 h-4 mr-2" />
                     {isAuthenticated ? "Proceed to Checkout" : "Sign in to Checkout"}
                   </Button>
 

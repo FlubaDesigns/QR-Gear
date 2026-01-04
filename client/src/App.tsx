@@ -23,6 +23,7 @@ import AdminPartners from "@/pages/admin-partners";
 import AdminOrchestration from "@/pages/admin-orchestration";
 import AdminOrders from "@/pages/admin-orders";
 import StoreBuild from "@/pages/store-build";
+import Checkout from "@/pages/checkout";
 import CheckoutSuccess from "@/pages/checkout-success";
 import Customs from "@/pages/customs";
 import GiftShop from "@/pages/gift-shop";
@@ -94,6 +95,7 @@ function Router() {
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/email-templates" component={AdminEmailTemplates} />
       <Route path="/admin/sales/build" component={StoreBuild} />
+      <Route path="/checkout" component={Checkout} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />
