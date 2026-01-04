@@ -101,24 +101,27 @@ async function calculateAuthoritativePrice(customization: CustomizationPricing):
     }
     const product = productDoc.data()!;
     
+    // Per replit.md: "Prices are set by the admin and stored in products.customer_price. 
+    // This value is the single source of truth for retail pricing and is never recalculated from base costs."
+    const customerPrice = parseFloat(product.customerPrice || product.customer_price || '0');
+    if (customerPrice > 0) {
+      // customerPrice is the FINAL authoritative price - no upcharges added
+      return customerPrice;
+    }
+    
+    // Fallback: Calculate from base costs only if customerPrice is not set
     const settingsDoc = await db.collection('settings').doc('admin').get();
     const settings = settingsDoc.exists ? settingsDoc.data() : {};
     
-    let price: number;
-    const customerPrice = parseFloat(product.customerPrice || product.customer_price || '0');
+    const basePrice = parseFloat(product.basePrice || product.base_price || '0');
+    const markupPercent = parseFloat(product.markupPercent || product.markup_percent || settings?.globalMarkupPercent || '25');
+    const markupFixed = parseFloat(product.markupFixed || product.markup_fixed || settings?.globalMarkupFixed || '0');
+    const qrCost = parseFloat(product.qrProductionCost || product.qr_production_cost || settings?.globalQrProductionCost || '2');
     
-    if (customerPrice > 0) {
-      price = customerPrice;
-    } else {
-      const basePrice = parseFloat(product.basePrice || product.base_price || '0');
-      const markupPercent = parseFloat(product.markupPercent || product.markup_percent || settings?.globalMarkupPercent || '25');
-      const markupFixed = parseFloat(product.markupFixed || product.markup_fixed || settings?.globalMarkupFixed || '0');
-      const qrCost = parseFloat(product.qrProductionCost || product.qr_production_cost || settings?.globalQrProductionCost || '2');
-      
-      price = basePrice + qrCost;
-      price = price * (1 + markupPercent / 100) + markupFixed;
-    }
+    let price = basePrice + qrCost;
+    price = price * (1 + markupPercent / 100) + markupFixed;
     
+    // Upcharges only apply when calculating from base costs (no customerPrice)
     if (hasTextAbove && productLine !== 'dynamic') {
       const upcharge = parseFloat(settings?.textAboveUpcharge || '2');
       price += upcharge;
