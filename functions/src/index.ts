@@ -307,6 +307,248 @@ class PrintfulClient {
 
 const printfulClient = new PrintfulClient();
 
+// ============ PRINTIFY CLIENT (Order Fulfillment) ============
+
+const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
+
+function getPrintifyApiKey(): string {
+  return process.env.PRINTIFY_API_KEY || '';
+}
+
+function getPrintifyShopId(): string {
+  return (process.env.PRINTIFY_SHOP_ID || '').trim();
+}
+
+interface PrintifyOrderAddress {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  country: string;
+  region: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  zip: string;
+}
+
+interface PrintifyOrderLineItem {
+  product_id: string;
+  variant_id: number;
+  quantity: number;
+  print_areas?: any;
+}
+
+interface CreatePrintifyOrderRequest {
+  external_id: string;
+  label?: string;
+  line_items: PrintifyOrderLineItem[];
+  shipping_method: number;
+  send_shipping_notification: boolean;
+  address_to: PrintifyOrderAddress;
+}
+
+class PrintifyClient {
+  private get headers() {
+    return {
+      'Authorization': `Bearer ${getPrintifyApiKey()}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  get isConfigured(): boolean {
+    const key = getPrintifyApiKey();
+    const shopId = getPrintifyShopId();
+    return !!key && key.length > 10 && !!shopId;
+  }
+
+  private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
+    const url = `${PRINTIFY_API_BASE}${endpoint}`;
+    const options: RequestInit = { method, headers: this.headers };
+    if (body) options.body = JSON.stringify(body);
+    
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Printify API error: ${response.status} - ${errorText}`);
+    }
+    return response.json() as Promise<T>;
+  }
+
+  async createOrder(orderRequest: CreatePrintifyOrderRequest): Promise<{ id: string }> {
+    const shopId = getPrintifyShopId();
+    return this.request<{ id: string }>('POST', `/shops/${shopId}/orders.json`, orderRequest);
+  }
+
+  async submitOrderToProduction(orderId: string): Promise<void> {
+    const shopId = getPrintifyShopId();
+    await this.request<void>('POST', `/shops/${shopId}/orders/${orderId}/send_to_production.json`, {});
+  }
+
+  async getOrder(orderId: string): Promise<any> {
+    const shopId = getPrintifyShopId();
+    return this.request<any>('GET', `/shops/${shopId}/orders/${orderId}.json`);
+  }
+
+  async getOrders(): Promise<any[]> {
+    const shopId = getPrintifyShopId();
+    const result = await this.request<{ data: any[] }>('GET', `/shops/${shopId}/orders.json`);
+    return result.data || [];
+  }
+}
+
+const printifyClient = new PrintifyClient();
+
+// ============ ORDER FULFILLMENT HELPERS ============
+
+interface ShippingAddress {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  region: string;
+  zip: string;
+  country: string;
+}
+
+async function submitOrderToPrintify(
+  orderId: string,
+  shippingAddress: ShippingAddress
+): Promise<{ success: boolean; printifyOrderId?: string; error?: string }> {
+  try {
+    if (!printifyClient.isConfigured) {
+      return { success: false, error: 'Printify API not configured (missing API key or shop ID)' };
+    }
+
+    // Get the order
+    const orderDoc = await db.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) {
+      return { success: false, error: 'Order not found' };
+    }
+    const order = orderDoc.data()!;
+
+    // Check if already submitted
+    if (order.printifyOrderId) {
+      return { success: true, printifyOrderId: order.printifyOrderId };
+    }
+
+    // Get order items
+    const orderItemsSnapshot = await db.collection('orderItems')
+      .where('orderId', '==', orderId)
+      .get();
+    
+    if (orderItemsSnapshot.empty) {
+      return { success: false, error: 'No order items found' };
+    }
+
+    const lineItems: PrintifyOrderLineItem[] = [];
+    
+    for (const doc of orderItemsSnapshot.docs) {
+      const item = doc.data();
+      const customization = item.customization as Record<string, any>;
+      
+      if (!customization?.printifyProductId || !customization?.printifyVariantId) {
+        console.warn(`Order item ${doc.id} missing Printify product/variant IDs`);
+        continue;
+      }
+
+      lineItems.push({
+        product_id: customization.printifyProductId,
+        variant_id: customization.printifyVariantId,
+        quantity: item.quantity || 1,
+        print_areas: customization.printAreas,
+      });
+    }
+
+    if (!lineItems.length) {
+      return { success: false, error: 'No valid line items for Printify (missing product/variant IDs)' };
+    }
+
+    const addressTo: PrintifyOrderAddress = {
+      first_name: shippingAddress.firstName,
+      last_name: shippingAddress.lastName,
+      email: shippingAddress.email,
+      phone: shippingAddress.phone || '',
+      country: shippingAddress.country,
+      region: shippingAddress.region,
+      address1: shippingAddress.address1,
+      address2: shippingAddress.address2,
+      city: shippingAddress.city,
+      zip: shippingAddress.zip,
+    };
+
+    const printifyOrderRequest: CreatePrintifyOrderRequest = {
+      external_id: orderId,
+      label: `QR Gear Order ${orderId.slice(0, 8).toUpperCase()}`,
+      line_items: lineItems,
+      shipping_method: 1, // Standard shipping
+      send_shipping_notification: true,
+      address_to: addressTo,
+    };
+
+    // Create order in Printify
+    const printifyOrder = await printifyClient.createOrder(printifyOrderRequest);
+
+    // Update order status
+    await db.collection('orders').doc(orderId).update({
+      printifyOrderId: printifyOrder.id,
+      status: 'processing',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Submit to production
+    await printifyClient.submitOrderToProduction(printifyOrder.id);
+
+    // Update status to in_production
+    await db.collection('orders').doc(orderId).update({
+      status: 'in_production',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`Order ${orderId} submitted to Printify: ${printifyOrder.id}`);
+    return { success: true, printifyOrderId: printifyOrder.id };
+  } catch (error: any) {
+    console.error(`Failed to submit order ${orderId} to Printify:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function checkPrintifyOrderStatus(printifyOrderId: string): Promise<{
+  status: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  carrier?: string;
+} | null> {
+  try {
+    if (!printifyClient.isConfigured) {
+      return null;
+    }
+
+    const printifyOrder = await printifyClient.getOrder(printifyOrderId);
+    
+    const status = printifyOrder.status?.toLowerCase() || 'unknown';
+    const shipments = printifyOrder.shipments || [];
+    
+    if (shipments.length > 0) {
+      const latestShipment = shipments[shipments.length - 1];
+      return {
+        status,
+        trackingNumber: latestShipment.tracking_number,
+        trackingUrl: latestShipment.tracking_url,
+        carrier: latestShipment.carrier,
+      };
+    }
+
+    return { status };
+  } catch (error: any) {
+    console.error(`Failed to check Printify order status for ${printifyOrderId}:`, error);
+    return null;
+  }
+}
+
 // ============ COLOR LUMINANCE HELPERS ============
 
 function isValidHexColor(hexColor: string | undefined | null): boolean {
@@ -814,6 +1056,9 @@ app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
+      shipping_address_collection: {
+        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
+      },
       success_url: successUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${req.headers.origin}/cart`,
       metadata: {
@@ -896,6 +1141,9 @@ app.post('/checkout/embedded', requireAuth, async (req: Request, res: Response):
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
+      shipping_address_collection: {
+        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
+      },
       return_url: returnUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       metadata: {
         userId,
