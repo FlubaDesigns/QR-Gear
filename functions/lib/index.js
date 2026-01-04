@@ -47,11 +47,29 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const storage = admin.storage();
 const app = (0, express_1.default)();
+// CORS configuration - restrict to known origins
+const ALLOWED_ORIGINS = [
+    'https://qrgear-c1ffd.web.app',
+    'https://qrgear-c1ffd.firebaseapp.com',
+    'https://kingdom-connects.web.app',
+    'https://kingdom-connects.firebaseapp.com',
+    // Development origins
+    ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5000', 'http://localhost:3000'] : []),
+];
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    // Check if origin is allowed
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+    }
+    else if (!origin) {
+        // Allow requests with no origin (like server-to-server or mobile apps)
+        res.header('Access-Control-Allow-Origin', '*');
+        // Note: Don't set credentials with wildcard origin
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
     if (req.method === 'OPTIONS') {
         res.sendStatus(200);
         return;
