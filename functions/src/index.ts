@@ -81,27 +81,87 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction): Pr
   next();
 }
 
-async function getAuthoritativePrice(productId: string): Promise<number | null> {
+interface CustomizationPricing {
+  productId: string;
+  productLine?: string;
+  hasTextAbove?: boolean;
+  hasTextBelow?: boolean;
+  templateId?: string;
+  hostingTierCode?: string;
+}
+
+async function calculateAuthoritativePrice(customization: CustomizationPricing): Promise<number | null> {
   try {
+    const { productId, productLine = 'text', hasTextAbove, hasTextBelow, templateId, hostingTierCode = '1_year' } = customization;
+    
     const productDoc = await db.collection('products').doc(productId).get();
     if (!productDoc.exists) {
       console.warn(`[Pricing] Product not found: ${productId}`);
       return null;
     }
-    const product = productDoc.data();
-    const customerPrice = parseFloat(product?.customerPrice || product?.customer_price || '0');
+    const product = productDoc.data()!;
+    
+    const settingsDoc = await db.collection('settings').doc('admin').get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
+    
+    let price: number;
+    const customerPrice = parseFloat(product.customerPrice || product.customer_price || '0');
+    
     if (customerPrice > 0) {
-      return customerPrice;
+      price = customerPrice;
+    } else {
+      const basePrice = parseFloat(product.basePrice || product.base_price || '0');
+      const markupPercent = parseFloat(product.markupPercent || product.markup_percent || settings?.globalMarkupPercent || '25');
+      const markupFixed = parseFloat(product.markupFixed || product.markup_fixed || settings?.globalMarkupFixed || '0');
+      const qrCost = parseFloat(product.qrProductionCost || product.qr_production_cost || settings?.globalQrProductionCost || '2');
+      
+      price = basePrice + qrCost;
+      price = price * (1 + markupPercent / 100) + markupFixed;
     }
-    const basePrice = parseFloat(product?.basePrice || product?.base_price || '0');
-    if (basePrice > 0) {
-      return basePrice;
+    
+    if (hasTextAbove && productLine !== 'dynamic') {
+      const upcharge = parseFloat(settings?.textAboveUpcharge || '2');
+      price += upcharge;
     }
-    return null;
+    if (hasTextBelow && productLine !== 'dynamic') {
+      const upcharge = parseFloat(settings?.textBelowUpcharge || '2');
+      price += upcharge;
+    }
+    
+    if (productLine === 'template' && templateId) {
+      const templateDoc = await db.collection('qrTemplates').doc(templateId).get();
+      if (templateDoc.exists) {
+        const template = templateDoc.data();
+        const upcharge = parseFloat(template?.priceUpcharge || '0');
+        price += upcharge;
+      }
+    }
+    
+    if (productLine === 'dynamic') {
+      const dynamicUpcharge = parseFloat(settings?.dynamicQrUpcharge || '25');
+      price += dynamicUpcharge;
+    }
+    
+    if ((productLine === 'template' || productLine === 'custom' || productLine === 'dynamic') && hostingTierCode !== '1_year') {
+      const tierSnapshot = await db.collection('hostingTiers').where('tierCode', '==', hostingTierCode).limit(1).get();
+      if (!tierSnapshot.empty) {
+        const tier = tierSnapshot.docs[0].data();
+        if (!tier.isIncluded) {
+          const upcharge = parseFloat(tier.priceUpcharge || '0');
+          price += upcharge;
+        }
+      }
+    }
+    
+    return Math.round(price * 100) / 100;
   } catch (error) {
-    console.error('[Pricing] Error fetching product price:', error);
+    console.error('[Pricing] Error calculating price:', error);
     return null;
   }
+}
+
+async function getAuthoritativePrice(productId: string): Promise<number | null> {
+  return calculateAuthoritativePrice({ productId });
 }
 
 function docToObject(doc: FirebaseFirestore.DocumentSnapshot): any {
@@ -505,7 +565,16 @@ app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const authoritativePrice = await getAuthoritativePrice(productId);
+    const pricingInput: CustomizationPricing = {
+      productId,
+      productLine: customization?.productLine || 'text',
+      hasTextAbove: customization?.hasTextAbove || false,
+      hasTextBelow: customization?.hasTextBelow || false,
+      templateId: customization?.templateId,
+      hostingTierCode: customization?.hostingTierCode || customization?.dynamicHostingTier || '1_year',
+    };
+
+    const authoritativePrice = await calculateAuthoritativePrice(pricingInput);
     if (authoritativePrice === null) {
       res.status(400).json({ error: 'Product not found or has no valid price' });
       return;
@@ -682,8 +751,21 @@ app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<
       const productName = customization.productName || 'Custom QR Product';
       const productImage = customization.productImage;
       
-      const authoritativePrice = productId ? await getAuthoritativePrice(productId) : null;
-      const price = authoritativePrice !== null ? authoritativePrice : parseFloat(item.price);
+      let price: number | null = null;
+      if (productId) {
+        const pricingInput: CustomizationPricing = {
+          productId,
+          productLine: customization.productLine || 'text',
+          hasTextAbove: customization.hasTextAbove || false,
+          hasTextBelow: customization.hasTextBelow || false,
+          templateId: customization.templateId,
+          hostingTierCode: customization.hostingTierCode || customization.dynamicHostingTier || '1_year',
+        };
+        price = await calculateAuthoritativePrice(pricingInput);
+      }
+      if (price === null) {
+        price = parseFloat(item.price);
+      }
       
       if (isNaN(price) || price <= 0) {
         throw new Error(`Invalid price for item: ${productName}`);
@@ -749,8 +831,21 @@ app.post('/checkout/embedded', requireAuth, async (req: Request, res: Response):
       const productName = customization.productName || 'Custom QR Product';
       const productImage = customization.productImage;
       
-      const authoritativePrice = productId ? await getAuthoritativePrice(productId) : null;
-      const price = authoritativePrice !== null ? authoritativePrice : parseFloat(item.price);
+      let price: number | null = null;
+      if (productId) {
+        const pricingInput: CustomizationPricing = {
+          productId,
+          productLine: customization.productLine || 'text',
+          hasTextAbove: customization.hasTextAbove || false,
+          hasTextBelow: customization.hasTextBelow || false,
+          templateId: customization.templateId,
+          hostingTierCode: customization.hostingTierCode || customization.dynamicHostingTier || '1_year',
+        };
+        price = await calculateAuthoritativePrice(pricingInput);
+      }
+      if (price === null) {
+        price = parseFloat(item.price);
+      }
       
       if (isNaN(price) || price <= 0) {
         throw new Error(`Invalid price for item: ${productName}`);
