@@ -350,6 +350,56 @@ The admin panel is designed for touch screens:
 
 ---
 
+## Email Notifications
+
+QR Gear sends automated transactional emails to customers.
+
+### Email Types
+
+1. **Order Confirmation** - Sent automatically when checkout completes
+   - Includes order details, items, prices, and shipping address
+   - Sent to the customer's email from Stripe checkout
+
+2. **Shipping Notification** - Sent when tracking info is available
+   - Includes tracking number, carrier, and tracking link
+   - Auto-sent when syncing order status from Printify (if tracking is new)
+
+### Email API Endpoints (Admin Only)
+
+**Resend Order Confirmation:**
+```
+POST /admin/orders/:id/resend-confirmation
+```
+Manually resend the order confirmation email.
+
+**Send Shipping Notification:**
+```
+POST /admin/orders/:id/send-shipping-email
+```
+Manually send shipping notification (requires tracking number on order).
+
+### Configuration
+
+Email requires `QR_RESEND_API_KEY` environment variable set in Firebase Cloud Functions.
+
+To configure:
+1. Create a Resend account at resend.com
+2. Add and verify your sender domain (e.g., qrgear.com)
+3. Get your API key from Resend dashboard
+4. Add to Cloud Functions via Google Cloud Console:
+   - Go to https://console.cloud.google.com/functions
+   - Select the `api` function
+   - Click Edit → Runtime environment variables
+   - Add `QR_RESEND_API_KEY` with your Resend API key
+
+### Email Sender
+
+Emails are sent from: `QR Gear <noreply@qrgear.com>`
+
+Note: You must verify ownership of qrgear.com domain in Resend before emails will send successfully.
+
+---
+
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.

@@ -84,6 +84,7 @@ The Firebase Cloud Functions require environment variables to be set via Google 
    - `PRINTIFY_SHOP_ID`: Your Printify shop ID
    - `STRIPE_SECRET_KEY`: Your Stripe secret key
    - `STRIPE_WEBHOOK_SECRET`: Your Stripe webhook secret
+   - `QR_RESEND_API_KEY`: Your Resend API key (for transactional emails)
 5. Deploy/Save the changes
 
 ### Deployed Endpoints
@@ -102,8 +103,16 @@ The Firebase Cloud Functions require environment variables to be set via Google 
 - `GET /admin/orders` - List all orders with fulfillment status
 - `GET /admin/orders/:id` - Get order details with items
 - `POST /admin/orders/:id/submit-to-printify` - Submit order to Printify for fulfillment
-- `POST /admin/orders/:id/sync-printify` - Sync order status and tracking from Printify
+- `POST /admin/orders/:id/sync-printify` - Sync order status and tracking from Printify (auto-sends shipping email if tracking is new)
+- `POST /admin/orders/:id/send-shipping-email` - Manually send shipping notification email
+- `POST /admin/orders/:id/resend-confirmation` - Resend order confirmation email
 - `PATCH /admin/orders/:id` - Manually update order status/tracking
+
+### Email System (QR Gear - Separate from KC)
+- Order confirmation emails sent automatically after checkout
+- Shipping notification emails sent automatically when tracking is added via sync-printify
+- Uses Resend API with separate QR Gear account (not shared with KC)
+- Sender: `QR Gear <noreply@qrgear.com>` (requires domain verification in Resend)
 
 ### Order Status Mapping
 - pending/on-hold → pending

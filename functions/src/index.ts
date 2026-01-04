@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
 import Stripe from 'stripe';
+import { Resend } from 'resend';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -9,6 +10,223 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 const storage = admin.storage();
+
+// ============ EMAIL SERVICE (QR Gear - Separate from KC) ============
+
+function getResendApiKey(): string {
+  return process.env.QR_RESEND_API_KEY || '';
+}
+
+function getResendClient(): Resend | null {
+  const apiKey = getResendApiKey();
+  if (!apiKey || apiKey.length < 10) {
+    return null;
+  }
+  return new Resend(apiKey);
+}
+
+const QR_GEAR_FROM_EMAIL = 'QR Gear <noreply@qrgear.com>';
+
+interface OrderEmailData {
+  orderId: string;
+  customerEmail: string;
+  customerName: string;
+  items: Array<{
+    productName: string;
+    quantity: number;
+    price: string;
+  }>;
+  totalAmount: string;
+  shippingAddress?: {
+    address1: string;
+    address2?: string;
+    city: string;
+    region: string;
+    zip: string;
+    country: string;
+  };
+}
+
+interface ShippingEmailData {
+  orderId: string;
+  customerEmail: string;
+  customerName: string;
+  trackingNumber: string;
+  trackingUrl?: string;
+  carrier: string;
+}
+
+async function sendOrderConfirmationEmail(data: OrderEmailData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const resend = getResendClient();
+    if (!resend) {
+      console.warn('[Email] Resend not configured - skipping order confirmation email');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    const itemsHtml = data.items.map(item => 
+      `<tr>
+        <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.productName}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">$${item.price}</td>
+      </tr>`
+    ).join('');
+
+    const shippingHtml = data.shippingAddress ? `
+      <h3 style="color: #333; margin-top: 24px;">Shipping Address</h3>
+      <p style="color: #666; line-height: 1.6;">
+        ${data.shippingAddress.address1}<br>
+        ${data.shippingAddress.address2 ? data.shippingAddress.address2 + '<br>' : ''}
+        ${data.shippingAddress.city}, ${data.shippingAddress.region} ${data.shippingAddress.zip}<br>
+        ${data.shippingAddress.country}
+      </p>
+    ` : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Order Confirmation</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+        <div style="background: white; padding: 32px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <h1 style="color: #333; margin-bottom: 8px;">Order Confirmed!</h1>
+          <p style="color: #666; font-size: 16px;">Thank you for your order, ${data.customerName}.</p>
+          
+          <p style="background: #f0f0f0; padding: 12px; border-radius: 4px; font-family: monospace;">
+            Order #${data.orderId.slice(0, 8).toUpperCase()}
+          </p>
+          
+          <h3 style="color: #333; margin-top: 24px;">Order Details</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #f5f5f5;">
+                <th style="padding: 12px; text-align: left;">Product</th>
+                <th style="padding: 12px; text-align: center;">Qty</th>
+                <th style="padding: 12px; text-align: right;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" style="padding: 12px; font-weight: bold;">Total</td>
+                <td style="padding: 12px; text-align: right; font-weight: bold;">$${data.totalAmount}</td>
+              </tr>
+            </tfoot>
+          </table>
+          
+          ${shippingHtml}
+          
+          <p style="color: #666; margin-top: 24px;">
+            We'll send you another email with tracking information once your order ships.
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+          
+          <p style="color: #999; font-size: 12px;">
+            Questions? Reply to this email or contact us at support@qrgear.com
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const result = await resend.emails.send({
+      from: QR_GEAR_FROM_EMAIL,
+      to: data.customerEmail,
+      subject: `Order Confirmed - #${data.orderId.slice(0, 8).toUpperCase()}`,
+      html,
+    });
+
+    if (result.error) {
+      console.error('[Email] Failed to send order confirmation:', result.error);
+      return { success: false, error: result.error.message };
+    }
+
+    console.log(`[Email] Order confirmation sent to ${data.customerEmail} for order ${data.orderId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Email] Error sending order confirmation:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function sendShippingNotificationEmail(data: ShippingEmailData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const resend = getResendClient();
+    if (!resend) {
+      console.warn('[Email] Resend not configured - skipping shipping notification email');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    const trackingLink = data.trackingUrl 
+      ? `<a href="${data.trackingUrl}" style="color: #0066cc;">${data.trackingNumber}</a>`
+      : data.trackingNumber;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Your Order Has Shipped!</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+        <div style="background: white; padding: 32px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <h1 style="color: #333; margin-bottom: 8px;">Your Order Has Shipped!</h1>
+          <p style="color: #666; font-size: 16px;">Great news, ${data.customerName}! Your order is on its way.</p>
+          
+          <p style="background: #f0f0f0; padding: 12px; border-radius: 4px; font-family: monospace;">
+            Order #${data.orderId.slice(0, 8).toUpperCase()}
+          </p>
+          
+          <div style="background: #e8f5e9; padding: 20px; border-radius: 8px; margin: 24px 0;">
+            <h3 style="color: #2e7d32; margin: 0 0 12px 0;">Tracking Information</h3>
+            <p style="margin: 0; color: #333;">
+              <strong>Carrier:</strong> ${data.carrier}<br>
+              <strong>Tracking Number:</strong> ${trackingLink}
+            </p>
+          </div>
+          
+          ${data.trackingUrl ? `
+            <p style="text-align: center;">
+              <a href="${data.trackingUrl}" style="display: inline-block; background: #333; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500;">
+                Track Your Package
+              </a>
+            </p>
+          ` : ''}
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+          
+          <p style="color: #999; font-size: 12px;">
+            Questions? Reply to this email or contact us at support@qrgear.com
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const result = await resend.emails.send({
+      from: QR_GEAR_FROM_EMAIL,
+      to: data.customerEmail,
+      subject: `Your Order Has Shipped! - #${data.orderId.slice(0, 8).toUpperCase()}`,
+      html,
+    });
+
+    if (result.error) {
+      console.error('[Email] Failed to send shipping notification:', result.error);
+      return { success: false, error: result.error.message };
+    }
+
+    console.log(`[Email] Shipping notification sent to ${data.customerEmail} for order ${data.orderId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Email] Error sending shipping notification:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 const app = express();
 
@@ -2871,6 +3089,9 @@ app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req: Request, r
     if (printifyStatus.status) {
       updates.status = statusMap[printifyStatus.status] || printifyStatus.status;
     }
+    // Check if tracking was just added (for shipping notification email)
+    const hadTrackingBefore = !!order.trackingNumber;
+
     if (printifyStatus.trackingNumber) {
       updates.trackingNumber = printifyStatus.trackingNumber;
       updates.trackingUrl = printifyStatus.trackingUrl;
@@ -2878,13 +3099,156 @@ app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req: Request, r
     }
     
     await db.collection('orders').doc(orderId).update(updates);
+
+    // Reload order data to confirm tracking was added
+    const updatedOrderDoc = await db.collection('orders').doc(orderId).get();
+    const updatedOrder = updatedOrderDoc.data()!;
+    const hasTrackingNow = !!updatedOrder.trackingNumber;
+    const hasNewTracking = hasTrackingNow && !hadTrackingBefore;
+
+    // Send shipping notification email if tracking was just added
+    let emailSent = false;
+    if (hasNewTracking && updatedOrder.customerEmail) {
+      const shippingAddress = updatedOrder.shippingAddress;
+      const customerName = shippingAddress 
+        ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
+        : 'Customer';
+
+      const emailResult = await sendShippingNotificationEmail({
+        orderId,
+        customerEmail: updatedOrder.customerEmail,
+        customerName,
+        trackingNumber: updatedOrder.trackingNumber,
+        trackingUrl: updatedOrder.trackingUrl,
+        carrier: updatedOrder.carrier || 'Carrier',
+      });
+      emailSent = emailResult.success;
+    }
     
     res.json({ 
       success: true, 
       status: updates.status,
       trackingNumber: updates.trackingNumber,
+      shippingEmailSent: emailSent,
       message: 'Order status synced from Printify'
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send shipping notification email manually
+app.post('/admin/orders/:id/send-shipping-email', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id;
+    
+    const orderDoc = await db.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    
+    const order = orderDoc.data()!;
+    
+    if (!order.trackingNumber) {
+      res.status(400).json({ error: 'Order has no tracking number' });
+      return;
+    }
+    
+    if (!order.customerEmail) {
+      res.status(400).json({ error: 'Order has no customer email' });
+      return;
+    }
+    
+    const shippingAddress = order.shippingAddress;
+    const customerName = shippingAddress 
+      ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
+      : 'Customer';
+
+    const result = await sendShippingNotificationEmail({
+      orderId,
+      customerEmail: order.customerEmail,
+      customerName,
+      trackingNumber: order.trackingNumber,
+      trackingUrl: order.trackingUrl,
+      carrier: order.carrier || 'Carrier',
+    });
+    
+    if (result.success) {
+      res.json({ success: true, message: 'Shipping notification email sent' });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resend order confirmation email
+app.post('/admin/orders/:id/resend-confirmation', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id;
+    
+    const orderDoc = await db.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    
+    const order = orderDoc.data()!;
+    
+    if (!order.customerEmail) {
+      res.status(400).json({ error: 'Order has no customer email' });
+      return;
+    }
+    
+    // Get order items
+    const orderItemsSnapshot = await db.collection('orderItems')
+      .where('orderId', '==', orderId)
+      .get();
+    
+    const emailItems = await Promise.all(orderItemsSnapshot.docs.map(async (doc) => {
+      const item = doc.data();
+      let productName = 'Product';
+      if (item.productId) {
+        const productDoc = await db.collection('products').doc(item.productId).get();
+        if (productDoc.exists) {
+          productName = productDoc.data()?.name || 'Product';
+        }
+      }
+      return {
+        productName,
+        quantity: item.quantity || 1,
+        price: item.price || '0',
+      };
+    }));
+
+    const shippingAddress = order.shippingAddress;
+    const customerName = shippingAddress 
+      ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
+      : 'Customer';
+
+    const result = await sendOrderConfirmationEmail({
+      orderId,
+      customerEmail: order.customerEmail,
+      customerName,
+      items: emailItems,
+      totalAmount: order.totalAmount || '0',
+      shippingAddress: shippingAddress ? {
+        address1: shippingAddress.address1,
+        address2: shippingAddress.address2,
+        city: shippingAddress.city,
+        region: shippingAddress.region,
+        zip: shippingAddress.zip,
+        country: shippingAddress.country,
+      } : undefined,
+    });
+    
+    if (result.success) {
+      res.json({ success: true, message: 'Order confirmation email resent' });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -3050,7 +3414,52 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
 
           console.log(`Created ${cartItems.length} order items for order ${orderRef.id}`);
 
-          // Clear cart items
+          // Send order confirmation email BEFORE clearing cart (use orderItems data)
+          const customerEmail = customerDetails?.email;
+          if (customerEmail) {
+            // Fetch order items we just created for accurate email data
+            const orderItemsSnapshot = await db.collection('orderItems')
+              .where('orderId', '==', orderRef.id)
+              .get();
+            
+            const emailItems = await Promise.all(orderItemsSnapshot.docs.map(async (doc) => {
+              const item = doc.data();
+              let productName = 'Product';
+              if (item.productId) {
+                const productDoc = await db.collection('products').doc(item.productId).get();
+                if (productDoc.exists) {
+                  productName = productDoc.data()?.name || 'Product';
+                }
+              }
+              return {
+                productName,
+                quantity: item.quantity || 1,
+                price: item.price || '0',
+              };
+            }));
+
+            const customerName = shippingAddress 
+              ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
+              : customerDetails?.name || 'Customer';
+
+            await sendOrderConfirmationEmail({
+              orderId: orderRef.id,
+              customerEmail,
+              customerName,
+              items: emailItems,
+              totalAmount: totalAmount.toFixed(2),
+              shippingAddress: shippingAddress ? {
+                address1: shippingAddress.address1,
+                address2: shippingAddress.address2,
+                city: shippingAddress.city,
+                region: shippingAddress.region,
+                zip: shippingAddress.zip,
+                country: shippingAddress.country,
+              } : undefined,
+            });
+          }
+
+          // Clear cart items AFTER email is sent
           const batch = db.batch();
           for (const item of cartItems) {
             batch.delete(db.collection('cartItems').doc(item.id));
