@@ -81,6 +81,29 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction): Pr
   next();
 }
 
+async function getAuthoritativePrice(productId: string): Promise<number | null> {
+  try {
+    const productDoc = await db.collection('products').doc(productId).get();
+    if (!productDoc.exists) {
+      console.warn(`[Pricing] Product not found: ${productId}`);
+      return null;
+    }
+    const product = productDoc.data();
+    const customerPrice = parseFloat(product?.customerPrice || product?.customer_price || '0');
+    if (customerPrice > 0) {
+      return customerPrice;
+    }
+    const basePrice = parseFloat(product?.basePrice || product?.base_price || '0');
+    if (basePrice > 0) {
+      return basePrice;
+    }
+    return null;
+  } catch (error) {
+    console.error('[Pricing] Error fetching product price:', error);
+    return null;
+  }
+}
+
 function docToObject(doc: FirebaseFirestore.DocumentSnapshot): any {
   if (!doc.exists) return null;
   const data = doc.data()!;
@@ -474,11 +497,29 @@ app.get('/cart', requireAuth, async (req: Request, res: Response): Promise<void>
 app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
-    const docRef = await db.collection('cartItems').add({
-      ...req.body,
+    const { customization, quantity } = req.body;
+    
+    const productId = customization?.productId;
+    if (!productId) {
+      res.status(400).json({ error: 'Product ID is required' });
+      return;
+    }
+
+    const authoritativePrice = await getAuthoritativePrice(productId);
+    if (authoritativePrice === null) {
+      res.status(400).json({ error: 'Product not found or has no valid price' });
+      return;
+    }
+
+    const cartItem = {
+      customization,
+      quantity: quantity || 1,
+      price: authoritativePrice.toString(),
       userId,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
+    };
+
+    const docRef = await db.collection('cartItems').add(cartItem);
     const doc = await docRef.get();
     res.json(docToObject(doc));
   } catch (error: any) {
@@ -624,19 +665,44 @@ app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<
 
     const stripe = new Stripe(stripeKey);
     const userId = (req as any).user.uid;
-    const { items, successUrl, cancelUrl } = req.body;
+    const { successUrl, cancelUrl } = req.body;
 
-    const lineItems = items.map((item: any) => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.name,
-          images: item.image ? [item.image] : [],
+    const cartSnapshot = await db.collection('cartItems').where('userId', '==', userId).get();
+    
+    if (cartSnapshot.empty) {
+      res.status(400).json({ error: 'Cart is empty' });
+      return;
+    }
+
+    const cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const lineItemsPromises = cartItems.map(async (item: any) => {
+      const customization = item.customization || {};
+      const productId = customization.productId;
+      const productName = customization.productName || 'Custom QR Product';
+      const productImage = customization.productImage;
+      
+      const authoritativePrice = productId ? await getAuthoritativePrice(productId) : null;
+      const price = authoritativePrice !== null ? authoritativePrice : parseFloat(item.price);
+      
+      if (isNaN(price) || price <= 0) {
+        throw new Error(`Invalid price for item: ${productName}`);
+      }
+
+      return {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: productName,
+            images: productImage ? [productImage] : [],
+          },
+          unit_amount: Math.round(price * 100),
         },
-        unit_amount: Math.round(item.price * 100),
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity || 1,
+      };
+    });
+
+    const lineItems = await Promise.all(lineItemsPromises);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -677,11 +743,14 @@ app.post('/checkout/embedded', requireAuth, async (req: Request, res: Response):
 
     const cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const lineItems = cartItems.map((item: any) => {
+    const lineItemsPromises = cartItems.map(async (item: any) => {
       const customization = item.customization || {};
+      const productId = customization.productId;
       const productName = customization.productName || 'Custom QR Product';
       const productImage = customization.productImage;
-      const price = parseFloat(item.price);
+      
+      const authoritativePrice = productId ? await getAuthoritativePrice(productId) : null;
+      const price = authoritativePrice !== null ? authoritativePrice : parseFloat(item.price);
       
       if (isNaN(price) || price <= 0) {
         throw new Error(`Invalid price for item: ${productName}`);
@@ -700,6 +769,7 @@ app.post('/checkout/embedded', requireAuth, async (req: Request, res: Response):
       };
     });
 
+    const lineItems = await Promise.all(lineItemsPromises);
     const cartItemIds = cartItems.map((item: any) => item.id);
 
     const session = await stripe.checkout.sessions.create({
