@@ -2705,10 +2705,216 @@ app.get('/gift-codes/:code', async (req: Request, res: Response): Promise<void> 
 app.get('/printify/status', async (_req: Request, res: Response): Promise<void> => {
   try {
     res.json({ 
-      connected: true, 
+      connected: printifyClient.isConfigured, 
       mode: 'firebase-functions',
-      message: 'Printify integration is configured on the primary server'
+      message: printifyClient.isConfigured 
+        ? 'Printify integration is configured and ready'
+        : 'Printify API key or Shop ID not configured'
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ ADMIN ORDER FULFILLMENT ============
+
+// Get all orders with fulfillment status
+app.get('/admin/orders', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const snapshot = await db.collection('orders')
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
+    
+    const orders = await Promise.all(snapshot.docs.map(async (doc) => {
+      const order = docToObject(doc);
+      
+      // Get order items count
+      const itemsSnapshot = await db.collection('orderItems')
+        .where('orderId', '==', doc.id)
+        .get();
+      
+      return {
+        ...order,
+        itemCount: itemsSnapshot.size,
+      };
+    }));
+    
+    res.json(orders);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single order with items
+app.get('/admin/orders/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderDoc = await db.collection('orders').doc(req.params.id).get();
+    if (!orderDoc.exists) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    
+    const order = docToObject(orderDoc);
+    
+    // Get order items
+    const itemsSnapshot = await db.collection('orderItems')
+      .where('orderId', '==', req.params.id)
+      .get();
+    
+    const items = docsToArray(itemsSnapshot);
+    
+    res.json({ ...order, items });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Submit order to Printify for fulfillment
+app.post('/admin/orders/:id/submit-to-printify', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id;
+    
+    // Get the order
+    const orderDoc = await db.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    
+    const order = orderDoc.data()!;
+    
+    // Check if already submitted
+    if (order.printifyOrderId) {
+      res.json({ 
+        success: true, 
+        message: 'Order already submitted to Printify',
+        printifyOrderId: order.printifyOrderId 
+      });
+      return;
+    }
+    
+    // Get shipping address from order or request body
+    let shippingAddress = order.shippingAddress || req.body.shippingAddress;
+    
+    if (!shippingAddress) {
+      res.status(400).json({ 
+        error: 'Shipping address required. Provide in request body or ensure order has shipping address.' 
+      });
+      return;
+    }
+    
+    // Add email if not present
+    if (!shippingAddress.email) {
+      shippingAddress.email = order.customerEmail || '';
+    }
+    
+    // Submit to Printify
+    const result = await submitOrderToPrintify(orderId, shippingAddress);
+    
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: 'Order submitted to Printify successfully',
+        printifyOrderId: result.printifyOrderId 
+      });
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        error: result.error 
+      });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Sync order status from Printify
+app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id;
+    
+    const orderDoc = await db.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    
+    const order = orderDoc.data()!;
+    
+    if (!order.printifyOrderId) {
+      res.status(400).json({ error: 'Order has not been submitted to Printify' });
+      return;
+    }
+    
+    const printifyStatus = await checkPrintifyOrderStatus(order.printifyOrderId);
+    
+    if (!printifyStatus) {
+      res.status(500).json({ error: 'Failed to get status from Printify' });
+      return;
+    }
+    
+    // Map Printify status to our status
+    const statusMap: Record<string, string> = {
+      'pending': 'pending',
+      'on-hold': 'pending',
+      'payment-not-received': 'pending',
+      'in-production': 'in_production',
+      'fulfilled': 'shipped',
+      'canceled': 'cancelled',
+    };
+    
+    const updates: Record<string, any> = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    
+    if (printifyStatus.status) {
+      updates.status = statusMap[printifyStatus.status] || printifyStatus.status;
+    }
+    if (printifyStatus.trackingNumber) {
+      updates.trackingNumber = printifyStatus.trackingNumber;
+      updates.trackingUrl = printifyStatus.trackingUrl;
+      updates.carrier = printifyStatus.carrier;
+    }
+    
+    await db.collection('orders').doc(orderId).update(updates);
+    
+    res.json({ 
+      success: true, 
+      status: updates.status,
+      trackingNumber: updates.trackingNumber,
+      message: 'Order status synced from Printify'
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update order status manually
+app.patch('/admin/orders/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id;
+    const { status, trackingNumber, carrier, notes } = req.body;
+    
+    const orderDoc = await db.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    
+    const updates: Record<string, any> = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    
+    if (status) updates.status = status;
+    if (trackingNumber !== undefined) updates.trackingNumber = trackingNumber;
+    if (carrier !== undefined) updates.carrier = carrier;
+    if (notes !== undefined) updates.notes = notes;
+    
+    await db.collection('orders').doc(orderId).update(updates);
+    
+    const updatedDoc = await db.collection('orders').doc(orderId).get();
+    res.json(docToObject(updatedDoc));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -2751,6 +2957,97 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         console.log('Checkout session completed:', session.id);
+        
+        // Create order from checkout session
+        try {
+          const userId = session.metadata?.userId;
+          const cartItemIds = session.metadata?.cartItemIds ? JSON.parse(session.metadata.cartItemIds) : [];
+          
+          if (!userId) {
+            console.error('No userId in checkout session metadata');
+            break;
+          }
+
+          // Get cart items
+          let cartItems: any[] = [];
+          if (cartItemIds.length > 0) {
+            // Use specific cart item IDs from metadata
+            for (const itemId of cartItemIds) {
+              const itemDoc = await db.collection('cartItems').doc(itemId).get();
+              if (itemDoc.exists) {
+                cartItems.push({ id: itemDoc.id, ...itemDoc.data() });
+              }
+            }
+          } else {
+            // Fallback: get all cart items for user
+            const cartSnapshot = await db.collection('cartItems').where('userId', '==', userId).get();
+            cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          }
+
+          if (cartItems.length === 0) {
+            console.warn('No cart items found for order creation');
+            break;
+          }
+
+          // Calculate total from cart items
+          const totalAmount = cartItems.reduce((sum, item) => {
+            return sum + parseFloat(item.price || '0') * (item.quantity || 1);
+          }, 0);
+
+          // Extract shipping address from Stripe session
+          const shippingDetails = session.shipping_details;
+          const shippingAddress = shippingDetails ? {
+            firstName: shippingDetails.name?.split(' ')[0] || '',
+            lastName: shippingDetails.name?.split(' ').slice(1).join(' ') || '',
+            address1: shippingDetails.address?.line1 || '',
+            address2: shippingDetails.address?.line2 || '',
+            city: shippingDetails.address?.city || '',
+            region: shippingDetails.address?.state || '',
+            zip: shippingDetails.address?.postal_code || '',
+            country: shippingDetails.address?.country || 'US',
+          } : null;
+
+          // Create order
+          const orderRef = await db.collection('orders').add({
+            userId,
+            status: 'paid',
+            totalAmount: totalAmount.toFixed(2),
+            stripeSessionId: session.id,
+            stripePaymentIntentId: session.payment_intent as string,
+            customerEmail: session.customer_details?.email || null,
+            shippingAddress,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          console.log(`Order created: ${orderRef.id}`);
+
+          // Create order items from cart
+          for (const item of cartItems) {
+            await db.collection('orderItems').add({
+              orderId: orderRef.id,
+              productId: item.productId,
+              quantity: item.quantity || 1,
+              price: item.price,
+              customization: item.customization || {},
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          }
+
+          console.log(`Created ${cartItems.length} order items for order ${orderRef.id}`);
+
+          // Clear cart items
+          const batch = db.batch();
+          for (const item of cartItems) {
+            batch.delete(db.collection('cartItems').doc(item.id));
+          }
+          await batch.commit();
+          console.log(`Cleared ${cartItems.length} cart items for user ${userId}`);
+
+        } catch (orderError: any) {
+          console.error('Error creating order from checkout:', orderError);
+          // Don't fail the webhook - order can be manually reconciled
+        }
         break;
       }
       case 'payment_intent.succeeded': {
