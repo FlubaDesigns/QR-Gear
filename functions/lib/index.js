@@ -273,6 +273,164 @@ class PrintfulClient {
     }
 }
 const printfulClient = new PrintfulClient();
+// ============ PRINTIFY CLIENT (Order Fulfillment) ============
+const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
+function getPrintifyApiKey() {
+    return process.env.PRINTIFY_API_KEY || '';
+}
+function getPrintifyShopId() {
+    return (process.env.PRINTIFY_SHOP_ID || '').trim();
+}
+class PrintifyClient {
+    get headers() {
+        return {
+            'Authorization': `Bearer ${getPrintifyApiKey()}`,
+            'Content-Type': 'application/json',
+        };
+    }
+    get isConfigured() {
+        const key = getPrintifyApiKey();
+        const shopId = getPrintifyShopId();
+        return !!key && key.length > 10 && !!shopId;
+    }
+    async request(method, endpoint, body) {
+        const url = `${PRINTIFY_API_BASE}${endpoint}`;
+        const options = { method, headers: this.headers };
+        if (body)
+            options.body = JSON.stringify(body);
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Printify API error: ${response.status} - ${errorText}`);
+        }
+        return response.json();
+    }
+    async createOrder(orderRequest) {
+        const shopId = getPrintifyShopId();
+        return this.request('POST', `/shops/${shopId}/orders.json`, orderRequest);
+    }
+    async submitOrderToProduction(orderId) {
+        const shopId = getPrintifyShopId();
+        await this.request('POST', `/shops/${shopId}/orders/${orderId}/send_to_production.json`, {});
+    }
+    async getOrder(orderId) {
+        const shopId = getPrintifyShopId();
+        return this.request('GET', `/shops/${shopId}/orders/${orderId}.json`);
+    }
+    async getOrders() {
+        const shopId = getPrintifyShopId();
+        const result = await this.request('GET', `/shops/${shopId}/orders.json`);
+        return result.data || [];
+    }
+}
+const printifyClient = new PrintifyClient();
+async function submitOrderToPrintify(orderId, shippingAddress) {
+    try {
+        if (!printifyClient.isConfigured) {
+            return { success: false, error: 'Printify API not configured (missing API key or shop ID)' };
+        }
+        // Get the order
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) {
+            return { success: false, error: 'Order not found' };
+        }
+        const order = orderDoc.data();
+        // Check if already submitted
+        if (order.printifyOrderId) {
+            return { success: true, printifyOrderId: order.printifyOrderId };
+        }
+        // Get order items
+        const orderItemsSnapshot = await db.collection('orderItems')
+            .where('orderId', '==', orderId)
+            .get();
+        if (orderItemsSnapshot.empty) {
+            return { success: false, error: 'No order items found' };
+        }
+        const lineItems = [];
+        for (const doc of orderItemsSnapshot.docs) {
+            const item = doc.data();
+            const customization = item.customization;
+            if (!customization?.printifyProductId || !customization?.printifyVariantId) {
+                console.warn(`Order item ${doc.id} missing Printify product/variant IDs`);
+                continue;
+            }
+            lineItems.push({
+                product_id: customization.printifyProductId,
+                variant_id: customization.printifyVariantId,
+                quantity: item.quantity || 1,
+                print_areas: customization.printAreas,
+            });
+        }
+        if (!lineItems.length) {
+            return { success: false, error: 'No valid line items for Printify (missing product/variant IDs)' };
+        }
+        const addressTo = {
+            first_name: shippingAddress.firstName,
+            last_name: shippingAddress.lastName,
+            email: shippingAddress.email,
+            phone: shippingAddress.phone || '',
+            country: shippingAddress.country,
+            region: shippingAddress.region,
+            address1: shippingAddress.address1,
+            address2: shippingAddress.address2,
+            city: shippingAddress.city,
+            zip: shippingAddress.zip,
+        };
+        const printifyOrderRequest = {
+            external_id: orderId,
+            label: `QR Gear Order ${orderId.slice(0, 8).toUpperCase()}`,
+            line_items: lineItems,
+            shipping_method: 1, // Standard shipping
+            send_shipping_notification: true,
+            address_to: addressTo,
+        };
+        // Create order in Printify
+        const printifyOrder = await printifyClient.createOrder(printifyOrderRequest);
+        // Update order status
+        await db.collection('orders').doc(orderId).update({
+            printifyOrderId: printifyOrder.id,
+            status: 'processing',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        // Submit to production
+        await printifyClient.submitOrderToProduction(printifyOrder.id);
+        // Update status to in_production
+        await db.collection('orders').doc(orderId).update({
+            status: 'in_production',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`Order ${orderId} submitted to Printify: ${printifyOrder.id}`);
+        return { success: true, printifyOrderId: printifyOrder.id };
+    }
+    catch (error) {
+        console.error(`Failed to submit order ${orderId} to Printify:`, error);
+        return { success: false, error: error.message };
+    }
+}
+async function checkPrintifyOrderStatus(printifyOrderId) {
+    try {
+        if (!printifyClient.isConfigured) {
+            return null;
+        }
+        const printifyOrder = await printifyClient.getOrder(printifyOrderId);
+        const status = printifyOrder.status?.toLowerCase() || 'unknown';
+        const shipments = printifyOrder.shipments || [];
+        if (shipments.length > 0) {
+            const latestShipment = shipments[shipments.length - 1];
+            return {
+                status,
+                trackingNumber: latestShipment.tracking_number,
+                trackingUrl: latestShipment.tracking_url,
+                carrier: latestShipment.carrier,
+            };
+        }
+        return { status };
+    }
+    catch (error) {
+        console.error(`Failed to check Printify order status for ${printifyOrderId}:`, error);
+        return null;
+    }
+}
 // ============ COLOR LUMINANCE HELPERS ============
 function isValidHexColor(hexColor) {
     if (!hexColor)
@@ -710,6 +868,9 @@ app.post('/checkout', requireAuth, async (req, res) => {
             payment_method_types: ['card'],
             line_items: lineItems,
             mode: 'payment',
+            shipping_address_collection: {
+                allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
+            },
             success_url: successUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: cancelUrl || `${req.headers.origin}/cart`,
             metadata: {
@@ -781,6 +942,9 @@ app.post('/checkout/embedded', requireAuth, async (req, res) => {
             payment_method_types: ['card'],
             line_items: lineItems,
             mode: 'payment',
+            shipping_address_collection: {
+                allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
+            },
             return_url: returnUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             metadata: {
                 userId,
@@ -2207,10 +2371,189 @@ app.get('/gift-codes/:code', async (req, res) => {
 app.get('/printify/status', async (_req, res) => {
     try {
         res.json({
-            connected: true,
+            connected: printifyClient.isConfigured,
             mode: 'firebase-functions',
-            message: 'Printify integration is configured on the primary server'
+            message: printifyClient.isConfigured
+                ? 'Printify integration is configured and ready'
+                : 'Printify API key or Shop ID not configured'
         });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ ADMIN ORDER FULFILLMENT ============
+// Get all orders with fulfillment status
+app.get('/admin/orders', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('orders')
+            .orderBy('createdAt', 'desc')
+            .limit(100)
+            .get();
+        const orders = await Promise.all(snapshot.docs.map(async (doc) => {
+            const order = docToObject(doc);
+            // Get order items count
+            const itemsSnapshot = await db.collection('orderItems')
+                .where('orderId', '==', doc.id)
+                .get();
+            return {
+                ...order,
+                itemCount: itemsSnapshot.size,
+            };
+        }));
+        res.json(orders);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Get single order with items
+app.get('/admin/orders/:id', requireAdmin, async (req, res) => {
+    try {
+        const orderDoc = await db.collection('orders').doc(req.params.id).get();
+        if (!orderDoc.exists) {
+            res.status(404).json({ error: 'Order not found' });
+            return;
+        }
+        const order = docToObject(orderDoc);
+        // Get order items
+        const itemsSnapshot = await db.collection('orderItems')
+            .where('orderId', '==', req.params.id)
+            .get();
+        const items = docsToArray(itemsSnapshot);
+        res.json({ ...order, items });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Submit order to Printify for fulfillment
+app.post('/admin/orders/:id/submit-to-printify', requireAdmin, async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        // Get the order
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) {
+            res.status(404).json({ error: 'Order not found' });
+            return;
+        }
+        const order = orderDoc.data();
+        // Check if already submitted
+        if (order.printifyOrderId) {
+            res.json({
+                success: true,
+                message: 'Order already submitted to Printify',
+                printifyOrderId: order.printifyOrderId
+            });
+            return;
+        }
+        // Get shipping address from order or request body
+        let shippingAddress = order.shippingAddress || req.body.shippingAddress;
+        if (!shippingAddress) {
+            res.status(400).json({
+                error: 'Shipping address required. Provide in request body or ensure order has shipping address.'
+            });
+            return;
+        }
+        // Add email if not present
+        if (!shippingAddress.email) {
+            shippingAddress.email = order.customerEmail || '';
+        }
+        // Submit to Printify
+        const result = await submitOrderToPrintify(orderId, shippingAddress);
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Order submitted to Printify successfully',
+                printifyOrderId: result.printifyOrderId
+            });
+        }
+        else {
+            res.status(400).json({
+                success: false,
+                error: result.error
+            });
+        }
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Sync order status from Printify
+app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) {
+            res.status(404).json({ error: 'Order not found' });
+            return;
+        }
+        const order = orderDoc.data();
+        if (!order.printifyOrderId) {
+            res.status(400).json({ error: 'Order has not been submitted to Printify' });
+            return;
+        }
+        const printifyStatus = await checkPrintifyOrderStatus(order.printifyOrderId);
+        if (!printifyStatus) {
+            res.status(500).json({ error: 'Failed to get status from Printify' });
+            return;
+        }
+        // Map Printify status to our status
+        const statusMap = {
+            'pending': 'pending',
+            'on-hold': 'pending',
+            'payment-not-received': 'pending',
+            'in-production': 'in_production',
+            'fulfilled': 'shipped',
+            'canceled': 'cancelled',
+        };
+        const updates = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (printifyStatus.status) {
+            updates.status = statusMap[printifyStatus.status] || printifyStatus.status;
+        }
+        if (printifyStatus.trackingNumber) {
+            updates.trackingNumber = printifyStatus.trackingNumber;
+            updates.trackingUrl = printifyStatus.trackingUrl;
+            updates.carrier = printifyStatus.carrier;
+        }
+        await db.collection('orders').doc(orderId).update(updates);
+        res.json({
+            success: true,
+            status: updates.status,
+            trackingNumber: updates.trackingNumber,
+            message: 'Order status synced from Printify'
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Update order status manually
+app.patch('/admin/orders/:id', requireAdmin, async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const { status, trackingNumber, carrier, notes } = req.body;
+        const orderDoc = await db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) {
+            res.status(404).json({ error: 'Order not found' });
+            return;
+        }
+        const updates = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (status)
+            updates.status = status;
+        if (trackingNumber !== undefined)
+            updates.trackingNumber = trackingNumber;
+        if (carrier !== undefined)
+            updates.carrier = carrier;
+        if (notes !== undefined)
+            updates.notes = notes;
+        await db.collection('orders').doc(orderId).update(updates);
+        const updatedDoc = await db.collection('orders').doc(orderId).get();
+        res.json(docToObject(updatedDoc));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
@@ -2244,6 +2587,99 @@ app.post('/webhooks/stripe', async (req, res) => {
             case 'checkout.session.completed': {
                 const session = event.data.object;
                 console.log('Checkout session completed:', session.id);
+                // Create order from checkout session
+                try {
+                    const userId = session.metadata?.userId;
+                    const cartItemIds = session.metadata?.cartItemIds ? JSON.parse(session.metadata.cartItemIds) : [];
+                    if (!userId) {
+                        console.error('No userId in checkout session metadata');
+                        break;
+                    }
+                    // Idempotency check: prevent duplicate orders from Stripe retries
+                    const existingOrderSnapshot = await db.collection('orders')
+                        .where('stripeSessionId', '==', session.id)
+                        .limit(1)
+                        .get();
+                    if (!existingOrderSnapshot.empty) {
+                        console.log(`Order already exists for session ${session.id}, skipping`);
+                        break;
+                    }
+                    // Get cart items
+                    let cartItems = [];
+                    if (cartItemIds.length > 0) {
+                        // Use specific cart item IDs from metadata
+                        for (const itemId of cartItemIds) {
+                            const itemDoc = await db.collection('cartItems').doc(itemId).get();
+                            if (itemDoc.exists) {
+                                cartItems.push({ id: itemDoc.id, ...itemDoc.data() });
+                            }
+                        }
+                    }
+                    else {
+                        // Fallback: get all cart items for user
+                        const cartSnapshot = await db.collection('cartItems').where('userId', '==', userId).get();
+                        cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    }
+                    if (cartItems.length === 0) {
+                        console.warn('No cart items found for order creation');
+                        break;
+                    }
+                    // Calculate total from cart items
+                    const totalAmount = cartItems.reduce((sum, item) => {
+                        return sum + parseFloat(item.price || '0') * (item.quantity || 1);
+                    }, 0);
+                    // Extract shipping address from Stripe session
+                    const shippingDetails = session.shipping_details;
+                    const customerDetails = session.customer_details;
+                    const shippingAddress = shippingDetails ? {
+                        firstName: shippingDetails.name?.split(' ')[0] || '',
+                        lastName: shippingDetails.name?.split(' ').slice(1).join(' ') || '',
+                        email: customerDetails?.email || '',
+                        phone: shippingDetails.phone || customerDetails?.phone || '',
+                        address1: shippingDetails.address?.line1 || '',
+                        address2: shippingDetails.address?.line2 || '',
+                        city: shippingDetails.address?.city || '',
+                        region: shippingDetails.address?.state || '',
+                        zip: shippingDetails.address?.postal_code || '',
+                        country: shippingDetails.address?.country || 'US',
+                    } : null;
+                    // Create order
+                    const orderRef = await db.collection('orders').add({
+                        userId,
+                        status: 'paid',
+                        totalAmount: totalAmount.toFixed(2),
+                        stripeSessionId: session.id,
+                        stripePaymentIntentId: session.payment_intent,
+                        customerEmail: session.customer_details?.email || null,
+                        shippingAddress,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                    console.log(`Order created: ${orderRef.id}`);
+                    // Create order items from cart
+                    for (const item of cartItems) {
+                        await db.collection('orderItems').add({
+                            orderId: orderRef.id,
+                            productId: item.productId,
+                            quantity: item.quantity || 1,
+                            price: item.price,
+                            customization: item.customization || {},
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        });
+                    }
+                    console.log(`Created ${cartItems.length} order items for order ${orderRef.id}`);
+                    // Clear cart items
+                    const batch = db.batch();
+                    for (const item of cartItems) {
+                        batch.delete(db.collection('cartItems').doc(item.id));
+                    }
+                    await batch.commit();
+                    console.log(`Cleared ${cartItems.length} cart items for user ${userId}`);
+                }
+                catch (orderError) {
+                    console.error('Error creating order from checkout:', orderError);
+                    // Don't fail the webhook - order can be manually reconciled
+                }
                 break;
             }
             case 'payment_intent.succeeded': {

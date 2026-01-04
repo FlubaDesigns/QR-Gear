@@ -2968,6 +2968,17 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
             break;
           }
 
+          // Idempotency check: prevent duplicate orders from Stripe retries
+          const existingOrderSnapshot = await db.collection('orders')
+            .where('stripeSessionId', '==', session.id)
+            .limit(1)
+            .get();
+          
+          if (!existingOrderSnapshot.empty) {
+            console.log(`Order already exists for session ${session.id}, skipping`);
+            break;
+          }
+
           // Get cart items
           let cartItems: any[] = [];
           if (cartItemIds.length > 0) {
@@ -2996,9 +3007,12 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
 
           // Extract shipping address from Stripe session
           const shippingDetails = session.shipping_details;
+          const customerDetails = session.customer_details;
           const shippingAddress = shippingDetails ? {
             firstName: shippingDetails.name?.split(' ')[0] || '',
             lastName: shippingDetails.name?.split(' ').slice(1).join(' ') || '',
+            email: customerDetails?.email || '',
+            phone: shippingDetails.phone || customerDetails?.phone || '',
             address1: shippingDetails.address?.line1 || '',
             address2: shippingDetails.address?.line2 || '',
             city: shippingDetails.address?.city || '',

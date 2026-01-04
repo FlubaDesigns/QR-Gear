@@ -80,6 +80,8 @@ The Firebase Cloud Functions require environment variables to be set via Google 
 3. Click "Edit" → "Runtime, build, connections and security settings"
 4. Under "Runtime environment variables", add:
    - `PRINTFUL_API_KEY`: Your Printful API key
+   - `PRINTIFY_API_KEY`: Your Printify API key (for order fulfillment)
+   - `PRINTIFY_SHOP_ID`: Your Printify shop ID
    - `STRIPE_SECRET_KEY`: Your Stripe secret key
    - `STRIPE_WEBHOOK_SECRET`: Your Stripe webhook secret
 5. Deploy/Save the changes
@@ -88,6 +90,26 @@ The Firebase Cloud Functions require environment variables to be set via Google 
 - **API Base URL**: https://us-central1-qrgear-c1ffd.cloudfunctions.net/api
 - **Health Check**: GET /health
 - **Storefront Mockup**: POST /storefront/generate-mockup
+
+### Order Fulfillment Flow
+1. **Checkout**: Customer completes Stripe checkout (shipping address collected)
+2. **Webhook**: `checkout.session.completed` creates order in Firestore with shipping address
+3. **Admin Review**: Admin views orders at /admin/orders
+4. **Printify Submission**: Admin calls POST /admin/orders/:id/submit-to-printify
+5. **Status Sync**: Admin calls POST /admin/orders/:id/sync-printify to get tracking info
+
+### Order Admin Endpoints (require admin auth)
+- `GET /admin/orders` - List all orders with fulfillment status
+- `GET /admin/orders/:id` - Get order details with items
+- `POST /admin/orders/:id/submit-to-printify` - Submit order to Printify for fulfillment
+- `POST /admin/orders/:id/sync-printify` - Sync order status and tracking from Printify
+- `PATCH /admin/orders/:id` - Manually update order status/tracking
+
+### Order Status Mapping
+- pending/on-hold → pending
+- in-production → in_production  
+- fulfilled → shipped
+- canceled → cancelled
 
 ### Mockup Caching
 Mockups are cached in Firestore `mockupCache` collection with key format: `{blueprintId}_{colorName}_{artworkVariant}`
