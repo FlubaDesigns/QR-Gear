@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
+import { nexusFetch } from "@/lib/nexusFetch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw } from "lucide-react";
@@ -21,7 +22,7 @@ export default function ViewDynamic() {
   const { data: pageInfo, isLoading, error } = useQuery<DynamicPageInfo>({
     queryKey: ['/api/dynamic', slug],
     queryFn: async () => {
-      const res = await fetch(`/api/dynamic/${slug}`);
+      const res = await nexusFetch(`/api/dynamic/${slug}`, { source: "view-dynamic:load", tries: 3 });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to load page");

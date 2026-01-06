@@ -123,5 +123,50 @@ The Firebase Cloud Functions require environment variables to be set via Google 
 ### Mockup Caching
 Mockups are cached in Firestore `mockupCache` collection with key format: `{blueprintId}_{colorName}_{artworkVariant}`
 
+## Nexus Self-Healing System
+
+### Overview
+Client-side self-healing system with automatic retry logic, error capture, and admin debugging console.
+
+### Core Files
+- `client/src/lib/nexus.ts` - Core NexusCore class with retry logic, event logging, error capture
+- `client/src/lib/nexusFetch.ts` - Generic fetch wrapper with Nexus retry
+- `client/src/lib/nexusFetchProfiled.ts` - Profiled fetch for Printful calls (BULK vs SINGLE)
+- `client/src/lib/mockup-fallback.ts` - Graceful mockup URL fallback chain
+- `client/src/components/NexusErrorBoundary.tsx` - React error boundary for crash prevention
+- `client/src/components/NexusConsole.tsx` - Admin-only debug console
+
+### Printful Retry Profiles
+```typescript
+NexusProfiles.PRINTFUL_BULK   // tries: 2, slow backoff (for product-level bulk generation)
+NexusProfiles.PRINTFUL_SINGLE // tries: 4, fast backoff (for on-demand preview)
+```
+
+### Source Tags (Required for Debugging)
+All Printful mockup calls must use one of these tags:
+- `"printful:mockups:bulk"` - Product-level full set generation
+- `"printful:mockup:single"` - Single variant preview
+- `"printful:mockup:fill-missing"` - Fill missing from partial bulk
+
+### Features
+- **Bulk Lock**: Prevents double-fire of bulk jobs (120s cooldown)
+- **Fill Missing**: Throttled single calls for partial bulk results (max 6 per cycle)
+- **Cache Protection**: `mergeMockupMaps()` never overwrites good URLs with empty
+- **Mockup Fallback Chain**: exact → same-color → any-cached → default → thumbnail → placeholder
+- **No-Retry on Hard Failures**: 400/401/403/404 return immediately, only retry 429/5xx
+
+### Converted Files
+All raw fetch() calls converted to nexusFetch or nexusFetchProfiled:
+- `queryClient.ts` - Core API request handling
+- `use-upload.ts` - File upload presigned URLs
+- `store.tsx` - Product categories
+- `FeaturedProducts.tsx` - Featured products + single mockup generation
+- `widget.tsx` - Widget session loading
+- `gift-redeem.tsx` - Gift code lookup
+- `view-dynamic.tsx` - Dynamic page loading
+- `store-build.tsx` - Partner store products + single mockup generation
+- `shop-segment.tsx` - Store segment + single mockup generation
+- `admin-products.tsx` - Admin single mockup generation
+
 ## Library Maintenance
 See `updates.md` for a schedule of libraries requiring regular updates.

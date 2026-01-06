@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { auth } from "./firebase";
+import { Nexus } from "@/lib/nexus";
 
 function getApiUrl(path: string): string {
   if (typeof window !== "undefined") {
@@ -39,15 +40,42 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const authHeader = await getAuthHeader();
-  const res = await fetch(getApiUrl(url), {
-    method,
-    headers: {
-      ...(data ? { "Content-Type": "application/json" } : {}),
-      ...authHeader,
+
+  const res = await Nexus.retry(
+    async () => {
+      const r = await fetch(getApiUrl(url), {
+        method,
+        headers: {
+          ...(data ? { "Content-Type": "application/json" } : {}),
+          ...authHeader,
+        },
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
+      });
+
+      if (!r.ok && (r.status === 429 || (r.status >= 500 && r.status <= 599))) {
+        throw new Error(`HTTP ${r.status} ${r.statusText}`);
+      }
+
+      return r;
     },
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+    {
+      source: "apiRequest",
+      tries: 3,
+      baseDelayMs: 500,
+      maxDelayMs: 5000,
+      meta: { method, url },
+      shouldRetry: (err) => {
+        const msg = (err?.message || "").toLowerCase();
+        return (
+          msg.includes("http 429") ||
+          msg.includes("http 5") ||
+          msg.includes("failed to fetch") ||
+          msg.includes("network")
+        );
+      },
+    }
+  );
 
   await throwIfResNotOk(res);
   return res;
@@ -61,10 +89,37 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const authHeader = await getAuthHeader();
     const url = getApiUrl(queryKey.join("/") as string);
-    const res = await fetch(url, {
-      credentials: "include",
-      headers: authHeader,
-    });
+
+    const res = await Nexus.retry(
+      async () => {
+        const r = await fetch(url, {
+          credentials: "include",
+          headers: authHeader,
+        });
+
+        if (!r.ok && (r.status === 429 || (r.status >= 500 && r.status <= 599))) {
+          throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        }
+
+        return r;
+      },
+      {
+        source: "getQueryFn",
+        tries: 3,
+        baseDelayMs: 500,
+        maxDelayMs: 5000,
+        meta: { url },
+        shouldRetry: (err) => {
+          const msg = (err?.message || "").toLowerCase();
+          return (
+            msg.includes("http 429") ||
+            msg.includes("http 5") ||
+            msg.includes("failed to fetch") ||
+            msg.includes("network")
+          );
+        },
+      }
+    );
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

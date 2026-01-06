@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { nexusFetch } from "@/lib/nexusFetch";
+import { nexusFetchProfiled, NexusProfiles } from "@/lib/nexusFetchProfiled";
 import { QRButton } from "@/components/QRButton";
 import UsaFlag from "./UsaFlag";
 import InstantMockupPreview from "./InstantMockupPreview";
@@ -289,9 +291,12 @@ function ProductQuickView({
 
   const generateMockupMutation = useMutation({
     mutationFn: async ({ productId, color }: { productId: string; color: string }) => {
-      const res = await apiRequest("POST", "/api/storefront/generate-mockup", {
-        productId,
-        color,
+      const res = await nexusFetchProfiled("/api/storefront/generate-mockup", {
+        source: "printful:mockup:single",
+        profile: NexusProfiles.PRINTFUL_SINGLE,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, color }),
       });
       return res.json();
     },
@@ -526,7 +531,7 @@ export default function FeaturedProducts() {
   const { data: products = [], isLoading, refetch } = useQuery<FeaturedProduct[]>({
     queryKey: ["/api/products", { featured: true }],
     queryFn: async () => {
-      const res = await fetch("/api/products?featured=true");
+      const res = await nexusFetch("/api/products?featured=true", { source: "featured-products:list", tries: 3 });
       if (!res.ok) throw new Error("Failed to fetch featured products");
       return res.json();
     },

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
+import { nexusFetch } from "@/lib/nexusFetch";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,7 @@ export default function GiftRedeemPage() {
     setLookupError("");
     
     try {
-      const res = await fetch(`/api/gifts/redeem/${codeInput.trim().toUpperCase()}`);
+      const res = await nexusFetch(`/api/gifts/redeem/${codeInput.trim().toUpperCase()}`, { source: "gift-redeem:lookup", tries: 3 });
       const data = await res.json();
       
       if (!res.ok) {

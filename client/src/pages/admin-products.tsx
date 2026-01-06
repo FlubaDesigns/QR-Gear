@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { nexusFetchProfiled, NexusProfiles } from "@/lib/nexusFetchProfiled";
 import {
   Plus,
   Pencil,
@@ -328,10 +329,16 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
   
   const generateMockupMutation = useMutation({
     mutationFn: async (color: string) => {
-      const response = await apiRequest("POST", "/api/storefront/generate-mockup", {
-        productId: product.id,
-        color,
-        qrSize: qrSizeMap[selectedQrSize],
+      const response = await nexusFetchProfiled("/api/storefront/generate-mockup", {
+        source: "printful:mockup:single",
+        profile: NexusProfiles.PRINTFUL_SINGLE,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          color,
+          qrSize: qrSizeMap[selectedQrSize],
+        }),
       });
       return response.json();
     },

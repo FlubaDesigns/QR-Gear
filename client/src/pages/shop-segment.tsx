@@ -8,6 +8,7 @@ import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode, Check } from "lucide
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { nexusFetchProfiled, NexusProfiles } from "@/lib/nexusFetchProfiled";
 import { useToast } from "@/hooks/use-toast";
 import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
 
@@ -103,10 +104,12 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
   // Mockup generation mutation
   const generateMockup = useMutation({
     mutationFn: async ({ color, qrSize }: { color: string; qrSize: string }) => {
-      const res = await apiRequest("POST", "/api/storefront/generate-mockup", {
-        productId: product.id,
-        color,
-        qrSize,
+      const res = await nexusFetchProfiled("/api/storefront/generate-mockup", {
+        source: "printful:mockup:single",
+        profile: NexusProfiles.PRINTFUL_SINGLE,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, color, qrSize }),
       });
       return res.json();
     },

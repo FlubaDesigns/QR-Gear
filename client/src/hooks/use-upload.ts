@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import type { UppyFile } from "@uppy/core";
+import { nexusFetch } from "@/lib/nexusFetch";
 
 interface UploadMetadata {
   name: string;
@@ -62,7 +63,7 @@ export function useUpload(options: UseUploadOptions = {}) {
    */
   const requestUploadUrl = useCallback(
     async (file: File): Promise<UploadResponse> => {
-      const response = await fetch("/api/uploads/request-url", {
+      const response = await nexusFetch("/api/uploads/request-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -72,6 +73,8 @@ export function useUpload(options: UseUploadOptions = {}) {
           size: file.size,
           contentType: file.type || "application/octet-stream",
         }),
+        source: "upload:request-url",
+        tries: 3,
       });
 
       if (!response.ok) {
@@ -89,12 +92,14 @@ export function useUpload(options: UseUploadOptions = {}) {
    */
   const uploadToPresignedUrl = useCallback(
     async (file: File, uploadURL: string): Promise<void> => {
-      const response = await fetch(uploadURL, {
+      const response = await nexusFetch(uploadURL, {
         method: "PUT",
         body: file,
         headers: {
           "Content-Type": file.type || "application/octet-stream",
         },
+        source: "upload:put-file",
+        tries: 3,
       });
 
       if (!response.ok) {
@@ -162,7 +167,7 @@ export function useUpload(options: UseUploadOptions = {}) {
       headers?: Record<string, string>;
     }> => {
       // Use the actual file properties to request a per-file presigned URL
-      const response = await fetch("/api/uploads/request-url", {
+      const response = await nexusFetch("/api/uploads/request-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -172,6 +177,8 @@ export function useUpload(options: UseUploadOptions = {}) {
           size: file.size,
           contentType: file.type || "application/octet-stream",
         }),
+        source: "upload:uppy-request-url",
+        tries: 3,
       });
 
       if (!response.ok) {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { nexusFetch } from "@/lib/nexusFetch";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
@@ -35,7 +36,7 @@ export default function Store() {
   const { data: seasons } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories", "season"],
     queryFn: async () => {
-      const res = await fetch("/api/product-categories?taxonomy=season");
+      const res = await nexusFetch("/api/product-categories?taxonomy=season", { source: "store:categories:season", tries: 3 });
       return res.json();
     },
   });
@@ -43,7 +44,7 @@ export default function Store() {
   const { data: holidays } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories", "holiday"],
     queryFn: async () => {
-      const res = await fetch("/api/product-categories?taxonomy=holiday");
+      const res = await nexusFetch("/api/product-categories?taxonomy=holiday", { source: "store:categories:holiday", tries: 3 });
       return res.json();
     },
   });
@@ -51,7 +52,7 @@ export default function Store() {
   const { data: occasions } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories", "occasion"],
     queryFn: async () => {
-      const res = await fetch("/api/product-categories?taxonomy=occasion");
+      const res = await nexusFetch("/api/product-categories?taxonomy=occasion", { source: "store:categories:occasion", tries: 3 });
       return res.json();
     },
   });
@@ -59,7 +60,7 @@ export default function Store() {
   const { data: otherCategories } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories", "other"],
     queryFn: async () => {
-      const res = await fetch("/api/product-categories?taxonomy=other");
+      const res = await nexusFetch("/api/product-categories?taxonomy=other", { source: "store:categories:other", tries: 3 });
       return res.json();
     },
   });
@@ -78,7 +79,7 @@ export default function Store() {
     queryKey: ["/api/category-products", activeCategoryId],
     queryFn: async () => {
       if (!activeCategoryId) return null;
-      const res = await fetch(`/api/product-categories/${activeCategoryId}/products`);
+      const res = await nexusFetch(`/api/product-categories/${activeCategoryId}/products`, { source: "store:category:products", tries: 3 });
       return res.json();
     },
     enabled: !!activeCategoryId,

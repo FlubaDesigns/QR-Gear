@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { nexusFetch } from "@/lib/nexusFetch";
+import { nexusFetchProfiled, NexusProfiles } from "@/lib/nexusFetchProfiled";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -100,7 +102,7 @@ export default function StoreBuildPage() {
     queryKey: ["/api/admin/partner-stores", selectedStoreId, "products"],
     queryFn: async () => {
       if (!selectedStoreId) return [];
-      const res = await fetch(`/api/admin/partner-stores/${selectedStoreId}/products`);
+      const res = await nexusFetch(`/api/admin/partner-stores/${selectedStoreId}/products`, { source: "admin:partner-store:products", tries: 3 });
       return res.json();
     },
     enabled: !!selectedStoreId,
@@ -240,8 +242,12 @@ export default function StoreBuildPage() {
       if (selectedStoreId && optionsDialogProductId) {
         setGeneratingMockup(colorName);
         try {
-          const res = await apiRequest("POST", `/api/admin/partner-stores/${selectedStoreId}/products/${optionsDialogProductId}/generate-mockup`, {
-            color: colorName,
+          const res = await nexusFetchProfiled(`/api/admin/partner-stores/${selectedStoreId}/products/${optionsDialogProductId}/generate-mockup`, {
+            source: "printful:mockup:single",
+            profile: NexusProfiles.PRINTFUL_SINGLE,
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ color: colorName }),
           });
           if (res.ok) {
             toast({ title: "Mockup generated", description: `${colorName} mockup ready` });

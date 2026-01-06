@@ -155,6 +155,44 @@ class NexusCore {
 export const Nexus = new NexusCore();
 
 /* ==========================================
+   PRINTFUL RETRY PROFILES
+   ========================================== */
+export const NexusProfiles = {
+  PRINTFUL_BULK: {
+    tries: 2,
+    baseDelayMs: 900,
+    maxDelayMs: 6000,
+    shouldRetry: (err: any) => {
+      const msg = (err?.message || "").toLowerCase();
+      return (
+        msg.includes("429") ||
+        msg.includes("rate") ||
+        msg.includes("timeout") ||
+        msg.includes("failed to fetch") ||
+        msg.includes("network") ||
+        msg.includes("http 5")
+      );
+    },
+  },
+  PRINTFUL_SINGLE: {
+    tries: 4,
+    baseDelayMs: 450,
+    maxDelayMs: 5000,
+    shouldRetry: (err: any) => {
+      const msg = (err?.message || "").toLowerCase();
+      return (
+        msg.includes("429") ||
+        msg.includes("rate") ||
+        msg.includes("timeout") ||
+        msg.includes("failed to fetch") ||
+        msg.includes("network") ||
+        msg.includes("http 5")
+      );
+    },
+  },
+};
+
+/* ==========================================
    Global safety nets
    ========================================== */
 

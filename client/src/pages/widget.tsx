@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { nexusFetch } from "@/lib/nexusFetch";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingBag, ExternalLink } from "lucide-react";
@@ -82,7 +83,7 @@ export default function Widget() {
       if (segment) {
         url += `&segment=${encodeURIComponent(segment)}`;
       }
-      const res = await fetch(url);
+      const res = await nexusFetch(url, { source: "widget:session", tries: 3 });
       if (!res.ok) throw new Error('Failed to load session');
       return res.json();
     },
