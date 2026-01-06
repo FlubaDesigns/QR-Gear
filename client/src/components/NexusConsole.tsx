@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
 import { Nexus } from "@/lib/nexus";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function NexusConsole() {
   const [open, setOpen] = useState(false);
+  const { isAdmin } = useAuth();
 
   const mem = useMemo(() => Nexus.getMemory().slice().reverse(), [open]);
+
+  if (!isAdmin) {
+    return null;
+  }
 
   if (!open) {
     return (
@@ -22,6 +28,7 @@ export default function NexusConsole() {
           zIndex: 9999,
           cursor: "pointer",
           fontSize: 12,
+          color: "#fff",
         }}
       >
         Nexus
@@ -40,9 +47,10 @@ export default function NexusConsole() {
         overflow: "auto",
         borderRadius: 14,
         border: "1px solid rgba(255,255,255,0.15)",
-        background: "rgba(0,0,0,0.65)",
+        background: "rgba(0,0,0,0.85)",
         zIndex: 9999,
         padding: 12,
+        color: "#fff",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
@@ -56,6 +64,7 @@ export default function NexusConsole() {
             border: "1px solid rgba(255,255,255,0.15)",
             background: "rgba(0,0,0,0.35)",
             cursor: "pointer",
+            color: "#fff",
           }}
         >
           Close
