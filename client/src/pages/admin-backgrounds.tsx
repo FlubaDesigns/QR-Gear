@@ -894,7 +894,7 @@ function SourceImagesContent() {
         const zipEntry = zip.files[filename];
         if (zipEntry.dir) continue;
         const ext = filename.toLowerCase().split('.').pop();
-        if (['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
+        if (['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext || '')) {
           const blob = await zipEntry.async('blob');
           imageFiles.push({ name: filename.split('/').pop() || filename, blob });
         }
@@ -1233,21 +1233,21 @@ export default function AdminBackgrounds() {
         </nav>
 
         <Tabs defaultValue="templates" className="space-y-4">
-          <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="templates" data-testid="tab-templates">
-              <Image className="h-4 w-4 mr-2" />
+          <TabsList className="grid grid-cols-2 h-auto gap-2 p-2 bg-muted/50">
+            <TabsTrigger value="templates" className="h-14 text-base flex-col gap-1" data-testid="tab-templates">
+              <Image className="h-5 w-5" />
               Templates
             </TabsTrigger>
-            <TabsTrigger value="backgrounds" data-testid="tab-backgrounds">
-              <FolderOpen className="h-4 w-4 mr-2" />
+            <TabsTrigger value="backgrounds" className="h-14 text-base flex-col gap-1" data-testid="tab-backgrounds">
+              <FolderOpen className="h-5 w-5" />
               Backgrounds
             </TabsTrigger>
-            <TabsTrigger value="source" data-testid="tab-source-images">
-              <Upload className="h-4 w-4 mr-2" />
+            <TabsTrigger value="source" className="h-14 text-base flex-col gap-1" data-testid="tab-source-images">
+              <Upload className="h-5 w-5" />
               Source Images
             </TabsTrigger>
-            <TabsTrigger value="cropped" data-testid="tab-cropped-images">
-              <Crop className="h-4 w-4 mr-2" />
+            <TabsTrigger value="cropped" className="h-14 text-base flex-col gap-1" data-testid="tab-cropped-images">
+              <Crop className="h-5 w-5" />
               Cropped
             </TabsTrigger>
           </TabsList>
