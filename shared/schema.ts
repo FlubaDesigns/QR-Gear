@@ -295,6 +295,30 @@ export const insertGraphicSetSchema = createInsertSchema(graphicSets).omit({ id:
 export type InsertGraphicSet = z.infer<typeof insertGraphicSetSchema>;
 export type GraphicSet = typeof graphicSets.$inferSelect;
 
+// Background Assets - Source images and cropped versions for product design
+// Two types: 'source' = original uploaded backgrounds, 'cropped' = 9:16 cropped versions
+export const backgroundAssets = pgTable("background_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  assetType: text("asset_type").notNull(), // 'source' or 'cropped'
+  imageUrl: text("image_url").notNull(),
+  storagePath: text("storage_path").notNull(), // Firebase Storage path
+  sourceAssetId: varchar("source_asset_id"), // For cropped: references the source asset
+  width: integer("width"),
+  height: integer("height"),
+  fileSize: integer("file_size"), // bytes
+  mimeType: text("mime_type"),
+  cropData: jsonb("crop_data"), // For cropped: { x, y, width, height, aspect }
+  tags: text("tags").array(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBackgroundAssetSchema = createInsertSchema(backgroundAssets).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBackgroundAsset = z.infer<typeof insertBackgroundAssetSchema>;
+export type BackgroundAsset = typeof backgroundAssets.$inferSelect;
+
 // Partner stores for embeddable widgets (Kingdom Connects, etc.)
 export const partnerStores = pgTable("partner_stores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
