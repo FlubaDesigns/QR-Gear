@@ -243,9 +243,9 @@ function CatalogSyncSection() {
             <div className="p-3 border rounded-lg">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4" />
+                  <Store className="h-4 w-4" />
                   <span className="font-medium text-sm">Printful</span>
-                  <Badge variant="outline" className="text-xs">Mockups</Badge>
+                  <Badge variant="outline" className="text-xs">Fulfillment</Badge>
                 </div>
                 <Button
                   size="sm"
@@ -5119,6 +5119,52 @@ function ProductsContent() {
 
   return (
     <div className="space-y-6">
+      {/* Global Provider Filter Toolbar - Always visible at top */}
+      <Card className="bg-muted/30">
+        <CardHeader className="py-3 px-4 space-y-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Store className="h-4 w-4" />
+            Active Fulfillment Centers
+          </CardTitle>
+          <div className="flex flex-wrap items-center gap-4">
+            {POD_PROVIDERS.filter(p => p.role === 'fulfillment').map((provider) => (
+              <div key={provider.id} className="flex items-center gap-2">
+                <Switch
+                  id={`top-provider-${provider.id}`}
+                  checked={selectedProviders.includes(provider.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedProviders([...selectedProviders, provider.id]);
+                    } else {
+                      setSelectedProviders(selectedProviders.filter(p => p !== provider.id));
+                    }
+                  }}
+                  data-testid={`switch-top-provider-${provider.id}`}
+                />
+                <Label 
+                  htmlFor={`top-provider-${provider.id}`} 
+                  className={`text-sm cursor-pointer ${selectedProviders.includes(provider.id) ? 'font-medium' : 'text-muted-foreground'}`}
+                >
+                  {provider.name}
+                </Label>
+                {provider.configured ? (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-700 border-green-300">
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 opacity-50">
+                    Not configured
+                  </Badge>
+                )}
+              </div>
+            ))}
+            <span className="text-xs text-muted-foreground ml-auto">
+              Showing {filteredProducts.length} of {products?.length || 0} products
+            </span>
+          </div>
+        </CardHeader>
+      </Card>
+      
       <CatalogSyncSection />
       <AddFromPrintifyPanel 
         onSuccess={() => refetch()} 
@@ -5159,43 +5205,6 @@ function ProductsContent() {
               <Target className="h-4 w-4" />
               Search & Filter
             </Label>
-            
-            {/* Provider Toggles */}
-            <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/50 rounded-lg border">
-              <span className="text-sm font-medium text-muted-foreground">Fulfillment:</span>
-              {POD_PROVIDERS.filter(p => p.role === 'fulfillment' || p.id === 'printful').map((provider) => (
-                <div key={provider.id} className="flex items-center gap-2">
-                  <Switch
-                    id={`provider-${provider.id}`}
-                    checked={selectedProviders.includes(provider.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedProviders([...selectedProviders, provider.id]);
-                      } else {
-                        setSelectedProviders(selectedProviders.filter(p => p !== provider.id));
-                      }
-                    }}
-                    data-testid={`switch-provider-${provider.id}`}
-                  />
-                  <Label 
-                    htmlFor={`provider-${provider.id}`} 
-                    className={`text-sm cursor-pointer ${selectedProviders.includes(provider.id) ? 'font-medium' : 'text-muted-foreground'}`}
-                  >
-                    {provider.name}
-                  </Label>
-                  {provider.configured && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      {provider.role === 'fulfillment' ? 'Fulfillment' : 'Mockups'}
-                    </Badge>
-                  )}
-                  {!provider.configured && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 opacity-50">
-                      Not configured
-                    </Badge>
-                  )}
-                </div>
-              ))}
-            </div>
             
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-1">
