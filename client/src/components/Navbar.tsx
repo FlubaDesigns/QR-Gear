@@ -63,12 +63,12 @@ export default function Navbar() {
     localStorage.setItem('fontSize', fontSize.toString());
   }, [fontSize]);
 
-  const { data: serverCartItems = [] } = useQuery<CartItem[]>({
+  const { data: serverCartItems } = useQuery<CartItem[]>({
     queryKey: ["/api/cart"],
     enabled: isAuthenticated,
   });
 
-  const cartCount = isAuthenticated ? serverCartItems.length : guestCartCount;
+  const cartCount = isAuthenticated ? (serverCartItems || []).length : guestCartCount;
 
   useEffect(() => {
     setMenuOpen(false);
