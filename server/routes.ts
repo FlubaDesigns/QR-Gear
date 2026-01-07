@@ -2939,8 +2939,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [productCount] = await db.select({ count: count() }).from(printfulProducts);
       const [variantCount] = await db.select({ count: count() }).from(printfulVariants);
       
+      const isConfigured = printfulClient.isConfigured;
+      console.log('[Printful Status] isConfigured:', isConfigured);
+      
       res.json({
-        isConfigured: printfulClient.isConfigured,
+        isConfigured,
         productCount: productCount?.count || 0,
         variantCount: variantCount?.count || 0,
       });

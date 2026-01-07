@@ -74,7 +74,7 @@ export default function RegisterPage() {
           <p className="qr-auth-subtitle">Start creating custom QR products</p>
         </div>
 
-        <form className="qr-auth-form" onSubmit={handleSubmit}>
+        <form className="qr-auth-form" onSubmit={handleSubmit} autoComplete="on">
           {error && <div className="qr-auth-error">{error}</div>}
 
           <div className="qr-auth-row">
@@ -82,7 +82,9 @@ export default function RegisterPage() {
               <label className="qr-auth-label" htmlFor="firstName">First Name</label>
               <input
                 id="firstName"
+                name="firstName"
                 type="text"
+                autoComplete="given-name"
                 className="qr-auth-input"
                 placeholder="John"
                 value={firstName}
@@ -95,7 +97,9 @@ export default function RegisterPage() {
               <label className="qr-auth-label" htmlFor="lastName">Last Name</label>
               <input
                 id="lastName"
+                name="lastName"
                 type="text"
+                autoComplete="family-name"
                 className="qr-auth-input"
                 placeholder="Doe"
                 value={lastName}
@@ -110,7 +114,9 @@ export default function RegisterPage() {
             <label className="qr-auth-label" htmlFor="email">Email</label>
             <input
               id="email"
+              name="email"
               type="email"
+              autoComplete="email"
               className="qr-auth-input"
               placeholder="you@example.com"
               value={email}
@@ -126,7 +132,9 @@ export default function RegisterPage() {
             <div className="qr-auth-field-relative">
               <input
                 id="password"
+                name="password"
                 type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
                 className="qr-auth-input"
                 placeholder="At least 8 characters"
                 value={password}
@@ -151,7 +159,9 @@ export default function RegisterPage() {
             <label className="qr-auth-label" htmlFor="confirmPassword">Confirm Password</label>
             <input
               id="confirmPassword"
+              name="confirmPassword"
               type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
               className="qr-auth-input"
               placeholder="Confirm your password"
               value={confirmPassword}

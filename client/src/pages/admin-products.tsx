@@ -942,9 +942,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   });
   
   // Derived: top-level categories (no parent) and subcategories
-  const topLevelCategories = templateCategories.filter(c => c.parentId === null);
+  const topLevelCategories = (templateCategories || []).filter(c => c.parentId === null);
   const subcategoriesForSelected = selectedTemplateCategory
-    ? templateCategories.filter(c => c.parentId === selectedTemplateCategory)
+    ? (templateCategories || []).filter(c => c.parentId === selectedTemplateCategory)
     : [];
 
   // Delete mutations for backgrounds and templates
@@ -1032,14 +1032,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   // Filter library items by season/event only
   // Note: Visibility rules (visibleStoreSlugs, visibleSegments) apply to customer-facing widget,
   // not admin builder. Admins can access all backgrounds to build products for any store.
-  const filteredBackgrounds = libraryBackgrounds.filter((bg) => {
+  const filteredBackgrounds = (libraryBackgrounds || []).filter((bg) => {
     if (libraryFilterSeason !== "all" && bg.season !== libraryFilterSeason) return false;
     if (libraryFilterEvent !== "all" && bg.event !== libraryFilterEvent) return false;
     return true;
   });
   
   // Get selected hosting tier price (default to $5 for 1 year if not loaded)
-  const selectedTier = hostingTiers.find(t => t.code === selectedHostingTier);
+  const selectedTier = (hostingTiers || []).find(t => t.code === selectedHostingTier);
   const defaultTierPrices: Record<string, number> = { "1_year": 5, "2_year": 8, "3_year": 10 };
   const hostingPrice = selectedTier 
     ? parseFloat(selectedTier.priceUpcharge || "0")
@@ -1051,14 +1051,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   
   // Derive available stores based on store type - all stores come from database
   // Handle null/undefined isInternal: treat as External by default
-  console.log("[StoreDebug] storeType:", storeType, "partnerStoresData:", partnerStoresData.map(ps => ({ name: ps.name, isInternal: ps.isInternal })));
-  const availableStores: StoreWithAreas[] = partnerStoresData
+  console.log("[StoreDebug] storeType:", storeType, "partnerStoresData:", (partnerStoresData || []).map(ps => ({ name: ps.name, isInternal: ps.isInternal })));
+  const availableStores: StoreWithAreas[] = (partnerStoresData || [])
     .filter(ps => storeType === "Internal" ? ps.isInternal === true : ps.isInternal !== true)
     .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
   console.log("[StoreDebug] availableStores:", availableStores);
   
   // All DB stores for segment lookup
-  const dbPartnerStores: StoreWithAreas[] = partnerStoresData.map(ps => ({
+  const dbPartnerStores: StoreWithAreas[] = (partnerStoresData || []).map(ps => ({
     name: ps.name,
     areas: ps.availableSegments || [],
   }));
@@ -1072,7 +1072,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
     return normalizedDbName === normalizedSelected || s.name === selectedStore;
   });
   // Also check directly in partnerStoresData for segments if dbPartnerStores lookup fails
-  const fallbackStore = !currentStoreData ? partnerStoresData.find(ps => normalizeStoreName(ps.name) === normalizeStoreName(selectedStore)) : null;
+  const fallbackStore = !currentStoreData ? (partnerStoresData || []).find(ps => normalizeStoreName(ps.name) === normalizeStoreName(selectedStore)) : null;
   const availableSegments: string[] = currentStoreData?.areas || fallbackStore?.availableSegments || [];
   console.log("[SegmentDebug] selectedStore:", selectedStore, "currentStoreData:", currentStoreData, "fallbackStore:", fallbackStore, "availableSegments:", availableSegments);
   type ItemDetails = {
@@ -1138,7 +1138,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
       const normalizedStoreName = selectedStore.replace(/^(Internal:|External:)/, "").trim();
       
       // Find the current store in partner stores
-      const currentPartnerStore = partnerStoresData.find(ps => ps.name === normalizedStoreName || ps.name === selectedStore);
+      const currentPartnerStore = (partnerStoresData || []).find(ps => ps.name === normalizedStoreName || ps.name === selectedStore);
       if (currentPartnerStore) {
         // Update partner store in database
         const currentSegments = currentPartnerStore.availableSegments || [];
@@ -1323,14 +1323,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
     queryKey: ["/api/admin/printify/catalog"],
   });
   
-  const categoryData = catalog.find(c => c.name === selectedCategory);
+  const categoryData = (catalog || []).find(c => c.name === selectedCategory);
   const allCategoryItems = categoryData?.items || [];
-  const categoryItems = allCategoryItems.filter(item => {
+  const categoryItems = (allCategoryItems || []).filter(item => {
     if (locationFilter === "usa") return item.madeInUSA;
     if (locationFilter === "other") return !item.madeInUSA;
     return true;
   });
-  const selectedItem = categoryItems.find(item => item.id === selectedItemId);
+  const selectedItem = (categoryItems || []).find(item => item.id === selectedItemId);
 
   async function fetchItemDetails(itemId: number) {
     setLoadingDetails(true);
@@ -1361,9 +1361,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   }
 
   useEffect(() => {
-    if (!selectedCategory || allCategoryItems.length === 0) return;
+    if (!selectedCategory || (allCategoryItems || []).length === 0) return;
     
-    const itemsToFetch = allCategoryItems.filter(item => !itemDetails[item.id]);
+    const itemsToFetch = (allCategoryItems || []).filter(item => !itemDetails[item.id]);
     
     if (itemsToFetch.length === 0) return;
     
@@ -1421,7 +1421,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
     };
     
     fetchBatchDetails();
-  }, [selectedCategory, JSON.stringify(allCategoryItems.map(i => i.id))]);
+  }, [selectedCategory, JSON.stringify((allCategoryItems || []).map(i => i.id))]);
 
   const headerUpcharge = headerEnabled && headerText.trim() ? 2 : 0;
   const footerUpcharge = footerEnabled && footerText.trim() ? 2 : 0;
@@ -1483,7 +1483,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
 
   const saveAllMutation = useMutation({
     mutationFn: async () => {
-      if (stagedProducts.length === 0) throw new Error("No products to save");
+      if ((stagedProducts || []).length === 0) throw new Error("No products to save");
       
       const saveCategoryPath = `${storeType}/${selectedStore}/${selectedSegment}`;
       
@@ -1498,7 +1498,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
       };
       
       const results = await Promise.all(
-        stagedProducts.map(product => 
+        (stagedProducts || []).map(product => 
           apiRequest("POST", "/api/admin/products/from-printify", {
             blueprintId: product.blueprintId,
             printProviderId: product.printProviderId,
@@ -2082,7 +2082,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                     ))}
                   </select>
                   {selectedStore && selectedStore !== "__add_new__" && (() => {
-                    const storeToDelete = partnerStoresData.find(s => s.name === selectedStore);
+                    const storeToDelete = (partnerStoresData || []).find(s => s.name === selectedStore);
                     return storeToDelete ? (
                       <Button
                         variant="ghost"
@@ -2131,7 +2131,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                           data-testid={`switch-location-${segment.toLowerCase().replace(/\s+/g, "-")}`}
                         />
                         {(() => {
-                          const storeData = partnerStoresData.find(s => s.name === selectedStore);
+                          const storeData = (partnerStoresData || []).find(s => s.name === selectedStore);
                           return storeData ? (
                             <Button
                               variant="ghost"
@@ -2358,7 +2358,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                     data-testid="select-custom-category"
                   >
                     <option value="">-- Select product type --</option>
-                    {catalog.map((cat) => (
+                    {(catalog || []).map((cat) => (
                       <option key={cat.name} value={cat.name}>
                         {cat.name} ({cat.count})
                       </option>
@@ -2372,8 +2372,9 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                   <div className="space-y-2">
                     <Label className="font-semibold">Step 2: Made In</Label>
                     {(() => {
-                      const usaCount = categoryData.items.filter(i => i.madeInUSA).length;
-                      const otherCount = categoryData.items.filter(i => !i.madeInUSA).length;
+                      const items = categoryData?.items || [];
+                      const usaCount = items.filter(i => i.madeInUSA).length;
+                      const otherCount = items.filter(i => !i.madeInUSA).length;
                       return (
                         <div className="flex flex-wrap gap-2">
                           <Button
@@ -2398,7 +2399,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                             onClick={() => setCustomLocationFilter("all")}
                             data-testid="custom-filter-all"
                           >
-                            All ({categoryData.items.length})
+                            All ({items.length})
                           </Button>
                         </div>
                       );
@@ -2412,11 +2413,12 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                     <Label className="font-semibold">Step 3: Select Product</Label>
                     <div className="max-h-[32rem] sm:max-h-64 overflow-y-auto border-2 border-border rounded-lg p-1 sm:p-3 bg-background space-y-3">
                       {(() => {
+                        const catItems = categoryData?.items || [];
                         const items = customLocationFilter === "usa" 
-                          ? categoryData.items.filter(i => i.madeInUSA)
+                          ? catItems.filter(i => i.madeInUSA)
                           : customLocationFilter === "other"
-                          ? categoryData.items.filter(i => !i.madeInUSA)
-                          : categoryData.items;
+                          ? catItems.filter(i => !i.madeInUSA)
+                          : catItems;
                         return items.length > 0 ? items.map((item) => {
                           const details = itemDetails[item.id];
                           return (
@@ -4434,7 +4436,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
             
             {/* Templates Tab Content */}
             <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0" style={{ flex: 1, minHeight: 0 }}>
-              {libraryTemplates.length === 0 ? (
+              {(libraryTemplates || []).length === 0 ? (
                 <div className="text-center py-12">
                   <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
                   <p className="text-lg text-muted-foreground">No templates saved yet.</p>
@@ -4444,7 +4446,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
-                  {libraryTemplates.map((template) => (
+                  {(libraryTemplates || []).map((template) => (
                     <div
                       key={template.id}
                       className="border-2 rounded-lg overflow-hidden relative group"
@@ -4554,7 +4556,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                           setStoreType(template.storeType as StoreType);
                         }
                         if (template.storeName) {
-                          const matchingStore = partnerStoresData.find(s => s.name === template.storeName);
+                          const matchingStore = (partnerStoresData || []).find(s => s.name === template.storeName);
                           if (matchingStore) {
                             setSelectedStore(matchingStore.id);
                           }
@@ -4715,7 +4717,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
               onClick={async () => {
                 if (deleteWizardSegmentInfo) {
                   try {
-                    const storeData = partnerStoresData.find(s => s.id === deleteWizardSegmentInfo.storeId);
+                    const storeData = (partnerStoresData || []).find(s => s.id === deleteWizardSegmentInfo.storeId);
                     if (storeData) {
                       const updatedSegments = (storeData.availableSegments || []).filter(
                         s => s !== deleteWizardSegmentInfo.segment
@@ -4769,10 +4771,10 @@ function ProductsContent() {
   });
   
   // All stores from database
-  const allInternalStores: StoreWithAreas[] = partnerStoresData
+  const allInternalStores: StoreWithAreas[] = (partnerStoresData || [])
     .filter(ps => ps.isInternal)
     .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
-  const allExternalStores: StoreWithAreas[] = partnerStoresData
+  const allExternalStores: StoreWithAreas[] = (partnerStoresData || [])
     .filter(ps => !ps.isInternal)
     .map(ps => ({ name: ps.name, areas: ps.availableSegments || [] }));
   
@@ -4810,16 +4812,16 @@ function ProductsContent() {
   const globalMarkup = parseFloat(adminSettings?.globalMarkupPercent || "25");
   const qrUpcharge = parseFloat(adminSettings?.globalQrProductionCost || "2");
   
-  const selectedExternalStore = allExternalStores.find(s => s.name === filterSegment);
-  const selectedInternalStore = allInternalStores.find(s => s.name === filterSegment);
+  const selectedExternalStore = (allExternalStores || []).find(s => s.name === filterSegment);
+  const selectedInternalStore = (allInternalStores || []).find(s => s.name === filterSegment);
   // Find the selected partner store from fresh data (for delete functionality)
-  const selectedPartnerStore = partnerStoresData.find(s => s.name === filterSegment);
+  const selectedPartnerStore = (partnerStoresData || []).find(s => s.name === filterSegment);
   const filterStoreAreas: string[] = 
     selectedExternalStore?.areas ||
     selectedInternalStore?.areas || 
     [];
   
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = (products || []).filter(product => {
     // Filter by store/area
     if (filterSegment) {
       const categoryParts = product.category.split("/");
@@ -4876,7 +4878,7 @@ function ProductsContent() {
 
   const deleteSegmentMutation = useMutation({
     mutationFn: async ({ storeId, segment }: { storeId: string; segment: string }) => {
-      const store = partnerStoresData.find(s => s.id === storeId);
+      const store = (partnerStoresData || []).find(s => s.id === storeId);
       if (!store) throw new Error("Store not found");
       const updatedSegments = (store.availableSegments || []).filter(s => s !== segment);
       return apiRequest("PUT", `/api/admin/partner-stores/${storeId}`, {
@@ -4928,11 +4930,11 @@ function ProductsContent() {
 
   // Auto-sync products in the background on page load
   useEffect(() => {
-    if (products.length === 0 || isLoading || isSyncing) return;
+    if ((products || []).length === 0 || isLoading || isSyncing) return;
     
     const syncStaleProducts = async () => {
       // Find products that haven't been synced recently (older than 24 hours) and haven't been synced this session
-      const staleProducts = products.filter(p => {
+      const staleProducts = (products || []).filter(p => {
         if (syncedIds.has(p.id)) return false;
         const lastSync = (p.metadata as any)?.lastSyncedAt;
         if (!lastSync) return true;
@@ -5075,7 +5077,7 @@ function ProductsContent() {
               </Button>
             )}
             <span className="text-sm text-muted-foreground self-center">
-              {filteredProducts.length} of {products.length} products
+              {filteredProducts.length} of {(products || []).length} products
             </span>
           </div>
         </CardHeader>
@@ -5087,8 +5089,8 @@ function ProductsContent() {
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>{products.length === 0 ? "No products yet." : "No products match this filter."}</p>
-              <p className="text-sm">{products.length === 0 ? "Add products from the Printify catalog above." : "Try selecting a different store or area."}</p>
+              <p>{(products || []).length === 0 ? "No products yet." : "No products match this filter."}</p>
+              <p className="text-sm">{(products || []).length === 0 ? "Add products from the Printify catalog above." : "Try selecting a different store or area."}</p>
             </div>
           ) : (
             <div className="space-y-5">
