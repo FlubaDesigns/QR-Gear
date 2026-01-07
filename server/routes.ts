@@ -8536,6 +8536,88 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ BACKGROUND ASSETS ============
+  // List background assets (source or cropped)
+  app.get("/api/admin/background-assets", isAdmin, async (req: any, res) => {
+    try {
+      const assetType = req.query.type as string; // 'source' or 'cropped'
+      const { backgroundAssets } = await import("@shared/schema");
+      
+      let query = db.select().from(backgroundAssets).where(eq(backgroundAssets.isActive, true));
+      
+      if (assetType && (assetType === 'source' || assetType === 'cropped')) {
+        query = db.select().from(backgroundAssets)
+          .where(and(eq(backgroundAssets.isActive, true), eq(backgroundAssets.assetType, assetType)));
+      }
+      
+      const assets = await query.orderBy(backgroundAssets.createdAt);
+      res.json(assets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upload background assets (bulk upload support)
+  app.post("/api/admin/background-assets", isAdmin, async (req: any, res) => {
+    try {
+      const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags } = req.body;
+      
+      if (!name || !assetType || !imageData) {
+        return res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
+      }
+      
+      if (assetType !== 'source' && assetType !== 'cropped') {
+        return res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
+      }
+      
+      // Upload to Firebase Storage
+      const folderPath = assetType === 'source' ? 'backgrounds/source' : 'backgrounds/cropped';
+      const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      
+      const uploadResult = await uploadImageFromBuffer(
+        Buffer.from(imageData, 'base64'),
+        fileName,
+        mimeType || 'image/png',
+        folderPath
+      );
+      
+      // Save metadata to database
+      const { backgroundAssets } = await import("@shared/schema");
+      const [asset] = await db.insert(backgroundAssets).values({
+        name,
+        assetType,
+        imageUrl: uploadResult.url,
+        storagePath: uploadResult.path,
+        sourceAssetId: sourceAssetId || null,
+        mimeType: mimeType || 'image/png',
+        cropData: cropData || null,
+        tags: tags || null,
+        isActive: true,
+      }).returning();
+      
+      res.json(asset);
+    } catch (error: any) {
+      console.error("Error uploading background asset:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete background asset
+  app.delete("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { backgroundAssets } = await import("@shared/schema");
+      
+      // Soft delete (set isActive to false)
+      await db.update(backgroundAssets)
+        .set({ isActive: false })
+        .where(eq(backgroundAssets.id, req.params.id));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
