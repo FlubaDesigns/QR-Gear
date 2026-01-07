@@ -209,6 +209,8 @@ export default function Creator() {
   
   const currentLineConfig = productLineConfig[productLine];
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [productTypeFilter, setProductTypeFilter] = useState<string>("all");
+  const [usaOnlyFilter, setUsaOnlyFilter] = useState<"all" | "usa" | "other">("all");
   const [qrColor, setQrColor] = useState("#000000");
   const [qrBgColor, setQrBgColor] = useState("#FFFFFF");
   const [qrCodeImage, setQrCodeImage] = useState("");
@@ -1570,13 +1572,32 @@ export default function Creator() {
                 
                 {!productsLoading && !productsError && (() => {
                   const lineFilter = currentLineConfig.productLineFilter;
-                  const filteredProducts = products.filter((product) => {
+                  const lineFilteredProducts = products.filter((product) => {
                     const productLineValue = (product as any).productLine || "none";
                     if (productLineValue === "none") return false;
                     return lineFilter.includes(productLineValue) || productLineValue === "all";
                   });
                   
-                  if (filteredProducts.length === 0) {
+                  // Get unique product types (categories) from available products
+                  const productTypes = Array.from(new Set(lineFilteredProducts.map(p => p.category).filter(Boolean)));
+                  
+                  // Apply product type filter
+                  const typeFilteredProducts = productTypeFilter === "all" 
+                    ? lineFilteredProducts 
+                    : lineFilteredProducts.filter(p => p.category === productTypeFilter);
+                  
+                  // Apply USA filter
+                  const filteredProducts = usaOnlyFilter === "all" 
+                    ? typeFilteredProducts
+                    : usaOnlyFilter === "usa" 
+                    ? typeFilteredProducts.filter(p => p.madeInUSA)
+                    : typeFilteredProducts.filter(p => !p.madeInUSA);
+                  
+                  // Count products for filter badges
+                  const usaCount = typeFilteredProducts.filter(p => p.madeInUSA).length;
+                  const otherCount = typeFilteredProducts.filter(p => !p.madeInUSA).length;
+                  
+                  if (lineFilteredProducts.length === 0) {
                     return (
                       <div className="text-center py-12 text-muted-foreground">
                         <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -1588,9 +1609,71 @@ export default function Creator() {
                   
                   return (
                     <>
+                      {/* Product Filters */}
+                      <div className="space-y-3 mb-4">
+                        {/* Product Type Filter */}
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium text-foreground">Product Type</label>
+                          <select
+                            className="w-full p-2 border rounded-md bg-background text-foreground"
+                            value={productTypeFilter}
+                            onChange={(e) => {
+                              setProductTypeFilter(e.target.value);
+                              setSelectedProduct(null);
+                            }}
+                            data-testid="select-product-type"
+                          >
+                            <option value="all">All Types ({lineFilteredProducts.length})</option>
+                            {productTypes.map((type) => {
+                              const count = lineFilteredProducts.filter(p => p.category === type).length;
+                              return (
+                                <option key={type} value={type}>
+                                  {type} ({count})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                        
+                        {/* Made in USA Filter */}
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium text-foreground">Made In</label>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant={usaOnlyFilter === "all" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUsaOnlyFilter("all")}
+                              data-testid="filter-all-countries"
+                            >
+                              All ({typeFilteredProducts.length})
+                            </Button>
+                            <Button
+                              variant={usaOnlyFilter === "usa" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUsaOnlyFilter("usa")}
+                              data-testid="filter-usa-only"
+                            >
+                              USA Only ({usaCount})
+                            </Button>
+                            <Button
+                              variant={usaOnlyFilter === "other" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUsaOnlyFilter("other")}
+                              data-testid="filter-other-countries"
+                            >
+                              Elsewhere ({otherCount})
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      
                       {/* Product Grid - Store-style layout */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {filteredProducts.map((product) => {
+                        {filteredProducts.length === 0 ? (
+                          <div className="col-span-2 text-center py-8 text-muted-foreground">
+                            <p>No products match your filters</p>
+                          </div>
+                        ) : filteredProducts.map((product) => {
                           const isSelected = selectedProduct?.id === product.id;
                           return (
                             <Card 

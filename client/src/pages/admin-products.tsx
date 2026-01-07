@@ -825,7 +825,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   const [libraryFilterSeason, setLibraryFilterSeason] = useState<string>("all");
   const [libraryFilterEvent, setLibraryFilterEvent] = useState<string>("all");
   // Track which source button was clicked: templates, backgrounds, or custom
-  const [librarySourceType, setLibrarySourceType] = useState<"templates" | "backgrounds" | "custom" | null>(null);
+  const [librarySourceType, setLibrarySourceType] = useState<"templates" | "backgrounds" | "custom" | "graphic-sets" | null>(null);
   const [loadedFromTemplate, setLoadedFromTemplate] = useState(false); // Persists when template is loaded
   
   // Template save dialog state (for hierarchical organization)
