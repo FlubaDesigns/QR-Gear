@@ -1,3 +1,4 @@
+// Build timestamp: 2026-01-07T22:45:00Z - Body limit increased to 50MB
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -283,7 +284,7 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
   next();
 });
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false }));
 
 // Normalize paths - handle both direct function calls and Firebase Hosting rewrites

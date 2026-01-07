@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
+// Build timestamp: 2026-01-07T22:45:00Z - Body limit increased to 50MB
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -262,7 +263,7 @@ app.use((req, res, next) => {
     }
     next();
 });
-app.use(express_1.default.json({ limit: '10mb' }));
+app.use(express_1.default.json({ limit: '50mb' }));
 app.use(express_1.default.urlencoded({ extended: false }));
 // Normalize paths - handle both direct function calls and Firebase Hosting rewrites
 // Direct: /products (no /api prefix)

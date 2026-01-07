@@ -908,8 +908,8 @@ function SourceImagesContent() {
       for (let i = 0; i < imageFiles.length; i++) {
         const { name, blob } = imageFiles[i];
         
-        // Skip files larger than 5MB
-        if (blob.size > 5 * 1024 * 1024) {
+        // Skip files larger than 25MB
+        if (blob.size > 25 * 1024 * 1024) {
           failedNames.push(`${name} (too large)`);
           setUploadProgress({ current: i + 1, total: imageFiles.length });
           continue;
@@ -1040,7 +1040,7 @@ function SourceImagesContent() {
               />
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">Max 5MB per image. Supported: JPG, PNG, WebP</p>
+          <p className="text-sm text-muted-foreground">Max 25MB per image. Supported: JPG, PNG, WebP, HEIC</p>
           {uploading && uploadProgress.total > 0 && (
             <div className="flex items-center gap-3">
               <Loader2 className="h-4 w-4 animate-spin" />
