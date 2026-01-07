@@ -323,6 +323,8 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
   const [saving, setSaving] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedQrSize, setSelectedQrSize] = useState<'S' | 'M' | 'L'>('M');
+  const [showSizes, setShowSizes] = useState(false);
+  const [showColors, setShowColors] = useState(false);
   
   const mockupsByColor = (product as any).mockupsByColor as Record<string, { front?: string }> | undefined;
   
@@ -442,56 +444,74 @@ function ProductOptionsEditor({ product, onUpdate }: { product: Product; onUpdat
     <div className="space-y-3">
       {sizes.length > 0 && (
         <div>
-          <Label className="text-sm font-medium mb-2 block">
-            Sizes {saving && <Loader2 className="w-3 h-3 inline animate-spin ml-1" />}
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            {sizes.map(size => (
-              <div key={size} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
-                <Switch
-                  id={`size-${product.id}-${size}`}
-                  checked={enabledSizes.has(size)}
-                  onCheckedChange={() => toggleSize(size)}
-                  disabled={saving}
-                  data-testid={`switch-size-${product.id}-${size}`}
-                />
-                <Label htmlFor={`size-${product.id}-${size}`} className="text-sm cursor-pointer">
-                  {size}
-                </Label>
-              </div>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowSizes(!showSizes)}
+            className="flex items-center gap-2 text-sm font-medium hover-elevate px-2 py-1 rounded -ml-2"
+            data-testid={`toggle-sizes-${product.id}`}
+          >
+            {showSizes ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Sizes ({enabledSizes.size}/{sizes.length})
+            {saving && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
+          </button>
+          {showSizes && (
+            <div className="flex flex-wrap gap-2 mt-2 pl-6">
+              {sizes.map(size => (
+                <div key={size} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                  <Switch
+                    id={`size-${product.id}-${size}`}
+                    checked={enabledSizes.has(size)}
+                    onCheckedChange={() => toggleSize(size)}
+                    disabled={saving}
+                    data-testid={`switch-size-${product.id}-${size}`}
+                  />
+                  <Label htmlFor={`size-${product.id}-${size}`} className="text-sm cursor-pointer">
+                    {size}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {colors.length > 0 && (
         <div>
-          <Label className="text-sm font-medium mb-2 block">
-            Colors {saving && <Loader2 className="w-3 h-3 inline animate-spin ml-1" />}
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            {colors.map(color => {
-              const hasMockup = mockupsByColor?.[color.name]?.front;
-              
-              return (
-                <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
-                  <Switch
-                    id={`color-${product.id}-${color.name}`}
-                    checked={enabledColors.has(color.name)}
-                    onCheckedChange={() => toggleColor(color.name)}
-                    disabled={saving}
-                    data-testid={`switch-color-${product.id}-${color.name}`}
-                  />
-                  <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-5 h-5" />
-                  <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
-                    {color.name}
-                  </Label>
-                  {hasMockup && (
-                    <Check className="w-4 h-4 text-green-500" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowColors(!showColors)}
+            className="flex items-center gap-2 text-sm font-medium hover-elevate px-2 py-1 rounded -ml-2"
+            data-testid={`toggle-colors-${product.id}`}
+          >
+            {showColors ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Colors ({enabledColors.size}/{colors.length})
+            {saving && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
+          </button>
+          {showColors && (
+            <div className="flex flex-wrap gap-2 mt-2 pl-6">
+              {colors.map(color => {
+                const hasMockup = mockupsByColor?.[color.name]?.front;
+                
+                return (
+                  <div key={color.name} className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded">
+                    <Switch
+                      id={`color-${product.id}-${color.name}`}
+                      checked={enabledColors.has(color.name)}
+                      onCheckedChange={() => toggleColor(color.name)}
+                      disabled={saving}
+                      data-testid={`switch-color-${product.id}-${color.name}`}
+                    />
+                    <ColorSwatch hex={color.hex || getSwatchColor(color.name)} className="w-5 h-5" />
+                    <Label htmlFor={`color-${product.id}-${color.name}`} className="text-sm cursor-pointer">
+                      {color.name}
+                    </Label>
+                    {hasMockup && (
+                      <Check className="w-4 h-4 text-green-500" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           
           {/* Mockup Generation Section */}
           <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
