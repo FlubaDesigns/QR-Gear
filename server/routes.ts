@@ -8586,8 +8586,8 @@ ${allPages.map(page => `  <url>
       const [asset] = await db.insert(backgroundAssets).values({
         name,
         assetType,
-        imageUrl: uploadResult.url,
-        storagePath: uploadResult.path,
+        imageUrl: uploadResult.publicUrl,
+        storagePath: uploadResult.storageUrl,
         sourceAssetId: sourceAssetId || null,
         mimeType: mimeType || 'image/png',
         cropData: cropData || null,

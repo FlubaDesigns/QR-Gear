@@ -20,9 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop, ImagePlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import type { CustomDesign, LibraryAsset, PartnerStore } from "@shared/schema";
+import type { CustomDesign, LibraryAsset, PartnerStore, BackgroundAsset } from "@shared/schema";
 
 const TEMPLATE_CATEGORIES = [
   { value: "religious", label: "Religious" },
@@ -845,6 +845,330 @@ function LibraryBackgroundsContent() {
   );
 }
 
+// Source Images Content - Bulk upload original backgrounds
+function SourceImagesContent() {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+
+  const { data: assets = [], isLoading } = useQuery<BackgroundAsset[]>({
+    queryKey: ["/api/admin/background-assets", "source"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/background-assets?type=source");
+      if (!res.ok) throw new Error("Failed to fetch source images");
+      return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/background-assets/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Image deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.zip')) {
+      toast({ title: "Please select a ZIP file", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const JSZipModule = await import('jszip');
+      const JSZip = JSZipModule.default;
+      const zip = await JSZip.loadAsync(file);
+      
+      const imageFiles: { name: string; blob: Blob }[] = [];
+      
+      for (const filename of Object.keys(zip.files)) {
+        const zipEntry = zip.files[filename];
+        if (zipEntry.dir) continue;
+        const ext = filename.toLowerCase().split('.').pop();
+        if (['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
+          const blob = await zipEntry.async('blob');
+          imageFiles.push({ name: filename.split('/').pop() || filename, blob });
+        }
+      }
+
+      setUploadProgress({ current: 0, total: imageFiles.length });
+
+      let successCount = 0;
+      let failedNames: string[] = [];
+      
+      for (let i = 0; i < imageFiles.length; i++) {
+        const { name, blob } = imageFiles[i];
+        
+        // Skip files larger than 5MB
+        if (blob.size > 5 * 1024 * 1024) {
+          failedNames.push(`${name} (too large)`);
+          setUploadProgress({ current: i + 1, total: imageFiles.length });
+          continue;
+        }
+        
+        try {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.readAsDataURL(blob);
+          });
+
+          await apiRequest("POST", "/api/admin/background-assets", {
+            name: name.replace(/\.[^/.]+$/, ''),
+            assetType: 'source',
+            imageData: base64,
+            mimeType: blob.type || 'image/png',
+          });
+          successCount++;
+        } catch (err: any) {
+          failedNames.push(name);
+        }
+
+        setUploadProgress({ current: i + 1, total: imageFiles.length });
+      }
+
+      if (failedNames.length > 0) {
+        toast({ 
+          title: `Uploaded ${successCount} of ${imageFiles.length} images`, 
+          description: `Failed: ${failedNames.slice(0, 3).join(', ')}${failedNames.length > 3 ? '...' : ''}`,
+          variant: failedNames.length === imageFiles.length ? "destructive" : "default"
+        });
+      } else {
+        toast({ title: `Uploaded ${successCount} images successfully` });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
+      e.target.value = '';
+    }
+  };
+
+  const handleSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+
+    setUploading(true);
+    setUploadProgress({ current: 0, total: files.length });
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(file);
+        });
+
+        await apiRequest("POST", "/api/admin/background-assets", {
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          assetType: 'source',
+          imageData: base64,
+          mimeType: file.type,
+        });
+
+        setUploadProgress({ current: i + 1, total: files.length });
+      }
+
+      toast({ title: `Uploaded ${files.length} images` });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
+      e.target.value = '';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Upload Source Images
+          </CardTitle>
+          <CardDescription>
+            Upload a ZIP file with multiple images or select individual files. These are your original backgrounds.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="zip-upload" className="text-base font-medium">ZIP File (Bulk Upload)</Label>
+              <Input
+                id="zip-upload"
+                type="file"
+                accept=".zip"
+                onChange={handleZipUpload}
+                disabled={uploading}
+                className="h-12"
+                data-testid="input-zip-upload"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="images-upload" className="text-base font-medium">Individual Images</Label>
+              <Input
+                id="images-upload"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleSingleUpload}
+                disabled={uploading}
+                className="h-12"
+                data-testid="input-images-upload"
+              />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">Max 5MB per image. Supported: JPG, PNG, WebP</p>
+          {uploading && uploadProgress.total > 0 && (
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Uploading {uploadProgress.current} of {uploadProgress.total}...</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">{assets.length} Source Images</h3>
+      </div>
+
+      {assets.length === 0 ? (
+        <Card className="text-center py-12">
+          <CardContent>
+            <ImagePlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-muted-foreground">No source images uploaded yet.</p>
+            <p className="text-sm text-muted-foreground mt-2">Upload a ZIP file or select images above.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {assets.map((asset) => (
+            <Card key={asset.id} className="overflow-hidden" data-testid={`card-source-${asset.id}`}>
+              <div className="aspect-square relative">
+                <img src={asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+              </div>
+              <CardContent className="p-2">
+                <p className="text-xs truncate">{asset.name}</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full mt-1 text-destructive hover:text-destructive"
+                  onClick={() => deleteMutation.mutate(asset.id)}
+                  data-testid={`button-delete-source-${asset.id}`}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// Cropped Images Content - Stored cropped versions
+function CroppedImagesContent() {
+  const { toast } = useToast();
+
+  const { data: assets = [], isLoading } = useQuery<BackgroundAsset[]>({
+    queryKey: ["/api/admin/background-assets", "cropped"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/background-assets?type=cropped");
+      if (!res.ok) throw new Error("Failed to fetch cropped images");
+      return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/background-assets/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Image deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "cropped"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold">{assets.length} Cropped Images</h3>
+          <p className="text-sm text-muted-foreground">9:16 cropped images ready for product design</p>
+        </div>
+      </div>
+
+      {assets.length === 0 ? (
+        <Card className="text-center py-12">
+          <CardContent>
+            <Crop className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-muted-foreground">No cropped images yet.</p>
+            <p className="text-sm text-muted-foreground mt-2">Cropped images appear here after you crop source images in the product builder.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {assets.map((asset) => (
+            <Card key={asset.id} className="overflow-hidden" data-testid={`card-cropped-${asset.id}`}>
+              <div className="aspect-[9/16] relative">
+                <img src={asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+              </div>
+              <CardContent className="p-2">
+                <p className="text-xs truncate">{asset.name}</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full mt-1 text-destructive hover:text-destructive"
+                  onClick={() => deleteMutation.mutate(asset.id)}
+                  data-testid={`button-delete-cropped-${asset.id}`}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function AdminBackgrounds() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -909,7 +1233,7 @@ export default function AdminBackgrounds() {
         </nav>
 
         <Tabs defaultValue="templates" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="templates" data-testid="tab-templates">
               <Image className="h-4 w-4 mr-2" />
               Templates
@@ -918,12 +1242,26 @@ export default function AdminBackgrounds() {
               <FolderOpen className="h-4 w-4 mr-2" />
               Backgrounds
             </TabsTrigger>
+            <TabsTrigger value="source" data-testid="tab-source-images">
+              <Upload className="h-4 w-4 mr-2" />
+              Source Images
+            </TabsTrigger>
+            <TabsTrigger value="cropped" data-testid="tab-cropped-images">
+              <Crop className="h-4 w-4 mr-2" />
+              Cropped
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="templates">
             <TemplatesContent />
           </TabsContent>
           <TabsContent value="backgrounds">
             <LibraryBackgroundsContent />
+          </TabsContent>
+          <TabsContent value="source">
+            <SourceImagesContent />
+          </TabsContent>
+          <TabsContent value="cropped">
+            <CroppedImagesContent />
           </TabsContent>
         </Tabs>
       </main>
