@@ -116,7 +116,7 @@ interface CostSyncStatusData {
 
 const POD_PROVIDERS = [
   { id: 'printify', name: 'Printify', configured: true, role: 'fulfillment' },
-  { id: 'printful', name: 'Printful', configured: true, role: 'mockups' },
+  { id: 'printful', name: 'Printful', configured: true, role: 'fulfillment' },
   { id: 'apliiq', name: 'Apliiq', configured: false, role: 'fulfillment' },
 ];
 
@@ -4902,6 +4902,9 @@ function ProductsContent() {
   const [deleteStoreId, setDeleteStoreId] = useState<string | null>(null);
   const [deleteSegmentInfo, setDeleteSegmentInfo] = useState<{ storeId: string; segment: string } | null>(null);
   
+  // Provider filter toggles - which POD providers to show products from
+  const [selectedProviders, setSelectedProviders] = useState<string[]>(["printify", "printful"]);
+  
   // Edit design state - passed to AddFromPrintifyPanel
   const [editDesignId, setEditDesignId] = useState<string | null>(null);
   // Zoom state for product images
@@ -4963,6 +4966,13 @@ function ProductsContent() {
     [];
   
   const filteredProducts = (products || []).filter(product => {
+    // Filter by provider
+    const productProvider = (product as any).printifyId ? 'printify' : 
+      ((product.metadata as any)?.fulfillmentProvider || 'printify');
+    if (selectedProviders.length > 0 && !selectedProviders.includes(productProvider)) {
+      return false;
+    }
+    
     // Filter by store/area
     if (filterSegment) {
       const categoryParts = product.category.split("/");
@@ -5144,11 +5154,49 @@ function ProductsContent() {
             </Button>
           </div>
           {/* Search & Filter Section */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
               <Target className="h-4 w-4" />
               Search & Filter
             </Label>
+            
+            {/* Provider Toggles */}
+            <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/50 rounded-lg border">
+              <span className="text-sm font-medium text-muted-foreground">Fulfillment:</span>
+              {POD_PROVIDERS.filter(p => p.role === 'fulfillment' || p.id === 'printful').map((provider) => (
+                <div key={provider.id} className="flex items-center gap-2">
+                  <Switch
+                    id={`provider-${provider.id}`}
+                    checked={selectedProviders.includes(provider.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedProviders([...selectedProviders, provider.id]);
+                      } else {
+                        setSelectedProviders(selectedProviders.filter(p => p !== provider.id));
+                      }
+                    }}
+                    data-testid={`switch-provider-${provider.id}`}
+                  />
+                  <Label 
+                    htmlFor={`provider-${provider.id}`} 
+                    className={`text-sm cursor-pointer ${selectedProviders.includes(provider.id) ? 'font-medium' : 'text-muted-foreground'}`}
+                  >
+                    {provider.name}
+                  </Label>
+                  {provider.configured && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {provider.role === 'fulfillment' ? 'Fulfillment' : 'Mockups'}
+                    </Badge>
+                  )}
+                  {!provider.configured && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 opacity-50">
+                      Not configured
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+            
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-1">
                 <select
