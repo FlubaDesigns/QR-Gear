@@ -1,4 +1,4 @@
-// Build timestamp: 2026-01-07T23:20:00Z - Added background-assets routes for image uploads
+// Build timestamp: 2026-01-07T23:45:00Z - Mockups now cached by color + graphic size (e.g., Black_medium)
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1893,30 +1893,59 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
     const normalizeColor = (c: string) => c.toLowerCase().trim();
     const requestColorNorm = normalizeColor(color);
     
-    let existingMockup: any = null;
-    let matchedColorKey: string = color;
+    // Build the key for color + graphic size (e.g., "Black_medium")
+    const colorSizeKey = `${color}_${resolvedQrSize}`;
+    const colorSizeKeyNorm = `${requestColorNorm}_${resolvedQrSize}`;
     
-    for (const [storedColor, mockup] of Object.entries(existingMockups)) {
-      if (normalizeColor(storedColor) === requestColorNorm && mockup && (mockup as any).front) {
+    console.log(`[StorefrontMockup] Looking for mockup: exact="${colorSizeKey}", fallback="${color}"`);
+    
+    // Priority 1: Exact match for color + graphic size
+    let existingMockup: any = null;
+    let matchedColorKey: string = colorSizeKey;
+    let usedFallback = false;
+    
+    for (const [storedKey, mockup] of Object.entries(existingMockups)) {
+      const storedKeyNorm = storedKey.toLowerCase().trim();
+      if (storedKeyNorm === colorSizeKeyNorm && mockup && (mockup as any).front) {
         existingMockup = mockup;
-        matchedColorKey = storedColor;
+        matchedColorKey = storedKey;
+        console.log(`[StorefrontMockup] Found EXACT match: "${storedKey}" for ${colorSizeKey}`);
         break;
+      }
+    }
+    
+    // Priority 2: Fallback to any mockup for this color (any graphic size or legacy format)
+    if (!existingMockup) {
+      for (const [storedKey, mockup] of Object.entries(existingMockups)) {
+        const storedKeyNorm = storedKey.toLowerCase().trim();
+        const matchesColor = storedKeyNorm === requestColorNorm || 
+                             storedKeyNorm.startsWith(`${requestColorNorm}_`);
+        if (matchesColor && mockup && (mockup as any).front) {
+          existingMockup = mockup;
+          matchedColorKey = storedKey;
+          usedFallback = true;
+          console.log(`[StorefrontMockup] Using FALLBACK mockup: "${storedKey}" (requested: ${colorSizeKey})`);
+          break;
+        }
       }
     }
     
     if (existingMockup && existingMockup.front) {
       const defaultImage = existingMockup.lifestyle || existingMockup.front;
       await db.collection('products').doc(canonicalProductId).update({
-        defaultColor: matchedColorKey,
+        defaultColor: color,
         imageUrl: defaultImage,
       });
       
       res.json({ 
         success: true, 
         color, 
+        graphicSize: resolvedQrSize,
         mockupUrl: existingMockup.front,
         lifestyleMockupUrl: existingMockup.lifestyle || null,
         fromCache: true,
+        usedFallback,
+        matchedKey: matchedColorKey,
         mockupsByColor: existingMockups 
       });
       return;
@@ -2536,9 +2565,22 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req: Req
           artworkVariant,
         });
         
+        // Save with color + graphic size key (default to medium for regenerate)
+        const graphicSize = 'medium';
+        const colorSizeKey = `${colorInfo.name}_${graphicSize}`;
+        mockupsByColor[colorSizeKey] = {
+          front: mockupResult.mockupUrl,
+          lifestyle: mockupResult.lifestyleMockupUrl,
+          qrSize: graphicSize,
+          generatedAt: new Date().toISOString(),
+        };
+        
+        // Also keep legacy key for backward compatibility
         mockupsByColor[colorInfo.name] = {
           front: mockupResult.mockupUrl,
           lifestyle: mockupResult.lifestyleMockupUrl,
+          qrSize: graphicSize,
+          generatedAt: new Date().toISOString(),
         };
         
         results.push({ color: colorInfo.name, success: true, mockupUrl: mockupResult.mockupUrl });

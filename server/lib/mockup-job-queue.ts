@@ -311,6 +311,17 @@ export class MockupJobQueue {
       if (!product) return;
 
       const mockupsByColor = (product.mockupsByColor || {}) as Record<string, any>;
+      
+      // Save with color + graphic size key (e.g., "Black_medium") so each size is preserved
+      const colorSizeKey = `${job.colorName}_${job.qrSize}`;
+      mockupsByColor[colorSizeKey] = {
+        front: result.mockupUrl,
+        lifestyle: result.lifestyleMockupUrl,
+        qrSize: job.qrSize,
+        generatedAt: new Date().toISOString(),
+      };
+      
+      // Also keep a legacy key for backward compatibility (last generated size)
       mockupsByColor[job.colorName] = {
         front: result.mockupUrl,
         lifestyle: result.lifestyleMockupUrl,
@@ -322,7 +333,7 @@ export class MockupJobQueue {
         .set({ mockupsByColor })
         .where(eq(products.id, job.productId));
 
-      console.log(`[JobQueue] Updated product ${job.productId} mockups for ${job.colorName}`);
+      console.log(`[JobQueue] Updated product ${job.productId} mockups for ${colorSizeKey}`);
     } catch (err) {
       console.error("[JobQueue] Error updating product mockups:", err);
     }
