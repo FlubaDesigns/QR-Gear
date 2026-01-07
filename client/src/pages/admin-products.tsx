@@ -5143,14 +5143,20 @@ function ProductsContent() {
               Refresh
             </Button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-1">
-              <select
-                className="p-2 border rounded-md bg-background text-sm"
-                value={filterSegment}
-                onChange={(e) => { setFilterSegment(e.target.value); setFilterArea(""); }}
-                data-testid="filter-store-segment"
-              >
+          {/* Search & Filter Section */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Search & Filter
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              <div className="flex items-center gap-1">
+                <select
+                  className="p-2 border rounded-md bg-background text-sm"
+                  value={filterSegment}
+                  onChange={(e) => { setFilterSegment(e.target.value); setFilterArea(""); }}
+                  data-testid="filter-store-segment"
+                >
                 <option value="">All Stores</option>
                 {allInternalStores.length > 0 && (
                   <optgroup label="Internal Stores">
@@ -5220,6 +5226,7 @@ function ProductsContent() {
             <span className="text-sm text-muted-foreground self-center">
               {filteredProducts.length} of {(products || []).length} products
             </span>
+          </div>
           </div>
         </CardHeader>
         <CardContent className="px-3 sm:px-6">
