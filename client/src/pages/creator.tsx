@@ -205,6 +205,9 @@ export default function Creator() {
     setQrContent("");
     setUploadedImage(null);
     setSelectedTemplate(null);
+    setProductTypeFilter("all");
+    setUsaOnlyFilter("all");
+    setSelectedProduct(null);
   };
   
   const currentLineConfig = productLineConfig[productLine];
@@ -1642,7 +1645,10 @@ export default function Creator() {
                             <Button
                               variant={usaOnlyFilter === "all" ? "default" : "outline"}
                               size="sm"
-                              onClick={() => setUsaOnlyFilter("all")}
+                              onClick={() => {
+                                setUsaOnlyFilter("all");
+                                setSelectedProduct(null);
+                              }}
                               data-testid="filter-all-countries"
                             >
                               All ({typeFilteredProducts.length})
@@ -1650,7 +1656,10 @@ export default function Creator() {
                             <Button
                               variant={usaOnlyFilter === "usa" ? "default" : "outline"}
                               size="sm"
-                              onClick={() => setUsaOnlyFilter("usa")}
+                              onClick={() => {
+                                setUsaOnlyFilter("usa");
+                                setSelectedProduct(null);
+                              }}
                               data-testid="filter-usa-only"
                             >
                               USA Only ({usaCount})
@@ -1658,7 +1667,10 @@ export default function Creator() {
                             <Button
                               variant={usaOnlyFilter === "other" ? "default" : "outline"}
                               size="sm"
-                              onClick={() => setUsaOnlyFilter("other")}
+                              onClick={() => {
+                                setUsaOnlyFilter("other");
+                                setSelectedProduct(null);
+                              }}
                               data-testid="filter-other-countries"
                             >
                               Elsewhere ({otherCount})
