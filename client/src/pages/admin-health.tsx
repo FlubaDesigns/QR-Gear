@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,16 +16,8 @@ import {
   Clock,
   Server,
   Zap,
-  Mail,
-  Send,
-  Inbox,
-  AlertTriangle,
-  Play,
-  RotateCcw,
 } from "lucide-react";
 import type { ProviderHealthLog } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 
 interface ProviderStatus {
   provider: string;
@@ -39,36 +31,6 @@ interface ProviderStatus {
 interface HealthOverview {
   providers: ProviderStatus[];
   recentLogs: ProviderHealthLog[];
-}
-
-interface NexusMailStatus {
-  ready: boolean;
-  provider: string;
-  health: {
-    score: number;
-    status: 'healthy' | 'degraded' | 'unhealthy';
-    consecutiveFailures: number;
-    isPaused: boolean;
-  };
-  outboxStats: {
-    queued: number;
-    sending: number;
-    sent: number;
-    failed: number;
-    dead: number;
-  };
-}
-
-interface OutboxRecord {
-  id: string;
-  to: string;
-  subject: string;
-  templateSlug: string;
-  status: string;
-  createdAt: string;
-  sentAt?: string;
-  retryCount: number;
-  lastError?: string;
 }
 
 function StatusIcon({ status }: { status: string }) {

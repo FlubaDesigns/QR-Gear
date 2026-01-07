@@ -108,6 +108,12 @@ const adminSections = [
     icon: Mail,
     href: "/admin/email-templates",
   },
+  {
+    title: "Email Health",
+    description: "Monitor email system health and queue",
+    icon: Mail,
+    href: "/admin/email-health",
+  },
 ];
 
 export default function Admin() {
