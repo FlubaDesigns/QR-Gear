@@ -738,10 +738,16 @@ interface AddFromPrintifyPanelProps {
   onFilterChange?: (store: string, segment: string, productSource?: string, productCategory?: string) => void;
   editDesignId?: string | null;
   onEditComplete?: () => void;
+  selectedProviders?: string[];
 }
 
-function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditComplete }: AddFromPrintifyPanelProps) {
+function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditComplete, selectedProviders = ["printify"] }: AddFromPrintifyPanelProps) {
   const { toast } = useToast();
+  
+  // Determine active fulfillment provider from parent's selection
+  // Default to printify, but if only printful is selected, use that
+  const activeFulfillmentProvider = selectedProviders.includes("printify") ? "printify" : 
+    selectedProviders.includes("printful") ? "printful" : "printify";
   
   // New stepped flow state
   const [storeType, setStoreType] = useState<StoreType | "">("");
@@ -1343,9 +1349,60 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
     }
   }, [editDesignId]);
 
-  const { data: catalog = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
+  // Printify catalog (existing)
+  const { data: printifyCatalog = [], isLoading: loadingPrintifyCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/admin/printify/catalog"],
+    enabled: activeFulfillmentProvider === "printify",
   });
+  
+  // Printful catalog - fetch from synced database
+  interface PrintfulProduct {
+    id: number;
+    type: string;
+    typeName: string;
+    brand: string | null;
+    model: string | null;
+    title: string;
+    image: string | null;
+    variantCount: number;
+    minPrice: string | null;
+    maxPrice: string | null;
+    originCountry: string | null;
+  }
+  const { data: printfulProducts = [], isLoading: loadingPrintfulCatalog } = useQuery<PrintfulProduct[]>({
+    queryKey: ["/api/admin/catalog/printful-products"],
+    enabled: activeFulfillmentProvider === "printful",
+  });
+  
+  // Convert Printful products to catalog format for unified display
+  const printfulCatalog: CatalogCategory[] = (() => {
+    if (activeFulfillmentProvider !== "printful" || !printfulProducts.length) return [];
+    
+    // Group by typeName
+    const grouped: Record<string, CatalogItem[]> = {};
+    for (const p of printfulProducts) {
+      const category = p.typeName || "Other";
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push({
+        id: p.id,
+        title: p.title,
+        brand: p.brand || "",
+        model: p.model || "",
+        images: p.image ? [p.image] : [],
+        madeInUSA: p.originCountry === "US" || p.originCountry === "USA",
+      });
+    }
+    
+    return Object.entries(grouped).map(([name, items]) => ({
+      name,
+      count: items.length,
+      items,
+    }));
+  })();
+  
+  // Use active provider's catalog
+  const catalog = activeFulfillmentProvider === "printful" ? printfulCatalog : printifyCatalog;
+  const loadingCatalog = activeFulfillmentProvider === "printful" ? loadingPrintfulCatalog : loadingPrintifyCatalog;
   
   const categoryData = (catalog || []).find(c => c.name === selectedCategory);
   const allCategoryItems = categoryData?.items || [];
@@ -5176,6 +5233,7 @@ function ProductsContent() {
         }}
         editDesignId={editDesignId}
         onEditComplete={() => setEditDesignId(null)}
+        selectedProviders={selectedProviders}
       />
 
       <Card>
