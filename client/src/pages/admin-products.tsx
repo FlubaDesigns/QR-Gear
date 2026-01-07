@@ -58,6 +58,7 @@ import {
   ImageIcon,
   ExternalLink,
   Star,
+  Layers,
 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import type { Product, ProductCategory, HostingTier, AdminSettings } from "@shared/schema";
@@ -820,7 +821,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   
   // Library picker state (backgrounds + templates)
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
-  const [libraryPickerTab, setLibraryPickerTab] = useState<"backgrounds" | "templates">("backgrounds");
+  const [libraryPickerTab, setLibraryPickerTab] = useState<"backgrounds" | "templates" | "graphic-sets">("backgrounds");
   const [libraryFilterSeason, setLibraryFilterSeason] = useState<string>("all");
   const [libraryFilterEvent, setLibraryFilterEvent] = useState<string>("all");
   // Track which source button was clicked: templates, backgrounds, or custom
@@ -926,6 +927,27 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   const { data: libraryTemplates = [], refetch: refetchTemplates } = useQuery<LibraryTemplate[]>({
     queryKey: ["/api/admin/library/templates"],
     enabled: libraryPickerOpen && libraryPickerTab === "templates",
+  });
+  
+  // Fetch graphic sets for picker
+  interface GraphicSetData {
+    id: string;
+    name: string;
+    description: string | null;
+    categoryId: string | null;
+    subcategoryId: string | null;
+    fullGraphicUrl: string | null;
+    qrOnlyUrl: string | null;
+    destinationUrl: string | null;
+    tags: string[] | null;
+    isActive: boolean | null;
+    isFeatured: boolean | null;
+    usageCount: number | null;
+    createdAt: string;
+  }
+  const { data: graphicSets = [], refetch: refetchGraphicSets } = useQuery<GraphicSetData[]>({
+    queryKey: ["/api/admin/graphic-sets"],
+    enabled: libraryPickerOpen && libraryPickerTab === "graphic-sets",
   });
   
   // Fetch template categories for hierarchical organization
@@ -4320,8 +4342,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
           </DialogHeader>
           
           {/* Tabs */}
-          <Tabs value={libraryPickerTab} onValueChange={(v) => setLibraryPickerTab(v as "backgrounds" | "templates")} className="flex-1 flex flex-col min-h-0" style={{ minHeight: 0, flex: 1 }}>
-            <TabsList className="grid w-full grid-cols-2 h-12 flex-shrink-0">
+          <Tabs value={libraryPickerTab} onValueChange={(v) => setLibraryPickerTab(v as "backgrounds" | "templates" | "graphic-sets")} className="flex-1 flex flex-col min-h-0" style={{ minHeight: 0, flex: 1 }}>
+            <TabsList className="grid w-full grid-cols-3 h-12 flex-shrink-0">
               <TabsTrigger value="backgrounds" className="text-base h-10" data-testid="tab-library-backgrounds">
                 <FolderOpen className="h-4 w-4 mr-2" />
                 Backgrounds
@@ -4329,6 +4351,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
               <TabsTrigger value="templates" className="text-base h-10" data-testid="tab-library-templates">
                 <ImageIcon className="h-4 w-4 mr-2" />
                 Templates
+              </TabsTrigger>
+              <TabsTrigger value="graphic-sets" className="text-base h-10" data-testid="tab-library-graphic-sets">
+                <Layers className="h-4 w-4 mr-2" />
+                Graphic Sets
               </TabsTrigger>
             </TabsList>
             
@@ -4648,6 +4674,111 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                           {template.storeName || "No store"} {template.segment ? `• ${template.segment}` : ""}
                         </p>
                       </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            {/* Graphic Sets Tab Content */}
+            <TabsContent value="graphic-sets" className="flex-1 overflow-y-auto mt-0" style={{ flex: 1, minHeight: 0 }}>
+              {(graphicSets || []).length === 0 ? (
+                <div className="text-center py-12">
+                  <Layers className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg text-muted-foreground">No graphic sets saved yet.</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Create a design and save it as a Graphic Set to reuse across products.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                  {(graphicSets || []).map((gs) => (
+                    <div
+                      key={gs.id}
+                      className="border-2 rounded-lg overflow-hidden relative group"
+                      data-testid={`library-graphic-set-${gs.id}`}
+                    >
+                      <AccessibleIconButton
+                        variant="destructive"
+                        aria-label={`Delete graphic set ${gs.name}`}
+                        className="absolute top-2 right-2 z-10"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete graphic set "${gs.name}"?`)) {
+                            try {
+                              await apiRequest("DELETE", `/api/admin/graphic-sets/${gs.id}`);
+                              queryClient.invalidateQueries({ queryKey: ["/api/admin/graphic-sets"] });
+                              toast({ title: "Graphic set deleted" });
+                            } catch (error: any) {
+                              toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+                            }
+                          }
+                        }}
+                        data-testid={`delete-graphic-set-${gs.id}`}
+                      >
+                        <X className="h-5 w-5" />
+                      </AccessibleIconButton>
+                      <div
+                        className="cursor-pointer hover-elevate active-elevate-2 transition-transform"
+                        onClick={() => {
+                          // Apply the graphic set to the current design
+                          // Set external URL mode with the destination URL
+                          if (gs.destinationUrl) {
+                            setQrContentType("external_url");
+                            setExternalUrl(gs.destinationUrl);
+                          }
+                          
+                          // Set productSource to Custom so the builder shows
+                          setProductSource("Custom");
+                          setLibrarySourceType("templates");
+                          setLoadedFromTemplate(true);
+                          
+                          setLibraryPickerOpen(false);
+                          toast({ 
+                            title: "Graphic Set Applied", 
+                            description: `"${gs.name}" loaded. The destination URL is set to: ${gs.destinationUrl || 'None'}`,
+                            duration: 4000,
+                          });
+                        }}
+                      >
+                        <div className="aspect-[4/3] relative bg-muted">
+                          {gs.fullGraphicUrl ? (
+                            <img
+                              src={gs.fullGraphicUrl}
+                              alt={gs.name}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : gs.qrOnlyUrl ? (
+                            <img
+                              src={gs.qrOnlyUrl}
+                              alt={gs.name}
+                              className="w-full h-full object-contain p-4"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Layers className="h-16 w-16 opacity-30" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3 bg-card">
+                          <p className="text-base font-semibold truncate">{gs.name}</p>
+                          {gs.description && (
+                            <p className="text-sm text-muted-foreground mt-1 truncate">{gs.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {gs.isFeatured && <Badge variant="default">Featured</Badge>}
+                            {gs.tags && gs.tags.slice(0, 2).map((tag, i) => (
+                              <Badge key={i} variant="secondary">{tag}</Badge>
+                            ))}
+                          </div>
+                          {gs.destinationUrl && (
+                            <p className="text-xs text-muted-foreground mt-2 truncate flex items-center gap-1">
+                              <ExternalLink className="h-3 w-3" />
+                              {gs.destinationUrl}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
