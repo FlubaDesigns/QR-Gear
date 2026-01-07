@@ -70,6 +70,7 @@ import BusinessAnalyticsQR from "@/pages/business-analytics-qr";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 import LogoPreview from "@/pages/logo-preview";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
   return (
@@ -81,25 +82,25 @@ function Router() {
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/admin/products" component={AdminProducts} />
-      <Route path="/admin/pricing" component={AdminPricing} />
-      <Route path="/admin/backgrounds" component={AdminBackgrounds} />
-      <Route path="/admin/videos" component={AdminVideos} />
-      <Route path="/admin/categories" component={AdminCategories} />
-      <Route path="/admin/tags" component={AdminTags} />
-      <Route path="/admin/partners" component={AdminPartners} />
-      <Route path="/admin/orchestration" component={AdminOrchestration} />
-      <Route path="/admin/orders" component={AdminOrders} />
-      <Route path="/admin/gifts" component={AdminGifts} />
-      <Route path="/admin/dashboard" component={AdminDashboard} />
-      <Route path="/admin/coupons" component={AdminCoupons} />
-      <Route path="/admin/health" component={AdminHealth} />
-      <Route path="/admin/customers" component={AdminCustomers} />
-      <Route path="/admin/email-templates" component={AdminEmailTemplates} />
-      <Route path="/admin/email-health" component={AdminEmailHealth} />
-      <Route path="/admin/manual" component={AdminManual} />
-      <Route path="/admin/sales/build" component={StoreBuild} />
+      <Route path="/admin">{() => <ProtectedRoute><Admin /></ProtectedRoute>}</Route>
+      <Route path="/admin/products">{() => <ProtectedRoute><AdminProducts /></ProtectedRoute>}</Route>
+      <Route path="/admin/pricing">{() => <ProtectedRoute><AdminPricing /></ProtectedRoute>}</Route>
+      <Route path="/admin/backgrounds">{() => <ProtectedRoute><AdminBackgrounds /></ProtectedRoute>}</Route>
+      <Route path="/admin/videos">{() => <ProtectedRoute><AdminVideos /></ProtectedRoute>}</Route>
+      <Route path="/admin/categories">{() => <ProtectedRoute><AdminCategories /></ProtectedRoute>}</Route>
+      <Route path="/admin/tags">{() => <ProtectedRoute><AdminTags /></ProtectedRoute>}</Route>
+      <Route path="/admin/partners">{() => <ProtectedRoute><AdminPartners /></ProtectedRoute>}</Route>
+      <Route path="/admin/orchestration">{() => <ProtectedRoute><AdminOrchestration /></ProtectedRoute>}</Route>
+      <Route path="/admin/orders">{() => <ProtectedRoute><AdminOrders /></ProtectedRoute>}</Route>
+      <Route path="/admin/gifts">{() => <ProtectedRoute><AdminGifts /></ProtectedRoute>}</Route>
+      <Route path="/admin/dashboard">{() => <ProtectedRoute><AdminDashboard /></ProtectedRoute>}</Route>
+      <Route path="/admin/coupons">{() => <ProtectedRoute><AdminCoupons /></ProtectedRoute>}</Route>
+      <Route path="/admin/health">{() => <ProtectedRoute><AdminHealth /></ProtectedRoute>}</Route>
+      <Route path="/admin/customers">{() => <ProtectedRoute><AdminCustomers /></ProtectedRoute>}</Route>
+      <Route path="/admin/email-templates">{() => <ProtectedRoute><AdminEmailTemplates /></ProtectedRoute>}</Route>
+      <Route path="/admin/email-health">{() => <ProtectedRoute><AdminEmailHealth /></ProtectedRoute>}</Route>
+      <Route path="/admin/manual">{() => <ProtectedRoute><AdminManual /></ProtectedRoute>}</Route>
+      <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
       <Route path="/checkout" component={Checkout} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/view/:id" component={ViewImage} />

@@ -18,13 +18,15 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
+    console.log("[Login] Attempting email login for:", email);
 
     try {
-      await signInWithEmail(email, password);
+      const result = await signInWithEmail(email, password);
+      console.log("[Login] Success! User:", result.user?.uid);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/");
     } catch (err: any) {
-      console.error("Login error:", err);
+      console.error("[Login] Error:", err.code, err.message);
       if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
         setError("Invalid email or password");
       } else if (err.code === "auth/invalid-credential") {
@@ -42,13 +44,15 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setError("");
     setIsLoading(true);
+    console.log("[Login] Attempting Google sign-in");
 
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+      console.log("[Login] Google success! User:", result.user?.uid);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/");
     } catch (err: any) {
-      console.error("Google sign-in error:", err);
+      console.error("[Login] Google error:", err.code, err.message);
       if (err.code === "auth/popup-closed-by-user") {
         setError("");
       } else {
