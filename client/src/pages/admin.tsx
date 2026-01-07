@@ -164,12 +164,6 @@ export default function Admin() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button asChild size="lg" data-testid="button-store-builder">
-                <Link href="/admin/sales/build">
-                  <Store className="h-5 w-5 mr-2" />
-                  Build Store Segment
-                </Link>
-              </Button>
               {user && (
                 <Button 
                   variant="outline" 
