@@ -168,5 +168,54 @@ All raw fetch() calls converted to nexusFetch or nexusFetchProfiled:
 - `shop-segment.tsx` - Store segment + single mockup generation
 - `admin-products.tsx` - Admin single mockup generation
 
+## NexusMail Email System
+
+### Overview
+NexusMail is a portable, self-healing email system built on Nexus Core principles. It provides queue-first, idempotent, provider-agnostic email delivery with automatic health monitoring and retry logic.
+
+### Architecture
+- **Trigger Engine**: State-driven triggers (not UI-triggered) with idempotency
+- **Template Resolver**: Slug-based templates with `{{variable}}` injection
+- **Outbox Service**: Queue-first sending with exponential backoff retries
+- **Provider Health**: Automatic pause/resume based on failure rates
+
+### Core Files
+- `shared/nexusmail/` - Portable core (types, contracts, engine, outbox, health)
+- `functions/src/nexusmail/` - Firebase-specific adapters (Resend, Firestore)
+- `functions/src/nexusmail/NexusMailService.ts` - Main orchestrator
+- `functions/src/nexusmail/defaultTemplates.ts` - Default email templates
+
+### Trigger Registry (QR Gear)
+```typescript
+ORDER_CONFIRMATION  // Sent when order is placed
+ORDER_SHIPPED       // Sent when tracking info added
+PASSWORD_RESET      // Password reset flow
+GENERIC_NOTIFICATION // Custom notifications
+```
+
+### Admin API Endpoints
+- `GET /admin/nexusmail/status` - Health and outbox stats
+- `POST /admin/nexusmail/seed-templates` - Seed default templates to Firestore
+- `GET /admin/nexusmail/outbox` - View outbox records
+- `POST /admin/nexusmail/process-outbox` - Manually process pending emails
+- `POST /admin/nexusmail/retry-failed` - Retry failed emails
+
+### Firestore Collections
+- `nexusmail_outbox` - Email queue with status tracking
+- `nexusmail_templates` - Email templates by slug
+- `nexusmail_idempotency` - Prevents duplicate sends
+- `nexusmail_health` - Provider health scores
+- `nexusmail_send_state` - Global pause/resume state
+
+### Provider Health States
+- **HEALTHY**: Normal operation (5 concurrent sends)
+- **DEGRADED**: Reduced concurrency (2 sends), increased logging
+- **UNHEALTHY**: Auto-paused, queue-only mode
+
+### First-Time Setup
+1. Deploy functions: Use the standard Firebase deploy command
+2. Seed templates: Call `POST /admin/nexusmail/seed-templates`
+3. Templates are now in Firestore and emails will use NexusMail
+
 ## Library Maintenance
 See `updates.md` for a schedule of libraries requiring regular updates.

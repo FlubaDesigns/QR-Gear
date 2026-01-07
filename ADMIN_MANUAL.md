@@ -400,6 +400,62 @@ Note: You must verify ownership of qrgear.com domain in Resend before emails wil
 
 ---
 
+## NexusMail System
+
+NexusMail is the self-healing email system powering QR Gear's transactional emails.
+
+### NexusMail API Endpoints (Admin Only)
+
+**Get Email System Status:**
+```
+GET /admin/nexusmail/status
+```
+Returns health status, provider state, and outbox statistics.
+
+**Seed Default Templates:**
+```
+POST /admin/nexusmail/seed-templates
+```
+Initializes email templates in Firestore. Run this once after first deployment.
+
+**View Outbox Records:**
+```
+GET /admin/nexusmail/outbox?limit=50
+```
+View recent email queue records with their status.
+
+**Process Pending Emails:**
+```
+POST /admin/nexusmail/process-outbox
+Body: { "limit": 10 }
+```
+Manually process queued emails.
+
+**Retry Failed Emails:**
+```
+POST /admin/nexusmail/retry-failed
+Body: { "limit": 10 }
+```
+Retry emails that failed to send.
+
+### Email Status Types
+
+- **QUEUED**: Email is waiting to be sent
+- **SENDING**: Email is currently being sent
+- **SENT**: Email was delivered successfully
+- **FAILED**: Email failed but will be retried
+- **DEAD**: Email failed permanently (max retries exceeded)
+- **SKIPPED**: Email was manually skipped by admin
+
+### First-Time Setup
+
+After deploying NexusMail for the first time:
+1. Make an API call to `POST /admin/nexusmail/seed-templates`
+2. This creates the default email templates in Firestore
+3. Emails will now use the NexusMail system
+
+---
+
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.

@@ -4,6 +4,14 @@ import express, { Request, Response, NextFunction } from 'express';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 
+// NexusMail imports
+import {
+  getNexusMailService,
+  sendOrderConfirmation as nexusOrderConfirmation,
+  sendShippingNotification as nexusShippingNotification,
+  seedDefaultTemplates,
+} from './nexusmail';
+
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -56,7 +64,13 @@ interface ShippingEmailData {
   carrier: string;
 }
 
-async function sendOrderConfirmationEmail(data: OrderEmailData): Promise<{ success: boolean; error?: string }> {
+/**
+ * @deprecated LEGACY - Use nexusOrderConfirmation() instead for queue-first, idempotent email delivery.
+ * This function bypasses NexusMail's TriggerEngine, outbox, and retry logic.
+ * Only kept for emergency fallback - DO NOT USE IN NEW CODE.
+ */
+async function sendOrderConfirmationEmail_DEPRECATED(data: OrderEmailData): Promise<{ success: boolean; error?: string }> {
+  console.warn('[DEPRECATED] sendOrderConfirmationEmail called - use nexusOrderConfirmation() instead');
   try {
     const resend = getResendClient();
     if (!resend) {
@@ -154,7 +168,13 @@ async function sendOrderConfirmationEmail(data: OrderEmailData): Promise<{ succe
   }
 }
 
-async function sendShippingNotificationEmail(data: ShippingEmailData): Promise<{ success: boolean; error?: string }> {
+/**
+ * @deprecated LEGACY - Use nexusShippingNotification() instead for queue-first, idempotent email delivery.
+ * This function bypasses NexusMail's TriggerEngine, outbox, and retry logic.
+ * Only kept for emergency fallback - DO NOT USE IN NEW CODE.
+ */
+async function sendShippingNotificationEmail_DEPRECATED(data: ShippingEmailData): Promise<{ success: boolean; error?: string }> {
+  console.warn('[DEPRECATED] sendShippingNotificationEmail called - use nexusShippingNotification() instead');
   try {
     const resend = getResendClient();
     if (!resend) {
@@ -3106,7 +3126,7 @@ app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req: Request, r
     const hasTrackingNow = !!updatedOrder.trackingNumber;
     const hasNewTracking = hasTrackingNow && !hadTrackingBefore;
 
-    // Send shipping notification email if tracking was just added
+    // Send shipping notification email via NexusMail if tracking was just added
     let emailSent = false;
     if (hasNewTracking && updatedOrder.customerEmail) {
       const shippingAddress = updatedOrder.shippingAddress;
@@ -3114,14 +3134,15 @@ app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req: Request, r
         ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
         : 'Customer';
 
-      const emailResult = await sendShippingNotificationEmail({
+      const emailResult = await nexusShippingNotification(
+        db,
         orderId,
-        customerEmail: updatedOrder.customerEmail,
+        updatedOrder.customerEmail,
         customerName,
-        trackingNumber: updatedOrder.trackingNumber,
-        trackingUrl: updatedOrder.trackingUrl,
-        carrier: updatedOrder.carrier || 'Carrier',
-      });
+        updatedOrder.trackingNumber,
+        updatedOrder.carrier || 'Carrier',
+        updatedOrder.trackingUrl
+      );
       emailSent = emailResult.success;
     }
     
@@ -3165,19 +3186,21 @@ app.post('/admin/orders/:id/send-shipping-email', requireAdmin, async (req: Requ
       ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
       : 'Customer';
 
-    const result = await sendShippingNotificationEmail({
+    // Use NexusMail for shipping notification (with admin override to bypass idempotency)
+    const result = await nexusShippingNotification(
+      db,
       orderId,
-      customerEmail: order.customerEmail,
+      order.customerEmail,
       customerName,
-      trackingNumber: order.trackingNumber,
-      trackingUrl: order.trackingUrl,
-      carrier: order.carrier || 'Carrier',
-    });
+      order.trackingNumber,
+      order.carrier || 'Carrier',
+      order.trackingUrl
+    );
     
     if (result.success) {
-      res.json({ success: true, message: 'Shipping notification email sent' });
+      res.json({ success: true, message: 'Shipping notification email sent via NexusMail' });
     } else {
-      res.status(500).json({ success: false, error: result.error });
+      res.status(500).json({ success: false, error: result.reason });
     }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3228,26 +3251,28 @@ app.post('/admin/orders/:id/resend-confirmation', requireAdmin, async (req: Requ
       ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
       : 'Customer';
 
-    const result = await sendOrderConfirmationEmail({
+    // Use NexusMail for order confirmation
+    const result = await nexusOrderConfirmation(
+      db,
       orderId,
-      customerEmail: order.customerEmail,
+      order.customerEmail,
       customerName,
-      items: emailItems,
-      totalAmount: order.totalAmount || '0',
-      shippingAddress: shippingAddress ? {
+      emailItems,
+      order.totalAmount || '0',
+      shippingAddress ? {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2,
         city: shippingAddress.city,
         region: shippingAddress.region,
         zip: shippingAddress.zip,
         country: shippingAddress.country,
-      } : undefined,
-    });
+      } : undefined
+    );
     
     if (result.success) {
-      res.json({ success: true, message: 'Order confirmation email resent' });
+      res.json({ success: true, message: 'Order confirmation email resent via NexusMail' });
     } else {
-      res.status(500).json({ success: false, error: result.error });
+      res.status(500).json({ success: false, error: result.reason });
     }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3279,6 +3304,92 @@ app.patch('/admin/orders/:id', requireAdmin, async (req: Request, res: Response)
     
     const updatedDoc = await db.collection('orders').doc(orderId).get();
     res.json(docToObject(updatedDoc));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ NEXUSMAIL ADMIN ENDPOINTS ============
+
+// Get NexusMail status and health
+app.get('/admin/nexusmail/status', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const service = getNexusMailService(db);
+    const isReady = service.isReady();
+    const healthScore = service.getHealthScore();
+    const stats = await service.getStats();
+
+    res.json({
+      ready: isReady,
+      provider: isReady ? 'resend' : 'not_configured',
+      health: healthScore,
+      outboxStats: stats,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Seed default email templates
+app.post('/admin/nexusmail/seed-templates', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const service = getNexusMailService(db);
+    const templateStore = service.getTemplateStore();
+    const seeded = await seedDefaultTemplates(templateStore);
+    
+    res.json({ 
+      success: true, 
+      message: `Seeded ${seeded} templates`,
+      templatesSeeded: seeded,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get outbox records
+app.get('/admin/nexusmail/outbox', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const service = getNexusMailService(db);
+    const outboxRepo = service.getOutboxRepo();
+    const limit = parseInt(req.query.limit as string) || 50;
+    const records = await outboxRepo.getRecent(limit);
+    
+    res.json({ records });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Process pending outbox items
+app.post('/admin/nexusmail/process-outbox', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const service = getNexusMailService(db);
+    const limit = parseInt(req.body.limit) || 10;
+    const sent = await service.processOutbox(limit);
+    
+    res.json({ 
+      success: true, 
+      sent,
+      message: `Processed ${sent} emails`,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Retry failed outbox items
+app.post('/admin/nexusmail/retry-failed', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const service = getNexusMailService(db);
+    const limit = parseInt(req.body.limit) || 10;
+    const sent = await service.retryFailed(limit);
+    
+    res.json({ 
+      success: true, 
+      sent,
+      message: `Retried and sent ${sent} emails`,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -3442,21 +3553,23 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
               ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
               : customerDetails?.name || 'Customer';
 
-            await sendOrderConfirmationEmail({
-              orderId: orderRef.id,
+            // Use NexusMail for order confirmation (queue-first, idempotent)
+            await nexusOrderConfirmation(
+              db,
+              orderRef.id,
               customerEmail,
               customerName,
-              items: emailItems,
-              totalAmount: totalAmount.toFixed(2),
-              shippingAddress: shippingAddress ? {
+              emailItems,
+              totalAmount.toFixed(2),
+              shippingAddress ? {
                 address1: shippingAddress.address1,
                 address2: shippingAddress.address2,
                 city: shippingAddress.city,
                 region: shippingAddress.region,
                 zip: shippingAddress.zip,
                 country: shippingAddress.country,
-              } : undefined,
-            });
+              } : undefined
+            );
           }
 
           // Clear cart items AFTER email is sent
