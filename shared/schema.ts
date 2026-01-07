@@ -263,20 +263,25 @@ export type InsertTemplateCategory = z.infer<typeof insertTemplateCategorySchema
 export type TemplateCategory = typeof templateCategories.$inferSelect;
 
 // Graphic Sets - Reusable design pairs NOT tied to a specific product
-// Contains: artwork graphic + QR code image + destination URL
-// Can be applied to any product
+// Contains two images saved large (can be reduced for different placements):
+//   1. Full graphic: header + QR + footer artwork
+//   2. QR only: standalone QR code
+// Plus the destination URL the QR points to
 export const graphicSets = pgTable("graphic_sets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
+  name: text("name").notNull(), // project name
   description: text("description"),
   // Category organization (reuses templateCategories)
   categoryId: varchar("category_id").references(() => templateCategories.id),
   subcategoryId: varchar("subcategory_id").references(() => templateCategories.id),
-  // The two image assets
-  graphicImageUrl: text("graphic_image_url"), // artwork with header + footer design
-  qrImageUrl: text("qr_image_url"), // standalone QR code image
+  // Image 1: Full graphic (header + QR + footer) - saved large
+  fullGraphicUrl: text("full_graphic_url"),
+  // Image 2: QR code only - saved large (same QR as in full graphic)
+  qrOnlyUrl: text("qr_only_url"),
   // The destination URL the QR points to
   destinationUrl: text("destination_url"),
+  // Storage path for the project folder (e.g., "library/my-project")
+  storagePath: text("storage_path"),
   // Metadata
   tags: text("tags").array(),
   isActive: boolean("is_active").default(true),
