@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Nexus } from "@/lib/nexus";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
@@ -877,30 +878,53 @@ function SourceImagesContent() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    Nexus.info("ZIP_UPLOAD", `Starting ZIP upload: ${file.name}`, { size: file.size });
+
     if (!file.name.endsWith('.zip')) {
+      Nexus.warn("ZIP_UPLOAD", "File rejected - not a ZIP file", { fileName: file.name });
       toast({ title: "Please select a ZIP file", variant: "destructive" });
       return;
     }
 
     setUploading(true);
     try {
+      Nexus.info("ZIP_UPLOAD", "Loading JSZip module...");
       const JSZipModule = await import('jszip');
       const JSZip = JSZipModule.default;
+      
+      Nexus.info("ZIP_UPLOAD", "Parsing ZIP file...", { fileName: file.name, size: file.size });
       const zip = await JSZip.loadAsync(file);
+      
+      const allFiles = Object.keys(zip.files);
+      Nexus.info("ZIP_UPLOAD", `ZIP parsed - found ${allFiles.length} entries`, { entries: allFiles.slice(0, 10) });
       
       const imageFiles: { name: string; blob: Blob }[] = [];
       
-      for (const filename of Object.keys(zip.files)) {
+      for (const filename of allFiles) {
         const zipEntry = zip.files[filename];
-        if (zipEntry.dir) continue;
+        if (zipEntry.dir) {
+          Nexus.info("ZIP_UPLOAD", `Skipping directory: ${filename}`);
+          continue;
+        }
         const ext = filename.toLowerCase().split('.').pop();
         if (['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext || '')) {
+          Nexus.info("ZIP_UPLOAD", `Extracting image: ${filename}`, { ext });
           const blob = await zipEntry.async('blob');
           imageFiles.push({ name: filename.split('/').pop() || filename, blob });
+          Nexus.info("ZIP_UPLOAD", `Extracted ${filename}`, { blobSize: blob.size, blobType: blob.type });
+        } else {
+          Nexus.info("ZIP_UPLOAD", `Skipping non-image: ${filename}`, { ext });
         }
       }
 
+      Nexus.info("ZIP_UPLOAD", `Found ${imageFiles.length} images to upload`);
       setUploadProgress({ current: 0, total: imageFiles.length });
+
+      if (imageFiles.length === 0) {
+        Nexus.warn("ZIP_UPLOAD", "No valid images found in ZIP");
+        toast({ title: "No images found in ZIP", description: "ZIP must contain JPG, PNG, WebP, or HEIC files", variant: "destructive" });
+        return;
+      }
 
       let successCount = 0;
       let failedNames: string[] = [];
@@ -908,33 +932,49 @@ function SourceImagesContent() {
       for (let i = 0; i < imageFiles.length; i++) {
         const { name, blob } = imageFiles[i];
         
-        // Skip files larger than 25MB
         if (blob.size > 25 * 1024 * 1024) {
+          Nexus.warn("ZIP_UPLOAD", `Skipping oversized file: ${name}`, { size: blob.size, maxSize: 25 * 1024 * 1024 });
           failedNames.push(`${name} (too large)`);
           setUploadProgress({ current: i + 1, total: imageFiles.length });
           continue;
         }
         
         try {
+          Nexus.info("ZIP_UPLOAD", `Converting to base64: ${name}`, { blobSize: blob.size });
           const reader = new FileReader();
-          const base64 = await new Promise<string>((resolve) => {
-            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => {
+              const result = reader.result as string;
+              if (result && result.includes(',')) {
+                resolve(result.split(',')[1]);
+              } else {
+                reject(new Error('Invalid base64 result'));
+              }
+            };
+            reader.onerror = () => reject(reader.error);
             reader.readAsDataURL(blob);
           });
+          
+          Nexus.info("ZIP_UPLOAD", `Uploading: ${name}`, { base64Length: base64.length, mimeType: blob.type });
 
-          await apiRequest("POST", "/api/admin/background-assets", {
+          const response = await apiRequest("POST", "/api/admin/background-assets", {
             name: name.replace(/\.[^/.]+$/, ''),
             assetType: 'source',
             imageData: base64,
             mimeType: blob.type || 'image/png',
           });
+          
+          Nexus.info("ZIP_UPLOAD", `Upload success: ${name}`, { response: response.status });
           successCount++;
         } catch (err: any) {
-          failedNames.push(name);
+          Nexus.captureError(err, "ZIP_UPLOAD", { fileName: name, step: "upload" });
+          failedNames.push(`${name} (${err.message || 'upload error'})`);
         }
 
         setUploadProgress({ current: i + 1, total: imageFiles.length });
       }
+
+      Nexus.info("ZIP_UPLOAD", `Upload complete: ${successCount}/${imageFiles.length} success`, { failed: failedNames });
 
       if (failedNames.length > 0) {
         toast({ 
@@ -947,6 +987,7 @@ function SourceImagesContent() {
       }
       queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
     } catch (error: any) {
+      Nexus.captureError(error, "ZIP_UPLOAD", { step: "main", fileName: file.name });
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {
       setUploading(false);
