@@ -1483,6 +1483,53 @@ export class DbStorage implements IStorage {
       .where(eq(schema.templateCategories.id, id));
   }
 
+  // Graphic Set operations
+  async getGraphicSets(): Promise<GraphicSet[]> {
+    return await this.db.select().from(schema.graphicSets)
+      .where(eq(schema.graphicSets.isActive, true))
+      .orderBy(sql`${schema.graphicSets.createdAt} DESC`);
+  }
+
+  async getGraphicSet(id: string): Promise<GraphicSet | undefined> {
+    const [graphicSet] = await this.db.select().from(schema.graphicSets)
+      .where(eq(schema.graphicSets.id, id));
+    return graphicSet;
+  }
+
+  async getGraphicSetsByCategory(categoryId: string): Promise<GraphicSet[]> {
+    return await this.db.select().from(schema.graphicSets)
+      .where(and(
+        eq(schema.graphicSets.categoryId, categoryId),
+        eq(schema.graphicSets.isActive, true)
+      ))
+      .orderBy(sql`${schema.graphicSets.createdAt} DESC`);
+  }
+
+  async createGraphicSet(graphicSet: InsertGraphicSet): Promise<GraphicSet> {
+    const [newGraphicSet] = await this.db.insert(schema.graphicSets).values(graphicSet).returning();
+    return newGraphicSet;
+  }
+
+  async updateGraphicSet(id: string, graphicSet: Partial<InsertGraphicSet>): Promise<GraphicSet | undefined> {
+    const [updated] = await this.db.update(schema.graphicSets)
+      .set({ ...graphicSet, updatedAt: new Date() })
+      .where(eq(schema.graphicSets.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteGraphicSet(id: string): Promise<void> {
+    await this.db.update(schema.graphicSets)
+      .set({ isActive: false })
+      .where(eq(schema.graphicSets.id, id));
+  }
+
+  async incrementGraphicSetUsage(id: string): Promise<void> {
+    await this.db.update(schema.graphicSets)
+      .set({ usageCount: sql`${schema.graphicSets.usageCount} + 1` })
+      .where(eq(schema.graphicSets.id, id));
+  }
+
   // Library Asset operations
   async getLibraryAsset(id: string): Promise<LibraryAsset | undefined> {
     const [asset] = await this.db.select().from(schema.libraryAssets).where(eq(schema.libraryAssets.id, id));
@@ -3190,6 +3237,70 @@ class MemStorage implements IStorage {
     const existing = this.templateCategories.get(id);
     if (existing) {
       this.templateCategories.set(id, { ...existing, isActive: false });
+    }
+  }
+
+  // Graphic Set operations (MemStorage)
+  private graphicSets = new Map<string, GraphicSet>();
+
+  async getGraphicSets(): Promise<GraphicSet[]> {
+    return Array.from(this.graphicSets.values())
+      .filter(g => g.isActive)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getGraphicSet(id: string): Promise<GraphicSet | undefined> {
+    return this.graphicSets.get(id);
+  }
+
+  async getGraphicSetsByCategory(categoryId: string): Promise<GraphicSet[]> {
+    return Array.from(this.graphicSets.values())
+      .filter(g => g.isActive && g.categoryId === categoryId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createGraphicSet(graphicSet: InsertGraphicSet): Promise<GraphicSet> {
+    const id = crypto.randomUUID();
+    const newGraphicSet: GraphicSet = {
+      id,
+      name: graphicSet.name,
+      description: graphicSet.description ?? null,
+      categoryId: graphicSet.categoryId ?? null,
+      subcategoryId: graphicSet.subcategoryId ?? null,
+      fullGraphicUrl: graphicSet.fullGraphicUrl ?? null,
+      qrOnlyUrl: graphicSet.qrOnlyUrl ?? null,
+      destinationUrl: graphicSet.destinationUrl ?? null,
+      storagePath: graphicSet.storagePath ?? null,
+      tags: graphicSet.tags ?? null,
+      isActive: graphicSet.isActive ?? true,
+      isFeatured: graphicSet.isFeatured ?? false,
+      usageCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.graphicSets.set(id, newGraphicSet);
+    return newGraphicSet;
+  }
+
+  async updateGraphicSet(id: string, graphicSet: Partial<InsertGraphicSet>): Promise<GraphicSet | undefined> {
+    const existing = this.graphicSets.get(id);
+    if (!existing) return undefined;
+    const updated: GraphicSet = { ...existing, ...graphicSet, updatedAt: new Date() };
+    this.graphicSets.set(id, updated);
+    return updated;
+  }
+
+  async deleteGraphicSet(id: string): Promise<void> {
+    const existing = this.graphicSets.get(id);
+    if (existing) {
+      this.graphicSets.set(id, { ...existing, isActive: false });
+    }
+  }
+
+  async incrementGraphicSetUsage(id: string): Promise<void> {
+    const existing = this.graphicSets.get(id);
+    if (existing) {
+      this.graphicSets.set(id, { ...existing, usageCount: (existing.usageCount || 0) + 1 });
     }
   }
 

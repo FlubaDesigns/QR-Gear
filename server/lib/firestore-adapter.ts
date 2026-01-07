@@ -38,6 +38,7 @@ import type {
   GiftCode, InsertGiftCode,
   GiftRedemption, InsertGiftRedemption,
   TemplateCategory, InsertTemplateCategory,
+  GraphicSet, InsertGraphicSet,
   OrderUnified, InsertOrderUnified,
   EmailTemplate, InsertEmailTemplate,
   EmailLog,
@@ -1464,6 +1465,81 @@ export class FirestoreAdapter implements IStorage {
   private docToTemplateCategory(doc: FirebaseFirestore.DocumentSnapshot): TemplateCategory {
     const data = doc.data()!;
     return { ...data, id: doc.id, createdAt: firestoreToDate(data.createdAt) } as TemplateCategory;
+  }
+  
+  // ============================================
+  // GRAPHIC SETS
+  // ============================================
+  
+  async getGraphicSets(): Promise<GraphicSet[]> {
+    const snapshot = await this.db.collection('graphicSets')
+      .where('isActive', '==', true)
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snapshot.docs.map(doc => this.docToGraphicSet(doc));
+  }
+
+  async getGraphicSet(id: string): Promise<GraphicSet | undefined> {
+    const doc = await this.db.collection('graphicSets').doc(id).get();
+    if (!doc.exists) return undefined;
+    return this.docToGraphicSet(doc);
+  }
+
+  async getGraphicSetsByCategory(categoryId: string): Promise<GraphicSet[]> {
+    const snapshot = await this.db.collection('graphicSets')
+      .where('categoryId', '==', categoryId)
+      .where('isActive', '==', true)
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snapshot.docs.map(doc => this.docToGraphicSet(doc));
+  }
+
+  async createGraphicSet(graphicSet: InsertGraphicSet): Promise<GraphicSet> {
+    const id = graphicSet.id || this.db.collection('graphicSets').doc().id;
+    const now = new Date();
+    const data = this.prepareForFirestore({
+      ...graphicSet,
+      id,
+      usageCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await this.db.collection('graphicSets').doc(id).set(data);
+    const doc = await this.db.collection('graphicSets').doc(id).get();
+    return this.docToGraphicSet(doc);
+  }
+
+  async updateGraphicSet(id: string, graphicSet: Partial<InsertGraphicSet>): Promise<GraphicSet | undefined> {
+    const docRef = this.db.collection('graphicSets').doc(id);
+    const existing = await docRef.get();
+    if (!existing.exists) return undefined;
+    const data = this.prepareForFirestore({ ...graphicSet, updatedAt: new Date() });
+    await docRef.update(data);
+    const updated = await docRef.get();
+    return this.docToGraphicSet(updated);
+  }
+
+  async deleteGraphicSet(id: string): Promise<void> {
+    await this.db.collection('graphicSets').doc(id).update({ isActive: false });
+  }
+
+  async incrementGraphicSetUsage(id: string): Promise<void> {
+    const docRef = this.db.collection('graphicSets').doc(id);
+    const doc = await docRef.get();
+    if (doc.exists) {
+      const currentCount = doc.data()?.usageCount || 0;
+      await docRef.update({ usageCount: currentCount + 1 });
+    }
+  }
+
+  private docToGraphicSet(doc: FirebaseFirestore.DocumentSnapshot): GraphicSet {
+    const data = doc.data()!;
+    return {
+      ...data,
+      id: doc.id,
+      createdAt: firestoreToDate(data.createdAt),
+      updatedAt: firestoreToDate(data.updatedAt),
+    } as GraphicSet;
   }
   
   // ============================================

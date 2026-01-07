@@ -36,6 +36,7 @@ import type {
   GiftCode, InsertGiftCode,
   GiftRedemption, InsertGiftRedemption,
   TemplateCategory, InsertTemplateCategory,
+  GraphicSet, InsertGraphicSet,
   OrderUnified, InsertOrderUnified,
   EmailTemplate, InsertEmailTemplate,
   EmailLog,
@@ -731,6 +732,49 @@ export class DualWriteAdapter implements IStorage {
   }
   async deleteTemplateCategory(id: string): Promise<void> {
     return this.primary.deleteTemplateCategory(id);
+  }
+  
+  // Graphic Sets
+  async getGraphicSets(): Promise<GraphicSet[]> {
+    return this.primary.getGraphicSets();
+  }
+
+  async getGraphicSet(id: string): Promise<GraphicSet | undefined> {
+    return this.primary.getGraphicSet(id);
+  }
+
+  async getGraphicSetsByCategory(categoryId: string): Promise<GraphicSet[]> {
+    return this.primary.getGraphicSetsByCategory(categoryId);
+  }
+
+  async createGraphicSet(graphicSet: InsertGraphicSet): Promise<GraphicSet> {
+    const result = await this.primary.createGraphicSet(graphicSet);
+    try {
+      await this.secondary.createGraphicSet({ ...graphicSet, id: result.id });
+    } catch (error) {
+      this.logDualWriteError('createGraphicSet', error);
+    }
+    return result;
+  }
+
+  async updateGraphicSet(id: string, graphicSet: Partial<InsertGraphicSet>): Promise<GraphicSet | undefined> {
+    const result = await this.primary.updateGraphicSet(id, graphicSet);
+    try {
+      await this.secondary.updateGraphicSet(id, graphicSet);
+    } catch (error) {
+      this.logDualWriteError('updateGraphicSet', error);
+    }
+    return result;
+  }
+
+  async deleteGraphicSet(id: string): Promise<void> {
+    await this.primary.deleteGraphicSet(id);
+    await this.mirrorWriteVoid('deleteGraphicSet', () => this.secondary.deleteGraphicSet(id));
+  }
+
+  async incrementGraphicSetUsage(id: string): Promise<void> {
+    await this.primary.incrementGraphicSetUsage(id);
+    await this.mirrorWriteVoid('incrementGraphicSetUsage', () => this.secondary.incrementGraphicSetUsage(id));
   }
   
   // Library Assets

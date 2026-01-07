@@ -3907,6 +3907,86 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============================================
+  // GRAPHIC SETS ROUTES
+  // ============================================
+
+  // Admin: Get all graphic sets
+  app.get("/api/admin/graphic-sets", isAdmin, async (req: any, res) => {
+    try {
+      const graphicSets = await storage.getGraphicSets();
+      res.json(graphicSets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get graphic set by ID
+  app.get("/api/admin/graphic-sets/:id", isAdmin, async (req: any, res) => {
+    try {
+      const graphicSet = await storage.getGraphicSet(req.params.id);
+      if (!graphicSet) {
+        return res.status(404).json({ error: "Graphic set not found" });
+      }
+      res.json(graphicSet);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Get graphic sets by category
+  app.get("/api/admin/graphic-sets/category/:categoryId", isAdmin, async (req: any, res) => {
+    try {
+      const graphicSets = await storage.getGraphicSetsByCategory(req.params.categoryId);
+      res.json(graphicSets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Create graphic set
+  app.post("/api/admin/graphic-sets", isAdmin, async (req: any, res) => {
+    try {
+      const graphicSet = await storage.createGraphicSet(req.body);
+      res.json(graphicSet);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Update graphic set
+  app.put("/api/admin/graphic-sets/:id", isAdmin, async (req: any, res) => {
+    try {
+      const updated = await storage.updateGraphicSet(req.params.id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Graphic set not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Delete graphic set (soft delete)
+  app.delete("/api/admin/graphic-sets/:id", isAdmin, async (req: any, res) => {
+    try {
+      await storage.deleteGraphicSet(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Increment graphic set usage count
+  app.post("/api/admin/graphic-sets/:id/use", isAdmin, async (req: any, res) => {
+    try {
+      await storage.incrementGraphicSetUsage(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Create library asset
   app.post("/api/admin/library", isAdmin, async (req: any, res) => {
     try {
