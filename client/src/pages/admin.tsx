@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   Gift,
   Mail,
+  Book,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -113,6 +114,12 @@ const adminSections = [
     description: "Monitor email system health and queue",
     icon: Mail,
     href: "/admin/email-health",
+  },
+  {
+    title: "Admin Manual",
+    description: "Complete guide to managing QR Gear",
+    icon: Book,
+    href: "/admin/manual",
   },
 ];
 

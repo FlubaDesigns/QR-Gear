@@ -36,6 +36,7 @@ import AdminHealth from "@/pages/admin-health";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminEmailTemplates from "@/pages/admin-email-templates";
 import AdminEmailHealth from "@/pages/admin-email-health";
+import AdminManual from "@/pages/admin-manual";
 import ShopSegment from "@/pages/shop-segment";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -97,6 +98,7 @@ function Router() {
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/email-templates" component={AdminEmailTemplates} />
       <Route path="/admin/email-health" component={AdminEmailHealth} />
+      <Route path="/admin/manual" component={AdminManual} />
       <Route path="/admin/sales/build" component={StoreBuild} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
