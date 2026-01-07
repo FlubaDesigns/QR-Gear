@@ -15,15 +15,27 @@ function getApiUrl(path: string): string {
 }
 
 async function getAuthHeader(): Promise<Record<string, string>> {
+  // Wait for Firebase Auth to finish initializing before checking currentUser
+  // This prevents race conditions where queries fire before auth state is restored
+  try {
+    await auth.authStateReady();
+  } catch {
+    // authStateReady might not be available in older Firebase versions
+  }
+  
   const user = auth.currentUser;
+  console.log("[Auth Debug] currentUser:", user?.email || "null");
   if (user) {
     try {
       const token = await user.getIdToken();
+      console.log("[Auth Debug] Got token, length:", token.length);
       return { Authorization: `Bearer ${token}` };
-    } catch {
+    } catch (err) {
+      console.error("[Auth Debug] Failed to get token:", err);
       return {};
     }
   }
+  console.log("[Auth Debug] No currentUser, returning empty header");
   return {};
 }
 
