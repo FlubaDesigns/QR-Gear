@@ -3967,25 +3967,29 @@ ${allPages.map(page => `  <url>
       });
       
       // Upload QR-only image to Firebase Storage
-      const qrFileName = `graphic-sets/${graphicSetId}/qr-only.png`;
-      const qrUploadResult = await uploadImageFromBuffer(qrBuffer, qrFileName, 'image/png');
-      qrOnlyUrl = qrUploadResult.url;
+      const qrFileName = `qr-only-${graphicSetId}.png`;
+      const qrUploadResult = await uploadImageFromBuffer(qrBuffer, qrFileName, 'image/png', `graphic-sets/${graphicSetId}`);
+      qrOnlyUrl = qrUploadResult.publicUrl;
       
       // Generate full graphic (header + QR + footer) using composite generator
       if (topText || bottomText) {
-        const compositeResult = await generatePrintifyComposite({
+        // generatePrintifyComposite returns a data URL string
+        const compositeDataUrl = await generatePrintifyComposite(
           qrDestination,
           topText,
           bottomText,
-          backgroundImage: null,
-          qrCodeSize: 'large',
-        });
+          1200, // width
+          1800, // height
+          'black' // qrColor
+        );
         
-        if (compositeResult.buffer) {
-          const fullFileName = `graphic-sets/${graphicSetId}/full-graphic.png`;
-          const fullUploadResult = await uploadImageFromBuffer(compositeResult.buffer, fullFileName, 'image/png');
-          fullGraphicUrl = fullUploadResult.url;
-        }
+        // Convert data URL to buffer
+        const base64Data = compositeDataUrl.replace(/^data:image\/png;base64,/, '');
+        const compositeBuffer = Buffer.from(base64Data, 'base64');
+        
+        const fullFileName = `full-graphic-${graphicSetId}.png`;
+        const fullUploadResult = await uploadImageFromBuffer(compositeBuffer, fullFileName, 'image/png', `graphic-sets/${graphicSetId}`);
+        fullGraphicUrl = fullUploadResult.publicUrl;
       } else {
         // No text elements, use QR as full graphic
         fullGraphicUrl = qrOnlyUrl;
@@ -3993,7 +3997,6 @@ ${allPages.map(page => `  <url>
       
       // Create the graphic set record
       const graphicSet = await storage.createGraphicSet({
-        id: graphicSetId,
         name,
         description: description || null,
         categoryId: categoryId || null,
