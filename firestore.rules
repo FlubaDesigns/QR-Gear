@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function signedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return signedIn() && request.auth.token.role == 'admin';
+    }
+    
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // Users collection - users can only access their own data
+    match /users/{userId} {
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow read, update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Orders collection - users see their own orders, admins see all
+    match /orders/{orderId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Graphic Sets - users manage their own, admins manage all
+    match /graphicSets/{setId} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow read, update, delete: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // Carts - users manage their own carts
+    match /carts/{cartId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Products - public read, admin write
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Partner Stores - admin only
+    match /partnerStores/{storeId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Admin settings - admin only
+    match /adminSettings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Hosting tiers - public read, admin write
+    match /hostingTiers/{tierId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Library assets (backgrounds, templates) - public read, admin write
+    match /libraryAssets/{assetId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Template categories - public read, admin write
+    match /templateCategories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Product categories - public read, admin write
+    match /productCategories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Mockup jobs - admin only
+    match /mockupJobs/{jobId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Email outbox - admin only
+    match /emailOutbox/{emailId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
