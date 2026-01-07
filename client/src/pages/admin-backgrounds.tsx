@@ -955,17 +955,41 @@ function SourceImagesContent() {
             reader.readAsDataURL(blob);
           });
           
-          Nexus.info("ZIP_UPLOAD", `Uploading: ${name}`, { base64Length: base64.length, mimeType: blob.type });
+          const fileSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+          Nexus.info("ZIP_UPLOAD", `Uploading: ${name} (${fileSizeMB}MB)`, { base64Length: base64.length, mimeType: blob.type });
 
-          const response = await apiRequest("POST", "/api/admin/background-assets", {
-            name: name.replace(/\.[^/.]+$/, ''),
-            assetType: 'source',
-            imageData: base64,
-            mimeType: blob.type || 'image/png',
-          });
+          // Use fetch with timeout for large files (2 min timeout)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 120000);
           
-          Nexus.info("ZIP_UPLOAD", `Upload success: ${name}`, { response: response.status });
-          successCount++;
+          try {
+            const response = await fetch("/api/admin/background-assets", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: name.replace(/\.[^/.]+$/, ''),
+                assetType: 'source',
+                imageData: base64,
+                mimeType: blob.type || 'image/png',
+              }),
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+              const errText = await response.text();
+              throw new Error(`Server error ${response.status}: ${errText.slice(0, 100)}`);
+            }
+            
+            Nexus.info("ZIP_UPLOAD", `Upload success: ${name}`, { status: response.status });
+            successCount++;
+          } catch (fetchErr: any) {
+            clearTimeout(timeoutId);
+            if (fetchErr.name === 'AbortError') {
+              throw new Error('Upload timed out (2 min)');
+            }
+            throw fetchErr;
+          }
         } catch (err: any) {
           Nexus.captureError(err, "ZIP_UPLOAD", { fileName: name, step: "upload" });
           failedNames.push(`${name} (${err.message || 'upload error'})`);
