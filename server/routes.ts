@@ -4545,40 +4545,70 @@ ${allPages.map(page => `  <url>
       }
       
       // Check if mockup already exists in product's mockupsByColor
+      // New format: mockupsByColor["Black_medium"] or legacy format mockupsByColor["Black"]
       // Normalize color names for comparison (case-insensitive, trim whitespace)
       const existingMockups = (product.mockupsByColor as Record<string, any>) || {};
       const normalizeColor = (c: string) => c.toLowerCase().trim();
       const requestColorNorm = normalizeColor(color);
       
-      // Find matching mockup with case-insensitive comparison
-      let existingMockup: any = null;
-      let matchedColorKey: string = color;
+      // Build the key for color + graphic size (e.g., "Black_medium")
+      const colorSizeKey = `${color}_${resolvedQrSize}`;
+      const colorSizeKeyNorm = `${requestColorNorm}_${resolvedQrSize}`;
       
-      for (const [storedColor, mockup] of Object.entries(existingMockups)) {
-        if (normalizeColor(storedColor) === requestColorNorm && mockup && (mockup as any).front) {
+      console.log(`[StorefrontMockup] Looking for mockup: exact="${colorSizeKey}", fallback="${color}"`);
+      
+      // Priority 1: Exact match for color + graphic size
+      let existingMockup: any = null;
+      let matchedColorKey: string = colorSizeKey;
+      let usedFallback = false;
+      
+      for (const [storedKey, mockup] of Object.entries(existingMockups)) {
+        const storedKeyNorm = storedKey.toLowerCase().trim();
+        if (storedKeyNorm === colorSizeKeyNorm && mockup && (mockup as any).front) {
           existingMockup = mockup;
-          matchedColorKey = storedColor;
+          matchedColorKey = storedKey;
+          console.log(`[StorefrontMockup] Found EXACT match: "${storedKey}" for ${color}_${resolvedQrSize}`);
           break;
         }
       }
       
+      // Priority 2: Fallback to any mockup for this color (any graphic size or legacy format)
+      if (!existingMockup) {
+        for (const [storedKey, mockup] of Object.entries(existingMockups)) {
+          const storedKeyNorm = storedKey.toLowerCase().trim();
+          // Match "Black", "Black_small", "Black_medium", "Black_large" for color "Black"
+          const matchesColor = storedKeyNorm === requestColorNorm || 
+                               storedKeyNorm.startsWith(`${requestColorNorm}_`);
+          if (matchesColor && mockup && (mockup as any).front) {
+            existingMockup = mockup;
+            matchedColorKey = storedKey;
+            usedFallback = true;
+            console.log(`[StorefrontMockup] Using FALLBACK mockup: "${storedKey}" (requested: ${colorSizeKey})`);
+            break;
+          }
+        }
+      }
+      
       if (existingMockup && existingMockup.front) {
-        console.log(`[StorefrontMockup] Using existing mockup for "${color}" (matched: "${matchedColorKey}") from product.mockupsByColor`);
+        console.log(`[StorefrontMockup] Using ${usedFallback ? 'fallback' : 'cached'} mockup for "${matchedColorKey}"`);
         
         // Update product's default image and color to show this mockup
         const defaultImage = existingMockup.lifestyle || existingMockup.front;
         await storage.updateProduct(canonicalProductId, {
-          defaultColor: matchedColorKey,
+          defaultColor: color,
           imageUrl: defaultImage,
         });
-        console.log(`[StorefrontMockup] Updated product defaultColor=${matchedColorKey}, imageUrl=${defaultImage}`);
+        console.log(`[StorefrontMockup] Updated product defaultColor=${color}, imageUrl=${defaultImage}`);
         
         return res.json({ 
           success: true, 
           color, 
+          graphicSize: resolvedQrSize,
           mockupUrl: existingMockup.front,
           lifestyleMockupUrl: existingMockup.lifestyle || null,
           fromCache: true,
+          usedFallback,
+          matchedKey: matchedColorKey,
           mockupsByColor: existingMockups 
         });
       }
