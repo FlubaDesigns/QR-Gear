@@ -262,6 +262,38 @@ export const insertTemplateCategorySchema = createInsertSchema(templateCategorie
 export type InsertTemplateCategory = z.infer<typeof insertTemplateCategorySchema>;
 export type TemplateCategory = typeof templateCategories.$inferSelect;
 
+// Graphic Sets - Reusable design assets NOT tied to a specific product
+// Contains artwork + QR destination + text overlays, can be applied to any product
+export const graphicSets = pgTable("graphic_sets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  // Category organization (reuses templateCategories)
+  categoryId: varchar("category_id").references(() => templateCategories.id),
+  subcategoryId: varchar("subcategory_id").references(() => templateCategories.id),
+  // Artwork/Background
+  backgroundImageUrl: text("background_image_url"),
+  // QR Configuration
+  qrContentType: text("qr_content_type").notNull(), // 'external_url', 'plain_text', 'rich_media'
+  qrDestination: text("qr_destination"), // URL or text content for the QR
+  // Text overlays (stored as JSON for flexibility)
+  headerText: jsonb("header_text"), // { text, fontFamily, fontSize, color, letterSpacing, warp, strokeColor, strokeWidth }
+  footerText: jsonb("footer_text"), // same structure as headerText
+  // Landing page overlay settings
+  landingOverlay: jsonb("landing_overlay"), // { enabled, title, description, position, fontFamily, color }
+  // Metadata
+  tags: text("tags").array(),
+  isActive: boolean("is_active").default(true),
+  isFeatured: boolean("is_featured").default(false),
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertGraphicSetSchema = createInsertSchema(graphicSets).omit({ id: true, usageCount: true, createdAt: true, updatedAt: true });
+export type InsertGraphicSet = z.infer<typeof insertGraphicSetSchema>;
+export type GraphicSet = typeof graphicSets.$inferSelect;
+
 // Partner stores for embeddable widgets (Kingdom Connects, etc.)
 export const partnerStores = pgTable("partner_stores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

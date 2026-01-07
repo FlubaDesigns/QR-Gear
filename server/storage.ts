@@ -76,6 +76,8 @@ import type {
   InsertGiftRedemption,
   TemplateCategory,
   InsertTemplateCategory,
+  GraphicSet,
+  InsertGraphicSet,
   OrderUnified,
   InsertOrderUnified,
   EmailTemplate,
@@ -290,6 +292,15 @@ export interface IStorage {
   createTemplateCategory(category: InsertTemplateCategory): Promise<TemplateCategory>;
   updateTemplateCategory(id: string, category: Partial<InsertTemplateCategory>): Promise<TemplateCategory | undefined>;
   deleteTemplateCategory(id: string): Promise<void>;
+
+  // Graphic Set operations (reusable design assets not tied to products)
+  getGraphicSets(): Promise<GraphicSet[]>;
+  getGraphicSet(id: string): Promise<GraphicSet | undefined>;
+  getGraphicSetsByCategory(categoryId: string): Promise<GraphicSet[]>;
+  createGraphicSet(graphicSet: InsertGraphicSet): Promise<GraphicSet>;
+  updateGraphicSet(id: string, graphicSet: Partial<InsertGraphicSet>): Promise<GraphicSet | undefined>;
+  deleteGraphicSet(id: string): Promise<void>;
+  incrementGraphicSetUsage(id: string): Promise<void>;
 
   // Library Asset operations
   getLibraryAsset(id: string): Promise<LibraryAsset | undefined>;
