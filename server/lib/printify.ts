@@ -94,8 +94,8 @@ interface CreateOrderRequest {
 
 class PrintifyClient {
   private getApiKey(): string {
-    // Try env var first, then fallback to file
-    let key = (process.env.PRINTIFY_API_KEY || '').trim().replace(/\s+/g, '');
+    // Try env vars first (check both PRINTIFY_API_KEY and PRINTIFY_API_KEY_2), then fallback to file
+    let key = (process.env.PRINTIFY_API_KEY || process.env.PRINTIFY_API_KEY_2 || '').trim().replace(/\s+/g, '');
     
     // If env var looks like it has garbage, try file
     if (!key || !key.startsWith('eyJ')) {
