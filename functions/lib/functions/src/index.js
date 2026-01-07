@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-01-07T22:45:00Z - Body limit increased to 50MB
+// Build timestamp: 2026-01-07T23:20:00Z - Added background-assets routes for image uploads
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -2417,6 +2417,82 @@ app.post('/admin/gallery', requireAdmin, async (req, res) => {
 app.delete('/admin/gallery/:id', requireAdmin, async (req, res) => {
     try {
         await db.collection('galleryItems').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ BACKGROUND ASSETS (ADMIN) ============
+app.get('/admin/background-assets', requireAdmin, async (req, res) => {
+    try {
+        const assetType = req.query.type;
+        let query = db.collection('backgroundAssets').where('isActive', '==', true);
+        if (assetType && (assetType === 'source' || assetType === 'cropped')) {
+            query = query.where('assetType', '==', assetType);
+        }
+        const snapshot = await query.orderBy('createdAt', 'desc').get();
+        const assets = snapshot.docs.map(doc => docToObject(doc));
+        res.json(assets);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/background-assets', requireAdmin, async (req, res) => {
+    try {
+        const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags } = req.body;
+        if (!name || !assetType || !imageData) {
+            res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
+            return;
+        }
+        if (assetType !== 'source' && assetType !== 'cropped') {
+            res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
+            return;
+        }
+        // Upload to Firebase Storage
+        const bucket = storage.bucket();
+        const folderPath = assetType === 'source' ? 'backgrounds/source' : 'backgrounds/cropped';
+        const fileName = `${folderPath}/${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const ext = (mimeType || 'image/png').split('/')[1] || 'png';
+        const fullPath = `${fileName}.${ext}`;
+        const file = bucket.file(fullPath);
+        const buffer = Buffer.from(imageData, 'base64');
+        await file.save(buffer, {
+            metadata: {
+                contentType: mimeType || 'image/png',
+            },
+        });
+        await file.makePublic();
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fullPath}`;
+        // Save metadata to Firestore
+        const docRef = await db.collection('backgroundAssets').add({
+            name,
+            assetType,
+            imageUrl: publicUrl,
+            storagePath: fullPath,
+            sourceAssetId: sourceAssetId || null,
+            mimeType: mimeType || 'image/png',
+            cropData: cropData || null,
+            tags: tags || null,
+            isActive: true,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        console.error("Error uploading background asset:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/admin/background-assets/:id', requireAdmin, async (req, res) => {
+    try {
+        // Soft delete (set isActive to false)
+        await db.collection('backgroundAssets').doc(req.params.id).update({
+            isActive: false,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
         res.json({ success: true });
     }
     catch (error) {
