@@ -72,14 +72,16 @@ export default function LoginPage() {
           <p className="qr-auth-subtitle">Sign in to your account</p>
         </div>
 
-        <form className="qr-auth-form" onSubmit={handleSubmit}>
+        <form className="qr-auth-form" onSubmit={handleSubmit} autoComplete="on">
           {error && <div className="qr-auth-error">{error}</div>}
 
           <div className="qr-auth-field">
             <label className="qr-auth-label" htmlFor="email">Email</label>
             <input
               id="email"
+              name="email"
               type="email"
+              autoComplete="email"
               className="qr-auth-input"
               placeholder="you@example.com"
               value={email}
@@ -95,7 +97,9 @@ export default function LoginPage() {
             <div className="qr-auth-field-relative">
               <input
                 id="password"
+                name="password"
                 type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
                 className="qr-auth-input"
                 placeholder="Enter your password"
                 value={password}
