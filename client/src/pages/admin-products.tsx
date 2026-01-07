@@ -829,7 +829,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   
   // Template save dialog state (for hierarchical organization)
   const [templateSaveDialogOpen, setTemplateSaveDialogOpen] = useState(false);
-  const [templateSavePendingTarget, setTemplateSavePendingTarget] = useState<"library" | "store" | "both" | null>(null);
+  const [templateSavePendingTarget, setTemplateSavePendingTarget] = useState<"library" | "store" | "both" | "graphic-set" | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<string>("");
   const [selectedTemplateSubcategory, setSelectedTemplateSubcategory] = useState<string>("");
@@ -3656,7 +3656,22 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                       return (
                         <div className="grid grid-cols-2 gap-3">
                           <button
-                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
+                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[100px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
+                            disabled={!canSave}
+                            onClick={() => {
+                              setTemplateSavePendingTarget("graphic-set");
+                              setTemplateSaveDialogOpen(true);
+                            }}
+                            data-testid="button-save-graphic-set"
+                          >
+                            <div className="h-10 w-10 rounded-full bg-accent/50 flex items-center justify-center">
+                              {savingCustom ? <Loader2 className="h-5 w-5 animate-spin" /> : <QrCode className="h-5 w-5" />}
+                            </div>
+                            <span className="text-sm font-semibold text-center">Graphic Set</span>
+                            <span className="text-xs text-muted-foreground">Reusable graphics</span>
+                          </button>
+                          <button
+                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[100px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
                             onClick={() => {
                               setTemplateSavePendingTarget("library");
@@ -3664,13 +3679,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                             }}
                             data-testid="button-save-library"
                           >
-                            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                              {savingCustom ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <FolderOpen className="h-6 w-6 text-primary" />}
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              {savingCustom ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <FolderOpen className="h-5 w-5 text-primary" />}
                             </div>
-                            <span className="text-sm font-semibold text-center">Library Only</span>
+                            <span className="text-sm font-semibold text-center">Item Template</span>
+                            <span className="text-xs text-muted-foreground">Product-tied</span>
                           </button>
                           <button
-                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
+                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[100px] rounded-lg border-2 border-border bg-card hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
                             onClick={() => {
                               setTemplateSavePendingTarget("store");
@@ -3678,13 +3694,14 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                             }}
                             data-testid="button-save-store"
                           >
-                            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                              {savingCustom ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <Store className="h-6 w-6 text-primary" />}
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              {savingCustom ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <Store className="h-5 w-5 text-primary" />}
                             </div>
-                            <span className="text-sm font-semibold text-center">Store Only</span>
+                            <span className="text-sm font-semibold text-center">Store/Segment</span>
+                            <span className="text-xs text-muted-foreground">Deploy to store</span>
                           </button>
                           <button
-                            className="col-span-2 flex flex-col items-center justify-center gap-2 p-4 min-h-[120px] rounded-lg border-2 border-primary bg-primary text-primary-foreground hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
+                            className="flex flex-col items-center justify-center gap-2 p-4 min-h-[100px] rounded-lg border-2 border-primary bg-primary text-primary-foreground hover-elevate active-elevate-2 disabled:opacity-50 disabled:pointer-events-none transition-all"
                             disabled={!canSave}
                             onClick={() => {
                               setTemplateSavePendingTarget("both");
@@ -3692,10 +3709,10 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                             }}
                             data-testid="button-save-both"
                           >
-                            <div className="h-12 w-12 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-                              {savingCustom ? <Loader2 className="h-6 w-6 animate-spin" /> : <Check className="h-6 w-6" />}
+                            <div className="h-10 w-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                              {savingCustom ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
                             </div>
-                            <span className="text-base font-bold text-center">Save to Both</span>
+                            <span className="text-sm font-bold text-center">Save for All</span>
                             <span className="text-xs opacity-80">Library & Store</span>
                           </button>
                         </div>
@@ -3769,9 +3786,13 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
             }}>
               <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Save Project</DialogTitle>
+                  <DialogTitle>
+                    {templateSavePendingTarget === "graphic-set" ? "Save Graphic Set" : "Save Project"}
+                  </DialogTitle>
                   <DialogDescription>
-                    Name your project and organize it for easy finding later.
+                    {templateSavePendingTarget === "graphic-set" 
+                      ? "Save reusable graphics (artwork + QR) that can be applied to any product."
+                      : "Name your project and organize it for easy finding later."}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -3789,8 +3810,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                     <p className="text-xs text-muted-foreground">This name identifies your project in the library and store</p>
                   </div>
                   
-                  {/* Category Selection - Only required for library saves */}
-                  {(templateSavePendingTarget === "library" || templateSavePendingTarget === "both") && (
+                  {/* Category Selection - Required for library and graphic-set saves */}
+                  {(templateSavePendingTarget === "library" || templateSavePendingTarget === "both" || templateSavePendingTarget === "graphic-set") && (
                   <div className="space-y-2">
                     <Label className="text-base font-medium">Category *</Label>
                     {creatingNewCategory ? (
@@ -3854,8 +3875,8 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                   </div>
                   )}
                   
-                  {/* Subcategory Selection - only show when category is selected and saving to library */}
-                  {(templateSavePendingTarget === "library" || templateSavePendingTarget === "both") && selectedTemplateCategory && (
+                  {/* Subcategory Selection - only show when category is selected */}
+                  {(templateSavePendingTarget === "library" || templateSavePendingTarget === "both" || templateSavePendingTarget === "graphic-set") && selectedTemplateCategory && (
                     <div className="space-y-2">
                       <Label className="text-base font-medium">Subcategory (optional)</Label>
                       {creatingNewSubcategory ? (
@@ -3928,19 +3949,84 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                     Cancel
                   </Button>
                   <Button
-                    onClick={() => {
+                    onClick={async () => {
                       const target = templateSavePendingTarget || "library";
-                      const needsCategory = target === "library" || target === "both";
+                      const needsCategory = target === "library" || target === "both" || target === "graphic-set";
                       if (!templateName.trim()) {
-                        toast({ title: "Missing Info", description: "Please enter a project name", variant: "destructive" });
+                        toast({ title: "Missing Info", description: "Please enter a name", variant: "destructive" });
                         return;
                       }
                       if (needsCategory && !selectedTemplateCategory) {
-                        toast({ title: "Missing Info", description: "Please select a category for library saves", variant: "destructive" });
+                        toast({ title: "Missing Info", description: "Please select a category", variant: "destructive" });
                         return;
                       }
+                      
+                      // Handle graphic-set save separately
+                      if (target === "graphic-set") {
+                        setTemplateSaveDialogOpen(false);
+                        setSavingCustom(true);
+                        try {
+                          // Get the destination URL from the current design
+                          const destinationUrl = qrContentType === "external_url" 
+                            ? (externalUrl?.match(/^https?:\/\//) ? externalUrl : `https://${externalUrl}`)
+                            : qrContentType === "plain_text" 
+                              ? plainTextQrContent 
+                              : null;
+                          
+                          // Collect all design data for generating graphics
+                          const graphicSetData = {
+                            name: templateName.trim(),
+                            categoryId: selectedTemplateCategory || null,
+                            subcategoryId: selectedTemplateSubcategory || null,
+                            destinationUrl,
+                            description: `QR pointing to: ${destinationUrl || 'dynamic content'}`,
+                            // Include design parameters for generating artwork
+                            topText: headerEnabled ? {
+                              text: headerText,
+                              fontFamily: headerFontFamily,
+                              fontSize: headerFontSize,
+                              color: headerColor,
+                              letterSpacing: headerLetterSpacing,
+                              warpPreset: headerWarp,
+                              strokeColor: headerStrokeColor || undefined,
+                              strokeWidth: headerStrokeWidth || undefined,
+                            } : null,
+                            bottomText: footerEnabled ? {
+                              text: footerText,
+                              fontFamily: footerFontFamily,
+                              fontSize: footerFontSize,
+                              color: footerColor,
+                              letterSpacing: footerLetterSpacing,
+                              warpPreset: footerWarp,
+                              strokeColor: footerStrokeColor || undefined,
+                              strokeWidth: footerStrokeWidth || undefined,
+                            } : null,
+                            qrContentType,
+                          };
+                          
+                          // Create graphic set via API - server will generate the artwork
+                          const res = await apiRequest("POST", "/api/admin/graphic-sets", graphicSetData);
+                          const result = await res.json();
+                          toast({ 
+                            title: "Graphic Set Saved!", 
+                            description: `"${templateName.trim()}" saved. Use it on any product later.`
+                          });
+                          queryClient.invalidateQueries({ queryKey: ["/api/admin/graphic-sets"] });
+                        } catch (error: any) {
+                          toast({ title: "Error", description: error.message || "Failed to save graphic set", variant: "destructive" });
+                        } finally {
+                          setSavingCustom(false);
+                        }
+                        // Reset form
+                        setTemplateName("");
+                        setSelectedTemplateCategory("");
+                        setSelectedTemplateSubcategory("");
+                        setTemplateSavePendingTarget(null);
+                        return;
+                      }
+                      
                       setTemplateSaveDialogOpen(false);
-                      handleSaveCustomDesign(target, {
+                      handleSaveCustomDesign(target as "library" | "store" | "both", {
                         name: templateName.trim(),
                         categoryId: selectedTemplateCategory || "uncategorized",
                         subcategoryId: selectedTemplateSubcategory || undefined,
@@ -3951,11 +4037,11 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                       setSelectedTemplateSubcategory("");
                       setTemplateSavePendingTarget(null);
                     }}
-                    disabled={!templateName.trim() || ((templateSavePendingTarget === "library" || templateSavePendingTarget === "both") && !selectedTemplateCategory) || savingCustom}
+                    disabled={!templateName.trim() || ((templateSavePendingTarget === "library" || templateSavePendingTarget === "both" || templateSavePendingTarget === "graphic-set") && !selectedTemplateCategory) || savingCustom}
                     data-testid="button-confirm-project-save"
                   >
                     {savingCustom ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Save Project
+                    {templateSavePendingTarget === "graphic-set" ? "Save Graphic Set" : "Save Project"}
                   </Button>
                 </DialogFooter>
               </DialogContent>

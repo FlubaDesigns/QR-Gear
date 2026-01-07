@@ -3944,12 +3944,71 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Admin: Create graphic set
+  // Admin: Create graphic set with generated artwork
   app.post("/api/admin/graphic-sets", isAdmin, async (req: any, res) => {
     try {
-      const graphicSet = await storage.createGraphicSet(req.body);
+      const { name, categoryId, subcategoryId, destinationUrl, description, topText, bottomText, qrContentType } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+      
+      const graphicSetId = `gs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      let fullGraphicUrl: string | null = null;
+      let qrOnlyUrl: string | null = null;
+      
+      // Generate QR code image (standalone QR)
+      const qrDestination = destinationUrl || `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/dynamic/${graphicSetId}`;
+      const qrBuffer = await QRCode.toBuffer(qrDestination, {
+        width: 1000,
+        margin: 2,
+        color: { dark: '#000000', light: '#ffffff' },
+        errorCorrectionLevel: 'H',
+      });
+      
+      // Upload QR-only image to Firebase Storage
+      const qrFileName = `graphic-sets/${graphicSetId}/qr-only.png`;
+      const qrUploadResult = await uploadImageFromBuffer(qrBuffer, qrFileName, 'image/png');
+      qrOnlyUrl = qrUploadResult.url;
+      
+      // Generate full graphic (header + QR + footer) using composite generator
+      if (topText || bottomText) {
+        const compositeResult = await generatePrintifyComposite({
+          qrDestination,
+          topText,
+          bottomText,
+          backgroundImage: null,
+          qrCodeSize: 'large',
+        });
+        
+        if (compositeResult.buffer) {
+          const fullFileName = `graphic-sets/${graphicSetId}/full-graphic.png`;
+          const fullUploadResult = await uploadImageFromBuffer(compositeResult.buffer, fullFileName, 'image/png');
+          fullGraphicUrl = fullUploadResult.url;
+        }
+      } else {
+        // No text elements, use QR as full graphic
+        fullGraphicUrl = qrOnlyUrl;
+      }
+      
+      // Create the graphic set record
+      const graphicSet = await storage.createGraphicSet({
+        id: graphicSetId,
+        name,
+        description: description || null,
+        categoryId: categoryId || null,
+        subcategoryId: subcategoryId || null,
+        fullGraphicUrl,
+        qrOnlyUrl,
+        destinationUrl: destinationUrl || null,
+        storagePath: `graphic-sets/${graphicSetId}`,
+        isActive: true,
+        isFeatured: false,
+      });
+      
       res.json(graphicSet);
     } catch (error: any) {
+      console.error('[GraphicSet] Create error:', error);
       res.status(500).json({ error: error.message });
     }
   });
