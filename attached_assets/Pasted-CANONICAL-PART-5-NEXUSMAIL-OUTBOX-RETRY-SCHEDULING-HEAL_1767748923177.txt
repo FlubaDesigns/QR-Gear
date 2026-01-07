@@ -1,0 +1,339 @@
+CANONICAL PART 5 — NEXUSMAIL OUTBOX, RETRY SCHEDULING, HEALTH, PAUSE/RESUME, ADMIN OVERRIDES
+(“Delivery Governance + Healing” layer)
+
+This document follows:
+- Part 1: Trigger Contracts
+- Part 2: Trigger Engine
+- Part 3: Message Object + Provider Adapter Contract
+- Part 4: Template Resolution + Variable Injection
+
+It defines how NexusMail becomes RELIABLE and SELF-HEALING in production.
+
+===============================================================================
+1) PURPOSE OF THIS LAYER
+===============================================================================
+
+This layer answers:
+
+“How do we deliver emails reliably over time, survive provider outages,
+avoid duplicates, and maintain control?”
+
+It provides:
+- an Outbox (queue-first sending)
+- retry scheduling with backoff
+- dead-letter handling
+- provider health scoring
+- automatic pause/resume
+- admin kill switches and overrides
+- audit-grade logs
+
+This is the “immune system” specific to email delivery.
+
+===============================================================================
+2) WHY OUTBOX (QUEUE-FIRST) IS NON-NEGOTIABLE
+===============================================================================
+
+Do NOT “send email directly” inside business logic.
+
+Instead:
+- Trigger Engine creates NexusMailMessage intent
+- Template resolver renders NexusMailRenderedEmail
+- A queued Outbox record is created
+- A sender worker processes outbox items
+
+Benefits:
+- idempotency becomes enforceable
+- retries are safe and controlled
+- provider outages don’t break app flows
+- delivery is observable and replayable
+- sending can be paused globally
+
+===============================================================================
+3) CANONICAL OUTBOX RECORD (DATA MODEL)
+===============================================================================
+
+NexusMailOutboxRecord {
+  outboxId: string                     // unique UUID
+  messageId: string
+  idempotencyKey: string               // unique constraint key
+  triggerName: string
+  templateSlug: string
+  siteId: string
+
+  recipientEmail: string
+  recipientName?: string
+
+  rendered: {
+    subject: string
+    html: string
+    text?: string
+    templateVersion?: string
+  }
+
+  status: "QUEUED" | "SENDING" | "SENT" | "FAILED" | "DEAD" | "SKIPPED"
+
+  attempts: number
+  maxAttempts: number                  // recommended: 6
+  nextAttemptAt: ISOString
+  lastAttemptAt?: ISOString
+
+  provider: {
+    name: string                       // e.g. "resend"
+    providerMessageId?: string
+    lastErrorCode?: string
+    lastErrorMessage?: string
+    lastErrorRetryable?: boolean
+  }
+
+  meta: {
+    entityType: string
+    entityId: string
+    initiatedBy?: string               // system/admin/user
+    environment: "prod"|"staging"|"dev"
+    hostDomain?: string                // optional for embed contexts
+  }
+
+  createdAt: ISOString
+  updatedAt: ISOString
+}
+
+NON-NEGOTIABLE:
+- idempotencyKey must be UNIQUE across outbox (prevents duplicates)
+- status transitions must be controlled (no direct jumps)
+
+===============================================================================
+4) STATUS TRANSITION RULES
+===============================================================================
+
+Allowed transitions:
+
+QUEUED  -> SENDING
+SENDING -> SENT
+SENDING -> FAILED
+FAILED  -> QUEUED     (when scheduling retry)
+FAILED  -> DEAD       (when maxAttempts exceeded)
+QUEUED  -> SKIPPED    (admin kill switch / disabled trigger)
+FAILED  -> SKIPPED    (admin override)
+SENT    -> (terminal)
+DEAD    -> (terminal)
+SKIPPED -> (terminal)
+
+No other transitions allowed.
+
+===============================================================================
+5) RETRY POLICY (CANONICAL)
+===============================================================================
+
+Retries are scheduled using exponential backoff with jitter.
+
+Recommended default:
+- maxAttempts: 6
+- baseDelay: 30 seconds
+- backoff: x2 each attempt
+- jitter: +/- 20%
+
+Example schedule:
+Attempt 1: immediate
+Attempt 2: 30s
+Attempt 3: 60s
+Attempt 4: 120s
+Attempt 5: 240s
+Attempt 6: 480s
+
+Retry only if providerResult.retryable == true.
+Never retry permanent failures.
+
+===============================================================================
+6) DEAD-LETTER (“DEAD”) BEHAVIOR
+===============================================================================
+
+If attempts exceed maxAttempts OR failure is non-retryable:
+- status -> DEAD
+- log an ERROR event
+- optionally notify admin (separate channel)
+
+DEAD means:
+- do not attempt again automatically
+- only admin can replay/rescue
+
+===============================================================================
+7) PROVIDER HEALTH SCORING (SELF-HEALING)
+===============================================================================
+
+NexusMail must track provider health using recent send outcomes.
+
+Define a rolling window:
+- last N attempts (e.g. 50) OR last X minutes (e.g. 15)
+
+Compute:
+- failureRate
+- retryableFailureRate
+- consecutiveFailures
+
+Health states:
+- HEALTHY
+- DEGRADED
+- UNHEALTHY
+
+Rules (recommended):
+- DEGRADED if failureRate > 20% over window OR 3 consecutive failures
+- UNHEALTHY if failureRate > 50% OR 6 consecutive failures OR repeated 429s
+
+When DEGRADED:
+- continue sending but reduce concurrency
+- increase baseDelay slightly
+- increase logging
+
+When UNHEALTHY:
+- automatically PAUSE outbound sending
+- queue continues to collect, but sender stops
+- system periodically re-tests health to resume
+
+===============================================================================
+8) PAUSE / RESUME MECHANISM
+===============================================================================
+
+There must be a global “send state”:
+
+NexusMailSendState {
+  siteId: string
+  isPaused: boolean
+  pausedReason?: string
+  pausedAt?: ISOString
+  resumeCheckAt?: ISOString
+  adminOverride?: boolean
+}
+
+When paused:
+- Sender worker DOES NOT send any outbox items (status remains QUEUED)
+- Trigger Engine still enqueues items (unless kill switch says otherwise)
+- UI/admin can see “Paused” status
+
+Resume conditions:
+- admin manually resumes OR
+- provider health returns to HEALTHY for X checks OR
+- cooldown expires and a test send succeeds
+
+===============================================================================
+9) CONCURRENCY CONTROL (AVOID RATE LIMITS)
+===============================================================================
+
+Sender worker must limit concurrency.
+
+Recommended:
+- HEALTHY: 5 concurrent sends
+- DEGRADED: 2 concurrent sends
+- UNHEALTHY: 0 (paused)
+
+Also implement:
+- per-domain rate control if provider demands it
+- automatic slowdown on 429 responses
+
+===============================================================================
+10) ADMIN OVERRIDES / GOVERNANCE (REQUIRED)
+===============================================================================
+
+Admin must be able to:
+
+- Disable a trigger (by triggerName)
+- Disable a template (by slug)
+- Pause all outbound mail (global kill switch)
+- Replay a DEAD message (manual rescue)
+- Mark message as SKIPPED (do not send)
+- Pin provider (prevent automatic failover if added later)
+
+Governance config (canonical):
+
+NexusMailGovernanceConfig {
+  siteId: string
+  sendingEnabled: boolean
+  paused: boolean
+  disabledTriggers: string[]
+  disabledTemplates: string[]
+  maxAttempts: number
+  concurrencyHealthy: number
+  concurrencyDegraded: number
+}
+
+Trigger Engine MUST consult governance:
+- if trigger disabled => do not enqueue; log SKIPPED
+- if template disabled => do not enqueue; log SKIPPED
+
+===============================================================================
+11) AUDIT LOGS (NON-NEGOTIABLE)
+===============================================================================
+
+Every outbox attempt must log:
+
+- outboxId
+- messageId
+- idempotencyKey
+- provider name
+- attempt number
+- result (SENT/FAILED/DEAD/SKIPPED)
+- retryable flag
+- error codes/messages
+- timestamps
+
+Logs are required for:
+- debugging
+- compliance
+- healing decisions
+- “prove what happened”
+
+===============================================================================
+12) RECOVERY / REPLAY (PORTABLE + SAFE)
+===============================================================================
+
+Replay rules:
+- Only replay if status in DEAD or FAILED
+- Replaying creates a NEW outboxId, but MUST reuse idempotencyKey rules carefully:
+  - Either reuse same idempotencyKey but allow admin override flag
+  - OR create “replayIdempotencyKey” with suffix ":replay:N"
+  Decision depends on whether duplicates are allowed in admin rescue.
+  Default: allow replay with ":replay:1" to avoid uniqueness lock.
+
+===============================================================================
+13) INTEGRATION WITH NEXUS CORE
+===============================================================================
+
+NexusMail must emit Nexus events:
+
+INFO:
+- template_rendered
+- queued_outbox
+- sent_success
+
+WARNING:
+- provider_degraded
+- template_inactive
+- trigger_disabled
+
+ERROR:
+- send_failed_retryable
+- send_failed_permanent
+- provider_unhealthy_paused
+- dead_letter_created
+
+These events allow:
+- dashboards
+- alerts
+- auto-tuning
+
+===============================================================================
+14) WHAT THIS ENABLES (THE REAL PAYOFF)
+===============================================================================
+
+With this layer, NexusMail becomes:
+
+- portable
+- self-healing
+- safe under outages
+- safe under double-fires
+- debuggable under real-world chaos
+- governable by admin switches
+- adaptable across multiple sites
+
+===============================================================================
+END OF CANONICAL PART 5
+===============================================================================
