@@ -4708,7 +4708,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                           if (confirm(`Delete graphic set "${gs.name}"?`)) {
                             try {
                               await apiRequest("DELETE", `/api/admin/graphic-sets/${gs.id}`);
-                              queryClient.invalidateQueries({ queryKey: ["/api/admin/graphic-sets"] });
+                              await queryClient.invalidateQueries({ queryKey: ["/api/admin/graphic-sets"] });
                               toast({ title: "Graphic set deleted" });
                             } catch (error: any) {
                               toast({ title: "Delete failed", description: error.message, variant: "destructive" });
@@ -4731,7 +4731,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                           
                           // Set productSource to Custom so the builder shows
                           setProductSource("Custom");
-                          setLibrarySourceType("templates");
+                          setLibrarySourceType("graphic-sets");
                           setLoadedFromTemplate(true);
                           
                           setLibraryPickerOpen(false);
