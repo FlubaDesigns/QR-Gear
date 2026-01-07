@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+const ImageCropper = lazy(() => import("@/components/ImageCropper"));
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
@@ -799,6 +800,7 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
   
   const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
   const [backgroundPreview, setBackgroundPreview] = useState<string>("");
+  const [showBackgroundCropper, setShowBackgroundCropper] = useState(false);
   const [textUpcharge, setTextUpcharge] = useState("2.00");
   const [selectedHostingTier, setSelectedHostingTier] = useState<string>("1_year");
   const [customLocationFilter, setCustomLocationFilter] = useState<"all" | "usa" | "other">("all");
@@ -2779,38 +2781,16 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                         <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${bgPickerExpanded ? "rotate-180" : ""}`} />
                       </Button>
                       
-                      {/* Upload Button */}
-                      <label className="cursor-pointer block">
-                        <Button
-                          variant="outline"
-                          className="w-full h-12 text-base pointer-events-none"
-                          asChild
-                        >
-                          <span>
-                            <Upload className="h-5 w-5 mr-2" />
-                            Upload Background
-                          </span>
-                        </Button>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setBackgroundImage(file);
-                              setBackgroundPreview(URL.createObjectURL(file));
-                              setBgPickerExpanded(false);
-                              toast({
-                                title: "Background Uploaded",
-                                description: file.name,
-                                duration: 2000,
-                              });
-                            }
-                          }}
-                          data-testid="input-background-upload"
-                        />
-                      </label>
+                      {/* Upload Button - Opens Cropper */}
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 text-base"
+                        onClick={() => setShowBackgroundCropper(true)}
+                        data-testid="button-upload-background"
+                      >
+                        <Upload className="h-5 w-5 mr-2" />
+                        Upload Background
+                      </Button>
                     </div>
                     
                     {/* Expanded Library Picker Panel */}
@@ -4068,6 +4048,36 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                     {templateSavePendingTarget === "graphic-set" ? "Save Graphic Set" : "Save Project"}
                   </Button>
                 </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            
+            {/* Background Image Cropper Dialog */}
+            <Dialog open={showBackgroundCropper} onOpenChange={setShowBackgroundCropper}>
+              <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Crop Background Image</DialogTitle>
+                  <DialogDescription>Select the area you want for mobile-optimized display (9:16 ratio)</DialogDescription>
+                </DialogHeader>
+                <Suspense fallback={<div className="text-center py-8"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>}>
+                  <ImageCropper
+                    onCropComplete={async (croppedImageUrl) => {
+                      // Convert data URL to File for upload
+                      const response = await fetch(croppedImageUrl);
+                      const blob = await response.blob();
+                      const file = new File([blob], "cropped-background.jpg", { type: "image/jpeg" });
+                      setBackgroundImage(file);
+                      setBackgroundPreview(croppedImageUrl);
+                      setShowBackgroundCropper(false);
+                      setBgPickerExpanded(false);
+                      toast({
+                        title: "Background Cropped",
+                        description: "Image ready for your product",
+                        duration: 2000,
+                      });
+                    }}
+                    onCancel={() => setShowBackgroundCropper(false)}
+                  />
+                </Suspense>
               </DialogContent>
             </Dialog>
             
