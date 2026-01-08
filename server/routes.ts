@@ -1049,14 +1049,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve background images from Firebase Storage (multiple possible paths)
   app.get("/api/background-files/*", async (req, res) => {
     try {
-      const fullPath = req.params[0]; // Gets everything after /api/background-files/
+      // Decode the URL-encoded path 
+      const fullPath = decodeURIComponent(req.params[0]); // Gets everything after /api/background-files/
+      console.log(`[BackgroundFiles] Serving: ${fullPath}`);
       
-      // Try serving from the exact path provided
+      // Try serving from the exact path provided (folder is '' so it uses fullPath directly)
       const served = await downloadAndStreamFile(fullPath, res, '', 31536000);
       if (served) {
         return;
       }
       
+      console.log(`[BackgroundFiles] Not found: ${fullPath}`);
       return res.status(404).json({ error: "Background file not found" });
     } catch (error: any) {
       console.error("Background file serve error:", error);
@@ -8601,6 +8604,13 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ BACKGROUND ASSETS ============
+  // Helper to create proxy URL from storage path (keeps full path for proper file lookup)
+  function getProxyUrl(storagePath: string | null): string | null {
+    if (!storagePath) return null;
+    // Use the full storage path so downloadAndStreamFile can find files in subdirectories
+    return `/api/background-files/${encodeURIComponent(storagePath)}`;
+  }
+  
   // List background assets (source or cropped)
   app.get("/api/admin/background-assets", isAdmin, async (req: any, res) => {
     try {
@@ -8615,7 +8625,14 @@ ${allPages.map(page => `  <url>
       }
       
       const assets = await query.orderBy(backgroundAssets.createdAt);
-      res.json(assets);
+      
+      // Add proxyUrl to each asset for frontend display
+      const assetsWithProxy = assets.map(asset => ({
+        ...asset,
+        proxyUrl: getProxyUrl(asset.storagePath),
+      }));
+      
+      res.json(assetsWithProxy);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -8669,7 +8686,11 @@ ${allPages.map(page => `  <url>
         isActive: true,
       }).returning();
       
-      res.json(asset);
+      // Return asset with proxy URL for immediate display
+      res.json({
+        ...asset,
+        proxyUrl: getProxyUrl(asset.storagePath),
+      });
     } catch (error: any) {
       console.error("Error uploading background asset:", error);
       res.status(500).json({ error: error.message });
