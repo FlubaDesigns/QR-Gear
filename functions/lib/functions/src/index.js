@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-01-07T23:45:00Z - Mockups now cached by color + graphic size (e.g., Black_medium)
+// Build timestamp: 2026-01-08T00:00:00Z - Mockups cached by color_size_placement (e.g., Black_small_front-chest)
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -1595,24 +1595,40 @@ app.post('/storefront/generate-mockup', async (req, res) => {
         const existingMockups = product.mockupsByColor || {};
         const normalizeColor = (c) => c.toLowerCase().trim();
         const requestColorNorm = normalizeColor(color);
-        // Build the key for color + graphic size (e.g., "Black_medium")
+        // Build keys for lookup: color_size_placement (full), color_size, color (legacy)
+        const placement = 'front-chest';
+        const fullKey = `${color}_${resolvedQrSize}_${placement}`;
         const colorSizeKey = `${color}_${resolvedQrSize}`;
+        const fullKeyNorm = `${requestColorNorm}_${resolvedQrSize}_${placement}`;
         const colorSizeKeyNorm = `${requestColorNorm}_${resolvedQrSize}`;
-        console.log(`[StorefrontMockup] Looking for mockup: exact="${colorSizeKey}", fallback="${color}"`);
-        // Priority 1: Exact match for color + graphic size
+        console.log(`[StorefrontMockup] Looking for mockup: full="${fullKey}", size="${colorSizeKey}", color="${color}"`);
+        // Priority 1: Exact match for color + size + placement
         let existingMockup = null;
-        let matchedColorKey = colorSizeKey;
+        let matchedColorKey = fullKey;
         let usedFallback = false;
         for (const [storedKey, mockup] of Object.entries(existingMockups)) {
             const storedKeyNorm = storedKey.toLowerCase().trim();
-            if (storedKeyNorm === colorSizeKeyNorm && mockup && mockup.front) {
+            if (storedKeyNorm === fullKeyNorm && mockup && mockup.front) {
                 existingMockup = mockup;
                 matchedColorKey = storedKey;
-                console.log(`[StorefrontMockup] Found EXACT match: "${storedKey}" for ${colorSizeKey}`);
+                console.log(`[StorefrontMockup] Found EXACT match: "${storedKey}"`);
                 break;
             }
         }
-        // Priority 2: Fallback to any mockup for this color (any graphic size or legacy format)
+        // Priority 2: Match color + size (any placement)
+        if (!existingMockup) {
+            for (const [storedKey, mockup] of Object.entries(existingMockups)) {
+                const storedKeyNorm = storedKey.toLowerCase().trim();
+                if (storedKeyNorm === colorSizeKeyNorm && mockup && mockup.front) {
+                    existingMockup = mockup;
+                    matchedColorKey = storedKey;
+                    usedFallback = true;
+                    console.log(`[StorefrontMockup] Found SIZE match: "${storedKey}" (requested: ${fullKey})`);
+                    break;
+                }
+            }
+        }
+        // Priority 3: Fallback to any mockup for this color
         if (!existingMockup) {
             for (const [storedKey, mockup] of Object.entries(existingMockups)) {
                 const storedKeyNorm = storedKey.toLowerCase().trim();
@@ -1622,7 +1638,7 @@ app.post('/storefront/generate-mockup', async (req, res) => {
                     existingMockup = mockup;
                     matchedColorKey = storedKey;
                     usedFallback = true;
-                    console.log(`[StorefrontMockup] Using FALLBACK mockup: "${storedKey}" (requested: ${colorSizeKey})`);
+                    console.log(`[StorefrontMockup] Using COLOR fallback: "${storedKey}" (requested: ${fullKey})`);
                     break;
                 }
             }
@@ -2199,20 +2215,31 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req, res
                     artworkUrl,
                     artworkVariant,
                 });
-                // Save with color + graphic size key (default to medium for regenerate)
+                // Save with full key: color_size_placement (e.g., "Black_medium_front-chest")
                 const graphicSize = 'medium';
+                const placement = 'front-chest';
+                const fullKey = `${colorInfo.name}_${graphicSize}_${placement}`;
+                mockupsByColor[fullKey] = {
+                    front: mockupResult.mockupUrl,
+                    lifestyle: mockupResult.lifestyleMockupUrl,
+                    qrSize: graphicSize,
+                    placement,
+                    generatedAt: new Date().toISOString(),
+                };
+                // Also keep legacy keys for backward compatibility
                 const colorSizeKey = `${colorInfo.name}_${graphicSize}`;
                 mockupsByColor[colorSizeKey] = {
                     front: mockupResult.mockupUrl,
                     lifestyle: mockupResult.lifestyleMockupUrl,
                     qrSize: graphicSize,
+                    placement,
                     generatedAt: new Date().toISOString(),
                 };
-                // Also keep legacy key for backward compatibility
                 mockupsByColor[colorInfo.name] = {
                     front: mockupResult.mockupUrl,
                     lifestyle: mockupResult.lifestyleMockupUrl,
                     qrSize: graphicSize,
+                    placement,
                     generatedAt: new Date().toISOString(),
                 };
                 results.push({ color: colorInfo.name, success: true, mockupUrl: mockupResult.mockupUrl });

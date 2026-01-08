@@ -4551,39 +4551,55 @@ ${allPages.map(page => `  <url>
       const normalizeColor = (c: string) => c.toLowerCase().trim();
       const requestColorNorm = normalizeColor(color);
       
-      // Build the key for color + graphic size (e.g., "Black_medium")
+      // Build keys for lookup: color_size_placement (full), color_size, color (legacy)
+      const placement = 'front-chest'; // default placement for storefront
+      const fullKey = `${color}_${resolvedQrSize}_${placement}`;
       const colorSizeKey = `${color}_${resolvedQrSize}`;
+      const fullKeyNorm = `${requestColorNorm}_${resolvedQrSize}_${placement}`;
       const colorSizeKeyNorm = `${requestColorNorm}_${resolvedQrSize}`;
       
-      console.log(`[StorefrontMockup] Looking for mockup: exact="${colorSizeKey}", fallback="${color}"`);
+      console.log(`[StorefrontMockup] Looking for mockup: full="${fullKey}", size="${colorSizeKey}", color="${color}"`);
       
-      // Priority 1: Exact match for color + graphic size
+      // Priority 1: Exact match for color + size + placement
       let existingMockup: any = null;
-      let matchedColorKey: string = colorSizeKey;
+      let matchedColorKey: string = fullKey;
       let usedFallback = false;
       
       for (const [storedKey, mockup] of Object.entries(existingMockups)) {
         const storedKeyNorm = storedKey.toLowerCase().trim();
-        if (storedKeyNorm === colorSizeKeyNorm && mockup && (mockup as any).front) {
+        if (storedKeyNorm === fullKeyNorm && mockup && (mockup as any).front) {
           existingMockup = mockup;
           matchedColorKey = storedKey;
-          console.log(`[StorefrontMockup] Found EXACT match: "${storedKey}" for ${color}_${resolvedQrSize}`);
+          console.log(`[StorefrontMockup] Found EXACT match: "${storedKey}"`);
           break;
         }
       }
       
-      // Priority 2: Fallback to any mockup for this color (any graphic size or legacy format)
+      // Priority 2: Match color + size (any placement)
       if (!existingMockup) {
         for (const [storedKey, mockup] of Object.entries(existingMockups)) {
           const storedKeyNorm = storedKey.toLowerCase().trim();
-          // Match "Black", "Black_small", "Black_medium", "Black_large" for color "Black"
+          if (storedKeyNorm === colorSizeKeyNorm && mockup && (mockup as any).front) {
+            existingMockup = mockup;
+            matchedColorKey = storedKey;
+            usedFallback = true;
+            console.log(`[StorefrontMockup] Found SIZE match: "${storedKey}" (requested: ${fullKey})`);
+            break;
+          }
+        }
+      }
+      
+      // Priority 3: Fallback to any mockup for this color
+      if (!existingMockup) {
+        for (const [storedKey, mockup] of Object.entries(existingMockups)) {
+          const storedKeyNorm = storedKey.toLowerCase().trim();
           const matchesColor = storedKeyNorm === requestColorNorm || 
                                storedKeyNorm.startsWith(`${requestColorNorm}_`);
           if (matchesColor && mockup && (mockup as any).front) {
             existingMockup = mockup;
             matchedColorKey = storedKey;
             usedFallback = true;
-            console.log(`[StorefrontMockup] Using FALLBACK mockup: "${storedKey}" (requested: ${colorSizeKey})`);
+            console.log(`[StorefrontMockup] Using COLOR fallback: "${storedKey}" (requested: ${fullKey})`);
             break;
           }
         }

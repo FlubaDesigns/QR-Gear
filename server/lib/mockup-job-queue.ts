@@ -312,20 +312,32 @@ export class MockupJobQueue {
 
       const mockupsByColor = (product.mockupsByColor || {}) as Record<string, any>;
       
-      // Save with color + graphic size key (e.g., "Black_medium") so each size is preserved
+      // Save with full key: color_size_placement (e.g., "Black_small_front-chest")
+      const placement = job.placement || 'front';
+      const fullKey = `${job.colorName}_${job.qrSize}_${placement}`;
+      mockupsByColor[fullKey] = {
+        front: result.mockupUrl,
+        lifestyle: result.lifestyleMockupUrl,
+        qrSize: job.qrSize,
+        placement,
+        generatedAt: new Date().toISOString(),
+      };
+      
+      // Also keep legacy keys for backward compatibility
       const colorSizeKey = `${job.colorName}_${job.qrSize}`;
       mockupsByColor[colorSizeKey] = {
         front: result.mockupUrl,
         lifestyle: result.lifestyleMockupUrl,
         qrSize: job.qrSize,
+        placement,
         generatedAt: new Date().toISOString(),
       };
       
-      // Also keep a legacy key for backward compatibility (last generated size)
       mockupsByColor[job.colorName] = {
         front: result.mockupUrl,
         lifestyle: result.lifestyleMockupUrl,
         qrSize: job.qrSize,
+        placement,
         generatedAt: new Date().toISOString(),
       };
 
