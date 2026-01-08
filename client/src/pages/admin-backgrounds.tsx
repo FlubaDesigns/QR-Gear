@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { useLocation, Link } from "wouter";
@@ -24,12 +24,72 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop, ImagePlus } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop as CropIcon, ImagePlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import type { CustomDesign, LibraryAsset, PartnerStore, BackgroundAsset } from "@shared/schema";
 
 // Extended type with proxy URL from backend
 type BackgroundAssetWithProxy = BackgroundAsset & { proxyUrl: string | null };
+
+// Authenticated Image component that fetches images with auth headers
+function AuthenticatedImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchImage = async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const response = await fetch(src, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load image');
+        
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        
+        if (isMounted) {
+          setBlobUrl(url);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(true);
+          setLoading(false);
+        }
+      }
+    };
+    
+    if (src) fetchImage();
+    
+    return () => {
+      isMounted = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [src]);
+
+  if (loading) {
+    return (
+      <div className={`flex items-center justify-center bg-muted ${className}`}>
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !blobUrl) {
+    return (
+      <div className={`flex items-center justify-center bg-muted ${className}`}>
+        <Image className="h-6 w-6 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return <img src={blobUrl} alt={alt} className={className} />;
+}
 
 const TEMPLATE_CATEGORIES = [
   { value: "religious", label: "Religious" },
@@ -862,7 +922,8 @@ function SourceImagesContent() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<BackgroundAssetWithProxy | null>(null);
-  const [croppedPreview, setCroppedPreview] = useState<string | null>(null);
+  const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
+  const [cropImageLoading, setCropImageLoading] = useState(false);
   const [cropSaving, setCropSaving] = useState(false);
   const cropImgRef = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<{ x: number; y: number; width: number; height: number; unit: string } | undefined>();
@@ -889,11 +950,30 @@ function SourceImagesContent() {
   });
 
   // Open crop dialog for a source image
-  const handleOpenCrop = (asset: BackgroundAssetWithProxy) => {
+  const handleOpenCrop = async (asset: BackgroundAssetWithProxy) => {
     setImageToCrop(asset);
     setCrop(undefined);
-    setCroppedPreview(null);
+    setCropImageBlobUrl(null);
     setCropDialogOpen(true);
+    setCropImageLoading(true);
+    
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch(asset.proxyUrl || asset.imageUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!response.ok) throw new Error('Failed to load image');
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setCropImageBlobUrl(url);
+    } catch (err) {
+      toast({ title: "Failed to load image", variant: "destructive" });
+      setCropDialogOpen(false);
+    } finally {
+      setCropImageLoading(false);
+    }
   };
 
   // Initialize crop when image loads
@@ -1241,7 +1321,7 @@ function SourceImagesContent() {
           {assets.map((asset) => (
             <Card key={asset.id} className="overflow-hidden" data-testid={`card-source-${asset.id}`}>
               <div className="aspect-square relative">
-                <img src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+                <AuthenticatedImage src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
               </div>
               <CardContent className="p-2">
                 <p className="text-xs truncate">{asset.name}</p>
@@ -1253,7 +1333,7 @@ function SourceImagesContent() {
                     onClick={() => handleOpenCrop(asset)}
                     data-testid={`button-crop-source-${asset.id}`}
                   >
-                    <Crop className="h-3 w-3 mr-1" />
+                    <CropIcon className="h-3 w-3 mr-1" />
                     Crop
                   </Button>
                   <Button
@@ -1273,7 +1353,13 @@ function SourceImagesContent() {
       )}
 
       {/* Crop Dialog */}
-      <Dialog open={cropDialogOpen} onOpenChange={setCropDialogOpen}>
+      <Dialog open={cropDialogOpen} onOpenChange={(open) => {
+        if (!open && cropImageBlobUrl) {
+          URL.revokeObjectURL(cropImageBlobUrl);
+          setCropImageBlobUrl(null);
+        }
+        setCropDialogOpen(open);
+      }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Crop Image for 9:16 Ratio</DialogTitle>
@@ -1283,22 +1369,30 @@ function SourceImagesContent() {
               <p className="text-sm text-muted-foreground">
                 Drag the selection box to choose the area you want. This will be saved to Cropped Images.
               </p>
-              <div className="relative rounded-lg overflow-hidden bg-black/10 max-h-[60vh]">
-                <ReactCrop
-                  crop={crop}
-                  onChange={(_, percentCrop) => setCrop(percentCrop)}
-                  aspect={9 / 16}
-                >
-                  <img
-                    ref={cropImgRef}
-                    src={imageToCrop.proxyUrl || imageToCrop.imageUrl}
-                    alt={imageToCrop.name}
-                    onLoad={onCropImageLoad}
-                    className="max-w-full max-h-[55vh] mx-auto"
-                    crossOrigin="anonymous"
-                    data-testid="img-crop-preview"
-                  />
-                </ReactCrop>
+              <div className="relative rounded-lg overflow-hidden bg-black/10 max-h-[60vh] min-h-[200px] flex items-center justify-center">
+                {cropImageLoading ? (
+                  <div className="text-center">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mt-2">Loading image...</p>
+                  </div>
+                ) : cropImageBlobUrl ? (
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(_, percentCrop) => setCrop(percentCrop)}
+                    aspect={9 / 16}
+                  >
+                    <img
+                      ref={cropImgRef}
+                      src={cropImageBlobUrl}
+                      alt={imageToCrop.name}
+                      onLoad={onCropImageLoad}
+                      className="max-w-full max-h-[55vh] mx-auto"
+                      data-testid="img-crop-preview"
+                    />
+                  </ReactCrop>
+                ) : (
+                  <p className="text-muted-foreground">Failed to load image</p>
+                )}
               </div>
               <DialogFooter>
                 <Button
@@ -1310,7 +1404,7 @@ function SourceImagesContent() {
                 </Button>
                 <Button
                   onClick={handleSaveCrop}
-                  disabled={cropSaving || !crop}
+                  disabled={cropSaving || !crop || cropImageLoading}
                   data-testid="button-save-crop"
                 >
                   {cropSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -1380,7 +1474,7 @@ function CroppedImagesContent() {
           {assets.map((asset) => (
             <Card key={asset.id} className="overflow-hidden" data-testid={`card-cropped-${asset.id}`}>
               <div className="aspect-[9/16] relative">
-                <img src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+                <AuthenticatedImage src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
               </div>
               <CardContent className="p-2">
                 <p className="text-xs truncate">{asset.name}</p>
