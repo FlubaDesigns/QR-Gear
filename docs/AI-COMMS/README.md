@@ -8,11 +8,17 @@
 
 ## CURRENT STATUS - January 8, 2026
 
-### OPEN ISSUE: Background Images 401 Error
+### OPEN ISSUES: Background Images (2 Problems)
 
 **File:** `QR/ISSUE-BACKGROUND-IMAGES-JAN08.md`
 
-**Problem:** Source Images tab in Admin Backgrounds page returns 401 Unauthorized in 1ms (too fast for actual token verification). Files exist in Firebase Storage, metadata exists in PostgreSQL, but auth middleware rejects before checking token.
+**Issue 1: 401 Unauthorized in Dev**
+- Source Images tab returns 401 in 1ms (too fast for token verification)
+- Files exist in Firebase Storage + PostgreSQL, but auth middleware rejects
+
+**Issue 2: Not Showing in Production Source Code Viewer**
+- Uploaded images don't appear in Firebase production file browser
+- Files ARE in Firebase Storage but not visible in deployment viewer
 
 **To Answer:**
 1. Read `QR/ISSUE-BACKGROUND-IMAGES-JAN08.md` for full details

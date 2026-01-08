@@ -1,8 +1,12 @@
-# Background Images Not Displaying - January 8, 2026
+# Background Images Issues - January 8, 2026
 
-## ISSUE SUMMARY
+## ISSUE 1: 401 Unauthorized on Source Images Tab
 
 Source Images tab in Admin Backgrounds page returns 401 Unauthorized in 1ms (too fast for token verification). Files exist in Firebase Storage, metadata exists in PostgreSQL, but the `isAdmin` middleware rejects requests.
+
+## ISSUE 2: Images Not Showing in Production Source Code Viewer
+
+On the production Firebase server, uploaded images are not appearing in the source code viewer/file browser. Files are confirmed to exist in Firebase Storage, but they don't show up when browsing the production deployment.
 
 ---
 
@@ -138,6 +142,30 @@ GET /api/admin/background-assets 401 in 1ms
 
 ---
 
+## ISSUE 2 DETAILS: Production Source Code Viewer
+
+### Problem
+When viewing the deployed Firebase production site, uploaded background images do not appear in the source code viewer / file browser panel.
+
+### What We Know
+- Files ARE in Firebase Storage (verified via console)
+- Files ARE in PostgreSQL metadata table
+- Dev environment can see files (when auth works)
+- Production deployment doesn't show files in viewer
+
+### Possible Causes
+1. **Firebase Hosting vs Storage confusion** - Firebase Hosting only serves static files bundled at deploy time. Firebase Storage files are NOT automatically visible in Hosting.
+2. **Missing proxy/API route** - Production may not have the `/api/background-files/` proxy working
+3. **CORS configuration** - Firebase Storage CORS may block production domain
+4. **Build process** - Images uploaded after deploy aren't part of the static bundle
+
+### Questions
+1. Is the production server properly configured to proxy Firebase Storage requests?
+2. Are Firebase Storage CORS rules allowing the production domain?
+3. Is the API server running on Firebase Functions or Cloud Run?
+
+---
+
 *Created: January 8, 2026*
-*Issue Status: OPEN*
+*Issue Status: OPEN - 2 ISSUES*
 *Version: 3.5*
