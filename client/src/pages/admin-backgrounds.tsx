@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Nexus } from "@/lib/nexus";
@@ -858,6 +860,12 @@ function SourceImagesContent() {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<BackgroundAssetWithProxy | null>(null);
+  const [croppedPreview, setCroppedPreview] = useState<string | null>(null);
+  const [cropSaving, setCropSaving] = useState(false);
+  const cropImgRef = useRef<HTMLImageElement>(null);
+  const [crop, setCrop] = useState<{ x: number; y: number; width: number; height: number; unit: string } | undefined>();
 
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: ["/api/admin/background-assets", "source"],
@@ -879,6 +887,94 @@ function SourceImagesContent() {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
+
+  // Open crop dialog for a source image
+  const handleOpenCrop = (asset: BackgroundAssetWithProxy) => {
+    setImageToCrop(asset);
+    setCrop(undefined);
+    setCroppedPreview(null);
+    setCropDialogOpen(true);
+  };
+
+  // Initialize crop when image loads
+  const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    const aspectRatio = 9 / 16;
+    const newCrop = centerCrop(
+      makeAspectCrop({ unit: '%', width: 90 }, aspectRatio, width, height),
+      width, height
+    );
+    setCrop(newCrop as Crop);
+  }, []);
+
+  // Generate cropped image data URL
+  const getCroppedImageBlob = useCallback(async (): Promise<Blob | null> => {
+    if (!cropImgRef.current || !crop) return null;
+    
+    const image = cropImgRef.current;
+    const canvas = document.createElement("canvas");
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+
+    const cropX = (crop.x / 100) * image.width * scaleX;
+    const cropY = (crop.y / 100) * image.height * scaleY;
+    const cropWidth = (crop.width / 100) * image.width * scaleX;
+    const cropHeight = (crop.height / 100) * image.height * scaleY;
+
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.92);
+    });
+  }, [crop]);
+
+  // Save cropped image
+  const handleSaveCrop = async () => {
+    if (!imageToCrop || !crop) return;
+    
+    setCropSaving(true);
+    try {
+      const blob = await getCroppedImageBlob();
+      if (!blob) {
+        toast({ title: "Failed to generate cropped image", variant: "destructive" });
+        return;
+      }
+
+      const formData = new FormData();
+      const croppedName = `cropped_${imageToCrop.name}`;
+      formData.append("file", blob, croppedName);
+      formData.append("name", croppedName);
+      formData.append("assetType", "cropped");
+      formData.append("sourceAssetId", imageToCrop.id);
+
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch("/api/admin/background-assets", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Upload failed");
+      }
+
+      toast({ title: "Cropped image saved", description: "Image added to Cropped Images tab" });
+      setCropDialogOpen(false);
+      setImageToCrop(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "cropped"] });
+    } catch (error: any) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } finally {
+      setCropSaving(false);
+    }
+  };
 
   const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1149,21 +1245,82 @@ function SourceImagesContent() {
               </div>
               <CardContent className="p-2">
                 <p className="text-xs truncate">{asset.name}</p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="w-full mt-1 text-destructive hover:text-destructive"
-                  onClick={() => deleteMutation.mutate(asset.id)}
-                  data-testid={`button-delete-source-${asset.id}`}
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
+                <div className="flex gap-1 mt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleOpenCrop(asset)}
+                    data-testid={`button-crop-source-${asset.id}`}
+                  >
+                    <Crop className="h-3 w-3 mr-1" />
+                    Crop
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => deleteMutation.mutate(asset.id)}
+                    data-testid={`button-delete-source-${asset.id}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Crop Dialog */}
+      <Dialog open={cropDialogOpen} onOpenChange={setCropDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Crop Image for 9:16 Ratio</DialogTitle>
+          </DialogHeader>
+          {imageToCrop && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Drag the selection box to choose the area you want. This will be saved to Cropped Images.
+              </p>
+              <div className="relative rounded-lg overflow-hidden bg-black/10 max-h-[60vh]">
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentCrop) => setCrop(percentCrop)}
+                  aspect={9 / 16}
+                >
+                  <img
+                    ref={cropImgRef}
+                    src={imageToCrop.proxyUrl || imageToCrop.imageUrl}
+                    alt={imageToCrop.name}
+                    onLoad={onCropImageLoad}
+                    className="max-w-full max-h-[55vh] mx-auto"
+                    crossOrigin="anonymous"
+                    data-testid="img-crop-preview"
+                  />
+                </ReactCrop>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setCropDialogOpen(false)}
+                  disabled={cropSaving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveCrop}
+                  disabled={cropSaving || !crop}
+                  data-testid="button-save-crop"
+                >
+                  {cropSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Save Cropped Image
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
