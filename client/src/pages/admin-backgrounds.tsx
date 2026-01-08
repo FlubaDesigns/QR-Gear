@@ -915,11 +915,21 @@ function LibraryBackgroundsContent() {
   );
 }
 
+// Upload item type for tracking individual file uploads
+type UploadItem = {
+  id: string;
+  name: string;
+  previewUrl: string;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  error?: string;
+};
+
 // Source Images Content - Bulk upload original backgrounds
 function SourceImagesContent() {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, fileName: '' });
+  const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<BackgroundAssetWithProxy | null>(null);
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
@@ -1100,7 +1110,7 @@ function SourceImagesContent() {
       }
 
       Nexus.info("ZIP_UPLOAD", `Found ${imageFiles.length} images to upload`);
-      setUploadProgress({ current: 0, total: imageFiles.length });
+      setUploadProgress({ current: 0, total: imageFiles.length, fileName: 'Preparing...' });
 
       if (imageFiles.length === 0) {
         Nexus.warn("ZIP_UPLOAD", "No valid images found in ZIP");
@@ -1108,16 +1118,34 @@ function SourceImagesContent() {
         return;
       }
 
+      // Create upload items with preview URLs
+      const items: UploadItem[] = imageFiles.map((img, idx) => ({
+        id: `zip-${idx}`,
+        name: img.name,
+        previewUrl: URL.createObjectURL(img.blob),
+        status: 'pending' as const,
+      }));
+      setUploadItems(items);
+
       let successCount = 0;
       let failedNames: string[] = [];
       
       for (let i = 0; i < imageFiles.length; i++) {
         const { name, blob } = imageFiles[i];
+        setUploadProgress({ current: i, total: imageFiles.length, fileName: name });
+        
+        // Mark current item as uploading
+        setUploadItems(prev => prev.map((item, idx) => 
+          idx === i ? { ...item, status: 'uploading' as const } : item
+        ));
         
         if (blob.size > 25 * 1024 * 1024) {
           Nexus.warn("ZIP_UPLOAD", `Skipping oversized file: ${name}`, { size: blob.size, maxSize: 25 * 1024 * 1024 });
           failedNames.push(`${name} (too large)`);
-          setUploadProgress({ current: i + 1, total: imageFiles.length });
+          setUploadItems(prev => prev.map((item, idx) => 
+            idx === i ? { ...item, status: 'error' as const, error: 'Too large' } : item
+          ));
+          setUploadProgress({ current: i + 1, total: imageFiles.length, fileName: name });
           continue;
         }
         
@@ -1172,6 +1200,9 @@ function SourceImagesContent() {
             
             Nexus.info("ZIP_UPLOAD", `Upload success: ${name}`, { status: response.status });
             successCount++;
+            setUploadItems(prev => prev.map((item, idx) => 
+              idx === i ? { ...item, status: 'success' as const } : item
+            ));
           } catch (fetchErr: any) {
             clearTimeout(timeoutId);
             if (fetchErr.name === 'AbortError') {
@@ -1182,11 +1213,15 @@ function SourceImagesContent() {
         } catch (err: any) {
           Nexus.captureError(err, "ZIP_UPLOAD", { fileName: name, step: "upload" });
           failedNames.push(`${name} (${err.message || 'upload error'})`);
+          setUploadItems(prev => prev.map((item, idx) => 
+            idx === i ? { ...item, status: 'error' as const, error: err.message } : item
+          ));
         }
 
-        setUploadProgress({ current: i + 1, total: imageFiles.length });
+        setUploadProgress({ current: i + 1, total: imageFiles.length, fileName: name });
       }
 
+      setUploadProgress({ current: imageFiles.length, total: imageFiles.length, fileName: 'Complete!' });
       Nexus.info("ZIP_UPLOAD", `Upload complete: ${successCount}/${imageFiles.length} success`, { failed: failedNames });
 
       if (failedNames.length > 0) {
@@ -1204,7 +1239,14 @@ function SourceImagesContent() {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {
       setUploading(false);
-      setUploadProgress({ current: 0, total: 0 });
+      setUploadProgress({ current: 0, total: 0, fileName: '' });
+      // Clean up object URLs after a delay to let user see final state
+      setTimeout(() => {
+        setUploadItems(prev => {
+          prev.forEach(item => URL.revokeObjectURL(item.previewUrl));
+          return [];
+        });
+      }, 3000);
       e.target.value = '';
     }
   };
@@ -1214,34 +1256,70 @@ function SourceImagesContent() {
     if (!files?.length) return;
 
     setUploading(true);
-    setUploadProgress({ current: 0, total: files.length });
+    setUploadProgress({ current: 0, total: files.length, fileName: 'Preparing...' });
+
+    // Create upload items with preview URLs
+    const items: UploadItem[] = Array.from(files).map((file, idx) => ({
+      id: `single-${idx}`,
+      name: file.name,
+      previewUrl: URL.createObjectURL(file),
+      status: 'pending' as const,
+    }));
+    setUploadItems(items);
+
+    let successCount = 0;
 
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const reader = new FileReader();
-        const base64 = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve((reader.result as string).split(',')[1]);
-          reader.readAsDataURL(file);
-        });
+        setUploadProgress({ current: i, total: files.length, fileName: file.name });
+        
+        // Mark current item as uploading
+        setUploadItems(prev => prev.map((item, idx) => 
+          idx === i ? { ...item, status: 'uploading' as const } : item
+        ));
 
-        await apiRequest("POST", "/api/admin/background-assets", {
-          name: file.name.replace(/\.[^/.]+$/, ''),
-          assetType: 'source',
-          imageData: base64,
-          mimeType: file.type,
-        });
+        try {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.readAsDataURL(file);
+          });
 
-        setUploadProgress({ current: i + 1, total: files.length });
+          await apiRequest("POST", "/api/admin/background-assets", {
+            name: file.name.replace(/\.[^/.]+$/, ''),
+            assetType: 'source',
+            imageData: base64,
+            mimeType: file.type,
+          });
+
+          successCount++;
+          setUploadItems(prev => prev.map((item, idx) => 
+            idx === i ? { ...item, status: 'success' as const } : item
+          ));
+        } catch (err: any) {
+          setUploadItems(prev => prev.map((item, idx) => 
+            idx === i ? { ...item, status: 'error' as const, error: err.message } : item
+          ));
+        }
+
+        setUploadProgress({ current: i + 1, total: files.length, fileName: file.name });
       }
 
-      toast({ title: `Uploaded ${files.length} images` });
+      toast({ title: `Uploaded ${successCount} of ${files.length} images` });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {
       setUploading(false);
-      setUploadProgress({ current: 0, total: 0 });
+      setUploadProgress({ current: 0, total: 0, fileName: '' });
+      // Clean up object URLs after a delay
+      setTimeout(() => {
+        setUploadItems(prev => {
+          prev.forEach(item => URL.revokeObjectURL(item.previewUrl));
+          return [];
+        });
+      }, 3000);
       e.target.value = '';
     }
   };
@@ -1295,10 +1373,71 @@ function SourceImagesContent() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground">Max 25MB per image. Supported: JPG, PNG, WebP, HEIC</p>
-          {uploading && uploadProgress.total > 0 && (
-            <div className="flex items-center gap-3">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Uploading {uploadProgress.current} of {uploadProgress.total}...</span>
+          
+          {/* Visual upload progress with thumbnails */}
+          {uploadItems.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {uploading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <span className="font-medium">
+                    {uploading 
+                      ? `Uploading ${uploadProgress.current} of ${uploadProgress.total}...`
+                      : `Upload complete: ${uploadItems.filter(i => i.status === 'success').length} of ${uploadItems.length} succeeded`
+                    }
+                  </span>
+                </div>
+                {uploadProgress.fileName && uploading && (
+                  <span className="text-sm text-muted-foreground truncate max-w-48">
+                    {uploadProgress.fileName}
+                  </span>
+                )}
+              </div>
+              
+              {/* Progress bar */}
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-primary h-full transition-all duration-300"
+                  style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                />
+              </div>
+              
+              {/* Thumbnail grid */}
+              <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 max-h-48 overflow-y-auto p-1">
+                {uploadItems.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="relative aspect-square rounded overflow-hidden border"
+                    data-testid={`upload-thumb-${item.id}`}
+                  >
+                    <img 
+                      src={item.previewUrl} 
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Status overlay */}
+                    <div className={`absolute inset-0 flex items-center justify-center ${
+                      item.status === 'pending' ? 'bg-background/50' :
+                      item.status === 'uploading' ? 'bg-primary/20' :
+                      item.status === 'success' ? 'bg-green-500/30' :
+                      'bg-destructive/40'
+                    }`}>
+                      {item.status === 'pending' && (
+                        <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
+                      )}
+                      {item.status === 'uploading' && (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      )}
+                      {item.status === 'success' && (
+                        <Check className="h-4 w-4 text-green-600" />
+                      )}
+                      {item.status === 'error' && (
+                        <X className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
