@@ -1060,10 +1060,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid token" });
       }
       
-      // Check admin status
+      // Check admin status using same logic as isAdmin middleware
       const firebaseUid = decodedToken.uid;
-      const user = await storage.getUserByFirebaseUid(firebaseUid);
-      if (!user?.isAdmin) {
+      const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
+      if (adminIds.length > 0 && !adminIds.includes(firebaseUid)) {
         return res.status(403).json({ error: "Admin access required" });
       }
       

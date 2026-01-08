@@ -926,7 +926,7 @@ function SourceImagesContent() {
   const [cropImageLoading, setCropImageLoading] = useState(false);
   const [cropSaving, setCropSaving] = useState(false);
   const cropImgRef = useRef<HTMLImageElement>(null);
-  const [crop, setCrop] = useState<{ x: number; y: number; width: number; height: number; unit: string } | undefined>();
+  const [crop, setCrop] = useState<Crop | undefined>();
 
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: ["/api/admin/background-assets", "source"],
@@ -1464,7 +1464,7 @@ function CroppedImagesContent() {
       {assets.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
-            <Crop className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <CropIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p className="text-muted-foreground">No cropped images yet.</p>
             <p className="text-sm text-muted-foreground mt-2">Cropped images appear here after you crop source images in the product builder.</p>
           </CardContent>
@@ -1575,7 +1575,7 @@ export default function AdminBackgrounds() {
               Source Images
             </TabsTrigger>
             <TabsTrigger value="cropped" className="h-14 text-base flex-col gap-1" data-testid="tab-cropped-images">
-              <Crop className="h-5 w-5" />
+              <CropIcon className="h-5 w-5" />
               Cropped
             </TabsTrigger>
           </TabsList>
