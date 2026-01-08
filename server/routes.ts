@@ -1046,6 +1046,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Serve background images from Firebase Storage (multiple possible paths)
+  app.get("/api/background-files/*", async (req, res) => {
+    try {
+      const fullPath = req.params[0]; // Gets everything after /api/background-files/
+      
+      // Try serving from the exact path provided
+      const served = await downloadAndStreamFile(fullPath, res, '', 31536000);
+      if (served) {
+        return;
+      }
+      
+      return res.status(404).json({ error: "Background file not found" });
+    } catch (error: any) {
+      console.error("Background file serve error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Hosted Images API
   app.post("/api/images/upload", async (req, res) => {
     try {

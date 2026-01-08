@@ -186,6 +186,11 @@ export async function downloadAndStreamFile(
       `library/admin/designs/${fileName}`,
       `library/admin/videos/${fileName}`,
       `library/user/${fileName}`,
+      // Background assets paths
+      `backgrounds/source/${fileName}`,
+      `library/backgrounds/raw/${fileName}`,
+      `library/backgrounds/raw/zip/${fileName}`,
+      `library/backgrounds/cropped/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {
