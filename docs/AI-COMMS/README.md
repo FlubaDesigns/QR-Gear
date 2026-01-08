@@ -6,28 +6,34 @@
 
 ---
 
-## CURRENT STATUS - January 3, 2026
+## CURRENT STATUS - January 8, 2026
+
+### OPEN ISSUE: Background Images 401 Error
+
+**File:** `QR/ISSUE-BACKGROUND-IMAGES-JAN08.md`
+
+**Problem:** Source Images tab in Admin Backgrounds page returns 401 Unauthorized in 1ms (too fast for actual token verification). Files exist in Firebase Storage, metadata exists in PostgreSQL, but auth middleware rejects before checking token.
+
+**To Answer:**
+1. Read `QR/ISSUE-BACKGROUND-IMAGES-JAN08.md` for full details
+2. Create answer file in your folder (e.g., `KC/BACKGROUND-FIX-JAN08.md`)
+3. Update VERSION.md
+4. Re-zip
+
+---
 
 ### WIDGET INTEGRATION: COMPLETE - READY TO TEST
 
-### NEW FILES FOR HANDOFF:
+### Files For Reference:
 
 | Priority | File | Contents |
 |----------|------|----------|
-| **1** | **`QR/READY-FOR-KC-JAN03.md`** | **IMPLEMENTATION READY - READ THIS FIRST** |
-| **2** | **`KC/KC-SEGMENT-MAPPING-JAN03.md`** | **KC SEGMENT ID MAPPING SYSTEM** |
-| **3** | **`QR/WIDGET-EMBEDDING-JAN03.md`** | **WIDGET EMBEDDING SYSTEM FOR KC** |
-| 4 | `QR/QUESTIONS-FOR-KC-JAN03.md` | Variable alignment (ANSWERED) |
+| **1** | **`QR/ISSUE-BACKGROUND-IMAGES-JAN08.md`** | **CURRENT ISSUE - NEEDS HELP** |
+| 2 | `QR/READY-FOR-KC-JAN03.md` | Widget implementation ready |
+| 3 | `KC/KC-SEGMENT-MAPPING-JAN03.md` | KC segment ID mapping |
+| 4 | `QR/WIDGET-EMBEDDING-JAN03.md` | Widget embedding system |
 | 5 | `QR/DATABASE-CONTENTS-DEC28.md` | Actual data in all tables |
 | 6 | `QR/SITEMAP-DEC28.md` | All 61 pages with routes |
-
-### Latest Update: JWT SECRET SYNCED - Integration Complete!
-- Partner store created for Kingdom Connects
-- segmentId support added (KC-BIZ-*, KC-CHR-*, KC-MEM-*)
-- CORS security fixed (exact origin matching)
-- Embed script supports placement + entity IDs
-- **JWT secrets now match on both systems**
-- **Ready to test widget embedding on KC pages**
 
 ### The Mockup Bug (FIXED):
 Mockups now generated via Printful API with lifestyle images, stored in Firebase Storage.
@@ -67,5 +73,5 @@ AI-COMMS/
 
 ---
 
-*Last updated: January 3, 2026*
-*Version 3.4*
+*Last updated: January 8, 2026*
+*Version 3.5*
