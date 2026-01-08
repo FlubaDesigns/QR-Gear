@@ -2893,8 +2893,8 @@ app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Resp
 app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   console.log('[BackgroundAssets] POST request received');
   try {
-    const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags } = req.body;
-    console.log(`[BackgroundAssets] Uploading: ${name}, type: ${assetType}, dataSize: ${imageData?.length || 0}`);
+    const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags, fromZip } = req.body;
+    console.log(`[BackgroundAssets] Uploading: ${name}, type: ${assetType}, fromZip: ${fromZip}, dataSize: ${imageData?.length || 0}`);
     
     if (!name || !assetType || !imageData) {
       console.log('[BackgroundAssets] Missing required fields');
@@ -2907,9 +2907,19 @@ app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Res
       return;
     }
     
-    // Upload to Firebase Storage
+    // Upload to Firebase Storage with organized paths
+    // library/backgrounds/raw/ for individual uploads
+    // library/backgrounds/raw/zip/ for ZIP uploads
+    // library/backgrounds/cropped/ for cropped versions
     const bucket = storage.bucket();
-    const folderPath = assetType === 'source' ? 'backgrounds/source' : 'backgrounds/cropped';
+    let folderPath: string;
+    if (assetType === 'cropped') {
+      folderPath = 'library/backgrounds/cropped';
+    } else if (fromZip) {
+      folderPath = 'library/backgrounds/raw/zip';
+    } else {
+      folderPath = 'library/backgrounds/raw';
+    }
     const fileName = `${folderPath}/${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const ext = (mimeType || 'image/png').split('/')[1] || 'png';
     const fullPath = `${fileName}.${ext}`;

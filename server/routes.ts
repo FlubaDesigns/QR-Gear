@@ -8606,7 +8606,7 @@ ${allPages.map(page => `  <url>
   // Upload background assets (bulk upload support)
   app.post("/api/admin/background-assets", isAdmin, async (req: any, res) => {
     try {
-      const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags } = req.body;
+      const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags, fromZip } = req.body;
       
       if (!name || !assetType || !imageData) {
         return res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
@@ -8616,8 +8616,18 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
       }
       
-      // Upload to Firebase Storage
-      const folderPath = assetType === 'source' ? 'backgrounds/source' : 'backgrounds/cropped';
+      // Upload to Firebase Storage with organized paths
+      // library/backgrounds/raw/ for individual uploads
+      // library/backgrounds/raw/zip/ for ZIP uploads
+      // library/backgrounds/cropped/ for cropped versions
+      let folderPath: string;
+      if (assetType === 'cropped') {
+        folderPath = 'library/backgrounds/cropped';
+      } else if (fromZip) {
+        folderPath = 'library/backgrounds/raw/zip';
+      } else {
+        folderPath = 'library/backgrounds/raw';
+      }
       const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
       const uploadResult = await uploadImageFromBuffer(

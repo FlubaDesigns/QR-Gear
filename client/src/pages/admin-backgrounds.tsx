@@ -971,6 +971,7 @@ function SourceImagesContent() {
                 assetType: 'source',
                 imageData: base64,
                 mimeType: blob.type || 'image/png',
+                fromZip: true,
               }),
               signal: controller.signal,
             });
