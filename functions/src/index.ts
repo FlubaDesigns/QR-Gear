@@ -1,5 +1,5 @@
-// Build timestamp: 2026-01-08T00:00:00Z - Mockups cached by color_size_placement (e.g., Black_small_front-chest)
-import * as functions from 'firebase-functions';
+// Build timestamp: 2026-01-08T00:30:00Z - Fixed upload timeout (9min) and memory (1GB)
+import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
 import Stripe from 'stripe';
@@ -2891,10 +2891,13 @@ app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Resp
 });
 
 app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  console.log('[BackgroundAssets] POST request received');
   try {
     const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags } = req.body;
+    console.log(`[BackgroundAssets] Uploading: ${name}, type: ${assetType}, dataSize: ${imageData?.length || 0}`);
     
     if (!name || !assetType || !imageData) {
+      console.log('[BackgroundAssets] Missing required fields');
       res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
       return;
     }
@@ -2938,9 +2941,10 @@ app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Res
     });
     
     const doc = await docRef.get();
+    console.log(`[BackgroundAssets] Upload complete: ${doc.id}`);
     res.json(docToObject(doc));
   } catch (error: any) {
-    console.error("Error uploading background asset:", error);
+    console.error("[BackgroundAssets] Upload error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3766,5 +3770,12 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Export the API function
-export const api = functions.https.onRequest(app);
+// Export the API function with increased timeout and memory for large uploads
+export const api = onRequest(
+  {
+    timeoutSeconds: 540,  // 9 minutes max
+    memory: '1GiB',
+    cors: true,
+  },
+  app
+);

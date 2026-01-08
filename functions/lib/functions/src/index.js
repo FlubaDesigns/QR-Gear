@@ -37,8 +37,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-01-08T00:00:00Z - Mockups cached by color_size_placement (e.g., Black_small_front-chest)
-const functions = __importStar(require("firebase-functions"));
+// Build timestamp: 2026-01-08T00:30:00Z - Fixed upload timeout (9min) and memory (1GB)
+const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
 const stripe_1 = __importDefault(require("stripe"));
@@ -2505,9 +2505,12 @@ app.get('/admin/background-assets', requireAdmin, async (req, res) => {
     }
 });
 app.post('/admin/background-assets', requireAdmin, async (req, res) => {
+    console.log('[BackgroundAssets] POST request received');
     try {
         const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags } = req.body;
+        console.log(`[BackgroundAssets] Uploading: ${name}, type: ${assetType}, dataSize: ${imageData?.length || 0}`);
         if (!name || !assetType || !imageData) {
+            console.log('[BackgroundAssets] Missing required fields');
             res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
             return;
         }
@@ -2544,10 +2547,11 @@ app.post('/admin/background-assets', requireAdmin, async (req, res) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         const doc = await docRef.get();
+        console.log(`[BackgroundAssets] Upload complete: ${doc.id}`);
         res.json(docToObject(doc));
     }
     catch (error) {
-        console.error("Error uploading background asset:", error);
+        console.error("[BackgroundAssets] Upload error:", error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -3254,6 +3258,10 @@ app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
 });
-// Export the API function
-exports.api = functions.https.onRequest(app);
+// Export the API function with increased timeout and memory for large uploads
+exports.api = (0, https_1.onRequest)({
+    timeoutSeconds: 540, // 9 minutes max
+    memory: '1GiB',
+    cors: true,
+}, app);
 //# sourceMappingURL=index.js.map
