@@ -938,13 +938,20 @@ function SourceImagesContent() {
   const cropImgRef = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<Crop | undefined>();
 
-  const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
+  const { data: assets = [], isLoading, refetch, isError } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: ["/api/admin/background-assets", "source"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/background-assets?type=source");
       return res.json();
     },
+    staleTime: 0, // Always refetch on mount to ensure fresh data after auth
+    retry: 2,
   });
+
+  // Refetch when component mounts to ensure we have fresh data after auth
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -1562,13 +1569,20 @@ function SourceImagesContent() {
 function CroppedImagesContent() {
   const { toast } = useToast();
 
-  const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
+  const { data: assets = [], isLoading, refetch } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: ["/api/admin/background-assets", "cropped"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/background-assets?type=cropped");
       return res.json();
     },
+    staleTime: 0,
+    retry: 2,
   });
+
+  // Refetch on mount
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
