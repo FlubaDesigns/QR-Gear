@@ -26,6 +26,9 @@ import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, 
 import { useAuth } from "@/hooks/useAuth";
 import type { CustomDesign, LibraryAsset, PartnerStore, BackgroundAsset } from "@shared/schema";
 
+// Extended type with proxy URL from backend
+type BackgroundAssetWithProxy = BackgroundAsset & { proxyUrl: string | null };
+
 const TEMPLATE_CATEGORIES = [
   { value: "religious", label: "Religious" },
   { value: "business", label: "Business" },
@@ -856,7 +859,7 @@ function SourceImagesContent() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
-  const { data: assets = [], isLoading } = useQuery<BackgroundAsset[]>({
+  const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: ["/api/admin/background-assets", "source"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/background-assets?type=source");
@@ -1142,7 +1145,7 @@ function SourceImagesContent() {
           {assets.map((asset) => (
             <Card key={asset.id} className="overflow-hidden" data-testid={`card-source-${asset.id}`}>
               <div className="aspect-square relative">
-                <img src={asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+                <img src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
               </div>
               <CardContent className="p-2">
                 <p className="text-xs truncate">{asset.name}</p>
@@ -1169,7 +1172,7 @@ function SourceImagesContent() {
 function CroppedImagesContent() {
   const { toast } = useToast();
 
-  const { data: assets = [], isLoading } = useQuery<BackgroundAsset[]>({
+  const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: ["/api/admin/background-assets", "cropped"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/background-assets?type=cropped");
@@ -1220,7 +1223,7 @@ function CroppedImagesContent() {
           {assets.map((asset) => (
             <Card key={asset.id} className="overflow-hidden" data-testid={`card-cropped-${asset.id}`}>
               <div className="aspect-[9/16] relative">
-                <img src={asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+                <img src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
               </div>
               <CardContent className="p-2">
                 <p className="text-xs truncate">{asset.name}</p>

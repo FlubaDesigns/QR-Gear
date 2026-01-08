@@ -1047,7 +1047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Serve background images from Firebase Storage (multiple possible paths)
-  app.get("/api/background-files/*", async (req, res) => {
+  app.get("/api/background-files/*", async (req: any, res) => {
     try {
       // Decode the URL-encoded path 
       const fullPath = decodeURIComponent(req.params[0]); // Gets everything after /api/background-files/
