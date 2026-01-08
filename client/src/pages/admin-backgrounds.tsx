@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Nexus } from "@/lib/nexus";
+import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
@@ -289,8 +290,7 @@ function LibraryBackgroundsContent() {
     queryKey: ["/api/admin/library/admin", { assetType: "background", mediaType: "image" }],
     queryFn: async () => {
       const params = new URLSearchParams({ assetType: "background", mediaType: "image" });
-      const response = await fetch(`/api/admin/library/admin?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch backgrounds");
+      const response = await apiRequest("GET", `/api/admin/library/admin?${params}`);
       return response.json();
     },
   });
@@ -494,10 +494,14 @@ function LibraryBackgroundsContent() {
         formDataObj.append("season", seasonValue || "");
         formDataObj.append("event", eventValue || "");
 
+        // Get auth token for the request
+        const token = await auth.currentUser?.getIdToken();
+        
         const response = await fetch("/api/admin/library/upload", {
           method: "POST",
           body: formDataObj,
           credentials: "include",
+          headers: token ? { "Authorization": `Bearer ${token}` } : {},
         });
 
         if (!response.ok) {
@@ -855,8 +859,7 @@ function SourceImagesContent() {
   const { data: assets = [], isLoading } = useQuery<BackgroundAsset[]>({
     queryKey: ["/api/admin/background-assets", "source"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/background-assets?type=source");
-      if (!res.ok) throw new Error("Failed to fetch source images");
+      const res = await apiRequest("GET", "/api/admin/background-assets?type=source");
       return res.json();
     },
   });
@@ -962,10 +965,16 @@ function SourceImagesContent() {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 120000);
           
+          // Get auth token for the request
+          const token = await auth.currentUser?.getIdToken();
+          
           try {
             const response = await fetch("/api/admin/background-assets", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+              },
               body: JSON.stringify({
                 name: name.replace(/\.[^/.]+$/, ''),
                 assetType: 'source',
@@ -1163,8 +1172,7 @@ function CroppedImagesContent() {
   const { data: assets = [], isLoading } = useQuery<BackgroundAsset[]>({
     queryKey: ["/api/admin/background-assets", "cropped"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/background-assets?type=cropped");
-      if (!res.ok) throw new Error("Failed to fetch cropped images");
+      const res = await apiRequest("GET", "/api/admin/background-assets?type=cropped");
       return res.json();
     },
   });
