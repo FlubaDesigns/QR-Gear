@@ -65,6 +65,13 @@ export async function setupAuth(app: Express) {
       return next();
     }
     
+    // Debug logging for admin endpoints
+    if (req.path.includes('/admin/background')) {
+      console.log('[Auth Debug] Path:', req.path);
+      console.log('[Auth Debug] Session user:', req.session?.user?.email || 'none');
+      console.log('[Auth Debug] Auth header present:', !!req.headers.authorization);
+    }
+    
     // Check for session first
     if (req.session?.user) {
       req.user = req.session.user;
@@ -96,6 +103,9 @@ export async function setupAuth(app: Express) {
         
         req.user = req.session.user;
         req.isAuthenticated = () => true;
+        if (req.path.includes('/admin/background')) {
+          console.log('[Auth Debug] Token verified for:', decodedToken.email);
+        }
         return next();
       } catch (error) {
         console.error('Firebase token verification failed:', error);
@@ -103,6 +113,9 @@ export async function setupAuth(app: Express) {
     }
     
     // No auth - set isAuthenticated to false
+    if (req.path.includes('/admin/background')) {
+      console.log('[Auth Debug] No auth - setting isAuthenticated to false');
+    }
     req.isAuthenticated = () => false;
     next();
   });
