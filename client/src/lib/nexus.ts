@@ -150,6 +150,61 @@ class NexusCore {
   getMemory() {
     return [...this.memory];
   }
+
+  /**
+   * Detect Firebase HTML response issue - when Firebase Hosting returns HTML
+   * instead of routing to Cloud Functions (caused by URL encoding issues)
+   */
+  detectHtmlResponse(response: Response, url: string): boolean {
+    const contentType = response.headers.get('content-type') || '';
+    const isHtml = contentType.includes('text/html');
+    const isApiRoute = url.includes('/api/');
+    
+    if (isHtml && isApiRoute) {
+      this.log({
+        type: "ERROR",
+        source: "FIREBASE_ROUTING",
+        message: "API route returned HTML instead of JSON - Firebase Hosting URL encoding issue detected",
+        meta: {
+          url,
+          contentType,
+          status: response.status,
+          fix: "Check firebase.json rewrites and use query params instead of path params for URLs with slashes"
+        },
+        timestamp: Date.now(),
+      });
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Health check for Firebase file serving endpoints
+   */
+  async checkFirebaseFileRouting(): Promise<{ healthy: boolean; issues: string[] }> {
+    const issues: string[] = [];
+    
+    try {
+      // Test the background-files endpoint with a dummy path
+      const testUrl = '/api/background-files?path=test';
+      const response = await fetch(testUrl, { method: 'HEAD' });
+      
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('text/html')) {
+        issues.push('Firebase returning HTML for /api/background-files - routing broken');
+        this.warn('FIREBASE_HEALTH', 'Background file routing is broken - returns HTML', { url: testUrl });
+      } else if (response.status === 401 || response.status === 400 || response.status === 404) {
+        // These are expected responses from the Cloud Function
+        this.info('FIREBASE_HEALTH', 'Background file routing is healthy', { status: response.status });
+      }
+    } catch (err: any) {
+      issues.push(`Firebase health check failed: ${err.message}`);
+      this.captureError(err, 'FIREBASE_HEALTH');
+    }
+    
+    return { healthy: issues.length === 0, issues };
+  }
 }
 
 export const Nexus = new NexusCore();

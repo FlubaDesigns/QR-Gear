@@ -47,6 +47,11 @@ function AuthenticatedImage({ src, alt, className }: { src: string; alt: string;
           headers: { Authorization: `Bearer ${token}` }
         });
         
+        // Nexus check: detect if Firebase returned HTML instead of image data
+        if (Nexus.detectHtmlResponse(response, src)) {
+          throw new Error('Firebase routing error - received HTML instead of image');
+        }
+        
         if (!response.ok) throw new Error('Failed to load image');
         
         const blob = await response.blob();
@@ -56,7 +61,8 @@ function AuthenticatedImage({ src, alt, className }: { src: string; alt: string;
           setBlobUrl(url);
           setLoading(false);
         }
-      } catch (err) {
+      } catch (err: any) {
+        Nexus.captureError(err, 'AuthenticatedImage', { src });
         if (isMounted) {
           setError(true);
           setLoading(false);
