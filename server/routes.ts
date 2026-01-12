@@ -8688,7 +8688,7 @@ ${allPages.map(page => `  <url>
       );
       
       // Save metadata to database
-      const { backgroundAssets } = await import("@shared/schema");
+      const { backgroundAssets, libraryAssets } = await import("@shared/schema");
       const [asset] = await db.insert(backgroundAssets).values({
         name,
         assetType,
@@ -8700,6 +8700,41 @@ ${allPages.map(page => `  <url>
         tags: tags || null,
         isActive: true,
       }).returning();
+      
+      // CRITICAL: mirror SOURCE uploads into library_assets so Admin/Library can see them
+      if (assetType === "source") {
+        const safeOriginal = name;
+        const safeFileName = uploadResult.storageUrl.split("/").pop() || `${Date.now()}-background`;
+
+        await db.insert(libraryAssets).values({
+          userId: null,
+          ownerType: "admin",
+          assetType: "background",
+          mediaType: "image",
+          name: name,
+          description: null,
+          fileName: safeFileName,
+          originalName: safeOriginal,
+          mimeType: mimeType || "image/png",
+          sizeBytes: uploadResult.sizeBytes || 0,
+          storageUrl: uploadResult.storageUrl,
+          publicUrl: uploadResult.publicUrl,
+          thumbnailUrl: null,
+          duration: null,
+          libraryCategoryId: null,
+          librarySubcategoryId: null,
+          category: null,
+          season: "none",
+          event: "none",
+          tags: null,
+          visibleStoreSlugs: null,
+          visibleSegments: null,
+          isActive: true,
+          isFeatured: false,
+          sortOrder: 0,
+          usageCount: 0,
+        });
+      }
       
       // Return asset with proxy URL for immediate display
       res.json({
