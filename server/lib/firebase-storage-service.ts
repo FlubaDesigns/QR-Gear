@@ -181,16 +181,22 @@ export async function downloadAndStreamFile(
       `custom-designs/${fileName}`,
       `hosted-images/${fileName}`,
       `mockups/${fileName}`,
+      // New canonical paths (libraries/ plural)
+      `libraries/backgrounds/raw/${fileName}`,
+      `libraries/backgrounds/zip/${fileName}`,
+      `libraries/backgrounds/cropped/${fileName}`,
+      `libraries/designs/${fileName}`,
+      `libraries/videos/${fileName}`,
+      // Legacy paths (library/ singular) for backward compatibility
       `library/${fileName}`,
       `library/admin/backgrounds/${fileName}`,
       `library/admin/designs/${fileName}`,
       `library/admin/videos/${fileName}`,
       `library/user/${fileName}`,
-      // Background assets paths
-      `backgrounds/source/${fileName}`,
       `library/backgrounds/raw/${fileName}`,
       `library/backgrounds/raw/zip/${fileName}`,
       `library/backgrounds/cropped/${fileName}`,
+      `backgrounds/source/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {

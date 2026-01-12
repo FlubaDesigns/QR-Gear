@@ -1491,19 +1491,35 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
   try {
     const { filename } = req.params;
     const bucket = storage.bucket();
-    const file = bucket.file(`library/${filename}`);
     
-    const [exists] = await file.exists();
-    if (!exists) {
-      res.status(404).json({ error: 'File not found' });
-      return;
+    // Search in new canonical paths first, then legacy paths
+    const possiblePaths = [
+      `libraries/backgrounds/raw/${filename}`,
+      `libraries/backgrounds/zip/${filename}`,
+      `libraries/backgrounds/cropped/${filename}`,
+      `libraries/designs/${filename}`,
+      `libraries/videos/${filename}`,
+      `library/${filename}`,
+      `library/admin/backgrounds/${filename}`,
+      `library/admin/designs/${filename}`,
+      `library/backgrounds/raw/${filename}`,
+      `library/backgrounds/raw/zip/${filename}`,
+    ];
+    
+    for (const path of possiblePaths) {
+      const file = bucket.file(path);
+      const [exists] = await file.exists();
+      
+      if (exists) {
+        const [metadata] = await file.getMetadata();
+        res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        file.createReadStream().pipe(res);
+        return;
+      }
     }
-
-    const [metadata] = await file.getMetadata();
-    res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
     
-    file.createReadStream().pipe(res);
+    res.status(404).json({ error: 'File not found' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

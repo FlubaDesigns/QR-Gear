@@ -275,7 +275,7 @@ function TemplatesContent() {
 function LibraryBackgroundsContent() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingAsset, setEditingAsset] = useState<LibraryAsset | null>(null);
+  const [editingAsset, setEditingAsset] = useState<BackgroundAssetWithProxy | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -290,16 +290,16 @@ function LibraryBackgroundsContent() {
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [filterSeason, setFilterSeason] = useState("all");
-  const [filterEvent, setFilterEvent] = useState("all");
+  const [filterTag, setFilterTag] = useState("all");
 
-  const { data: assets = [], isLoading } = useQuery<LibraryAsset[]>({
-    queryKey: ["/api/admin/library/admin", { assetType: "background", mediaType: "image" }],
+  const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
+    queryKey: ["/api/admin/background-assets", "source"],
     queryFn: async () => {
-      const params = new URLSearchParams({ assetType: "background", mediaType: "image" });
-      const response = await apiRequest("GET", `/api/admin/library/admin?${params}`);
-      return response.json();
+      const res = await apiRequest("GET", "/api/admin/background-assets?type=source");
+      return res.json();
     },
+    staleTime: 0,
+    retry: 2,
   });
 
   const { data: stores = [] } = useQuery<PartnerStore[]>({
@@ -312,9 +312,14 @@ function LibraryBackgroundsContent() {
     return acc;
   }, [] as string[]);
 
+  const allTags = assets.reduce((acc, asset) => {
+    const tags = asset.tags || [];
+    tags.forEach((t: string) => { if (!acc.includes(t)) acc.push(t); });
+    return acc;
+  }, [] as string[]);
+
   const filteredAssets = assets.filter((asset) => {
-    if (filterSeason !== "all" && asset.season !== filterSeason) return false;
-    if (filterEvent !== "all" && asset.event !== filterEvent) return false;
+    if (filterTag !== "all" && !(asset.tags || []).includes(filterTag)) return false;
     return true;
   });
 
@@ -329,7 +334,7 @@ function LibraryBackgroundsContent() {
         description: "Your changes have been saved successfully.",
         duration: 4000,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets"] });
       handleCloseDialog();
     },
     onError: (error: any) => {
@@ -353,7 +358,7 @@ function LibraryBackgroundsContent() {
         description: "The background has been removed from your library.",
         duration: 4000,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets"] });
     },
     onError: (error: any) => {
       toast({ 
@@ -401,20 +406,19 @@ function LibraryBackgroundsContent() {
     setIsDialogOpen(true);
   };
 
-  const handleOpenEdit = (asset: LibraryAsset) => {
+  const handleOpenEdit = (asset: BackgroundAssetWithProxy) => {
     setEditingAsset(asset);
     setFormData({
       name: asset.name,
-      description: asset.description || "",
-      category: asset.category || "",
-      season: asset.season || "none",
-      event: asset.event || "none",
+      description: "",
+      category: "",
+      season: "none",
+      event: "none",
       isActive: asset.isActive ?? true,
-      isFeatured: asset.isFeatured ?? false,
-      visibleStoreSlugs: asset.visibleStoreSlugs || [],
-      visibleSegments: (asset.visibleSegments as { segments?: string[] })?.segments || [],
+      isFeatured: false,
+      visibleStoreSlugs: [],
+      visibleSegments: [],
     });
-    // Use unified imageLoader to get the right URL
     setImagePreview(getImageSrc(asset as any));
     setIsDialogOpen(true);
   };
@@ -521,7 +525,7 @@ function LibraryBackgroundsContent() {
           description: `"${formData.name}" has been added to your library.`,
           duration: 4000,
         });
-        queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets"] });
         handleCloseDialog();
       }
     } catch (error: any) {
@@ -620,23 +624,20 @@ function LibraryBackgroundsContent() {
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-2 right-2 flex gap-1 flex-wrap justify-end">
-                  {asset.season && <Badge variant="secondary">{asset.season}</Badge>}
-                  {asset.event && <Badge variant="outline">{asset.event}</Badge>}
+                  {(asset.tags || []).slice(0, 2).map((tag) => (
+                    <Badge key={tag} variant="secondary">{tag}</Badge>
+                  ))}
                 </div>
-                {asset.isFeatured && (
-                  <Badge className="absolute top-2 left-2">Featured</Badge>
-                )}
               </div>
               <CardContent className="p-3">
                 <p className="font-medium truncate">{asset.name}</p>
-                {asset.description && (
-                  <p className="text-xs text-muted-foreground truncate">{asset.description}</p>
-                )}
                 <div className="flex items-center justify-between mt-2">
                   <Badge variant={asset.isActive ? "default" : "secondary"}>
                     {asset.isActive ? "Active" : "Inactive"}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">Used {asset.usageCount}x</span>
+                  {asset.width && asset.height && (
+                    <span className="text-xs text-muted-foreground">{asset.width}x{asset.height}</span>
+                  )}
                 </div>
                 <div className="flex gap-2 mt-3">
                   <Button
