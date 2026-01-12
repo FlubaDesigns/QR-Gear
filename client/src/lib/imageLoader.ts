@@ -20,26 +20,29 @@ function isValidUrl(url: string | null | undefined): boolean {
 
 export function getImageSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return '';
-  // Priority: public URLs first, then proxy URLs that need auth
-  // Skip storageUrl unless it's a full URL (often just a path like "library/backgrounds/raw/xxx.png")
+  // Priority: proxyUrl FIRST (authenticated endpoint with correct path), then public URLs
+  // proxyUrl uses /api/background-files?path= which serves files from correct storage location
+  // publicUrl may have been set incorrectly during upload (pointing to wrong folder)
+  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
   if (isValidUrl(asset.imageUrl)) return asset.imageUrl!;
-  if (isValidUrl(asset.publicUrl)) return asset.publicUrl!;
   if (isValidUrl(asset.thumbnailUrl)) return asset.thumbnailUrl!;
+  // Only use publicUrl if it's a real Firebase Storage URL (not an /api/ path)
+  if (asset.publicUrl?.startsWith('https://')) return asset.publicUrl!;
   if (isValidUrl(asset.storageUrl)) return asset.storageUrl!;
   if (isValidUrl(asset.url)) return asset.url!;
-  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
   return '';
 }
 
 export function getThumbnailSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return '';
-  // Priority: thumbnail first, then public URLs, then proxy URLs
+  // Priority: thumbnail first, then proxyUrl (correct path), then public URLs
   if (isValidUrl(asset.thumbnailUrl)) return asset.thumbnailUrl!;
+  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
   if (isValidUrl(asset.imageUrl)) return asset.imageUrl!;
-  if (isValidUrl(asset.publicUrl)) return asset.publicUrl!;
+  // Only use publicUrl if it's a real Firebase Storage URL (not an /api/ path)
+  if (asset.publicUrl?.startsWith('https://')) return asset.publicUrl!;
   if (isValidUrl(asset.storageUrl)) return asset.storageUrl!;
   if (isValidUrl(asset.url)) return asset.url!;
-  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
   return '';
 }
 
