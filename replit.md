@@ -9,6 +9,16 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
 - **Deployment**: ALL fixes must be deployed to Firebase production after making changes in dev. Never just fix in dev without deploying.
 
+## Deployment Process (MANDATORY)
+After every code fix, the agent MUST:
+1. Run `npm run build` to build the frontend
+2. Deploy to Firebase using:
+   ```bash
+   echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-key.json && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-key.json firebase deploy --only hosting,functions
+   ```
+3. Confirm deployment completed successfully
+4. The live site is at: https://qrgear-c1ffd.web.app
+
 ## System Architecture
 
 ### UI/UX Decisions
