@@ -2622,6 +2622,69 @@ app.delete('/admin/background-assets/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Sync storage folder with database - creates DB records for existing files
+app.post('/admin/background-assets/sync', requireAdmin, async (req, res) => {
+    try {
+        const folder = req.body.folder || 'libraries/backgrounds/raw';
+        const assetType = folder.includes('cropped') ? 'cropped' : 'source';
+        console.log(`[BackgroundAssets] Syncing folder: ${folder}`);
+        // List all files in the storage folder
+        const bucket = storage.bucket();
+        const [files] = await bucket.getFiles({ prefix: folder + '/' });
+        const storageFiles = files
+            .filter(f => !f.name.endsWith('/'))
+            .map(f => ({
+            name: f.name.split('/').pop() || f.name,
+            fullPath: f.name,
+            contentType: f.metadata.contentType || 'application/octet-stream',
+        }));
+        console.log(`[BackgroundAssets] Found ${storageFiles.length} files in storage`);
+        // Get existing records from Firestore
+        const existingSnapshot = await db.collection('backgroundAssets').where('isActive', '==', true).get();
+        const existingPaths = new Set(existingSnapshot.docs.map(d => d.data().storagePath));
+        // Find files that don't have database records
+        const newFiles = storageFiles.filter(f => !existingPaths.has(f.fullPath));
+        console.log(`[BackgroundAssets] ${newFiles.length} files need database records`);
+        // Create database records for new files
+        const createdAssets = [];
+        for (const file of newFiles) {
+            if (!file.contentType.startsWith('image/'))
+                continue;
+            try {
+                const displayName = file.name.replace(/\.[^/.]+$/, '');
+                const proxyUrl = `/api/background-files?path=${encodeURIComponent(file.fullPath)}`;
+                const docRef = await db.collection('backgroundAssets').add({
+                    name: displayName,
+                    assetType,
+                    imageUrl: proxyUrl,
+                    storagePath: file.fullPath,
+                    sourceAssetId: null,
+                    mimeType: file.contentType,
+                    cropData: null,
+                    tags: null,
+                    isActive: true,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                const doc = await docRef.get();
+                createdAssets.push(docToObject(doc));
+                console.log(`[BackgroundAssets] Created record for: ${file.name}`);
+            }
+            catch (err) {
+                console.error(`[BackgroundAssets] Failed to create record for ${file.name}:`, err);
+            }
+        }
+        res.json({
+            scanned: storageFiles.length,
+            existing: existingSnapshot.size,
+            created: createdAssets.length,
+            assets: createdAssets,
+        });
+    }
+    catch (error) {
+        console.error("Error syncing background assets:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============ COUPONS (ADMIN) ============
 app.get('/admin/coupons', requireAdmin, async (_req, res) => {
     try {
