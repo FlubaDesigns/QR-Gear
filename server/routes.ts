@@ -4214,9 +4214,10 @@ ${allPages.map(page => `  <url>
       }
       
       // Determine folder path based on asset type and categorization
-      let folderPath = "library/admin";
+      // Use libraries/backgrounds/raw/ as canonical path per user requirement
+      let folderPath = "libraries";
       if (assetType === "background") {
-        folderPath += "/backgrounds";
+        folderPath += "/backgrounds/raw";
         if (season) folderPath += `/seasonal/${season}`;
         else if (event) folderPath += `/events/${event}`;
         else if (category) folderPath += `/${category}`;
@@ -8681,16 +8682,16 @@ ${allPages.map(page => `  <url>
       }
       
       // Upload to Firebase Storage with organized paths
-      // library/backgrounds/raw/ for individual uploads
-      // library/backgrounds/raw/zip/ for ZIP uploads
-      // library/backgrounds/cropped/ for cropped versions
+      // libraries/backgrounds/raw/ for individual uploads
+      // libraries/backgrounds/zip/ for ZIP uploads
+      // libraries/backgrounds/cropped/ for cropped versions
       let folderPath: string;
       if (assetType === 'cropped') {
-        folderPath = 'library/backgrounds/cropped';
+        folderPath = 'libraries/backgrounds/cropped';
       } else if (fromZip) {
-        folderPath = 'library/backgrounds/raw/zip';
+        folderPath = 'libraries/backgrounds/zip';
       } else {
-        folderPath = 'library/backgrounds/raw';
+        folderPath = 'libraries/backgrounds/raw';
       }
       const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
