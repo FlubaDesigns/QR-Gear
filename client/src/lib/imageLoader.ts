@@ -13,14 +13,34 @@ export interface ImageAsset {
 
 export type AssetType = 'raw' | 'source' | 'zip' | 'cropped' | 'template' | 'design' | 'background' | 'video' | 'unknown';
 
+function isValidUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.startsWith('https://') || url.startsWith('http://') || url.startsWith('/api/') || url.startsWith('data:') || url.startsWith('blob:');
+}
+
 export function getImageSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return '';
-  return asset.imageUrl || asset.publicUrl || asset.storageUrl || asset.thumbnailUrl || asset.url || asset.proxyUrl || '';
+  // Priority: public URLs first, then proxy URLs that need auth
+  // Skip storageUrl unless it's a full URL (often just a path like "library/backgrounds/raw/xxx.png")
+  if (isValidUrl(asset.imageUrl)) return asset.imageUrl!;
+  if (isValidUrl(asset.publicUrl)) return asset.publicUrl!;
+  if (isValidUrl(asset.thumbnailUrl)) return asset.thumbnailUrl!;
+  if (isValidUrl(asset.storageUrl)) return asset.storageUrl!;
+  if (isValidUrl(asset.url)) return asset.url!;
+  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
+  return '';
 }
 
 export function getThumbnailSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return '';
-  return asset.thumbnailUrl || asset.imageUrl || asset.publicUrl || asset.storageUrl || asset.url || asset.proxyUrl || '';
+  // Priority: thumbnail first, then public URLs, then proxy URLs
+  if (isValidUrl(asset.thumbnailUrl)) return asset.thumbnailUrl!;
+  if (isValidUrl(asset.imageUrl)) return asset.imageUrl!;
+  if (isValidUrl(asset.publicUrl)) return asset.publicUrl!;
+  if (isValidUrl(asset.storageUrl)) return asset.storageUrl!;
+  if (isValidUrl(asset.url)) return asset.url!;
+  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
+  return '';
 }
 
 export function isPublicUrl(url: string): boolean {
