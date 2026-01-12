@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import backgroundAssetsService, { QUERY_KEY as BG_QUERY_KEY, type BackgroundAsset as BgAsset } from "@/lib/backgroundAssetsService";
 import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop as CropIcon, ImagePlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { SmartImage } from "@/components/SmartImage";
