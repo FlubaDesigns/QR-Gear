@@ -129,9 +129,15 @@ export async function getFileFromFirebaseStorage(
   try {
     const bucket = getStorageBucket();
     
+    // CANONICAL PATH FIRST, then legacy fallbacks for existing files
     const possiblePaths = [
-      `${folder}/${fileName}`,
       fileName,
+      `libraries/backgrounds/raw/${fileName}`,
+      `${folder}/${fileName}`,
+      `library/backgrounds/raw/${fileName}`,
+      `library/backgrounds/raw/zip/${fileName}`,
+      `backgrounds/source/${fileName}`,
+      `library/admin/backgrounds/${fileName}`,
       `custom-designs/${fileName}`,
       `hosted-images/${fileName}`,
       `mockups/${fileName}`,
@@ -175,14 +181,10 @@ export async function downloadAndStreamFile(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATH: libraries/backgrounds/raw/
-    // Legacy paths kept for backward compatibility with existing files
+    // CANONICAL PATH FIRST, then legacy fallbacks for existing files
     const possiblePaths = [
-      // Try exact path first (when full path is passed as fileName)
       fileName,
-      // CANONICAL: All new uploads go here
       `libraries/backgrounds/raw/${fileName}`,
-      // Legacy paths for existing files
       `${folder}/${fileName}`,
       `library/backgrounds/raw/${fileName}`,
       `library/backgrounds/raw/zip/${fileName}`,
