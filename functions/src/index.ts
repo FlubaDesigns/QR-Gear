@@ -1,4 +1,4 @@
-// Build timestamp: 2026-01-08T00:30:00Z - Fixed upload timeout (9min) and memory (1GB)
+// Build timestamp: 2026-01-12T19:00:00Z - Added /background-files route with query param for Firebase URL encoding fix
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1505,6 +1505,37 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
     
     file.createReadStream().pipe(res);
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Background files - uses query parameter to avoid Firebase Hosting URL encoding issues
+app.get('/background-files', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filePath = req.query.path as string;
+    if (!filePath) {
+      res.status(400).json({ error: 'Missing path parameter' });
+      return;
+    }
+    
+    console.log(`[BackgroundFiles] Serving: ${filePath}`);
+    const bucket = storage.bucket();
+    const file = bucket.file(filePath);
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      console.log(`[BackgroundFiles] Not found: ${filePath}`);
+      res.status(404).json({ error: 'Background file not found' });
+      return;
+    }
+
+    const [metadata] = await file.getMetadata();
+    res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    
+    file.createReadStream().pipe(res);
+  } catch (error: any) {
+    console.error('Background file serve error:', error);
     res.status(500).json({ error: error.message });
   }
 });

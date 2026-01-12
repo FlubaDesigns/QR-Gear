@@ -1047,7 +1047,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Serve background images from Firebase Storage (multiple possible paths) - requires admin auth
-  app.get("/api/background-files/*", async (req: any, res) => {
+  // Uses query parameter to avoid Firebase Hosting URL encoding issues with path slashes
+  app.get("/api/background-files", async (req: any, res) => {
     try {
       // Verify Firebase admin authentication
       const authHeader = req.headers.authorization;
@@ -1067,8 +1068,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Admin access required" });
       }
       
-      // Decode the URL-encoded path 
-      const fullPath = decodeURIComponent(req.params[0]); // Gets everything after /api/background-files/
+      // Get path from query parameter (avoids Firebase Hosting URL encoding issues)
+      const fullPath = req.query.path as string;
+      if (!fullPath) {
+        return res.status(400).json({ error: "Missing path parameter" });
+      }
       console.log(`[BackgroundFiles] Serving: ${fullPath}`);
       
       // Try serving from the exact path provided (folder is '' so it uses fullPath directly)
@@ -3881,7 +3885,7 @@ ${allPages.map(page => `  <url>
       // Add proxyUrl to each asset for authenticated frontend display
       const assetsWithProxy = assets.map(asset => ({
         ...asset,
-        proxyUrl: asset.storageUrl ? `/api/background-files/${encodeURIComponent(asset.storageUrl)}` : null,
+        proxyUrl: asset.storageUrl ? `/api/background-files?path=${encodeURIComponent(asset.storageUrl)}` : null,
       }));
       
       res.json(assetsWithProxy);
@@ -8629,11 +8633,11 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ BACKGROUND ASSETS ============
-  // Helper to create proxy URL from storage path (keeps full path for proper file lookup)
+  // Helper to create proxy URL from storage path (uses query param to avoid Firebase URL encoding issues)
   function getProxyUrl(storagePath: string | null): string | null {
     if (!storagePath) return null;
-    // Use the full storage path so downloadAndStreamFile can find files in subdirectories
-    return `/api/background-files/${encodeURIComponent(storagePath)}`;
+    // Use query parameter to avoid Firebase Hosting URL encoding issues with path slashes
+    return `/api/background-files?path=${encodeURIComponent(storagePath)}`;
   }
   
   // List background assets (source or cropped)
