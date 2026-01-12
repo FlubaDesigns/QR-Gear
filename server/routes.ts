@@ -10,7 +10,7 @@ import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVaria
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
 import { generatePrintifyComposite } from "./lib/composite-image-generator";
 import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
-import { downloadAndStreamFile, getFileFromFirebaseStorage, useFirebaseStorage, uploadToFirebaseStorage } from "./lib/firebase-storage-service";
+import { downloadAndStreamFile, getFileFromFirebaseStorage, useFirebaseStorage, uploadToFirebaseStorage, listFilesInFolder } from "./lib/firebase-storage-service";
 import { verifyFirebaseToken } from "./lib/firebase-admin";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./firebaseAuth";
@@ -8833,6 +8833,71 @@ ${allPages.map(page => `  <url>
       
       res.json({ success: true });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sync storage folder with database - creates DB records for existing files
+  app.post("/api/admin/background-assets/sync", isAdmin, async (req: any, res) => {
+    try {
+      const { backgroundAssets } = await import("@shared/schema");
+      const folder = req.body.folder || 'libraries/backgrounds/raw';
+      const assetType = folder.includes('cropped') ? 'cropped' : 'source';
+      
+      console.log(`[BackgroundAssets] Syncing folder: ${folder}`);
+      
+      // List all files in the storage folder
+      const storageFiles = await listFilesInFolder(folder);
+      console.log(`[BackgroundAssets] Found ${storageFiles.length} files in storage`);
+      
+      // Get existing records from database
+      const existingAssets = await db.select().from(backgroundAssets).where(eq(backgroundAssets.isActive, true));
+      const existingPaths = new Set(existingAssets.map(a => a.storagePath));
+      
+      // Find files that don't have database records
+      const newFiles = storageFiles.filter(f => !existingPaths.has(f.fullPath));
+      console.log(`[BackgroundAssets] ${newFiles.length} files need database records`);
+      
+      // Create database records for new files
+      const createdAssets: any[] = [];
+      for (const file of newFiles) {
+        // Skip non-image files
+        if (!file.contentType.startsWith('image/')) continue;
+        
+        try {
+          // Keep original filename without extension as display name
+          const displayName = file.name.replace(/\.[^/.]+$/, '');
+          const proxyUrl = getProxyUrl(file.fullPath) || `/api/files/${file.name}`;
+          const [asset] = await db.insert(backgroundAssets).values({
+            name: displayName,
+            assetType,
+            imageUrl: proxyUrl, // Use proxy URL for correct path resolution
+            storagePath: file.fullPath,
+            sourceAssetId: null,
+            mimeType: file.contentType,
+            cropData: null,
+            tags: null,
+            isActive: true,
+          }).returning();
+          
+          createdAssets.push({
+            ...asset,
+            proxyUrl: getProxyUrl(asset.storagePath),
+          });
+          console.log(`[BackgroundAssets] Created record for: ${file.name}`);
+        } catch (err) {
+          console.error(`[BackgroundAssets] Failed to create record for ${file.name}:`, err);
+        }
+      }
+      
+      res.json({
+        scanned: storageFiles.length,
+        existing: existingAssets.length,
+        created: createdAssets.length,
+        assets: createdAssets,
+      });
+    } catch (error: any) {
+      console.error("Error syncing background assets:", error);
       res.status(500).json({ error: error.message });
     }
   });

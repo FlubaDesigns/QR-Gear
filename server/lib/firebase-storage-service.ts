@@ -324,4 +324,46 @@ export async function fileExistsInFirebaseStorage(fileName: string, folder: stri
   }
 }
 
+export interface StorageFileInfo {
+  name: string;
+  fullPath: string;
+  size: number;
+  contentType: string;
+  updated: string;
+}
+
+export async function listFilesInFolder(folder: string): Promise<StorageFileInfo[]> {
+  if (!useFirebaseStorage()) {
+    return [];
+  }
+  
+  ensureFirebaseInitialized();
+  
+  try {
+    const bucket = getStorageBucket();
+    const [files] = await bucket.getFiles({ prefix: folder + '/' });
+    
+    const fileInfos: StorageFileInfo[] = [];
+    for (const file of files) {
+      // Skip "directory" placeholders
+      if (file.name.endsWith('/')) continue;
+      
+      const [metadata] = await file.getMetadata();
+      fileInfos.push({
+        name: file.name.split('/').pop() || file.name,
+        fullPath: file.name,
+        size: parseInt(metadata.size as string) || 0,
+        contentType: metadata.contentType || 'application/octet-stream',
+        updated: metadata.updated || new Date().toISOString(),
+      });
+    }
+    
+    console.log(`[FirebaseStorage] Listed ${fileInfos.length} files in ${folder}`);
+    return fileInfos;
+  } catch (error) {
+    console.error('[FirebaseStorage] Error listing files:', error);
+    return [];
+  }
+}
+
 export { ALLOWED_MIME_TYPES, MAX_FILE_SIZE, useFirebaseStorage };

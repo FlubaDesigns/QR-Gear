@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop as CropIcon, ImagePlus } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop as CropIcon, ImagePlus, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { SmartImage } from "@/components/SmartImage";
 import { getImageSrc, fetchImageAsBlob } from "@/lib/imageLoader";
@@ -910,6 +910,26 @@ function SourceImagesContent() {
     },
   });
 
+  const [syncing, setSyncing] = useState(false);
+  const handleSyncFromStorage = async () => {
+    setSyncing(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/background-assets/sync", {
+        folder: "libraries/backgrounds/raw"
+      });
+      const result = await res.json();
+      toast({ 
+        title: "Sync Complete", 
+        description: `Scanned ${result.scanned} files, created ${result.created} new records` 
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+    } catch (error: any) {
+      toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Open crop dialog for a source image - uses unified imageLoader
   const handleOpenCrop = async (asset: BackgroundAssetWithProxy) => {
     setImageToCrop(asset);
@@ -1288,6 +1308,20 @@ function SourceImagesContent() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <Button 
+              variant="outline" 
+              onClick={handleSyncFromStorage}
+              disabled={syncing}
+              data-testid="button-sync-storage"
+            >
+              {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              Sync from Storage
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Import existing files from storage folder
+            </span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="zip-upload" className="text-base font-medium">ZIP File (Bulk Upload)</Label>
