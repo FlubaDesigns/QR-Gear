@@ -26,76 +26,12 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop as CropIcon, ImagePlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { SmartImage } from "@/components/SmartImage";
+import { getImageSrc, fetchImageAsBlob } from "@/lib/imageLoader";
 import type { CustomDesign, LibraryAsset, PartnerStore, BackgroundAsset } from "@shared/schema";
 
 // Extended type with proxy URL from backend
 type BackgroundAssetWithProxy = BackgroundAsset & { proxyUrl: string | null };
-
-// Authenticated Image component that fetches images with auth headers
-function AuthenticatedImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    const fetchImage = async () => {
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        const response = await fetch(src, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        // Nexus check: detect if Firebase returned HTML instead of image data
-        if (Nexus.detectHtmlResponse(response, src)) {
-          throw new Error('Firebase routing error - received HTML instead of image');
-        }
-        
-        if (!response.ok) throw new Error('Failed to load image');
-        
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        
-        if (isMounted) {
-          setBlobUrl(url);
-          setLoading(false);
-        }
-      } catch (err: any) {
-        Nexus.captureError(err, 'AuthenticatedImage', { src });
-        if (isMounted) {
-          setError(true);
-          setLoading(false);
-        }
-      }
-    };
-    
-    if (src) fetchImage();
-    
-    return () => {
-      isMounted = false;
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
-    };
-  }, [src]);
-
-  if (loading) {
-    return (
-      <div className={`flex items-center justify-center bg-muted ${className}`}>
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error || !blobUrl) {
-    return (
-      <div className={`flex items-center justify-center bg-muted ${className}`}>
-        <Image className="h-6 w-6 text-muted-foreground" />
-      </div>
-    );
-  }
-
-  return <img src={blobUrl} alt={alt} className={className} />;
-}
 
 const TEMPLATE_CATEGORIES = [
   { value: "religious", label: "Religious" },
@@ -478,8 +414,8 @@ function LibraryBackgroundsContent() {
       visibleStoreSlugs: asset.visibleStoreSlugs || [],
       visibleSegments: (asset.visibleSegments as { segments?: string[] })?.segments || [],
     });
-    // Use proxyUrl for authenticated access, fall back to publicUrl
-    setImagePreview((asset as any).proxyUrl || asset.publicUrl);
+    // Use unified imageLoader to get the right URL
+    setImagePreview(getImageSrc(asset as any));
     setIsDialogOpen(true);
   };
 
@@ -678,8 +614,8 @@ function LibraryBackgroundsContent() {
           {filteredAssets.map((asset) => (
             <Card key={asset.id} className={`overflow-hidden ${!asset.isActive ? "opacity-50" : ""}`} data-testid={`card-library-bg-${asset.id}`}>
               <div className="aspect-square relative">
-                <AuthenticatedImage
-                  src={(asset as any).proxyUrl || asset.publicUrl}
+                <SmartImage
+                  asset={asset as any}
                   alt={asset.name}
                   className="w-full h-full object-cover"
                 />
@@ -761,7 +697,7 @@ function LibraryBackgroundsContent() {
 
             {editingAsset && imagePreview && (
               <div className="aspect-video max-w-md rounded-lg overflow-hidden border-2 border-border">
-                <AuthenticatedImage src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <SmartImage src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
               </div>
             )}
 
@@ -973,7 +909,7 @@ function SourceImagesContent() {
     },
   });
 
-  // Open crop dialog for a source image
+  // Open crop dialog for a source image - uses unified imageLoader
   const handleOpenCrop = async (asset: BackgroundAssetWithProxy) => {
     setImageToCrop(asset);
     setCrop(undefined);
@@ -982,15 +918,7 @@ function SourceImagesContent() {
     setCropImageLoading(true);
     
     try {
-      const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(asset.proxyUrl || asset.imageUrl, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (!response.ok) throw new Error('Failed to load image');
-      
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const url = await fetchImageAsBlob(getImageSrc(asset));
       setCropImageBlobUrl(url);
     } catch (err) {
       toast({ title: "Failed to load image", variant: "destructive" });
@@ -1474,7 +1402,7 @@ function SourceImagesContent() {
           {assets.map((asset) => (
             <Card key={asset.id} className="overflow-hidden" data-testid={`card-source-${asset.id}`}>
               <div className="aspect-square relative">
-                <AuthenticatedImage src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+                <SmartImage asset={asset} alt={asset.name} className="w-full h-full object-cover" />
               </div>
               <CardContent className="p-2">
                 <p className="text-xs truncate">{asset.name}</p>
@@ -1634,7 +1562,7 @@ function CroppedImagesContent() {
           {assets.map((asset) => (
             <Card key={asset.id} className="overflow-hidden" data-testid={`card-cropped-${asset.id}`}>
               <div className="aspect-[9/16] relative">
-                <AuthenticatedImage src={asset.proxyUrl || asset.imageUrl} alt={asset.name} className="w-full h-full object-cover" />
+                <SmartImage asset={asset} alt={asset.name} className="w-full h-full object-cover" />
               </div>
               <CardContent className="p-2">
                 <p className="text-xs truncate">{asset.name}</p>
