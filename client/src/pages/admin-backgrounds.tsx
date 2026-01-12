@@ -472,7 +472,8 @@ function LibraryBackgroundsContent() {
       visibleStoreSlugs: asset.visibleStoreSlugs || [],
       visibleSegments: (asset.visibleSegments as { segments?: string[] })?.segments || [],
     });
-    setImagePreview(asset.publicUrl);
+    // Use proxyUrl for authenticated access, fall back to publicUrl
+    setImagePreview((asset as any).proxyUrl || asset.publicUrl);
     setIsDialogOpen(true);
   };
 
@@ -671,8 +672,8 @@ function LibraryBackgroundsContent() {
           {filteredAssets.map((asset) => (
             <Card key={asset.id} className={`overflow-hidden ${!asset.isActive ? "opacity-50" : ""}`} data-testid={`card-library-bg-${asset.id}`}>
               <div className="aspect-square relative">
-                <img
-                  src={asset.publicUrl}
+                <AuthenticatedImage
+                  src={(asset as any).proxyUrl || asset.publicUrl}
                   alt={asset.name}
                   className="w-full h-full object-cover"
                 />
@@ -754,7 +755,7 @@ function LibraryBackgroundsContent() {
 
             {editingAsset && imagePreview && (
               <div className="aspect-video max-w-md rounded-lg overflow-hidden border-2 border-border">
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <AuthenticatedImage src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
               </div>
             )}
 

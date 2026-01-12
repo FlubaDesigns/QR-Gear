@@ -3877,7 +3877,14 @@ ${allPages.map(page => `  <url>
       const assets = await storage.getAdminLibraryAssets({ 
         assetType, mediaType, category, season, event 
       });
-      res.json(assets);
+      
+      // Add proxyUrl to each asset for authenticated frontend display
+      const assetsWithProxy = assets.map(asset => ({
+        ...asset,
+        proxyUrl: asset.storageUrl ? `/api/background-files/${encodeURIComponent(asset.storageUrl)}` : null,
+      }));
+      
+      res.json(assetsWithProxy);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
