@@ -175,28 +175,23 @@ export async function downloadAndStreamFile(
   try {
     const bucket = getStorageBucket();
     
+    // CANONICAL PATH: libraries/backgrounds/raw/
+    // Legacy paths kept for backward compatibility with existing files
     const possiblePaths = [
-      `${folder}/${fileName}`,
+      // Try exact path first (when full path is passed as fileName)
       fileName,
+      // CANONICAL: All new uploads go here
+      `libraries/backgrounds/raw/${fileName}`,
+      // Legacy paths for existing files
+      `${folder}/${fileName}`,
+      `library/backgrounds/raw/${fileName}`,
+      `library/backgrounds/raw/zip/${fileName}`,
+      `backgrounds/source/${fileName}`,
+      `library/admin/backgrounds/${fileName}`,
       `custom-designs/${fileName}`,
       `hosted-images/${fileName}`,
       `mockups/${fileName}`,
-      // New canonical paths (libraries/ plural)
-      `libraries/backgrounds/raw/${fileName}`,
-      `libraries/backgrounds/zip/${fileName}`,
-      `libraries/backgrounds/cropped/${fileName}`,
-      `libraries/designs/${fileName}`,
-      `libraries/videos/${fileName}`,
-      // Legacy paths (library/ singular) for backward compatibility
       `library/${fileName}`,
-      `library/admin/backgrounds/${fileName}`,
-      `library/admin/designs/${fileName}`,
-      `library/admin/videos/${fileName}`,
-      `library/user/${fileName}`,
-      `library/backgrounds/raw/${fileName}`,
-      `library/backgrounds/raw/zip/${fileName}`,
-      `library/backgrounds/cropped/${fileName}`,
-      `backgrounds/source/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {

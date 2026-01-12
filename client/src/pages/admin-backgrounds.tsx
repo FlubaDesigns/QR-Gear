@@ -561,40 +561,28 @@ function LibraryBackgroundsContent() {
         </Button>
       </div>
 
-      <Card className="mb-4">
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="w-48">
-              <Label>Filter by Season</Label>
-              <Select value={filterSeason} onValueChange={setFilterSeason}>
-                <SelectTrigger data-testid="select-filter-season">
-                  <SelectValue placeholder="All Seasons" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Seasons</SelectItem>
-                  {SEASONS.filter(s => s.value !== "none").map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {allTags.length > 0 && (
+        <Card className="mb-4">
+          <CardContent className="pt-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="w-48">
+                <Label>Filter by Tag</Label>
+                <Select value={filterTag} onValueChange={setFilterTag}>
+                  <SelectTrigger data-testid="select-filter-tag">
+                    <SelectValue placeholder="All Tags" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tags</SelectItem>
+                    {allTags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="w-48">
-              <Label>Filter by Event</Label>
-              <Select value={filterEvent} onValueChange={setFilterEvent}>
-                <SelectTrigger data-testid="select-filter-event">
-                  <SelectValue placeholder="All Events" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Events</SelectItem>
-                  {EVENTS.filter(e => e.value !== "none").map((e) => (
-                    <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {filteredAssets.length === 0 ? (
         <Card className="text-center py-12">

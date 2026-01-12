@@ -4213,21 +4213,15 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "No file uploaded" });
       }
       
-      // Determine folder path based on asset type and categorization
-      // Use libraries/backgrounds/raw/ as canonical path per user requirement
+      // Determine folder path - CANONICAL PATH ONLY for backgrounds
+      // ALL background assets go to libraries/backgrounds/raw/ - no subdirectories
       let folderPath = "libraries";
       if (assetType === "background") {
-        folderPath += "/backgrounds/raw";
-        if (season) folderPath += `/seasonal/${season}`;
-        else if (event) folderPath += `/events/${event}`;
-        else if (category) folderPath += `/${category}`;
+        folderPath = "libraries/backgrounds/raw"; // CANONICAL - no subdirectories
       } else if (assetType === "design") {
-        folderPath += "/designs";
-        if (category) folderPath += `/${category}`;
+        folderPath = "libraries/designs";
       } else if (assetType === "video") {
-        folderPath += "/videos";
-        if (season) folderPath += `/seasonal/${season}`;
-        else if (event) folderPath += `/events/${event}`;
+        folderPath = "libraries/videos";
       }
       
       // Upload to object storage
@@ -8681,18 +8675,9 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
       }
       
-      // Upload to Firebase Storage with organized paths
-      // libraries/backgrounds/raw/ for individual uploads
-      // libraries/backgrounds/zip/ for ZIP uploads
-      // libraries/backgrounds/cropped/ for cropped versions
-      let folderPath: string;
-      if (assetType === 'cropped') {
-        folderPath = 'libraries/backgrounds/cropped';
-      } else if (fromZip) {
-        folderPath = 'libraries/backgrounds/zip';
-      } else {
-        folderPath = 'libraries/backgrounds/raw';
-      }
+      // Upload to Firebase Storage - CANONICAL PATH ONLY
+      // ALL background assets go to libraries/backgrounds/raw/
+      const folderPath = 'libraries/backgrounds/raw';
       const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
       const uploadResult = await uploadImageFromBuffer(
