@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import backgroundAssetsService, { QUERY_KEY as BG_QUERY_KEY, type BackgroundAsset as BgAsset } from "@/lib/backgroundAssetsService";
 import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Check, X, Image, FolderOpen, Copy, ExternalLink, Upload, Crop as CropIcon, ImagePlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { SmartImage } from "@/components/SmartImage";
@@ -325,7 +326,7 @@ function LibraryBackgroundsContent() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PUT", `/api/admin/library/${id}`, data);
+      const response = await apiRequest("PUT", `/api/admin/background-assets/${id}`, data);
       return await response.json();
     },
     onSuccess: () => {
@@ -349,7 +350,7 @@ function LibraryBackgroundsContent() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/library/${id}`, {});
+      const response = await apiRequest("DELETE", `/api/admin/background-assets/${id}`, {});
       return await response.json();
     },
     onSuccess: () => {
@@ -496,24 +497,36 @@ function LibraryBackgroundsContent() {
           },
         });
       } else if (imageFile) {
-        const formDataObj = new FormData();
-        formDataObj.append("file", imageFile);
-        formDataObj.append("name", formData.name);
-        formDataObj.append("description", formData.description);
-        formDataObj.append("assetType", "background");
-        formDataObj.append("mediaType", "image");
-        formDataObj.append("category", formData.category);
-        formDataObj.append("season", seasonValue || "");
-        formDataObj.append("event", eventValue || "");
+        // Convert file to base64 for background-assets endpoint
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+        const imageData = await base64Promise;
 
         // Get auth token for the request
         const token = await auth.currentUser?.getIdToken();
         
-        const response = await fetch("/api/admin/library/upload", {
+        const response = await fetch("/api/admin/background-assets", {
           method: "POST",
-          body: formDataObj,
+          body: JSON.stringify({
+            name: formData.name || imageFile.name,
+            assetType: "source",
+            imageData,
+            mimeType: imageFile.type,
+            tags: formData.category ? [formData.category] : null,
+          }),
           credentials: "include",
-          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          },
         });
 
         if (!response.ok) {

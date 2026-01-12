@@ -8747,6 +8747,28 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Update background asset
+  app.put("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { backgroundAssets } = await import("@shared/schema");
+      const { name, tags, isActive } = req.body;
+      
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (tags !== undefined) updateData.tags = tags;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      
+      const [updated] = await db.update(backgroundAssets)
+        .set(updateData)
+        .where(eq(backgroundAssets.id, req.params.id))
+        .returning();
+      
+      res.json({ ...updated, proxyUrl: getProxyUrl(updated.storagePath) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Delete background asset
   app.delete("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
     try {
