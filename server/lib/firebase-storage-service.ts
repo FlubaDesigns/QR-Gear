@@ -12,6 +12,8 @@ const ALLOWED_MIME_TYPES = [
   'video/mp4',
   'video/webm',
   'video/quicktime',
+  'application/zip',
+  'application/x-zip-compressed',
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -129,19 +131,17 @@ export async function getFileFromFirebaseStorage(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATH FIRST, then legacy fallbacks for existing files
+    // CANONICAL PATHS ONLY - NO LEGACY FALLBACKS
+    // Structure: libraries/backgrounds/{raw|cropped|zip}/
     const possiblePaths = [
-      fileName,
+      fileName, // Direct path if already includes folder
       `libraries/backgrounds/raw/${fileName}`,
-      `${folder}/${fileName}`,
-      `library/backgrounds/raw/${fileName}`,
-      `library/backgrounds/raw/zip/${fileName}`,
-      `backgrounds/source/${fileName}`,
-      `library/admin/backgrounds/${fileName}`,
+      `libraries/backgrounds/cropped/${fileName}`,
+      `libraries/backgrounds/zip/${fileName}`,
+      `${folder}/${fileName}`, // Custom folder for non-background files
       `custom-designs/${fileName}`,
       `hosted-images/${fileName}`,
       `mockups/${fileName}`,
-      `library/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {
@@ -181,19 +181,17 @@ export async function downloadAndStreamFile(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATH FIRST, then legacy fallbacks for existing files
+    // CANONICAL PATHS ONLY - NO LEGACY FALLBACKS
+    // Structure: libraries/backgrounds/{raw|cropped|zip}/
     const possiblePaths = [
-      fileName,
+      fileName, // Direct path if already includes folder
       `libraries/backgrounds/raw/${fileName}`,
-      `${folder}/${fileName}`,
-      `library/backgrounds/raw/${fileName}`,
-      `library/backgrounds/raw/zip/${fileName}`,
-      `backgrounds/source/${fileName}`,
-      `library/admin/backgrounds/${fileName}`,
+      `libraries/backgrounds/cropped/${fileName}`,
+      `libraries/backgrounds/zip/${fileName}`,
+      `${folder}/${fileName}`, // Custom folder for non-background files
       `custom-designs/${fileName}`,
       `hosted-images/${fileName}`,
       `mockups/${fileName}`,
-      `library/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {

@@ -10,7 +10,7 @@ import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVaria
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
 import { generatePrintifyComposite } from "./lib/composite-image-generator";
 import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
-import { downloadAndStreamFile, getFileFromFirebaseStorage, useFirebaseStorage } from "./lib/firebase-storage-service";
+import { downloadAndStreamFile, getFileFromFirebaseStorage, useFirebaseStorage, uploadToFirebaseStorage } from "./lib/firebase-storage-service";
 import { verifyFirebaseToken } from "./lib/firebase-admin";
 import { insertHostedImageSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./firebaseAuth";
@@ -22,6 +22,7 @@ import { z } from "zod";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
+import JSZip from "jszip";
 
 // ============ WIDGET CORS MIDDLEWARE ============
 // Allows widget endpoints to be accessed from partner domains
@@ -8662,10 +8663,10 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Upload background assets (bulk upload support)
+  // Upload background assets (bulk upload support + ZIP extraction)
   app.post("/api/admin/background-assets", isAdmin, async (req: any, res) => {
     try {
-      const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags, fromZip } = req.body;
+      const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags } = req.body;
       
       if (!name || !assetType || !imageData) {
         return res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
@@ -8675,20 +8676,106 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
       }
       
-      // Upload to Firebase Storage - CANONICAL PATH ONLY
-      // ALL background assets go to libraries/backgrounds/raw/
-      const folderPath = 'libraries/backgrounds/raw';
+      const buffer = Buffer.from(imageData, 'base64');
+      const isZip = mimeType === 'application/zip' || mimeType === 'application/x-zip-compressed';
+      const { backgroundAssets, libraryAssets } = await import("@shared/schema");
+      
+      // Handle ZIP file: save original to zip/, extract contents to raw/
+      if (isZip) {
+        console.log(`[BackgroundAssets] Processing ZIP file: ${name}`);
+        
+        // 1. Save original zip to libraries/backgrounds/zip/
+        const zipFileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const zipUploadResult = await uploadToFirebaseStorage(
+          buffer,
+          zipFileName,
+          mimeType,
+          'libraries/backgrounds/zip'
+        );
+        console.log(`[BackgroundAssets] Saved ZIP to: ${zipUploadResult.storageUrl}`);
+        
+        // 2. Extract and upload each image to libraries/backgrounds/raw/
+        const zip = await JSZip.loadAsync(buffer);
+        const extractedAssets: any[] = [];
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+        
+        for (const [filename, zipEntry] of Object.entries(zip.files)) {
+          // Skip directories and non-image files
+          if (zipEntry.dir) continue;
+          const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+          if (!imageExtensions.includes(ext)) continue;
+          
+          // Skip hidden files (like __MACOSX)
+          if (filename.startsWith('__') || filename.includes('/.')) continue;
+          
+          try {
+            const imageBuffer = await zipEntry.async('nodebuffer');
+            const imageName = filename.split('/').pop() || filename;
+            const sanitizedName = imageName.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const uniqueName = `${Date.now()}-${sanitizedName}`;
+            
+            // Determine mime type from extension
+            const mimeMap: Record<string, string> = {
+              '.jpg': 'image/jpeg',
+              '.jpeg': 'image/jpeg',
+              '.png': 'image/png',
+              '.gif': 'image/gif',
+              '.webp': 'image/webp',
+            };
+            const imageMimeType = mimeMap[ext] || 'image/png';
+            
+            // Upload to raw folder
+            const uploadResult = await uploadToFirebaseStorage(
+              imageBuffer,
+              uniqueName,
+              imageMimeType,
+              'libraries/backgrounds/raw'
+            );
+            
+            // Save to database
+            const [asset] = await db.insert(backgroundAssets).values({
+              name: imageName.replace(/\.[^/.]+$/, ''), // Remove extension for display name
+              assetType: 'source',
+              imageUrl: uploadResult.publicUrl,
+              storagePath: uploadResult.storageUrl,
+              sourceAssetId: null,
+              mimeType: imageMimeType,
+              cropData: null,
+              tags: tags || null,
+              isActive: true,
+            }).returning();
+            
+            extractedAssets.push({
+              ...asset,
+              proxyUrl: getProxyUrl(asset.storagePath),
+            });
+            
+            console.log(`[BackgroundAssets] Extracted: ${imageName} -> ${uploadResult.storageUrl}`);
+          } catch (extractError) {
+            console.error(`[BackgroundAssets] Failed to extract ${filename}:`, extractError);
+          }
+        }
+        
+        console.log(`[BackgroundAssets] ZIP extraction complete: ${extractedAssets.length} images`);
+        return res.json({
+          zipStoragePath: zipUploadResult.storageUrl,
+          extractedCount: extractedAssets.length,
+          assets: extractedAssets,
+        });
+      }
+      
+      // Regular image upload - goes to libraries/backgrounds/raw/ or cropped/
+      const folderPath = assetType === 'cropped' ? 'libraries/backgrounds/cropped' : 'libraries/backgrounds/raw';
       const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
-      const uploadResult = await uploadImageFromBuffer(
-        Buffer.from(imageData, 'base64'),
+      const uploadResult = await uploadToFirebaseStorage(
+        buffer,
         fileName,
         mimeType || 'image/png',
         folderPath
       );
       
       // Save metadata to database
-      const { backgroundAssets, libraryAssets } = await import("@shared/schema");
       const [asset] = await db.insert(backgroundAssets).values({
         name,
         assetType,
@@ -8700,41 +8787,6 @@ ${allPages.map(page => `  <url>
         tags: tags || null,
         isActive: true,
       }).returning();
-      
-      // CRITICAL: mirror SOURCE uploads into library_assets so Admin/Library can see them
-      if (assetType === "source") {
-        const safeOriginal = name;
-        const safeFileName = uploadResult.storageUrl.split("/").pop() || `${Date.now()}-background`;
-
-        await db.insert(libraryAssets).values({
-          userId: null,
-          ownerType: "admin",
-          assetType: "background",
-          mediaType: "image",
-          name: name,
-          description: null,
-          fileName: safeFileName,
-          originalName: safeOriginal,
-          mimeType: mimeType || "image/png",
-          sizeBytes: uploadResult.sizeBytes || 0,
-          storageUrl: uploadResult.storageUrl,
-          publicUrl: uploadResult.publicUrl,
-          thumbnailUrl: null,
-          duration: null,
-          libraryCategoryId: null,
-          librarySubcategoryId: null,
-          category: null,
-          season: "none",
-          event: "none",
-          tags: null,
-          visibleStoreSlugs: null,
-          visibleSegments: null,
-          isActive: true,
-          isFeatured: false,
-          sortOrder: 0,
-          usageCount: 0,
-        });
-      }
       
       // Return asset with proxy URL for immediate display
       res.json({
