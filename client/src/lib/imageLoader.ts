@@ -4,6 +4,7 @@ import { Nexus } from "@/lib/nexus";
 export interface ImageAsset {
   imageUrl?: string | null;
   publicUrl?: string | null;
+  storageUrl?: string | null;
   proxyUrl?: string | null;
   storagePath?: string | null;
   thumbnailUrl?: string | null;
@@ -14,12 +15,12 @@ export type AssetType = 'raw' | 'source' | 'zip' | 'cropped' | 'template' | 'des
 
 export function getImageSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return '';
-  return asset.imageUrl || asset.publicUrl || asset.thumbnailUrl || asset.url || asset.proxyUrl || '';
+  return asset.imageUrl || asset.publicUrl || asset.storageUrl || asset.thumbnailUrl || asset.url || asset.proxyUrl || '';
 }
 
 export function getThumbnailSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return '';
-  return asset.thumbnailUrl || asset.imageUrl || asset.publicUrl || asset.url || asset.proxyUrl || '';
+  return asset.thumbnailUrl || asset.imageUrl || asset.publicUrl || asset.storageUrl || asset.url || asset.proxyUrl || '';
 }
 
 export function isPublicUrl(url: string): boolean {
