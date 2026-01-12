@@ -105,7 +105,7 @@ export async function uploadImageBase64(
   const actualBase64 = base64Match ? base64Match[2] : base64Data;
   const buffer = Buffer.from(actualBase64, 'base64');
   
-  return uploadToFirebaseStorage(buffer, originalName, mimeType, 'hosted-images');
+  return uploadToFirebaseStorage(buffer, originalName, mimeType, 'libraries/backgrounds/raw');
 }
 
 export async function uploadImageFromBuffer(
@@ -114,13 +114,13 @@ export async function uploadImageFromBuffer(
   mimeType: string,
   folderPath?: string
 ): Promise<UploadResult> {
-  const folder = folderPath || 'custom-designs';
+  const folder = folderPath || 'libraries/backgrounds/raw';
   return uploadToFirebaseStorage(buffer, originalName, mimeType, folder);
 }
 
 export async function getFileFromFirebaseStorage(
   fileName: string,
-  folder: string = 'custom-designs'
+  folder: string = 'libraries/backgrounds/raw'
 ): Promise<{ buffer: Buffer; mimeType: string } | null> {
   if (!useFirebaseStorage()) {
     return null;
@@ -131,17 +131,12 @@ export async function getFileFromFirebaseStorage(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATHS ONLY - NO LEGACY FALLBACKS
-    // Structure: libraries/backgrounds/{raw|cropped|zip}/
+    // CANONICAL PATHS ONLY - libraries/backgrounds/{raw|cropped|zip}/
     const possiblePaths = [
       fileName, // Direct path if already includes folder
       `libraries/backgrounds/raw/${fileName}`,
       `libraries/backgrounds/cropped/${fileName}`,
       `libraries/backgrounds/zip/${fileName}`,
-      `${folder}/${fileName}`, // Custom folder for non-background files
-      `custom-designs/${fileName}`,
-      `hosted-images/${fileName}`,
-      `mockups/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {
@@ -158,7 +153,7 @@ export async function getFileFromFirebaseStorage(
       }
     }
 
-    console.log(`[FirebaseStorage] File not found: ${fileName}`);
+    console.log(`[FirebaseStorage] File not found in canonical paths: ${fileName}`);
     return null;
   } catch (error) {
     console.error('[FirebaseStorage] Error downloading file:', error);
@@ -169,7 +164,7 @@ export async function getFileFromFirebaseStorage(
 export async function downloadAndStreamFile(
   fileName: string,
   res: Response,
-  folder: string = 'custom-designs',
+  folder: string = 'libraries/backgrounds/raw',
   cacheTtlSec: number = 3600
 ): Promise<boolean> {
   if (!useFirebaseStorage()) {
@@ -181,17 +176,12 @@ export async function downloadAndStreamFile(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATHS ONLY - NO LEGACY FALLBACKS
-    // Structure: libraries/backgrounds/{raw|cropped|zip}/
+    // CANONICAL PATHS ONLY - libraries/backgrounds/{raw|cropped|zip}/
     const possiblePaths = [
       fileName, // Direct path if already includes folder
       `libraries/backgrounds/raw/${fileName}`,
       `libraries/backgrounds/cropped/${fileName}`,
       `libraries/backgrounds/zip/${fileName}`,
-      `${folder}/${fileName}`, // Custom folder for non-background files
-      `custom-designs/${fileName}`,
-      `hosted-images/${fileName}`,
-      `mockups/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {
@@ -228,7 +218,7 @@ export async function downloadAndStreamFile(
   }
 }
 
-export async function deleteFromFirebaseStorage(fileName: string, folder: string = 'custom-designs'): Promise<boolean> {
+export async function deleteFromFirebaseStorage(fileName: string, folder: string = 'libraries/backgrounds/raw'): Promise<boolean> {
   if (!useFirebaseStorage()) {
     return false;
   }
@@ -287,7 +277,7 @@ export async function downloadAndStoreFromUrl(
     ensureFirebaseInitialized();
     
     const bucket = getStorageBucket();
-    const fullPath = `custom-designs/${filename}`;
+    const fullPath = `libraries/backgrounds/raw/${filename}`;
     
     const file = bucket.file(fullPath);
     await file.save(buffer, {
@@ -305,7 +295,7 @@ export async function downloadAndStoreFromUrl(
   }
 }
 
-export async function fileExistsInFirebaseStorage(fileName: string, folder: string = 'custom-designs'): Promise<boolean> {
+export async function fileExistsInFirebaseStorage(fileName: string, folder: string = 'libraries/backgrounds/raw'): Promise<boolean> {
   if (!useFirebaseStorage()) {
     return false;
   }
