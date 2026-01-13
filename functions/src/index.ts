@@ -2969,7 +2969,33 @@ app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Resp
     }
     
     const snapshot = await query.orderBy('createdAt', 'desc').get();
-    const assets = snapshot.docs.map(doc => docToObject(doc));
+    const bucketName = storage.bucket().name;
+    
+    const assets = snapshot.docs.map(doc => {
+      const data = docToObject(doc);
+      let objectPath: string | null = null;
+      
+      const rawPath = data.storagePath || data.storageUrl || data.publicUrl || null;
+      if (rawPath) {
+        if (rawPath.startsWith('gs://')) {
+          const match = rawPath.match(/^gs:\/\/[^/]+\/(.+)$/);
+          objectPath = match ? match[1] : rawPath;
+        } else if (rawPath.startsWith('https://storage.googleapis.com/')) {
+          const match = rawPath.match(/^https:\/\/storage\.googleapis\.com\/[^/]+\/(.+)$/);
+          objectPath = match ? decodeURIComponent(match[1]) : null;
+        } else if (rawPath.startsWith('https://firebasestorage.googleapis.com/')) {
+          const match = rawPath.match(/\/o\/([^?]+)/);
+          objectPath = match ? decodeURIComponent(match[1]) : null;
+        } else if (!rawPath.startsWith('http')) {
+          objectPath = rawPath;
+        }
+      }
+      
+      return {
+        ...data,
+        proxyUrl: objectPath ? `/api/background-files?path=${encodeURIComponent(objectPath)}` : null,
+      };
+    });
     res.json(assets);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
