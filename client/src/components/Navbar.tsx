@@ -117,7 +117,7 @@ export default function Navbar() {
 
           <div className="flex items-center gap-3">
             {isAuthenticated && (
-              <Link href="/account">
+              <Link href="/admin">
                 <Button
                   variant="ghost"
                   size="sm"
