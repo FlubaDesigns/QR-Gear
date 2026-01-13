@@ -30,8 +30,9 @@ export function useAuth() {
     retry: false,
   });
 
-  // Still loading if auth hasn't been checked OR if we have a user and API is still loading
-  const isLoading = !authChecked || (firebaseUser && apiLoading);
+  // Only consider loading until Firebase auth is checked
+  // Don't wait for API - admin status is determined by UID, not API
+  const isLoading = !authChecked;
 
   // Check admin from API response OR fallback to hardcoded UID check
   // The hardcoded check works immediately once firebaseUser is available
