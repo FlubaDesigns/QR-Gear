@@ -8841,14 +8841,37 @@ ${allPages.map(page => `  <url>
   app.post("/api/admin/background-assets/sync", isAdmin, async (req: any, res) => {
     try {
       const { backgroundAssets } = await import("@shared/schema");
-      const folder = req.body.folder || 'libraries/backgrounds/raw';
-      const assetType = folder.includes('cropped') ? 'cropped' : 'source';
+      const requestedFolder = req.body.folder || 'libraries/backgrounds/raw';
+      const includeLegacy = req.body.includeLegacy !== false; // Default to true for backwards compatibility
+      const assetType = requestedFolder.includes('cropped') ? 'cropped' : 'source';
       
-      console.log(`[BackgroundAssets] Syncing folder: ${folder}`);
+      // Determine which folders to scan
+      let foldersToScan = [requestedFolder];
+      if (includeLegacy) {
+        // Add legacy folder paths for comprehensive sync
+        const legacyFolders = assetType === 'source' 
+          ? ['libraries/backgrounds/raw', 'library/backgrounds/raw', 'backgrounds/source']
+          : ['libraries/backgrounds/cropped', 'library/backgrounds/cropped'];
+        // Dedupe - requested folder may already be in the list
+        foldersToScan = Array.from(new Set(legacyFolders));
+      }
       
-      // List all files in the storage folder
-      const storageFiles = await listFilesInFolder(folder);
-      console.log(`[BackgroundAssets] Found ${storageFiles.length} files in storage`);
+      console.log(`[BackgroundAssets] Syncing ${assetType} assets from folders:`, foldersToScan);
+      
+      // List all files from all folders, deduplicating by full path
+      const fileMap = new Map<string, Awaited<ReturnType<typeof listFilesInFolder>>[0]>();
+      for (const folder of foldersToScan) {
+        const files = await listFilesInFolder(folder);
+        console.log(`[BackgroundAssets] Found ${files.length} files in ${folder}`);
+        for (const file of files) {
+          // Use fullPath as unique key to avoid duplicates
+          if (!fileMap.has(file.fullPath)) {
+            fileMap.set(file.fullPath, file);
+          }
+        }
+      }
+      const storageFiles = Array.from(fileMap.values());
+      console.log(`[BackgroundAssets] Total unique files: ${storageFiles.length}`);
       
       // Get existing records from database
       const existingAssets = await db.select().from(backgroundAssets).where(eq(backgroundAssets.isActive, true));
