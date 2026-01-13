@@ -1,0 +1,333 @@
+/* ========================================================================
+   CUT & PASTE REFACTOR PLAN (START-FROM-SCRATCH) — NAME IT RIGHT: "LIBRARY"
+   Goal: Replace the god-file admin-backgrounds.tsx with a clean /admin/library page
+   Strategy: Create a small page shell + 4 tab modules + shared constants/types
+   This is a comprehensive, step-by-step, copy/paste plan with exact file contents.
+   ======================================================================== */
+
+/* =========================
+   1) CREATE FOLDERS
+   =========================
+   Run these from project root:
+*/
+mkdir -p client/src/pages/admin
+mkdir -p client/src/features/adminLibrary/tabs
+mkdir -p client/src/features/adminLibrary/shared
+
+
+/* =========================
+   2) ROUTE: MAKE THE PAGE BE /admin/library
+   =========================
+   You will update your router later to point /admin/library to this page.
+   For now, we create the correctly named page file:
+
+   FILE: client/src/pages/admin/library.tsx
+*/
+--------------------------------------------------------------------------------
+/* client/src/pages/admin/library.tsx */
+export { default } from "@/features/adminLibrary/LibraryPage";
+--------------------------------------------------------------------------------
+
+
+/* =========================
+   3) OPTIONAL: KEEP COMPAT (IF YOU STILL HAVE /admin/backgrounds)
+   =========================
+   If your app currently routes to /admin/backgrounds and you want it to keep working
+   while you transition, create a simple redirect/alias file.
+
+   FILE: client/src/pages/admin-backgrounds.tsx
+*/
+--------------------------------------------------------------------------------
+/* client/src/pages/admin-backgrounds.tsx */
+export { default } from "@/features/adminLibrary/LibraryPage";
+--------------------------------------------------------------------------------
+
+
+/* =========================
+   4) MAIN PAGE SHELL (SMALL + CLEAN)
+   =========================
+   FILE: client/src/features/adminLibrary/LibraryPage.tsx
+*/
+--------------------------------------------------------------------------------
+/* client/src/features/adminLibrary/LibraryPage.tsx */
+
+import { useState } from "react";
+import { BreadcrumbTrail } from "@/components/BreadcrumbTrail";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Split tabs (each tab owns its own state & queries)
+import TemplatesTab from "@/features/adminLibrary/tabs/TemplatesTab";
+import LibraryBackgroundsTab from "@/features/adminLibrary/tabs/LibraryBackgroundsTab";
+import SourceImagesTab from "@/features/adminLibrary/tabs/SourceImagesTab";
+import CroppedImagesTab from "@/features/adminLibrary/tabs/CroppedImagesTab";
+
+export default function LibraryPage() {
+  const [tab, setTab] = useState<string>("templates");
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <BreadcrumbTrail
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Library", href: "/admin/library" },
+        ]}
+      />
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Library</h1>
+          <p className="text-muted-foreground">
+            Manage templates, library backgrounds, source images, and cropped assets.
+          </p>
+        </div>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="library">Library Backgrounds</TabsTrigger>
+          <TabsTrigger value="source">Source Images</TabsTrigger>
+          <TabsTrigger value="cropped">Cropped Images</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="templates" className="mt-6">
+          <TemplatesTab />
+        </TabsContent>
+
+        <TabsContent value="library" className="mt-6">
+          <LibraryBackgroundsTab />
+        </TabsContent>
+
+        <TabsContent value="source" className="mt-6">
+          <SourceImagesTab />
+        </TabsContent>
+
+        <TabsContent value="cropped" className="mt-6">
+          <CroppedImagesTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+--------------------------------------------------------------------------------
+
+
+/* =========================
+   5) SHARED CONSTANTS (MOVE BIG ARRAYS OUT OF UI)
+   =========================
+   FILE: client/src/features/adminLibrary/shared/constants.ts
+
+   NOTE: This file is a placeholder shell. When you migrate from your existing
+   monster file, you paste the big arrays here EXACTLY as-is.
+*/
+--------------------------------------------------------------------------------
+/* client/src/features/adminLibrary/shared/constants.ts */
+
+// Paste your existing constants from the old file into these exports.
+// Keep names identical so imports stay simple.
+
+export const TEMPLATE_CATEGORIES = [
+  // ...PASTE EXACT ARRAY FROM OLD FILE...
+];
+
+export const SEASONS = [
+  // ...PASTE EXACT ARRAY FROM OLD FILE...
+];
+
+export const EVENTS = [
+  // ...PASTE EXACT ARRAY FROM OLD FILE...
+];
+
+export const HOLIDAYS = [
+  // ...PASTE EXACT ARRAY FROM OLD FILE...
+];
+--------------------------------------------------------------------------------
+
+
+/* =========================
+   6) SHARED TYPES (MOVE INTERFACES OUT OF UI)
+   =========================
+   FILE: client/src/features/adminLibrary/shared/types.ts
+
+   NOTE: Replace these with your real types once you migrate.
+*/
+--------------------------------------------------------------------------------
+/* client/src/features/adminLibrary/shared/types.ts */
+
+export type AssetType =
+  | "raw"
+  | "source"
+  | "zip"
+  | "cropped"
+  | "template"
+  | "design"
+  | "background"
+  | "video"
+  | "unknown";
+
+export interface LibraryAsset {
+  id: string;
+  name?: string;
+  type?: AssetType;
+  storagePath?: string | null;
+  imageUrl?: string | null;
+  createdAt?: any;
+  tags?: string[];
+  category?: string | null;
+}
+
+export interface DesignTemplate {
+  id: string;
+  productName: string;
+  backgroundImageUrl?: string | null;
+  createdAt?: any;
+  category?: string | null;
+  tags?: string[];
+}
+--------------------------------------------------------------------------------
+
+
+/* =========================
+   7) TAB FILES (EACH TAB OWNS ITS OWN STATE)
+   =========================
+   IMPORTANT: These are intentionally minimal shells.
+   You said "start from scratch," so these are clean entry points.
+   As you rebuild, you paste logic from the old file into the correct tab.
+
+   7A) Templates
+   FILE: client/src/features/adminLibrary/tabs/TemplatesTab.tsx
+*/
+--------------------------------------------------------------------------------
+/* client/src/features/adminLibrary/tabs/TemplatesTab.tsx */
+
+export default function TemplatesTab() {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Saved Design Templates</h2>
+      <p className="text-sm text-muted-foreground">
+        This tab will manage template records and previews (GET/POST/DELETE).
+      </p>
+
+      {/* START FROM SCRATCH: build your Templates UI here */}
+      <div className="rounded-md border p-4 text-sm text-muted-foreground">
+        TemplatesTab scaffold is ready.
+      </div>
+    </div>
+  );
+}
+--------------------------------------------------------------------------------
+
+
+/* 7B) Library Backgrounds
+   FILE: client/src/features/adminLibrary/tabs/LibraryBackgroundsTab.tsx
+*/
+--------------------------------------------------------------------------------
+/* client/src/features/adminLibrary/tabs/LibraryBackgroundsTab.tsx */
+
+export default function LibraryBackgroundsTab() {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Library Backgrounds</h2>
+      <p className="text-sm text-muted-foreground">
+        This tab will manage the public/admin background library.
+      </p>
+
+      {/* START FROM SCRATCH: build your Library Backgrounds UI here */}
+      <div className="rounded-md border p-4 text-sm text-muted-foreground">
+        LibraryBackgroundsTab scaffold is ready.
+      </div>
+    </div>
+  );
+}
+--------------------------------------------------------------------------------
+
+
+/* 7C) Source Images
+   FILE: client/src/features/adminLibrary/tabs/SourceImagesTab.tsx
+*/
+--------------------------------------------------------------------------------
+/* client/src/features/adminLibrary/tabs/SourceImagesTab.tsx */
+
+export default function SourceImagesTab() {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Source Images</h2>
+      <p className="text-sm text-muted-foreground">
+        This tab will manage raw/source uploads before cropping/processing.
+      </p>
+
+      {/* START FROM SCRATCH: build your Source Images UI here */}
+      <div className="rounded-md border p-4 text-sm text-muted-foreground">
+        SourceImagesTab scaffold is ready.
+      </div>
+    </div>
+  );
+}
+--------------------------------------------------------------------------------
+
+
+/* 7D) Cropped Images
+   FILE: client/src/features/adminLibrary/tabs/CroppedImagesTab.tsx
+*/
+--------------------------------------------------------------------------------
+/* client/src/features/adminLibrary/tabs/CroppedImagesTab.tsx */
+
+export default function CroppedImagesTab() {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Cropped Images</h2>
+      <p className="text-sm text-muted-foreground">
+        This tab will manage cropped results from the source image workflow.
+      </p>
+
+      {/* START FROM SCRATCH: build your Cropped Images UI here */}
+      <div className="rounded-md border p-4 text-sm text-muted-foreground">
+        CroppedImagesTab scaffold is ready.
+      </div>
+    </div>
+  );
+}
+--------------------------------------------------------------------------------
+
+
+/* =========================
+   8) ROUTER UPDATE (CUT-AND-PASTE SNIPPET)
+   =========================
+   Wherever your routes are defined (commonly client/src/App.tsx),
+   add/change the route so the URL is correct:
+
+   <Route path="/admin/library">
+     {() => <ProtectedRoute><LibraryPage /></ProtectedRoute>}
+   </Route>
+
+   If you import pages via file paths, you may do:
+   import LibraryPage from "@/features/adminLibrary/LibraryPage";
+
+   SNIPPET:
+*/
+--------------------------------------------------------------------------------
+// In client/src/App.tsx (or your router file)
+import LibraryPage from "@/features/adminLibrary/LibraryPage";
+
+// ...inside routes:
+<Route path="/admin/library">
+  {() => (
+    <ProtectedRoute>
+      <LibraryPage />
+    </ProtectedRoute>
+  )}
+</Route>
+--------------------------------------------------------------------------------
+
+
+/* =========================
+   9) WHAT YOU DELETE/REPLACE
+   =========================
+   Once /admin/library works, you can delete or replace the old monster file:
+   - client/src/pages/admin-backgrounds.tsx becomes re-export (already done above)
+   - or remove it once you remove the /admin/backgrounds route
+
+   From here, you rebuild each tab cleanly, one job per file.
+
+   DONE.
+*/
