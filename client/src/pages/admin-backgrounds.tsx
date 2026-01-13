@@ -150,7 +150,7 @@ function TemplatesContent() {
             <Card key={design.id} className="overflow-hidden" data-testid={`card-template-${design.id}`}>
               <div className="aspect-video relative bg-muted">
                 {design.backgroundImageUrl ? (
-                  <img
+                  <SmartImage
                     src={design.backgroundImageUrl}
                     alt={design.productName}
                     className="w-full h-full object-cover"
@@ -232,7 +232,7 @@ function TemplatesContent() {
             <div className="space-y-4">
               {selectedDesign.backgroundImageUrl && (
                 <div className="aspect-video rounded-md overflow-hidden">
-                  <img 
+                  <SmartImage 
                     src={selectedDesign.backgroundImageUrl} 
                     alt={selectedDesign.productName}
                     className="w-full h-full object-cover"
