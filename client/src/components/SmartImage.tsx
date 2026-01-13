@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Image as ImageIcon, AlertCircle } from "lucide-react";
-import { 
-  getImageSrc, 
+import {
+  getImageSrc,
   getThumbnailSrc,
-  isPublicUrl, 
-  fetchImageAsBlob, 
+  fetchImageAsBlob,
   revokeObjectUrl,
-  type ImageAsset 
+  normalizeImageUrl,
+  type ImageAsset,
 } from "@/lib/imageLoader";
 import { Nexus } from "@/lib/nexus";
 
@@ -23,28 +23,29 @@ interface SmartImageProps {
   retryOnError?: boolean;
 }
 
-export function SmartImage({ 
-  asset, 
-  src, 
-  alt, 
-  className, 
+export function SmartImage({
+  asset,
+  src,
+  alt,
+  className,
   fallbackClassName,
   useThumbnail = false,
   onLoad,
   onError,
   showErrorState = true,
-  retryOnError = false
+  retryOnError = false,
 }: SmartImageProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  const resolvedSrc = src || (asset ? (useThumbnail ? getThumbnailSrc(asset) : getImageSrc(asset)) : '');
+  const rawResolved = src || (asset ? (useThumbnail ? getThumbnailSrc(asset) : getImageSrc(asset)) : "");
+  const resolvedSrc = normalizeImageUrl(rawResolved);
 
   const loadImage = useCallback(async () => {
     if (!resolvedSrc) {
-      setError(new Error('No image source provided'));
+      setError(new Error("No image source provided"));
       setLoading(false);
       return;
     }
@@ -54,24 +55,18 @@ export function SmartImage({
     let blobUrl: string | null = null;
 
     try {
-      if (isPublicUrl(resolvedSrc)) {
-        setImageSrc(resolvedSrc);
-        setLoading(false);
-        onLoad?.();
-      } else {
-        blobUrl = await fetchImageAsBlob(resolvedSrc);
-        setImageSrc(blobUrl);
-        setLoading(false);
-        onLoad?.();
-      }
+      blobUrl = await fetchImageAsBlob(resolvedSrc);
+      setImageSrc(blobUrl);
+      setLoading(false);
+      onLoad?.();
     } catch (err: any) {
-      Nexus.captureError(err, 'SmartImage', { src: resolvedSrc, retryCount });
+      Nexus.captureError(err, "SmartImage", { src: resolvedSrc, retryCount });
       setError(err);
       setLoading(false);
       onError?.(err);
-      
+
       if (retryOnError && retryCount < 2) {
-        setTimeout(() => setRetryCount(c => c + 1), 1000 * (retryCount + 1));
+        setTimeout(() => setRetryCount((c) => c + 1), 1000 * (retryCount + 1));
       }
     }
 
@@ -82,18 +77,18 @@ export function SmartImage({
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
-    
-    loadImage().then(cleanupFn => {
+
+    loadImage().then((cleanupFn) => {
       cleanup = cleanupFn;
     });
 
     return () => {
       cleanup?.();
-      if (imageSrc && imageSrc.startsWith('blob:')) {
+      if (imageSrc && imageSrc.startsWith("blob:")) {
         revokeObjectUrl(imageSrc);
       }
     };
-  }, [resolvedSrc, retryCount]);
+  }, [loadImage]);
 
   if (loading) {
     return (
@@ -105,17 +100,11 @@ export function SmartImage({
 
   if (error || !imageSrc) {
     if (!showErrorState) return null;
-    
+
     return (
       <div className={`flex flex-col items-center justify-center bg-muted gap-1 ${fallbackClassName || className}`}>
-        {error ? (
-          <AlertCircle className="h-5 w-5 text-muted-foreground" />
-        ) : (
-          <ImageIcon className="h-6 w-6 text-muted-foreground" />
-        )}
-        {retryOnError && retryCount < 2 && (
-          <span className="text-xs text-muted-foreground">Retrying...</span>
-        )}
+        {error ? <AlertCircle className="h-5 w-5 text-muted-foreground" /> : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
+        {retryOnError && retryCount < 2 && <span className="text-xs text-muted-foreground">Retrying...</span>}
       </div>
     );
   }
