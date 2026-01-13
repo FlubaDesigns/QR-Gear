@@ -67,6 +67,18 @@ const EVENTS = [
   { value: "anniversary", label: "Anniversary" },
 ];
 
+function getDesignImageUrl(design: CustomDesign): string | null {
+  if (design.backgroundImageUrl) return design.backgroundImageUrl;
+  const placementImages = design.placementImages as Record<string, string> | null;
+  if (placementImages) {
+    const firstKey = Object.keys(placementImages).find(k => !k.endsWith('-white'));
+    if (firstKey) return placementImages[firstKey];
+    const anyKey = Object.keys(placementImages)[0];
+    if (anyKey) return placementImages[anyKey];
+  }
+  return null;
+}
+
 function TemplatesContent() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -149,9 +161,9 @@ function TemplatesContent() {
           {templates.map((design) => (
             <Card key={design.id} className="overflow-hidden" data-testid={`card-template-${design.id}`}>
               <div className="aspect-video relative bg-muted">
-                {design.backgroundImageUrl ? (
+                {getDesignImageUrl(design) ? (
                   <SmartImage
-                    src={design.backgroundImageUrl}
+                    src={getDesignImageUrl(design)}
                     alt={design.productName}
                     className="w-full h-full object-cover"
                   />
@@ -230,10 +242,10 @@ function TemplatesContent() {
           </DialogHeader>
           {selectedDesign && (
             <div className="space-y-4">
-              {selectedDesign.backgroundImageUrl && (
+              {getDesignImageUrl(selectedDesign) && (
                 <div className="aspect-video rounded-md overflow-hidden">
                   <SmartImage 
-                    src={selectedDesign.backgroundImageUrl} 
+                    src={getDesignImageUrl(selectedDesign)} 
                     alt={selectedDesign.productName}
                     className="w-full h-full object-cover"
                   />
