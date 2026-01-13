@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, or, isNull, lte, gte } from "drizzle-orm";
+import { generateProxyUrl, extractObjectPath, addProxyUrlToAsset, addProxyUrlToAssets } from "./lib/storage-path-normalizer";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema, productBundles, bundleItems, masterProducts, products, insertEmailTemplateSchema, mockupCache } from "@shared/schema";
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
@@ -8611,12 +8612,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ BACKGROUND ASSETS ============
-  // Helper to create proxy URL from storage path (uses query param to avoid Firebase URL encoding issues)
-  function getProxyUrl(storagePath: string | null): string | null {
-    if (!storagePath) return null;
-    // Use query parameter to avoid Firebase Hosting URL encoding issues with path slashes
-    return `/api/background-files?path=${encodeURIComponent(storagePath)}`;
-  }
+  // Uses standalone storage-path-normalizer for path translation
   
   // List background assets (source or cropped)
   app.get("/api/admin/background-assets", isAdmin, async (req: any, res) => {
@@ -8633,11 +8629,8 @@ ${allPages.map(page => `  <url>
       
       const assets = await query.orderBy(backgroundAssets.createdAt);
       
-      // Add proxyUrl to each asset for frontend display
-      const assetsWithProxy = assets.map(asset => ({
-        ...asset,
-        proxyUrl: getProxyUrl(asset.storagePath),
-      }));
+      // Use standalone normalizer to add proxyUrl to each asset
+      const assetsWithProxy = addProxyUrlToAssets(assets);
       
       res.json(assetsWithProxy);
     } catch (error: any) {
@@ -8727,10 +8720,7 @@ ${allPages.map(page => `  <url>
               isActive: true,
             }).returning();
             
-            extractedAssets.push({
-              ...asset,
-              proxyUrl: getProxyUrl(asset.storagePath),
-            });
+            extractedAssets.push(addProxyUrlToAsset(asset));
             
             console.log(`[BackgroundAssets] Extracted: ${imageName} -> ${uploadResult.storageUrl}`);
           } catch (extractError) {
@@ -8771,10 +8761,7 @@ ${allPages.map(page => `  <url>
       }).returning();
       
       // Return asset with proxy URL for immediate display
-      res.json({
-        ...asset,
-        proxyUrl: getProxyUrl(asset.storagePath),
-      });
+      res.json(addProxyUrlToAsset(asset));
     } catch (error: any) {
       console.error("Error uploading background asset:", error);
       res.status(500).json({ error: error.message });
@@ -8797,7 +8784,7 @@ ${allPages.map(page => `  <url>
         .where(eq(backgroundAssets.id, req.params.id))
         .returning();
       
-      res.json({ ...updated, proxyUrl: getProxyUrl(updated.storagePath) });
+      res.json(addProxyUrlToAsset(updated));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -8872,7 +8859,7 @@ ${allPages.map(page => `  <url>
         try {
           // Keep original filename without extension as display name
           const displayName = file.name.replace(/\.[^/.]+$/, '');
-          const proxyUrl = getProxyUrl(file.fullPath) || `/api/files/${file.name}`;
+          const proxyUrl = generateProxyUrl(file.fullPath) || `/api/files/${file.name}`;
           const [asset] = await db.insert(backgroundAssets).values({
             name: displayName,
             assetType,
@@ -8885,10 +8872,7 @@ ${allPages.map(page => `  <url>
             isActive: true,
           }).returning();
           
-          createdAssets.push({
-            ...asset,
-            proxyUrl: getProxyUrl(asset.storagePath),
-          });
+          createdAssets.push(addProxyUrlToAsset(asset));
           console.log(`[BackgroundAssets] Created record for: ${file.name}`);
         } catch (err) {
           console.error(`[BackgroundAssets] Failed to create record for ${file.name}:`, err);
