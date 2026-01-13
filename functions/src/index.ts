@@ -255,6 +255,8 @@ const app = express();
 const ALLOWED_ORIGINS = [
   'https://qrgear-c1ffd.web.app',
   'https://qrgear-c1ffd.firebaseapp.com',
+  'https://qrgear.com',
+  'https://www.qrgear.com',
   'https://kingdom-connects.web.app',
   'https://kingdom-connects.firebaseapp.com',
   // Development origins
