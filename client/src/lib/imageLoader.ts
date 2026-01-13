@@ -70,77 +70,86 @@ export function normalizeImageUrl(url: string | null | undefined): string {
 export function getImageSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return "";
 
-  // Prefer signed URLs first - they work without authentication
+  // Best case: server already provides a proxyUrl
+  if (typeof asset.proxyUrl === "string" && asset.proxyUrl.length > 0) {
+    return asset.proxyUrl;
+  }
+
+  // Prefer signed URLs - they work without authentication
   if (isValidUrl(asset.signedUrl)) return asset.signedUrl!;
 
-  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
+  // Hunt for common fields used across the system (in priority order)
+  const candidate =
+    asset.storagePath ||
+    asset.storageUrl ||
+    asset.imageUrl ||
+    asset.backgroundImageUrl ||
+    asset.publicUrl ||
+    asset.thumbnailUrl ||
+    asset.productImage ||
+    asset.url ||
+    null;
 
-  if (isValidUrl(asset.imageUrl)) return asset.imageUrl!;
-  if (isValidUrl(asset.thumbnailUrl)) return asset.thumbnailUrl!;
+  if (!candidate) return "";
 
-  const bg = asset.backgroundImageUrl ?? undefined;
-  if (bg) {
-    const normalized = normalizeImageUrl(bg);
-    if (normalized) return normalized;
+  const p = String(candidate);
+
+  // Already a usable URL? Return as-is
+  if (
+    p.startsWith("https://") ||
+    p.startsWith("http://") ||
+    p.startsWith("/api/") ||
+    p.startsWith("data:") ||
+    p.startsWith("blob:")
+  ) {
+    return p;
   }
 
-  const prod = asset.productImage ?? undefined;
-  if (prod) {
-    const normalized = normalizeImageUrl(prod);
-    if (normalized) return normalized;
-  }
-
-  if (asset.publicUrl?.startsWith("https://")) return asset.publicUrl!;
-
-  if (asset.storageUrl) {
-    const normalized = normalizeImageUrl(asset.storageUrl);
-    if (normalized) return normalized;
-  }
-  if (asset.storagePath) {
-    const normalized = normalizeImageUrl(asset.storagePath);
-    if (normalized) return normalized;
-  }
-  if (asset.url) {
-    const normalized = normalizeImageUrl(asset.url);
-    if (normalized) return normalized;
-  }
-
-  return "";
+  // Normalize path and force through proxy endpoint
+  return normalizeImageUrl(p);
 }
 
 export function getThumbnailSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return "";
 
-  // Prefer signed URLs first - they work without authentication
+  // Best case: server already provides a proxyUrl
+  if (typeof asset.proxyUrl === "string" && asset.proxyUrl.length > 0) {
+    return asset.proxyUrl;
+  }
+
+  // Prefer signed URLs - they work without authentication
   if (isValidUrl(asset.thumbnailSignedUrl)) return asset.thumbnailSignedUrl!;
   if (isValidUrl(asset.signedUrl)) return asset.signedUrl!;
 
-  if (isValidUrl(asset.thumbnailUrl)) return asset.thumbnailUrl!;
-  if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
-  if (isValidUrl(asset.imageUrl)) return asset.imageUrl!;
+  // Hunt for common fields used across the system (in priority order)
+  const candidate =
+    asset.thumbnailUrl ||
+    asset.storagePath ||
+    asset.storageUrl ||
+    asset.imageUrl ||
+    asset.backgroundImageUrl ||
+    asset.publicUrl ||
+    asset.productImage ||
+    asset.url ||
+    null;
 
-  const bg = asset.backgroundImageUrl ?? undefined;
-  if (bg) {
-    const normalized = normalizeImageUrl(bg);
-    if (normalized) return normalized;
+  if (!candidate) return "";
+
+  const p = String(candidate);
+
+  // Already a usable URL? Return as-is
+  if (
+    p.startsWith("https://") ||
+    p.startsWith("http://") ||
+    p.startsWith("/api/") ||
+    p.startsWith("data:") ||
+    p.startsWith("blob:")
+  ) {
+    return p;
   }
 
-  if (asset.publicUrl?.startsWith("https://")) return asset.publicUrl!;
-
-  if (asset.storageUrl) {
-    const normalized = normalizeImageUrl(asset.storageUrl);
-    if (normalized) return normalized;
-  }
-  if (asset.storagePath) {
-    const normalized = normalizeImageUrl(asset.storagePath);
-    if (normalized) return normalized;
-  }
-  if (asset.url) {
-    const normalized = normalizeImageUrl(asset.url);
-    if (normalized) return normalized;
-  }
-
-  return "";
+  // Normalize path and force through proxy endpoint
+  return normalizeImageUrl(p);
 }
 
 export function isPublicUrl(url: string): boolean {

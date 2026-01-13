@@ -61,3 +61,7 @@ STORAGE_MODE = "dual-write"
 [[ports]]
 localPort = 8002
 externalPort = 3000
+
+[[ports]]
+localPort = 8931
+externalPort = 3001
