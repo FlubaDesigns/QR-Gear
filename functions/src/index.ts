@@ -2982,11 +2982,17 @@ app.delete('/admin/gallery/:id', requireAdmin, async (req: Request, res: Respons
 
 app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    // Query libraryAssets - filter in memory to avoid composite index requirement
+    console.log('[BackgroundAssets] GET request - fetching all libraryAssets');
     const snapshot = await db.collection('libraryAssets').get();
+    console.log('[BackgroundAssets] Total docs in collection:', snapshot.size);
     
-    const assets = snapshot.docs
-      .map(doc => docToObject(doc))
+    const allDocs = snapshot.docs.map(doc => {
+      const data = docToObject(doc);
+      console.log(`[BackgroundAssets] Doc ${doc.id}: assetType=${data.assetType}, isActive=${data.isActive}`);
+      return data;
+    });
+    
+    const assets = allDocs
       .filter(data => data.isActive === true && data.assetType === 'background')
       .sort((a, b) => {
         const aTime = a.createdAt?.toMillis?.() || 0;
@@ -2997,8 +3003,11 @@ app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Resp
         ...data,
         proxyUrl: data.publicUrl
       }));
+    
+    console.log('[BackgroundAssets] Filtered background assets:', assets.length);
     res.json(assets);
   } catch (error: any) {
+    console.error('[BackgroundAssets] Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

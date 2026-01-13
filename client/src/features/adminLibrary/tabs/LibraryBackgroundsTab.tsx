@@ -41,9 +41,9 @@ export default function LibraryBackgroundsTab() {
   const [filterTag, setFilterTag] = useState("all");
 
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
-    queryKey: [`${apiBase}/admin/background-assets`, "source"],
+    queryKey: [`${apiBase}/admin/background-assets`, "background"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=source`);
+      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=background`);
       return res.json();
     },
     staleTime: 0,
