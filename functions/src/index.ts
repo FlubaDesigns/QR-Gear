@@ -3013,10 +3013,15 @@ app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Resp
       }
       
       const proxyUrl = objectPath ? `/api/background-files?path=${encodeURIComponent(objectPath)}` : null;
+      
+      // Keep original imageUrl if it's a working direct URL, otherwise use proxyUrl
+      const originalImageUrl = data.imageUrl || '';
+      const hasDirectUrl = originalImageUrl.startsWith('https://') || originalImageUrl.startsWith('http://');
+      
       return {
         ...data,
         proxyUrl,
-        imageUrl: proxyUrl || data.imageUrl,
+        imageUrl: hasDirectUrl ? originalImageUrl : (proxyUrl || data.imageUrl),
       };
     });
     res.json(assets);
