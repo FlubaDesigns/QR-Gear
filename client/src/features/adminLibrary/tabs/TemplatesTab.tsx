@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,55 +10,24 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Trash2, Image, Copy, ExternalLink } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
 import { getDesignImageUrl } from "../shared/constants";
+import { useTemplates } from "../services/useLibraryAssets";
 import type { CustomDesign } from "../shared/types";
 
 export default function TemplatesTab() {
-  const { toast } = useToast();
   const [, navigate] = useLocation();
   const [selectedDesign, setSelectedDesign] = useState<CustomDesign | null>(null);
 
-  const { data: templates = [], isLoading } = useQuery<CustomDesign[]>({
-    queryKey: ["/api/admin/library/templates"],
-  });
-
-  const removeFromLibraryMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiRequest("PUT", `/api/admin/custom-designs/${id}`, { savedToLibrary: false });
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({ 
-        title: "Template Removed", 
-        description: "The design has been removed from your library. It's still available in Product Builder.",
-        duration: 4000,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/library/templates"] });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Remove Failed", 
-        description: error?.message || "Couldn't remove the template. Please try again.", 
-        variant: "destructive",
-        duration: 5000,
-      });
-    },
-  });
+  const { data: templates = [], isLoading, removeFromLibrary } = useTemplates();
 
   const handleViewLandingPage = (design: CustomDesign) => {
     window.open(`/customs/${design.id}`, "_blank");
   };
 
-  const handleDuplicate = (design: CustomDesign) => {
-    toast({ 
-      title: "Coming Soon", 
-      description: "Duplicate functionality will open Product Builder with pre-filled data.",
-      duration: 3000,
-    });
+  const handleDuplicate = (_design: CustomDesign) => {
+    // Coming soon: will open Product Builder with pre-filled data
   };
 
   if (isLoading) {
@@ -161,8 +129,8 @@ export default function TemplatesTab() {
                     size="icon"
                     variant="destructive"
                     className="min-h-12 min-w-12"
-                    onClick={() => removeFromLibraryMutation.mutate(design.id)}
-                    disabled={removeFromLibraryMutation.isPending}
+                    onClick={() => removeFromLibrary.mutate(design.id)}
+                    disabled={removeFromLibrary.isPending}
                     data-testid={`button-remove-library-${design.id}`}
                   >
                     <Trash2 className="h-4 w-4" />

@@ -20,6 +20,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Trash2, Check, X, Upload, Crop as CropIcon, ImagePlus, RefreshCw } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
 import { getImageSrc, fetchImageAsBlob } from "@/lib/imageLoader";
+import { useLibraryContext } from "../LibraryContext";
 import type { BackgroundAssetWithProxy } from "../shared/types";
 
 type UploadItem = {
@@ -31,6 +32,7 @@ type UploadItem = {
 };
 
 export default function SourceImagesTab() {
+  const { apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, fileName: '' });
@@ -44,9 +46,9 @@ export default function SourceImagesTab() {
   const [crop, setCrop] = useState<Crop | undefined>();
 
   const { data: assets = [], isLoading, refetch, isError } = useQuery<BackgroundAssetWithProxy[]>({
-    queryKey: ["/api/admin/background-assets", "source"],
+    queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/background-assets?type=source");
+      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=source`);
       return res.json();
     },
     staleTime: 0,
@@ -59,11 +61,11 @@ export default function SourceImagesTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/admin/background-assets/${id}`);
+      await apiRequest("DELETE", `${apiBase}/admin/background-assets/${id}`);
     },
     onSuccess: () => {
       toast({ title: "Image deleted" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "source"] });
     },
     onError: (error: any) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
@@ -74,7 +76,7 @@ export default function SourceImagesTab() {
   const handleSyncFromStorage = async () => {
     setSyncing(true);
     try {
-      const res = await apiRequest("POST", "/api/admin/background-assets/sync", {
+      const res = await apiRequest("POST", `${apiBase}/admin/background-assets/sync`, {
         folder: "libraries/backgrounds/raw"
       });
       const result = await res.json();
@@ -82,7 +84,7 @@ export default function SourceImagesTab() {
         title: "Sync Complete", 
         description: `Scanned ${result.scanned} files, created ${result.created} new records` 
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "source"] });
     } catch (error: any) {
       toast({ title: "Sync failed", description: error.message, variant: "destructive" });
     } finally {
@@ -163,7 +165,7 @@ export default function SourceImagesTab() {
       formData.append("sourceAssetId", imageToCrop.id);
 
       const token = await auth.currentUser?.getIdToken();
-      const response = await fetch("/api/admin/background-assets", {
+      const response = await fetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -177,7 +179,7 @@ export default function SourceImagesTab() {
       toast({ title: "Cropped image saved", description: "Image added to Cropped Images tab" });
       setCropDialogOpen(false);
       setImageToCrop(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "cropped"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "cropped"] });
     } catch (error: any) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } finally {
@@ -291,7 +293,7 @@ export default function SourceImagesTab() {
           const token = await auth.currentUser?.getIdToken();
           
           try {
-            const response = await fetch("/api/admin/background-assets", {
+            const response = await fetch(`${apiBase}/admin/background-assets`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json",
@@ -348,7 +350,7 @@ export default function SourceImagesTab() {
       } else {
         toast({ title: `Uploaded ${successCount} images successfully` });
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "source"] });
     } catch (error: any) {
       Nexus.captureError(error, "ZIP_UPLOAD", { step: "main", fileName: file.name });
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
@@ -398,7 +400,7 @@ export default function SourceImagesTab() {
             reader.readAsDataURL(file);
           });
 
-          await apiRequest("POST", "/api/admin/background-assets", {
+          await apiRequest("POST", `${apiBase}/admin/background-assets`, {
             name: file.name.replace(/\.[^/.]+$/, ''),
             assetType: 'source',
             imageData: base64,
@@ -419,7 +421,7 @@ export default function SourceImagesTab() {
       }
 
       toast({ title: `Uploaded ${successCount} of ${files.length} images` });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "source"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "source"] });
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {

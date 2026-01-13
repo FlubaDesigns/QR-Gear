@@ -15,10 +15,12 @@ import { Loader2, Plus, Pencil, Trash2, FolderOpen } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
 import { getImageSrc } from "@/lib/imageLoader";
 import { SEASONS, EVENTS } from "../shared/constants";
+import { useLibraryContext } from "../LibraryContext";
 import type { BackgroundAssetWithProxy } from "../shared/types";
 import type { PartnerStore } from "@shared/schema";
 
 export default function LibraryBackgroundsTab() {
+  const { apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<BackgroundAssetWithProxy | null>(null);
@@ -39,9 +41,9 @@ export default function LibraryBackgroundsTab() {
   const [filterTag, setFilterTag] = useState("all");
 
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
-    queryKey: ["/api/admin/background-assets", "source"],
+    queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/background-assets?type=source");
+      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=source`);
       return res.json();
     },
     staleTime: 0,
@@ -49,7 +51,7 @@ export default function LibraryBackgroundsTab() {
   });
 
   const { data: stores = [] } = useQuery<PartnerStore[]>({
-    queryKey: ["/api/admin/partner-stores"],
+    queryKey: [`${apiBase}/admin/partner-stores`],
   });
 
   const allSegments = stores.reduce((acc, store) => {
@@ -71,7 +73,7 @@ export default function LibraryBackgroundsTab() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PUT", `/api/admin/background-assets/${id}`, data);
+      const response = await apiRequest("PUT", `${apiBase}/admin/background-assets/${id}`, data);
       return await response.json();
     },
     onSuccess: () => {
@@ -80,7 +82,7 @@ export default function LibraryBackgroundsTab() {
         description: "Your changes have been saved successfully.",
         duration: 4000,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`] });
       handleCloseDialog();
     },
     onError: (error: any) => {
@@ -95,7 +97,7 @@ export default function LibraryBackgroundsTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/background-assets/${id}`, {});
+      const response = await apiRequest("DELETE", `${apiBase}/admin/background-assets/${id}`, {});
       return await response.json();
     },
     onSuccess: () => {
@@ -104,7 +106,7 @@ export default function LibraryBackgroundsTab() {
         description: "The background has been removed from your library.",
         duration: 4000,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`] });
     },
     onError: (error: any) => {
       toast({ 
@@ -255,7 +257,7 @@ export default function LibraryBackgroundsTab() {
 
         const token = await auth.currentUser?.getIdToken();
         
-        const response = await fetch("/api/admin/background-assets", {
+        const response = await fetch(`${apiBase}/admin/background-assets`, {
           method: "POST",
           body: JSON.stringify({
             name: formData.name || imageFile.name,
@@ -280,7 +282,7 @@ export default function LibraryBackgroundsTab() {
           description: `"${formData.name}" has been added to your library.`,
           duration: 4000,
         });
-        queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets"] });
+        queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`] });
         handleCloseDialog();
       }
     } catch (error: any) {

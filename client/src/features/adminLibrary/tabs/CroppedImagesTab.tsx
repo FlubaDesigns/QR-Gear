@@ -6,15 +6,17 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Trash2, Crop as CropIcon } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
+import { useLibraryContext } from "../LibraryContext";
 import type { BackgroundAssetWithProxy } from "../shared/types";
 
 export default function CroppedImagesTab() {
+  const { apiBase } = useLibraryContext();
   const { toast } = useToast();
 
   const { data: assets = [], isLoading, refetch } = useQuery<BackgroundAssetWithProxy[]>({
-    queryKey: ["/api/admin/background-assets", "cropped"],
+    queryKey: [`${apiBase}/admin/background-assets`, "cropped"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/background-assets?type=cropped");
+      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=cropped`);
       return res.json();
     },
     staleTime: 0,
@@ -27,11 +29,11 @@ export default function CroppedImagesTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/admin/background-assets/${id}`);
+      await apiRequest("DELETE", `${apiBase}/admin/background-assets/${id}`);
     },
     onSuccess: () => {
       toast({ title: "Image deleted" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "cropped"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "cropped"] });
     },
     onError: (error: any) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
