@@ -5,9 +5,9 @@ const defaultContext: LibraryContextValue = {
   storeId: null,
   apiBase: "/api",
   storageRoots: {
-    backgrounds: "libraries/backgrounds",
-    source: "libraries/source",
-    cropped: "libraries/cropped",
+    backgrounds: "library/backgrounds",
+    source: "library/source",
+    cropped: "library/cropped",
   },
   permissions: {
     canUpload: true,

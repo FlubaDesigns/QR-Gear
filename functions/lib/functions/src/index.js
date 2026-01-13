@@ -1277,9 +1277,9 @@ app.get('/library-files/:filename', async (req, res) => {
         const bucket = storage.bucket();
         // Search in new canonical paths first, then legacy paths
         const possiblePaths = [
-            `libraries/backgrounds/raw/${filename}`,
-            `libraries/backgrounds/zip/${filename}`,
-            `libraries/backgrounds/cropped/${filename}`,
+            `library/backgrounds/raw/${filename}`,
+            `library/backgrounds/zip/${filename}`,
+            `library/backgrounds/cropped/${filename}`,
             `libraries/designs/${filename}`,
             `libraries/videos/${filename}`,
             `library/${filename}`,
@@ -2698,7 +2698,7 @@ app.delete('/admin/background-assets/:id', requireAdmin, async (req, res) => {
 // Sync storage folder with database - creates DB records for existing files
 app.post('/admin/background-assets/sync', requireAdmin, async (req, res) => {
     try {
-        const folder = req.body.folder || 'libraries/backgrounds/raw';
+        const folder = req.body.folder || 'library/backgrounds/raw';
         const assetType = folder.includes('cropped') ? 'cropped' : 'source';
         console.log(`[BackgroundAssets] Syncing folder: ${folder}`);
         // List all files in the storage folder

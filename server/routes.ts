@@ -4198,10 +4198,10 @@ ${allPages.map(page => `  <url>
       }
       
       // Determine folder path - CANONICAL PATH ONLY for backgrounds
-      // ALL background assets go to libraries/backgrounds/raw/ - no subdirectories
+      // ALL background assets go to library/backgrounds/raw/ - no subdirectories
       let folderPath = "libraries";
       if (assetType === "background") {
-        folderPath = "libraries/backgrounds/raw"; // CANONICAL - no subdirectories
+        folderPath = "library/backgrounds/raw"; // CANONICAL - no subdirectories
       } else if (assetType === "design") {
         folderPath = "libraries/designs";
       } else if (assetType === "video") {
@@ -8659,17 +8659,17 @@ ${allPages.map(page => `  <url>
       if (isZip) {
         console.log(`[BackgroundAssets] Processing ZIP file: ${name}`);
         
-        // 1. Save original zip to libraries/backgrounds/zip/
+        // 1. Save original zip to library/backgrounds/zip/
         const zipFileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         const zipUploadResult = await uploadToFirebaseStorage(
           buffer,
           zipFileName,
           mimeType,
-          'libraries/backgrounds/zip'
+          'library/backgrounds/zip'
         );
         console.log(`[BackgroundAssets] Saved ZIP to: ${zipUploadResult.storageUrl}`);
         
-        // 2. Extract and upload each image to libraries/backgrounds/raw/
+        // 2. Extract and upload each image to library/backgrounds/raw/
         const zip = await JSZip.loadAsync(buffer);
         const extractedAssets: any[] = [];
         const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -8704,7 +8704,7 @@ ${allPages.map(page => `  <url>
               imageBuffer,
               uniqueName,
               imageMimeType,
-              'libraries/backgrounds/raw'
+              'library/backgrounds/raw'
             );
             
             // Save to database
@@ -8736,8 +8736,8 @@ ${allPages.map(page => `  <url>
         });
       }
       
-      // Regular image upload - goes to libraries/backgrounds/raw/ or cropped/
-      const folderPath = assetType === 'cropped' ? 'libraries/backgrounds/cropped' : 'libraries/backgrounds/raw';
+      // Regular image upload - goes to library/backgrounds/raw/ or cropped/
+      const folderPath = assetType === 'cropped' ? 'library/backgrounds/cropped' : 'library/backgrounds/raw';
       const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
       const uploadResult = await uploadToFirebaseStorage(
@@ -8810,7 +8810,7 @@ ${allPages.map(page => `  <url>
   app.post("/api/admin/background-assets/sync", isAdmin, async (req: any, res) => {
     try {
       const { backgroundAssets } = await import("@shared/schema");
-      const requestedFolder = req.body.folder || 'libraries/backgrounds/raw';
+      const requestedFolder = req.body.folder || 'library/backgrounds/raw';
       const includeLegacy = req.body.includeLegacy !== false; // Default to true for backwards compatibility
       const assetType = requestedFolder.includes('cropped') ? 'cropped' : 'source';
       
@@ -8819,8 +8819,8 @@ ${allPages.map(page => `  <url>
       if (includeLegacy) {
         // Add legacy folder paths for comprehensive sync
         const legacyFolders = assetType === 'source' 
-          ? ['libraries/backgrounds/raw', 'library/backgrounds/raw', 'backgrounds/source']
-          : ['libraries/backgrounds/cropped', 'library/backgrounds/cropped'];
+          ? ['library/backgrounds/raw', 'library/backgrounds/raw', 'backgrounds/source']
+          : ['library/backgrounds/cropped', 'library/backgrounds/cropped'];
         // Dedupe - requested folder may already be in the list
         foldersToScan = Array.from(new Set(legacyFolders));
       }

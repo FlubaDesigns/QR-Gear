@@ -77,7 +77,7 @@ export default function SourceImagesTab() {
     setSyncing(true);
     try {
       const res = await apiRequest("POST", `${apiBase}/admin/background-assets/sync`, {
-        folder: "libraries/backgrounds/raw"
+        folder: "library/backgrounds/raw"
       });
       const result = await res.json();
       toast({ 

@@ -105,7 +105,7 @@ export async function uploadImageBase64(
   const actualBase64 = base64Match ? base64Match[2] : base64Data;
   const buffer = Buffer.from(actualBase64, 'base64');
   
-  return uploadToFirebaseStorage(buffer, originalName, mimeType, 'libraries/backgrounds/raw');
+  return uploadToFirebaseStorage(buffer, originalName, mimeType, 'library/backgrounds/raw');
 }
 
 export async function uploadImageFromBuffer(
@@ -114,13 +114,13 @@ export async function uploadImageFromBuffer(
   mimeType: string,
   folderPath?: string
 ): Promise<UploadResult> {
-  const folder = folderPath || 'libraries/backgrounds/raw';
+  const folder = folderPath || 'library/backgrounds/raw';
   return uploadToFirebaseStorage(buffer, originalName, mimeType, folder);
 }
 
 export async function getFileFromFirebaseStorage(
   fileName: string,
-  folder: string = 'libraries/backgrounds/raw'
+  folder: string = 'library/backgrounds/raw'
 ): Promise<{ buffer: Buffer; mimeType: string } | null> {
   if (!useFirebaseStorage()) {
     return null;
@@ -131,12 +131,12 @@ export async function getFileFromFirebaseStorage(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATHS ONLY - libraries/backgrounds/{raw|cropped|zip}/
+    // CANONICAL PATHS ONLY - library/backgrounds/{raw|cropped|zip}/
     const possiblePaths = [
       fileName, // Direct path if already includes folder
-      `libraries/backgrounds/raw/${fileName}`,
-      `libraries/backgrounds/cropped/${fileName}`,
-      `libraries/backgrounds/zip/${fileName}`,
+      `library/backgrounds/raw/${fileName}`,
+      `library/backgrounds/cropped/${fileName}`,
+      `library/backgrounds/zip/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {
@@ -164,7 +164,7 @@ export async function getFileFromFirebaseStorage(
 export async function downloadAndStreamFile(
   fileName: string,
   res: Response,
-  folder: string = 'libraries/backgrounds/raw',
+  folder: string = 'library/backgrounds/raw',
   cacheTtlSec: number = 3600
 ): Promise<boolean> {
   if (!useFirebaseStorage()) {
@@ -176,12 +176,12 @@ export async function downloadAndStreamFile(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATHS ONLY - libraries/backgrounds/{raw|cropped|zip}/
+    // CANONICAL PATHS ONLY - library/backgrounds/{raw|cropped|zip}/
     const possiblePaths = [
       fileName, // Direct path if already includes folder
-      `libraries/backgrounds/raw/${fileName}`,
-      `libraries/backgrounds/cropped/${fileName}`,
-      `libraries/backgrounds/zip/${fileName}`,
+      `library/backgrounds/raw/${fileName}`,
+      `library/backgrounds/cropped/${fileName}`,
+      `library/backgrounds/zip/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {
@@ -218,7 +218,7 @@ export async function downloadAndStreamFile(
   }
 }
 
-export async function deleteFromFirebaseStorage(fileName: string, folder: string = 'libraries/backgrounds/raw'): Promise<boolean> {
+export async function deleteFromFirebaseStorage(fileName: string, folder: string = 'library/backgrounds/raw'): Promise<boolean> {
   if (!useFirebaseStorage()) {
     return false;
   }
@@ -277,7 +277,7 @@ export async function downloadAndStoreFromUrl(
     ensureFirebaseInitialized();
     
     const bucket = getStorageBucket();
-    const fullPath = `libraries/backgrounds/raw/${filename}`;
+    const fullPath = `library/backgrounds/raw/${filename}`;
     
     const file = bucket.file(fullPath);
     await file.save(buffer, {
@@ -295,7 +295,7 @@ export async function downloadAndStoreFromUrl(
   }
 }
 
-export async function fileExistsInFirebaseStorage(fileName: string, folder: string = 'libraries/backgrounds/raw'): Promise<boolean> {
+export async function fileExistsInFirebaseStorage(fileName: string, folder: string = 'library/backgrounds/raw'): Promise<boolean> {
   if (!useFirebaseStorage()) {
     return false;
   }
