@@ -1,1 +1,1 @@
-export { default } from "@/pages/admin-backgrounds";
+export { default } from "@/features/adminLibrary/LibraryPage";

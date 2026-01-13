@@ -27,11 +27,11 @@ export default function LibraryPage() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="library">Library Backgrounds</TabsTrigger>
-            <TabsTrigger value="source">Source Images</TabsTrigger>
-            <TabsTrigger value="cropped">Cropped Images</TabsTrigger>
+          <TabsList className="h-auto flex flex-wrap gap-2 p-2 bg-muted/50">
+            <TabsTrigger value="templates" className="flex-1 min-w-[120px]">Templates</TabsTrigger>
+            <TabsTrigger value="library" className="flex-1 min-w-[120px]">Library Backgrounds</TabsTrigger>
+            <TabsTrigger value="source" className="flex-1 min-w-[120px]">Source Images</TabsTrigger>
+            <TabsTrigger value="cropped" className="flex-1 min-w-[120px]">Cropped Images</TabsTrigger>
           </TabsList>
 
           <TabsContent value="templates" className="mt-6">
