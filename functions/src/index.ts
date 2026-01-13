@@ -2978,50 +2978,22 @@ app.delete('/admin/gallery/:id', requireAdmin, async (req: Request, res: Respons
   }
 });
 
-// ============ BACKGROUND ASSETS (ADMIN) ============
+// ============ LIBRARY ASSETS (ADMIN) ============
 
 app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const assetType = req.query.type as string;
-    let query: admin.firestore.Query = db.collection('backgroundAssets').where('isActive', '==', true);
-    
-    if (assetType && (assetType === 'source' || assetType === 'cropped')) {
-      query = query.where('assetType', '==', assetType);
-    }
-    
-    const snapshot = await query.orderBy('createdAt', 'desc').get();
-    const bucketName = storage.bucket().name;
+    // Query libraryAssets where assetType = 'background'
+    const snapshot = await db.collection('libraryAssets')
+      .where('isActive', '==', true)
+      .where('assetType', '==', 'background')
+      .orderBy('createdAt', 'desc')
+      .get();
     
     const assets = snapshot.docs.map(doc => {
       const data = docToObject(doc);
-      let objectPath: string | null = null;
-      
-      const rawPath = data.storagePath || data.storageUrl || data.publicUrl || null;
-      if (rawPath) {
-        if (rawPath.startsWith('gs://')) {
-          const match = rawPath.match(/^gs:\/\/[^/]+\/(.+)$/);
-          objectPath = match ? match[1] : rawPath;
-        } else if (rawPath.startsWith('https://storage.googleapis.com/')) {
-          const match = rawPath.match(/^https:\/\/storage\.googleapis\.com\/[^/]+\/(.+)$/);
-          objectPath = match ? decodeURIComponent(match[1]) : null;
-        } else if (rawPath.startsWith('https://firebasestorage.googleapis.com/')) {
-          const match = rawPath.match(/\/o\/([^?]+)/);
-          objectPath = match ? decodeURIComponent(match[1]) : null;
-        } else if (!rawPath.startsWith('http')) {
-          objectPath = rawPath;
-        }
-      }
-      
-      const proxyUrl = objectPath ? `/api/background-files?path=${encodeURIComponent(objectPath)}` : null;
-      
-      // Keep original imageUrl if it's a working direct URL, otherwise use proxyUrl
-      const originalImageUrl = data.imageUrl || '';
-      const hasDirectUrl = originalImageUrl.startsWith('https://') || originalImageUrl.startsWith('http://');
-      
       return {
         ...data,
-        proxyUrl,
-        imageUrl: hasDirectUrl ? originalImageUrl : (proxyUrl || data.imageUrl),
+        proxyUrl: data.publicUrl // publicUrl already has the proxy path
       };
     });
     res.json(assets);

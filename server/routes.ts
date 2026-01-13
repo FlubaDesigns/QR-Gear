@@ -8834,73 +8834,50 @@ ${allPages.map(page => `  <url>
   // Sync storage folder with database - creates DB records for existing files
   app.post("/api/admin/background-assets/sync", isAdmin, async (req: any, res) => {
     try {
-      const { backgroundAssets } = await import("@shared/schema");
-      const requestedFolder = req.body.folder || 'library/backgrounds/raw';
-      const includeLegacy = req.body.includeLegacy !== false; // Default to true for backwards compatibility
-      const assetType = requestedFolder.includes('cropped') ? 'cropped' : 'source';
+      const { libraryAssets } = await import("@shared/schema");
+      const folder = 'library/backgrounds/raw';
       
-      // Determine which folders to scan
-      let foldersToScan = [requestedFolder];
-      if (includeLegacy) {
-        // Add legacy folder paths for comprehensive sync
-        const legacyFolders = assetType === 'source' 
-          ? ['library/backgrounds/raw', 'library/backgrounds/raw', 'backgrounds/source']
-          : ['library/backgrounds/cropped', 'library/backgrounds/cropped'];
-        // Dedupe - requested folder may already be in the list
-        foldersToScan = Array.from(new Set(legacyFolders));
-      }
+      console.log(`[LibraryAssets] Syncing assets from: ${folder}`);
       
-      console.log(`[BackgroundAssets] Syncing ${assetType} assets from folders:`, foldersToScan);
-      
-      // List all files from all folders, deduplicating by full path
-      const fileMap = new Map<string, Awaited<ReturnType<typeof listFilesInFolder>>[0]>();
-      for (const folder of foldersToScan) {
-        const files = await listFilesInFolder(folder);
-        console.log(`[BackgroundAssets] Found ${files.length} files in ${folder}`);
-        for (const file of files) {
-          // Use fullPath as unique key to avoid duplicates
-          if (!fileMap.has(file.fullPath)) {
-            fileMap.set(file.fullPath, file);
-          }
-        }
-      }
-      const storageFiles = Array.from(fileMap.values());
-      console.log(`[BackgroundAssets] Total unique files: ${storageFiles.length}`);
+      const storageFiles = await listFilesInFolder(folder);
+      console.log(`[LibraryAssets] Found ${storageFiles.length} files`);
       
       // Get existing records from database
-      const existingAssets = await db.select().from(backgroundAssets).where(eq(backgroundAssets.isActive, true));
-      const existingPaths = new Set(existingAssets.map(a => a.storagePath));
+      const existingAssets = await db.select().from(libraryAssets)
+        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, 'background')));
+      const existingPaths = new Set(existingAssets.map(a => a.storageUrl));
       
       // Find files that don't have database records
       const newFiles = storageFiles.filter(f => !existingPaths.has(f.fullPath));
-      console.log(`[BackgroundAssets] ${newFiles.length} files need database records`);
+      console.log(`[LibraryAssets] ${newFiles.length} files need database records`);
       
       // Create database records for new files
       const createdAssets: any[] = [];
       for (const file of newFiles) {
-        // Skip non-image files
         if (!file.contentType.startsWith('image/')) continue;
         
         try {
-          // Keep original filename without extension as display name
           const displayName = file.name.replace(/\.[^/.]+$/, '');
-          const proxyUrl = generateProxyUrl(file.fullPath) || `/api/files/${file.name}`;
-          const [asset] = await db.insert(backgroundAssets).values({
+          const proxyUrl = `/api/background-files?path=${encodeURIComponent(file.fullPath)}`;
+          
+          const [asset] = await db.insert(libraryAssets).values({
+            ownerType: 'admin',
+            assetType: 'background',
+            mediaType: 'image',
             name: displayName,
-            assetType,
-            imageUrl: proxyUrl, // Use proxy URL for correct path resolution
-            storagePath: file.fullPath,
-            sourceAssetId: null,
+            fileName: file.name,
+            originalName: file.name,
             mimeType: file.contentType,
-            cropData: null,
-            tags: null,
+            sizeBytes: file.size,
+            storageUrl: file.fullPath,
+            publicUrl: proxyUrl,
             isActive: true,
           }).returning();
           
-          createdAssets.push(addProxyUrlToAsset(asset));
-          console.log(`[BackgroundAssets] Created record for: ${file.name}`);
+          createdAssets.push({ ...asset, proxyUrl: asset.publicUrl });
+          console.log(`[LibraryAssets] Created record for: ${file.name}`);
         } catch (err) {
-          console.error(`[BackgroundAssets] Failed to create record for ${file.name}:`, err);
+          console.error(`[LibraryAssets] Failed to create record for ${file.name}:`, err);
         }
       }
       
@@ -8911,7 +8888,7 @@ ${allPages.map(page => `  <url>
         assets: createdAssets,
       });
     } catch (error: any) {
-      console.error("Error syncing background assets:", error);
+      console.error("Error syncing library assets:", error);
       res.status(500).json({ error: error.message });
     }
   });
