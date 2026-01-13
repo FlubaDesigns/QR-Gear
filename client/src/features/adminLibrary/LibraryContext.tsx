@@ -1,5 +1,4 @@
 import { createContext, useContext, useMemo } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import type { LibraryContextValue } from "./shared/types";
 
 const defaultContext: LibraryContextValue = {
@@ -34,10 +33,8 @@ export function LibraryProvider({
   storageRoots,
   permissions,
 }: LibraryProviderProps) {
-  const { user } = useAuth();
-
   const value = useMemo<LibraryContextValue>(() => ({
-    storeId: storeId ?? user?.id ?? null,
+    storeId: storeId ?? null,
     apiBase: apiBase ?? defaultContext.apiBase,
     storageRoots: {
       ...defaultContext.storageRoots,
@@ -47,7 +44,7 @@ export function LibraryProvider({
       ...defaultContext.permissions,
       ...permissions,
     },
-  }), [storeId, apiBase, storageRoots, permissions, user?.id]);
+  }), [storeId, apiBase, storageRoots, permissions]);
 
   return (
     <LibraryContext.Provider value={value}>
