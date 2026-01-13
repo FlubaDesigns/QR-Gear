@@ -116,8 +116,8 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-3">
-            {isAdmin && (
-              <Link href="/admin">
+            {isAuthenticated && (
+              <Link href={isAdmin ? "/admin" : "/account"}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -125,7 +125,7 @@ export default function Navbar() {
                   data-testid="button-user-dashboard"
                 >
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">Admin</span>
+                  <span className="hidden sm:inline">{isAdmin ? "Admin" : "My Account"}</span>
                 </Button>
               </Link>
             )}

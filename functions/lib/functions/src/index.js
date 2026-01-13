@@ -298,7 +298,7 @@ async function requireAuth(req, res, next) {
     req.user = user;
     next();
 }
-const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || '').split(',').filter(Boolean);
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || 'xHUmudG0t5OkCQhqyhB4nXhCUfs1').split(',').filter(Boolean);
 async function requireAdmin(req, res, next) {
     const user = await verifyAuth(req);
     if (!user) {

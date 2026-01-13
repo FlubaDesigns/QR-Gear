@@ -322,7 +322,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction): Pro
   next();
 }
 
-const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || '').split(',').filter(Boolean);
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || 'xHUmudG0t5OkCQhqyhB4nXhCUfs1').split(',').filter(Boolean);
 
 async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const user = await verifyAuth(req);
