@@ -1053,11 +1053,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/background-files", async (req: any, res) => {
     try {
       // Get path from query parameter (avoids Firebase Hosting URL encoding issues)
-      const fullPath = req.query.path as string;
+      let fullPath = (req.query.path as string) || "";
       if (!fullPath) {
         return res.status(400).json({ error: "Missing path parameter" });
       }
-      console.log(`[BackgroundFiles] Serving: ${fullPath}`);
+      
+      // Normalize path: fix common issues
+      fullPath = fullPath.trim().replace(/^\/+/, "");
+      
+      // Fix libraries/ → library/ mismatch (data saved with wrong prefix)
+      if (fullPath.startsWith("libraries/")) {
+        fullPath = fullPath.replace(/^libraries\//, "library/");
+      }
+      // Fix accidental double prefix
+      if (fullPath.startsWith("library/library/")) {
+        fullPath = fullPath.replace(/^library\/library\//, "library/");
+      }
+      
+      console.log(`[BackgroundFiles] Serving (normalized): ${fullPath}`);
       
       // Try serving from the exact path provided (folder is '' so it uses fullPath directly)
       const served = await downloadAndStreamFile(fullPath, res, '', 31536000);

@@ -1576,13 +1576,25 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
 // No auth required - these are public library assets
 app.get('/background-files', async (req: Request, res: Response): Promise<void> => {
   try {
-    const filePath = req.query.path as string;
+    let filePath = (req.query.path as string) || "";
     if (!filePath) {
       res.status(400).json({ error: 'Missing path parameter' });
       return;
     }
     
-    console.log(`[BackgroundFiles] Serving: ${filePath}`);
+    // Normalize path: fix common issues
+    filePath = filePath.trim().replace(/^\/+/, "");
+    
+    // Fix libraries/ → library/ mismatch (data saved with wrong prefix)
+    if (filePath.startsWith("libraries/")) {
+      filePath = filePath.replace(/^libraries\//, "library/");
+    }
+    // Fix accidental double prefix
+    if (filePath.startsWith("library/library/")) {
+      filePath = filePath.replace(/^library\/library\//, "library/");
+    }
+    
+    console.log(`[BackgroundFiles] Serving (normalized): ${filePath}`);
     const bucket = storage.bucket();
     const file = bucket.file(filePath);
     

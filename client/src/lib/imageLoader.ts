@@ -50,7 +50,18 @@ export function normalizeImageUrl(url: string | null | undefined): string {
   if (isValidUrl(url)) return url;
 
   if (looksLikeStoragePath(url)) {
-    return `/api/background-files?path=${encodeURIComponent(url)}`;
+    // Normalize path: fix libraries/ → library/ mismatch
+    let normalizedPath = url.trim().replace(/^\/+/, "");
+    
+    // Fix common path issues
+    if (normalizedPath.startsWith("libraries/")) {
+      normalizedPath = normalizedPath.replace(/^libraries\//, "library/");
+    }
+    if (normalizedPath.startsWith("library/library/")) {
+      normalizedPath = normalizedPath.replace(/^library\/library\//, "library/");
+    }
+    
+    return `/api/background-files?path=${encodeURIComponent(normalizedPath)}`;
   }
 
   return url;
