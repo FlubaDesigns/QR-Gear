@@ -2598,9 +2598,11 @@ app.get('/admin/background-assets', requireAdmin, async (req, res) => {
                     objectPath = rawPath;
                 }
             }
+            const proxyUrl = objectPath ? `/api/background-files?path=${encodeURIComponent(objectPath)}` : null;
             return {
                 ...data,
-                proxyUrl: objectPath ? `/api/background-files?path=${encodeURIComponent(objectPath)}` : null,
+                proxyUrl,
+                imageUrl: proxyUrl || data.imageUrl,
             };
         });
         res.json(assets);

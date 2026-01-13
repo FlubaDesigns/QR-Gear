@@ -144,7 +144,9 @@ export function isPublicUrl(url: string): boolean {
 
 export function isProxyUrl(url: string): boolean {
   if (!url) return false;
-  return url.includes("/api/background-files") || url.includes("/api/files") || url.includes("/api/admin/");
+  // Note: /api/background-files and /api/files are PUBLIC endpoints (no auth required)
+  // Only /api/admin/ endpoints require authentication
+  return url.includes("/api/admin/");
 }
 
 export function needsAuthentication(url: string): boolean {

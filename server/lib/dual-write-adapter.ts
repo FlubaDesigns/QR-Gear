@@ -750,7 +750,7 @@ export class DualWriteAdapter implements IStorage {
   async createGraphicSet(graphicSet: InsertGraphicSet): Promise<GraphicSet> {
     const result = await this.primary.createGraphicSet(graphicSet);
     try {
-      await this.secondary.createGraphicSet({ ...graphicSet, id: result.id });
+      await this.secondary.createGraphicSet(graphicSet);
     } catch (error) {
       this.logDualWriteError('createGraphicSet', error);
     }
