@@ -6,6 +6,9 @@ import type { User } from "@shared/schema";
 
 type UserWithAdmin = User & { isAdmin?: boolean };
 
+// Hardcoded admin UIDs for immediate client-side check (fallback if API is slow/fails)
+const ADMIN_UIDS = ["xHUmudG0t5OkCQhqyhB4nXhCUfs1"];
+
 export function useAuth() {
   const queryClient = useQueryClient();
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null | undefined>(undefined);
@@ -28,11 +31,14 @@ export function useAuth() {
 
   const isLoading = firebaseLoading || (firebaseUser && apiLoading);
 
+  // Check admin from API response OR fallback to hardcoded UID check
+  const isAdmin = !!user?.isAdmin || (firebaseUser ? ADMIN_UIDS.includes(firebaseUser.uid) : false);
+
   return {
     user: firebaseUser ? user : null,
     firebaseUser,
     isLoading,
     isAuthenticated: !!firebaseUser,
-    isAdmin: !!user?.isAdmin,
+    isAdmin,
   };
 }
