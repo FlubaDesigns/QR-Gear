@@ -79,15 +79,16 @@ export function getImageSrc(asset: ImageAsset | null | undefined): string {
   if (isValidUrl(asset.signedUrl)) return asset.signedUrl!;
 
   // Hunt for common fields used across the system (in priority order)
+  // Prefer full URLs (imageUrl, publicUrl) over partial paths (storagePath)
   const candidate =
-    asset.storagePath ||
-    asset.storageUrl ||
     asset.imageUrl ||
-    asset.backgroundImageUrl ||
     asset.publicUrl ||
+    asset.backgroundImageUrl ||
     asset.thumbnailUrl ||
     asset.productImage ||
     asset.url ||
+    asset.storagePath ||
+    asset.storageUrl ||
     null;
 
   if (!candidate) return "";
@@ -122,15 +123,16 @@ export function getThumbnailSrc(asset: ImageAsset | null | undefined): string {
   if (isValidUrl(asset.signedUrl)) return asset.signedUrl!;
 
   // Hunt for common fields used across the system (in priority order)
+  // Prefer full URLs over partial paths (storagePath)
   const candidate =
     asset.thumbnailUrl ||
-    asset.storagePath ||
-    asset.storageUrl ||
     asset.imageUrl ||
-    asset.backgroundImageUrl ||
     asset.publicUrl ||
+    asset.backgroundImageUrl ||
     asset.productImage ||
     asset.url ||
+    asset.storagePath ||
+    asset.storageUrl ||
     null;
 
   if (!candidate) return "";
