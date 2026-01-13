@@ -1047,28 +1047,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve background images from Firebase Storage (multiple possible paths) - requires admin auth
+  // Serve background images from Firebase Storage (multiple possible paths) - PUBLIC for now
   // Uses query parameter to avoid Firebase Hosting URL encoding issues with path slashes
   app.get("/api/background-files", async (req: any, res) => {
     try {
-      // Verify Firebase admin authentication
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: "Authentication required" });
-      }
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await verifyFirebaseToken(idToken);
-      if (!decodedToken) {
-        return res.status(401).json({ error: "Invalid token" });
-      }
-      
-      // Check admin status using same logic as isAdmin middleware
-      const firebaseUid = decodedToken.uid;
-      const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
-      if (adminIds.length > 0 && !adminIds.includes(firebaseUid)) {
-        return res.status(403).json({ error: "Admin access required" });
-      }
-      
       // Get path from query parameter (avoids Firebase Hosting URL encoding issues)
       const fullPath = req.query.path as string;
       if (!fullPath) {
