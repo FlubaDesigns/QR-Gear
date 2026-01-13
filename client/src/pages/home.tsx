@@ -18,9 +18,9 @@ function AdminQuickAccess() {
   
   return (
     <div className="admin-quick-bar">
-      <Link href="/admin/dashboard" className="admin-quick-link" data-testid="link-admin-quick">
+      <Link href="/admin" className="admin-quick-link" data-testid="link-admin-quick">
         <Shield className="w-4 h-4" />
-        Admin Dashboard
+        Admin Panel
       </Link>
     </div>
   );
