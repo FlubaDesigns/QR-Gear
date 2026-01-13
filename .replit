@@ -59,6 +59,10 @@ PRINTIFY_SHOP_ID = "19642701"
 STORAGE_MODE = "dual-write"
 
 [[ports]]
+localPort = 5000
+externalPort = 5000
+
+[[ports]]
 localPort = 8002
 externalPort = 3000
 
