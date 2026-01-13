@@ -1565,7 +1565,8 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
 });
 
 // Background files - uses query parameter to avoid Firebase Hosting URL encoding issues
-app.get('/background-files', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+// No auth required - these are public library assets
+app.get('/background-files', async (req: Request, res: Response): Promise<void> => {
   try {
     const filePath = req.query.path as string;
     if (!filePath) {
