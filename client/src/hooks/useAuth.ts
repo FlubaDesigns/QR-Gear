@@ -11,13 +11,14 @@ const ADMIN_UIDS = ["xHUmudG0t5OkCQhqyhB4nXhCUfs1"];
 
 export function useAuth() {
   const queryClient = useQueryClient();
+  // Start as undefined to distinguish "not yet checked" from "checked and no user"
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null | undefined>(undefined);
-  const [firebaseLoading, setFirebaseLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
-      setFirebaseLoading(false);
+      setAuthChecked(true);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
     });
     return () => unsubscribe();
@@ -29,9 +30,11 @@ export function useAuth() {
     retry: false,
   });
 
-  const isLoading = firebaseLoading || (firebaseUser && apiLoading);
+  // Still loading if auth hasn't been checked OR if we have a user and API is still loading
+  const isLoading = !authChecked || (firebaseUser && apiLoading);
 
   // Check admin from API response OR fallback to hardcoded UID check
+  // The hardcoded check works immediately once firebaseUser is available
   const isAdmin = !!user?.isAdmin || (firebaseUser ? ADMIN_UIDS.includes(firebaseUser.uid) : false);
 
   return {
