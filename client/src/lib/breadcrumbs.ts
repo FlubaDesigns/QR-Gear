@@ -74,7 +74,7 @@ const routeMap: Record<string, RouteConfig> = {
   
   "/admin/products": { label: "Products", parent: "/admin", icon: Package },
   "/admin/pricing": { label: "Pricing", parent: "/admin", icon: DollarSign },
-  "/admin/backgrounds": { label: "Backgrounds", parent: "/admin", icon: Image },
+  "/admin/library": { label: "Library", parent: "/admin", icon: Image },
   "/admin/videos": { label: "Videos", parent: "/admin", icon: Video },
   "/admin/categories": { label: "Categories", parent: "/admin", icon: Tag },
   "/admin/tags": { label: "Tags", parent: "/admin", icon: Tag },

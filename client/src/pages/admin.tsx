@@ -65,7 +65,7 @@ const adminSections = [
     title: "Library",
     description: "Manage templates and backgrounds",
     icon: Image,
-    href: "/admin/backgrounds",
+    href: "/admin/library",
   },
   {
     title: "Videos",

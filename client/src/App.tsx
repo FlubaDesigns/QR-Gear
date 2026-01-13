@@ -16,7 +16,7 @@ import ViewDynamic from "@/pages/view-dynamic";
 import Admin from "@/pages/admin";
 import AdminProducts from "@/pages/admin-products";
 import AdminPricing from "@/pages/admin-pricing";
-import AdminBackgrounds from "@/pages/admin-backgrounds";
+import LibraryPage from "@/features/adminLibrary/LibraryPage";
 import AdminVideos from "@/pages/admin-videos";
 import AdminCategories from "@/pages/admin-categories";
 import AdminTags from "@/pages/admin-tags";
@@ -85,7 +85,7 @@ function Router() {
       <Route path="/admin">{() => <ProtectedRoute><Admin /></ProtectedRoute>}</Route>
       <Route path="/admin/products">{() => <ProtectedRoute><AdminProducts /></ProtectedRoute>}</Route>
       <Route path="/admin/pricing">{() => <ProtectedRoute><AdminPricing /></ProtectedRoute>}</Route>
-      <Route path="/admin/backgrounds">{() => <ProtectedRoute><AdminBackgrounds /></ProtectedRoute>}</Route>
+      <Route path="/admin/library">{() => <ProtectedRoute><LibraryPage /></ProtectedRoute>}</Route>
       <Route path="/admin/videos">{() => <ProtectedRoute><AdminVideos /></ProtectedRoute>}</Route>
       <Route path="/admin/categories">{() => <ProtectedRoute><AdminCategories /></ProtectedRoute>}</Route>
       <Route path="/admin/tags">{() => <ProtectedRoute><AdminTags /></ProtectedRoute>}</Route>
