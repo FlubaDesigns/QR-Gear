@@ -9,6 +9,8 @@ export interface ImageAsset {
   storagePath?: string | null;
   thumbnailUrl?: string | null;
   url?: string | null;
+  signedUrl?: string | null;
+  thumbnailSignedUrl?: string | null;
 
   backgroundImageUrl?: string | null;
   productImage?: string | null;
@@ -57,6 +59,9 @@ export function normalizeImageUrl(url: string | null | undefined): string {
 export function getImageSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return "";
 
+  // Prefer signed URLs first - they work without authentication
+  if (isValidUrl(asset.signedUrl)) return asset.signedUrl!;
+
   if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;
 
   if (isValidUrl(asset.imageUrl)) return asset.imageUrl!;
@@ -94,6 +99,10 @@ export function getImageSrc(asset: ImageAsset | null | undefined): string {
 
 export function getThumbnailSrc(asset: ImageAsset | null | undefined): string {
   if (!asset) return "";
+
+  // Prefer signed URLs first - they work without authentication
+  if (isValidUrl(asset.thumbnailSignedUrl)) return asset.thumbnailSignedUrl!;
+  if (isValidUrl(asset.signedUrl)) return asset.signedUrl!;
 
   if (isValidUrl(asset.thumbnailUrl)) return asset.thumbnailUrl!;
   if (isValidUrl(asset.proxyUrl)) return asset.proxyUrl!;

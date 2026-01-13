@@ -393,6 +393,42 @@ function docToObject(doc) {
 function docsToArray(snapshot) {
     return snapshot.docs.map(doc => docToObject(doc));
 }
+// ============ SIGNED URL HELPER ============
+async function generateSignedUrl(storagePath, expiresInMinutes = 15) {
+    if (!storagePath)
+        return null;
+    try {
+        // Remove leading slash if present
+        const cleanPath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
+        const bucket = storage.bucket();
+        const file = bucket.file(cleanPath);
+        const [exists] = await file.exists();
+        if (!exists) {
+            console.warn(`[SignedURL] File not found: ${cleanPath}`);
+            return null;
+        }
+        const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + expiresInMinutes * 60 * 1000,
+        });
+        return signedUrl;
+    }
+    catch (error) {
+        console.error(`[SignedURL] Error generating signed URL for ${storagePath}:`, error.message);
+        return null;
+    }
+}
+async function addSignedUrlsToAssets(assets) {
+    return Promise.all(assets.map(async (asset) => {
+        const signedUrl = asset.storageUrl ? await generateSignedUrl(asset.storageUrl) : null;
+        const thumbnailSignedUrl = asset.thumbnailUrl ? await generateSignedUrl(asset.thumbnailUrl) : null;
+        return {
+            ...asset,
+            signedUrl,
+            thumbnailSignedUrl,
+        };
+    }));
+}
 // ============ PRINTFUL CLIENT (No Replit Dependencies) ============
 const PRINTFUL_API_BASE = 'https://api.printful.com';
 // Get Printful API key from environment variables
@@ -3368,6 +3404,119 @@ app.post('/webhooks/stripe', async (req, res) => {
     }
     catch (error) {
         console.error('Webhook error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ ADMIN LIBRARY ENDPOINTS ============
+// Admin: Get all library assets with optional filters
+app.get('/admin/library', requireAdmin, async (req, res) => {
+    try {
+        const { ownerType, assetType, mediaType, category, season, event } = req.query;
+        let query = db.collection('libraryAssets');
+        if (ownerType)
+            query = query.where('ownerType', '==', ownerType);
+        if (assetType)
+            query = query.where('assetType', '==', assetType);
+        if (mediaType)
+            query = query.where('mediaType', '==', mediaType);
+        if (category)
+            query = query.where('category', '==', category);
+        if (season)
+            query = query.where('season', '==', season);
+        if (event)
+            query = query.where('event', '==', event);
+        const snapshot = await query.get();
+        const assets = docsToArray(snapshot);
+        const assetsWithSignedUrls = await addSignedUrlsToAssets(assets);
+        res.json(assetsWithSignedUrls);
+    }
+    catch (error) {
+        console.error('[Library] Error fetching assets:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Get admin-owned library assets
+app.get('/admin/library/admin', requireAdmin, async (req, res) => {
+    try {
+        const { assetType, mediaType, category, season, event } = req.query;
+        let query = db.collection('libraryAssets').where('ownerType', '==', 'admin');
+        if (assetType)
+            query = query.where('assetType', '==', assetType);
+        if (mediaType)
+            query = query.where('mediaType', '==', mediaType);
+        if (category)
+            query = query.where('category', '==', category);
+        if (season)
+            query = query.where('season', '==', season);
+        if (event)
+            query = query.where('event', '==', event);
+        const snapshot = await query.get();
+        const assets = docsToArray(snapshot);
+        const assetsWithSignedUrls = await addSignedUrlsToAssets(assets);
+        res.json(assetsWithSignedUrls);
+    }
+    catch (error) {
+        console.error('[Library] Error fetching admin assets:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Get library templates (custom designs saved to library)
+app.get('/admin/library/templates', requireAdmin, async (req, res) => {
+    try {
+        const snapshot = await db.collection('customDesigns')
+            .where('savedToLibrary', '==', true)
+            .get();
+        const templates = docsToArray(snapshot);
+        res.json(templates);
+    }
+    catch (error) {
+        console.error('[Library] Error fetching templates:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Create library asset
+app.post('/admin/library', requireAdmin, async (req, res) => {
+    try {
+        const assetData = {
+            ...req.body,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        const docRef = await db.collection('libraryAssets').add(assetData);
+        const doc = await docRef.get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        console.error('[Library] Error creating asset:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Update library asset
+app.put('/admin/library/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = {
+            ...req.body,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        await db.collection('libraryAssets').doc(id).update(updateData);
+        const doc = await db.collection('libraryAssets').doc(id).get();
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        console.error('[Library] Error updating asset:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Delete library asset
+app.delete('/admin/library/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.collection('libraryAssets').doc(id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('[Library] Error deleting asset:', error);
         res.status(500).json({ error: error.message });
     }
 });
