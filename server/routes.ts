@@ -8627,23 +8627,21 @@ ${allPages.map(page => `  <url>
   // ============ BACKGROUND ASSETS ============
   // Uses standalone storage-path-normalizer for path translation
   
-  // List background assets (source or cropped)
+  // List background assets from library_assets table
   app.get("/api/admin/background-assets", isAdmin, async (req: any, res) => {
     try {
-      const assetType = req.query.type as string; // 'source' or 'cropped'
-      const { backgroundAssets } = await import("@shared/schema");
+      const { libraryAssets } = await import("@shared/schema");
       
-      let query = db.select().from(backgroundAssets).where(eq(backgroundAssets.isActive, true));
+      // Query library_assets where assetType = 'background'
+      const assets = await db.select().from(libraryAssets)
+        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, 'background')))
+        .orderBy(libraryAssets.createdAt);
       
-      if (assetType && (assetType === 'source' || assetType === 'cropped')) {
-        query = db.select().from(backgroundAssets)
-          .where(and(eq(backgroundAssets.isActive, true), eq(backgroundAssets.assetType, assetType)));
-      }
-      
-      const assets = await query.orderBy(backgroundAssets.createdAt);
-      
-      // Use standalone normalizer to add proxyUrl to each asset
-      const assetsWithProxy = addProxyUrlToAssets(assets);
+      // Map to expected format with proxyUrl
+      const assetsWithProxy = assets.map(asset => ({
+        ...asset,
+        proxyUrl: asset.publicUrl // publicUrl already has the proxy path
+      }));
       
       res.json(assetsWithProxy);
     } catch (error: any) {
@@ -8666,7 +8664,7 @@ ${allPages.map(page => `  <url>
       
       const buffer = Buffer.from(imageData, 'base64');
       const isZip = mimeType === 'application/zip' || mimeType === 'application/x-zip-compressed';
-      const { backgroundAssets, libraryAssets } = await import("@shared/schema");
+      const { libraryAssets } = await import("@shared/schema");
       
       // Handle ZIP file: save original to zip/, extract contents to raw/
       if (isZip) {
@@ -8720,20 +8718,22 @@ ${allPages.map(page => `  <url>
               'library/backgrounds/raw'
             );
             
-            // Save to database
-            const [asset] = await db.insert(backgroundAssets).values({
-              name: imageName.replace(/\.[^/.]+$/, ''), // Remove extension for display name
-              assetType: 'source',
-              imageUrl: uploadResult.publicUrl,
-              storagePath: uploadResult.storageUrl,
-              sourceAssetId: null,
+            // Save to library_assets table
+            const [asset] = await db.insert(libraryAssets).values({
+              ownerType: 'admin',
+              assetType: 'background',
+              mediaType: 'image',
+              name: imageName.replace(/\.[^/.]+$/, ''),
+              fileName: uniqueName,
+              originalName: imageName,
               mimeType: imageMimeType,
-              cropData: null,
-              tags: tags || null,
+              sizeBytes: imageBuffer.length,
+              storageUrl: uploadResult.storageUrl,
+              publicUrl: uploadResult.publicUrl,
               isActive: true,
             }).returning();
             
-            extractedAssets.push(addProxyUrlToAsset(asset));
+            extractedAssets.push({ ...asset, proxyUrl: asset.publicUrl });
             
             console.log(`[BackgroundAssets] Extracted: ${imageName} -> ${uploadResult.storageUrl}`);
           } catch (extractError) {
@@ -8749,8 +8749,8 @@ ${allPages.map(page => `  <url>
         });
       }
       
-      // Regular image upload - goes to library/backgrounds/raw/ or cropped/
-      const folderPath = assetType === 'cropped' ? 'library/backgrounds/cropped' : 'library/backgrounds/raw';
+      // Regular image upload - goes to library/backgrounds/raw/
+      const folderPath = 'library/backgrounds/raw';
       const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
       const uploadResult = await uploadToFirebaseStorage(
@@ -8760,21 +8760,23 @@ ${allPages.map(page => `  <url>
         folderPath
       );
       
-      // Save metadata to database
-      const [asset] = await db.insert(backgroundAssets).values({
+      // Save metadata to library_assets table
+      const [asset] = await db.insert(libraryAssets).values({
+        ownerType: 'admin',
+        assetType: 'background',
+        mediaType: 'image',
         name,
-        assetType,
-        imageUrl: uploadResult.publicUrl,
-        storagePath: uploadResult.storageUrl,
-        sourceAssetId: sourceAssetId || null,
+        fileName,
+        originalName: name,
         mimeType: mimeType || 'image/png',
-        cropData: cropData || null,
-        tags: tags || null,
+        sizeBytes: buffer.length,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: uploadResult.publicUrl,
         isActive: true,
       }).returning();
       
       // Return asset with proxy URL for immediate display
-      res.json(addProxyUrlToAsset(asset));
+      res.json({ ...asset, proxyUrl: asset.publicUrl });
     } catch (error: any) {
       console.error("Error uploading background asset:", error);
       res.status(500).json({ error: error.message });
@@ -8784,20 +8786,19 @@ ${allPages.map(page => `  <url>
   // Update background asset
   app.put("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
     try {
-      const { backgroundAssets } = await import("@shared/schema");
-      const { name, tags, isActive } = req.body;
+      const { libraryAssets } = await import("@shared/schema");
+      const { name, isActive } = req.body;
       
       const updateData: any = {};
       if (name !== undefined) updateData.name = name;
-      if (tags !== undefined) updateData.tags = tags;
       if (isActive !== undefined) updateData.isActive = isActive;
       
-      const [updated] = await db.update(backgroundAssets)
+      const [updated] = await db.update(libraryAssets)
         .set(updateData)
-        .where(eq(backgroundAssets.id, req.params.id))
+        .where(eq(libraryAssets.id, req.params.id))
         .returning();
       
-      res.json(addProxyUrlToAsset(updated));
+      res.json({ ...updated, proxyUrl: updated.publicUrl });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -8806,12 +8807,12 @@ ${allPages.map(page => `  <url>
   // Delete background asset
   app.delete("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
     try {
-      const { backgroundAssets } = await import("@shared/schema");
+      const { libraryAssets } = await import("@shared/schema");
       
       // Soft delete (set isActive to false)
-      await db.update(backgroundAssets)
+      await db.update(libraryAssets)
         .set({ isActive: false })
-        .where(eq(backgroundAssets.id, req.params.id));
+        .where(eq(libraryAssets.id, req.params.id));
       
       res.json({ success: true });
     } catch (error: any) {
