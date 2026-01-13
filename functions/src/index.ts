@@ -3048,14 +3048,20 @@ app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Res
     await file.makePublic();
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fullPath}`;
     
-    // Save metadata to Firestore
-    const docRef = await db.collection('backgroundAssets').add({
+    // Save metadata to Firestore libraryAssets collection
+    const proxyUrl = `/api/background-files?path=${encodeURIComponent(fullPath)}`;
+    const docRef = await db.collection('libraryAssets').add({
+      ownerType: 'admin',
+      assetType: 'background',
+      mediaType: 'image',
       name,
-      assetType,
-      imageUrl: publicUrl,
-      storagePath: fullPath,
-      sourceAssetId: sourceAssetId || null,
+      fileName: fullPath.split('/').pop() || name,
+      originalName: name,
       mimeType: mimeType || 'image/png',
+      sizeBytes: buffer.length,
+      storageUrl: `gs://${bucket.name}/${fullPath}`,
+      publicUrl: proxyUrl,
+      sourceAssetId: sourceAssetId || null,
       cropData: cropData || null,
       tags: tags || null,
       isActive: true,
@@ -3074,7 +3080,7 @@ app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Res
 app.delete('/admin/background-assets/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     // Soft delete (set isActive to false)
-    await db.collection('backgroundAssets').doc(req.params.id).update({
+    await db.collection('libraryAssets').doc(req.params.id).update({
       isActive: false,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -3106,12 +3112,15 @@ app.post('/admin/background-assets/sync', requireAdmin, async (req: Request, res
     
     console.log(`[BackgroundAssets] Found ${storageFiles.length} files in storage`);
     
-    // Get existing records from Firestore
-    const existingSnapshot = await db.collection('backgroundAssets').where('isActive', '==', true).get();
-    const existingPaths = new Set(existingSnapshot.docs.map(d => d.data().storagePath));
+    // Get existing records from Firestore libraryAssets
+    const existingSnapshot = await db.collection('libraryAssets')
+      .where('isActive', '==', true)
+      .where('assetType', '==', 'background')
+      .get();
+    const existingPaths = new Set(existingSnapshot.docs.map(d => d.data().storageUrl));
     
     // Find files that don't have database records
-    const newFiles = storageFiles.filter(f => !existingPaths.has(f.fullPath));
+    const newFiles = storageFiles.filter(f => !existingPaths.has(`gs://${bucket.name}/${f.fullPath}`));
     console.log(`[BackgroundAssets] ${newFiles.length} files need database records`);
     
     // Create database records for new files
@@ -3123,13 +3132,18 @@ app.post('/admin/background-assets/sync', requireAdmin, async (req: Request, res
         const displayName = file.name.replace(/\.[^/.]+$/, '');
         const proxyUrl = `/api/background-files?path=${encodeURIComponent(file.fullPath)}`;
         
-        const docRef = await db.collection('backgroundAssets').add({
+        const docRef = await db.collection('libraryAssets').add({
+          ownerType: 'admin',
+          assetType: 'background',
+          mediaType: 'image',
           name: displayName,
-          assetType,
-          imageUrl: proxyUrl,
-          storagePath: file.fullPath,
-          sourceAssetId: null,
+          fileName: file.name,
+          originalName: file.name,
           mimeType: file.contentType,
+          sizeBytes: 0,
+          storageUrl: `gs://${bucket.name}/${file.fullPath}`,
+          publicUrl: proxyUrl,
+          sourceAssetId: null,
           cropData: null,
           tags: null,
           isActive: true,
