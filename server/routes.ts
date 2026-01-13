@@ -8819,6 +8819,17 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Migrate files from old folder structure to canonical raw folder
+  app.post("/api/admin/background-assets/migrate", isAdmin, async (req: any, res) => {
+    try {
+      const { migrateFilesToCanonicalFolder } = await import("./lib/firebase-storage-service");
+      const result = await migrateFilesToCanonicalFolder();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Sync storage folder with database - creates DB records for existing files
   app.post("/api/admin/background-assets/sync", isAdmin, async (req: any, res) => {
     try {

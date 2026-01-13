@@ -357,4 +357,57 @@ export async function listFilesInFolder(folder: string): Promise<StorageFileInfo
   }
 }
 
+export async function copyFileToFolder(sourcePath: string, destFolder: string): Promise<string | null> {
+  if (!useFirebaseStorage()) {
+    return null;
+  }
+  
+  ensureFirebaseInitialized();
+  
+  try {
+    const bucket = getStorageBucket();
+    const sourceFile = bucket.file(sourcePath);
+    
+    const [exists] = await sourceFile.exists();
+    if (!exists) {
+      console.log(`[FirebaseStorage] Source file not found: ${sourcePath}`);
+      return null;
+    }
+    
+    const fileName = sourcePath.split('/').pop() || sourcePath;
+    const destPath = `${destFolder}/${fileName}`;
+    const destFile = bucket.file(destPath);
+    
+    await sourceFile.copy(destFile);
+    console.log(`[FirebaseStorage] Copied ${sourcePath} → ${destPath}`);
+    return destPath;
+  } catch (error) {
+    console.error('[FirebaseStorage] Error copying file:', error);
+    return null;
+  }
+}
+
+export async function migrateFilesToCanonicalFolder(): Promise<{ copied: number; failed: number }> {
+  const sourceFolder = 'backgrounds/source';
+  const destFolder = 'library/backgrounds/raw';
+  
+  const files = await listFilesInFolder(sourceFolder);
+  console.log(`[FirebaseStorage] Migrating ${files.length} files from ${sourceFolder} to ${destFolder}`);
+  
+  let copied = 0;
+  let failed = 0;
+  
+  for (const file of files) {
+    const result = await copyFileToFolder(file.fullPath, destFolder);
+    if (result) {
+      copied++;
+    } else {
+      failed++;
+    }
+  }
+  
+  console.log(`[FirebaseStorage] Migration complete: ${copied} copied, ${failed} failed`);
+  return { copied, failed };
+}
+
 export { ALLOWED_MIME_TYPES, MAX_FILE_SIZE, useFirebaseStorage };
