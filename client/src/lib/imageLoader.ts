@@ -65,11 +65,35 @@ export function needsAuthentication(url: string): boolean {
   return isProxyUrl(url) && !isPublicUrl(url);
 }
 
+async function waitForAuth(timeoutMs: number = 5000): Promise<string | null> {
+  if (auth.currentUser) {
+    return auth.currentUser.getIdToken();
+  }
+  
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      resolve(null);
+    }, timeoutMs);
+    
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      clearTimeout(timeout);
+      unsubscribe();
+      if (user) {
+        const token = await user.getIdToken();
+        resolve(token);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
 export async function fetchWithAuth(url: string): Promise<Response> {
   const headers: HeadersInit = {};
   
   if (needsAuthentication(url)) {
-    const token = await auth.currentUser?.getIdToken();
+    const token = await waitForAuth();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
