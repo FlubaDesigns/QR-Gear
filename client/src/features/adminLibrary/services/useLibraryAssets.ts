@@ -10,6 +10,10 @@ export function useTemplates() {
 
   const query = useQuery<CustomDesign[]>({
     queryKey: [`${apiBase}/admin/library/templates`],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `${apiBase}/admin/library/templates`);
+      return res.json();
+    },
   });
 
   const removeFromLibrary = useMutation({
@@ -43,6 +47,10 @@ export function useLibraryBackgrounds() {
 
   const query = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/library/backgrounds`],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `${apiBase}/admin/library/backgrounds`);
+      return res.json();
+    },
   });
 
   const uploadBackground = useMutation({
