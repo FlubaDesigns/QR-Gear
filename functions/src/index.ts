@@ -2982,20 +2982,21 @@ app.delete('/admin/gallery/:id', requireAdmin, async (req: Request, res: Respons
 
 app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    // Query libraryAssets where assetType = 'background'
-    const snapshot = await db.collection('libraryAssets')
-      .where('isActive', '==', true)
-      .where('assetType', '==', 'background')
-      .orderBy('createdAt', 'desc')
-      .get();
+    // Query libraryAssets - filter in memory to avoid composite index requirement
+    const snapshot = await db.collection('libraryAssets').get();
     
-    const assets = snapshot.docs.map(doc => {
-      const data = docToObject(doc);
-      return {
+    const assets = snapshot.docs
+      .map(doc => docToObject(doc))
+      .filter(data => data.isActive === true && data.assetType === 'background')
+      .sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      })
+      .map(data => ({
         ...data,
-        proxyUrl: data.publicUrl // publicUrl already has the proxy path
-      };
-    });
+        proxyUrl: data.publicUrl
+      }));
     res.json(assets);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -3112,12 +3113,14 @@ app.post('/admin/background-assets/sync', requireAdmin, async (req: Request, res
     
     console.log(`[BackgroundAssets] Found ${storageFiles.length} files in storage`);
     
-    // Get existing records from Firestore libraryAssets
-    const existingSnapshot = await db.collection('libraryAssets')
-      .where('isActive', '==', true)
-      .where('assetType', '==', 'background')
-      .get();
-    const existingPaths = new Set(existingSnapshot.docs.map(d => d.data().storageUrl));
+    // Get existing records from Firestore libraryAssets - filter in memory to avoid index
+    const existingSnapshot = await db.collection('libraryAssets').get();
+    const existingPaths = new Set(
+      existingSnapshot.docs
+        .map(d => d.data())
+        .filter(data => data.isActive === true && data.assetType === 'background')
+        .map(data => data.storageUrl)
+    );
     
     // Find files that don't have database records
     const newFiles = storageFiles.filter(f => !existingPaths.has(`gs://${bucket.name}/${f.fullPath}`));
