@@ -842,7 +842,8 @@ app.get('/auth/user', async (req, res) => {
     try {
         const decodedToken = await verifyAuth(req);
         if (!decodedToken) {
-            res.status(401).json({ message: 'Unauthorized' });
+            // Return null instead of 401 for unauthenticated requests
+            res.json(null);
             return;
         }
         const userDoc = await db.collection('users').doc(decodedToken.uid).get();
@@ -857,10 +858,15 @@ app.get('/auth/user', async (req, res) => {
             res.json({ ...newUser, id: decodedToken.uid });
             return;
         }
-        res.json(docToObject(userDoc));
+        // Merge Firestore data with isAdmin check from both sources
+        const userData = docToObject(userDoc);
+        const isAdmin = userData.isAdmin === true || ADMIN_USER_IDS.includes(decodedToken.uid);
+        res.json({ ...userData, isAdmin });
     }
     catch (error) {
-        res.status(401).json({ message: 'Unauthorized', error: error.message });
+        // Return null on error instead of 401
+        console.error('[/auth/user] Error:', error.message);
+        res.json(null);
     }
 });
 app.get('/cart', requireAuth, async (req, res) => {

@@ -1066,7 +1066,8 @@ app.get('/auth/user', async (req: Request, res: Response): Promise<void> => {
   try {
     const decodedToken = await verifyAuth(req);
     if (!decodedToken) {
-      res.status(401).json({ message: 'Unauthorized' });
+      // Return null instead of 401 for unauthenticated requests
+      res.json(null);
       return;
     }
 
@@ -1084,9 +1085,14 @@ app.get('/auth/user', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    res.json(docToObject(userDoc));
+    // Merge Firestore data with isAdmin check from both sources
+    const userData = docToObject(userDoc);
+    const isAdmin = userData.isAdmin === true || ADMIN_USER_IDS.includes(decodedToken.uid);
+    res.json({ ...userData, isAdmin });
   } catch (error: any) {
-    res.status(401).json({ message: 'Unauthorized', error: error.message });
+    // Return null on error instead of 401
+    console.error('[/auth/user] Error:', error.message);
+    res.json(null);
   }
 });
 
