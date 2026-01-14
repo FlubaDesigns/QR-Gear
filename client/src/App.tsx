@@ -72,6 +72,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import LogoPreview from "@/pages/logo-preview";
 import TestImages from "@/pages/test-images";
 import AdminTestImages from "@/pages/admin-test-images";
+import AdminTestUpload from "@/pages/admin-test-upload";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
