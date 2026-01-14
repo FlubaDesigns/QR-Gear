@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
@@ -48,15 +48,20 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     }
   }, [toast, onOpenChange, apiFetch]);
 
-  const handleOpenChange = useCallback((newOpen: boolean) => {
-    if (newOpen && asset) {
+  // Load image when dialog opens (parent controls `open` prop)
+  useEffect(() => {
+    if (open && asset && !cropImageBlobUrl && !cropImageLoading) {
       loadImage(asset);
-    } else if (!newOpen) {
+    }
+    if (!open) {
       setCropImageBlobUrl(null);
       setCrop(undefined);
     }
+  }, [open, asset, cropImageBlobUrl, cropImageLoading, loadImage]);
+
+  const handleOpenChange = useCallback((newOpen: boolean) => {
     onOpenChange(newOpen);
-  }, [asset, loadImage, onOpenChange]);
+  }, [onOpenChange]);
 
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
