@@ -1048,44 +1048,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve background images from Firebase Storage (multiple possible paths) - PUBLIC for now
-  // Uses query parameter to avoid Firebase Hosting URL encoding issues with path slashes
-  app.get("/api/background-files", async (req: any, res) => {
-    try {
-      // Get path from query parameter (avoids Firebase Hosting URL encoding issues)
-      let fullPath = (req.query.path as string) || "";
-      if (!fullPath) {
-        return res.status(400).json({ error: "Missing path parameter" });
-      }
-      
-      // Normalize path: fix common issues
-      fullPath = fullPath.trim().replace(/^\/+/, "");
-      
-      // Fix libraries/ → library/ mismatch (data saved with wrong prefix)
-      if (fullPath.startsWith("libraries/")) {
-        fullPath = fullPath.replace(/^libraries\//, "library/");
-      }
-      // Fix accidental double prefix
-      if (fullPath.startsWith("library/library/")) {
-        fullPath = fullPath.replace(/^library\/library\//, "library/");
-      }
-      
-      console.log(`[BackgroundFiles] Serving (normalized): ${fullPath}`);
-      
-      // Try serving from the exact path provided (folder is '' so it uses fullPath directly)
-      const served = await downloadAndStreamFile(fullPath, res, '', 31536000);
-      if (served) {
-        return;
-      }
-      
-      console.log(`[BackgroundFiles] Not found: ${fullPath}`);
-      return res.status(404).json({ error: "Background file not found" });
-    } catch (error: any) {
-      console.error("Background file serve error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // PUBLIC test endpoint to list images (no auth required)
   app.get("/api/test-images", async (req: any, res) => {
     try {
@@ -1099,10 +1061,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(libraryAssets.isActive, true))
         .limit(20);
       
-      const assetsWithProxy = assets.map(a => ({
-        ...a,
-        proxyUrl: a.publicUrl || `/api/background-files?path=${encodeURIComponent(a.storageUrl)}`
-      }));
+      const assetsWithProxy = assets.map(a => {
+        const filename = (a.storageUrl || '').split('/').pop() || '';
+        return {
+          ...a,
+          proxyUrl: a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`
+        };
+      });
       
       res.json(assetsWithProxy);
     } catch (error: any) {
@@ -3904,10 +3869,13 @@ ${allPages.map(page => `  <url>
       });
       
       // Add proxyUrl to each asset for authenticated frontend display
-      const assetsWithProxy = assets.map(asset => ({
-        ...asset,
-        proxyUrl: asset.storageUrl ? `/api/background-files?path=${encodeURIComponent(asset.storageUrl)}` : null,
-      }));
+      const assetsWithProxy = assets.map(asset => {
+        const filename = (asset.storageUrl || '').split('/').pop() || '';
+        return {
+          ...asset,
+          proxyUrl: asset.storageUrl ? `/api/library-files/${encodeURIComponent(filename)}` : null,
+        };
+      });
       
       res.json(assetsWithProxy);
     } catch (error: any) {
@@ -8670,10 +8638,13 @@ ${allPages.map(page => `  <url>
         .orderBy(libraryAssets.createdAt);
       
       // Map to expected format with proxyUrl
-      const assetsWithProxy = assets.map(asset => ({
-        ...asset,
-        proxyUrl: asset.publicUrl || `/api/background-files?path=${encodeURIComponent(asset.storageUrl)}`
-      }));
+      const assetsWithProxy = assets.map(asset => {
+        const filename = (asset.storageUrl || '').split('/').pop() || '';
+        return {
+          ...asset,
+          proxyUrl: asset.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`
+        };
+      });
       
       res.json(assetsWithProxy);
     } catch (error: any) {
@@ -8890,7 +8861,7 @@ ${allPages.map(page => `  <url>
         
         try {
           const displayName = file.name.replace(/\.[^/.]+$/, '');
-          const proxyUrl = `/api/background-files?path=${encodeURIComponent(file.fullPath)}`;
+          const proxyUrl = `/api/library-files/${encodeURIComponent(file.name)}`;
           
           const [asset] = await db.insert(libraryAssets).values({
             ownerType: 'admin',

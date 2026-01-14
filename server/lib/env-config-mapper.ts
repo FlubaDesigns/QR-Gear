@@ -64,9 +64,10 @@ export function getStorageBasePath(assetType: 'source' | 'cropped' | 'template' 
 }
 
 export function getProxyEndpoint(): string {
-  return '/api/background-files';
+  return '/api/library-files';
 }
 
 export function buildProxyUrl(objectPath: string): string {
-  return `${getProxyEndpoint()}?path=${encodeURIComponent(objectPath)}`;
+  const filename = objectPath.split('/').pop() || objectPath;
+  return `${getProxyEndpoint()}/${encodeURIComponent(filename)}`;
 }

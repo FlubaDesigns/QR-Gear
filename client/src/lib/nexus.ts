@@ -185,18 +185,18 @@ class NexusCore {
     const issues: string[] = [];
     
     try {
-      // Test the background-files endpoint with a dummy path
-      const testUrl = '/api/background-files?path=test';
+      // Test the library-files endpoint with a dummy filename
+      const testUrl = '/api/library-files/test.png';
       const response = await fetch(testUrl, { method: 'HEAD' });
       
       const contentType = response.headers.get('content-type') || '';
       
       if (contentType.includes('text/html')) {
-        issues.push('Firebase returning HTML for /api/background-files - routing broken');
-        this.warn('FIREBASE_HEALTH', 'Background file routing is broken - returns HTML', { url: testUrl });
+        issues.push('Firebase returning HTML for /api/library-files - routing broken');
+        this.warn('FIREBASE_HEALTH', 'Library file routing is broken - returns HTML', { url: testUrl });
       } else if (response.status === 401 || response.status === 400 || response.status === 404) {
         // These are expected responses from the Cloud Function
-        this.info('FIREBASE_HEALTH', 'Background file routing is healthy', { status: response.status });
+        this.info('FIREBASE_HEALTH', 'Library file routing is healthy', { status: response.status });
       }
     } catch (err: any) {
       issues.push(`Firebase health check failed: ${err.message}`);

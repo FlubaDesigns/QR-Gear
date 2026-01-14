@@ -12,7 +12,7 @@
 
 export interface NormalizedStoragePath {
   objectPath: string;        // Bucket-relative path (e.g., "library/backgrounds/raw/image.png")
-  proxyUrl: string;          // Frontend-ready URL (e.g., "/api/background-files?path=...")
+  proxyUrl: string;          // Frontend-ready URL (e.g., "/api/library-files/:filename")
   originalPath: string;      // The original input path
   format: 'gs' | 'storage_googleapis' | 'firebasestorage' | 'raw' | 'unknown';
 }
@@ -68,7 +68,8 @@ export function detectPathFormat(rawPath: string | null | undefined): Normalized
  */
 export function generateProxyUrl(objectPath: string | null | undefined): string | null {
   if (!objectPath) return null;
-  return `/api/background-files?path=${encodeURIComponent(objectPath)}`;
+  const filename = objectPath.split('/').pop() || objectPath;
+  return `/api/library-files/${encodeURIComponent(filename)}`;
 }
 
 /**

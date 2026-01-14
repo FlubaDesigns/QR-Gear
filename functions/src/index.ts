@@ -1,4 +1,4 @@
-// Build timestamp: 2026-01-12T19:00:00Z - Added /background-files route with query param for Firebase URL encoding fix
+// Build timestamp: 2026-01-14T04:50:00Z - Removed /background-files, using /library-files/:filename only
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1572,50 +1572,6 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
   }
 });
 
-// Background files - uses query parameter to avoid Firebase Hosting URL encoding issues
-// No auth required - these are public library assets
-app.get('/background-files', async (req: Request, res: Response): Promise<void> => {
-  try {
-    let filePath = (req.query.path as string) || "";
-    if (!filePath) {
-      res.status(400).json({ error: 'Missing path parameter' });
-      return;
-    }
-    
-    // Normalize path: fix common issues
-    filePath = filePath.trim().replace(/^\/+/, "");
-    
-    // Fix libraries/ → library/ mismatch (data saved with wrong prefix)
-    if (filePath.startsWith("libraries/")) {
-      filePath = filePath.replace(/^libraries\//, "library/");
-    }
-    // Fix accidental double prefix
-    if (filePath.startsWith("library/library/")) {
-      filePath = filePath.replace(/^library\/library\//, "library/");
-    }
-    
-    console.log(`[BackgroundFiles] Serving (normalized): ${filePath}`);
-    const bucket = storage.bucket();
-    const file = bucket.file(filePath);
-    
-    const [exists] = await file.exists();
-    if (!exists) {
-      console.log(`[BackgroundFiles] Not found: ${filePath}`);
-      res.status(404).json({ error: 'Background file not found' });
-      return;
-    }
-
-    const [metadata] = await file.getMetadata();
-    res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-    
-    file.createReadStream().pipe(res);
-  } catch (error: any) {
-    console.error('Background file serve error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // PUBLIC test endpoint - no auth
 app.get('/test-images', async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -3075,7 +3031,8 @@ app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Res
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fullPath}`;
     
     // Save metadata to Firestore libraryAssets collection
-    const proxyUrl = `/api/background-files?path=${encodeURIComponent(fullPath)}`;
+    const fileNameOnly = fullPath.split('/').pop() || name;
+    const proxyUrl = `/api/library-files/${encodeURIComponent(fileNameOnly)}`;
     const docRef = await db.collection('libraryAssets').add({
       ownerType: 'admin',
       assetType: 'background',
@@ -3158,7 +3115,7 @@ app.post('/admin/background-assets/sync', requireAdmin, async (req: Request, res
       
       try {
         const displayName = file.name.replace(/\.[^/.]+$/, '');
-        const proxyUrl = `/api/background-files?path=${encodeURIComponent(file.fullPath)}`;
+        const proxyUrl = `/api/library-files/${encodeURIComponent(file.name)}`;
         
         const docRef = await db.collection('libraryAssets').add({
           ownerType: 'admin',

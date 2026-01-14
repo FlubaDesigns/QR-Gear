@@ -84,7 +84,8 @@ export async function uploadToFirebaseStorage(
   });
 
   // Use the proxy endpoint that works in both dev and production
-  const publicUrl = `/api/background-files?path=${encodeURIComponent(objectName)}`;
+  const filename = objectName.split('/').pop() || objectName;
+  const publicUrl = `/api/library-files/${encodeURIComponent(filename)}`;
 
   console.log(`[FirebaseStorage] Uploaded ${objectName} (${buffer.length} bytes)`);
 
