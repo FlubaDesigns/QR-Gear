@@ -19,7 +19,7 @@ import type { BackgroundAssetWithProxy } from "../shared/types";
 import type { PartnerStore } from "@shared/schema";
 
 export default function LibraryBackgroundsTab() {
-  const { apiBase, apiFetch } = useLibraryContext();
+  const { apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<BackgroundAssetWithProxy | null>(null);
@@ -43,7 +43,7 @@ export default function LibraryBackgroundsTab() {
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
-      const res = await apiFetch(`${apiBase}/admin/background-assets?type=source`);
+      const res = await fetch(`${apiBase}/admin/background-assets?type=source`);
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
@@ -74,7 +74,7 @@ export default function LibraryBackgroundsTab() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiFetch(`${apiBase}/admin/background-assets/${id}`, {
+      const response = await fetch(`${apiBase}/admin/background-assets/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
@@ -102,7 +102,7 @@ export default function LibraryBackgroundsTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiFetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
+      const response = await fetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
       return await response.json();
     },
@@ -275,7 +275,7 @@ export default function LibraryBackgroundsTab() {
         });
         const imageData = await base64Promise;
         
-        const response = await apiFetch(`${apiBase}/admin/background-assets`, {
+        const response = await fetch(`${apiBase}/admin/background-assets`, {
           method: "POST",
           body: JSON.stringify({
             name: formData.name || imageFile.name,

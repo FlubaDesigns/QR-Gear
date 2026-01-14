@@ -17,7 +17,7 @@ interface CropDialogProps {
 }
 
 export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
-  const { apiBase, apiFetch } = useLibraryContext();
+  const { apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
@@ -106,7 +106,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       });
       const imageData = await base64Promise;
       
-      const response = await apiFetch(`${apiBase}/admin/background-assets`, {
+      const response = await fetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
         body: JSON.stringify({
           name: `cropped_${asset.name}`,

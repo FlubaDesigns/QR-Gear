@@ -29,6 +29,4 @@ export interface LibraryContextValue {
     canDelete: boolean;
     canEdit: boolean;
   };
-  // Single fetch function - page decides if it uses auth or not
-  apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }

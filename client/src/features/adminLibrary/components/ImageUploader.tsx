@@ -23,14 +23,14 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ assetType = "source", onUploadComplete }: ImageUploaderProps) {
-  const { apiBase, apiFetch } = useLibraryContext();
+  const { apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, fileName: "" });
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
 
   const uploadImage = async (name: string, base64: string, mimeType: string): Promise<void> => {
-    const response = await apiFetch(`${apiBase}/admin/background-assets`, {
+    const response = await fetch(`${apiBase}/admin/background-assets`, {
       method: "POST",
       body: JSON.stringify({ name, assetType, imageData: base64, mimeType: mimeType || "image/png" }),
     });
