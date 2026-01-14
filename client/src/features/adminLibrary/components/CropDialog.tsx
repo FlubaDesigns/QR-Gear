@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
-import { getAssetImageUrl, type LibraryAssetWithProxy } from "../shared/types";
+import { getImageSrc, fetchImageAsBlob } from "@/lib/imageLoader";
+import type { LibraryAssetWithProxy } from "../shared/types";
 
 interface CropDialogProps {
   asset: LibraryAssetWithProxy | null;
@@ -29,15 +30,11 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     setCropImageBlobUrl(null);
     setCropImageLoading(true);
     try {
-      const imageSrc = getAssetImageUrl(assetToLoad);
+      const imageSrc = getImageSrc(assetToLoad);
       if (!imageSrc) throw new Error("No image URL");
       
-      // Use context's fetch (page decides if auth needed)
-      const response = await apiFetch(imageSrc);
-      if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
-      
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      // Use imageLoader like SmartImage does
+      const blobUrl = await fetchImageAsBlob(imageSrc);
       setCropImageBlobUrl(blobUrl);
     } catch (err) {
       console.error("[CropDialog] Failed to load image:", err);
@@ -46,7 +43,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     } finally {
       setCropImageLoading(false);
     }
-  }, [toast, onOpenChange, apiFetch]);
+  }, [toast, onOpenChange]);
 
   // Load image when dialog opens (parent controls `open` prop)
   useEffect(() => {
