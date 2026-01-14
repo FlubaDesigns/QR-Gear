@@ -12,10 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2, Plus, Pencil, Trash2, FolderOpen, Upload, FileArchive } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
-import { getImageSrc } from "@/lib/imageLoader";
 import { SEASONS, EVENTS } from "../shared/constants";
 import { useLibraryContext } from "../LibraryContext";
-import type { BackgroundAssetWithProxy } from "../shared/types";
+import { getAssetImageUrl, type BackgroundAssetWithProxy } from "../shared/types";
 import type { PartnerStore } from "@shared/schema";
 
 export default function LibraryBackgroundsTab() {
@@ -175,7 +174,7 @@ export default function LibraryBackgroundsTab() {
       visibleStoreSlugs: [],
       visibleSegments: [],
     });
-    setImagePreview(getImageSrc(asset as any));
+    setImagePreview(getAssetImageUrl(asset));
     setIsDialogOpen(true);
   };
 

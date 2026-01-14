@@ -6,9 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
-import { getImageSrc } from "@/lib/imageLoader";
 import { useLibraryContext } from "../LibraryContext";
-import type { LibraryAssetWithProxy } from "../shared/types";
+import { getAssetImageUrl, type LibraryAssetWithProxy } from "../shared/types";
 
 interface CropDialogProps {
   asset: LibraryAssetWithProxy | null;
@@ -30,7 +29,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     setCropImageBlobUrl(null);
     setCropImageLoading(true);
     try {
-      const imageSrc = getImageSrc(assetToLoad);
+      const imageSrc = getAssetImageUrl(assetToLoad);
       if (!imageSrc) throw new Error("No image URL");
       
       // Use authFetch from context for authenticated image loading
