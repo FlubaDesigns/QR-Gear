@@ -30,6 +30,7 @@ export interface LibraryContextValue {
     canEdit: boolean;
   };
   authFetch: (url: string, options?: RequestInit) => Promise<Response>;
+  fetchImage: (url: string) => Promise<Response>;
 }
 
 export function getAssetImageUrl(asset: LibraryAssetWithProxy | null | undefined): string | null {

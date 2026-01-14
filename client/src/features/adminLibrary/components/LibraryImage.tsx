@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { useLibraryContext } from "../LibraryContext";
 import { getAssetImageUrl, type LibraryAssetWithProxy } from "../shared/types";
 
 interface LibraryImageProps {
