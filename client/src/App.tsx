@@ -73,6 +73,7 @@ import LogoPreview from "@/pages/logo-preview";
 import TestImages from "@/pages/test-images";
 import AdminTestImages from "@/pages/admin-test-images";
 import AdminTestUpload from "@/pages/admin-test-upload";
+import TestLibrary from "@/pages/test-library";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -117,6 +118,7 @@ function Router() {
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
       <Route path="/test-images" component={TestImages} />
       <Route path="/test-upload" component={AdminTestUpload} />
+      <Route path="/test-library" component={TestLibrary} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />

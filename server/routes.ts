@@ -1212,6 +1212,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PUBLIC test endpoint for background-assets (mirrors /api/admin/background-assets but no auth)
+  app.get("/api/test/admin/background-assets", async (req: any, res) => {
+    try {
+      const { libraryAssets } = await import("@shared/schema");
+      const typeFilter = (req.query.type as string) || 'source';
+      const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
+      
+      if (!validTypes.includes(typeFilter)) {
+        return res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
+      }
+      
+      const assets = await db.select().from(libraryAssets)
+        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, typeFilter)))
+        .orderBy(libraryAssets.createdAt);
+      
+      const assetsWithProxy = assets.map(asset => {
+        const filename = (asset.storageUrl || '').split('/').pop() || '';
+        return {
+          ...asset,
+          proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+          publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
+        };
+      });
+      
+      res.json(assetsWithProxy);
+    } catch (error: any) {
+      console.error('[TestBackgroundAssets] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PUBLIC test endpoint to upload background assets (no auth)
+  app.post("/api/test/admin/background-assets", async (req: any, res) => {
+    try {
+      const { name, assetType, imageData, mimeType, sourceAssetId, tags } = req.body;
+      
+      console.log("[TestBackgroundAssets] POST request:", { name, assetType, mimeType, dataLength: imageData?.length });
+      
+      if (!name || !assetType || !imageData) {
+        return res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
+      }
+      
+      if (assetType !== 'source' && assetType !== 'cropped') {
+        return res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
+      }
+      
+      const buffer = Buffer.from(imageData, 'base64');
+      const { libraryAssets } = await import("@shared/schema");
+      
+      // Determine folder based on assetType
+      const folder = assetType === 'cropped' ? 'library/backgrounds/cropped' : 'library/backgrounds/raw';
+      const sanitizedName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      
+      const uploadResult = await uploadToFirebaseStorage(
+        buffer,
+        sanitizedName,
+        mimeType || 'image/png',
+        folder
+      );
+      
+      console.log(`[TestBackgroundAssets] Uploaded to: ${uploadResult.storageUrl}`);
+      
+      const proxyUrl = `/api/library-files/${encodeURIComponent(sanitizedName)}`;
+      
+      const [asset] = await db.insert(libraryAssets).values({
+        ownerType: 'admin',
+        assetType: assetType,
+        mediaType: 'image',
+        name: name,
+        fileName: sanitizedName,
+        originalName: name,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: proxyUrl,
+        mimeType: mimeType || 'image/png',
+        sizeBytes: buffer.length,
+        isActive: true,
+        tags: tags || null,
+        sourceAssetId: sourceAssetId || null,
+      }).returning();
+      
+      console.log(`[TestBackgroundAssets] Created asset: ${asset.id}`);
+      
+      return res.json({ 
+        success: true, 
+        asset: { ...asset, proxyUrl }
+      });
+      
+    } catch (error: any) {
+      console.error('[TestBackgroundAssets] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PUBLIC test endpoint to delete background assets (no auth)
+  app.delete("/api/test/admin/background-assets/:id", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { libraryAssets } = await import("@shared/schema");
+      
+      console.log(`[TestBackgroundAssets] DELETE request for id: ${id}`);
+      
+      // Soft delete - set isActive to false
+      await db.update(libraryAssets)
+        .set({ isActive: false })
+        .where(eq(libraryAssets.id, id));
+      
+      res.json({ success: true, message: "Asset deleted" });
+    } catch (error: any) {
+      console.error('[TestBackgroundAssets] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Hosted Images API
   app.post("/api/images/upload", async (req, res) => {
     try {
