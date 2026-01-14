@@ -2649,14 +2649,14 @@ app.post('/admin/background-assets', requireAdmin, async (req, res) => {
         const proxyUrl = `/api/library-files/${encodeURIComponent(fileNameOnly)}`;
         const docRef = await db.collection('libraryAssets').add({
             ownerType: 'admin',
-            assetType: 'background',
+            assetType: assetType, // Use the requested type (source/cropped), not hardcoded
             mediaType: 'image',
             name,
             fileName: fullPath.split('/').pop() || name,
             originalName: name,
             mimeType: mimeType || 'image/png',
             sizeBytes: buffer.length,
-            storageUrl: `gs://${bucket.name}/${fullPath}`,
+            storageUrl: fullPath, // Relative path without gs:// prefix
             publicUrl: proxyUrl,
             sourceAssetId: sourceAssetId || null,
             cropData: cropData || null,
