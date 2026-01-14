@@ -2597,7 +2597,7 @@ app.get('/admin/background-assets', requireAdmin, async (req, res) => {
             return data;
         });
         const assets = allDocs
-            .filter(data => data.isActive === true && data.assetType === 'background')
+            .filter(data => data.isActive === true && data.assetType === 'source')
             .sort((a, b) => {
             const aTime = a.createdAt?.toMillis?.() || 0;
             const bTime = b.createdAt?.toMillis?.() || 0;
@@ -2718,7 +2718,7 @@ app.post('/admin/background-assets/sync', requireAdmin, async (req, res) => {
         const existingSnapshot = await db.collection('libraryAssets').get();
         const existingPaths = new Set(existingSnapshot.docs
             .map(d => d.data())
-            .filter(data => data.isActive === true && data.assetType === 'background')
+            .filter(data => data.isActive === true && data.assetType === 'source')
             .map(data => data.storageUrl));
         // Find files that don't have database records
         const newFiles = storageFiles.filter(f => !existingPaths.has(`gs://${bucket.name}/${f.fullPath}`));

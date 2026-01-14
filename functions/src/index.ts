@@ -2993,7 +2993,7 @@ app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Resp
     });
     
     const assets = allDocs
-      .filter(data => data.isActive === true && data.assetType === 'background')
+      .filter(data => data.isActive === true && data.assetType === 'source')
       .sort((a, b) => {
         const aTime = a.createdAt?.toMillis?.() || 0;
         const bTime = b.createdAt?.toMillis?.() || 0;
@@ -3127,7 +3127,7 @@ app.post('/admin/background-assets/sync', requireAdmin, async (req: Request, res
     const existingPaths = new Set(
       existingSnapshot.docs
         .map(d => d.data())
-        .filter(data => data.isActive === true && data.assetType === 'background')
+        .filter(data => data.isActive === true && data.assetType === 'source')
         .map(data => data.storageUrl)
     );
     
