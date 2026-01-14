@@ -1086,6 +1086,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PUBLIC test endpoint to list images (no auth required)
+  app.get("/api/test-images", async (req: any, res) => {
+    try {
+      const { libraryAssets } = await import("@shared/schema");
+      const assets = await db.select({
+        id: libraryAssets.id,
+        name: libraryAssets.name,
+        publicUrl: libraryAssets.publicUrl,
+        storageUrl: libraryAssets.storageUrl,
+      }).from(libraryAssets)
+        .where(eq(libraryAssets.isActive, true))
+        .limit(20);
+      
+      const assetsWithProxy = assets.map(a => ({
+        ...a,
+        proxyUrl: a.publicUrl || `/api/background-files?path=${encodeURIComponent(a.storageUrl)}`
+      }));
+      
+      res.json(assetsWithProxy);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Hosted Images API
   app.post("/api/images/upload", async (req, res) => {
     try {

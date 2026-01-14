@@ -70,6 +70,7 @@ import BusinessAnalyticsQR from "@/pages/business-analytics-qr";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 import LogoPreview from "@/pages/logo-preview";
+import TestImages from "@/pages/test-images";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -111,6 +112,7 @@ function Router() {
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
+      <Route path="/test-images" component={TestImages} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />
