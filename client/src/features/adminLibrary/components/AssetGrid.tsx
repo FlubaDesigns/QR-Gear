@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FolderOpen, Trash2, Pencil, Crop as CropIcon } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
-import type { BackgroundAssetWithProxy } from "../shared/types";
+import type { LibraryAssetWithProxy } from "../shared/types";
 
 export type AssetAction = "edit" | "delete" | "crop";
 
 interface AssetGridProps {
-  assets: BackgroundAssetWithProxy[];
+  assets: LibraryAssetWithProxy[];
   isLoading: boolean;
   emptyIcon?: React.ReactNode;
   emptyMessage?: string;
@@ -18,9 +18,9 @@ interface AssetGridProps {
   showStatus?: boolean;
   showDimensions?: boolean;
   actions?: AssetAction[];
-  onEdit?: (asset: BackgroundAssetWithProxy) => void;
-  onDelete?: (asset: BackgroundAssetWithProxy) => void;
-  onCrop?: (asset: BackgroundAssetWithProxy) => void;
+  onEdit?: (asset: LibraryAssetWithProxy) => void;
+  onDelete?: (asset: LibraryAssetWithProxy) => void;
+  onCrop?: (asset: LibraryAssetWithProxy) => void;
   gridCols?: string;
 }
 

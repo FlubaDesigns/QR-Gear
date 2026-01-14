@@ -7,15 +7,15 @@ import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
 import { ImageUploader } from "../components/ImageUploader";
 import { CropDialog } from "../components/CropDialog";
-import type { BackgroundAssetWithProxy } from "../shared/types";
+import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function SourceImagesTab() {
   const { apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [imageToCrop, setImageToCrop] = useState<BackgroundAssetWithProxy | null>(null);
+  const [imageToCrop, setImageToCrop] = useState<LibraryAssetWithProxy | null>(null);
 
-  const { data: assets = [], isLoading, refetch } = useQuery<BackgroundAssetWithProxy[]>({
+  const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
       const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=source`);
@@ -40,7 +40,7 @@ export default function SourceImagesTab() {
     },
   });
 
-  const handleOpenCrop = (asset: BackgroundAssetWithProxy) => {
+  const handleOpenCrop = (asset: LibraryAssetWithProxy) => {
     setImageToCrop(asset);
     setCropDialogOpen(true);
   };

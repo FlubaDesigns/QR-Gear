@@ -8632,15 +8632,23 @@ ${allPages.map(page => `  <url>
     try {
       const { libraryAssets } = await import("@shared/schema");
       
-      // Query library_assets where assetType = 'background'
+      // Get type filter from query param, default to 'source' for backwards compat
+      const typeFilter = (req.query.type as string) || 'source';
+      const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
+      
+      if (!validTypes.includes(typeFilter)) {
+        return res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
+      }
+      
+      // Query library_assets filtered by assetType
       const assets = await db.select().from(libraryAssets)
-        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, 'background')))
+        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, typeFilter)))
         .orderBy(libraryAssets.createdAt);
       
       // Map to expected format with proxyUrl
       const assetsWithProxy = assets.map(asset => ({
         ...asset,
-        proxyUrl: asset.publicUrl // publicUrl already has the proxy path
+        proxyUrl: asset.publicUrl || `/api/background-files?path=${encodeURIComponent(asset.storageUrl)}`
       }));
       
       res.json(assetsWithProxy);

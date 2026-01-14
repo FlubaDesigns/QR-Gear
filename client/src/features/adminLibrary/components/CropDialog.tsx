@@ -9,10 +9,10 @@ import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { getImageSrc, fetchImageAsBlob } from "@/lib/imageLoader";
 import { useLibraryContext } from "../LibraryContext";
-import type { BackgroundAssetWithProxy } from "../shared/types";
+import type { LibraryAssetWithProxy } from "../shared/types";
 
 interface CropDialogProps {
-  asset: BackgroundAssetWithProxy | null;
+  asset: LibraryAssetWithProxy | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -26,7 +26,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
   const cropImgRef = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<Crop | undefined>();
 
-  const loadImage = useCallback(async (assetToLoad: BackgroundAssetWithProxy) => {
+  const loadImage = useCallback(async (assetToLoad: LibraryAssetWithProxy) => {
     setCrop(undefined);
     setCropImageBlobUrl(null);
     setCropImageLoading(true);

@@ -1,17 +1,16 @@
-import type { BackgroundAsset, LibraryAsset, CustomDesign } from "@shared/schema";
+import type { libraryAssets } from "@shared/schema";
 
 export type AssetType =
-  | "raw"
   | "source"
-  | "zip"
   | "cropped"
+  | "background"
   | "template"
   | "design"
-  | "background"
-  | "video"
   | "unknown";
 
-export type BackgroundAssetWithProxy = BackgroundAsset & { proxyUrl: string | null };
+export type LibraryAsset = typeof libraryAssets.$inferSelect;
+
+export type LibraryAssetWithProxy = LibraryAsset & { proxyUrl: string | null };
 
 export interface LibraryContextValue {
   storeId: string | null;
@@ -27,5 +26,3 @@ export interface LibraryContextValue {
     canEdit: boolean;
   };
 }
-
-export type { BackgroundAsset, LibraryAsset, CustomDesign };

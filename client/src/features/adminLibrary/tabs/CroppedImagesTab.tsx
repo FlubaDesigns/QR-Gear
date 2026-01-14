@@ -5,13 +5,13 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Crop as CropIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
-import type { BackgroundAssetWithProxy } from "../shared/types";
+import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function CroppedImagesTab() {
   const { apiBase } = useLibraryContext();
   const { toast } = useToast();
 
-  const { data: assets = [], isLoading, refetch } = useQuery<BackgroundAssetWithProxy[]>({
+  const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "cropped"],
     queryFn: async () => {
       const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=cropped`);
