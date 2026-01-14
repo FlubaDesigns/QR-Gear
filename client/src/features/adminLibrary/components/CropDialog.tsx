@@ -83,14 +83,28 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
         toast({ title: "Failed to generate cropped image", variant: "destructive" });
         return;
       }
-      const formData = new FormData();
-      formData.append("file", blob, `cropped_${asset.name}`);
-      formData.append("name", `cropped_${asset.name}`);
-      formData.append("assetType", "cropped");
-      formData.append("sourceAssetId", asset.id);
+      // Convert blob to base64 for JSON upload (server expects base64, not FormData)
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const imageData = await base64Promise;
+      
       const response = await authFetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
-        body: formData,
+        body: JSON.stringify({
+          name: `cropped_${asset.name}`,
+          assetType: "cropped",
+          imageData,
+          mimeType: "image/jpeg",
+          sourceAssetId: asset.id,
+        }),
       });
       if (!response.ok) {
         const err = await response.json();
