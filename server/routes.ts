@@ -8638,12 +8638,13 @@ ${allPages.map(page => `  <url>
         .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, typeFilter)))
         .orderBy(libraryAssets.createdAt);
       
-      // Map to expected format with proxyUrl
+      // Map to expected format with proxyUrl - ALWAYS generate from storageUrl
       const assetsWithProxy = assets.map(asset => {
         const filename = (asset.storageUrl || '').split('/').pop() || '';
         return {
           ...asset,
-          proxyUrl: asset.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`
+          proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+          publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
         };
       });
       
