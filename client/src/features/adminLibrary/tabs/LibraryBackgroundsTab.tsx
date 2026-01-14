@@ -140,6 +140,7 @@ export default function LibraryBackgroundsTab() {
     });
     setImageFile(null);
     setImagePreview(null);
+    setIsZipFile(false);
   };
 
   const handleOpenCreate = () => {
@@ -157,6 +158,7 @@ export default function LibraryBackgroundsTab() {
     });
     setImageFile(null);
     setImagePreview(null);
+    setIsZipFile(false);
     setIsDialogOpen(true);
   };
 
@@ -198,21 +200,33 @@ export default function LibraryBackgroundsTab() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith("image/")) {
+      const isZip = file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip");
+      
+      if (!isZip && !file.type.startsWith("image/")) {
         toast({ 
           title: "Invalid File Type", 
-          description: "Please select an image file (PNG, JPG, etc.).", 
+          description: "Please select an image file (PNG, JPG) or a ZIP archive.", 
           variant: "destructive",
           duration: 4000,
         });
         return;
       }
+      
       setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      setIsZipFile(isZip);
+      
+      if (isZip) {
+        setImagePreview(null);
+        if (!formData.name) {
+          setFormData(prev => ({ ...prev, name: file.name.replace(/\.zip$/i, "") }));
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImagePreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -429,22 +443,35 @@ export default function LibraryBackgroundsTab() {
           <CardContent className="space-y-6">
             {!editingAsset && (
               <div className="space-y-3">
-                <Label htmlFor="library-bg-image" className="text-base font-medium">Background Image</Label>
+                <Label htmlFor="library-bg-image" className="text-base font-medium">Background Image or ZIP</Label>
                 {imagePreview && (
                   <div className="aspect-video max-w-md rounded-lg overflow-hidden border-2 border-border">
                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
+                {isZipFile && imageFile && (
+                  <div className="flex items-center gap-3 p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 max-w-md">
+                    <FileArchive className="h-10 w-10 text-primary" />
+                    <div>
+                      <p className="font-medium">{imageFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        ZIP file - images will be extracted on upload
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <Input
                   id="library-bg-image"
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.zip,application/zip,application/x-zip-compressed"
                   onChange={handleImageChange}
                   className="h-12 text-base"
-                  title="Recommended: 4500 × 5400 px (portrait), 300 DPI for best print quality"
+                  title="Upload images or a ZIP archive containing multiple images"
                   data-testid="input-library-bg-image"
                 />
-                <p className="text-sm text-muted-foreground">Print: 4500×5400px, 300 DPI, PNG, transparent bg, RGB</p>
+                <p className="text-sm text-muted-foreground">
+                  Single image (4500×5400px, PNG) or ZIP file with multiple images
+                </p>
               </div>
             )}
 
