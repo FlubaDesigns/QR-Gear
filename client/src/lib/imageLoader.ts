@@ -50,18 +50,19 @@ export function normalizeImageUrl(url: string | null | undefined): string {
   if (isValidUrl(url)) return url;
 
   if (looksLikeStoragePath(url)) {
-    // Normalize path: fix libraries/ → library/ mismatch
+    // Extract just the filename for library-files endpoint
     let normalizedPath = url.trim().replace(/^\/+/, "");
     
-    // Fix common path issues
-    if (normalizedPath.startsWith("libraries/")) {
-      normalizedPath = normalizedPath.replace(/^libraries\//, "library/");
-    }
-    if (normalizedPath.startsWith("library/library/")) {
-      normalizedPath = normalizedPath.replace(/^library\/library\//, "library/");
+    // Strip gs:// prefix if present
+    if (normalizedPath.startsWith("gs://")) {
+      const parts = normalizedPath.split("/");
+      normalizedPath = parts.slice(2).join("/"); // Remove gs://bucket-name
     }
     
-    return `/api/background-files?path=${encodeURIComponent(normalizedPath)}`;
+    // Get just the filename
+    const filename = normalizedPath.split("/").pop() || normalizedPath;
+    
+    return `/api/library-files/${encodeURIComponent(filename)}`;
   }
 
   return url;
@@ -166,7 +167,7 @@ export function isPublicUrl(url: string): boolean {
 
 export function isProxyUrl(url: string): boolean {
   if (!url) return false;
-  // Note: /api/background-files and /api/files are PUBLIC endpoints (no auth required)
+  // Note: /api/library-files and /api/files are PUBLIC endpoints (no auth required)
   // Only /api/admin/ endpoints require authentication
   return url.includes("/api/admin/");
 }

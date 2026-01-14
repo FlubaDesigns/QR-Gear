@@ -1343,6 +1343,22 @@ app.get('/background-files', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// PUBLIC test endpoint - no auth
+app.get('/test-images', async (_req, res) => {
+    try {
+        const snapshot = await db.collection('libraryAssets').where('isActive', '==', true).limit(20).get();
+        const assets = snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+            publicUrl: doc.data().publicUrl,
+            storageUrl: doc.data().storageUrl
+        }));
+        res.json(assets);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/admin/settings', requireAdmin, async (_req, res) => {
     try {
         const doc = await db.collection('settings').doc('admin').get();
