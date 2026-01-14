@@ -43,7 +43,12 @@ export default function LibraryBackgroundsTab() {
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=source`);
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`${apiBase}/admin/background-assets?type=source`, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
     staleTime: 0,
