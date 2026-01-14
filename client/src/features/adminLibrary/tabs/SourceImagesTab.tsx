@@ -10,7 +10,7 @@ import { CropDialog } from "../components/CropDialog";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function SourceImagesTab() {
-  const { apiBase, authFetch } = useLibraryContext();
+  const { apiBase, apiFetch } = useLibraryContext();
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<LibraryAssetWithProxy | null>(null);
@@ -18,7 +18,7 @@ export default function SourceImagesTab() {
   const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
-      const res = await authFetch(`${apiBase}/admin/background-assets?type=source`);
+      const res = await apiFetch(`${apiBase}/admin/background-assets?type=source`);
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
@@ -30,7 +30,7 @@ export default function SourceImagesTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await authFetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
     },
     onSuccess: () => {

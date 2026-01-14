@@ -29,8 +29,8 @@ export interface LibraryContextValue {
     canDelete: boolean;
     canEdit: boolean;
   };
-  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
-  fetchImage: (url: string) => Promise<Response>;
+  // Single fetch function - page decides if it uses auth or not
+  apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 export function getAssetImageUrl(asset: LibraryAssetWithProxy | null | undefined): string | null {

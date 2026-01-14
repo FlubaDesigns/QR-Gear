@@ -16,7 +16,7 @@ interface CropDialogProps {
 }
 
 export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
-  const { apiBase, authFetch } = useLibraryContext();
+  const { apiBase, apiFetch } = useLibraryContext();
   const { toast } = useToast();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
@@ -32,8 +32,8 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       const imageSrc = getAssetImageUrl(assetToLoad);
       if (!imageSrc) throw new Error("No image URL");
       
-      // Images are served from public endpoints - no auth needed
-      const response = await fetch(imageSrc);
+      // Use context's fetch (page decides if auth needed)
+      const response = await apiFetch(imageSrc);
       if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
       
       const blob = await response.blob();
@@ -46,7 +46,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     } finally {
       setCropImageLoading(false);
     }
-  }, [toast, onOpenChange]);
+  }, [toast, onOpenChange, apiFetch]);
 
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (newOpen && asset) {
@@ -104,7 +104,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       });
       const imageData = await base64Promise;
       
-      const response = await authFetch(`${apiBase}/admin/background-assets`, {
+      const response = await apiFetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
         body: JSON.stringify({
           name: `cropped_${asset.name}`,

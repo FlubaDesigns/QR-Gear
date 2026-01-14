@@ -1,23 +1,9 @@
-import { createContext, useContext, useMemo, useCallback } from "react";
-import { auth } from "@/lib/firebase";
+import { createContext, useContext, useMemo } from "react";
 import type { LibraryContextValue } from "./shared/types";
 
-// Authenticated fetch that includes Firebase token (for admin API calls)
-async function createAuthFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = await auth.currentUser?.getIdToken();
-  const headers = new Headers(options.headers);
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
-  return fetch(url, { ...options, headers });
-}
-
-// Plain fetch for public image loading (no auth needed)
-function createFetchImage(url: string): Promise<Response> {
-  return fetch(url);
+// Default plain fetch (no auth)
+function plainFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  return fetch(url, options);
 }
 
 const defaultContext: LibraryContextValue = {
@@ -33,8 +19,7 @@ const defaultContext: LibraryContextValue = {
     canDelete: true,
     canEdit: true,
   },
-  authFetch: createAuthFetch,
-  fetchImage: createFetchImage,
+  apiFetch: plainFetch,
 };
 
 const LibraryContext = createContext<LibraryContextValue>(defaultContext);
@@ -45,6 +30,8 @@ interface LibraryProviderProps {
   apiBase?: string;
   storageRoots?: Partial<LibraryContextValue["storageRoots"]>;
   permissions?: Partial<LibraryContextValue["permissions"]>;
+  // Page provides its own fetch function (with or without auth)
+  apiFetch?: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 export function LibraryProvider({
@@ -53,6 +40,7 @@ export function LibraryProvider({
   apiBase,
   storageRoots,
   permissions,
+  apiFetch,
 }: LibraryProviderProps) {
   const value = useMemo<LibraryContextValue>(() => ({
     storeId: storeId ?? null,
@@ -65,9 +53,8 @@ export function LibraryProvider({
       ...defaultContext.permissions,
       ...permissions,
     },
-    authFetch: createAuthFetch,
-    fetchImage: createFetchImage,
-  }), [storeId, apiBase, storageRoots, permissions]);
+    apiFetch: apiFetch ?? plainFetch,
+  }), [storeId, apiBase, storageRoots, permissions, apiFetch]);
 
   return (
     <LibraryContext.Provider value={value}>

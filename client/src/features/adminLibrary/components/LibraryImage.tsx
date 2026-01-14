@@ -24,6 +24,7 @@ export function LibraryImage({
   onError,
   showErrorState = true,
 }: LibraryImageProps) {
+  const { apiFetch } = useLibraryContext();
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -41,8 +42,8 @@ export function LibraryImage({
     setError(null);
 
     try {
-      // Images are served from public endpoints - no auth needed
-      const response = await fetch(resolvedSrc);
+      // Use context's fetch - page decides if auth needed
+      const response = await apiFetch(resolvedSrc);
       if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
       
       const blob = await response.blob();
@@ -56,7 +57,7 @@ export function LibraryImage({
       setLoading(false);
       onError?.(err);
     }
-  }, [resolvedSrc, onLoad, onError]);
+  }, [resolvedSrc, onLoad, onError, apiFetch]);
 
   useEffect(() => {
     loadImage();

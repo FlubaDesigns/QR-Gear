@@ -8,13 +8,13 @@ import { AssetGrid } from "../components/AssetGrid";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function CroppedImagesTab() {
-  const { apiBase, authFetch } = useLibraryContext();
+  const { apiBase, apiFetch } = useLibraryContext();
   const { toast } = useToast();
 
   const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "cropped"],
     queryFn: async () => {
-      const res = await authFetch(`${apiBase}/admin/background-assets?type=cropped`);
+      const res = await apiFetch(`${apiBase}/admin/background-assets?type=cropped`);
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
@@ -28,7 +28,7 @@ export default function CroppedImagesTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await authFetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
     },
     onSuccess: () => {
