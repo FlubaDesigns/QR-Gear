@@ -116,6 +116,7 @@ function Router() {
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
       <Route path="/test-images" component={TestImages} />
+      <Route path="/test-upload" component={AdminTestUpload} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />
