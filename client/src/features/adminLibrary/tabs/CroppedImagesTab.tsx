@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Crop as CropIcon } from "lucide-react";
@@ -14,7 +15,12 @@ export default function CroppedImagesTab() {
   const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "cropped"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=cropped`);
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`${apiBase}/admin/background-assets?type=cropped`, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
     staleTime: 0,

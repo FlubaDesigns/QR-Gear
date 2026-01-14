@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ImagePlus } from "lucide-react";
@@ -18,7 +19,12 @@ export default function SourceImagesTab() {
   const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `${apiBase}/admin/background-assets?type=source`);
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`${apiBase}/admin/background-assets?type=source`, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
     staleTime: 0,
