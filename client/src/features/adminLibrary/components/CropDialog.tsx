@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
-import { getImageSrc, fetchImageAsBlob } from "@/lib/imageLoader";
+import { getImageSrc } from "@/lib/imageLoader";
 import { useLibraryContext } from "../LibraryContext";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
@@ -30,15 +30,24 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     setCropImageBlobUrl(null);
     setCropImageLoading(true);
     try {
-      const url = await fetchImageAsBlob(getImageSrc(assetToLoad));
-      setCropImageBlobUrl(url);
-    } catch {
+      const imageSrc = getImageSrc(assetToLoad);
+      if (!imageSrc) throw new Error("No image URL");
+      
+      // Use authFetch from context for authenticated image loading
+      const response = await authFetch(imageSrc);
+      if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setCropImageBlobUrl(blobUrl);
+    } catch (err) {
+      console.error("[CropDialog] Failed to load image:", err);
       toast({ title: "Failed to load image", variant: "destructive" });
       onOpenChange(false);
     } finally {
       setCropImageLoading(false);
     }
-  }, [toast, onOpenChange]);
+  }, [toast, onOpenChange, authFetch]);
 
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (newOpen && asset) {
