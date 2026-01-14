@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { Loader2, Plus, Pencil, Trash2, FolderOpen, Upload, FileArchive } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
 import { getImageSrc } from "@/lib/imageLoader";
@@ -20,7 +19,7 @@ import type { BackgroundAssetWithProxy } from "../shared/types";
 import type { PartnerStore } from "@shared/schema";
 
 export default function LibraryBackgroundsTab() {
-  const { apiBase } = useLibraryContext();
+  const { apiBase, authFetch } = useLibraryContext();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<BackgroundAssetWithProxy | null>(null);
@@ -44,11 +43,7 @@ export default function LibraryBackgroundsTab() {
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "source"],
     queryFn: async () => {
-      const token = await auth.currentUser?.getIdToken();
-      const res = await fetch(`${apiBase}/admin/background-assets?type=source`, {
-        headers: token ? { "Authorization": `Bearer ${token}` } : {},
-        credentials: "include",
-      });
+      const res = await authFetch(`${apiBase}/admin/background-assets?type=source`);
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
@@ -79,7 +74,11 @@ export default function LibraryBackgroundsTab() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PUT", `${apiBase}/admin/background-assets/${id}`, data);
+      const response = await authFetch(`${apiBase}/admin/background-assets/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(`Update failed: ${response.status}`);
       return await response.json();
     },
     onSuccess: () => {
@@ -103,7 +102,8 @@ export default function LibraryBackgroundsTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `${apiBase}/admin/background-assets/${id}`, {});
+      const response = await authFetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
       return await response.json();
     },
     onSuccess: () => {
@@ -274,10 +274,8 @@ export default function LibraryBackgroundsTab() {
           reader.readAsDataURL(imageFile);
         });
         const imageData = await base64Promise;
-
-        const token = await auth.currentUser?.getIdToken();
         
-        const response = await fetch(`${apiBase}/admin/background-assets`, {
+        const response = await authFetch(`${apiBase}/admin/background-assets`, {
           method: "POST",
           body: JSON.stringify({
             name: formData.name || imageFile.name,
@@ -286,11 +284,6 @@ export default function LibraryBackgroundsTab() {
             mimeType: imageFile.type,
             tags: formData.category ? [formData.category] : null,
           }),
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-          },
         });
 
         if (!response.ok) {

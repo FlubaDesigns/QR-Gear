@@ -29,4 +29,5 @@ export interface LibraryContextValue {
     canDelete: boolean;
     canEdit: boolean;
   };
+  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }

@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
-import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +17,7 @@ interface CropDialogProps {
 }
 
 export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
-  const { apiBase } = useLibraryContext();
+  const { apiBase, authFetch } = useLibraryContext();
   const { toast } = useToast();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
@@ -89,10 +88,8 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       formData.append("name", `cropped_${asset.name}`);
       formData.append("assetType", "cropped");
       formData.append("sourceAssetId", asset.id);
-      const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(`${apiBase}/admin/background-assets`, {
+      const response = await authFetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
       if (!response.ok) {

@@ -1,5 +1,20 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useCallback } from "react";
+import { auth } from "@/lib/firebase";
 import type { LibraryContextValue } from "./shared/types";
+
+// Authenticated fetch that includes Firebase token
+async function createAuthFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = await auth.currentUser?.getIdToken();
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  // Only set Content-Type for non-FormData bodies (FormData sets its own boundary)
+  if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  return fetch(url, { ...options, headers });
+}
 
 const defaultContext: LibraryContextValue = {
   storeId: null,
@@ -14,6 +29,7 @@ const defaultContext: LibraryContextValue = {
     canDelete: true,
     canEdit: true,
   },
+  authFetch: createAuthFetch,
 };
 
 const LibraryContext = createContext<LibraryContextValue>(defaultContext);
@@ -44,6 +60,7 @@ export function LibraryProvider({
       ...defaultContext.permissions,
       ...permissions,
     },
+    authFetch: createAuthFetch,
   }), [storeId, apiBase, storageRoots, permissions]);
 
   return (

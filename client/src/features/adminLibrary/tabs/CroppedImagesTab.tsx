@@ -1,25 +1,20 @@
 import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { Crop as CropIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function CroppedImagesTab() {
-  const { apiBase } = useLibraryContext();
+  const { apiBase, authFetch } = useLibraryContext();
   const { toast } = useToast();
 
   const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: [`${apiBase}/admin/background-assets`, "cropped"],
     queryFn: async () => {
-      const token = await auth.currentUser?.getIdToken();
-      const res = await fetch(`${apiBase}/admin/background-assets?type=cropped`, {
-        headers: token ? { "Authorization": `Bearer ${token}` } : {},
-        credentials: "include",
-      });
+      const res = await authFetch(`${apiBase}/admin/background-assets?type=cropped`);
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       return res.json();
     },
@@ -33,7 +28,8 @@ export default function CroppedImagesTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `${apiBase}/admin/background-assets/${id}`);
+      const res = await authFetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
     },
     onSuccess: () => {
       toast({ title: "Image deleted" });

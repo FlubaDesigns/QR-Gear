@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Nexus } from "@/lib/nexus";
-import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,17 +23,15 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ assetType = "source", onUploadComplete }: ImageUploaderProps) {
-  const { apiBase } = useLibraryContext();
+  const { apiBase, authFetch } = useLibraryContext();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, fileName: "" });
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
 
   const uploadImage = async (name: string, base64: string, mimeType: string): Promise<void> => {
-    const token = await auth.currentUser?.getIdToken();
-    const response = await fetch(`${apiBase}/admin/background-assets`, {
+    const response = await authFetch(`${apiBase}/admin/background-assets`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ name, assetType, imageData: base64, mimeType: mimeType || "image/png" }),
     });
     if (!response.ok) throw new Error(`Server error ${response.status}`);
