@@ -1,19 +1,15 @@
-import { useState, useEffect } from "react";
-import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, Check, X, RefreshCw } from "lucide-react";
+import { Loader2, Upload, Check, X, RefreshCw, FileArchive } from "lucide-react";
 
 export default function AdminTestUpload() {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [logs, setLogs] = useState<string[]>([]);
 
   const addLog = (msg: string) => {
@@ -22,23 +18,14 @@ export default function AdminTestUpload() {
     console.log(`[TestUpload] ${msg}`);
   };
 
-  useEffect(() => {
-    addLog("Setting up auth listener...");
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setAuthLoading(false);
-      addLog(firebaseUser ? `Auth ready: ${firebaseUser.email}` : "Auth ready: No user");
-    });
-    return () => unsubscribe();
-  }, []);
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setResult(null);
       setError(null);
-      addLog(`File selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+      const isZip = file.type === 'application/zip' || file.name.endsWith('.zip');
+      addLog(`File selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB) ${isZip ? '[ZIP]' : '[IMAGE]'}`);
     }
   };
 
@@ -50,15 +37,7 @@ export default function AdminTestUpload() {
     setResult(null);
 
     try {
-      addLog("Starting upload...");
-      
-      if (!user) {
-        throw new Error("Not logged in - please log in first");
-      }
-
-      addLog("Getting Firebase token...");
-      const token = await user.getIdToken();
-      addLog(`Token received: ${token ? token.substring(0, 20) + "..." : "NONE"}`);
+      addLog("Starting upload (no auth required)...");
 
       addLog("Converting file to base64...");
       const reader = new FileReader();
@@ -79,13 +58,12 @@ export default function AdminTestUpload() {
         mimeType: selectedFile.type || "image/png",
       };
 
-      addLog("Sending POST to /api/admin/background-assets...");
+      addLog("Sending POST to /api/test-upload...");
 
-      const response = await fetch("/api/admin/background-assets", {
+      const response = await fetch("/api/test-upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify(body),
       });
@@ -93,7 +71,7 @@ export default function AdminTestUpload() {
       addLog(`Response status: ${response.status}`);
 
       const data = await response.json();
-      addLog(`Response: ${JSON.stringify(data).substring(0, 100)}...`);
+      addLog(`Response: ${JSON.stringify(data).substring(0, 200)}...`);
 
       if (!response.ok) {
         throw new Error(data.error || data.message || `Server error ${response.status}`);
@@ -112,31 +90,11 @@ export default function AdminTestUpload() {
 
   const clearLogs = () => setLogs([]);
 
+  const isZip = selectedFile?.type === 'application/zip' || selectedFile?.name.endsWith('.zip');
+
   return (
     <div className="container max-w-2xl py-8">
-      <h1 className="text-2xl font-bold mb-6">Test Upload Page</h1>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Auth Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {authLoading ? (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Checking auth...</span>
-            </div>
-          ) : user ? (
-            <div className="space-y-1 text-sm">
-              <p className="text-green-600 font-medium">Logged in</p>
-              <p><strong>Email:</strong> {user.email}</p>
-              <p><strong>UID:</strong> {user.uid}</p>
-            </div>
-          ) : (
-            <p className="text-destructive">Not logged in - go to /login first</p>
-          )}
-        </CardContent>
-      </Card>
+      <h1 className="text-2xl font-bold mb-6">Test Upload Page (No Auth)</h1>
 
       <Card className="mb-6">
         <CardHeader>
@@ -147,30 +105,37 @@ export default function AdminTestUpload() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="test-file">Select Image</Label>
+            <Label htmlFor="test-file">Select Image or ZIP</Label>
             <Input
               id="test-file"
               type="file"
-              accept="image/*"
+              accept="image/*,.zip"
               onChange={handleFileSelect}
-              disabled={uploading || !user}
+              disabled={uploading}
               className="h-12"
               data-testid="input-test-file"
             />
           </div>
 
           {selectedFile && (
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="font-medium">{selectedFile.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {selectedFile.type} - {(selectedFile.size / 1024).toFixed(1)} KB
-              </p>
+            <div className="p-3 bg-muted rounded-lg flex items-center gap-3">
+              {isZip ? (
+                <FileArchive className="h-6 w-6 text-blue-500" />
+              ) : (
+                <Upload className="h-6 w-6 text-green-500" />
+              )}
+              <div>
+                <p className="font-medium">{selectedFile.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedFile.type || 'unknown'} - {(selectedFile.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
             </div>
           )}
 
           <Button
             onClick={handleUpload}
-            disabled={!selectedFile || uploading || !user}
+            disabled={!selectedFile || uploading}
             className="w-full"
             data-testid="button-upload"
           >
@@ -182,7 +147,7 @@ export default function AdminTestUpload() {
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Upload
+                Upload {isZip ? 'ZIP' : 'Image'}
               </>
             )}
           </Button>

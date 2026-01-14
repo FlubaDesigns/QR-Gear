@@ -1048,6 +1048,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PUBLIC test endpoint for upload (no auth - for testing only)
+  app.post("/api/test-upload", async (req: any, res) => {
+    try {
+      const { name, assetType, imageData, mimeType } = req.body;
+      
+      console.log("[TestUpload] Received request:", { name, assetType, mimeType, dataLength: imageData?.length });
+      
+      if (!name || !assetType || !imageData) {
+        return res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
+      }
+      
+      if (assetType !== 'source' && assetType !== 'cropped') {
+        return res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
+      }
+      
+      const buffer = Buffer.from(imageData, 'base64');
+      const isZip = mimeType === 'application/zip' || mimeType === 'application/x-zip-compressed';
+      const { libraryAssets } = await import("@shared/schema");
+      
+      // Handle ZIP file
+      if (isZip) {
+        console.log(`[TestUpload] Processing ZIP file: ${name}`);
+        
+        // 1. Save original zip to library/backgrounds/zip/
+        const zipFileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const zipUploadResult = await uploadToFirebaseStorage(
+          buffer,
+          zipFileName,
+          mimeType,
+          'library/backgrounds/zip'
+        );
+        console.log(`[TestUpload] Saved ZIP to: ${zipUploadResult.storageUrl}`);
+        
+        // 2. Extract and upload each image to library/backgrounds/raw/
+        const JSZip = (await import('jszip')).default;
+        const zip = await JSZip.loadAsync(buffer);
+        
+        const uploadedAssets: any[] = [];
+        let imageCount = 0;
+        
+        for (const [filename, entry] of Object.entries(zip.files)) {
+          if (entry.dir) continue;
+          
+          const ext = filename.toLowerCase().split('.').pop();
+          if (!['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext || '')) continue;
+          
+          imageCount++;
+          const imageBuffer = await entry.async('nodebuffer');
+          const imageName = filename.split('/').pop() || filename;
+          const sanitizedName = `${Date.now()}-${imageName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const imageMime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+          
+          console.log(`[TestUpload] Extracting image ${imageCount}: ${imageName}`);
+          
+          const uploadResult = await uploadToFirebaseStorage(
+            imageBuffer,
+            sanitizedName,
+            imageMime,
+            'library/backgrounds/raw'
+          );
+          
+          const displayName = imageName.replace(/\.[^/.]+$/, '');
+          const proxyUrl = `/api/library-files/${encodeURIComponent(sanitizedName)}`;
+          
+          const [asset] = await db.insert(libraryAssets).values({
+            ownerType: 'admin',
+            assetType: assetType,
+            mediaType: 'image',
+            name: displayName,
+            fileName: sanitizedName,
+            originalName: imageName,
+            storageUrl: uploadResult.storageUrl,
+            publicUrl: proxyUrl,
+            mimeType: imageMime,
+            sizeBytes: imageBuffer.length,
+            isActive: true,
+          }).returning();
+          
+          uploadedAssets.push({ ...asset, proxyUrl });
+        }
+        
+        console.log(`[TestUpload] ZIP complete: ${uploadedAssets.length} images extracted`);
+        return res.json({ 
+          success: true, 
+          type: 'zip',
+          zipStorageUrl: zipUploadResult.storageUrl,
+          extractedCount: uploadedAssets.length,
+          assets: uploadedAssets 
+        });
+      }
+      
+      // Handle single image
+      console.log(`[TestUpload] Processing single image: ${name}`);
+      
+      const sanitizedName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}.${mimeType?.split('/')[1] || 'png'}`;
+      const folder = assetType === 'source' ? 'library/backgrounds/raw' : 'library/backgrounds/cropped';
+      
+      const uploadResult = await uploadToFirebaseStorage(
+        buffer,
+        sanitizedName,
+        mimeType || 'image/png',
+        folder
+      );
+      
+      console.log(`[TestUpload] Uploaded to: ${uploadResult.storageUrl}`);
+      
+      const proxyUrl = `/api/library-files/${encodeURIComponent(sanitizedName)}`;
+      
+      const [asset] = await db.insert(libraryAssets).values({
+        ownerType: 'admin',
+        assetType: assetType,
+        mediaType: 'image',
+        name: name,
+        fileName: sanitizedName,
+        originalName: name,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: proxyUrl,
+        mimeType: mimeType || 'image/png',
+        sizeBytes: buffer.length,
+        isActive: true,
+      }).returning();
+      
+      console.log(`[TestUpload] Created asset: ${asset.id}`);
+      
+      return res.json({ 
+        success: true, 
+        type: 'single',
+        asset: { ...asset, proxyUrl }
+      });
+      
+    } catch (error: any) {
+      console.error('[TestUpload] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // PUBLIC test endpoint to list images (no auth required)
   app.get("/api/test-images", async (req: any, res) => {
     try {
@@ -8724,21 +8860,24 @@ ${allPages.map(page => `  <url>
             );
             
             // Save to library_assets table
+            const displayName = imageName.replace(/\.[^/.]+$/, '');
+            const proxyUrl = `/api/library-files/${encodeURIComponent(uniqueName)}`;
+            
             const [asset] = await db.insert(libraryAssets).values({
               ownerType: 'admin',
-              assetType: 'background',
+              assetType: assetType,
               mediaType: 'image',
-              name: imageName.replace(/\.[^/.]+$/, ''),
+              name: displayName,
               fileName: uniqueName,
               originalName: imageName,
               mimeType: imageMimeType,
               sizeBytes: imageBuffer.length,
               storageUrl: uploadResult.storageUrl,
-              publicUrl: uploadResult.publicUrl,
+              publicUrl: proxyUrl,
               isActive: true,
             }).returning();
             
-            extractedAssets.push({ ...asset, proxyUrl: asset.publicUrl });
+            extractedAssets.push({ ...asset, proxyUrl });
             
             console.log(`[BackgroundAssets] Extracted: ${imageName} -> ${uploadResult.storageUrl}`);
           } catch (extractError) {
@@ -8754,9 +8893,10 @@ ${allPages.map(page => `  <url>
         });
       }
       
-      // Regular image upload - goes to library/backgrounds/raw/
-      const folderPath = 'library/backgrounds/raw';
-      const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      // Regular image upload - goes to library/backgrounds/raw/ for source, /cropped/ for cropped
+      const folderPath = assetType === 'source' ? 'library/backgrounds/raw' : 'library/backgrounds/cropped';
+      const ext = mimeType?.split('/')[1] || 'png';
+      const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}.${ext}`;
       
       const uploadResult = await uploadToFirebaseStorage(
         buffer,
@@ -8765,10 +8905,12 @@ ${allPages.map(page => `  <url>
         folderPath
       );
       
+      const proxyUrl = `/api/library-files/${encodeURIComponent(fileName)}`;
+      
       // Save metadata to library_assets table
       const [asset] = await db.insert(libraryAssets).values({
         ownerType: 'admin',
-        assetType: 'background',
+        assetType: assetType,
         mediaType: 'image',
         name,
         fileName,
@@ -8776,7 +8918,7 @@ ${allPages.map(page => `  <url>
         mimeType: mimeType || 'image/png',
         sizeBytes: buffer.length,
         storageUrl: uploadResult.storageUrl,
-        publicUrl: uploadResult.publicUrl,
+        publicUrl: proxyUrl,
         isActive: true,
       }).returning();
       
