@@ -71,6 +71,7 @@ import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 import LogoPreview from "@/pages/logo-preview";
 import TestImages from "@/pages/test-images";
+import AdminTestImages from "@/pages/admin-test-images";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -101,6 +102,7 @@ function Router() {
       <Route path="/admin/email-templates">{() => <ProtectedRoute><AdminEmailTemplates /></ProtectedRoute>}</Route>
       <Route path="/admin/email-health">{() => <ProtectedRoute><AdminEmailHealth /></ProtectedRoute>}</Route>
       <Route path="/admin/manual">{() => <ProtectedRoute><AdminManual /></ProtectedRoute>}</Route>
+      <Route path="/admin/test-images">{() => <ProtectedRoute><AdminTestImages /></ProtectedRoute>}</Route>
       <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
       <Route path="/checkout" component={Checkout} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
