@@ -1576,12 +1576,17 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
 app.get('/test-images', async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('libraryAssets').where('isActive', '==', true).limit(20).get();
-    const assets = snapshot.docs.map(doc => ({
-      id: doc.id,
-      name: doc.data().name,
-      publicUrl: doc.data().publicUrl,
-      storageUrl: doc.data().storageUrl
-    }));
+    const assets = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const storageUrl = data.storageUrl || '';
+      const filename = storageUrl.split('/').pop() || '';
+      return {
+        id: doc.id,
+        name: data.name,
+        storageUrl,
+        publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
+      };
+    });
     res.json(assets);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -2971,10 +2976,15 @@ app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Resp
         const bTime = b.createdAt?.toMillis?.() || 0;
         return bTime - aTime;
       })
-      .map(data => ({
-        ...data,
-        proxyUrl: data.publicUrl
-      }));
+      .map(data => {
+        const storageUrl = data.storageUrl || '';
+        const filename = storageUrl.split('/').pop() || '';
+        return {
+          ...data,
+          proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+          publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
+        };
+      });
     
     console.log('[BackgroundAssets] Filtered background assets:', assets.length);
     res.json(assets);

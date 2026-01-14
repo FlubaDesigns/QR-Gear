@@ -1,4 +1,4 @@
-import type { libraryAssets } from "@shared/schema";
+import type { libraryAssets, customDesigns } from "@shared/schema";
 
 export type AssetType =
   | "source"
@@ -10,7 +10,11 @@ export type AssetType =
 
 export type LibraryAsset = typeof libraryAssets.$inferSelect;
 
-export type LibraryAssetWithProxy = LibraryAsset & { proxyUrl: string | null };
+export type LibraryAssetWithProxy = LibraryAsset & { proxyUrl?: string | null };
+
+export type CustomDesign = typeof customDesigns.$inferSelect;
+
+export type BackgroundAssetWithProxy = LibraryAssetWithProxy;
 
 export interface LibraryContextValue {
   storeId: string | null;
