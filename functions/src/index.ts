@@ -2955,6 +2955,47 @@ app.delete('/admin/gallery/:id', requireAdmin, async (req: Request, res: Respons
   }
 });
 
+// ============ LIBRARY ASSETS (TEST - NO AUTH) ============
+
+app.get('/test/admin/background-assets', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const typeFilter = (req.query.type as string) || 'source';
+    const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
+    
+    if (!validTypes.includes(typeFilter)) {
+      res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
+      return;
+    }
+    
+    console.log('[TestBackgroundAssets] GET request - type:', typeFilter);
+    const snapshot = await db.collection('libraryAssets').get();
+    
+    const assets = snapshot.docs
+      .map(doc => docToObject(doc))
+      .filter(data => data.isActive === true && data.assetType === typeFilter)
+      .sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      })
+      .map(data => {
+        const storageUrl = data.storageUrl || '';
+        const filename = storageUrl.split('/').pop() || '';
+        return {
+          ...data,
+          proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+          publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
+        };
+      });
+    
+    console.log('[TestBackgroundAssets] Returning', assets.length, 'assets');
+    res.json(assets);
+  } catch (error: any) {
+    console.error('[TestBackgroundAssets] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============ LIBRARY ASSETS (ADMIN) ============
 
 app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {

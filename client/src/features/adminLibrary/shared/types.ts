@@ -19,6 +19,7 @@ export type BackgroundAssetWithProxy = LibraryAssetWithProxy;
 export interface LibraryContextValue {
   storeId: string | null;
   apiBase: string;
+  requiresAuth: boolean;
   storageRoots: {
     backgrounds: string;
     source: string;

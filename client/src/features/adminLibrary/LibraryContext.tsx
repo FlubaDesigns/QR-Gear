@@ -4,6 +4,7 @@ import type { LibraryContextValue } from "./shared/types";
 const defaultContext: LibraryContextValue = {
   storeId: null,
   apiBase: "/api",
+  requiresAuth: true,
   storageRoots: {
     backgrounds: "library/backgrounds",
     source: "library/source",
@@ -33,9 +34,13 @@ export function LibraryProvider({
   storageRoots,
   permissions,
 }: LibraryProviderProps) {
+  const resolvedApiBase = apiBase ?? defaultContext.apiBase;
+  const requiresAuth = !resolvedApiBase.includes("/test");
+
   const value = useMemo<LibraryContextValue>(() => ({
     storeId: storeId ?? null,
-    apiBase: apiBase ?? defaultContext.apiBase,
+    apiBase: resolvedApiBase,
+    requiresAuth,
     storageRoots: {
       ...defaultContext.storageRoots,
       ...storageRoots,
@@ -44,7 +49,7 @@ export function LibraryProvider({
       ...defaultContext.permissions,
       ...permissions,
     },
-  }), [storeId, apiBase, storageRoots, permissions]);
+  }), [storeId, resolvedApiBase, requiresAuth, storageRoots, permissions]);
 
   return (
     <LibraryContext.Provider value={value}>
