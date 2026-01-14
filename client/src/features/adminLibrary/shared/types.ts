@@ -32,13 +32,3 @@ export interface LibraryContextValue {
   // Single fetch function - page decides if it uses auth or not
   apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
-
-export function getAssetImageUrl(asset: LibraryAssetWithProxy | null | undefined): string | null {
-  if (!asset) return null;
-  return asset.proxyUrl || asset.storageUrl || null;
-}
-
-export function getAssetThumbnailUrl(asset: LibraryAssetWithProxy | null | undefined): string | null {
-  if (!asset) return null;
-  return asset.thumbnailUrl || asset.proxyUrl || asset.storageUrl || null;
-}
