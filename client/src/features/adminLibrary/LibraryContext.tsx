@@ -40,16 +40,6 @@ interface LibraryProviderProps {
   apiBase?: string;
   storageRoots?: Partial<LibraryContextValue["storageRoots"]>;
   permissions?: Partial<LibraryContextValue["permissions"]>;
-  usePublicFetch?: boolean;
-}
-
-// Simple public fetch without auth
-async function createPublicFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
-  return fetch(url, { ...options, headers });
 }
 
 export function LibraryProvider({
@@ -58,7 +48,6 @@ export function LibraryProvider({
   apiBase,
   storageRoots,
   permissions,
-  usePublicFetch = false,
 }: LibraryProviderProps) {
   const value = useMemo<LibraryContextValue>(() => ({
     storeId: storeId ?? null,
@@ -71,8 +60,8 @@ export function LibraryProvider({
       ...defaultContext.permissions,
       ...permissions,
     },
-    authFetch: usePublicFetch ? createPublicFetch : createAuthFetch,
-  }), [storeId, apiBase, storageRoots, permissions, usePublicFetch]);
+    authFetch: createAuthFetch,
+  }), [storeId, apiBase, storageRoots, permissions]);
 
   return (
     <LibraryContext.Provider value={value}>
