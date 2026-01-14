@@ -32,7 +32,10 @@ The storefront displays lifestyle mockups over flat product shots for a more eng
 - **Dual Storage System**: Supports `postgres-only`, `dual-write`, and `firestore-only` modes, controlled by `STORAGE_MODE`. `dual-write` facilitates migration to a Firebase-centric deployment with PostgreSQL as the primary source for reads.
 - **File Storage**: Uses Firebase Storage exclusively.
 - **Background Image Library**: Canonical storage structure at `libraries/backgrounds/{raw|cropped|zip}/`. The "Sync from Storage" button scans this folder and creates database records for existing files. ZIP uploads are extracted automatically (original saved to `zip/`, images to `raw/`).
-- **Admin Library Module**: Modular feature structure at `client/src/features/adminLibrary/` with tenant-aware architecture. Uses LibraryContext for multi-tenant support (storeId, apiBase, storageRoots, permissions). Route: `/admin/library`. Contains tabs for Templates, Backgrounds, Source Images, and Cropped Images.
+- **Admin Library Module**: Modular feature structure at `client/src/features/adminLibrary/` with tenant-aware architecture. Uses LibraryContext for multi-tenant support (storeId, apiBase, storageRoots, permissions). Route: `/admin/library`.
+  - **Architecture**: Library is the handler/controller. Viewer lives underneath it and displays content.
+  - **Modules**: Backgrounds, Templates, Source Images, Cropped Images - each module feeds content into the Viewer.
+  - **Viewer**: The display component that renders content from whichever module is active.
 - **Authentication**: Uses Firebase Authentication exclusively.
 - **Nexus Self-Healing System**: Client-side self-healing with automatic retry logic, error capture, and an admin debugging console. Includes Printful retry profiles and a mockup fallback chain.
 - **NexusMail Email System**: A portable, self-healing, queue-first, idempotent, provider-agnostic email system with automatic health monitoring and retry logic. Uses state-driven triggers, slug-based templates, and an outbox service.
