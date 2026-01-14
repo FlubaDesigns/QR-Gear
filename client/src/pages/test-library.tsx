@@ -10,7 +10,7 @@ export default function TestLibraryPage() {
   const [tab, setTab] = useState<string>("source");
 
   return (
-    <LibraryProvider apiBase="/api/test">
+    <LibraryProvider apiBase="/api/test" usePublicFetch={true}>
       <div className="container mx-auto py-6 space-y-6">
         <Card className="border-yellow-500/50 bg-yellow-500/10">
           <CardHeader className="pb-2">

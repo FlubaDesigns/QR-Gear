@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FolderOpen, Trash2, Pencil, Crop as CropIcon } from "lucide-react";
-import { SmartImage } from "@/components/SmartImage";
+import { LibraryImage } from "./LibraryImage";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export type AssetAction = "edit" | "delete" | "crop";
@@ -73,7 +73,7 @@ export function AssetGrid({
           data-testid={`card-asset-${asset.id}`}
         >
           <div className={`${aspectClass} relative`}>
-            <SmartImage
+            <LibraryImage
               asset={asset}
               alt={asset.name}
               className="w-full h-full object-cover"
