@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Pencil, Trash2, FolderOpen } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, FolderOpen, Upload, FileArchive } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
 import { getImageSrc } from "@/lib/imageLoader";
 import { SEASONS, EVENTS } from "../shared/constants";
@@ -38,6 +38,7 @@ export default function LibraryBackgroundsTab() {
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isZipFile, setIsZipFile] = useState(false);
   const [filterTag, setFilterTag] = useState("all");
 
   const { data: assets = [], isLoading } = useQuery<BackgroundAssetWithProxy[]>({
@@ -312,9 +313,12 @@ export default function LibraryBackgroundsTab() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold">Library Backgrounds</h2>
+          <h2 className="text-lg font-semibold">
+            Library Backgrounds
+            <Badge variant="secondary" className="ml-2">{assets.length}</Badge>
+          </h2>
           <p className="text-sm text-muted-foreground">Organized by season and event for custom products</p>
         </div>
         <Button onClick={handleOpenCreate} data-testid="button-add-library-background">
