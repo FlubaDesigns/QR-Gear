@@ -205,6 +205,8 @@ export const customDesigns = pgTable("custom_designs", {
   printifyCompositeUrl: text("printify_composite_url"),
   savedToLibrary: boolean("saved_to_library").default(false),
   savedToStore: boolean("saved_to_store").default(false),
+  // Template visibility: 'public' (available to all stores) or 'private' (owner-only)
+  visibility: text("visibility").default("private"), // 'public' | 'private'
   // Template organization - for library templates
   templateName: text("template_name"), // Custom display name (e.g., "Beach Scene 01")
   templateCategory: text("template_category"), // Main category (e.g., "Seasonal", "Events", "Evergreen")
