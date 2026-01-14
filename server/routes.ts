@@ -1055,7 +1055,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assets = await db.select({
         id: libraryAssets.id,
         name: libraryAssets.name,
-        publicUrl: libraryAssets.publicUrl,
         storageUrl: libraryAssets.storageUrl,
       }).from(libraryAssets)
         .where(eq(libraryAssets.isActive, true))
@@ -1063,9 +1062,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const assetsWithProxy = assets.map(a => {
         const filename = (a.storageUrl || '').split('/').pop() || '';
+        const proxyUrl = `/api/library-files/${encodeURIComponent(filename)}`;
         return {
           ...a,
-          proxyUrl: a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`
+          publicUrl: proxyUrl,
+          proxyUrl
         };
       });
       
