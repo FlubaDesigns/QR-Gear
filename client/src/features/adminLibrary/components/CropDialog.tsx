@@ -32,8 +32,8 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       const imageSrc = getAssetImageUrl(assetToLoad);
       if (!imageSrc) throw new Error("No image URL");
       
-      // Use authFetch from context for authenticated image loading
-      const response = await authFetch(imageSrc);
+      // Images are served from public endpoints - no auth needed
+      const response = await fetch(imageSrc);
       if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
       
       const blob = await response.blob();
@@ -46,7 +46,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     } finally {
       setCropImageLoading(false);
     }
-  }, [toast, onOpenChange, authFetch]);
+  }, [toast, onOpenChange]);
 
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (newOpen && asset) {
