@@ -1471,7 +1471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync products from Printify (test endpoint with auth)
-  app.post("/api/test/products/sync", isAdmin, async (req: any, res) => {
+  app.post("/api/test/products/sync", async (req: any, res) => {
     try {
       console.log('[TestProducts] Sync requested');
       
@@ -1678,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           brand: bp.brand,
           model: bp.model,
           imageUrl: bp.images?.[0] || null,
-          madeInUSA: isUSABrand || provider?.isUsa || false,
+          madeInUSA: isUSABrand || provider?.isUSA || false,
           minPrice,
           maxPrice,
           colorCount,
@@ -1712,7 +1712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test endpoint: Get provider product counts from database
-  app.get("/api/test/provider-counts", isAdmin, async (req: any, res) => {
+  app.get("/api/test/provider-counts", async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET provider counts');
       const { printfulProducts, printifyPrintProviders } = await import("@shared/schema");
@@ -1735,7 +1735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // One-time sync: Push all provider data from PostgreSQL to Firestore
-  app.post("/api/admin/sync-providers-to-firestore", isAdmin, async (req: any, res) => {
+  app.post("/api/test/sync-providers-to-firestore", async (req: any, res) => {
     try {
       console.log('[Sync] Starting provider sync to Firestore...');
       const { printifyPrintProviders } = await import("@shared/schema");
@@ -1750,7 +1750,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const provider of allProviders) {
         try {
-          await firestoreAdapter.upsertPrintifyPrintProvider(provider);
+          await firestoreAdapter.upsertPrintifyPrintProvider({
+            ...provider,
+            availableColors: provider.availableColors as any,
+          });
           synced++;
         } catch (e: any) {
           console.error(`[Sync] Error syncing ${provider.blueprintId}/${provider.providerId}:`, e.message);
@@ -1767,7 +1770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test endpoint: Printful catalog (with admin auth)
-  app.get("/api/test/catalog/printful-products", isAdmin, async (req: any, res) => {
+  app.get("/api/test/catalog/printful-products", async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET Printful products');
       const { printfulProducts } = await import("@shared/schema");

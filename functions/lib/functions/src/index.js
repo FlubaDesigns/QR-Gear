@@ -2815,7 +2815,7 @@ const TEST_USA_MADE_BRANDS = [
     'bella+canvas', 'bella canvas', 'lane seven', 'cotton heritage',
     'shaka wear', 'backpacks usa', 'american giant', 'next level',
 ];
-// Test endpoint: Printify catalog (no auth required) - v2 with price fields
+// Test endpoint: Printify catalog (no auth required) - v2 with price fields from providers
 app.get('/test/printify/catalog', async (req, res) => {
     try {
         console.log('[TestCatalog] GET Printify catalog');
@@ -2825,16 +2825,18 @@ app.get('/test/printify/catalog', async (req, res) => {
             res.json([]);
             return;
         }
-        const blueprints = localBlueprints.map(bp => ({
-            id: bp.id,
-            title: bp.title,
-            brand: bp.brand,
-            model: bp.model,
-            images: bp.images || [],
-            minPrice: bp.minPrice,
-            maxPrice: bp.maxPrice,
-            colorCount: bp.colorCount,
-        }));
+        // Fetch provider data for price/color info from Firestore
+        const providersSnapshot = await db.collection('printifyPrintProviders').get();
+        const allProviders = providersSnapshot.docs.map(doc => docToObject(doc));
+        // Group providers by blueprint_id, pick best one (lowest price with colors)
+        const providersByBlueprint = {};
+        for (const p of allProviders) {
+            const existing = providersByBlueprint[p.blueprintId];
+            if (!existing || (p.minCost && (!existing.minCost || p.minCost < existing.minCost))) {
+                providersByBlueprint[p.blueprintId] = p;
+            }
+        }
+        console.log(`[TestCatalog] Found ${allProviders.length} providers for ${Object.keys(providersByBlueprint).length} blueprints`);
         const categories = {
             "T-Shirts": [],
             "Sweatshirts & Hoodies": [],
@@ -2843,20 +2845,26 @@ app.get('/test/printify/catalog', async (req, res) => {
             "Bags": [],
             "Other": [],
         };
-        for (const bp of blueprints) {
+        for (const bp of localBlueprints) {
             const title = (bp.title || '').toLowerCase();
             const brandLower = (bp.brand || '').toLowerCase();
             const isUSABrand = TEST_USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
+            // Get provider data for this blueprint
+            const provider = providersByBlueprint[bp.id];
+            const colors = provider?.availableColors;
+            const colorCount = colors?.length || bp.colorCount || 0;
+            const minPrice = provider?.minCost ? (provider.minCost / 100).toFixed(2) : (bp.minPrice || null);
+            const maxPrice = provider?.maxCost ? (provider.maxCost / 100).toFixed(2) : (bp.maxPrice || null);
             const item = {
                 id: bp.id,
                 title: bp.title || "",
                 brand: bp.brand || "",
                 model: bp.model || "",
                 imageUrl: bp.images?.[0] || null,
-                madeInUSA: isUSABrand,
-                minPrice: bp.minPrice || null,
-                maxPrice: bp.maxPrice || null,
-                colorCount: bp.colorCount || 0,
+                madeInUSA: isUSABrand || provider?.isUsa || false,
+                minPrice,
+                maxPrice,
+                colorCount,
             };
             if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
                 categories["T-Shirts"].push(item);
