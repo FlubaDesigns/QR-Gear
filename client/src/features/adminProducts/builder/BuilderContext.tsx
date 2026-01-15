@@ -120,6 +120,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setState(prev => ({
       ...prev,
       qrProductState: qrState,
+      content: initialContent, // Reset content when QR state changes
     }));
   }, []);
 
