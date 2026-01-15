@@ -13,69 +13,73 @@ interface ProductDetailModalProps {
 }
 
 export function ProductDetailModal({ product, open, onClose, onSelect }: ProductDetailModalProps) {
-  if (!product) return null;
-
   const handleSelect = () => {
-    onSelect(product);
-    onClose();
+    if (product) {
+      onSelect(product);
+      onClose();
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog open={open && !!product} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-sm mx-auto">
-        <DialogHeader>
-          <DialogTitle className="text-lg">{product.title}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
-            {product.imageUrl && (
-              <img
-                src={product.imageUrl}
-                alt={product.title}
-                className="w-full h-full object-cover"
-              />
-            )}
-            {product.madeInUSA && (
-              <div className="absolute top-2 right-2">
-                <UsaFlag className="w-6 h-6" />
+        {product && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-lg">{product.title}</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                {product.imageUrl && (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {product.madeInUSA && (
+                  <div className="absolute top-2 right-2">
+                    <UsaFlag className="w-6 h-6" />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">{product.brand}</p>
-            {product.model && (
-              <p className="text-xs text-muted-foreground">Model: {product.model}</p>
-            )}
-          </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{product.brand}</p>
+                {product.model && (
+                  <p className="text-xs text-muted-foreground">Model: {product.model}</p>
+                )}
+              </div>
 
-          <div className="flex flex-wrap gap-2">
-            {product.minPrice && (
-              <Badge variant="secondary" className="text-sm">
-                <DollarSign className="w-3.5 h-3.5 mr-1" />
-                {product.minPrice}
-                {product.maxPrice && product.maxPrice !== product.minPrice && ` - ${product.maxPrice}`}
-              </Badge>
-            )}
-            {(product.colorCount ?? 0) > 0 && (
-              <Badge variant="outline" className="text-sm">
-                <Palette className="w-3.5 h-3.5 mr-1" />
-                {product.colorCount} colors
-              </Badge>
-            )}
-          </div>
+              <div className="flex flex-wrap gap-2">
+                {product.minPrice && (
+                  <Badge variant="secondary" className="text-sm">
+                    <DollarSign className="w-3.5 h-3.5 mr-1" />
+                    {product.minPrice}
+                    {product.maxPrice && product.maxPrice !== product.minPrice && ` - ${product.maxPrice}`}
+                  </Badge>
+                )}
+                {(product.colorCount ?? 0) > 0 && (
+                  <Badge variant="outline" className="text-sm">
+                    <Palette className="w-3.5 h-3.5 mr-1" />
+                    {product.colorCount} colors
+                  </Badge>
+                )}
+              </div>
 
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={handleSelect}
-            data-testid="button-select-product"
-          >
-            <Check className="w-4 h-4 mr-2" />
-            Select This Product
-          </Button>
-        </div>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleSelect}
+                data-testid="button-select-product"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Select This Product
+              </Button>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

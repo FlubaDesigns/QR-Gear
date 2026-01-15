@@ -112,11 +112,15 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const setGenderFilter = useCallback((filter: GenderFilter) => {
-    setState(prev => ({
-      ...prev,
-      genderFilter: filter,
-      selectedProduct: null,
-    }));
+    console.log("[BuilderContext] setGenderFilter called with:", filter);
+    setState(prev => {
+      console.log("[BuilderContext] Previous genderFilter:", prev.genderFilter, "New:", filter);
+      return {
+        ...prev,
+        genderFilter: filter,
+        selectedProduct: null,
+      };
+    });
   }, []);
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {

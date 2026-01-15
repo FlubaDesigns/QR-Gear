@@ -2,19 +2,12 @@ import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { FulfillmentModule } from "./modules/FulfillmentModule";
 import { CategoryModule } from "./modules/CategoryModule";
 import { ProductsModule } from "./modules/ProductsModule";
+import { StateModule } from "./modules/StateModule";
+import { ContentModule } from "./modules/ContentModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
 function BuilderModules() {
   const { state } = useBuilderContext();
-  
-  console.log("DEBUG STATE SNAPSHOT", {
-    sourceType: state?.sourceType,
-    fulfillment: state?.fulfillmentProvider,
-    category: state?.category,
-    selectedProduct: state?.selectedProduct?.title,
-    originFilter: state?.originFilter,
-    genderFilter: state?.genderFilter,
-  });
 
   return (
     <div className="space-y-4">
@@ -26,6 +19,12 @@ function BuilderModules() {
       </InlineDebugBoundary>
       <InlineDebugBoundary label="ProductsModule">
         <ProductsModule />
+      </InlineDebugBoundary>
+      <InlineDebugBoundary label="StateModule">
+        <StateModule />
+      </InlineDebugBoundary>
+      <InlineDebugBoundary label="ContentModule">
+        <ContentModule />
       </InlineDebugBoundary>
     </div>
   );

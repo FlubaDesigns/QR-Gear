@@ -13,13 +13,39 @@ import type { ScrollViewItem } from "@/features/shared/components/views/ScrollVi
 
 function detectGender(title: string): "mens" | "womens" | "unisex" {
   const lowerTitle = title.toLowerCase();
-  const mensKeywords = ["men's", "mens", "men ", "male", "guys", "boy's", "boys"];
-  const womensKeywords = ["women's", "womens", "women ", "female", "ladies", "lady", "girl's", "girls"];
-  const unisexKeywords = ["unisex"];
   
-  if (unisexKeywords.some(k => lowerTitle.includes(k))) return "unisex";
-  if (mensKeywords.some(k => lowerTitle.includes(k))) return "mens";
-  if (womensKeywords.some(k => lowerTitle.includes(k))) return "womens";
+  // Check unisex first
+  if (lowerTitle.includes("unisex")) return "unisex";
+  
+  // Check women's BEFORE men's because "women's" contains "men's"
+  if (
+    lowerTitle.includes("women's") ||
+    lowerTitle.includes("womens") ||
+    lowerTitle.includes("women ") ||
+    lowerTitle.startsWith("women") ||
+    lowerTitle.includes("female") ||
+    lowerTitle.includes("ladies") ||
+    lowerTitle.includes("lady") ||
+    lowerTitle.includes("girl's") ||
+    lowerTitle.includes("girls")
+  ) {
+    return "womens";
+  }
+  
+  // Check men's after women's
+  if (
+    lowerTitle.includes("men's") ||
+    lowerTitle.includes("mens") ||
+    lowerTitle.includes("men ") ||
+    lowerTitle.startsWith("men") ||
+    lowerTitle.includes("male") ||
+    lowerTitle.includes("guys") ||
+    lowerTitle.includes("boy's") ||
+    lowerTitle.includes("boys")
+  ) {
+    return "mens";
+  }
+  
   return "unisex";
 }
 
@@ -208,15 +234,9 @@ export function ProductsModule() {
                 {state.selectedProduct.brand} - {state.selectedProduct.model}
               </p>
             </div>
-            <button
-              className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium text-sm hover:bg-primary/90 transition-colors"
-              data-testid="button-proceed-to-customization"
-              onClick={() => {
-                console.log("[ProductsModule] Proceeding with product:", state.selectedProduct?.title);
-              }}
-            >
-              Continue to Customization →
-            </button>
+            <p className="text-sm text-muted-foreground">
+              Now choose your QR product type below ↓
+            </p>
           </div>
         )}
       </div>

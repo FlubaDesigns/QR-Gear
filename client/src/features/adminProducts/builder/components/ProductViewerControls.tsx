@@ -65,7 +65,13 @@ export function ProductViewerControls({
         {genderOptions.map((opt) => (
           <button
             key={opt.value}
-            onClick={() => onGenderFilterChange(opt.value)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("[GenderFilter] Tapped:", opt.value);
+              onGenderFilterChange(opt.value);
+            }}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               genderFilter === opt.value
                 ? "bg-primary text-primary-foreground"
