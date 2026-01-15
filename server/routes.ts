@@ -1611,11 +1611,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test endpoint: Printful catalog (no auth required)
-  app.get("/api/test/admin/catalog/printful-products", async (req: any, res) => {
+  // Test endpoint: Printful catalog (with admin auth)
+  app.get("/api/test/admin/catalog/printful-products", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET Printful products');
-      const products = await storage.getPrintfulProducts();
+      const { printfulProducts } = await import("@shared/schema");
+      const { desc } = await import("drizzle-orm");
+      
+      const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
       console.log(`[TestCatalog] Returning ${products.length} Printful products`);
       res.json(products);
     } catch (error: any) {
