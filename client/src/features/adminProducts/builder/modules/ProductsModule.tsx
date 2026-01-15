@@ -73,6 +73,10 @@ export function ProductsModule() {
     imageUrl: p.imageUrl || "",
     title: p.title,
     subtitle: p.brand,
+    minPrice: p.minPrice,
+    maxPrice: p.maxPrice,
+    colorCount: p.colorCount,
+    madeInUSA: p.madeInUSA,
   }));
 
   const handleSelect = (item: ScrollViewItem) => {

@@ -1634,18 +1634,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[TestCatalog] GET Printify catalog');
       const localBlueprints = await storage.getPrintifyBlueprints();
       
-      let blueprints: any[];
-      
-      if (localBlueprints.length > 0) {
-        blueprints = localBlueprints.map(bp => ({
-          id: bp.id,
-          title: bp.title,
-          brand: bp.brand,
-          model: bp.model,
-          images: bp.images || [],
-        }));
-      } else {
+      if (localBlueprints.length === 0) {
         return res.json([]);
+      }
+      
+      // Fetch provider data for price/color info
+      const { printifyPrintProviders } = await import("@shared/schema");
+      const allProviders = await db.select().from(printifyPrintProviders);
+      
+      // Group providers by blueprint_id, pick best one (lowest price with colors)
+      const providersByBlueprint: Record<number, typeof allProviders[0]> = {};
+      for (const p of allProviders) {
+        const existing = providersByBlueprint[p.blueprintId];
+        if (!existing || (p.minCost && (!existing.minCost || p.minCost < existing.minCost))) {
+          providersByBlueprint[p.blueprintId] = p;
+        }
       }
       
       const categories: Record<string, any[]> = {
@@ -1657,10 +1660,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Other": [],
       };
       
-      for (const bp of blueprints) {
+      for (const bp of localBlueprints) {
         const title = bp.title.toLowerCase();
         const brandLower = (bp.brand || '').toLowerCase();
         const isUSABrand = TEST_USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
+        
+        // Get provider data for this blueprint
+        const provider = providersByBlueprint[bp.id];
+        const colors = provider?.availableColors as Array<{name: string; hex: string}> | null;
+        const colorCount = colors?.length || 0;
+        const minPrice = provider?.minCost ? (provider.minCost / 100).toFixed(2) : null;
+        const maxPrice = provider?.maxCost ? (provider.maxCost / 100).toFixed(2) : null;
         
         const item = {
           id: bp.id,
@@ -1668,7 +1678,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           brand: bp.brand,
           model: bp.model,
           imageUrl: bp.images?.[0] || null,
-          madeInUSA: isUSABrand,
+          madeInUSA: isUSABrand || provider?.isUsa || false,
+          minPrice,
+          maxPrice,
+          colorCount,
         };
         
         if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {

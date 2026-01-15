@@ -1,10 +1,17 @@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Palette, DollarSign } from "lucide-react";
+import UsaFlag from "@/components/UsaFlag";
 
 export interface ScrollViewItem {
   id: string | number;
   imageUrl: string;
   title: string;
   subtitle?: string;
+  minPrice?: string | null;
+  maxPrice?: string | null;
+  colorCount?: number;
+  madeInUSA?: boolean;
 }
 
 export interface ScrollViewProps {
@@ -65,16 +72,35 @@ export function ScrollView({
                     alt={item.title}
                     className="w-full h-full object-cover"
                   />
+                  {item.madeInUSA && (
+                    <div className="absolute top-1 right-1">
+                      <UsaFlag className="w-5 h-5" />
+                    </div>
+                  )}
                 </div>
-                <div className="p-2 text-center">
-                  <span className="text-xs font-medium truncate block">
+                <div className="p-2 space-y-1">
+                  <span className="text-xs font-medium truncate block text-center">
                     {item.title}
                   </span>
                   {item.subtitle && (
-                    <span className="text-xs text-muted-foreground truncate block">
+                    <span className="text-xs text-muted-foreground truncate block text-center">
                       {item.subtitle}
                     </span>
                   )}
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    {item.minPrice && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        <DollarSign className="w-3 h-3 mr-0.5" />
+                        {item.minPrice}
+                      </Badge>
+                    )}
+                    {(item.colorCount ?? 0) > 0 && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        <Palette className="w-3 h-3 mr-0.5" />
+                        {item.colorCount}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             );

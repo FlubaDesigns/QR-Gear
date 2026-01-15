@@ -29,6 +29,9 @@ export interface CatalogProduct {
   model: string;
   imageUrl: string | null;
   madeInUSA: boolean;
+  minPrice: string | null;
+  maxPrice: string | null;
+  colorCount: number;
 }
 
 export interface OriginFilter {
