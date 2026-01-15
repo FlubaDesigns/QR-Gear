@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Paintbrush, FileImage, Image, Layers, Check } from "lucide-react";
 import { useBuilderContext } from "../BuilderContext";
-import { LibraryPickerDialog, type PickerMode, type LibraryAsset } from "../components/LibraryPickerDialog";
+import { LibraryPickerDialog, type PickerMode } from "../components/LibraryPickerDialog";
 import type { SourceType } from "../types";
+import type { LibraryAsset } from "../../shared/types";
 
 export function SourceModule() {
   const { state, setSourceType, loadBackground } = useBuilderContext();
