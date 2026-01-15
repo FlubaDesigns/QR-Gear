@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -72,20 +72,6 @@ export function CategoryModule() {
         return a.name.localeCompare(b.name);
       });
   }, [categories]);
-
-  const hasAutoSelected = useRef(false);
-
-  useEffect(() => {
-    if (state.fulfillmentProvider && !state.category && sortedCategories.length > 0 && !hasAutoSelected.current) {
-      hasAutoSelected.current = true;
-      const tshirts = sortedCategories.find(c => c.name === "T-Shirts");
-      if (tshirts) {
-        setCategory("T-Shirts");
-      } else {
-        setCategory(sortedCategories[0].name);
-      }
-    }
-  }, [state.fulfillmentProvider, state.category, sortedCategories, setCategory]);
 
   if (state.sourceType !== "custom" || !state.fulfillmentProvider) {
     return null;
