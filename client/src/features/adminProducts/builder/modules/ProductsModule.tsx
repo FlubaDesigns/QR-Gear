@@ -39,9 +39,9 @@ export function ProductsModule() {
       let endpoint = "";
       
       if (state.fulfillmentProvider === "printify") {
-        endpoint = `${api.baseUrl}/admin/printify/catalog`;
+        endpoint = `${api.baseUrl}/printify/catalog`;
       } else if (state.fulfillmentProvider === "printful") {
-        endpoint = `${api.baseUrl}/admin/catalog/printful-products`;
+        endpoint = `${api.baseUrl}/catalog/printful-products`;
       }
       
       if (!endpoint) throw new Error("No catalog endpoint for this provider");
