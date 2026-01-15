@@ -22,6 +22,8 @@ export interface ScrollViewProps {
   itemWidth?: string;
   maxItemWidth?: string;
   emptyMessage?: string;
+  layout?: "horizontal" | "grid";
+  gridHeight?: string;
 }
 
 export function ScrollView({
@@ -32,6 +34,8 @@ export function ScrollView({
   itemWidth = "calc(50vw - 3rem)",
   maxItemWidth = "180px",
   emptyMessage = "No items available",
+  layout = "horizontal",
+  gridHeight = "400px",
 }: ScrollViewProps) {
   const aspectClass =
     aspectRatio === "portrait"
@@ -48,63 +52,87 @@ export function ScrollView({
     );
   }
 
+  const renderItem = (item: ScrollViewItem) => {
+    const isSelected = selectedId === item.id;
+    return (
+      <div
+        key={item.id}
+        className={`cursor-pointer rounded-lg border-2 overflow-hidden transition-all ${
+          isSelected
+            ? "border-primary ring-2 ring-primary ring-offset-2"
+            : "border-border hover:border-primary/50"
+        }`}
+        onClick={() => onSelect?.(item)}
+        data-testid={`scroll-item-${item.id}`}
+      >
+        <div className={`${aspectClass} relative bg-muted`}>
+          <img
+            src={item.imageUrl}
+            alt={item.title}
+            className="w-full h-full object-cover"
+          />
+          {item.madeInUSA && (
+            <div className="absolute top-1 right-1">
+              <UsaFlag className="w-5 h-5" />
+            </div>
+          )}
+        </div>
+        <div className="p-2 space-y-1">
+          <span className="text-xs font-medium truncate block text-center">
+            {item.title}
+          </span>
+          {item.subtitle && (
+            <span className="text-xs text-muted-foreground truncate block text-center">
+              {item.subtitle}
+            </span>
+          )}
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            {item.minPrice && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                <DollarSign className="w-3 h-3 mr-0.5" />
+                {item.minPrice}
+              </Badge>
+            )}
+            {(item.colorCount ?? 0) > 0 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                <Palette className="w-3 h-3 mr-0.5" />
+                {item.colorCount}
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (layout === "grid") {
+    return (
+      <div className="relative">
+        <ScrollArea style={{ height: gridHeight }} type="scroll">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1">
+            {items.map(renderItem)}
+          </div>
+        </ScrollArea>
+        <p className="text-xs text-muted-foreground text-center mt-2">
+          {items.length} items • Scroll for more
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       <ScrollArea className="w-full" type="scroll">
         <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-          {items.map((item) => {
-            const isSelected = selectedId === item.id;
-            return (
-              <div
-                key={item.id}
-                className={`flex-shrink-0 cursor-pointer rounded-lg border-2 overflow-hidden transition-all ${
-                  isSelected
-                    ? "border-primary ring-2 ring-primary ring-offset-2"
-                    : "border-border hover:border-primary/50"
-                }`}
-                style={{ width: itemWidth, maxWidth: maxItemWidth }}
-                onClick={() => onSelect?.(item)}
-                data-testid={`scroll-item-${item.id}`}
-              >
-                <div className={`${aspectClass} relative bg-muted`}>
-                  <img
-                    src={item.imageUrl}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {item.madeInUSA && (
-                    <div className="absolute top-1 right-1">
-                      <UsaFlag className="w-5 h-5" />
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 space-y-1">
-                  <span className="text-xs font-medium truncate block text-center">
-                    {item.title}
-                  </span>
-                  {item.subtitle && (
-                    <span className="text-xs text-muted-foreground truncate block text-center">
-                      {item.subtitle}
-                    </span>
-                  )}
-                  <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {item.minPrice && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                        <DollarSign className="w-3 h-3 mr-0.5" />
-                        {item.minPrice}
-                      </Badge>
-                    )}
-                    {(item.colorCount ?? 0) > 0 && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        <Palette className="w-3 h-3 mr-0.5" />
-                        {item.colorCount}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex-shrink-0"
+              style={{ width: itemWidth, maxWidth: maxItemWidth }}
+            >
+              {renderItem(item)}
+            </div>
+          ))}
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
