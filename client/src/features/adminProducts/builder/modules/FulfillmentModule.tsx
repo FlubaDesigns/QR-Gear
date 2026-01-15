@@ -5,7 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { useBuilderContext } from "../BuilderContext";
 
 export function FulfillmentModule() {
-  const { state, setFulfillmentProvider } = useBuilderContext();
+  const { state, setSourceType, setFulfillmentProvider } = useBuilderContext();
+
+  useEffect(() => {
+    if (!state.sourceType) {
+      setSourceType("custom");
+    }
+  }, [state.sourceType, setSourceType]);
 
   useEffect(() => {
     if (state.sourceType === "custom" && !state.fulfillmentProvider) {
