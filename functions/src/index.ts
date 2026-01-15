@@ -3245,6 +3245,9 @@ app.get('/test/printify/catalog', async (req: Request, res: Response): Promise<v
       brand: bp.brand,
       model: bp.model,
       images: bp.images || [],
+      minPrice: bp.minPrice,
+      maxPrice: bp.maxPrice,
+      colorCount: bp.colorCount,
     }));
     
     const categories: Record<string, any[]> = {
@@ -3263,11 +3266,14 @@ app.get('/test/printify/catalog', async (req: Request, res: Response): Promise<v
       
       const item = {
         id: bp.id,
-        title: bp.title,
-        brand: bp.brand,
-        model: bp.model,
+        title: bp.title || "",
+        brand: bp.brand || "",
+        model: bp.model || "",
         imageUrl: bp.images?.[0] || null,
         madeInUSA: isUSABrand,
+        minPrice: bp.minPrice || null,
+        maxPrice: bp.maxPrice || null,
+        colorCount: bp.colorCount || 0,
       };
       
       if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {

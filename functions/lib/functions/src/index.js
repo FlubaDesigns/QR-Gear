@@ -2831,6 +2831,9 @@ app.get('/test/printify/catalog', async (req, res) => {
             brand: bp.brand,
             model: bp.model,
             images: bp.images || [],
+            minPrice: bp.minPrice,
+            maxPrice: bp.maxPrice,
+            colorCount: bp.colorCount,
         }));
         const categories = {
             "T-Shirts": [],
@@ -2846,11 +2849,14 @@ app.get('/test/printify/catalog', async (req, res) => {
             const isUSABrand = TEST_USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
             const item = {
                 id: bp.id,
-                title: bp.title,
-                brand: bp.brand,
-                model: bp.model,
+                title: bp.title || "",
+                brand: bp.brand || "",
+                model: bp.model || "",
                 imageUrl: bp.images?.[0] || null,
                 madeInUSA: isUSABrand,
+                minPrice: bp.minPrice || null,
+                maxPrice: bp.maxPrice || null,
+                colorCount: bp.colorCount || 0,
             };
             if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
                 categories["T-Shirts"].push(item);
