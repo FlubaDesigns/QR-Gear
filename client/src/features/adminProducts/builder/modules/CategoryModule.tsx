@@ -61,11 +61,13 @@ export function CategoryModule() {
     return null;
   }
 
-  const sortedCategories = [...categories].sort((a, b) => {
-    if (a.name === "T-Shirts") return -1;
-    if (b.name === "T-Shirts") return 1;
-    return a.name.localeCompare(b.name);
-  });
+  const sortedCategories = [...categories]
+    .filter(c => c.itemCount > 0)
+    .sort((a, b) => {
+      if (a.name === "T-Shirts") return -1;
+      if (b.name === "T-Shirts") return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   return (
     <CollapsibleModule
@@ -93,7 +95,7 @@ export function CategoryModule() {
             <SelectTrigger className="w-full max-w-xs" data-testid="select-category">
               <SelectValue placeholder="Select category..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" className="max-h-60">
               {sortedCategories.map((cat) => (
                 <SelectItem 
                   key={cat.name} 
