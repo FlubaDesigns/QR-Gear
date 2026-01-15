@@ -1,30 +1,24 @@
-import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
 import { Crop as CropIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function CroppedImagesTab() {
-  const { api, apiBase } = useLibraryContext();
+  const { api } = useLibraryContext();
   const { toast } = useToast();
 
-  const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
-    queryKey: [apiBase, "assets", "cropped"],
+  const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
+    queryKey: api.getQueryKey("cropped"),
     queryFn: () => api.fetchAssets("cropped"),
-    staleTime: 0,
-    retry: 2,
   });
-
-  useEffect(() => { refetch(); }, [refetch]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteAsset(id),
     onSuccess: () => {
       toast({ title: "Image deleted" });
-      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", "cropped"] });
+      api.invalidateAssets("cropped");
     },
     onError: (error: Error) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });

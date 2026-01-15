@@ -4,7 +4,6 @@ import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { getImageUrl } from "../shared/imageUtils";
@@ -17,7 +16,7 @@ interface CropDialogProps {
 }
 
 export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
-  const { api, apiBase } = useLibraryContext();
+  const { api } = useLibraryContext();
   const { toast } = useToast();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
@@ -110,7 +109,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
 
       toast({ title: "Cropped image saved", description: "Image added to Cropped Images tab" });
       onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", "cropped"] });
+      api.invalidateAssets("cropped");
     } catch (error: unknown) {
       const err = error as Error;
       toast({ title: "Save failed", description: err.message, variant: "destructive" });

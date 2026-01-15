@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Image as ImageIcon, AlertCircle } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
-import { getImageUrl, fetchImageAsBlob } from "../shared/imageUtils";
+import { getImageUrl } from "../shared/imageUtils";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 interface LibraryImageProps {
@@ -25,7 +25,7 @@ export function LibraryImage({
   showErrorState = true,
   retryOnError = false,
 }: LibraryImageProps) {
-  const { getAuthHeaders } = useLibraryContext();
+  const { api } = useLibraryContext();
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -44,7 +44,7 @@ export function LibraryImage({
     setError(null);
 
     try {
-      const blobUrl = await fetchImageAsBlob(imageUrl, getAuthHeaders);
+      const blobUrl = await api.fetchImageBlob(imageUrl);
       setImageSrc(blobUrl);
       setLoading(false);
       onLoad?.();
@@ -58,7 +58,7 @@ export function LibraryImage({
         setTimeout(() => setRetryCount((c) => c + 1), 1000 * (retryCount + 1));
       }
     }
-  }, [imageUrl, getAuthHeaders, retryCount, onLoad, onError, retryOnError]);
+  }, [imageUrl, api, retryCount, onLoad, onError, retryOnError]);
 
   useEffect(() => {
     loadImage();

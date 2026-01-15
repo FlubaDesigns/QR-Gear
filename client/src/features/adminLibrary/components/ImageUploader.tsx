@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Nexus } from "@/lib/nexus";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
 import { Loader2, Upload } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 
@@ -15,7 +13,7 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ assetType = "source", onUploadComplete }: ImageUploaderProps) {
-  const { api, apiBase } = useLibraryContext();
+  const { api } = useLibraryContext();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -53,7 +51,7 @@ export function ImageUploader({ assetType = "source", onUploadComplete }: ImageU
         description: `${result.extractedCount} images extracted to library` 
       });
 
-      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", assetType] });
+      api.invalidateAssets(assetType);
       onUploadComplete?.();
 
     } catch (error: unknown) {
@@ -100,7 +98,7 @@ export function ImageUploader({ assetType = "source", onUploadComplete }: ImageU
       }
 
       toast({ title: `Uploaded ${successCount} of ${files.length} images` });
-      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", assetType] });
+      api.invalidateAssets(assetType);
       onUploadComplete?.();
 
     } catch (error: unknown) {
