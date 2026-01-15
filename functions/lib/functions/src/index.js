@@ -2815,7 +2815,7 @@ const TEST_USA_MADE_BRANDS = [
     'bella+canvas', 'bella canvas', 'lane seven', 'cotton heritage',
     'shaka wear', 'backpacks usa', 'american giant', 'next level',
 ];
-// Test endpoint: Printify catalog (no auth required)
+// Test endpoint: Printify catalog (no auth required) - v2 with price fields
 app.get('/test/printify/catalog', async (req, res) => {
     try {
         console.log('[TestCatalog] GET Printify catalog');

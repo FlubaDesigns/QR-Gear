@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Package } from "lucide-react";
+import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
