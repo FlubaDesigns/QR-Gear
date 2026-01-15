@@ -1,6 +1,5 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
 import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
 import { SyncModule } from "./modules/SyncModule";
@@ -11,7 +10,6 @@ interface ProductsHarnessProps {
 }
 
 function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
-  const [tab, setTab] = useState<string>("catalog");
   const { api, providers, selectedProviders, setSelectedProviders } = useProductsContext();
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -34,7 +32,7 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {showHeader && (
         <div className="flex items-center justify-between">
           <div>
@@ -53,26 +51,11 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
         productCount={productCount}
       />
 
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="h-auto flex flex-wrap gap-2 p-2 bg-muted/50">
-          <TabsTrigger value="catalog" className="flex-1 min-w-[120px]">
-            Catalog
-          </TabsTrigger>
-          <TabsTrigger value="sync" className="flex-1 min-w-[120px]">
-            Sync
-          </TabsTrigger>
-        </TabsList>
+      <SyncModule selectedProviders={selectedProviders} />
 
-        <TabsContent value="catalog" className="mt-6">
-          <div className="text-center py-12 text-muted-foreground">
-            Catalog module coming soon... ({filteredProducts.length} products filtered)
-          </div>
-        </TabsContent>
-
-        <TabsContent value="sync" className="mt-6">
-          <SyncModule />
-        </TabsContent>
-      </Tabs>
+      <div className="text-center py-8 text-muted-foreground border rounded-md">
+        Catalog module coming soon... ({filteredProducts.length} products filtered)
+      </div>
     </div>
   );
 }
