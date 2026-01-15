@@ -52,6 +52,16 @@ export const QR_PRODUCT_STATES = [
   { id: "dynamic", label: "Dynamic QR", description: "Updateable rich media content" },
 ] as const;
 
+export interface ContentData {
+  url: string;
+  title: string;
+  description: string;
+  backgroundType: "image" | "video";
+  overlayPosition: "top" | "bottom" | "center";
+  overlayColor: string;
+  overlayFontFamily: string;
+}
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -62,4 +72,5 @@ export interface BuilderState {
   originFilter: OriginFilter;
   selectedProduct: CatalogProduct | null;
   qrProductState: QRProductState;
+  content: ContentData;
 }
