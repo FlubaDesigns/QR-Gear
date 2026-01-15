@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -69,6 +70,17 @@ export function CategoryModule() {
       if (b.name === "T-Shirts") return 1;
       return a.name.localeCompare(b.name);
     });
+
+  useEffect(() => {
+    if (state.fulfillmentProvider && !state.category && sortedCategories.length > 0) {
+      const tshirts = sortedCategories.find(c => c.name === "T-Shirts");
+      if (tshirts) {
+        setCategory("T-Shirts");
+      } else {
+        setCategory(sortedCategories[0].name);
+      }
+    }
+  }, [state.fulfillmentProvider, state.category, sortedCategories, setCategory]);
 
   return (
     <CollapsibleModule
