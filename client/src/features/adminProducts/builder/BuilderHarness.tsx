@@ -5,6 +5,7 @@ import { CategoryModule } from "./modules/CategoryModule";
 import { ProductsModule } from "./modules/ProductsModule";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
+import { PublishModule } from "./modules/PublishModule";
 
 export function BuilderHarness() {
   return (
@@ -16,6 +17,7 @@ export function BuilderHarness() {
         <ProductsModule />
         <StateModule />
         <ContentModule />
+        <PublishModule />
       </div>
     </BuilderProvider>
   );

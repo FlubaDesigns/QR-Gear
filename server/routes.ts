@@ -5787,6 +5787,60 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Create dynamic page from builder (with content config)
+  app.post("/api/dynamic-pages/create", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { 
+        title, 
+        description, 
+        backgroundUrl, 
+        backgroundType, 
+        overlayPosition, 
+        overlayColor, 
+        overlayFontFamily,
+        productId,
+        qrState 
+      } = req.body;
+      
+      // Generate unique slug
+      const slug = crypto.randomUUID();
+      
+      // Store content config in description as JSON for now
+      const contentConfig = JSON.stringify({
+        backgroundUrl,
+        backgroundType: backgroundType || "image",
+        overlayPosition: overlayPosition || "bottom",
+        overlayColor: overlayColor || "#ffffff",
+        overlayFontFamily: overlayFontFamily || "Arial",
+        productId,
+        qrState,
+      });
+      
+      const page = await storage.createDynamicPage({
+        userId,
+        slug,
+        title: title || "Untitled",
+        description: contentConfig,
+        status: "active",
+      });
+      
+      // Build the public URL
+      const baseUrl = process.env.NODE_ENV === "production" 
+        ? "https://qrgear-c1ffd.web.app"
+        : `http://localhost:${process.env.PORT || 5000}`;
+      
+      res.status(201).json({
+        id: page.id,
+        slug: page.slug,
+        url: `${baseUrl}/p/${page.slug}`,
+        createdAt: page.createdAt,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Update a dynamic page
   app.put("/api/dynamic-pages/:id", isAuthenticated, async (req: any, res) => {
     try {
