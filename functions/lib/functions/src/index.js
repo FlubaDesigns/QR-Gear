@@ -2761,6 +2761,54 @@ app.post('/test/admin/products/sync', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Get stores by role type (test endpoint)
+app.get('/test/admin/stores', async (req, res) => {
+    try {
+        const roleType = req.query.roleType;
+        console.log(`[TestStores] GET stores for roleType: ${roleType}`);
+        // Mock data for testing - will be replaced with database queries
+        const mockStores = {
+            internal: [
+                { id: "qrgear-main", name: "QR Gear Main", roleType: "internal", isActive: true, channelCount: 3 },
+            ],
+            external: [
+                { id: "kingdom-connects", name: "Kingdom Connects", roleType: "external", isActive: true, channelCount: 2 },
+            ],
+            member: [],
+        };
+        const stores = mockStores[roleType] || [];
+        res.json(stores);
+    }
+    catch (error) {
+        console.error('[TestStores] GET error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Get channels for a store (test endpoint)
+app.get('/test/admin/stores/:storeId/channels', async (req, res) => {
+    try {
+        const { storeId } = req.params;
+        console.log(`[TestChannels] GET channels for store: ${storeId}`);
+        // Mock data for testing - will be replaced with database queries
+        const mockChannels = {
+            "qrgear-main": [
+                { id: "homepage", name: "Homepage", storeId: "qrgear-main", isActive: true, productCount: 12 },
+                { id: "apparel", name: "Apparel", storeId: "qrgear-main", isActive: true, productCount: 8 },
+                { id: "accessories", name: "Accessories", storeId: "qrgear-main", isActive: true, productCount: 5 },
+            ],
+            "kingdom-connects": [
+                { id: "church-merch", name: "Church Merch", storeId: "kingdom-connects", isActive: true, productCount: 6 },
+                { id: "ministry-items", name: "Ministry Items", storeId: "kingdom-connects", isActive: true, productCount: 4 },
+            ],
+        };
+        const channels = mockChannels[storeId] || [];
+        res.json(channels);
+    }
+    catch (error) {
+        console.error('[TestChannels] GET error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============ LIBRARY ASSETS (ADMIN) ============
 app.get('/admin/background-assets', requireAdmin, async (req, res) => {
     try {
