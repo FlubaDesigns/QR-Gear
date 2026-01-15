@@ -151,7 +151,7 @@ export function ScrollView({
     return (
       <div className="relative">
         <ScrollArea style={{ height: gridHeight }} type="scroll">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-1">
+          <div className="grid grid-cols-1 gap-3 p-1">
             {items.map((item) => {
               const priceRange = item.minPrice && item.maxPrice 
                 ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }

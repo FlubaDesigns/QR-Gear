@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Package } from "lucide-react";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductViewerControls } from "../components/ProductViewerControls";
+import { ProductDetailModal } from "../components/ProductDetailModal";
 import type { CatalogProduct, GenderFilter } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
@@ -30,6 +31,7 @@ interface CatalogCategoryResponse {
 
 export function ProductsModule() {
   const { state, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
+  const [previewProduct, setPreviewProduct] = useState<CatalogProduct | null>(null);
 
   const { data: categoryData, isLoading, error } = useQuery<CatalogCategoryResponse | null>({
     queryKey: ["catalog-products", state.fulfillmentProvider, state.category],
@@ -128,11 +130,16 @@ export function ProductsModule() {
     madeInUSA: p.madeInUSA,
   }));
 
-  const handleSelect = (item: ScrollViewItem) => {
+  const handleItemTap = (item: ScrollViewItem) => {
     const product = filteredProducts.find(p => String(p.id) === item.id);
     if (product) {
-      selectProduct(product);
+      setPreviewProduct(product);
     }
+  };
+
+  const handleProductSelect = (product: CatalogProduct) => {
+    selectProduct(product);
+    setPreviewProduct(null);
   };
 
   return (
@@ -184,7 +191,7 @@ export function ProductsModule() {
             scrollProps={{
               items: scrollItems,
               selectedId: state.selectedProduct ? String(state.selectedProduct.id) : undefined,
-              onSelect: handleSelect,
+              onSelect: handleItemTap,
               aspectRatio: "square",
               emptyMessage: "No products match the current filters.",
               layout: "vertical",
@@ -194,14 +201,32 @@ export function ProductsModule() {
         )}
 
         {state.selectedProduct && (
-          <div className="p-3 bg-primary/5 rounded-md border">
-            <p className="text-sm font-medium">Selected: {state.selectedProduct.title}</p>
-            <p className="text-xs text-muted-foreground">
-              {state.selectedProduct.brand} - {state.selectedProduct.model}
-            </p>
+          <div className="p-3 bg-primary/5 rounded-md border space-y-3">
+            <div>
+              <p className="text-sm font-medium">Selected: {state.selectedProduct.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {state.selectedProduct.brand} - {state.selectedProduct.model}
+              </p>
+            </div>
+            <button
+              className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium text-sm hover:bg-primary/90 transition-colors"
+              data-testid="button-proceed-to-customization"
+              onClick={() => {
+                console.log("[ProductsModule] Proceeding with product:", state.selectedProduct?.title);
+              }}
+            >
+              Continue to Customization →
+            </button>
           </div>
         )}
       </div>
+
+      <ProductDetailModal
+        product={previewProduct}
+        open={!!previewProduct}
+        onClose={() => setPreviewProduct(null)}
+        onSelect={handleProductSelect}
+      />
     </CollapsibleModule>
   );
 }
