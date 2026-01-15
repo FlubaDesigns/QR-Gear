@@ -2,6 +2,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Palette, DollarSign } from "lucide-react";
 import UsaFlag from "@/components/UsaFlag";
+import { ProductSkin } from "../ProductSkin";
 
 export interface ScrollViewItem {
   id: string | number;
@@ -12,6 +13,8 @@ export interface ScrollViewItem {
   maxPrice?: string | null;
   colorCount?: number;
   madeInUSA?: boolean;
+  sizes?: string[];
+  description?: string;
 }
 
 export interface ScrollViewProps {
@@ -22,7 +25,7 @@ export interface ScrollViewProps {
   itemWidth?: string;
   maxItemWidth?: string;
   emptyMessage?: string;
-  layout?: "horizontal" | "grid" | "single";
+  layout?: "horizontal" | "grid" | "single" | "vertical";
   gridHeight?: string;
 }
 
@@ -139,6 +142,44 @@ export function ScrollView({
         </ScrollArea>
         <p className="text-xs text-muted-foreground text-center mt-2">
           {items.length} items • Swipe for more
+        </p>
+      </div>
+    );
+  }
+
+  if (layout === "vertical") {
+    return (
+      <div className="relative">
+        <ScrollArea style={{ height: gridHeight }} type="scroll">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-1">
+            {items.map((item) => {
+              const priceRange = item.minPrice && item.maxPrice 
+                ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
+                : item.minPrice 
+                  ? { min: parseFloat(item.minPrice), max: parseFloat(item.minPrice) }
+                  : undefined;
+              
+              return (
+                <ProductSkin
+                  key={item.id}
+                  id={item.id}
+                  title={item.title}
+                  brand={item.subtitle}
+                  image={item.imageUrl}
+                  priceRange={priceRange}
+                  madeInUSA={item.madeInUSA}
+                  colors={item.colorCount}
+                  sizes={item.sizes}
+                  description={item.description}
+                  onClick={() => onSelect?.(item)}
+                  className={selectedId === item.id ? "ring-2 ring-primary ring-offset-2" : ""}
+                />
+              );
+            })}
+          </div>
+        </ScrollArea>
+        <p className="text-xs text-muted-foreground text-center mt-2">
+          {items.length} items • Scroll for more
         </p>
       </div>
     );

@@ -155,7 +155,8 @@ export function ProductsModule() {
               onSelect: handleSelect,
               aspectRatio: "square",
               emptyMessage: "No products match the current filters.",
-              layout: "single",
+              layout: "vertical",
+              gridHeight: "450px",
             }}
           />
         )}
