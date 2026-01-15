@@ -20,6 +20,7 @@ export interface LibraryContextValue {
   storeId: string | null;
   apiBase: string;
   requiresAuth: boolean;
+  getAuthHeaders: () => Promise<HeadersInit>;
   storageRoots: {
     backgrounds: string;
     source: string;

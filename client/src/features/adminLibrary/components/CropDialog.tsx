@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
-import { getImageSrc, fetchImageAsBlob } from "@/lib/imageLoader";
+import { auth } from "@/lib/firebase";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 interface CropDialogProps {
@@ -16,8 +16,18 @@ interface CropDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function getImageUrl(asset: LibraryAssetWithProxy): string {
+  if (asset.proxyUrl) return asset.proxyUrl;
+  if (asset.publicUrl) return asset.publicUrl;
+  if (asset.storageUrl) {
+    const filename = asset.storageUrl.split("/").pop() || "";
+    return `/api/library-files/${encodeURIComponent(filename)}`;
+  }
+  return "";
+}
+
 export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
-  const { apiBase } = useLibraryContext();
+  const { apiBase, requiresAuth } = useLibraryContext();
   const { toast } = useToast();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
@@ -30,11 +40,25 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     setCropImageBlobUrl(null);
     setCropImageLoading(true);
     try {
-      const imageSrc = getImageSrc(assetToLoad);
-      if (!imageSrc) throw new Error("No image URL");
+      const imageUrl = getImageUrl(assetToLoad);
+      if (!imageUrl) throw new Error("No image URL");
       
-      // Use imageLoader like SmartImage does
-      const blobUrl = await fetchImageAsBlob(imageSrc);
+      const headers: HeadersInit = {};
+      if (requiresAuth) {
+        const user = auth.currentUser;
+        if (user) {
+          const token = await user.getIdToken();
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+      }
+
+      const response = await fetch(imageUrl, { headers });
+      if (!response.ok) {
+        throw new Error(`Failed to load image: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
       setCropImageBlobUrl(blobUrl);
     } catch (err) {
       console.error("[CropDialog] Failed to load image:", err);
@@ -43,14 +67,16 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     } finally {
       setCropImageLoading(false);
     }
-  }, [toast, onOpenChange]);
+  }, [toast, onOpenChange, requiresAuth]);
 
-  // Load image when dialog opens (parent controls `open` prop)
   useEffect(() => {
     if (open && asset && !cropImageBlobUrl && !cropImageLoading) {
       loadImage(asset);
     }
     if (!open) {
+      if (cropImageBlobUrl) {
+        URL.revokeObjectURL(cropImageBlobUrl);
+      }
       setCropImageBlobUrl(null);
       setCrop(undefined);
     }
@@ -93,7 +119,6 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
         toast({ title: "Failed to generate cropped image", variant: "destructive" });
         return;
       }
-      // Convert blob to base64 for JSON upload (server expects base64, not FormData)
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onload = () => {
@@ -106,11 +131,20 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       });
       const imageData = await base64Promise;
       
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (requiresAuth) {
+        const user = auth.currentUser;
+        if (user) {
+          const token = await user.getIdToken();
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+      }
+
       const response = await fetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           name: `cropped_${asset.name}`,
           assetType: "cropped",
