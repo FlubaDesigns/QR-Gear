@@ -43,7 +43,8 @@ export function CategoryModule() {
       } else if (state.fulfillmentProvider === "printful") {
         const grouped: Record<string, number> = {};
         for (const product of data) {
-          const category = product.category || "Other";
+          // Printful uses 'type' field (e.g., "KNITWEAR", "CUT-SEW")
+          const category = product.type || "Other";
           grouped[category] = (grouped[category] || 0) + 1;
         }
         return Object.entries(grouped).map(([name, count]) => ({
