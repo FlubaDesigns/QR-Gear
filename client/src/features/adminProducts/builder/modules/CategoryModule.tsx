@@ -26,8 +26,10 @@ export function CategoryModule() {
       let endpoint = "";
       
       if (state.fulfillmentProvider === "printify") {
-        endpoint = `${api.baseUrl}${adminSegment}/printify/catalog`;
+        // Printify is NOT under /admin in server routes
+        endpoint = `${api.baseUrl}/printify/catalog`;
       } else if (state.fulfillmentProvider === "printful") {
+        // Printful IS under /admin in prod, but NOT in /api/test
         endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
       }
       
