@@ -46,6 +46,18 @@ export interface Channel {
   productCount?: number;
 }
 
+export interface LibraryAsset {
+  id: string;
+  name: string;
+  url?: string;
+  proxyUrl?: string;
+  thumbnailUrl?: string;
+  publicUrl?: string;
+  type: string;
+  assetType?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ProductsApi {
   baseUrl: string;
   getAuthHeaders: () => Promise<HeadersInit>;
@@ -55,6 +67,7 @@ export interface ProductsApi {
   syncCatalog: () => Promise<{ synced: number }>;
   fetchStores: (roleType: RoleType) => Promise<Store[]>;
   fetchChannels: (storeId: string) => Promise<Channel[]>;
+  fetchLibraryAssets: (assetType: string) => Promise<LibraryAsset[]>;
 }
 
 export interface ProductsContextValue {

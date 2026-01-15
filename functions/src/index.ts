@@ -2957,7 +2957,7 @@ app.delete('/admin/gallery/:id', requireAdmin, async (req: Request, res: Respons
 
 // ============ LIBRARY ASSETS (TEST - NO AUTH) ============
 
-app.get('/test/admin/background-assets', async (req: Request, res: Response): Promise<void> => {
+app.get('/test/background-assets', async (req: Request, res: Response): Promise<void> => {
   try {
     const typeFilter = (req.query.type as string) || 'source';
     const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
@@ -2996,7 +2996,7 @@ app.get('/test/admin/background-assets', async (req: Request, res: Response): Pr
   }
 });
 
-app.post('/test/admin/background-assets', async (req: Request, res: Response): Promise<void> => {
+app.post('/test/background-assets', async (req: Request, res: Response): Promise<void> => {
   console.log('[TestBackgroundAssets] POST request received');
   try {
     const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags, fromZip } = req.body;
@@ -3127,7 +3127,7 @@ app.post('/test/admin/background-assets', async (req: Request, res: Response): P
 });
 
 // Test DELETE endpoint (no auth)
-app.delete('/test/admin/background-assets/:id', async (req: Request, res: Response): Promise<void> => {
+app.delete('/test/background-assets/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     console.log(`[TestBackgroundAssets] DELETE ${req.params.id}`);
     // Soft delete (set isActive to false)
@@ -3145,7 +3145,7 @@ app.delete('/test/admin/background-assets/:id', async (req: Request, res: Respon
 // ============ TEST PRODUCTS ENDPOINTS (no auth) ============
 
 // Get all products (test endpoint)
-app.get('/test/admin/products', async (_req: Request, res: Response): Promise<void> => {
+app.get('/test/products', async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('products').where('isEnabled', '==', true).get();
     const products = snapshot.docs.map(doc => docToObject(doc));
@@ -3158,7 +3158,7 @@ app.get('/test/admin/products', async (_req: Request, res: Response): Promise<vo
 });
 
 // Sync products from Printify (test endpoint - placeholder)
-app.post('/test/admin/products/sync', async (_req: Request, res: Response): Promise<void> => {
+app.post('/test/products/sync', async (_req: Request, res: Response): Promise<void> => {
   try {
     console.log('[TestProducts] Sync requested (placeholder)');
     res.json({ synced: 0, message: "Sync endpoint ready - Printify integration pending" });
@@ -3168,8 +3168,8 @@ app.post('/test/admin/products/sync', async (_req: Request, res: Response): Prom
   }
 });
 
-// Get stores by role type (test endpoint)
-app.get('/test/admin/stores', async (req: Request, res: Response): Promise<void> => {
+// Get stores by role type (test endpoint - no /admin segment for test routes)
+app.get('/test/stores', async (req: Request, res: Response): Promise<void> => {
   try {
     const roleType = req.query.roleType as string;
     console.log(`[TestStores] GET stores for roleType: ${roleType}`);
@@ -3194,7 +3194,7 @@ app.get('/test/admin/stores', async (req: Request, res: Response): Promise<void>
 });
 
 // Get channels for a store (test endpoint)
-app.get('/test/admin/stores/:storeId/channels', async (req: Request, res: Response): Promise<void> => {
+app.get('/test/stores/:storeId/channels', async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId } = req.params;
     console.log(`[TestChannels] GET channels for store: ${storeId}`);
@@ -3228,7 +3228,7 @@ const TEST_USA_MADE_BRANDS = [
 ];
 
 // Test endpoint: Printify catalog (no auth required)
-app.get('/test/admin/printify/catalog', async (req: Request, res: Response): Promise<void> => {
+app.get('/test/printify/catalog', async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('[TestCatalog] GET Printify catalog');
     const snapshot = await db.collection('printifyBlueprints').get();
@@ -3298,7 +3298,7 @@ app.get('/test/admin/printify/catalog', async (req: Request, res: Response): Pro
 });
 
 // Test endpoint: Printful catalog (no auth required)
-app.get('/test/admin/catalog/printful-products', async (req: Request, res: Response): Promise<void> => {
+app.get('/test/catalog/printful-products', async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('[TestCatalog] GET Printful products');
     const snapshot = await db.collection('printfulProducts').get();

@@ -2569,7 +2569,7 @@ app.delete('/admin/gallery/:id', requireAdmin, async (req, res) => {
     }
 });
 // ============ LIBRARY ASSETS (TEST - NO AUTH) ============
-app.get('/test/admin/background-assets', async (req, res) => {
+app.get('/test/background-assets', async (req, res) => {
     try {
         const typeFilter = req.query.type || 'source';
         const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
@@ -2604,7 +2604,7 @@ app.get('/test/admin/background-assets', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/test/admin/background-assets', async (req, res) => {
+app.post('/test/background-assets', async (req, res) => {
     console.log('[TestBackgroundAssets] POST request received');
     try {
         const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags, fromZip } = req.body;
@@ -2721,7 +2721,7 @@ app.post('/test/admin/background-assets', async (req, res) => {
     }
 });
 // Test DELETE endpoint (no auth)
-app.delete('/test/admin/background-assets/:id', async (req, res) => {
+app.delete('/test/background-assets/:id', async (req, res) => {
     try {
         console.log(`[TestBackgroundAssets] DELETE ${req.params.id}`);
         // Soft delete (set isActive to false)
@@ -2738,7 +2738,7 @@ app.delete('/test/admin/background-assets/:id', async (req, res) => {
 });
 // ============ TEST PRODUCTS ENDPOINTS (no auth) ============
 // Get all products (test endpoint)
-app.get('/test/admin/products', async (_req, res) => {
+app.get('/test/products', async (_req, res) => {
     try {
         const snapshot = await db.collection('products').where('isEnabled', '==', true).get();
         const products = snapshot.docs.map(doc => docToObject(doc));
@@ -2751,7 +2751,7 @@ app.get('/test/admin/products', async (_req, res) => {
     }
 });
 // Sync products from Printify (test endpoint - placeholder)
-app.post('/test/admin/products/sync', async (_req, res) => {
+app.post('/test/products/sync', async (_req, res) => {
     try {
         console.log('[TestProducts] Sync requested (placeholder)');
         res.json({ synced: 0, message: "Sync endpoint ready - Printify integration pending" });
@@ -2761,8 +2761,8 @@ app.post('/test/admin/products/sync', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// Get stores by role type (test endpoint)
-app.get('/test/admin/stores', async (req, res) => {
+// Get stores by role type (test endpoint - no /admin segment for test routes)
+app.get('/test/stores', async (req, res) => {
     try {
         const roleType = req.query.roleType;
         console.log(`[TestStores] GET stores for roleType: ${roleType}`);
@@ -2785,7 +2785,7 @@ app.get('/test/admin/stores', async (req, res) => {
     }
 });
 // Get channels for a store (test endpoint)
-app.get('/test/admin/stores/:storeId/channels', async (req, res) => {
+app.get('/test/stores/:storeId/channels', async (req, res) => {
     try {
         const { storeId } = req.params;
         console.log(`[TestChannels] GET channels for store: ${storeId}`);
@@ -2816,7 +2816,7 @@ const TEST_USA_MADE_BRANDS = [
     'shaka wear', 'backpacks usa', 'american giant', 'next level',
 ];
 // Test endpoint: Printify catalog (no auth required)
-app.get('/test/admin/printify/catalog', async (req, res) => {
+app.get('/test/printify/catalog', async (req, res) => {
     try {
         console.log('[TestCatalog] GET Printify catalog');
         const snapshot = await db.collection('printifyBlueprints').get();
@@ -2883,7 +2883,7 @@ app.get('/test/admin/printify/catalog', async (req, res) => {
     }
 });
 // Test endpoint: Printful catalog (no auth required)
-app.get('/test/admin/catalog/printful-products', async (req, res) => {
+app.get('/test/catalog/printful-products', async (req, res) => {
     try {
         console.log('[TestCatalog] GET Printful products');
         const snapshot = await db.collection('printfulProducts').get();

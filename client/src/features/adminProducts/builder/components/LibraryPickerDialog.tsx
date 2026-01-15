@@ -5,18 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Check, Image, Layers } from "lucide-react";
 import { useProductsContext } from "../../ProductsContext";
+import type { LibraryAsset } from "../../shared/types";
 
 export type PickerMode = "templates" | "backgrounds" | "cropped" | "graphics";
-
-export interface LibraryAsset {
-  id: string;
-  name: string;
-  url?: string;
-  proxyUrl?: string;
-  thumbnailUrl?: string;
-  type: string;
-  metadata?: Record<string, unknown>;
-}
 
 interface LibraryPickerDialogProps {
   open: boolean;
@@ -45,12 +36,7 @@ export function LibraryPickerDialog({
 
   const { data: assets = [], isLoading } = useQuery<LibraryAsset[]>({
     queryKey: ["library", "picker", api.baseUrl, assetType],
-    queryFn: async () => {
-      const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/admin/background-assets?type=${assetType}`, { headers });
-      if (!res.ok) throw new Error("Failed to fetch assets");
-      return res.json();
-    },
+    queryFn: () => api.fetchLibraryAssets(assetType),
     enabled: open,
   });
 

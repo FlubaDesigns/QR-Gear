@@ -1,5 +1,22 @@
 # QR Gear - System Reference Guide
 
+## ⚠️ READ THIS EVERY 5 MINUTES - MANDATORY ⚠️
+
+**PRODUCTION DEPLOYMENT IS NON-NEGOTIABLE:**
+1. After EVERY code change, deploy to production immediately
+2. After EVERY deployment, TEST the production server (https://qrgear-c1ffd.web.app)
+3. NEVER just test dev - ALWAYS test production too
+4. User has CIDP - cannot debug manually - agent must be 100% autonomous
+
+**Deploy Command (run after every change):**
+```bash
+npm run build && echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-key.json && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-key.json firebase deploy --only hosting,functions
+```
+
+**Then TEST production endpoints with curl before reporting success.**
+
+---
+
 ## Overview
 QR Gear is an e-commerce platform specializing in personalized promotional merchandise featuring custom QR codes. The platform integrates with Printify for print-on-demand fulfillment. Its core purpose is to enable users to design and order custom QR-enhanced products efficiently. The project aims to capture a niche market for businesses and individuals seeking unique, branded merchandise.
 

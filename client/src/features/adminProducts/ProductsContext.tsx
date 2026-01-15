@@ -114,6 +114,18 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
         }
         return res.json();
       },
+
+      fetchLibraryAssets: async (assetType: string): Promise<any[]> => {
+        const headers = await getAuthHeaders();
+        const isTestEndpoint = apiBase.includes("/test");
+        const adminSegment = isTestEndpoint ? "" : "/admin";
+        const res = await fetch(`${apiBase}${adminSegment}/background-assets?type=${assetType}`, { headers });
+        if (!res.ok) {
+          if (res.status === 404) return [];
+          throw new Error(`Failed to fetch library assets: ${res.status}`);
+        }
+        return res.json();
+      },
     };
   }, [apiBase, getAuthHeaders]);
 
