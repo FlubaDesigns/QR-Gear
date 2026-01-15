@@ -2604,6 +2604,70 @@ app.get('/test/admin/background-assets', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+app.post('/test/admin/background-assets', async (req, res) => {
+    console.log('[TestBackgroundAssets] POST request received');
+    try {
+        const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags, fromZip } = req.body;
+        console.log(`[TestBackgroundAssets] Uploading: ${name}, type: ${assetType}, fromZip: ${fromZip}, dataSize: ${imageData?.length || 0}`);
+        if (!name || !assetType || !imageData) {
+            console.log('[TestBackgroundAssets] Missing required fields');
+            res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
+            return;
+        }
+        if (assetType !== 'source' && assetType !== 'cropped') {
+            res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
+            return;
+        }
+        const bucket = storage.bucket();
+        let folderPath;
+        if (assetType === 'cropped') {
+            folderPath = 'library/backgrounds/cropped';
+        }
+        else if (fromZip) {
+            folderPath = 'library/backgrounds/raw/zip';
+        }
+        else {
+            folderPath = 'library/backgrounds/raw';
+        }
+        const fileName = `${folderPath}/${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const ext = (mimeType || 'image/png').split('/')[1] || 'png';
+        const fullPath = `${fileName}.${ext}`;
+        const file = bucket.file(fullPath);
+        const buffer = Buffer.from(imageData, 'base64');
+        await file.save(buffer, {
+            metadata: {
+                contentType: mimeType || 'image/png',
+            },
+        });
+        await file.makePublic();
+        const fileNameOnly = fullPath.split('/').pop() || name;
+        const proxyUrl = `/api/library-files/${encodeURIComponent(fileNameOnly)}`;
+        const docRef = await db.collection('libraryAssets').add({
+            ownerType: 'admin',
+            assetType: assetType,
+            mediaType: 'image',
+            name,
+            fileName: fullPath.split('/').pop() || name,
+            originalName: name,
+            mimeType: mimeType || 'image/png',
+            sizeBytes: buffer.length,
+            storageUrl: fullPath,
+            publicUrl: proxyUrl,
+            sourceAssetId: sourceAssetId || null,
+            cropData: cropData || null,
+            tags: tags || null,
+            isActive: true,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const doc = await docRef.get();
+        console.log(`[TestBackgroundAssets] Upload complete: ${doc.id}`);
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        console.error("[TestBackgroundAssets] Upload error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============ LIBRARY ASSETS (ADMIN) ============
 app.get('/admin/background-assets', requireAdmin, async (req, res) => {
     try {
