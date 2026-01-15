@@ -33,11 +33,11 @@ const initialContent: ContentData = {
 };
 
 const initialState: BuilderState = {
-  sourceType: null,
+  sourceType: "custom",
   loadedTemplate: null,
   loadedGraphic: null,
   loadedBackground: null,
-  fulfillmentProvider: null,
+  fulfillmentProvider: "printify",
   category: null,
   originFilter: { showUSA: true, showOther: true },
   genderFilter: "all",

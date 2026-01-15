@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Package, CheckCircle, Store, Layers } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Badge } from "@/components/ui/badge";
@@ -6,22 +5,10 @@ import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 
 export function FulfillmentModule() {
-  const { state, setSourceType, setFulfillmentProvider } = useBuilderContext();
+  const { state } = useBuilderContext();
   const { selectedStore, selectedChannel } = useProductsContext();
 
-  useEffect(() => {
-    if (!state.sourceType) {
-      setSourceType("custom");
-    }
-    if (state.sourceType === "custom" && !state.fulfillmentProvider) {
-      setFulfillmentProvider("printify");
-    }
-  }, [state.sourceType, state.fulfillmentProvider, setSourceType, setFulfillmentProvider]);
-
-  if (state.sourceType !== "custom") {
-    return null;
-  }
-
+  // Always show - sourceType and fulfillmentProvider are set by default in BuilderContext
   return (
     <CollapsibleModule
       title="Fulfillment Center"
