@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useCallback } from "react";
+import { auth } from "@/lib/firebase";
 import type { LibraryContextValue } from "./shared/types";
 
 const noAuthHeaders = async (): Promise<HeadersInit> => ({});
@@ -26,7 +27,6 @@ interface LibraryProviderProps {
   children: React.ReactNode;
   storeId?: string | null;
   apiBase?: string;
-  getAuthHeaders?: () => Promise<HeadersInit>;
   storageRoots?: Partial<LibraryContextValue["storageRoots"]>;
   permissions?: Partial<LibraryContextValue["permissions"]>;
 }
@@ -35,24 +35,27 @@ export function LibraryProvider({
   children,
   storeId,
   apiBase,
-  getAuthHeaders,
   storageRoots,
   permissions,
 }: LibraryProviderProps) {
   const resolvedApiBase = apiBase ?? defaultContext.apiBase;
   const requiresAuth = !resolvedApiBase.includes("/test");
   
-  const resolvedGetAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
+  const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     if (!requiresAuth) return {};
-    if (getAuthHeaders) return getAuthHeaders();
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return { Authorization: `Bearer ${token}` };
+    }
     return {};
-  }, [requiresAuth, getAuthHeaders]);
+  }, [requiresAuth]);
 
   const value = useMemo<LibraryContextValue>(() => ({
     storeId: storeId ?? null,
     apiBase: resolvedApiBase,
     requiresAuth,
-    getAuthHeaders: resolvedGetAuthHeaders,
+    getAuthHeaders,
     storageRoots: {
       ...defaultContext.storageRoots,
       ...storageRoots,
@@ -61,7 +64,7 @@ export function LibraryProvider({
       ...defaultContext.permissions,
       ...permissions,
     },
-  }), [storeId, resolvedApiBase, requiresAuth, resolvedGetAuthHeaders, storageRoots, permissions]);
+  }), [storeId, resolvedApiBase, requiresAuth, getAuthHeaders, storageRoots, permissions]);
 
   return (
     <LibraryContext.Provider value={value}>

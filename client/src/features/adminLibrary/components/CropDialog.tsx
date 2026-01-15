@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
-import { auth } from "@/lib/firebase";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 interface CropDialogProps {
@@ -27,7 +26,7 @@ function getImageUrl(asset: LibraryAssetWithProxy): string {
 }
 
 export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
-  const { apiBase, requiresAuth } = useLibraryContext();
+  const { apiBase, getAuthHeaders } = useLibraryContext();
   const { toast } = useToast();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
@@ -43,15 +42,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       const imageUrl = getImageUrl(assetToLoad);
       if (!imageUrl) throw new Error("No image URL");
       
-      const headers: HeadersInit = {};
-      if (requiresAuth) {
-        const user = auth.currentUser;
-        if (user) {
-          const token = await user.getIdToken();
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-      }
-
+      const headers = await getAuthHeaders();
       const response = await fetch(imageUrl, { headers });
       if (!response.ok) {
         throw new Error(`Failed to load image: ${response.status}`);
@@ -67,7 +58,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     } finally {
       setCropImageLoading(false);
     }
-  }, [toast, onOpenChange, requiresAuth]);
+  }, [toast, onOpenChange, getAuthHeaders]);
 
   useEffect(() => {
     if (open && asset && !cropImageBlobUrl && !cropImageLoading) {
@@ -131,20 +122,13 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       });
       const imageData = await base64Promise;
       
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-      };
-      if (requiresAuth) {
-        const user = auth.currentUser;
-        if (user) {
-          const token = await user.getIdToken();
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-      }
-
+      const authHeaders = await getAuthHeaders();
       const response = await fetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
         body: JSON.stringify({
           name: `cropped_${asset.name}`,
           assetType: "cropped",
