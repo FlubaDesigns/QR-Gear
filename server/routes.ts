@@ -1453,6 +1453,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===========================================
+  // TEST PRODUCTS ENDPOINTS (no auth required)
+  // ===========================================
+  
+  // Get all products (test endpoint)
+  app.get("/api/test/admin/products", async (req: any, res) => {
+    try {
+      const { products } = await import("@shared/schema");
+      const allProducts = await db.select().from(products).where(eq(products.isEnabled, true));
+      console.log(`[TestProducts] GET returned ${allProducts.length} products`);
+      res.json(allProducts);
+    } catch (error: any) {
+      console.error('[TestProducts] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sync products from Printify (test endpoint - placeholder)
+  app.post("/api/test/admin/products/sync", async (req: any, res) => {
+    try {
+      console.log('[TestProducts] Sync requested (placeholder)');
+      // Placeholder - real sync would call Printify API
+      res.json({ synced: 0, message: "Sync endpoint ready - Printify integration pending" });
+    } catch (error: any) {
+      console.error('[TestProducts] Sync error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Hosted Images API
   app.post("/api/images/upload", async (req, res) => {
     try {
