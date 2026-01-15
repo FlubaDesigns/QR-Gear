@@ -1734,6 +1734,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // One-time sync: Push all provider data from PostgreSQL to Firestore
+  app.post("/api/admin/sync-providers-to-firestore", isAdmin, async (req: any, res) => {
+    try {
+      console.log('[Sync] Starting provider sync to Firestore...');
+      const { printifyPrintProviders } = await import("@shared/schema");
+      const FirestoreAdapter = (await import("./lib/firestore-adapter")).FirestoreAdapter;
+      
+      const allProviders = await db.select().from(printifyPrintProviders);
+      console.log(`[Sync] Found ${allProviders.length} providers to sync`);
+      
+      const firestoreAdapter = new FirestoreAdapter();
+      let synced = 0;
+      let errors = 0;
+      
+      for (const provider of allProviders) {
+        try {
+          await firestoreAdapter.upsertPrintifyPrintProvider(provider);
+          synced++;
+        } catch (e: any) {
+          console.error(`[Sync] Error syncing ${provider.blueprintId}/${provider.providerId}:`, e.message);
+          errors++;
+        }
+      }
+      
+      console.log(`[Sync] Complete: ${synced} synced, ${errors} errors`);
+      res.json({ success: true, synced, errors, total: allProviders.length });
+    } catch (error: any) {
+      console.error('[Sync] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test endpoint: Printful catalog (with admin auth)
   app.get("/api/test/catalog/printful-products", isAdmin, async (req: any, res) => {
     try {

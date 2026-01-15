@@ -668,10 +668,16 @@ export class DualWriteAdapter implements IStorage {
     return this.primary.getPrintifyPrintProvider(blueprintId, providerId);
   }
   async upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider> {
-    return this.primary.upsertPrintifyPrintProvider(provider);
+    const result = await this.primary.upsertPrintifyPrintProvider(provider);
+    // Sync to Firestore for production access
+    this.secondary.upsertPrintifyPrintProvider(provider).catch(e => console.error('[DualWrite] Provider sync failed:', e));
+    return result;
   }
   async updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string; availableColors?: any[]; availableSizes?: string[] }): Promise<PrintifyPrintProvider | undefined> {
-    return this.primary.updatePrintifyProviderCosts(blueprintId, providerId, costs);
+    const result = await this.primary.updatePrintifyProviderCosts(blueprintId, providerId, costs);
+    // Sync to Firestore for production access
+    this.secondary.updatePrintifyProviderCosts(blueprintId, providerId, costs).catch(e => console.error('[DualWrite] Provider cost sync failed:', e));
+    return result;
   }
   async updateProductPricesByProvider(blueprintId: number, providerId: number, basePrice: string): Promise<number> {
     return this.primary.updateProductPricesByProvider(blueprintId, providerId, basePrice);
