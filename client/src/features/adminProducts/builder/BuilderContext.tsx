@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, CatalogProduct } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, CatalogProduct, QRProductState } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
@@ -13,6 +13,7 @@ interface BuilderContextValue {
   setCategory: (category: string | null) => void;
   setOriginFilter: (filter: Partial<OriginFilter>) => void;
   selectProduct: (product: CatalogProduct | null) => void;
+  setQRProductState: (state: QRProductState) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
@@ -28,6 +29,7 @@ const initialState: BuilderState = {
   category: null,
   originFilter: { showUSA: true, showOther: true },
   selectedProduct: null,
+  qrProductState: null,
 };
 
 interface BuilderProviderProps {
@@ -102,6 +104,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const setQRProductState = useCallback((qrState: QRProductState) => {
+    setState(prev => ({
+      ...prev,
+      qrProductState: qrState,
+    }));
+  }, []);
+
   const resetBuilder = useCallback(() => {
     setState(initialState);
   }, []);
@@ -117,9 +126,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setCategory,
     setOriginFilter,
     selectProduct,
+    setQRProductState,
     resetBuilder,
     api,
-  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, selectProduct, resetBuilder, api]);
+  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, selectProduct, setQRProductState, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

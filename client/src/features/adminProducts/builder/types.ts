@@ -36,6 +36,22 @@ export interface OriginFilter {
   showOther: boolean;
 }
 
+export type QRProductState = 
+  | "plain_qr"           // Just QR code, no decoration
+  | "qr_header_footer"   // QR with styled header/footer text
+  | "qr_url"             // QR links directly to external URL
+  | "qr_url_decorated"   // QR + header/footer + links to URL
+  | "dynamic"            // Dynamic QR (rich media, updateable)
+  | null;
+
+export const QR_PRODUCT_STATES = [
+  { id: "plain_qr", label: "Plain QR", description: "Simple QR code, no decoration" },
+  { id: "qr_header_footer", label: "QR + Text", description: "QR with styled header & footer" },
+  { id: "qr_url", label: "QR → URL", description: "QR links directly to your URL" },
+  { id: "qr_url_decorated", label: "QR + Text → URL", description: "Styled QR that links to URL" },
+  { id: "dynamic", label: "Dynamic QR", description: "Updateable rich media content" },
+] as const;
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -45,4 +61,5 @@ export interface BuilderState {
   category: string | null;
   originFilter: OriginFilter;
   selectedProduct: CatalogProduct | null;
+  qrProductState: QRProductState;
 }
