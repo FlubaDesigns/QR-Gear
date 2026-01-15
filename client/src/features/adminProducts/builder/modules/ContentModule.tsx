@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
+import { ContentViewerControls } from "../components/ContentViewerControls";
 
 export function ContentModule() {
   const { state, setContent } = useBuilderContext();
@@ -107,21 +108,27 @@ export function ContentModule() {
         )}
 
         {state.qrProductState === "dynamic" && state.content.url && (
-          <div className="space-y-2">
-            <Label>Preview</Label>
-            <SharedViewer
-              mode="content"
-              contentProps={{
-                backgroundUrl: state.content.url,
-                backgroundType: state.content.backgroundType,
-                title: state.content.title,
-                description: state.content.description,
-                overlayPosition: state.content.overlayPosition,
-                overlayColor: state.content.overlayColor,
-                overlayFontFamily: state.content.overlayFontFamily,
-                placeholder: "Enter a background URL above",
-              }}
+          <div className="space-y-3">
+            <ContentViewerControls
+              content={state.content}
+              onContentChange={setContent}
             />
+            <div className="space-y-2">
+              <Label>Preview</Label>
+              <SharedViewer
+                mode="content"
+                contentProps={{
+                  backgroundUrl: state.content.url,
+                  backgroundType: state.content.backgroundType,
+                  title: state.content.title,
+                  description: state.content.description,
+                  overlayPosition: state.content.overlayPosition,
+                  overlayColor: state.content.overlayColor,
+                  overlayFontFamily: state.content.overlayFontFamily,
+                  placeholder: "Enter a background URL above",
+                }}
+              />
+            </div>
           </div>
         )}
 
