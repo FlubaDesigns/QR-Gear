@@ -1,5 +1,7 @@
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Image } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
 

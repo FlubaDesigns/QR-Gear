@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LibraryProvider } from "@/features/adminLibrary/LibraryContext";
 import SourceImagesTab from "@/features/adminLibrary/tabs/SourceImagesTab";
 import CroppedImagesTab from "@/features/adminLibrary/tabs/CroppedImagesTab";
 import BackgroundsTab from "@/features/adminLibrary/tabs/BackgroundsTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Package } from "lucide-react";
 
 export default function TestLibraryPage() {
   const [tab, setTab] = useState<string>("source");
@@ -20,11 +22,17 @@ export default function TestLibraryPage() {
               Test Library (No Auth Required)
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
               This is a public test version of the library for debugging. 
               Uses /api/test endpoints instead of /api/admin endpoints.
             </p>
+            <Link href="/test-products">
+              <Button variant="outline" size="sm" data-testid="link-test-products">
+                <Package className="h-4 w-4 mr-2" />
+                Go to Products Builder
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
