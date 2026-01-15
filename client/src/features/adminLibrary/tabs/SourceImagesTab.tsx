@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
 import { ImagePlus } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
@@ -10,42 +9,26 @@ import { CropDialog } from "../components/CropDialog";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function SourceImagesTab() {
-  const { apiBase } = useLibraryContext();
+  const { api } = useLibraryContext();
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<LibraryAssetWithProxy | null>(null);
 
-  const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
-    queryKey: [`${apiBase}/admin/background-assets`, "source"],
-    queryFn: async () => {
-      const res = await fetch(`${apiBase}/admin/background-assets?type=source`);
-      if (!res.ok) throw new Error(`Failed: ${res.status}`);
-      return res.json();
-    },
-    staleTime: 0,
-    retry: 2,
+  const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
+    queryKey: api.getQueryKey("source"),
+    queryFn: () => api.fetchAssets("source"),
   });
 
-  useEffect(() => { refetch(); }, [refetch]);
-
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-    },
+    mutationFn: (id: string) => api.deleteAsset(id),
     onSuccess: () => {
       toast({ title: "Image deleted" });
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "source"] });
+      api.invalidateAssets("source");
     },
     onError: (error: Error) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
-
-  const handleOpenCrop = (asset: LibraryAssetWithProxy) => {
-    setImageToCrop(asset);
-    setCropDialogOpen(true);
-  };
 
   return (
     <>
@@ -63,17 +46,14 @@ export default function SourceImagesTab() {
         emptySubMessage="Upload a ZIP file or select images above."
         aspectRatio="square"
         actions={["crop", "delete"]}
-        onCrop={handleOpenCrop}
+        onCrop={(asset) => { setImageToCrop(asset); setCropDialogOpen(true); }}
         onDelete={(asset) => deleteMutation.mutate(asset.id)}
       />
 
       <CropDialog
         asset={imageToCrop}
         open={cropDialogOpen}
-        onOpenChange={(open) => {
-          setCropDialogOpen(open);
-          if (!open) setImageToCrop(null);
-        }}
+        onOpenChange={(open) => { setCropDialogOpen(open); if (!open) setImageToCrop(null); }}
       />
     </>
   );

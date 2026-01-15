@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
+import { getImageUrl } from "../shared/imageUtils";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 interface CropDialogProps {
@@ -15,18 +16,8 @@ interface CropDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function getImageUrl(asset: LibraryAssetWithProxy): string {
-  if (asset.proxyUrl) return asset.proxyUrl;
-  if (asset.publicUrl) return asset.publicUrl;
-  if (asset.storageUrl) {
-    const filename = asset.storageUrl.split("/").pop() || "";
-    return `/api/library-files/${encodeURIComponent(filename)}`;
-  }
-  return "";
-}
-
 export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
-  const { apiBase, getAuthHeaders } = useLibraryContext();
+  const { api, apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
@@ -40,16 +31,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     setCropImageLoading(true);
     try {
       const imageUrl = getImageUrl(assetToLoad);
-      if (!imageUrl) throw new Error("No image URL");
-      
-      const headers = await getAuthHeaders();
-      const response = await fetch(imageUrl, { headers });
-      if (!response.ok) {
-        throw new Error(`Failed to load image: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const blobUrl = await api.fetchImageBlob(imageUrl);
       setCropImageBlobUrl(blobUrl);
     } catch (err) {
       console.error("[CropDialog] Failed to load image:", err);
@@ -58,7 +40,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
     } finally {
       setCropImageLoading(false);
     }
-  }, [toast, onOpenChange, getAuthHeaders]);
+  }, [api, toast, onOpenChange]);
 
   useEffect(() => {
     if (open && asset && !cropImageBlobUrl && !cropImageLoading) {
@@ -72,10 +54,6 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       setCrop(undefined);
     }
   }, [open, asset, cropImageBlobUrl, cropImageLoading, loadImage]);
-
-  const handleOpenChange = useCallback((newOpen: boolean) => {
-    onOpenChange(newOpen);
-  }, [onOpenChange]);
 
   const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
@@ -121,29 +99,18 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
         reader.readAsDataURL(blob);
       });
       const imageData = await base64Promise;
-      
-      const authHeaders = await getAuthHeaders();
-      const response = await fetch(`${apiBase}/admin/background-assets`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
-        body: JSON.stringify({
-          name: `cropped_${asset.name}`,
-          assetType: "cropped",
-          imageData,
-          mimeType: "image/jpeg",
-          sourceAssetId: asset.id,
-        }),
+
+      await api.uploadAsset({
+        name: `cropped_${asset.name}`,
+        assetType: "cropped",
+        imageData,
+        mimeType: "image/jpeg",
+        sourceAssetId: asset.id,
       });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Upload failed");
-      }
+
       toast({ title: "Cropped image saved", description: "Image added to Cropped Images tab" });
       onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "cropped"] });
+      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", "cropped"] });
     } catch (error: unknown) {
       const err = error as Error;
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
@@ -153,7 +120,7 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Crop Image (9:16 ratio)</DialogTitle>

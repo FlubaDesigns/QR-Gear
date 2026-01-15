@@ -8,32 +8,23 @@ import { AssetGrid } from "../components/AssetGrid";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function CroppedImagesTab() {
-  const { apiBase } = useLibraryContext();
+  const { api, apiBase } = useLibraryContext();
   const { toast } = useToast();
 
   const { data: assets = [], isLoading, refetch } = useQuery<LibraryAssetWithProxy[]>({
-    queryKey: [`${apiBase}/admin/background-assets`, "cropped"],
-    queryFn: async () => {
-      const res = await fetch(`${apiBase}/admin/background-assets?type=cropped`);
-      if (!res.ok) throw new Error(`Failed: ${res.status}`);
-      return res.json();
-    },
+    queryKey: [apiBase, "assets", "cropped"],
+    queryFn: () => api.fetchAssets("cropped"),
     staleTime: 0,
     retry: 2,
   });
 
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
+  useEffect(() => { refetch(); }, [refetch]);
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`${apiBase}/admin/background-assets/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-    },
+    mutationFn: (id: string) => api.deleteAsset(id),
     onSuccess: () => {
       toast({ title: "Image deleted" });
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, "cropped"] });
+      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", "cropped"] });
     },
     onError: (error: Error) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });

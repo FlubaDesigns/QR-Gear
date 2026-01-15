@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Loader2, Upload, Check, X } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 
 interface ImageUploaderProps {
@@ -15,7 +15,7 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ assetType = "source", onUploadComplete }: ImageUploaderProps) {
-  const { apiBase } = useLibraryContext();
+  const { api, apiBase } = useLibraryContext();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -40,31 +40,20 @@ export function ImageUploader({ assetType = "source", onUploadComplete }: ImageU
         reader.readAsDataURL(file);
       });
 
-      const response = await fetch("/api/test-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: file.name,
-          assetType,
-          imageData: base64,
-          mimeType: "application/zip",
-        }),
+      const result = await api.uploadZip({
+        name: file.name,
+        assetType,
+        imageData: base64,
+        mimeType: "application/zip",
       });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || `Server error ${response.status}`);
-      }
-
-      const result = await response.json();
       Nexus.info("ZIP_UPLOAD", `Server extracted ${result.extractedCount} images`);
-
       toast({ 
         title: "ZIP uploaded successfully", 
         description: `${result.extractedCount} images extracted to library` 
       });
 
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, assetType] });
+      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", assetType] });
       onUploadComplete?.();
 
     } catch (error: unknown) {
@@ -97,24 +86,21 @@ export function ImageUploader({ assetType = "source", onUploadComplete }: ImageU
           reader.readAsDataURL(file);
         });
 
-        const response = await fetch(`${apiBase}/admin/background-assets`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        try {
+          await api.uploadAsset({
             name: file.name.replace(/\.[^/.]+$/, ""),
             assetType,
             imageData: base64,
             mimeType: file.type || "image/png",
-          }),
-        });
-
-        if (response.ok) {
+          });
           successCount++;
+        } catch {
+          // Continue with next file
         }
       }
 
       toast({ title: `Uploaded ${successCount} of ${files.length} images` });
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/admin/background-assets`, assetType] });
+      queryClient.invalidateQueries({ queryKey: [apiBase, "assets", assetType] });
       onUploadComplete?.();
 
     } catch (error: unknown) {

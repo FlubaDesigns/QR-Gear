@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Image as ImageIcon, AlertCircle } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
+import { getImageUrl, fetchImageAsBlob } from "../shared/imageUtils";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 interface LibraryImageProps {
@@ -12,16 +13,6 @@ interface LibraryImageProps {
   onError?: (error: Error) => void;
   showErrorState?: boolean;
   retryOnError?: boolean;
-}
-
-function getImageUrl(asset: LibraryAssetWithProxy): string {
-  if (asset.proxyUrl) return asset.proxyUrl;
-  if (asset.publicUrl) return asset.publicUrl;
-  if (asset.storageUrl) {
-    const filename = asset.storageUrl.split("/").pop() || "";
-    return `/api/library-files/${encodeURIComponent(filename)}`;
-  }
-  return "";
 }
 
 export function LibraryImage({
@@ -53,15 +44,7 @@ export function LibraryImage({
     setError(null);
 
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(imageUrl, { headers });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load image: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const blobUrl = await fetchImageAsBlob(imageUrl, getAuthHeaders);
       setImageSrc(blobUrl);
       setLoading(false);
       onLoad?.();
