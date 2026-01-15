@@ -1470,12 +1470,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sync products from Printify (test endpoint - placeholder)
-  app.post("/api/test/admin/products/sync", async (req: any, res) => {
+  // Sync products from Printify (test endpoint with auth)
+  app.post("/api/test/admin/products/sync", isAdmin, async (req: any, res) => {
     try {
-      console.log('[TestProducts] Sync requested (placeholder)');
-      // Placeholder - real sync would call Printify API
-      res.json({ synced: 0, message: "Sync endpoint ready - Printify integration pending" });
+      console.log('[TestProducts] Sync requested');
+      
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+      
+      // Check if sync is already running
+      const latestSync = await storage.getLatestCatalogSync();
+      if (latestSync?.status === 'running') {
+        return res.status(409).json({ error: "Sync already in progress" });
+      }
+      
+      // Create sync record
+      const syncRecord = await storage.createCatalogSync({
+        syncType: 'full',
+        status: 'running',
+        blueprintsCount: 0,
+        providersCount: 0,
+      });
+      
+      // Return immediately, sync runs in background
+      res.json({ syncId: syncRecord.id, status: 'started', message: "Catalog sync started in background" });
+      
+      // Run sync in background
+      (async () => {
+        try {
+          console.log('[TestProducts] Starting full catalog sync...');
+          
+          const blueprints = await printify.getCatalogBlueprints();
+          console.log(`[TestProducts] Found ${blueprints.length} blueprints`);
+          
+          let blueprintsCount = 0;
+          let providersCount = 0;
+          
+          for (const bp of blueprints) {
+            try {
+              await storage.upsertPrintifyBlueprint({
+                id: bp.id,
+                title: bp.title,
+                description: bp.description || null,
+                brand: bp.brand || null,
+                model: bp.model || null,
+                images: bp.images || null,
+                primaryImageUrl: bp.images?.[0] || null,
+                category: detectCategory(bp.title, bp.brand || ''),
+              });
+              blueprintsCount++;
+              
+              const providers = await printify.getPrintProviders(bp.id);
+              
+              for (const provider of providers) {
+                const isUSA = provider.location?.country === 'US' || 
+                              provider.location?.country === 'USA';
+                
+                await storage.upsertPrintifyPrintProvider({
+                  blueprintId: bp.id,
+                  providerId: provider.id,
+                  title: provider.title,
+                  country: provider.location?.country || null,
+                  isUSA,
+                });
+                providersCount++;
+              }
+              
+              await new Promise(r => setTimeout(r, 100));
+              
+            } catch (bpError: any) {
+              console.error(`[TestProducts] Error syncing blueprint ${bp.id}:`, bpError.message);
+            }
+          }
+          
+          await storage.updateCatalogSync(syncRecord.id, {
+            status: 'completed',
+            blueprintsCount,
+            providersCount,
+            completedAt: new Date(),
+          });
+          
+          console.log(`[TestProducts] Sync completed. ${blueprintsCount} blueprints, ${providersCount} providers`);
+          
+        } catch (bgError: any) {
+          console.error('[TestProducts] Background sync error:', bgError.message);
+          await storage.updateCatalogSync(syncRecord.id, {
+            status: 'failed',
+            errorMessage: bgError.message,
+            completedAt: new Date(),
+          });
+        }
+      })();
+      
     } catch (error: any) {
       console.error('[TestProducts] Sync error:', error);
       res.status(500).json({ error: error.message });
@@ -1605,6 +1692,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TestCatalog] Returning ${result.length} categories`);
       res.json(result);
+    } catch (error: any) {
+      console.error('[TestCatalog] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint: Get provider product counts from database
+  app.get("/api/test/admin/provider-counts", isAdmin, async (req: any, res) => {
+    try {
+      console.log('[TestCatalog] GET provider counts');
+      const { printfulProducts, printifyPrintProviders } = await import("@shared/schema");
+      const { count } = await import("drizzle-orm");
+      
+      const [printifyResult] = await db.select({ count: count() }).from(printifyPrintProviders);
+      const [printfulResult] = await db.select({ count: count() }).from(printfulProducts);
+      
+      const counts = {
+        printify: printifyResult?.count || 0,
+        printful: printfulResult?.count || 0,
+      };
+      
+      console.log(`[TestCatalog] Provider counts:`, counts);
+      res.json(counts);
     } catch (error: any) {
       console.error('[TestCatalog] GET error:', error);
       res.status(500).json({ error: error.message });

@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useBuilderContext } from "../BuilderContext";
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -10,22 +12,40 @@ const PROVIDER_LABELS: Record<string, string> = {
   apliiq: "Apliiq",
 };
 
-const PROVIDER_ORDER = ["printify", "printful", "apliiq"];
+interface ProviderCounts {
+  printify: number;
+  printful: number;
+}
 
 export function FulfillmentModule() {
-  const { state, activeProviders, setFulfillmentProvider } = useBuilderContext();
+  const { state, activeProviders, setFulfillmentProvider, api } = useBuilderContext();
+
+  const { data: providerCounts, isLoading } = useQuery<ProviderCounts>({
+    queryKey: ["provider-counts", api.baseUrl],
+    queryFn: async () => {
+      const headers = await api.getAuthHeaders();
+      const res = await fetch(`${api.baseUrl}/admin/provider-counts`, { headers });
+      if (!res.ok) return { printify: 0, printful: 0 };
+      return res.json();
+    },
+  });
 
   const sortedProviders = [...activeProviders].sort((a, b) => {
-    const aIndex = PROVIDER_ORDER.indexOf(a);
-    const bIndex = PROVIDER_ORDER.indexOf(b);
-    return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    const aCount = providerCounts?.[a as keyof ProviderCounts] || 0;
+    const bCount = providerCounts?.[b as keyof ProviderCounts] || 0;
+    return bCount - aCount;
   });
 
   useEffect(() => {
-    if (state.sourceType === "custom" && sortedProviders.length > 0 && !state.fulfillmentProvider) {
-      setFulfillmentProvider(sortedProviders[0]);
+    if (state.sourceType === "custom" && sortedProviders.length > 0 && !state.fulfillmentProvider && providerCounts) {
+      const providerWithItems = sortedProviders.find(
+        (p) => (providerCounts[p as keyof ProviderCounts] || 0) > 0
+      );
+      if (providerWithItems) {
+        setFulfillmentProvider(providerWithItems);
+      }
     }
-  }, [state.sourceType, sortedProviders, state.fulfillmentProvider, setFulfillmentProvider]);
+  }, [state.sourceType, sortedProviders, state.fulfillmentProvider, setFulfillmentProvider, providerCounts]);
 
   if (state.sourceType !== "custom") {
     return null;
@@ -57,25 +77,32 @@ export function FulfillmentModule() {
         <p className="text-sm text-muted-foreground">
           Select a fulfillment center to browse their product catalog.
         </p>
-        <Select
-          value={state.fulfillmentProvider || ""}
-          onValueChange={(value) => setFulfillmentProvider(value || null)}
-        >
-          <SelectTrigger className="w-full max-w-xs" data-testid="select-fulfillment-provider">
-            <SelectValue placeholder="Select fulfillment center..." />
-          </SelectTrigger>
-          <SelectContent position="popper">
-            {sortedProviders.map((providerId) => (
-              <SelectItem 
-                key={providerId} 
-                value={providerId}
-                data-testid={`option-provider-${providerId}`}
-              >
-                {PROVIDER_LABELS[providerId] || providerId}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {isLoading ? (
+          <Skeleton className="h-10 w-full max-w-xs" />
+        ) : (
+          <Select
+            value={state.fulfillmentProvider || ""}
+            onValueChange={(value) => setFulfillmentProvider(value || null)}
+          >
+            <SelectTrigger className="w-full max-w-xs" data-testid="select-fulfillment-provider">
+              <SelectValue placeholder="Select fulfillment center..." />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              {sortedProviders.map((providerId) => {
+                const count = providerCounts?.[providerId as keyof ProviderCounts] || 0;
+                return (
+                  <SelectItem 
+                    key={providerId} 
+                    value={providerId}
+                    data-testid={`option-provider-${providerId}`}
+                  >
+                    {PROVIDER_LABELS[providerId] || providerId} ({count} items)
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        )}
       </div>
     </CollapsibleModule>
   );
