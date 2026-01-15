@@ -61,6 +61,12 @@ export function CategoryModule() {
     return null;
   }
 
+  const sortedCategories = [...categories].sort((a, b) => {
+    if (a.name === "T-Shirts") return -1;
+    if (b.name === "T-Shirts") return 1;
+    return a.name.localeCompare(b.name);
+  });
+
   return (
     <CollapsibleModule
       title="Product Category"
@@ -75,7 +81,7 @@ export function CategoryModule() {
         
         {isLoading ? (
           <Skeleton className="h-10 w-full max-w-xs" />
-        ) : categories.length === 0 ? (
+        ) : sortedCategories.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No categories found for this provider.
           </p>
@@ -88,7 +94,7 @@ export function CategoryModule() {
               <SelectValue placeholder="Select category..." />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((cat) => (
+              {sortedCategories.map((cat) => (
                 <SelectItem 
                   key={cat.name} 
                   value={cat.name}
