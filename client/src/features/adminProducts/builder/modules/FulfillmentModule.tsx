@@ -9,17 +9,19 @@ export function FulfillmentModule() {
   const { state, setSourceType, setFulfillmentProvider } = useBuilderContext();
   const { selectedStore, selectedChannel } = useProductsContext();
 
-  useEffect(() => {
-    if (!state.sourceType) {
-      setSourceType("custom");
-    }
-  }, [state.sourceType, setSourceType]);
+  console.log("[FulfillmentModule] state:", { sourceType: state.sourceType, fulfillmentProvider: state.fulfillmentProvider });
 
   useEffect(() => {
+    console.log("[FulfillmentModule] useEffect running, sourceType:", state.sourceType, "provider:", state.fulfillmentProvider);
+    if (!state.sourceType) {
+      console.log("[FulfillmentModule] Setting sourceType to custom");
+      setSourceType("custom");
+    }
     if (state.sourceType === "custom" && !state.fulfillmentProvider) {
+      console.log("[FulfillmentModule] Setting fulfillmentProvider to printify");
       setFulfillmentProvider("printify");
     }
-  }, [state.sourceType, state.fulfillmentProvider, setFulfillmentProvider]);
+  }, [state.sourceType, state.fulfillmentProvider, setSourceType, setFulfillmentProvider]);
 
   if (state.sourceType !== "custom") {
     return null;
