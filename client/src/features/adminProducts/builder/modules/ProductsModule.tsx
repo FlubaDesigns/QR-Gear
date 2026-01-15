@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { Package, Flag, Globe } from "lucide-react";
+import { Package } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
+import { ProductViewerControls } from "../components/ProductViewerControls";
 import type { CatalogProduct } from "../types";
+import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
 interface CatalogCategoryResponse {
   name: string;
@@ -69,6 +68,20 @@ export function ProductsModule() {
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
 
+  const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
+    id: p.id,
+    imageUrl: p.imageUrl || "",
+    title: p.title,
+    subtitle: p.brand,
+  }));
+
+  const handleSelect = (item: ScrollViewItem) => {
+    const product = filteredProducts.find(p => p.id === item.id);
+    if (product) {
+      selectProduct(product);
+    }
+  };
+
   return (
     <CollapsibleModule
       title="Select Product"
@@ -77,32 +90,14 @@ export function ProductsModule() {
       defaultOpen
     >
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="filter-usa"
-              checked={state.originFilter.showUSA}
-              onCheckedChange={(checked) => setOriginFilter({ showUSA: checked })}
-              data-testid="switch-filter-usa"
-            />
-            <Label htmlFor="filter-usa" className="flex items-center gap-1.5 cursor-pointer">
-              <Flag className="h-3.5 w-3.5 text-blue-600" />
-              Made in USA ({usaCount})
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="filter-other"
-              checked={state.originFilter.showOther}
-              onCheckedChange={(checked) => setOriginFilter({ showOther: checked })}
-              data-testid="switch-filter-other"
-            />
-            <Label htmlFor="filter-other" className="flex items-center gap-1.5 cursor-pointer">
-              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-              Made Elsewhere ({otherCount})
-            </Label>
-          </div>
-        </div>
+        <ProductViewerControls
+          showUSA={state.originFilter.showUSA}
+          showOther={state.originFilter.showOther}
+          usaCount={usaCount}
+          otherCount={otherCount}
+          onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
+          onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
+        />
 
         {error ? (
           <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
@@ -111,52 +106,22 @@ export function ProductsModule() {
             </p>
           </div>
         ) : isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-square rounded-md" />
+          <div className="flex gap-3 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
             ))}
           </div>
-        ) : filteredProducts.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            No products match the current filters.
-          </p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                className={`relative cursor-pointer overflow-hidden hover-elevate ${
-                  state.selectedProduct?.id === product.id ? "ring-2 ring-primary" : ""
-                }`}
-                onClick={() => selectProduct(product)}
-                data-testid={`card-product-${product.id}`}
-              >
-                <div className="aspect-square bg-muted flex items-center justify-center">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.title}
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <Package className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="p-2 space-y-1">
-                  <p className="text-xs font-medium line-clamp-2 leading-tight">
-                    {product.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{product.brand}</p>
-                  {product.madeInUSA && (
-                    <Badge variant="secondary" className="text-xs py-0">
-                      <Flag className="h-2.5 w-2.5 mr-1" />
-                      USA
-                    </Badge>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
+          <SharedViewer
+            mode="scroll"
+            scrollProps={{
+              items: scrollItems,
+              selectedId: state.selectedProduct?.id,
+              onSelect: handleSelect,
+              aspectRatio: "square",
+              emptyMessage: "No products match the current filters.",
+            }}
+          />
         )}
 
         {state.selectedProduct && (
