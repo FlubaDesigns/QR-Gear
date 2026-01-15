@@ -16,11 +16,17 @@ export default function TestProductsPage() {
               Test Products (No Auth Required)
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
               This is a public test version of the products page for debugging. 
               Uses /api/test endpoints instead of /api/admin endpoints.
             </p>
+            <Link href="/test-library">
+              <Button variant="outline" size="sm" data-testid="link-test-library">
+                <Image className="h-4 w-4 mr-2" />
+                Go to Library
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
