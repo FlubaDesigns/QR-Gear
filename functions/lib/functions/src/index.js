@@ -2736,6 +2736,31 @@ app.delete('/test/admin/background-assets/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// ============ TEST PRODUCTS ENDPOINTS (no auth) ============
+// Get all products (test endpoint)
+app.get('/test/admin/products', async (_req, res) => {
+    try {
+        const snapshot = await db.collection('products').where('isEnabled', '==', true).get();
+        const products = snapshot.docs.map(doc => docToObject(doc));
+        console.log(`[TestProducts] GET returned ${products.length} products`);
+        res.json(products);
+    }
+    catch (error) {
+        console.error('[TestProducts] GET error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Sync products from Printify (test endpoint - placeholder)
+app.post('/test/admin/products/sync', async (_req, res) => {
+    try {
+        console.log('[TestProducts] Sync requested (placeholder)');
+        res.json({ synced: 0, message: "Sync endpoint ready - Printify integration pending" });
+    }
+    catch (error) {
+        console.error('[TestProducts] Sync error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============ LIBRARY ASSETS (ADMIN) ============
 app.get('/admin/background-assets', requireAdmin, async (req, res) => {
     try {
