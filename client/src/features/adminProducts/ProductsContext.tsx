@@ -1,9 +1,15 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useAdminAuth } from "../shared/AdminAuthContext";
-import type { ProductsContextValue, ProductsApi, Product } from "./shared/types";
+import type { ProductsContextValue, ProductsApi, Product, FulfillmentProvider } from "./shared/types";
 
 const ProductsContext = createContext<ProductsContextValue | null>(null);
+
+const DEFAULT_PROVIDERS: FulfillmentProvider[] = [
+  { id: "printify", name: "Printify", configured: true, role: "fulfillment" },
+  { id: "printful", name: "Printful", configured: true, role: "fulfillment" },
+  { id: "apliiq", name: "Apliiq", configured: false, role: "fulfillment" },
+];
 
 interface ProductsProviderProps {
   children: React.ReactNode;
@@ -11,6 +17,11 @@ interface ProductsProviderProps {
 
 export function ProductsProvider({ children }: ProductsProviderProps) {
   const { requiresAuth, getAuthHeaders, apiBase } = useAdminAuth();
+  const [selectedProviders, setSelectedProvidersState] = useState<string[]>(["printify", "printful"]);
+
+  const setSelectedProviders = useCallback((providers: string[]) => {
+    setSelectedProvidersState(providers);
+  }, []);
 
   const api = useMemo<ProductsApi>(() => {
     const getQueryKey = (type: string = "all"): string[] => ["products", apiBase, type];
@@ -50,8 +61,11 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     () => ({
       requiresAuth,
       api,
+      providers: DEFAULT_PROVIDERS,
+      selectedProviders,
+      setSelectedProviders,
     }),
-    [requiresAuth, api]
+    [requiresAuth, api, selectedProviders, setSelectedProviders]
   );
 
   return (
