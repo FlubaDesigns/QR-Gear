@@ -85,10 +85,7 @@ export function ProductsModule() {
     },
   });
 
-  if (state.sourceType !== "custom" || !state.fulfillmentProvider || !state.category) {
-    return null;
-  }
-
+  // All hooks MUST be called before any early returns (React rules of hooks)
   const products = categoryData?.items || [];
   
   const productsWithGender = useMemo(() => 
@@ -114,6 +111,11 @@ export function ProductsModule() {
     womens: productsWithGender.filter(p => p.gender === "womens").length,
     unisex: productsWithGender.filter(p => p.gender === "unisex").length,
   }), [productsWithGender]);
+
+  // Early return AFTER all hooks are called
+  if (state.sourceType !== "custom" || !state.fulfillmentProvider || !state.category) {
+    return null;
+  }
 
   const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
     id: String(p.id),
