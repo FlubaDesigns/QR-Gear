@@ -48,7 +48,10 @@ export function ProductsModule() {
         endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
       }
       
-      if (!endpoint) throw new Error("No catalog endpoint for this provider");
+      if (!endpoint) {
+        console.error("[ProductsModule] No catalog endpoint for provider:", state.fulfillmentProvider);
+        return null;
+      }
       
       let res: Response | null = null;
 
