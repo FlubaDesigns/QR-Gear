@@ -47,6 +47,8 @@ export interface Channel {
 }
 
 export interface ProductsApi {
+  baseUrl: string;
+  getAuthHeaders: () => Promise<HeadersInit>;
   getQueryKey: (type: string) => string[];
   invalidateProducts: (type?: string) => void;
   fetchProducts: () => Promise<Product[]>;

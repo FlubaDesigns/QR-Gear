@@ -65,6 +65,8 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     };
 
     return {
+      baseUrl: apiBase,
+      getAuthHeaders,
       getQueryKey,
       invalidateProducts,
 

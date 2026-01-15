@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Check, Image, Layers } from "lucide-react";
-import { useBuilderContext } from "../BuilderContext";
+import { useProductsContext } from "../../ProductsContext";
 
 export type PickerMode = "templates" | "backgrounds" | "cropped" | "graphics";
 
-interface LibraryAsset {
+export interface LibraryAsset {
   id: string;
   name: string;
   url?: string;
@@ -31,7 +31,7 @@ export function LibraryPickerDialog({
   mode, 
   onSelect 
 }: LibraryPickerDialogProps) {
-  const { api } = useBuilderContext();
+  const { api } = useProductsContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bgTab, setBgTab] = useState<"cropped" | "raw">("cropped");
 
@@ -44,10 +44,10 @@ export function LibraryPickerDialog({
     : "template";
 
   const { data: assets = [], isLoading } = useQuery<LibraryAsset[]>({
-    queryKey: ["library", "picker", assetType],
+    queryKey: ["library", "picker", api.baseUrl, assetType],
     queryFn: async () => {
-      const headers = await api.getHeaders();
-      const res = await fetch(`${api.baseUrl}/admin/library/assets?type=${assetType}`, { headers });
+      const headers = await api.getAuthHeaders();
+      const res = await fetch(`${api.baseUrl}/admin/background-assets?type=${assetType}`, { headers });
       if (!res.ok) throw new Error("Failed to fetch assets");
       return res.json();
     },
