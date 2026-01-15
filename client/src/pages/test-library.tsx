@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LibraryProvider } from "@/features/adminLibrary/LibraryContext";
 import SourceImagesTab from "@/features/adminLibrary/tabs/SourceImagesTab";
 import CroppedImagesTab from "@/features/adminLibrary/tabs/CroppedImagesTab";
+import BackgroundsTab from "@/features/adminLibrary/tabs/BackgroundsTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 
@@ -40,6 +41,7 @@ export default function TestLibraryPage() {
           <TabsList className="h-auto flex flex-wrap gap-2 p-2 bg-muted/50">
             <TabsTrigger value="source" className="flex-1 min-w-[120px]">Source Images</TabsTrigger>
             <TabsTrigger value="cropped" className="flex-1 min-w-[120px]">Cropped Images</TabsTrigger>
+            <TabsTrigger value="backgrounds" className="flex-1 min-w-[120px]">Backgrounds</TabsTrigger>
           </TabsList>
 
           <TabsContent value="source" className="mt-6">
@@ -48,6 +50,10 @@ export default function TestLibraryPage() {
 
           <TabsContent value="cropped" className="mt-6">
             <CroppedImagesTab />
+          </TabsContent>
+
+          <TabsContent value="backgrounds" className="mt-6">
+            <BackgroundsTab />
           </TabsContent>
         </Tabs>
       </div>

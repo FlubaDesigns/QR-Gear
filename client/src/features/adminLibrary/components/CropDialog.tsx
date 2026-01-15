@@ -107,9 +107,11 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
         sourceAssetId: asset.id,
       });
 
-      toast({ title: "Cropped image saved", description: "Image added to Cropped Images tab" });
+      toast({ title: "Cropped image saved", description: "Original archived, cropped image saved" });
       onOpenChange(false);
+      api.invalidateAssets("source");
       api.invalidateAssets("cropped");
+      api.invalidateAssets("background");
     } catch (error: unknown) {
       const err = error as Error;
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
