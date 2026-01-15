@@ -108,6 +108,9 @@ export function CropDialog({ asset, open, onOpenChange }: CropDialogProps) {
       
       const response = await fetch(`${apiBase}/admin/background-assets`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: `cropped_${asset.name}`,
           assetType: "cropped",
