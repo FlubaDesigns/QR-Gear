@@ -50,18 +50,29 @@ export function ProductsModule() {
       
       if (!endpoint) throw new Error("No catalog endpoint for this provider");
       
-      const res = await fetch(endpoint, { headers });
-      
-      if (res.status === 401 || res.status === 403) {
-        throw new Error("Authorization failed - please refresh and try again");
+      let res: Response | null = null;
+
+      try {
+        res = await fetch(endpoint, { headers });
+
+        // If auth fails, just return null so UI shows error panel instead of boundary
+        if (res.status === 401 || res.status === 403) {
+          return null;
+        }
+
+        // If anything non-OK, return null (the component already handles empty states)
+        if (!res.ok) {
+          return null;
+        }
+
+        // IMPORTANT: res.json() can throw if Firebase rewrites return HTML
+        const data = (await res.json()) as CatalogCategoryResponse[];
+        return data.find((cat) => cat.name === state.category) || null;
+      } catch (e) {
+        // Never throw — keep app alive and show error in-module
+        console.error("[ProductsModule] Catalog load failed:", e, { endpoint, status: res?.status });
+        return null;
       }
-      
-      if (!res.ok) {
-        throw new Error(`Failed to load catalog: ${res.status}`);
-      }
-      
-      const data = await res.json() as CatalogCategoryResponse[];
-      return data.find(cat => cat.name === state.category) || null;
     },
     enabled: !!state.fulfillmentProvider && !!state.category,
     retry: (failureCount, err) => {
@@ -139,9 +150,20 @@ export function ProductsModule() {
         />
 
         {error ? (
-          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
             <p className="text-sm text-destructive">
               {error instanceof Error ? error.message : "Failed to load products"}
+            </p>
+            <p className="text-xs text-muted-foreground break-all">
+              Debug: endpoint =
+              {" "}
+              {(() => {
+                const isTestEndpoint = api.baseUrl.includes("/test");
+                const adminSegment = isTestEndpoint ? "" : "/admin";
+                if (state.fulfillmentProvider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
+                if (state.fulfillmentProvider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
+                return "NO_PROVIDER";
+              })()}
             </p>
           </div>
         ) : isLoading ? (

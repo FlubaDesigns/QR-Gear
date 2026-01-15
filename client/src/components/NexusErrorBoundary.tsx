@@ -50,7 +50,7 @@ export class NexusErrorBoundary extends React.Component<Props, State> {
               Reload
             </button>
 
-            <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
+            <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7, wordBreak: "break-word" }}>
               {this.state.message}
             </div>
           </div>
