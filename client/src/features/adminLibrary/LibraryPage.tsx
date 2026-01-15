@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LibraryProvider } from "./LibraryContext";
 
 import TemplatesTab from "./tabs/TemplatesTab";
-import LibraryBackgroundsTab from "./tabs/LibraryBackgroundsTab";
+import BackgroundsTab from "./tabs/BackgroundsTab";
 import SourceImagesTab from "./tabs/SourceImagesTab";
 import CroppedImagesTab from "./tabs/CroppedImagesTab";
 
@@ -39,7 +39,7 @@ export default function LibraryPage() {
           </TabsContent>
 
           <TabsContent value="library" className="mt-6">
-            <LibraryBackgroundsTab />
+            <BackgroundsTab />
           </TabsContent>
 
           <TabsContent value="source" className="mt-6">

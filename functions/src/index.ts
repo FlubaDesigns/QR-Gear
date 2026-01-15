@@ -1542,14 +1542,14 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
     // Search in new canonical paths first, then legacy paths
     const possiblePaths = [
       `library/backgrounds/raw/${filename}`,
-      `library/backgrounds/zip/${filename}`,
       `library/backgrounds/cropped/${filename}`,
+      `library/backgrounds/archive/${filename}`,
+      `library/backgrounds/zip/${filename}`,
       `libraries/designs/${filename}`,
       `libraries/videos/${filename}`,
       `library/${filename}`,
       `library/admin/backgrounds/${filename}`,
       `library/admin/designs/${filename}`,
-      `library/backgrounds/raw/${filename}`,
       `library/backgrounds/raw/zip/${filename}`,
     ];
     
@@ -3122,6 +3122,22 @@ app.post('/test/admin/background-assets', async (req: Request, res: Response): P
     res.json(docToObject(doc));
   } catch (error: any) {
     console.error("[TestBackgroundAssets] Upload error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Test DELETE endpoint (no auth)
+app.delete('/test/admin/background-assets/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log(`[TestBackgroundAssets] DELETE ${req.params.id}`);
+    // Soft delete (set isActive to false)
+    await db.collection('libraryAssets').doc(req.params.id).update({
+      isActive: false,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("[TestBackgroundAssets] Delete error:", error);
     res.status(500).json({ error: error.message });
   }
 });
