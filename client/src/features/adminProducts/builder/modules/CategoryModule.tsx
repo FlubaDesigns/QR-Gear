@@ -23,9 +23,9 @@ export function CategoryModule() {
       let endpoint = "";
       
       if (state.fulfillmentProvider === "printify") {
-        endpoint = `${api.baseUrl}/test/admin/printify/catalog`;
+        endpoint = `${api.baseUrl}/admin/printify/catalog`;
       } else if (state.fulfillmentProvider === "printful") {
-        endpoint = `${api.baseUrl}/test/admin/catalog/printful-products`;
+        endpoint = `${api.baseUrl}/admin/catalog/printful-products`;
       }
       
       if (!endpoint) return [];
