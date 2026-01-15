@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -63,20 +63,21 @@ export function CategoryModule() {
     enabled: !!state.fulfillmentProvider,
   });
 
-  if (state.sourceType !== "custom" || !state.fulfillmentProvider) {
-    return null;
-  }
+  const sortedCategories = useMemo(() => {
+    return [...categories]
+      .filter(c => c.itemCount > 0)
+      .sort((a, b) => {
+        if (a.name === "T-Shirts") return -1;
+        if (b.name === "T-Shirts") return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [categories]);
 
-  const sortedCategories = [...categories]
-    .filter(c => c.itemCount > 0)
-    .sort((a, b) => {
-      if (a.name === "T-Shirts") return -1;
-      if (b.name === "T-Shirts") return 1;
-      return a.name.localeCompare(b.name);
-    });
+  const hasAutoSelected = useRef(false);
 
   useEffect(() => {
-    if (state.fulfillmentProvider && !state.category && sortedCategories.length > 0) {
+    if (state.fulfillmentProvider && !state.category && sortedCategories.length > 0 && !hasAutoSelected.current) {
+      hasAutoSelected.current = true;
       const tshirts = sortedCategories.find(c => c.name === "T-Shirts");
       if (tshirts) {
         setCategory("T-Shirts");
@@ -85,6 +86,10 @@ export function CategoryModule() {
       }
     }
   }, [state.fulfillmentProvider, state.category, sortedCategories, setCategory]);
+
+  if (state.sourceType !== "custom" || !state.fulfillmentProvider) {
+    return null;
+  }
 
   return (
     <CollapsibleModule
