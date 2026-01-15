@@ -1213,7 +1213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PUBLIC test endpoint for background-assets (mirrors /api/admin/background-assets but no auth)
-  app.get("/api/test/admin/background-assets", async (req: any, res) => {
+  app.get("/api/test/background-assets", async (req: any, res) => {
     try {
       const { libraryAssets } = await import("@shared/schema");
       const typeFilter = (req.query.type as string) || 'source';
@@ -1245,7 +1245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // PUBLIC test endpoint to upload background assets (no auth)
   // Handles both single images and ZIP files
-  app.post("/api/test/admin/background-assets", async (req: any, res) => {
+  app.post("/api/test/background-assets", async (req: any, res) => {
     try {
       const { name, assetType, imageData, mimeType, sourceAssetId, tags } = req.body;
       
@@ -1434,7 +1434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PUBLIC test endpoint to delete background assets (no auth)
-  app.delete("/api/test/admin/background-assets/:id", async (req: any, res) => {
+  app.delete("/api/test/background-assets/:id", async (req: any, res) => {
     try {
       const { id } = req.params;
       const { libraryAssets } = await import("@shared/schema");
@@ -1458,7 +1458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===========================================
   
   // Get all products (test endpoint)
-  app.get("/api/test/admin/products", async (req: any, res) => {
+  app.get("/api/test/products", async (req: any, res) => {
     try {
       const { products } = await import("@shared/schema");
       const allProducts = await db.select().from(products).where(eq(products.isEnabled, true));
@@ -1471,7 +1471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync products from Printify (test endpoint with auth)
-  app.post("/api/test/admin/products/sync", isAdmin, async (req: any, res) => {
+  app.post("/api/test/products/sync", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestProducts] Sync requested');
       
@@ -1570,7 +1570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get stores by role type (test endpoint)
-  app.get("/api/test/admin/stores", async (req: any, res) => {
+  app.get("/api/test/stores", async (req: any, res) => {
     try {
       const roleType = req.query.roleType as string;
       console.log(`[TestStores] GET stores for roleType: ${roleType}`);
@@ -1595,7 +1595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get channels for a store (test endpoint)
-  app.get("/api/test/admin/stores/:storeId/channels", async (req: any, res) => {
+  app.get("/api/test/stores/:storeId/channels", async (req: any, res) => {
     try {
       const { storeId } = req.params;
       console.log(`[TestChannels] GET channels for store: ${storeId}`);
@@ -1629,7 +1629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ];
 
   // Test endpoint: Printify catalog (no auth required)
-  app.get("/api/test/admin/printify/catalog", async (req: any, res) => {
+  app.get("/api/test/printify/catalog", async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET Printify catalog');
       const localBlueprints = await storage.getPrintifyBlueprints();
@@ -1712,7 +1712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test endpoint: Get provider product counts from database
-  app.get("/api/test/admin/provider-counts", isAdmin, async (req: any, res) => {
+  app.get("/api/test/provider-counts", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET provider counts');
       const { printfulProducts, printifyPrintProviders } = await import("@shared/schema");
@@ -1735,7 +1735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test endpoint: Printful catalog (with admin auth)
-  app.get("/api/test/admin/catalog/printful-products", isAdmin, async (req: any, res) => {
+  app.get("/api/test/catalog/printful-products", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET Printful products');
       const { printfulProducts } = await import("@shared/schema");

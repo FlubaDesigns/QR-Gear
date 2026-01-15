@@ -21,12 +21,14 @@ export function CategoryModule() {
       if (!state.fulfillmentProvider) return [];
       
       const headers = await api.getAuthHeaders();
+      const isTestEndpoint = api.baseUrl.includes("/test");
+      const adminSegment = isTestEndpoint ? "" : "/admin";
       let endpoint = "";
       
       if (state.fulfillmentProvider === "printify") {
-        endpoint = `${api.baseUrl}/admin/printify/catalog`;
+        endpoint = `${api.baseUrl}${adminSegment}/printify/catalog`;
       } else if (state.fulfillmentProvider === "printful") {
-        endpoint = `${api.baseUrl}/admin/catalog/printful-products`;
+        endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
       }
       
       if (!endpoint) return [];

@@ -72,14 +72,18 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchProducts: async (): Promise<Product[]> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/products`, { headers });
+        const isTestEndpoint = apiBase.includes("/test");
+        const adminSegment = isTestEndpoint ? "" : "/admin";
+        const res = await fetch(`${apiBase}${adminSegment}/products`, { headers });
         if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
         return res.json();
       },
 
       syncCatalog: async (): Promise<{ synced: number }> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/products/sync`, {
+        const isTestEndpoint = apiBase.includes("/test");
+        const adminSegment = isTestEndpoint ? "" : "/admin";
+        const res = await fetch(`${apiBase}${adminSegment}/products/sync`, {
           method: "POST",
           headers,
         });
@@ -89,7 +93,9 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchStores: async (roleType: RoleType): Promise<Store[]> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/stores?roleType=${roleType}`, { headers });
+        const isTestEndpoint = apiBase.includes("/test");
+        const adminSegment = isTestEndpoint ? "" : "/admin";
+        const res = await fetch(`${apiBase}${adminSegment}/stores?roleType=${roleType}`, { headers });
         if (!res.ok) {
           if (res.status === 404) return [];
           throw new Error(`Failed to fetch stores: ${res.status}`);
@@ -99,7 +105,9 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchChannels: async (storeId: string): Promise<Channel[]> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/stores/${storeId}/channels`, { headers });
+        const isTestEndpoint = apiBase.includes("/test");
+        const adminSegment = isTestEndpoint ? "" : "/admin";
+        const res = await fetch(`${apiBase}${adminSegment}/stores/${storeId}/channels`, { headers });
         if (!res.ok) {
           if (res.status === 404) return [];
           throw new Error(`Failed to fetch channels: ${res.status}`);
