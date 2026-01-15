@@ -69,14 +69,14 @@ export function ProductsModule() {
   const otherCount = products.filter(p => !p.madeInUSA).length;
 
   const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
-    id: p.id,
+    id: String(p.id),
     imageUrl: p.imageUrl || "",
     title: p.title,
     subtitle: p.brand,
   }));
 
   const handleSelect = (item: ScrollViewItem) => {
-    const product = filteredProducts.find(p => p.id === item.id);
+    const product = filteredProducts.find(p => String(p.id) === item.id);
     if (product) {
       selectProduct(product);
     }
@@ -116,7 +116,7 @@ export function ProductsModule() {
             mode="scroll"
             scrollProps={{
               items: scrollItems,
-              selectedId: state.selectedProduct?.id,
+              selectedId: state.selectedProduct ? String(state.selectedProduct.id) : undefined,
               onSelect: handleSelect,
               aspectRatio: "square",
               emptyMessage: "No products match the current filters.",

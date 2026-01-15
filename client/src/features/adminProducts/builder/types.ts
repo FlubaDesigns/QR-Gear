@@ -23,7 +23,7 @@ export interface CatalogCategory {
 }
 
 export interface CatalogProduct {
-  id: string;
+  id: number;
   title: string;
   brand: string;
   model: string;
