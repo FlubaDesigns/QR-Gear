@@ -22,7 +22,7 @@ export interface ScrollViewProps {
   itemWidth?: string;
   maxItemWidth?: string;
   emptyMessage?: string;
-  layout?: "horizontal" | "grid";
+  layout?: "horizontal" | "grid" | "single";
   gridHeight?: string;
 }
 
@@ -115,6 +115,30 @@ export function ScrollView({
         </ScrollArea>
         <p className="text-xs text-muted-foreground text-center mt-2">
           {items.length} items • Scroll for more
+        </p>
+      </div>
+    );
+  }
+
+  if (layout === "single") {
+    return (
+      <div className="relative">
+        <ScrollArea className="w-full" type="scroll">
+          <div className="flex gap-4 pb-2 snap-x snap-mandatory" style={{ width: "max-content" }}>
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex-shrink-0 snap-center"
+                style={{ width: "min(280px, 80vw)" }}
+              >
+                {renderItem(item)}
+              </div>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+        <p className="text-xs text-muted-foreground text-center mt-2">
+          {items.length} items • Swipe for more
         </p>
       </div>
     );
