@@ -1366,6 +1366,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TestBackgroundAssets] Created asset: ${asset.id}`);
       
+      // If this is a cropped image with a source, handle the source image workflow
+      if (assetType === 'cropped' && sourceAssetId) {
+        console.log(`[TestBackgroundAssets] Processing source image workflow for: ${sourceAssetId}`);
+        
+        // Get the source asset
+        const [sourceAsset] = await db.select().from(libraryAssets)
+          .where(eq(libraryAssets.id, sourceAssetId));
+        
+        if (sourceAsset && sourceAsset.storageUrl) {
+          try {
+            // Download the source image from Firebase Storage
+            const { getStorage } = await import("firebase-admin/storage");
+            const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'qrgear-c1ffd.firebasestorage.app';
+            const bucket = getStorage().bucket(bucketName);
+            const sourceFile = bucket.file(sourceAsset.storageUrl);
+            const [sourceBuffer] = await sourceFile.download();
+            
+            // Copy to backgrounds archive folder
+            const archiveFileName = `${Date.now()}-${sourceAsset.fileName || sourceAsset.name}`;
+            const archiveResult = await uploadToFirebaseStorage(
+              sourceBuffer,
+              archiveFileName,
+              sourceAsset.mimeType || 'image/png',
+              'library/backgrounds/archive'
+            );
+            console.log(`[TestBackgroundAssets] Archived source to: ${archiveResult.storageUrl}`);
+            
+            // Create archive record
+            const archiveProxyUrl = `/api/library-files/${encodeURIComponent(archiveFileName)}`;
+            await db.insert(libraryAssets).values({
+              ownerType: 'admin',
+              assetType: 'background',
+              mediaType: 'image',
+              name: sourceAsset.name,
+              fileName: archiveFileName,
+              originalName: sourceAsset.originalName,
+              storageUrl: archiveResult.storageUrl,
+              publicUrl: archiveProxyUrl,
+              mimeType: sourceAsset.mimeType,
+              sizeBytes: sourceBuffer.length,
+              isActive: true,
+              sourceAssetId: sourceAssetId,
+            });
+            
+            // Mark original source as inactive (remove from raw)
+            await db.update(libraryAssets)
+              .set({ isActive: false })
+              .where(eq(libraryAssets.id, sourceAssetId));
+            console.log(`[TestBackgroundAssets] Marked source ${sourceAssetId} as inactive`);
+            
+          } catch (archiveErr: any) {
+            console.error(`[TestBackgroundAssets] Archive failed (non-fatal):`, archiveErr.message);
+          }
+        }
+      }
+      
       return res.json({ 
         success: true, 
         asset: { ...asset, proxyUrl }

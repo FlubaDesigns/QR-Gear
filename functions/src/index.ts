@@ -3059,6 +3059,66 @@ app.post('/test/admin/background-assets', async (req: Request, res: Response): P
     
     const doc = await docRef.get();
     console.log(`[TestBackgroundAssets] Upload complete: ${doc.id}`);
+    
+    // If this is a cropped image with a source, handle the source image workflow
+    if (assetType === 'cropped' && sourceAssetId) {
+      console.log(`[TestBackgroundAssets] Processing source image workflow for: ${sourceAssetId}`);
+      
+      try {
+        // Get the source asset from Firestore
+        const sourceDoc = await db.collection('libraryAssets').doc(sourceAssetId).get();
+        
+        if (sourceDoc.exists) {
+          const sourceData = sourceDoc.data();
+          if (sourceData && sourceData.storageUrl) {
+            // Download the source image from Firebase Storage
+            const sourceFile = bucket.file(sourceData.storageUrl);
+            const [sourceBuffer] = await sourceFile.download();
+            
+            // Copy to backgrounds archive folder
+            const archiveFileName = `library/backgrounds/archive/${Date.now()}-${sourceData.fileName || sourceData.name}.${(sourceData.mimeType || 'image/png').split('/')[1] || 'png'}`;
+            const archiveFile = bucket.file(archiveFileName);
+            
+            await archiveFile.save(sourceBuffer, {
+              metadata: {
+                contentType: sourceData.mimeType || 'image/png',
+              },
+            });
+            await archiveFile.makePublic();
+            
+            console.log(`[TestBackgroundAssets] Archived source to: ${archiveFileName}`);
+            
+            // Create archive record
+            const archiveFileNameOnly = archiveFileName.split('/').pop() || '';
+            const archiveProxyUrl = `/api/library-files/${encodeURIComponent(archiveFileNameOnly)}`;
+            await db.collection('libraryAssets').add({
+              ownerType: 'admin',
+              assetType: 'background',
+              mediaType: 'image',
+              name: sourceData.name,
+              fileName: archiveFileNameOnly,
+              originalName: sourceData.originalName,
+              mimeType: sourceData.mimeType,
+              sizeBytes: sourceBuffer.length,
+              storageUrl: archiveFileName,
+              publicUrl: archiveProxyUrl,
+              sourceAssetId: sourceAssetId,
+              isActive: true,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            
+            // Mark original source as inactive (remove from raw)
+            await db.collection('libraryAssets').doc(sourceAssetId).update({
+              isActive: false,
+            });
+            console.log(`[TestBackgroundAssets] Marked source ${sourceAssetId} as inactive`);
+          }
+        }
+      } catch (archiveErr: any) {
+        console.error(`[TestBackgroundAssets] Archive failed (non-fatal):`, archiveErr.message);
+      }
+    }
+    
     res.json(docToObject(doc));
   } catch (error: any) {
     console.error("[TestBackgroundAssets] Upload error:", error);
