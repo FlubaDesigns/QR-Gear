@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, CatalogProduct } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
@@ -11,6 +11,8 @@ interface BuilderContextValue {
   loadBackground: (background: LoadedBackground) => void;
   setFulfillmentProvider: (provider: string | null) => void;
   setCategory: (category: string | null) => void;
+  setOriginFilter: (filter: Partial<OriginFilter>) => void;
+  selectProduct: (product: CatalogProduct | null) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
@@ -24,6 +26,8 @@ const initialState: BuilderState = {
   loadedBackground: null,
   fulfillmentProvider: null,
   category: null,
+  originFilter: { showUSA: true, showOther: true },
+  selectedProduct: null,
 };
 
 interface BuilderProviderProps {
@@ -79,6 +83,22 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setState(prev => ({
       ...prev,
       category: category,
+      selectedProduct: null,
+    }));
+  }, []);
+
+  const setOriginFilter = useCallback((filter: Partial<OriginFilter>) => {
+    setState(prev => ({
+      ...prev,
+      originFilter: { ...prev.originFilter, ...filter },
+      selectedProduct: null,
+    }));
+  }, []);
+
+  const selectProduct = useCallback((product: CatalogProduct | null) => {
+    setState(prev => ({
+      ...prev,
+      selectedProduct: product,
     }));
   }, []);
 
@@ -95,9 +115,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     loadBackground,
     setFulfillmentProvider,
     setCategory,
+    setOriginFilter,
+    selectProduct,
     resetBuilder,
     api,
-  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, resetBuilder, api]);
+  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, selectProduct, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

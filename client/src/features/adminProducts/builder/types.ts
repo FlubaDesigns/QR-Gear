@@ -22,6 +22,20 @@ export interface CatalogCategory {
   itemCount: number;
 }
 
+export interface CatalogProduct {
+  id: string;
+  title: string;
+  brand: string;
+  model: string;
+  imageUrl: string | null;
+  madeInUSA: boolean;
+}
+
+export interface OriginFilter {
+  showUSA: boolean;
+  showOther: boolean;
+}
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -29,4 +43,6 @@ export interface BuilderState {
   loadedBackground: LoadedBackground | null;
   fulfillmentProvider: string | null;
   category: string | null;
+  originFilter: OriginFilter;
+  selectedProduct: CatalogProduct | null;
 }
