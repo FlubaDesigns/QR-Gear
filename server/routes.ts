@@ -1534,6 +1534,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Brands known to manufacture garments in the USA
+  const TEST_USA_MADE_BRANDS = [
+    'american apparel', 'royal apparel', 'bayside', 'los angeles apparel',
+    'bella+canvas', 'bella canvas', 'lane seven', 'cotton heritage',
+    'shaka wear', 'backpacks usa', 'american giant', 'next level',
+  ];
+
+  // Test endpoint: Printify catalog (no auth required)
+  app.get("/api/test/admin/printify/catalog", async (req: any, res) => {
+    try {
+      console.log('[TestCatalog] GET Printify catalog');
+      const localBlueprints = await storage.getPrintifyBlueprints();
+      
+      let blueprints: any[];
+      
+      if (localBlueprints.length > 0) {
+        blueprints = localBlueprints.map(bp => ({
+          id: bp.id,
+          title: bp.title,
+          brand: bp.brand,
+          model: bp.model,
+          images: bp.images || [],
+        }));
+      } else {
+        return res.json([]);
+      }
+      
+      const categories: Record<string, any[]> = {
+        "T-Shirts": [],
+        "Sweatshirts & Hoodies": [],
+        "Hats & Caps": [],
+        "Drinkware": [],
+        "Bags": [],
+        "Other": [],
+      };
+      
+      for (const bp of blueprints) {
+        const title = bp.title.toLowerCase();
+        const brandLower = (bp.brand || '').toLowerCase();
+        const isUSABrand = TEST_USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
+        
+        const item = {
+          id: bp.id,
+          title: bp.title,
+          brand: bp.brand,
+          model: bp.model,
+          imageUrl: bp.images?.[0] || null,
+          madeInUSA: isUSABrand,
+        };
+        
+        if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
+          categories["T-Shirts"].push(item);
+        } else if (title.includes('hoodie') || title.includes('sweatshirt') || title.includes('crew') || title.includes('pullover')) {
+          categories["Sweatshirts & Hoodies"].push(item);
+        } else if (title.includes('hat') || title.includes('cap') || title.includes('beanie') || title.includes('visor')) {
+          categories["Hats & Caps"].push(item);
+        } else if (title.includes('mug') || title.includes('tumbler') || title.includes('bottle') || title.includes('cup') || title.includes('glass')) {
+          categories["Drinkware"].push(item);
+        } else if (title.includes('bag') || title.includes('tote') || title.includes('backpack') || title.includes('pouch')) {
+          categories["Bags"].push(item);
+        } else {
+          categories["Other"].push(item);
+        }
+      }
+      
+      const result = Object.entries(categories)
+        .filter(([_, items]) => items.length > 0)
+        .map(([name, items]) => ({ name, items, count: items.length }));
+      
+      console.log(`[TestCatalog] Returning ${result.length} categories`);
+      res.json(result);
+    } catch (error: any) {
+      console.error('[TestCatalog] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint: Printful catalog (no auth required)
+  app.get("/api/test/admin/catalog/printful-products", async (req: any, res) => {
+    try {
+      console.log('[TestCatalog] GET Printful products');
+      const products = await storage.getPrintfulProducts();
+      console.log(`[TestCatalog] Returning ${products.length} Printful products`);
+      res.json(products);
+    } catch (error: any) {
+      console.error('[TestCatalog] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Hosted Images API
   app.post("/api/images/upload", async (req, res) => {
     try {
