@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useBuilderContext } from "../BuilderContext";
 import type { CatalogCategory } from "../types";
 
@@ -64,13 +64,15 @@ export function CategoryModule() {
   });
 
   const sortedCategories = useMemo(() => {
-    return [...categories]
-      .filter(c => c.itemCount > 0)
+    const filtered = [...categories]
+      .filter(c => c.itemCount > 0 && c.name && c.name.trim() !== "")
       .sort((a, b) => {
         if (a.name === "T-Shirts") return -1;
         if (b.name === "T-Shirts") return 1;
         return a.name.localeCompare(b.name);
       });
+    console.log("[CategoryModule] sortedCategories:", filtered);
+    return filtered;
   }, [categories]);
 
   if (state.sourceType !== "custom" || !state.fulfillmentProvider) {
@@ -96,25 +98,24 @@ export function CategoryModule() {
             No categories found for this provider.
           </p>
         ) : (
-          <Select
-            value={state.category || ""}
-            onValueChange={(value) => setCategory(value || null)}
-          >
-            <SelectTrigger className="w-full max-w-xs" data-testid="select-category">
-              <SelectValue placeholder="Select category..." />
-            </SelectTrigger>
-            <SelectContent position="popper" className="max-h-60">
+          <ScrollArea className="w-full">
+            <div className="flex flex-wrap gap-2">
               {sortedCategories.map((cat) => (
-                <SelectItem 
-                  key={cat.name} 
-                  value={cat.name}
-                  data-testid={`option-category-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
+                <button
+                  key={cat.name}
+                  onClick={() => setCategory(cat.name)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    state.category === cat.name
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                  data-testid={`button-category-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   {cat.name} ({cat.itemCount})
-                </SelectItem>
+                </button>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          </ScrollArea>
         )}
       </div>
     </CollapsibleModule>
