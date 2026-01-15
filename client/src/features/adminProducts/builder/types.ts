@@ -17,9 +17,16 @@ export interface LoadedBackground {
   isClipped: boolean;
 }
 
+export interface CatalogCategory {
+  name: string;
+  itemCount: number;
+}
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
   loadedGraphic: LoadedGraphic | null;
   loadedBackground: LoadedBackground | null;
+  fulfillmentProvider: string | null;
+  category: string | null;
 }

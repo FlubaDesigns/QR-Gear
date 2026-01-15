@@ -4,10 +4,13 @@ import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, Build
 
 interface BuilderContextValue {
   state: BuilderState;
+  activeProviders: string[];
   setSourceType: (type: SourceType) => void;
   loadTemplate: (template: LoadedTemplate) => void;
   loadGraphic: (graphic: LoadedGraphic) => void;
   loadBackground: (background: LoadedBackground) => void;
+  setFulfillmentProvider: (provider: string | null) => void;
+  setCategory: (category: string | null) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
@@ -19,6 +22,8 @@ const initialState: BuilderState = {
   loadedTemplate: null,
   loadedGraphic: null,
   loadedBackground: null,
+  fulfillmentProvider: null,
+  category: null,
 };
 
 interface BuilderProviderProps {
@@ -26,7 +31,7 @@ interface BuilderProviderProps {
 }
 
 export function BuilderProvider({ children }: BuilderProviderProps) {
-  const { api } = useProductsContext();
+  const { api, selectedProviders } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
 
   const setSourceType = useCallback((type: SourceType) => {
@@ -36,6 +41,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       loadedTemplate: null,
       loadedGraphic: null,
       loadedBackground: null,
+      fulfillmentProvider: null,
+      category: null,
     }));
   }, []);
 
@@ -60,19 +67,37 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const setFulfillmentProvider = useCallback((provider: string | null) => {
+    setState(prev => ({
+      ...prev,
+      fulfillmentProvider: provider,
+      category: null,
+    }));
+  }, []);
+
+  const setCategory = useCallback((category: string | null) => {
+    setState(prev => ({
+      ...prev,
+      category: category,
+    }));
+  }, []);
+
   const resetBuilder = useCallback(() => {
     setState(initialState);
   }, []);
 
   const value = useMemo<BuilderContextValue>(() => ({
     state,
+    activeProviders: selectedProviders,
     setSourceType,
     loadTemplate,
     loadGraphic,
     loadBackground,
+    setFulfillmentProvider,
+    setCategory,
     resetBuilder,
     api,
-  }), [state, setSourceType, loadTemplate, loadGraphic, loadBackground, resetBuilder, api]);
+  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>
