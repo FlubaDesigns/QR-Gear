@@ -20,11 +20,11 @@ export class InlineDebugBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 16, border: "2px solid red", background: "#200" }}>
+        <div style={{ padding: 16, border: "2px solid red", background: "#200", wordBreak: "break-word" }}>
           <h3 style={{ color: "#f88" }}>
             Crash inside: {this.props.label || "Unknown"}
           </h3>
-          <pre style={{ color: "#fff", fontSize: 12, whiteSpace: "pre-wrap" }}>
+          <pre style={{ color: "#fff", fontSize: 12, whiteSpace: "pre-wrap", wordBreak: "break-word", overflowWrap: "break-word" }}>
             {this.state.error.message}
             {"\n\n"}
             {this.state.error.stack}
