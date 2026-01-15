@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, CatalogProduct, QRProductState, ContentData } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
@@ -12,6 +12,7 @@ interface BuilderContextValue {
   setFulfillmentProvider: (provider: string | null) => void;
   setCategory: (category: string | null) => void;
   setOriginFilter: (filter: Partial<OriginFilter>) => void;
+  setGenderFilter: (filter: GenderFilter) => void;
   selectProduct: (product: CatalogProduct | null) => void;
   setQRProductState: (state: QRProductState) => void;
   setContent: (content: Partial<ContentData>) => void;
@@ -39,6 +40,7 @@ const initialState: BuilderState = {
   fulfillmentProvider: null,
   category: null,
   originFilter: { showUSA: true, showOther: true },
+  genderFilter: "all",
   selectedProduct: null,
   qrProductState: null,
   content: initialContent,
@@ -109,6 +111,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const setGenderFilter = useCallback((filter: GenderFilter) => {
+    setState(prev => ({
+      ...prev,
+      genderFilter: filter,
+      selectedProduct: null,
+    }));
+  }, []);
+
   const selectProduct = useCallback((product: CatalogProduct | null) => {
     setState(prev => ({
       ...prev,
@@ -145,12 +155,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setFulfillmentProvider,
     setCategory,
     setOriginFilter,
+    setGenderFilter,
     selectProduct,
     setQRProductState,
     setContent,
     resetBuilder,
     api,
-  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, selectProduct, setQRProductState, setContent, resetBuilder, api]);
+  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

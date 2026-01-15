@@ -1,12 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Package } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductViewerControls } from "../components/ProductViewerControls";
-import type { CatalogProduct } from "../types";
+import type { CatalogProduct, GenderFilter } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+
+function detectGender(title: string): "mens" | "womens" | "unisex" {
+  const lowerTitle = title.toLowerCase();
+  const mensKeywords = ["men's", "mens", "men ", "male", "guys", "boy's", "boys"];
+  const womensKeywords = ["women's", "womens", "women ", "female", "ladies", "lady", "girl's", "girls"];
+  const unisexKeywords = ["unisex"];
+  
+  if (unisexKeywords.some(k => lowerTitle.includes(k))) return "unisex";
+  if (mensKeywords.some(k => lowerTitle.includes(k))) return "mens";
+  if (womensKeywords.some(k => lowerTitle.includes(k))) return "womens";
+  return "unisex";
+}
 
 interface CatalogCategoryResponse {
   name: string;
@@ -15,7 +28,7 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setOriginFilter, selectProduct, api } = useBuilderContext();
+  const { state, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
 
   const { data: categoryData, isLoading, error } = useQuery<CatalogCategoryResponse | null>({
     queryKey: ["catalog-products", state.fulfillmentProvider, state.category],
@@ -58,15 +71,30 @@ export function ProductsModule() {
   }
 
   const products = categoryData?.items || [];
-  const filteredProducts = products.filter(p => {
-    if (state.originFilter.showUSA && state.originFilter.showOther) return true;
-    if (state.originFilter.showUSA && p.madeInUSA) return true;
-    if (state.originFilter.showOther && !p.madeInUSA) return true;
-    return false;
-  });
+  
+  const productsWithGender = useMemo(() => 
+    products.map(p => ({ ...p, gender: detectGender(p.title) })),
+    [products]
+  );
+
+  const filteredProducts = useMemo(() => {
+    return productsWithGender.filter(p => {
+      const passesOrigin = (state.originFilter.showUSA && p.madeInUSA) || 
+                           (state.originFilter.showOther && !p.madeInUSA);
+      const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
+      return passesOrigin && passesGender;
+    });
+  }, [productsWithGender, state.originFilter, state.genderFilter]);
 
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
+  
+  const genderCounts = useMemo(() => ({
+    all: productsWithGender.length,
+    mens: productsWithGender.filter(p => p.gender === "mens").length,
+    womens: productsWithGender.filter(p => p.gender === "womens").length,
+    unisex: productsWithGender.filter(p => p.gender === "unisex").length,
+  }), [productsWithGender]);
 
   const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
     id: String(p.id),
@@ -99,8 +127,11 @@ export function ProductsModule() {
           showOther={state.originFilter.showOther}
           usaCount={usaCount}
           otherCount={otherCount}
+          genderFilter={state.genderFilter}
+          genderCounts={genderCounts}
           onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
           onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
+          onGenderFilterChange={setGenderFilter}
         />
 
         {error ? (

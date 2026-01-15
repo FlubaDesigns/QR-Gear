@@ -39,6 +39,8 @@ export interface OriginFilter {
   showOther: boolean;
 }
 
+export type GenderFilter = "all" | "mens" | "womens" | "unisex";
+
 export type QRProductState = 
   | "plain_qr"           // Just QR code, no decoration
   | "qr_header_footer"   // QR with styled header/footer text
@@ -73,6 +75,7 @@ export interface BuilderState {
   fulfillmentProvider: string | null;
   category: string | null;
   originFilter: OriginFilter;
+  genderFilter: GenderFilter;
   selectedProduct: CatalogProduct | null;
   qrProductState: QRProductState;
   content: ContentData;
