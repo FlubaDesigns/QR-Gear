@@ -6,6 +6,7 @@ import { SyncModule } from "./modules/SyncModule";
 import { RolePickerModule } from "./modules/RolePickerModule";
 import { StoreModule } from "./modules/StoreModule";
 import { ChannelModule } from "./modules/ChannelModule";
+import { BuilderHarness } from "./builder/BuilderHarness";
 import type { Product } from "./shared/types";
 
 interface ProductsHarnessProps {
@@ -71,9 +72,7 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
       <ChannelModule />
 
       {selectedChannel && (
-        <div className="text-center py-8 text-muted-foreground border rounded-md">
-          Product builder for {selectedChannel.name} coming soon...
-        </div>
+        <BuilderHarness />
       )}
 
       {!selectedRole && (
