@@ -436,19 +436,22 @@ export function ProductConfigSkin({
               <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm font-medium">Generate Mockup:</span>
-                  <select
-                    className="h-9 px-3 rounded border bg-background text-sm"
+                  <input
+                    type="text"
+                    inputMode="text"
+                    autoComplete="off"
+                    list={`colors-list-${productId}`}
+                    placeholder="Type or speak color..."
+                    className="h-9 px-3 rounded border bg-background text-sm min-w-[140px]"
                     value={selectedColor || ""}
                     onChange={(e) => setSelectedColor(e.target.value || null)}
-                    data-testid={`select-color-${productId}`}
-                  >
-                    <option value="">Select color...</option>
+                    data-testid={`input-color-${productId}`}
+                  />
+                  <datalist id={`colors-list-${productId}`}>
                     {colors.filter(c => enabledColors.has(c.name)).map(c => (
-                      <option key={c.name} value={c.name}>
-                        {c.name} {mockupsByColor?.[c.name]?.front ? '✓' : ''}
-                      </option>
+                      <option key={c.name} value={c.name} />
                     ))}
-                  </select>
+                  </datalist>
                   
                   {/* QR Size Selector */}
                   <div className="flex items-center gap-1">

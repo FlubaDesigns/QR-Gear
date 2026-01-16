@@ -41,7 +41,8 @@ export function ContentModule() {
             </Label>
             <Input
               id="content-url"
-              type="url"
+              type="text"
+              inputMode="url"
               placeholder={state.qrProductState === "qr_dynamics" 
                 ? "https://example.com/image.jpg" 
                 : "https://example.com"}
@@ -143,7 +144,8 @@ export function ContentModule() {
                 </Label>
                 <Input
                   id="plain-url-content"
-                  type="url"
+                  type="text"
+                  inputMode="url"
                   placeholder="https://example.com"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}

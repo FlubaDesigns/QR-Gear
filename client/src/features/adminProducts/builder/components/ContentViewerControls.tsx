@@ -85,19 +85,24 @@ export function ContentViewerControls({
         </div>
         <div className="flex items-center gap-2">
           <Label htmlFor="overlay-font" className="text-xs font-medium">Font</Label>
-          <select
+          <input
+            type="text"
+            inputMode="text"
             id="overlay-font"
+            list="font-options"
             value={content.overlayFontFamily}
             onChange={(e) => onContentChange({ overlayFontFamily: e.target.value })}
-            className="h-8 px-2 text-xs border rounded-md bg-background"
-            data-testid="select-overlay-font"
-          >
-            <option value="Arial">Arial</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Times New Roman">Times</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Impact">Impact</option>
-          </select>
+            className="h-8 px-2 text-xs border rounded-md bg-background min-w-[100px]"
+            placeholder="Type or speak font..."
+            data-testid="input-overlay-font"
+          />
+          <datalist id="font-options">
+            <option value="Arial" />
+            <option value="Georgia" />
+            <option value="Times New Roman" />
+            <option value="Verdana" />
+            <option value="Impact" />
+          </datalist>
         </div>
       </div>
     </div>
