@@ -1,14 +1,17 @@
+import { useState } from "react";
 import { Link2, Type, FileText } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
 import { ContentViewerControls } from "../components/ContentViewerControls";
 
 export function ContentModule() {
   const { state, setContent } = useBuilderContext();
+  const [basicsMode, setBasicsMode] = useState<"text" | "url">("text");
 
   const needsUrl = state.qrProductState === "qr_canvas" || 
                    state.qrProductState === "qr_play" || 
@@ -87,23 +90,70 @@ export function ContentModule() {
         )}
 
         {state.qrProductState === "qr_basics" && (
-          <div className="space-y-2">
-            <Label htmlFor="plain-text-content" className="flex items-center gap-2">
-              <Type className="h-3.5 w-3.5" />
-              QR Content
-            </Label>
-            <Textarea
-              id="plain-text-content"
-              placeholder="Enter text or URL to encode in QR"
-              value={state.content.url}
-              onChange={(e) => setContent({ url: e.target.value })}
-              maxLength={500}
-              rows={3}
-              data-testid="input-plain-text-content"
-            />
-            <p className="text-xs text-muted-foreground">
-              This text will be encoded directly in the QR code
-            </p>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={basicsMode === "text" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setBasicsMode("text")}
+                className="flex-1"
+                data-testid="button-basics-text"
+              >
+                <Type className="h-3.5 w-3.5 mr-1.5" />
+                Text
+              </Button>
+              <Button
+                type="button"
+                variant={basicsMode === "url" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setBasicsMode("url")}
+                className="flex-1"
+                data-testid="button-basics-url"
+              >
+                <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                URL
+              </Button>
+            </div>
+
+            {basicsMode === "text" ? (
+              <div className="space-y-2">
+                <Label htmlFor="plain-text-content" className="flex items-center gap-2">
+                  <Type className="h-3.5 w-3.5" />
+                  Text to Encode
+                </Label>
+                <Textarea
+                  id="plain-text-content"
+                  placeholder="Enter your message, contact info, or any text"
+                  value={state.content.url}
+                  onChange={(e) => setContent({ url: e.target.value })}
+                  maxLength={500}
+                  rows={3}
+                  data-testid="input-plain-text-content"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This text will be encoded directly in the QR code
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="plain-url-content" className="flex items-center gap-2">
+                  <Link2 className="h-3.5 w-3.5" />
+                  URL to Encode
+                </Label>
+                <Input
+                  id="plain-url-content"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={state.content.url}
+                  onChange={(e) => setContent({ url: e.target.value })}
+                  data-testid="input-plain-url-content"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Scanning will open this URL directly
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -136,7 +186,13 @@ export function ContentModule() {
           <div className="p-3 bg-primary/5 rounded-md border">
             <p className="text-sm font-medium">Content Ready</p>
             <p className="text-xs text-muted-foreground">
-              {state.content.url && `URL: ${state.content.url.substring(0, 40)}${state.content.url.length > 40 ? "..." : ""}`}
+              {state.content.url && (
+                state.qrProductState === "qr_basics" 
+                  ? (basicsMode === "text" 
+                      ? `Text: ${state.content.url.substring(0, 40)}${state.content.url.length > 40 ? "..." : ""}`
+                      : `URL: ${state.content.url.substring(0, 40)}${state.content.url.length > 40 ? "..." : ""}`)
+                  : `URL: ${state.content.url.substring(0, 40)}${state.content.url.length > 40 ? "..." : ""}`
+              )}
               {state.content.title && ` • Title: ${state.content.title}`}
             </p>
           </div>
