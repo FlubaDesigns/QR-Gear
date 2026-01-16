@@ -3303,53 +3303,66 @@ app.get('/test/stores/:storeId/channels', async (req: Request, res: Response): P
     const { storeId } = req.params;
     console.log(`[TestChannels] GET channels for store: ${storeId}`);
     
-    // Fetch partnerStoreProducts for this store to get unique kcPlacements
-    const snapshot = await db.collection('partnerStoreProducts')
-      .where('partnerStoreId', '==', storeId)
+    // Fetch channels from Firestore
+    const snapshot = await db.collection('storeChannels')
+      .where('storeId', '==', storeId)
+      .orderBy('createdAt', 'desc')
       .get();
     
-    // Collect unique kcPlacements across all products for this store
-    const placementCounts: Record<string, number> = {};
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const placements = data.kcPlacements || [];
-      placements.forEach((p: string) => {
-        placementCounts[p] = (placementCounts[p] || 0) + 1;
-      });
-    });
-    
-    // Convert to channel format
-    const channels = Object.entries(placementCounts).map(([placement, count]) => ({
-      id: placement.toLowerCase().replace(/\s+/g, '-'),
-      name: placement.charAt(0).toUpperCase() + placement.slice(1).replace(/-/g, ' '),
-      storeId,
-      isActive: true,
-      productCount: count,
+    const channels = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
     }));
-    
-    // If no channels found, return default channels based on store segments
-    if (channels.length === 0) {
-      const storeDoc = await db.collection('partnerStores').doc(storeId).get();
-      if (storeDoc.exists) {
-        const storeData = storeDoc.data();
-        const segments = storeData?.availableSegments || [];
-        const defaultChannels = segments.map((seg: string) => ({
-          id: seg.toLowerCase().replace(/\s+/g, '-'),
-          name: seg,
-          storeId,
-          isActive: true,
-          productCount: 0,
-        }));
-        console.log(`[TestChannels] No products, returning ${defaultChannels.length} segment-based channels`);
-        res.json(defaultChannels);
-        return;
-      }
-    }
     
     console.log(`[TestChannels] Found ${channels.length} channels for ${storeId}`);
     res.json(channels);
   } catch (error: any) {
     console.error('[TestChannels] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new channel for a store
+app.post('/test/stores/:storeId/channels', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const { name } = req.body;
+    
+    if (!name || !name.trim()) {
+      res.status(400).json({ error: 'Channel name is required' });
+      return;
+    }
+    
+    const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const channelData = {
+      name: name.trim(),
+      storeId,
+      isActive: true,
+      productCount: 0,
+      createdAt: new Date().toISOString(),
+    };
+    
+    await db.collection('storeChannels').doc(channelId).set(channelData);
+    console.log(`[TestChannels] Created channel: ${channelId} for store ${storeId}`);
+    
+    res.json({ id: channelId, ...channelData });
+  } catch (error: any) {
+    console.error('[TestChannels] POST error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a channel
+app.delete('/test/stores/:storeId/channels/:channelId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, channelId } = req.params;
+    
+    await db.collection('storeChannels').doc(channelId).delete();
+    console.log(`[TestChannels] Deleted channel: ${channelId} from store ${storeId}`);
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[TestChannels] DELETE error:', error);
     res.status(500).json({ error: error.message });
   }
 });

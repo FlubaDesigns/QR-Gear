@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Store, Plus, Minus, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { useProductsContext } from "../ProductsContext";
 import type { Store as StoreType, Channel, RoleType } from "../shared/types";
 
@@ -39,9 +38,9 @@ export function StoreChannelDropdownModule() {
   });
 
   const allStores = useMemo(() => [
-    ...internalStores.map(s => ({ ...s, role: "internal" as RoleType })),
-    ...externalStores.map(s => ({ ...s, role: "external" as RoleType })),
-    ...memberStores.map(s => ({ ...s, role: "member" as RoleType })),
+    ...internalStores,
+    ...externalStores,
+    ...memberStores,
   ], [internalStores, externalStores, memberStores]);
 
   // Fetch channels for selected store
@@ -56,7 +55,7 @@ export function StoreChannelDropdownModule() {
   const handleStoreChange = (storeId: string) => {
     const store = allStores.find(s => s.id === storeId);
     if (store) {
-      setSelectedRole(store.role);
+      setSelectedRole(store.roleType);
       setSelectedStore(store);
       setSelectedChannel(null);
     }
@@ -69,6 +68,48 @@ export function StoreChannelDropdownModule() {
       setSelectedChannel(channel);
     }
   };
+
+  const queryClient = useQueryClient();
+
+  // Create channel mutation
+  const createChannelMutation = useMutation({
+    mutationFn: async ({ storeId, name }: { storeId: string; name: string }) => {
+      const headers = await api.getAuthHeaders();
+      const isTestEndpoint = api.baseUrl.includes("/test");
+      const adminSegment = isTestEndpoint ? "" : "/admin";
+      const res = await fetch(`${api.baseUrl}${adminSegment}/stores/${storeId}/channels`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error(`Failed to create channel: ${res.status}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
+      setNewChannelName("");
+      setShowAddChannel(false);
+    },
+  });
+
+  // Delete channel mutation
+  const deleteChannelMutation = useMutation({
+    mutationFn: async ({ storeId, channelId }: { storeId: string; channelId: string }) => {
+      const headers = await api.getAuthHeaders();
+      const isTestEndpoint = api.baseUrl.includes("/test");
+      const adminSegment = isTestEndpoint ? "" : "/admin";
+      const res = await fetch(`${api.baseUrl}${adminSegment}/stores/${storeId}/channels/${channelId}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error(`Failed to delete channel: ${res.status}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
+      if (selectedChannel) setSelectedChannel(null);
+    },
+  });
 
   const handleAddStore = () => {
     if (!newStoreName.trim()) return;
@@ -84,18 +125,52 @@ export function StoreChannelDropdownModule() {
 
   const handleAddChannel = () => {
     if (!newChannelName.trim() || !selectedStore) return;
-    console.log("TODO: Add channel", newChannelName, selectedStore.id);
-    setNewChannelName("");
-    setShowAddChannel(false);
+    createChannelMutation.mutate({ storeId: selectedStore.id, name: newChannelName });
   };
 
   const handleDeleteChannel = (channel: Channel) => {
-    console.log("TODO: Delete channel", channel.id);
+    if (!selectedStore) return;
+    deleteChannelMutation.mutate({ storeId: selectedStore.id, channelId: channel.id });
   };
+
+  const roles: RoleType[] = ["internal", "external", "member"];
+
+  const handleRoleChange = (role: RoleType) => {
+    setSelectedRole(role);
+    setSelectedStore(null);
+    setSelectedChannel(null);
+  };
+
+  // Filter stores by selected role
+  const filteredStores = useMemo(() => {
+    if (!selectedRole) return allStores;
+    return allStores.filter(s => s.roleType === selectedRole);
+  }, [allStores, selectedRole]);
 
   return (
     <div className="glass-card space-y-6" data-testid="module-store-channel">
-      {/* Store Selection */}
+      {/* Role Selection - FIRST */}
+      <div className="space-y-3">
+        <label className="glass-subtitle uppercase tracking-wider">Role</label>
+        <div className="flex flex-wrap gap-3">
+          {roles.map((role) => {
+            const isSelected = selectedRole === role;
+            const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+            return (
+              <button
+                key={role}
+                onClick={() => handleRoleChange(role)}
+                className={`qr-btn qr-btn--touch ${isSelected ? 'qr-btn--primary' : 'qr-btn--outline'}`}
+                data-testid={`button-role-${role}`}
+              >
+                {roleLabel}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Store Selection - SECOND */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <label className="glass-subtitle uppercase tracking-wider">Store</label>
@@ -133,10 +208,12 @@ export function StoreChannelDropdownModule() {
             )}
           </SelectTrigger>
           <SelectContent>
-            {allStores.length === 0 && !isLoading && (
-              <SelectItem value="_none" disabled>No stores available</SelectItem>
+            {filteredStores.length === 0 && !isLoading && (
+              <SelectItem value="_none" disabled>
+                {selectedRole ? `No ${selectedRole} stores` : "Select a role first"}
+              </SelectItem>
             )}
-            {allStores.map((store) => (
+            {filteredStores.map((store) => (
               <SelectItem 
                 key={store.id} 
                 value={store.id} 
@@ -146,7 +223,6 @@ export function StoreChannelDropdownModule() {
                 <span className="flex items-center gap-3">
                   <Store className="h-5 w-5 flex-shrink-0" />
                   {store.name}
-                  <span className="text-sm opacity-60">({store.role})</span>
                 </span>
               </SelectItem>
             ))}
@@ -154,30 +230,38 @@ export function StoreChannelDropdownModule() {
         </Select>
 
         {showAddStore && (
-          <div className="flex items-center gap-3 p-3 glass-button rounded-lg">
-            <Input
+          <div className="flex flex-col gap-3 p-4 glass-button rounded-lg">
+            <input
+              type="text"
               placeholder="New store name..."
               value={newStoreName}
               onChange={(e) => setNewStoreName(e.target.value)}
-              className="flex-1 min-h-12 text-base"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddStore()}
+              className="w-full min-h-14 text-lg px-4 py-3 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-ice-2"
               inputMode="text"
+              autoComplete="off"
+              autoCapitalize="words"
+              spellCheck="false"
+              enterKeyHint="done"
               data-testid="input-new-store"
             />
-            <button
-              onClick={handleAddStore}
-              disabled={!newStoreName.trim()}
-              className="qr-btn qr-btn--primary qr-btn--touch"
-              data-testid="button-save-store"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => { setShowAddStore(false); setNewStoreName(""); }}
-              className="qr-btn qr-btn--ghost qr-btn--touch"
-              data-testid="button-cancel-store"
-            >
-              Cancel
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleAddStore}
+                disabled={!newStoreName.trim()}
+                className="qr-btn qr-btn--primary qr-btn--touch flex-1"
+                data-testid="button-save-store"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => { setShowAddStore(false); setNewStoreName(""); }}
+                className="qr-btn qr-btn--ghost qr-btn--touch flex-1"
+                data-testid="button-cancel-store"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -239,30 +323,40 @@ export function StoreChannelDropdownModule() {
           )}
 
           {showAddChannel && (
-            <div className="flex items-center gap-3 p-3 glass-button rounded-lg">
-              <Input
+            <div className="flex flex-col gap-3 p-4 glass-button rounded-lg">
+              <input
+                type="text"
                 placeholder="New channel name..."
                 value={newChannelName}
                 onChange={(e) => setNewChannelName(e.target.value)}
-                className="flex-1 min-h-12 text-base"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddChannel()}
+                className="w-full min-h-14 text-lg px-4 py-3 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-ice-2"
                 inputMode="text"
+                autoComplete="off"
+                autoCapitalize="words"
+                spellCheck="false"
+                enterKeyHint="done"
                 data-testid="input-new-channel"
               />
-              <button
-                onClick={handleAddChannel}
-                disabled={!newChannelName.trim()}
-                className="qr-btn qr-btn--primary qr-btn--touch"
-                data-testid="button-save-channel"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => { setShowAddChannel(false); setNewChannelName(""); }}
-                className="qr-btn qr-btn--ghost qr-btn--touch"
-                data-testid="button-cancel-channel"
-              >
-                Cancel
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddChannel}
+                  disabled={!newChannelName.trim() || createChannelMutation.isPending}
+                  className="qr-btn qr-btn--primary qr-btn--touch flex-1"
+                  data-testid="button-save-channel"
+                >
+                  {createChannelMutation.isPending ? (
+                    <><Loader2 className="h-5 w-5 animate-spin mr-2" /> Saving...</>
+                  ) : "Save"}
+                </button>
+                <button
+                  onClick={() => { setShowAddChannel(false); setNewChannelName(""); }}
+                  className="qr-btn qr-btn--ghost qr-btn--touch flex-1"
+                  data-testid="button-cancel-channel"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
         </div>

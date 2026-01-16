@@ -1594,29 +1594,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get channels for a store (test endpoint)
+  // Get channels for a store (test endpoint) - uses Firestore
   app.get("/api/test/stores/:storeId/channels", async (req: any, res) => {
     try {
       const { storeId } = req.params;
       console.log(`[TestChannels] GET channels for store: ${storeId}`);
       
-      // Mock data for testing - will be replaced with database queries
-      const mockChannels: Record<string, Array<{ id: string; name: string; storeId: string; isActive: boolean; productCount: number }>> = {
-        "qrgear-main": [
-          { id: "homepage", name: "Homepage", storeId: "qrgear-main", isActive: true, productCount: 12 },
-          { id: "apparel", name: "Apparel", storeId: "qrgear-main", isActive: true, productCount: 8 },
-          { id: "accessories", name: "Accessories", storeId: "qrgear-main", isActive: true, productCount: 5 },
-        ],
-        "kingdom-connects": [
-          { id: "church-merch", name: "Church Merch", storeId: "kingdom-connects", isActive: true, productCount: 6 },
-          { id: "ministry-items", name: "Ministry Items", storeId: "kingdom-connects", isActive: true, productCount: 4 },
-        ],
-      };
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      const snapshot = await db.collection('storeChannels')
+        .where('storeId', '==', storeId)
+        .orderBy('createdAt', 'desc')
+        .get();
       
-      const channels = mockChannels[storeId] || [];
+      const channels = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      
+      console.log(`[TestChannels] Found ${channels.length} channels for ${storeId}`);
       res.json(channels);
     } catch (error: any) {
       console.error('[TestChannels] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new channel for a store
+  app.post("/api/test/stores/:storeId/channels", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { name } = req.body;
+      
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Channel name is required' });
+      }
+      
+      const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const channelData = {
+        name: name.trim(),
+        storeId,
+        isActive: true,
+        productCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      await db.collection('storeChannels').doc(channelId).set(channelData);
+      console.log(`[TestChannels] Created channel: ${channelId} for store ${storeId}`);
+      
+      res.json({ id: channelId, ...channelData });
+    } catch (error: any) {
+      console.error('[TestChannels] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a channel
+  app.delete("/api/test/stores/:storeId/channels/:channelId", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      await db.collection('storeChannels').doc(channelId).delete();
+      console.log(`[TestChannels] Deleted channel: ${channelId} from store ${storeId}`);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[TestChannels] DELETE error:', error);
       res.status(500).json({ error: error.message });
     }
   });
