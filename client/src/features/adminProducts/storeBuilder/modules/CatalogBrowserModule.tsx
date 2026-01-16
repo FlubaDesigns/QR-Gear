@@ -7,17 +7,21 @@ import { Package, Search, Loader2, ChevronRight } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
 
-interface PrintifyBlueprint {
-  id: number;
+interface CatalogItem {
+  id: string;
   title: string;
   brand?: string;
   model?: string;
-  images?: string[];
+  imageUrl?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  colorCount?: number;
 }
 
-interface CategoryGroup {
-  category: string;
-  products: PrintifyBlueprint[];
+interface CatalogCategory {
+  name: string;
+  items: CatalogItem[];
+  count: number;
 }
 
 export function CatalogBrowserModule() {
@@ -25,8 +29,8 @@ export function CatalogBrowserModule() {
   const [search, setSearch] = useState("");
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  const { data: blueprints = [], isLoading } = useQuery<PrintifyBlueprint[]>({
-    queryKey: ["/api/test/printify-catalog"],
+  const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
+    queryKey: ["/api/test/printify/catalog"],
     enabled: !!currentChannel,
   });
 
@@ -34,27 +38,22 @@ export function CatalogBrowserModule() {
     return null;
   }
 
-  const filteredProducts = blueprints.filter(p =>
-    p.title?.toLowerCase().includes(search.toLowerCase()) ||
-    p.brand?.toLowerCase().includes(search.toLowerCase())
-  );
+  const searchLower = search.toLowerCase();
+  const filteredCategories = categories.map(cat => ({
+    ...cat,
+    items: cat.items.filter(item =>
+      (item.title?.toLowerCase()?.includes(searchLower) ?? false) ||
+      (item.brand?.toLowerCase()?.includes(searchLower) ?? false)
+    ),
+  })).filter(cat => cat.items.length > 0);
 
-  const groupedProducts = filteredProducts.reduce<Record<string, PrintifyBlueprint[]>>((acc, product) => {
-    const category = product.brand || "Other";
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(product);
-    return acc;
-  }, {});
-
-  const categories = Object.keys(groupedProducts).sort();
-
-  const handleSelectProduct = (product: PrintifyBlueprint) => {
+  const handleSelectProduct = (product: CatalogItem) => {
     setSelectedBaseProduct({
-      id: String(product.id),
+      id: product.id,
       name: product.title,
       brand: product.brand,
       model: product.model,
-      images: product.images,
+      images: product.imageUrl ? [product.imageUrl] : undefined,
     });
     if (step === "catalog") setStep("configure");
   };
@@ -85,45 +84,50 @@ export function CatalogBrowserModule() {
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Loading catalog...</span>
           </div>
-        ) : filteredProducts.length === 0 ? (
+        ) : filteredCategories.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">No products found</p>
         ) : (
           <div className="space-y-2 max-h-80 overflow-y-auto">
-            {categories.map(category => (
-              <div key={category} className="border rounded-md">
+            {filteredCategories.map(category => (
+              <div key={category.name} className="border rounded-md">
                 <button
                   type="button"
-                  onClick={() => setExpandedCategory(expandedCategory === category ? null : category)}
+                  onClick={() => setExpandedCategory(expandedCategory === category.name ? null : category.name)}
                   className="w-full flex items-center gap-2 p-2 text-left hover:bg-muted/30"
-                  data-testid={`button-category-${category}`}
+                  data-testid={`button-category-${category.name}`}
                 >
-                  <ChevronRight className={`h-4 w-4 transition-transform ${expandedCategory === category ? "rotate-90" : ""}`} />
-                  <span className="font-medium text-sm">{category}</span>
+                  <ChevronRight className={`h-4 w-4 transition-transform ${expandedCategory === category.name ? "rotate-90" : ""}`} />
+                  <span className="font-medium text-sm">{category.name}</span>
                   <Badge variant="secondary" className="text-xs ml-auto">
-                    {groupedProducts[category].length}
+                    {category.items.length}
                   </Badge>
                 </button>
 
-                {expandedCategory === category && (
+                {expandedCategory === category.name && (
                   <div className="border-t p-2 space-y-1">
-                    {groupedProducts[category].map(product => (
+                    {category.items.map(product => (
                       <Button
                         key={product.id}
-                        variant={selectedBaseProduct?.id === String(product.id) ? "default" : "ghost"}
+                        variant={selectedBaseProduct?.id === product.id ? "default" : "ghost"}
                         size="sm"
                         className="w-full justify-start text-left h-auto py-2"
                         onClick={() => handleSelectProduct(product)}
                         data-testid={`button-product-${product.id}`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          {product.images?.[0] && (
+                          {product.imageUrl && (
                             <img 
-                              src={product.images[0]} 
+                              src={product.imageUrl} 
                               alt="" 
                               className="w-8 h-8 rounded object-cover flex-shrink-0"
                             />
                           )}
-                          <span className="truncate">{product.title}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="truncate block">{product.title}</span>
+                            {product.colorCount && (
+                              <span className="text-xs text-muted-foreground">{product.colorCount} colors</span>
+                            )}
+                          </div>
                         </div>
                       </Button>
                     ))}
