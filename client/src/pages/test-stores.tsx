@@ -8,7 +8,7 @@ import { StoreLibraryHarness } from "@/features/adminProducts/storeLibrary/Store
 export default function TestStoresPage() {
   return (
     <AdminAuthProvider apiBase="/api/test">
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6 overflow-x-hidden">
         <Card className="border-blue-500/50 bg-blue-500/10">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-blue-600" data-testid="text-page-title">

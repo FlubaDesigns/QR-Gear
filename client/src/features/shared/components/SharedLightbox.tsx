@@ -36,7 +36,7 @@ export function SharedLightbox({
   return (
     <div
       className={cn(
-        "flex flex-col border-l bg-muted/30",
+        "flex flex-col border rounded-md lg:border-0 lg:border-l lg:rounded-none bg-muted/30",
         className
       )}
       data-testid="panel-shared-lightbox"

@@ -12,18 +12,18 @@ export function StoreTypeFilterModule() {
   const { selectedType, setSelectedType } = useStoreLibraryContext();
 
   return (
-    <div className="flex gap-2" data-testid="module-store-type-filter">
+    <div className="flex flex-wrap gap-2" data-testid="module-store-type-filter">
       {storeTypes.map(({ type, label, icon: Icon }) => (
         <Button
           key={type}
           variant={selectedType === type ? "default" : "outline"}
           size="sm"
           onClick={() => setSelectedType(type)}
-          className="flex-1"
+          className="flex-1 min-w-[90px]"
           data-testid={`button-type-${type}`}
         >
-          <Icon className="h-4 w-4 mr-2" />
-          {label}
+          <Icon className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="truncate">{label}</span>
         </Button>
       ))}
     </div>
