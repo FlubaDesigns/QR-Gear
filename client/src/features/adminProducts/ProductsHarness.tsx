@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
 import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
-import { SyncModule } from "./modules/SyncModule";
 import { RolePickerModule } from "./modules/RolePickerModule";
 import { StoreModule } from "./modules/StoreModule";
 import { ChannelModule } from "./modules/ChannelModule";
@@ -62,8 +61,6 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
         onSelectionChange={setSelectedProviders}
         productCount={productCount}
       />
-
-      <SyncModule selectedProviders={selectedProviders} />
 
       <RolePickerModule />
 
