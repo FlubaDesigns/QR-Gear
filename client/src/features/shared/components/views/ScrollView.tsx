@@ -150,7 +150,7 @@ export function ScrollView({
   if (layout === "vertical") {
     return (
       <div className="relative">
-        <ScrollArea style={{ height: gridHeight }} type="scroll">
+        <ScrollArea style={{ height: gridHeight }} type="always" className="pr-3">
           <div className="grid grid-cols-1 gap-3 p-1">
             {items.map((item) => {
               const priceRange = item.minPrice && item.maxPrice 
@@ -177,6 +177,7 @@ export function ScrollView({
               );
             })}
           </div>
+          <ScrollBar orientation="vertical" />
         </ScrollArea>
         <p className="text-xs text-muted-foreground text-center mt-2">
           {items.length} items • Scroll for more

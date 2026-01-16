@@ -4,6 +4,7 @@ import { CategoryModule } from "./modules/CategoryModule";
 import { ProductsModule } from "./modules/ProductsModule";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
+import { AddToCartModule } from "./modules/AddToCartModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
 function BuilderModules() {
@@ -25,6 +26,9 @@ function BuilderModules() {
       </InlineDebugBoundary>
       <InlineDebugBoundary label="ContentModule">
         <ContentModule />
+      </InlineDebugBoundary>
+      <InlineDebugBoundary label="AddToCartModule">
+        <AddToCartModule />
       </InlineDebugBoundary>
     </div>
   );
