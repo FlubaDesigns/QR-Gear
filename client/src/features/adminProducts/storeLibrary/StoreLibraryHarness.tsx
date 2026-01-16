@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Library } from "lucide-react";
 import { StoreLibraryProvider, useStoreLibraryContext } from "./StoreLibraryContext";
+import { StoreTypeFilterModule } from "./modules/StoreTypeFilterModule";
+import { StoreListModule } from "./modules/StoreListModule";
 
 function StoreLibraryInner() {
   const { selectedType, selectedStore, selectedChannel, selectedProducts } = useStoreLibraryContext();
@@ -25,9 +27,8 @@ function StoreLibraryInner() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="text-sm text-muted-foreground p-4 border rounded-lg bg-muted/50" data-testid="placeholder-modules">
-          Stage 1 Complete: Foundation ready. Modules coming in Stage 2.
-        </div>
+        <StoreTypeFilterModule />
+        <StoreListModule />
       </CardContent>
     </Card>
   );

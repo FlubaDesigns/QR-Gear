@@ -3324,6 +3324,59 @@ app.get('/test/stores/:storeId/channels', async (req: Request, res: Response): P
   }
 });
 
+// Test endpoint: stores by type (internal/external/member) for store library
+app.get('/test/stores/:type', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { type } = req.params;
+    console.log(`[TestStoresByType] GET stores by type: ${type}`);
+    
+    const allStores = [
+      {
+        id: "qrgear-main",
+        name: "QR Gear Main Store",
+        type: "internal",
+        description: "Primary internal store with all product lines",
+      },
+      {
+        id: "qrgear-wholesale",
+        name: "QR Gear Wholesale",
+        type: "internal",
+        description: "Wholesale pricing for bulk orders",
+      },
+      {
+        id: "kingdom-connects",
+        name: "Kingdom Connects",
+        type: "external",
+        description: "Partner store for church merchandise",
+      },
+      {
+        id: "partner-demo",
+        name: "Partner Demo Store",
+        type: "external",
+        description: "Demo store for prospective partners",
+      },
+      {
+        id: "member-sandbox-001",
+        name: "John's Design Space",
+        type: "member",
+        description: "Personal design sandbox",
+      },
+      {
+        id: "member-sandbox-002",
+        name: "Creative Studio",
+        type: "member",
+        description: "Member creative workspace",
+      },
+    ];
+    
+    const filtered = allStores.filter(s => s.type === type);
+    res.json(filtered);
+  } catch (error: any) {
+    console.error('[TestStoresByType] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Test endpoint: partner-stores (no auth required) - mirrors admin endpoint for save funnel testing
 app.get('/test/partner-stores', async (req: Request, res: Response): Promise<void> => {
   try {
