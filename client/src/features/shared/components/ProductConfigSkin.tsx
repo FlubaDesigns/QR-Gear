@@ -32,12 +32,12 @@ interface ProductConfigSkinProps {
   readOnly?: boolean;
 }
 
-function ColorSwatch({ hex, className = "" }: { hex: string; className?: string }) {
+function ColorSwatch({ hex, className = "", testId }: { hex: string; className?: string; testId?: string }) {
   return (
     <div
       className={`w-5 h-5 rounded-sm border flex-shrink-0 ${className}`}
       style={{ backgroundColor: hex }}
-      data-testid="color-swatch"
+      data-testid={testId || "color-swatch"}
     />
   );
 }
@@ -371,7 +371,7 @@ export function ProductConfigSkin({
                       disabled={saving || readOnly}
                       data-testid={`switch-color-${productId}-${color.name}`}
                     />
-                    <ColorSwatch hex={color.hex} />
+                    <ColorSwatch hex={color.hex} testId={`swatch-color-${productId}-${color.name}`} />
                     <Label
                       htmlFor={`color-${productId}-${color.name}`}
                       className="text-sm cursor-pointer"
@@ -421,7 +421,7 @@ export function ProductConfigSkin({
                             onClick={() => selectDefaultColor(color.name)}
                             data-testid={`button-select-default-${productId}-${color.name}`}
                           >
-                            <ColorSwatch hex={color.hex} className="w-4 h-4" />
+                            <ColorSwatch hex={color.hex} className="w-4 h-4" testId={`swatch-default-${productId}-${color.name}`} />
                             <span>{color.name}</span>
                             {hasMockup && <Check className="w-3 h-3 text-green-500" />}
                           </button>
