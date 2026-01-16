@@ -1,13 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Library, ArrowRight, Copy, Trash2 } from "lucide-react";
+import { Library } from "lucide-react";
 import { StoreLibraryProvider, useStoreLibraryContext, ProductInfo } from "./StoreLibraryContext";
 import { StoreTypeFilterModule } from "./modules/StoreTypeFilterModule";
 import { StoreListModule } from "./modules/StoreListModule";
 import { ChannelListModule } from "./modules/ChannelListModule";
 import { ProductGridModule } from "./modules/ProductGridModule";
-import { SharedLightbox, LightboxItem, LightboxAction } from "@/features/shared/components/SharedLightbox";
-import { useToast } from "@/hooks/use-toast";
+import { SharedLightbox, LightboxItem } from "@/features/shared/components/SharedLightbox";
+import { StoreLibrarySkin } from "./skins/StoreLibrarySkin";
 
 function productToLightboxItem(product: ProductInfo): LightboxItem {
   return {
@@ -29,57 +29,8 @@ function StoreLibraryInner() {
     removeFromSelection,
     clearSelection,
   } = useStoreLibraryContext();
-  const { toast } = useToast();
 
   const lightboxItems = selectedProducts.map(productToLightboxItem);
-
-  const handleMove = (items: LightboxItem[]) => {
-    toast({
-      title: "Move action triggered",
-      description: `Moving ${items.length} product(s) to target store`,
-    });
-    clearSelection();
-  };
-
-  const handleReplicate = (items: LightboxItem[]) => {
-    toast({
-      title: "Replicate action triggered",
-      description: `Copying ${items.length} product(s) to target store`,
-    });
-  };
-
-  const handleDelete = (items: LightboxItem[]) => {
-    toast({
-      title: "Delete action triggered",
-      description: `Deleting ${items.length} product(s)`,
-      variant: "destructive",
-    });
-    clearSelection();
-  };
-
-  const actions: LightboxAction[] = [
-    {
-      id: "move",
-      label: "Move to Target Store",
-      icon: <ArrowRight className="w-4 h-4" />,
-      variant: "default",
-      onClick: handleMove,
-    },
-    {
-      id: "replicate",
-      label: "Replicate to Target Store",
-      icon: <Copy className="w-4 h-4" />,
-      variant: "secondary",
-      onClick: handleReplicate,
-    },
-    {
-      id: "delete",
-      label: "Delete Selected",
-      icon: <Trash2 className="w-4 h-4" />,
-      variant: "destructive",
-      onClick: handleDelete,
-    },
-  ];
 
   return (
     <div className="flex gap-4" data-testid="container-store-library">
@@ -107,10 +58,15 @@ function StoreLibraryInner() {
         items={lightboxItems}
         onRemoveItem={removeFromSelection}
         onClearAll={clearSelection}
-        actions={actions}
         title="Selected Products"
         emptyMessage="Click products to select them"
         className="w-72 min-h-[400px]"
+        actionSlot={
+          <StoreLibrarySkin 
+            items={lightboxItems} 
+            onClearSelection={clearSelection} 
+          />
+        }
       />
     </div>
   );
