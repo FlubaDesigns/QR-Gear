@@ -1754,6 +1754,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test endpoint: Get blueprint details (colors/sizes) for configuration
+  app.get("/api/test/printify/catalog/:blueprintId", async (req: any, res) => {
+    try {
+      const { blueprintId } = req.params;
+      console.log(`[TestCatalog] GET blueprint details for ${blueprintId}`);
+      
+      const { printifyPrintProviders } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Find provider for this blueprint
+      const providers = await db.select().from(printifyPrintProviders)
+        .where(eq(printifyPrintProviders.blueprintId, parseInt(blueprintId)));
+      
+      if (providers.length === 0) {
+        // Return fallback data for demo
+        return res.json({
+          id: blueprintId,
+          colors: [
+            { name: "Black", hex: "#000000" },
+            { name: "White", hex: "#FFFFFF" },
+            { name: "Navy", hex: "#000080" },
+            { name: "Red", hex: "#FF0000" },
+            { name: "Heather Gray", hex: "#9CA3AF" },
+            { name: "Forest Green", hex: "#228B22" },
+          ],
+          sizes: ["S", "M", "L", "XL", "2XL"],
+        });
+      }
+      
+      const provider = providers[0];
+      const colors = (provider.availableColors as Array<{name: string; hex?: string}>) || [];
+      const sizes = (provider.availableSizes as string[]) || ["S", "M", "L", "XL", "2XL"];
+      
+      res.json({
+        id: blueprintId,
+        providerId: provider.printProviderId,
+        colors,
+        sizes,
+        minPrice: provider.minCost ? (provider.minCost / 100).toFixed(2) : null,
+        maxPrice: provider.maxCost ? (provider.maxCost / 100).toFixed(2) : null,
+      });
+    } catch (error: any) {
+      console.error('[TestCatalog] GET blueprint error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint: Assign configured products to store channel
+  app.post("/api/test/stores/:storeId/channels/:channelId/products", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const { products } = req.body;
+      
+      console.log(`[TestAssignment] POST ${products?.length || 0} products to ${storeId}/${channelId}`);
+      
+      if (!products || !Array.isArray(products)) {
+        return res.status(400).json({ error: "products array required" });
+      }
+      
+      // For now, just log and return success (would save to Firestore in production)
+      const assignedProducts = products.map((p: any) => ({
+        id: p.id,
+        baseProductId: p.baseProductId,
+        baseProductName: p.baseProductName,
+        storeId,
+        channelId,
+        enabledColors: p.enabledColors,
+        enabledSizes: p.enabledSizes,
+        defaultColor: p.defaultColor,
+        isBlankCanvas: p.isBlankCanvas,
+        assignedAt: new Date().toISOString(),
+      }));
+      
+      console.log(`[TestAssignment] Assigned:`, assignedProducts);
+      
+      res.json({
+        success: true,
+        assigned: assignedProducts.length,
+        products: assignedProducts,
+      });
+    } catch (error: any) {
+      console.error('[TestAssignment] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test endpoint: Get provider product counts from database
   app.get("/api/test/provider-counts", async (req: any, res) => {
     try {

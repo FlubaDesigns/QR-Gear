@@ -3043,6 +3043,84 @@ app.get('/test/catalog/printful-products', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Test endpoint: Get blueprint details (colors/sizes) for configuration
+app.get('/test/printify/catalog/:blueprintId', async (req, res) => {
+    try {
+        const { blueprintId } = req.params;
+        console.log(`[TestCatalog] GET blueprint details for ${blueprintId}`);
+        // Find provider for this blueprint
+        const providersSnapshot = await db.collection('printifyPrintProviders')
+            .where('blueprintId', '==', parseInt(blueprintId))
+            .limit(1)
+            .get();
+        if (providersSnapshot.empty) {
+            // Return fallback data for demo
+            res.json({
+                id: blueprintId,
+                colors: [
+                    { name: "Black", hex: "#000000" },
+                    { name: "White", hex: "#FFFFFF" },
+                    { name: "Navy", hex: "#000080" },
+                    { name: "Red", hex: "#FF0000" },
+                    { name: "Heather Gray", hex: "#9CA3AF" },
+                    { name: "Forest Green", hex: "#228B22" },
+                ],
+                sizes: ["S", "M", "L", "XL", "2XL"],
+            });
+            return;
+        }
+        const provider = docToObject(providersSnapshot.docs[0]);
+        const colors = provider.availableColors || [];
+        const sizes = provider.availableSizes || ["S", "M", "L", "XL", "2XL"];
+        res.json({
+            id: blueprintId,
+            providerId: provider.printProviderId,
+            colors,
+            sizes,
+            minPrice: provider.minCost ? (provider.minCost / 100).toFixed(2) : null,
+            maxPrice: provider.maxCost ? (provider.maxCost / 100).toFixed(2) : null,
+        });
+    }
+    catch (error) {
+        console.error('[TestCatalog] GET blueprint error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Test endpoint: Assign configured products to store channel
+app.post('/test/stores/:storeId/channels/:channelId/products', async (req, res) => {
+    try {
+        const { storeId, channelId } = req.params;
+        const { products } = req.body;
+        console.log(`[TestAssignment] POST ${products?.length || 0} products to ${storeId}/${channelId}`);
+        if (!products || !Array.isArray(products)) {
+            res.status(400).json({ error: "products array required" });
+            return;
+        }
+        // Log and return success (could save to Firestore in production)
+        const assignedProducts = products.map((p) => ({
+            id: p.id,
+            baseProductId: p.baseProductId,
+            baseProductName: p.baseProductName,
+            storeId,
+            channelId,
+            enabledColors: p.enabledColors,
+            enabledSizes: p.enabledSizes,
+            defaultColor: p.defaultColor,
+            isBlankCanvas: p.isBlankCanvas,
+            assignedAt: new Date().toISOString(),
+        }));
+        console.log(`[TestAssignment] Assigned:`, assignedProducts);
+        res.json({
+            success: true,
+            assigned: assignedProducts.length,
+            products: assignedProducts,
+        });
+    }
+    catch (error) {
+        console.error('[TestAssignment] POST error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============ LIBRARY ASSETS (ADMIN) ============
 app.get('/admin/background-assets', requireAdmin, async (req, res) => {
     try {
@@ -4042,4 +4120,5 @@ exports.api = (0, https_1.onRequest)({
     cors: true,
 }, app);
 // Force redeploy: 1768535037
+// Build: 1768540909
 //# sourceMappingURL=index.js.map

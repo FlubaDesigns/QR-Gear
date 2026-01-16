@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Send, Trash2, Package, Loader2, Plus } from "lucide-react";
+import { Send, Trash2, Package, Loader2, Plus, CheckCircle } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export function AssignmentModule() {
   const {
@@ -17,32 +19,43 @@ export function AssignmentModule() {
     reset,
   } = useStoreBuilderContext();
   const { toast } = useToast();
-  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
-  if (!currentStore || !currentChannel) {
-    return null;
-  }
-
-  const handleAssign = async () => {
-    setIsAssigning(true);
-    try {
-      await new Promise(r => setTimeout(r, 800));
-
+  const assignMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(
+        "POST",
+        `/api/test/stores/${currentStore!.id}/channels/${currentChannel!.id}/products`,
+        { products: configuredProducts }
+      );
+      return response.json();
+    },
+    onSuccess: (data) => {
       toast({
         title: "Products Assigned",
-        description: `${configuredProducts.length} product(s) assigned to ${currentStore.name} / ${currentChannel.name}`,
+        description: `${data.assigned} product(s) assigned to ${currentStore!.name} / ${currentChannel!.name}`,
       });
-
-      reset();
-    } catch (error: any) {
+      setAssignmentSuccess(true);
+      setTimeout(() => {
+        reset();
+        setAssignmentSuccess(false);
+      }, 2000);
+    },
+    onError: (error: Error) => {
       toast({
         title: "Assignment Failed",
         description: error.message || "Could not assign products",
         variant: "destructive",
       });
-    } finally {
-      setIsAssigning(false);
-    }
+    },
+  });
+
+  if (!currentStore || !currentChannel) {
+    return null;
+  }
+
+  const handleAssign = () => {
+    assignMutation.mutate();
   };
 
   const handleAddAnother = () => {
@@ -121,10 +134,15 @@ export function AssignmentModule() {
               <Button
                 onClick={handleAssign}
                 className="w-full"
-                disabled={isAssigning || configuredProducts.length === 0}
+                disabled={assignMutation.isPending || configuredProducts.length === 0 || assignmentSuccess}
                 data-testid="button-assign-products"
               >
-                {isAssigning ? (
+                {assignmentSuccess ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Assigned Successfully!
+                  </>
+                ) : assignMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Assigning...
