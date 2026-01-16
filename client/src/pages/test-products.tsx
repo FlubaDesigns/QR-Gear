@@ -1,6 +1,5 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { AlertTriangle, Image, Settings2, Loader2, RefreshCw } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
@@ -38,26 +37,25 @@ function ProductConfigDemo() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12" data-testid="loader-product-configs">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="glass-body">
           {products.length} products loaded from database
         </p>
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={() => refetch()}
+          className="qr-btn qr-btn--outline qr-btn--touch"
           data-testid="button-refresh-products"
         >
-          <RefreshCw className="h-4 w-4 mr-2" />
+          <RefreshCw className="h-5 w-5 mr-2" />
           Refresh
-        </Button>
+        </button>
       </div>
       
       <SharedViewer mode="grid" className="w-full">
@@ -82,8 +80,8 @@ function ProductConfigDemo() {
           ))}
           
           {products.length === 0 && (
-            <div className="text-center py-8 border rounded-lg bg-muted/50">
-              <p className="text-sm text-muted-foreground" data-testid="text-no-products">
+            <div className="text-center py-8 glass-button rounded-lg">
+              <p className="glass-body" data-testid="text-no-products">
                 No products found. Add products via the admin panel first.
               </p>
             </div>
@@ -97,45 +95,51 @@ function ProductConfigDemo() {
 export default function TestProductsPage() {
   return (
     <AdminAuthProvider apiBase="/api/test">
-      <div className="container mx-auto py-6 space-y-6">
-        <Card className="border-yellow-500/50 bg-yellow-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-yellow-600" data-testid="text-page-title">
-              <AlertTriangle className="h-5 w-5" />
-              Test Products (No Auth Required)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              This is a public test version of the products page for debugging. 
-              Uses /api/test endpoints instead of /api/admin endpoints.
-              All changes are saved to the real database.
-            </p>
-            <Link href="/test-library">
-              <Button variant="outline" size="sm" data-testid="link-test-library">
-                <Image className="h-4 w-4 mr-2" />
-                Go to Library
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="page-wrap">
+        <div className="container py-8 space-y-8">
+          {/* Header Card */}
+          <div className="glass-card">
+            <div className="flex items-start gap-4 flex-wrap">
+              <div className="glass-icon">
+                <AlertTriangle className="h-6 w-6 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="glass-title text-xl mb-2" data-testid="text-page-title">
+                  Test Products (No Auth Required)
+                </h1>
+                <p className="glass-body mb-4">
+                  This is a public test version of the products page for debugging. 
+                  Uses /api/test endpoints. All changes are saved to the real database.
+                </p>
+                <Link href="/test-library">
+                  <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-library">
+                    <Image className="h-5 w-5 mr-2" />
+                    Go to Library
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
 
-        <ProductsHarness />
+          {/* Products Harness */}
+          <ProductsHarness />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2" data-testid="text-demo-title">
-              <Settings2 className="h-5 w-5" />
-              Product Configuration
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+          {/* Product Configuration */}
+          <div className="glass-card">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="glass-icon">
+                <Settings2 className="h-6 w-6" />
+              </div>
+              <h2 className="glass-title text-xl" data-testid="text-demo-title">
+                Product Configuration
+              </h2>
+            </div>
+            <p className="glass-body mb-6">
               Configure product sizes, colors, and mockups. All features from admin are available here.
             </p>
             <ProductConfigDemo />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </AdminAuthProvider>
   );

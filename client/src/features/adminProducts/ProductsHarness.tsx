@@ -38,28 +38,30 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {showHeader && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Products</h1>
-            <p className="text-muted-foreground">
-              Manage products, sync catalog, and configure pricing.
-            </p>
-          </div>
+        <div className="glass-card">
+          <h1 className="glass-title text-2xl mb-2">Products</h1>
+          <p className="glass-body">
+            Manage products, sync catalog, and configure pricing.
+          </p>
         </div>
       )}
 
-      <FulfillmentPickerModule
-        providers={providers}
-        selectedProviders={selectedProviders}
-        onSelectionChange={setSelectedProviders}
-        productCount={productCount}
-      />
+      <div className="glass-card">
+        <FulfillmentPickerModule
+          providers={providers}
+          selectedProviders={selectedProviders}
+          onSelectionChange={setSelectedProviders}
+          productCount={productCount}
+        />
+      </div>
 
       <StoreChannelDropdownModule />
 
-      <BuilderHarness />
+      <div className="glass-card">
+        <BuilderHarness />
+      </div>
     </div>
   );
 }
