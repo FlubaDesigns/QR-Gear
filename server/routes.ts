@@ -1828,76 +1828,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test endpoint: Mock product config data for ProductConfigSkin demo
+  // Test endpoint: Real product config data with admin enrichment (no auth)
   app.get("/api/test/product-configs", async (req: any, res) => {
     try {
-      console.log('[TestProductConfigs] GET mock product configs');
+      console.log('[TestProductConfigs] GET real product configs');
       
-      const mockProducts = [
-        {
-          id: "demo-tshirt-1",
-          name: "Classic Cotton T-Shirt",
-          imageUrl: "https://images.printify.com/mockup/64e1234567890abcdef12345/64e1234567890abcdef12346/64e1234567890abcdef12347.jpg",
-          sizes: ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
-          colors: [
-            { name: "Black", hex: "#1a1a1a" },
-            { name: "White", hex: "#ffffff" },
-            { name: "Navy", hex: "#1e3a5f" },
-            { name: "Red", hex: "#dc2626" },
-            { name: "Heather Gray", hex: "#9ca3af" },
-            { name: "Forest Green", hex: "#166534" },
-            { name: "Royal Blue", hex: "#1d4ed8" },
-            { name: "Maroon", hex: "#7f1d1d" },
-          ],
-          enabledSizes: ["S", "M", "L", "XL", "2XL"],
-          enabledColors: ["Black", "White", "Navy", "Red"],
-          defaultColor: "Black",
-          mockupsByColor: {
-            "Black": { front: "https://images.printify.com/mockup/64e1234567890abcdef12345/black-front.jpg" },
-            "White": { front: "https://images.printify.com/mockup/64e1234567890abcdef12345/white-front.jpg" },
-            "Navy": { front: "https://images.printify.com/mockup/64e1234567890abcdef12345/navy-front.jpg" },
-          },
-        },
-        {
-          id: "demo-hoodie-1",
-          name: "Premium Pullover Hoodie",
-          imageUrl: "https://images.printify.com/mockup/64e9876543210fedcba98765/hoodie-main.jpg",
-          sizes: ["S", "M", "L", "XL", "2XL"],
-          colors: [
-            { name: "Black", hex: "#1a1a1a" },
-            { name: "Charcoal", hex: "#374151" },
-            { name: "Sand", hex: "#d4c5a9" },
-            { name: "Olive", hex: "#4b5320" },
-          ],
-          enabledSizes: ["M", "L", "XL"],
-          enabledColors: ["Black", "Charcoal"],
-          defaultColor: "Charcoal",
-          mockupsByColor: {
-            "Black": { front: "https://images.printify.com/mockup/64e9876543210fedcba98765/black-front.jpg" },
-            "Charcoal": { front: "https://images.printify.com/mockup/64e9876543210fedcba98765/charcoal-front.jpg", lifestyle: "https://images.printify.com/mockup/64e9876543210fedcba98765/charcoal-lifestyle.jpg" },
-          },
-        },
-        {
-          id: "demo-mug-1",
-          name: "Ceramic Coffee Mug (11oz)",
-          imageUrl: "https://images.printify.com/mockup/64eabcdef1234567890abcde/mug-main.jpg",
-          sizes: ["11oz", "15oz"],
-          colors: [
-            { name: "White", hex: "#ffffff" },
-            { name: "Black", hex: "#1a1a1a" },
-          ],
-          enabledSizes: ["11oz"],
-          enabledColors: ["White"],
-          defaultColor: "White",
-          mockupsByColor: {
-            "White": { front: "https://images.printify.com/mockup/64eabcdef1234567890abcde/white-front.jpg" },
-          },
-        },
-      ];
+      const products = await storage.getAllProducts();
       
-      res.json(mockProducts);
+      // Enrich products with their assigned category IDs, cached costs, and full config
+      const enrichedProducts = await Promise.all(
+        products.filter(p => p.isEnabled).map(async (product) => {
+          const assignments = await storage.getProductCategoryAssignments(product.id);
+          
+          // Look up cached costs and colors from printifyPrintProviders
+          let cachedMinCost: number | null = null;
+          let cachedMaxCost: number | null = null;
+          let providerColors: Array<{name: string; hex: string}> | null = null;
+          let providerSizes: string[] | null = null;
+          if (product.blueprintId && product.printProviderId) {
+            const provider = await storage.getPrintifyPrintProvider(
+              product.blueprintId,
+              product.printProviderId
+            );
+            if (provider?.minCost) {
+              cachedMinCost = Number(provider.minCost) / 100;
+              cachedMaxCost = provider.maxCost ? Number(provider.maxCost) / 100 : cachedMinCost;
+            }
+            if (provider?.availableColors && Array.isArray(provider.availableColors)) {
+              providerColors = provider.availableColors as Array<{name: string; hex: string}>;
+            }
+            if (provider?.availableSizes && Array.isArray(provider.availableSizes)) {
+              providerSizes = provider.availableSizes as string[];
+            }
+          }
+          
+          // Get metadata for enabled sizes/colors
+          const meta = product.metadata as Record<string, unknown> | null;
+          const savedEnabledSizes = meta?.enabledSizes as string[] | undefined;
+          const savedEnabledColors = meta?.enabledColors as string[] | undefined;
+          const defaultColor = meta?.defaultColor as string | undefined;
+          
+          // Use provider colors/sizes as primary source, fall back to product's cached values
+          const finalColors = providerColors || (product.availableColors as Array<{name: string; hex: string}>) || [];
+          const finalSizes = providerSizes || (product.availableSizes as string[]) || [];
+          
+          // Get mockupsByColor from product
+          const mockupsByColor = (product as any).mockupsByColor as Record<string, { front?: string; lifestyle?: string }> | undefined;
+          
+          return {
+            id: product.id,
+            name: product.name,
+            imageUrl: product.imageUrl,
+            sizes: finalSizes,
+            colors: finalColors,
+            enabledSizes: savedEnabledSizes || finalSizes,
+            enabledColors: savedEnabledColors || finalColors.map(c => c.name),
+            defaultColor: defaultColor || (finalColors.length > 0 ? finalColors[0].name : null),
+            mockupsByColor: mockupsByColor || {},
+            categoryIds: assignments.map((a) => a.categoryId),
+            cachedMinCost,
+            cachedMaxCost,
+            blueprintId: product.blueprintId,
+            printProviderId: product.printProviderId,
+          };
+        })
+      );
+      
+      console.log(`[TestProductConfigs] Returning ${enrichedProducts.length} enriched products`);
+      res.json(enrichedProducts);
     } catch (error: any) {
       console.error('[TestProductConfigs] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint: Update product size/color options (no auth - mirrors admin)
+  app.patch("/api/test/products/:id/options", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { enabledSizes, enabledColors, defaultColor } = req.body;
+      
+      console.log(`[TestProductOptions] PATCH ${id}:`, { enabledSizes, enabledColors, defaultColor });
+      
+      // Get current product to preserve other metadata
+      const currentProduct = await storage.getProduct(id);
+      if (!currentProduct) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      // Merge with existing metadata
+      const existingMetadata = (currentProduct.metadata as Record<string, unknown>) || {};
+      const newMetadata = {
+        ...existingMetadata,
+        enabledSizes,
+        enabledColors,
+        defaultColor,
+      };
+      
+      const product = await storage.updateProduct(id, { metadata: newMetadata });
+      res.json(product);
+    } catch (error: any) {
+      console.error('[TestProductOptions] PATCH error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint: Sync product from Printify (no auth - mirrors admin)
+  app.post("/api/test/products/:id/sync-printify", async (req: any, res) => {
+    try {
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      if (!product.blueprintId || !product.printProviderId) {
+        return res.status(400).json({ error: "Product missing Printify blueprint or provider IDs" });
+      }
+      
+      console.log(`[TestProductSync] Syncing product ${product.id}`);
+      
+      // Fetch placements and mockup image from Printify
+      const { placements, mockupImageUrl } = await syncProductPlacements(
+        product.blueprintId,
+        product.printProviderId
+      );
+      
+      // Fetch colors and sizes
+      const { colors, sizes, variants } = await syncProductVariants(
+        product.blueprintId,
+        product.printProviderId
+      );
+      
+      // Save each variant to the database
+      for (const variant of variants) {
+        await storage.upsertProductVariant({
+          productId: product.id,
+          printifyVariantId: variant.id,
+          title: variant.title,
+          size: variant.options?.size || null,
+          color: variant.options?.color || null,
+          colorHex: variant.options?.color ? colors.find(c => c.name === variant.options?.color)?.hex || null : null,
+          price: String((variant.price || 0) / 100),
+          isEnabled: true,
+          isInStock: variant.is_available ?? true,
+        });
+      }
+      
+      // Update product with synced data
+      const updatedProduct = await storage.updateProduct(product.id, {
+        availablePlacements: placements.map(p => p.position),
+        availableColors: colors,
+        availableSizes: sizes,
+        imageUrl: mockupImageUrl || product.imageUrl,
+        metadata: {
+          ...(product.metadata as object || {}),
+          placementDetails: placements,
+          lastSyncedAt: new Date().toISOString(),
+        },
+      });
+      
+      res.json({
+        success: true,
+        product: updatedProduct,
+        syncedData: { placements, colors, sizes, mockupImageUrl, variantsCount: variants.length },
+      });
+    } catch (error: any) {
+      console.error('[TestProductSync] Error:', error);
       res.status(500).json({ error: error.message });
     }
   });

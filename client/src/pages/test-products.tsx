@@ -1,15 +1,14 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Image, Settings2, Loader2 } from "lucide-react";
+import { AlertTriangle, Image, Settings2, Loader2, RefreshCw } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
 import { ProductConfigSkin } from "@/features/shared/components/ProductConfigSkin";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-interface MockProductConfig {
+interface ProductConfig {
   id: string;
   name: string;
   imageUrl: string;
@@ -17,39 +16,23 @@ interface MockProductConfig {
   colors: Array<{ name: string; hex: string }>;
   enabledSizes: string[];
   enabledColors: string[];
-  defaultColor: string;
+  defaultColor: string | null;
   mockupsByColor: Record<string, { front?: string; lifestyle?: string }>;
+  blueprintId?: number;
+  printProviderId?: number;
+  cachedMinCost?: number | null;
+  cachedMaxCost?: number | null;
 }
 
 function ProductConfigDemo() {
-  const [savedChanges, setSavedChanges] = useState<Record<string, any>>({});
+  const queryClient = useQueryClient();
   
-  const { data: mockProducts = [], isLoading } = useQuery<MockProductConfig[]>({
+  const { data: products = [], isLoading, refetch } = useQuery<ProductConfig[]>({
     queryKey: ["/api/test/product-configs"],
   });
 
-  const handleSizesChange = (productId: string, enabledSizes: string[]) => {
-    setSavedChanges(prev => ({
-      ...prev,
-      [productId]: { ...prev[productId], enabledSizes }
-    }));
-    console.log(`[Demo] Product ${productId} sizes changed:`, enabledSizes);
-  };
-
-  const handleColorsChange = (productId: string, enabledColors: string[]) => {
-    setSavedChanges(prev => ({
-      ...prev,
-      [productId]: { ...prev[productId], enabledColors }
-    }));
-    console.log(`[Demo] Product ${productId} colors changed:`, enabledColors);
-  };
-
-  const handleDefaultColorChange = (productId: string, colorName: string) => {
-    setSavedChanges(prev => ({
-      ...prev,
-      [productId]: { ...prev[productId], defaultColor: colorName }
-    }));
-    console.log(`[Demo] Product ${productId} default color changed to:`, colorName);
+  const handleUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/test/product-configs"] });
   };
 
   if (isLoading) {
@@ -61,36 +44,53 @@ function ProductConfigDemo() {
   }
 
   return (
-    <SharedViewer
-      mode="grid"
-      className="w-full"
-    >
-      <div className="space-y-4" data-testid="product-config-list">
-        {mockProducts.map((product) => (
-          <ProductConfigSkin
-            key={product.id}
-            productId={product.id}
-            productName={product.name}
-            productImage={product.imageUrl}
-            sizes={product.sizes}
-            colors={product.colors}
-            enabledSizes={savedChanges[product.id]?.enabledSizes || product.enabledSizes}
-            enabledColors={savedChanges[product.id]?.enabledColors || product.enabledColors}
-            defaultColor={savedChanges[product.id]?.defaultColor || product.defaultColor}
-            mockupsByColor={product.mockupsByColor}
-            onSizesChange={(sizes) => handleSizesChange(product.id, sizes)}
-            onColorsChange={(colors) => handleColorsChange(product.id, colors)}
-            onDefaultColorChange={(color) => handleDefaultColorChange(product.id, color)}
-          />
-        ))}
-        
-        {mockProducts.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-8" data-testid="text-no-products">
-            No mock products available. Check the /api/test/product-configs endpoint.
-          </p>
-        )}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {products.length} products loaded from database
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          data-testid="button-refresh-products"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
-    </SharedViewer>
+      
+      <SharedViewer mode="grid" className="w-full">
+        <div className="space-y-4" data-testid="product-config-list">
+          {products.map((product) => (
+            <ProductConfigSkin
+              key={product.id}
+              productId={product.id}
+              productName={product.name}
+              productImage={product.imageUrl}
+              sizes={product.sizes}
+              colors={product.colors}
+              enabledSizes={product.enabledSizes}
+              enabledColors={product.enabledColors}
+              defaultColor={product.defaultColor || undefined}
+              mockupsByColor={product.mockupsByColor}
+              blueprintId={product.blueprintId}
+              printProviderId={product.printProviderId}
+              apiBase="/api/test"
+              onUpdate={handleUpdate}
+            />
+          ))}
+          
+          {products.length === 0 && (
+            <div className="text-center py-8 border rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground" data-testid="text-no-products">
+                No products found. Add products via the admin panel first.
+              </p>
+            </div>
+          )}
+        </div>
+      </SharedViewer>
+    </div>
   );
 }
 
@@ -109,6 +109,7 @@ export default function TestProductsPage() {
             <p className="text-sm text-muted-foreground">
               This is a public test version of the products page for debugging. 
               Uses /api/test endpoints instead of /api/admin endpoints.
+              All changes are saved to the real database.
             </p>
             <Link href="/test-library">
               <Button variant="outline" size="sm" data-testid="link-test-library">
@@ -123,13 +124,12 @@ export default function TestProductsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2" data-testid="text-demo-title">
               <Settings2 className="h-5 w-5" />
-              ProductConfigSkin Demo
+              Product Configuration
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              This demonstrates the ProductConfigSkin component with mock data. 
-              Toggle sizes and colors, pick default display images.
+              Configure product sizes, colors, and mockups. All features from admin are available here.
             </p>
             <ProductConfigDemo />
           </CardContent>

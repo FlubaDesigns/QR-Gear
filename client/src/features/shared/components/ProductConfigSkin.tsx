@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, Check, Loader2, ImageIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronRight, Check, Loader2, ImageIcon, RefreshCw } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ColorOption {
   name: string;
@@ -21,10 +25,10 @@ interface ProductConfigSkinProps {
   enabledColors?: string[];
   defaultColor?: string;
   mockupsByColor?: Record<string, { front?: string; lifestyle?: string }>;
-  onSizesChange?: (enabledSizes: string[]) => void;
-  onColorsChange?: (enabledColors: string[]) => void;
-  onDefaultColorChange?: (colorName: string) => void;
-  saving?: boolean;
+  blueprintId?: number;
+  printProviderId?: number;
+  apiBase?: string;
+  onUpdate?: () => void;
   readOnly?: boolean;
 }
 
@@ -48,12 +52,13 @@ export function ProductConfigSkin({
   enabledColors: initialEnabledColors,
   defaultColor: initialDefaultColor,
   mockupsByColor,
-  onSizesChange,
-  onColorsChange,
-  onDefaultColorChange,
-  saving = false,
+  blueprintId,
+  printProviderId,
+  apiBase = "/api/test",
+  onUpdate,
   readOnly = false,
 }: ProductConfigSkinProps) {
+  const { toast } = useToast();
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(
     new Set(initialEnabledSizes || sizes)
   );
@@ -66,6 +71,10 @@ export function ProductConfigSkin({
   const [showSizes, setShowSizes] = useState(true);
   const [showColors, setShowColors] = useState(true);
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedQrSize, setSelectedQrSize] = useState<'S' | 'M' | 'L'>('M');
 
   useEffect(() => {
     setEnabledSizes(new Set(initialEnabledSizes || sizes));
@@ -79,7 +88,26 @@ export function ProductConfigSkin({
     setDefaultColor(initialDefaultColor || (colors.length > 0 ? colors[0].name : null));
   }, [initialDefaultColor, colors]);
 
-  const toggleSize = (size: string) => {
+  const qrSizePercent = { S: 25, M: 45, L: 65 };
+
+  const saveOptions = async (newSizes: string[], newColors: string[], newDefaultColor?: string) => {
+    setSaving(true);
+    try {
+      await apiRequest("PATCH", `${apiBase}/products/${productId}/options`, {
+        enabledSizes: newSizes,
+        enabledColors: newColors,
+        defaultColor: newDefaultColor || defaultColor,
+      });
+      toast({ title: "Saved", description: "Product options updated" });
+      onUpdate?.();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to save", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleSize = async (size: string) => {
     if (readOnly) return;
     const newSizes = new Set(enabledSizes);
     if (newSizes.has(size)) {
@@ -88,10 +116,10 @@ export function ProductConfigSkin({
       newSizes.add(size);
     }
     setEnabledSizes(newSizes);
-    onSizesChange?.(Array.from(newSizes));
+    await saveOptions(Array.from(newSizes), Array.from(enabledColors));
   };
 
-  const toggleColor = (colorName: string) => {
+  const toggleColor = async (colorName: string) => {
     if (readOnly) return;
     const newColors = new Set(enabledColors);
     if (newColors.has(colorName)) {
@@ -100,15 +128,69 @@ export function ProductConfigSkin({
       newColors.add(colorName);
     }
     setEnabledColors(newColors);
-    onColorsChange?.(Array.from(newColors));
+    await saveOptions(Array.from(enabledSizes), Array.from(newColors));
   };
 
-  const selectDefaultColor = (colorName: string) => {
+  const selectDefaultColor = async (colorName: string) => {
     if (readOnly) return;
     setDefaultColor(colorName);
-    onDefaultColorChange?.(colorName);
     setShowImagePicker(false);
+    await saveOptions(Array.from(enabledSizes), Array.from(enabledColors), colorName);
   };
+
+  const triggerSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch(`${apiBase}/products/${productId}/sync-printify`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Sync failed");
+      }
+      toast({ title: "Success", description: "Sizes and colors synced from Printify" });
+      onUpdate?.();
+    } catch (error: any) {
+      toast({ title: "Sync Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const generateMockupMutation = useMutation({
+    mutationFn: async (color: string) => {
+      const qrSizeMap = { S: 'small', M: 'medium', L: 'large' } as const;
+      const response = await fetch("/api/storefront/generate-mockup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId,
+          color,
+          qrSize: qrSizeMap[selectedQrSize],
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to generate mockup");
+      }
+      return response.json();
+    },
+    onSuccess: (data, color) => {
+      toast({
+        title: "Mockup generated",
+        description: `${color} mockup is ready`,
+      });
+      onUpdate?.();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to generate mockup",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const getDisplayImage = () => {
     if (defaultColor && mockupsByColor?.[defaultColor]) {
@@ -122,6 +204,46 @@ export function ProductConfigSkin({
 
   const displayImage = getDisplayImage();
   const mockupCount = mockupsByColor ? Object.keys(mockupsByColor).filter(k => mockupsByColor[k]?.front).length : 0;
+  const hasPrintifyData = blueprintId && printProviderId;
+
+  // Show sync button if no sizes/colors
+  if (sizes.length === 0 && colors.length === 0 && hasPrintifyData) {
+    return (
+      <div className="space-y-4 p-4 border rounded-lg bg-card" data-testid={`product-config-${productId}`}>
+        <div className="flex gap-4">
+          <div className="flex-shrink-0">
+            {productImage ? (
+              <img
+                src={productImage}
+                alt={productName}
+                className="w-24 h-24 rounded-lg object-cover border-2 border-border"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center border-2 border-border">
+                <ImageIcon className="w-8 h-8 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-sm truncate">{productName}</h3>
+            <div className="flex items-center gap-3 mt-3">
+              <span className="text-sm text-muted-foreground">No sizes/colors synced yet</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={triggerSync}
+                disabled={syncing}
+                data-testid={`button-sync-${productId}`}
+              >
+                {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Sync from Printify
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-card" data-testid={`product-config-${productId}`}>
@@ -166,6 +288,19 @@ export function ProductConfigSkin({
               </Badge>
             )}
           </div>
+          {hasPrintifyData && !readOnly && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={triggerSync}
+              disabled={syncing}
+              className="mt-2 h-8"
+              data-testid={`button-sync-${productId}`}
+            >
+              {syncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              Sync Printify
+            </Button>
+          )}
         </div>
       </div>
 
@@ -251,54 +386,108 @@ export function ProductConfigSkin({
           )}
 
           {!readOnly && (
-            <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
-              <button
-                type="button"
-                onClick={() => setShowImagePicker(!showImagePicker)}
-                className="flex items-center gap-2 text-sm font-medium hover-elevate px-2 py-1 rounded -ml-2"
-                data-testid={`toggle-image-picker-${productId}`}
-              >
-                {showImagePicker ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                Default Display Image
-                {defaultColor && (
-                  <Badge variant="outline" className="text-xs ml-2">
-                    {defaultColor}
-                  </Badge>
-                )}
-              </button>
-              {showImagePicker && (
-                <div className="mt-2 pl-6">
-                  <p className="text-xs text-muted-foreground mb-2">Select which color to display by default:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {colors.filter((c) => enabledColors.has(c.name)).map((color) => {
-                      const hasMockup = mockupsByColor?.[color.name]?.front;
-                      const isDefault = defaultColor === color.name;
-                      return (
-                        <button
-                          key={color.name}
-                          className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs transition-all ${
-                            isDefault
-                              ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-1"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                          onClick={() => selectDefaultColor(color.name)}
-                          data-testid={`button-select-default-${productId}-${color.name}`}
-                        >
-                          <ColorSwatch hex={color.hex} className="w-4 h-4" />
-                          <span>{color.name}</span>
-                          {hasMockup && <Check className="w-3 h-3 text-green-500" />}
-                        </button>
-                      );
-                    })}
+            <>
+              {/* Default Image Picker */}
+              <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
+                <button
+                  type="button"
+                  onClick={() => setShowImagePicker(!showImagePicker)}
+                  className="flex items-center gap-2 text-sm font-medium hover-elevate px-2 py-1 rounded -ml-2"
+                  data-testid={`toggle-image-picker-${productId}`}
+                >
+                  {showImagePicker ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  Default Display Image
+                  {defaultColor && (
+                    <Badge variant="outline" className="text-xs ml-2">
+                      {defaultColor}
+                    </Badge>
+                  )}
+                </button>
+                {showImagePicker && (
+                  <div className="mt-2 pl-6">
+                    <p className="text-xs text-muted-foreground mb-2">Select which color to display by default:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {colors.filter((c) => enabledColors.has(c.name)).map((color) => {
+                        const hasMockup = mockupsByColor?.[color.name]?.front;
+                        const isDefault = defaultColor === color.name;
+                        return (
+                          <button
+                            key={color.name}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs transition-all ${
+                              isDefault
+                                ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-1"
+                                : "border-border hover:border-primary/50"
+                            }`}
+                            onClick={() => selectDefaultColor(color.name)}
+                            data-testid={`button-select-default-${productId}-${color.name}`}
+                          >
+                            <ColorSwatch hex={color.hex} className="w-4 h-4" />
+                            <span>{color.name}</span>
+                            {hasMockup && <Check className="w-3 h-3 text-green-500" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Mockup Generation Section */}
+              <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm font-medium">Generate Mockup:</span>
+                  <select
+                    className="h-9 px-3 rounded border bg-background text-sm"
+                    value={selectedColor || ""}
+                    onChange={(e) => setSelectedColor(e.target.value || null)}
+                    data-testid={`select-color-${productId}`}
+                  >
+                    <option value="">Select color...</option>
+                    {colors.filter(c => enabledColors.has(c.name)).map(c => (
+                      <option key={c.name} value={c.name}>
+                        {c.name} {mockupsByColor?.[c.name]?.front ? '✓' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {/* QR Size Selector */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground mr-1">QR:</span>
+                    {(['S', 'M', 'L'] as const).map(size => (
+                      <Button
+                        key={size}
+                        size="sm"
+                        variant={selectedQrSize === size ? 'default' : 'outline'}
+                        className="h-8 w-8 p-0"
+                        onClick={() => setSelectedQrSize(size)}
+                        data-testid={`button-qr-${size}-${productId}`}
+                      >
+                        {size}
+                      </Button>
+                    ))}
+                    <span className="text-xs text-muted-foreground ml-1">({qrSizePercent[selectedQrSize]}%)</span>
+                  </div>
+                  
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    disabled={!selectedColor || generateMockupMutation.isPending}
+                    onClick={() => selectedColor && generateMockupMutation.mutate(selectedColor)}
+                    data-testid={`button-generate-${productId}`}
+                  >
+                    {generateMockupMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : null}
+                    Generate
+                  </Button>
                 </div>
-              )}
-            </div>
+              </div>
+            </>
           )}
         </div>
       )}
 
-      {sizes.length === 0 && colors.length === 0 && (
+      {sizes.length === 0 && colors.length === 0 && !hasPrintifyData && (
         <p className="text-sm text-muted-foreground" data-testid={`text-no-options-${productId}`}>
           No sizes or colors available for this product.
         </p>
