@@ -6,11 +6,11 @@ import { QR_PRODUCT_STATES } from "../types";
 import type { QRProductState } from "../types";
 
 const STATE_ICONS: Record<string, typeof QrCode> = {
-  plain_qr: QrCode,
-  qr_header_footer: Type,
-  qr_url: ExternalLink,
-  qr_url_decorated: Sparkles,
-  dynamic: Sparkles,
+  qr_basics: QrCode,
+  qr_plus: Type,
+  qr_canvas: ExternalLink,
+  qr_play: Sparkles,
+  qr_dynamics: Sparkles,
 };
 
 export function StateModule() {

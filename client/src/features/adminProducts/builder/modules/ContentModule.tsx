@@ -10,13 +10,13 @@ import { ContentViewerControls } from "../components/ContentViewerControls";
 export function ContentModule() {
   const { state, setContent } = useBuilderContext();
 
-  const needsUrl = state.qrProductState === "qr_url" || 
-                   state.qrProductState === "qr_url_decorated" || 
-                   state.qrProductState === "dynamic";
+  const needsUrl = state.qrProductState === "qr_canvas" || 
+                   state.qrProductState === "qr_play" || 
+                   state.qrProductState === "qr_dynamics";
 
-  const needsOverlay = state.qrProductState === "dynamic" || 
-                       state.qrProductState === "qr_header_footer" ||
-                       state.qrProductState === "qr_url_decorated";
+  const needsOverlay = state.qrProductState === "qr_dynamics" || 
+                       state.qrProductState === "qr_plus" ||
+                       state.qrProductState === "qr_play";
 
   if (!state.qrProductState || !state.selectedProduct) {
     return null;
@@ -34,19 +34,19 @@ export function ContentModule() {
           <div className="space-y-2">
             <Label htmlFor="content-url" className="flex items-center gap-2">
               <Link2 className="h-3.5 w-3.5" />
-              {state.qrProductState === "dynamic" ? "Background URL" : "Destination URL"}
+              {state.qrProductState === "qr_dynamics" ? "Background URL" : "Destination URL"}
             </Label>
             <Input
               id="content-url"
               type="url"
-              placeholder={state.qrProductState === "dynamic" 
+              placeholder={state.qrProductState === "qr_dynamics" 
                 ? "https://example.com/image.jpg" 
                 : "https://example.com"}
               value={state.content.url}
               onChange={(e) => setContent({ url: e.target.value })}
               data-testid="input-content-url"
             />
-            {state.qrProductState === "dynamic" && (
+            {state.qrProductState === "qr_dynamics" && (
               <p className="text-xs text-muted-foreground">
                 Enter an image or video URL for the landing page background
               </p>
@@ -86,7 +86,7 @@ export function ContentModule() {
           </>
         )}
 
-        {state.qrProductState === "plain_qr" && (
+        {state.qrProductState === "qr_basics" && (
           <div className="space-y-2">
             <Label htmlFor="plain-text-content" className="flex items-center gap-2">
               <Type className="h-3.5 w-3.5" />
@@ -107,7 +107,7 @@ export function ContentModule() {
           </div>
         )}
 
-        {state.qrProductState === "dynamic" && state.content.url && (
+        {state.qrProductState === "qr_dynamics" && state.content.url && (
           <div className="space-y-3">
             <ContentViewerControls
               content={state.content}

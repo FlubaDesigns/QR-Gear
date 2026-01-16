@@ -42,19 +42,19 @@ export interface OriginFilter {
 export type GenderFilter = "all" | "mens" | "womens" | "unisex";
 
 export type QRProductState = 
-  | "plain_qr"           // Just QR code, no decoration
-  | "qr_header_footer"   // QR with styled header/footer text
-  | "qr_url"             // QR links directly to external URL
-  | "qr_url_decorated"   // QR + header/footer + links to URL
-  | "dynamic"            // Dynamic QR (rich media, updateable)
+  | "qr_basics"    // Permanent - Simple QR code with text, URL, or contact info
+  | "qr_plus"      // Permanent + Messaging - QR with header/footer text
+  | "qr_canvas"    // Visual Space - Custom image your QR opens to
+  | "qr_play"      // Motion - Video that plays when QR is scanned
+  | "qr_dynamics"  // Living Space - Dynamic content that changes over time
   | null;
 
 export const QR_PRODUCT_STATES = [
-  { id: "plain_qr", label: "Plain QR", description: "Simple QR code, no decoration" },
-  { id: "qr_header_footer", label: "QR + Text", description: "QR with styled header & footer" },
-  { id: "qr_url", label: "QR → URL", description: "QR links directly to your URL" },
-  { id: "qr_url_decorated", label: "QR + Text → URL", description: "Styled QR that links to URL" },
-  { id: "dynamic", label: "Dynamic QR", description: "Updateable rich media content" },
+  { id: "qr_basics", label: "QR Basics", state: "Permanent", description: "A simple, scannable QR code. Text, URL, or contact info encoded permanently." },
+  { id: "qr_plus", label: "QR Plus", state: "Permanent + Messaging", description: "Add a message above and below your QR. Perfect for calls-to-action." },
+  { id: "qr_canvas", label: "QR Canvas", state: "Visual Space", description: "Design a custom image your QR opens to. Your QR Space. Your visual." },
+  { id: "qr_play", label: "QR Play", state: "Motion", description: "Bring your QR to life with video. Plays instantly in your QR Space." },
+  { id: "qr_dynamics", label: "QR Dynamics™", state: "Living Space", description: "Content that changes over time. Scheduled updates, rotating content." },
 ] as const;
 
 export interface ContentData {

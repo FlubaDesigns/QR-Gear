@@ -51,7 +51,7 @@ export function PublishModule() {
     },
   });
 
-  const canPublish = state.qrProductState === "dynamic" && state.content.url;
+  const canPublish = state.qrProductState === "qr_dynamics" && state.content.url;
 
   if (!canPublish && !publishResult) {
     return null;
