@@ -1,67 +1,154 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Store, Plus, ChevronDown, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Store, Plus, Loader2, Shield } from "lucide-react";
+import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
 
-const MOCK_STORES = [
-  { id: "store-1", name: "QR Gear Main", permissions: ["all"], productLimit: 50, products: [] },
-  { id: "store-2", name: "Kingdom Connects", permissions: ["qr_basics", "qr_plus"], productLimit: 15, products: [] },
-];
+interface PartnerStore {
+  id: string;
+  name: string;
+  isInternal: boolean;
+  isActive: boolean;
+  availableSegments: string[];
+}
 
 export function StorePickerModule() {
-  const { step, currentStore, setCurrentStore, setStep } = useStoreBuilderContext();
-  const [expanded, setExpanded] = useState(step === "store");
+  const { step, currentStore, setCurrentStore, setCurrentChannel, setStep } = useStoreBuilderContext();
+  const [showAddStore, setShowAddStore] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
 
-  if (step !== "store" && !currentStore) return null;
+  const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
+    queryKey: ["/api/test/partner-stores"],
+  });
 
-  const handleSelectStore = (store: typeof MOCK_STORES[0]) => {
-    setCurrentStore(store);
-    setStep("channel");
+  const handleStoreSelect = (store: PartnerStore) => {
+    if (currentStore?.id === store.id) {
+      setCurrentStore(null);
+      setCurrentChannel(null);
+    } else {
+      setCurrentStore({
+        id: store.id,
+        name: store.name,
+        permissions: store.availableSegments || [],
+        productLimit: 50,
+        products: [],
+      });
+      setCurrentChannel(null);
+      if (step === "store") setStep("channel");
+    }
+  };
+
+  const handleAddStore = () => {
+    if (!newStoreName.trim()) return;
+    console.log("TODO: Create store", newStoreName);
+    setNewStoreName("");
+    setShowAddStore(false);
   };
 
   return (
-    <div className="border rounded-lg p-3" data-testid="module-store-picker">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-left font-medium"
-        data-testid="toggle-store-picker"
-      >
-        {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        <Store className="h-4 w-4" />
-        <span className="flex-1">Select Store</span>
-        {currentStore && (
-          <Badge variant="secondary">{currentStore.name}</Badge>
-        )}
-      </button>
+    <CollapsibleModule
+      title="Select Store"
+      icon={<Store className="h-4 w-4" />}
+      defaultOpen={step === "store" || !currentStore}
+      badge={currentStore ? <Badge variant="secondary">{currentStore.name}</Badge> : undefined}
+    >
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading stores...</span>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {stores.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No stores yet</p>
+            ) : (
+              stores.map((store) => {
+                const isSelected = currentStore?.id === store.id;
+                return (
+                  <Button
+                    key={store.id}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    className="flex items-center gap-2"
+                    onClick={() => handleStoreSelect(store)}
+                    data-testid={`button-store-${store.id}`}
+                  >
+                    <Store className="h-3 w-3" />
+                    <span>{store.name}</span>
+                    {store.isInternal && (
+                      <Shield className="h-3 w-3 text-primary" />
+                    )}
+                    {store.availableSegments?.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {store.availableSegments.length}
+                      </Badge>
+                    )}
+                  </Button>
+                );
+              })
+            )}
 
-      {expanded && (
-        <div className="mt-3 space-y-2">
-          {MOCK_STORES.map(store => (
-            <button
-              key={store.id}
-              type="button"
-              onClick={() => handleSelectStore(store)}
-              className={`w-full p-3 rounded-lg border text-left transition-all ${
-                currentStore?.id === store.id
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:border-primary/50"
-              }`}
-              data-testid={`button-store-${store.id}`}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={() => setShowAddStore(!showAddStore)}
+              data-testid="button-add-store"
             >
-              <div className="font-medium">{store.name}</div>
-              <div className="text-sm text-muted-foreground">
-                {store.productLimit} products max
+              <Plus className="h-3 w-3" />
+              Add Store
+            </Button>
+          </div>
+
+          {currentStore && currentStore.permissions.length > 0 && (
+            <div className="p-2 bg-muted/30 rounded-md">
+              <p className="text-xs text-muted-foreground mb-1">Available Segments:</p>
+              <div className="flex flex-wrap gap-1">
+                {currentStore.permissions.map(seg => (
+                  <Badge key={seg} variant="outline" className="text-xs">{seg}</Badge>
+                ))}
               </div>
-            </button>
-          ))}
-          <Button variant="outline" className="w-full" data-testid="button-create-store">
-            <Plus className="h-4 w-4 mr-2" />
-            Create New Store
-          </Button>
+            </div>
+          )}
+
+          {showAddStore && (
+            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-md">
+              <Input
+                type="text"
+                inputMode="text"
+                placeholder="Store name..."
+                value={newStoreName}
+                onChange={(e) => setNewStoreName(e.target.value)}
+                className="max-w-xs"
+                data-testid="input-store-name"
+              />
+              <Button
+                size="sm"
+                onClick={handleAddStore}
+                disabled={!newStoreName.trim()}
+                data-testid="button-save-store"
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setShowAddStore(false);
+                  setNewStoreName("");
+                }}
+                data-testid="button-cancel-store"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </CollapsibleModule>
   );
 }

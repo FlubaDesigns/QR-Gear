@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 interface CollapsibleModuleProps {
   title: string;
   icon?: React.ReactNode;
+  badge?: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
   className?: string;
@@ -13,6 +14,7 @@ interface CollapsibleModuleProps {
 export function CollapsibleModule({
   title,
   icon,
+  badge,
   children,
   defaultOpen = true,
   className = "",
@@ -33,7 +35,8 @@ export function CollapsibleModule({
             <ChevronRight className="h-4 w-4" />
           )}
           {icon}
-          {title}
+          <span className="flex-1">{title}</span>
+          {badge}
         </CardTitle>
       </CardHeader>
       {isOpen && <CardContent className="pt-0 px-4 pb-4">{children}</CardContent>}
