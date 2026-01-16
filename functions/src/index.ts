@@ -3303,20 +3303,50 @@ app.get('/test/stores/:storeId/channels', async (req: Request, res: Response): P
     const { storeId } = req.params;
     console.log(`[TestChannels] GET channels for store: ${storeId}`);
     
-    // Mock data for testing - will be replaced with database queries
-    const mockChannels: Record<string, Array<{ id: string; name: string; storeId: string; isActive: boolean; productCount: number }>> = {
-      "qrgear-main": [
-        { id: "homepage", name: "Homepage", storeId: "qrgear-main", isActive: true, productCount: 12 },
-        { id: "apparel", name: "Apparel", storeId: "qrgear-main", isActive: true, productCount: 8 },
-        { id: "accessories", name: "Accessories", storeId: "qrgear-main", isActive: true, productCount: 5 },
-      ],
-      "kingdom-connects": [
-        { id: "church-merch", name: "Church Merch", storeId: "kingdom-connects", isActive: true, productCount: 6 },
-        { id: "ministry-items", name: "Ministry Items", storeId: "kingdom-connects", isActive: true, productCount: 4 },
-      ],
-    };
+    // Fetch partnerStoreProducts for this store to get unique kcPlacements
+    const snapshot = await db.collection('partnerStoreProducts')
+      .where('partnerStoreId', '==', storeId)
+      .get();
     
-    const channels = mockChannels[storeId] || [];
+    // Collect unique kcPlacements across all products for this store
+    const placementCounts: Record<string, number> = {};
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const placements = data.kcPlacements || [];
+      placements.forEach((p: string) => {
+        placementCounts[p] = (placementCounts[p] || 0) + 1;
+      });
+    });
+    
+    // Convert to channel format
+    const channels = Object.entries(placementCounts).map(([placement, count]) => ({
+      id: placement.toLowerCase().replace(/\s+/g, '-'),
+      name: placement.charAt(0).toUpperCase() + placement.slice(1).replace(/-/g, ' '),
+      storeId,
+      isActive: true,
+      productCount: count,
+    }));
+    
+    // If no channels found, return default channels based on store segments
+    if (channels.length === 0) {
+      const storeDoc = await db.collection('partnerStores').doc(storeId).get();
+      if (storeDoc.exists) {
+        const storeData = storeDoc.data();
+        const segments = storeData?.availableSegments || [];
+        const defaultChannels = segments.map((seg: string) => ({
+          id: seg.toLowerCase().replace(/\s+/g, '-'),
+          name: seg,
+          storeId,
+          isActive: true,
+          productCount: 0,
+        }));
+        console.log(`[TestChannels] No products, returning ${defaultChannels.length} segment-based channels`);
+        res.json(defaultChannels);
+        return;
+      }
+    }
+    
+    console.log(`[TestChannels] Found ${channels.length} channels for ${storeId}`);
     res.json(channels);
   } catch (error: any) {
     console.error('[TestChannels] GET error:', error);
@@ -3330,46 +3360,30 @@ app.get('/test/stores/:type', async (req: Request, res: Response): Promise<void>
     const { type } = req.params;
     console.log(`[TestStoresByType] GET stores by type: ${type}`);
     
-    const allStores = [
-      {
-        id: "qrgear-main",
-        name: "QR Gear Main Store",
-        type: "internal",
-        description: "Primary internal store with all product lines",
-      },
-      {
-        id: "qrgear-wholesale",
-        name: "QR Gear Wholesale",
-        type: "internal",
-        description: "Wholesale pricing for bulk orders",
-      },
-      {
-        id: "kingdom-connects",
-        name: "Kingdom Connects",
-        type: "external",
-        description: "Partner store for church merchandise",
-      },
-      {
-        id: "partner-demo",
-        name: "Partner Demo Store",
-        type: "external",
-        description: "Demo store for prospective partners",
-      },
-      {
-        id: "member-sandbox-001",
-        name: "John's Design Space",
-        type: "member",
-        description: "Personal design sandbox",
-      },
-      {
-        id: "member-sandbox-002",
-        name: "Creative Studio",
-        type: "member",
-        description: "Member creative workspace",
-      },
-    ];
+    // Fetch real partner stores from Firestore
+    const snapshot = await db.collection('partnerStores').get();
+    const allStores = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || doc.id,
+        type: data.isInternal ? 'internal' : 'external',
+        description: data.description || `${data.name} store`,
+        slug: data.slug,
+        isActive: data.isActive !== false,
+      };
+    });
     
-    const filtered = allStores.filter(s => s.type === type);
+    // Filter by type (internal/external/member)
+    // Note: member stores would need a different flag - for now return empty
+    let filtered;
+    if (type === 'member') {
+      filtered = allStores.filter(s => (s as any).isMemberStore === true);
+    } else {
+      filtered = allStores.filter(s => s.type === type);
+    }
+    
+    console.log(`[TestStoresByType] Found ${filtered.length} ${type} stores`);
     res.json(filtered);
   } catch (error: any) {
     console.error('[TestStoresByType] GET error:', error);
@@ -3381,39 +3395,27 @@ app.get('/test/stores/:type', async (req: Request, res: Response): Promise<void>
 app.get('/test/partner-stores', async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('[TestPartnerStores] GET partner-stores');
-    const mockStores = [
-      {
-        id: "qrgear-main",
-        name: "QR Gear Main Store",
-        isInternal: true,
-        isActive: true,
-        availableSegments: ["QR Basics", "QR Plus", "QR Canvas", "QR Play", "QR Dynamics™"],
-        apiKey: "test-key-1",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "kingdom-connects",
-        name: "Kingdom Connects",
-        isInternal: false,
-        isActive: true,
-        availableSegments: ["Church Merch", "Ministry Items", "Youth Group"],
-        apiKey: "test-key-2",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "partner-demo",
-        name: "Partner Demo Store",
-        isInternal: false,
-        isActive: true,
-        availableSegments: ["Corporate", "Events", "Promotional"],
-        apiKey: "test-key-3",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-    res.json(mockStores);
+    
+    // Fetch real partner stores from Firestore
+    const snapshot = await db.collection('partnerStores').get();
+    const stores = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        slug: data.slug,
+        isInternal: data.isInternal || false,
+        isActive: data.isActive !== false,
+        availableSegments: data.availableSegments || [],
+        logoUrl: data.logoUrl,
+        websiteUrl: data.websiteUrl,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      };
+    });
+    
+    console.log(`[TestPartnerStores] Found ${stores.length} stores`);
+    res.json(stores);
   } catch (error: any) {
     console.error('[TestPartnerStores] GET error:', error);
     res.status(500).json({ error: error.message });
@@ -3580,78 +3582,46 @@ app.get('/test/stores/:storeId/channels/:channelId/products', async (req: Reques
     const { storeId, channelId } = req.params;
     console.log(`[TestChannelProducts] GET products for ${storeId}/${channelId}`);
     
-    // Mock products for testing - in production would fetch from Firestore
-    const mockProducts: Record<string, Record<string, any[]>> = {
-      "qrgear-main": {
-        "homepage": [
-          {
-            id: "prod-1",
-            name: "QR Code T-Shirt - Classic",
-            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/unisex-staple-t-shirt-black-front.jpg",
-            baseProductId: "145",
-            enabledColors: ["Black", "White", "Navy"],
-            enabledSizes: ["S", "M", "L", "XL"],
-          },
-          {
-            id: "prod-2",
-            name: "Dynamic QR Hoodie",
-            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/unisex-heavy-blend-hoodie-black-front.jpg",
-            baseProductId: "77",
-            enabledColors: ["Black", "Gray", "Navy"],
-            enabledSizes: ["M", "L", "XL", "2XL"],
-          },
-          {
-            id: "prod-3",
-            name: "QR Basics Mug",
-            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/white-glossy-mug-15oz-handle.jpg",
-            baseProductId: "469",
-            enabledColors: ["White"],
-            enabledSizes: ["11oz", "15oz"],
-          },
-        ],
-        "apparel": [
-          {
-            id: "prod-4",
-            name: "Premium QR Tee",
-            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/unisex-staple-t-shirt-white-front.jpg",
-            baseProductId: "145",
-            enabledColors: ["White", "Heather Gray"],
-            enabledSizes: ["S", "M", "L", "XL"],
-          },
-        ],
-        "accessories": [],
-      },
-      "qrgear-wholesale": {
-        "bulk": [
-          {
-            id: "prod-bulk-1",
-            name: "Bulk QR Shirts (100+)",
-            imageUrl: "",
-            baseProductId: "145",
-            enabledColors: ["Black", "White"],
-            enabledSizes: ["M", "L", "XL"],
-          },
-        ],
-      },
-      "kingdom-connects": {
-        "church-merch": [
-          {
-            id: "prod-kc-1",
-            name: "Church QR Shirt",
-            imageUrl: "",
-            baseProductId: "145",
-            enabledColors: ["White", "Light Blue"],
-            enabledSizes: ["S", "M", "L", "XL", "2XL"],
-          },
-        ],
-        "ministry-items": [],
-      },
-    };
+    // Convert channelId back to kcPlacement format (e.g., "church-merch" -> "Church Merch")
+    const channelName = channelId.split('-').map((w: string) => 
+      w.charAt(0).toUpperCase() + w.slice(1)
+    ).join(' ');
     
-    const storeProducts = mockProducts[storeId] || {};
-    const channelProducts = storeProducts[channelId] || [];
+    // Fetch partnerStoreProducts for this store that include this channel in kcPlacements
+    const snapshot = await db.collection('partnerStoreProducts')
+      .where('partnerStoreId', '==', storeId)
+      .get();
     
-    res.json(channelProducts);
+    // Filter products that have this channel in their kcPlacements
+    const matchingProducts = snapshot.docs.filter(doc => {
+      const data = doc.data();
+      const placements = (data.kcPlacements || []).map((p: string) => p.toLowerCase());
+      return placements.includes(channelId) || placements.includes(channelName.toLowerCase());
+    });
+    
+    // Fetch the actual product details for each matching partnerStoreProduct
+    const products = await Promise.all(matchingProducts.map(async (pspDoc) => {
+      const pspData = pspDoc.data();
+      const productId = pspData.productId;
+      
+      // Try to get the actual product document
+      const productDoc = await db.collection('products').doc(productId).get();
+      const productData = productDoc.exists ? productDoc.data() : null;
+      
+      return {
+        id: pspDoc.id,
+        productId,
+        name: pspData.customName || productData?.name || `Product ${productId}`,
+        imageUrl: productData?.mockupUrl || productData?.imageUrl || '',
+        baseProductId: productData?.baseProductId || '',
+        enabledColors: pspData.enabledColors || productData?.enabledColors || [],
+        enabledSizes: pspData.enabledSizes || productData?.enabledSizes || [],
+        customPrice: pspData.customPrice,
+      };
+    }));
+    
+    console.log(`[TestChannelProducts] Found ${products.length} products for ${storeId}/${channelId}`);
+    res.json(products);
   } catch (error: any) {
     console.error('[TestChannelProducts] GET error:', error);
     res.status(500).json({ error: error.message });
