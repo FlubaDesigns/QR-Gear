@@ -90,28 +90,28 @@ export function ContentModule() {
         )}
 
         {state.qrProductState === "qr_basics" && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
+          <div className="space-y-4">
+            <div className="flex gap-3">
               <Button
                 type="button"
                 variant={basicsMode === "text" ? "default" : "outline"}
-                size="sm"
+                size="lg"
                 onClick={() => setBasicsMode("text")}
-                className="flex-1"
+                className="flex-1 h-14 text-base"
                 data-testid="button-basics-text"
               >
-                <Type className="h-3.5 w-3.5 mr-1.5" />
+                <Type className="h-5 w-5 mr-2" />
                 Text
               </Button>
               <Button
                 type="button"
                 variant={basicsMode === "url" ? "default" : "outline"}
-                size="sm"
+                size="lg"
                 onClick={() => setBasicsMode("url")}
-                className="flex-1"
+                className="flex-1 h-14 text-base"
                 data-testid="button-basics-url"
               >
-                <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                <Link2 className="h-5 w-5 mr-2" />
                 URL
               </Button>
             </div>

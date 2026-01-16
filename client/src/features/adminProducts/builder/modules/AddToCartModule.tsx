@@ -73,23 +73,25 @@ export function AddToCartModule() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Next: Choose color & size at checkout</Label>
-          <div className="flex gap-2">
+        <div className="space-y-3">
+          <Label className="text-sm text-muted-foreground">Next: Choose color & size at checkout</Label>
+          <div className="flex gap-3">
             <Button
               variant="outline"
-              className="flex-1"
+              size="lg"
+              className="flex-1 h-14 text-base"
               onClick={handlePreview}
               data-testid="button-preview-product"
             >
               Preview
             </Button>
             <Button
-              className="flex-1"
+              size="lg"
+              className="flex-1 h-14 text-base"
               onClick={handleAddToCart}
               data-testid="button-add-to-cart"
             >
-              <ShoppingCart className="h-4 w-4 mr-2" />
+              <ShoppingCart className="h-5 w-5 mr-2" />
               Add to Cart
             </Button>
           </div>

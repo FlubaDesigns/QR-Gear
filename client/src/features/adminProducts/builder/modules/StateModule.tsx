@@ -32,7 +32,7 @@ export function StateModule() {
           Choose how your QR code will work and look.
         </p>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-3">
           {QR_PRODUCT_STATES.map((qrState) => {
             const Icon = STATE_ICONS[qrState.id] || QrCode;
             const isSelected = state.qrProductState === qrState.id;
@@ -40,19 +40,19 @@ export function StateModule() {
             return (
               <Card
                 key={qrState.id}
-                className={`p-3 cursor-pointer hover-elevate transition-all ${
+                className={`p-4 cursor-pointer hover-elevate transition-all ${
                   isSelected ? "ring-2 ring-primary bg-primary/5" : ""
                 }`}
                 onClick={() => setQRProductState(qrState.id as QRProductState)}
                 data-testid={`state-${qrState.id}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-md ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                    <Icon className="h-4 w-4" />
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-lg ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                    <Icon className="h-6 w-6" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{qrState.label}</p>
-                    <p className="text-xs text-muted-foreground">{qrState.description}</p>
+                    <p className="font-semibold text-base">{qrState.label}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{qrState.description}</p>
                   </div>
                 </div>
               </Card>
