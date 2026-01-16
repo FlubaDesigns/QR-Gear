@@ -4,6 +4,8 @@ import { Library } from "lucide-react";
 import { StoreLibraryProvider, useStoreLibraryContext } from "./StoreLibraryContext";
 import { StoreTypeFilterModule } from "./modules/StoreTypeFilterModule";
 import { StoreListModule } from "./modules/StoreListModule";
+import { ChannelListModule } from "./modules/ChannelListModule";
+import { ProductGridModule } from "./modules/ProductGridModule";
 
 function StoreLibraryInner() {
   const { selectedType, selectedStore, selectedChannel, selectedProducts } = useStoreLibraryContext();
@@ -29,6 +31,8 @@ function StoreLibraryInner() {
       <CardContent className="space-y-3">
         <StoreTypeFilterModule />
         <StoreListModule />
+        <ChannelListModule />
+        <ProductGridModule />
       </CardContent>
     </Card>
   );

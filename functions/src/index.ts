@@ -3574,6 +3574,90 @@ app.get('/test/printify/catalog/:blueprintId', async (req: Request, res: Respons
   }
 });
 
+// Test endpoint: GET products for a store channel (for Store Library)
+app.get('/test/stores/:storeId/channels/:channelId/products', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, channelId } = req.params;
+    console.log(`[TestChannelProducts] GET products for ${storeId}/${channelId}`);
+    
+    // Mock products for testing - in production would fetch from Firestore
+    const mockProducts: Record<string, Record<string, any[]>> = {
+      "qrgear-main": {
+        "homepage": [
+          {
+            id: "prod-1",
+            name: "QR Code T-Shirt - Classic",
+            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/unisex-staple-t-shirt-black-front.jpg",
+            baseProductId: "145",
+            enabledColors: ["Black", "White", "Navy"],
+            enabledSizes: ["S", "M", "L", "XL"],
+          },
+          {
+            id: "prod-2",
+            name: "Dynamic QR Hoodie",
+            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/unisex-heavy-blend-hoodie-black-front.jpg",
+            baseProductId: "77",
+            enabledColors: ["Black", "Gray", "Navy"],
+            enabledSizes: ["M", "L", "XL", "2XL"],
+          },
+          {
+            id: "prod-3",
+            name: "QR Basics Mug",
+            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/white-glossy-mug-15oz-handle.jpg",
+            baseProductId: "469",
+            enabledColors: ["White"],
+            enabledSizes: ["11oz", "15oz"],
+          },
+        ],
+        "apparel": [
+          {
+            id: "prod-4",
+            name: "Premium QR Tee",
+            imageUrl: "https://images.printify.com/mockup/64e3c3d3c8d6e60001e8b1a5/1234/566/unisex-staple-t-shirt-white-front.jpg",
+            baseProductId: "145",
+            enabledColors: ["White", "Heather Gray"],
+            enabledSizes: ["S", "M", "L", "XL"],
+          },
+        ],
+        "accessories": [],
+      },
+      "qrgear-wholesale": {
+        "bulk": [
+          {
+            id: "prod-bulk-1",
+            name: "Bulk QR Shirts (100+)",
+            imageUrl: "",
+            baseProductId: "145",
+            enabledColors: ["Black", "White"],
+            enabledSizes: ["M", "L", "XL"],
+          },
+        ],
+      },
+      "kingdom-connects": {
+        "church-merch": [
+          {
+            id: "prod-kc-1",
+            name: "Church QR Shirt",
+            imageUrl: "",
+            baseProductId: "145",
+            enabledColors: ["White", "Light Blue"],
+            enabledSizes: ["S", "M", "L", "XL", "2XL"],
+          },
+        ],
+        "ministry-items": [],
+      },
+    };
+    
+    const storeProducts = mockProducts[storeId] || {};
+    const channelProducts = storeProducts[channelId] || [];
+    
+    res.json(channelProducts);
+  } catch (error: any) {
+    console.error('[TestChannelProducts] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Test endpoint: Assign configured products to store channel
 app.post('/test/stores/:storeId/channels/:channelId/products', async (req: Request, res: Response): Promise<void> => {
   try {
