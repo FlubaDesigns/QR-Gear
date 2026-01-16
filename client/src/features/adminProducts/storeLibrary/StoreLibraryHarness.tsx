@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Library, ArrowRight } from "lucide-react";
+import { Library, ArrowRight, Copy, Trash2 } from "lucide-react";
 import { StoreLibraryProvider, useStoreLibraryContext, ProductInfo } from "./StoreLibraryContext";
 import { StoreTypeFilterModule } from "./modules/StoreTypeFilterModule";
 import { StoreListModule } from "./modules/StoreListModule";
@@ -38,6 +38,23 @@ function StoreLibraryInner() {
       title: "Move action triggered",
       description: `Moving ${items.length} product(s) to target store`,
     });
+    clearSelection();
+  };
+
+  const handleReplicate = (items: LightboxItem[]) => {
+    toast({
+      title: "Replicate action triggered",
+      description: `Copying ${items.length} product(s) to target store`,
+    });
+  };
+
+  const handleDelete = (items: LightboxItem[]) => {
+    toast({
+      title: "Delete action triggered",
+      description: `Deleting ${items.length} product(s)`,
+      variant: "destructive",
+    });
+    clearSelection();
   };
 
   const actions: LightboxAction[] = [
@@ -47,6 +64,20 @@ function StoreLibraryInner() {
       icon: <ArrowRight className="w-4 h-4" />,
       variant: "default",
       onClick: handleMove,
+    },
+    {
+      id: "replicate",
+      label: "Replicate to Target Store",
+      icon: <Copy className="w-4 h-4" />,
+      variant: "secondary",
+      onClick: handleReplicate,
+    },
+    {
+      id: "delete",
+      label: "Delete Selected",
+      icon: <Trash2 className="w-4 h-4" />,
+      variant: "destructive",
+      onClick: handleDelete,
     },
   ];
 
