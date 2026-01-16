@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Store, Building2, Globe, ChevronRight } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,12 @@ import type { SaveTarget } from "./SaveOptionsModule";
 interface StoreModuleProps {
   saveTarget: SaveTarget;
   onStoreSelect?: (store: PartnerStore, segment: string) => void;
+  isSaving?: boolean;
 }
 
 type StoreType = "internal" | "external" | null;
 
-export function StoreModule({ saveTarget, onStoreSelect }: StoreModuleProps) {
+export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModuleProps) {
   const [selectedType, setSelectedType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
@@ -179,11 +180,16 @@ export function StoreModule({ saveTarget, onStoreSelect }: StoreModuleProps) {
             <Button
               className="w-full h-12"
               onClick={handleConfirm}
+              disabled={isSaving}
               data-testid="confirm-store-save"
             >
-              <Store className="h-5 w-5 mr-2" />
-              Save to {selectedSegment}
-              <ChevronRight className="h-4 w-4 ml-2" />
+              {isSaving ? (
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              ) : (
+                <Store className="h-5 w-5 mr-2" />
+              )}
+              {isSaving ? "Saving..." : `Save to ${selectedSegment}`}
+              {!isSaving && <ChevronRight className="h-4 w-4 ml-2" />}
             </Button>
           </div>
         )}

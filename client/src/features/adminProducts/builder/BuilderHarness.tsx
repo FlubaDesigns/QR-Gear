@@ -9,20 +9,77 @@ import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule"
 import { StoreModule } from "./modules/StoreModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { useToast } from "@/hooks/use-toast";
+import { useSaveProduct } from "./hooks/useSaveProduct";
 import type { PartnerStore } from "@shared/schema";
 
 function BuilderModules() {
   const { state } = useBuilderContext();
   const { toast } = useToast();
   const [saveTarget, setSaveTarget] = useState<SaveTarget>(null);
+  const { saveToStore, saveAsTemplate, saveAll, isSaving } = useSaveProduct();
 
   const showStoreModule = saveTarget === "store" || saveTarget === "all";
 
-  const handleStoreSelect = (store: PartnerStore, segment: string) => {
-    toast({
-      title: "Store Selected",
-      description: `Ready to save to ${store.name} → ${segment}. Save logic coming in Stage 4.`,
-    });
+  const handleStoreSelect = async (store: PartnerStore, segment: string) => {
+    const builderState = {
+      selectedProduct: state.selectedProduct,
+      qrProductState: state.qrProductState,
+      content: state.content,
+    };
+
+    try {
+      if (saveTarget === "all") {
+        const results = await saveAll.mutateAsync({ store, segment, builderState });
+        const allSuccess = results.every(r => r.success);
+        toast({
+          title: allSuccess ? "Saved Successfully" : "Partially Saved",
+          description: results.map(r => r.message).join(" | "),
+          variant: allSuccess ? "default" : "destructive",
+        });
+      } else {
+        const result = await saveToStore.mutateAsync({ store, segment, builderState });
+        toast({
+          title: "Saved to Store",
+          description: result.message,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Save Failed",
+        description: error.message || "An error occurred while saving",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveTargetChange = async (target: SaveTarget) => {
+    setSaveTarget(target);
+
+    if (target === "template") {
+      const builderState = {
+        selectedProduct: state.selectedProduct,
+        qrProductState: state.qrProductState,
+        content: state.content,
+      };
+      try {
+        const result = await saveAsTemplate.mutateAsync(builderState);
+        toast({
+          title: "Template Saved",
+          description: result.message,
+        });
+      } catch (error: any) {
+        toast({
+          title: "Save Failed",
+          description: error.message || "Could not save template",
+          variant: "destructive",
+        });
+      }
+    } else if (target === "graphic-set") {
+      toast({
+        title: "Graphic Set",
+        description: "Graphic set save coming soon",
+      });
+    }
   };
 
   return (
@@ -43,11 +100,11 @@ function BuilderModules() {
         <ContentModule />
       </InlineDebugBoundary>
       <InlineDebugBoundary label="SaveOptionsModule">
-        <SaveOptionsModule onSaveTargetChange={setSaveTarget} />
+        <SaveOptionsModule onSaveTargetChange={handleSaveTargetChange} />
       </InlineDebugBoundary>
       {showStoreModule && (
         <InlineDebugBoundary label="StoreModule">
-          <StoreModule saveTarget={saveTarget} onStoreSelect={handleStoreSelect} />
+          <StoreModule saveTarget={saveTarget} onStoreSelect={handleStoreSelect} isSaving={isSaving} />
         </InlineDebugBoundary>
       )}
     </div>
