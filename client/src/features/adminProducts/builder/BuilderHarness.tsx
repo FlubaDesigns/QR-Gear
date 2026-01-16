@@ -6,13 +6,24 @@ import { ProductsModule } from "./modules/ProductsModule";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
+import { StoreModule } from "./modules/StoreModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
+import { useToast } from "@/hooks/use-toast";
+import type { PartnerStore } from "@shared/schema";
 
 function BuilderModules() {
   const { state } = useBuilderContext();
+  const { toast } = useToast();
   const [saveTarget, setSaveTarget] = useState<SaveTarget>(null);
 
   const showStoreModule = saveTarget === "store" || saveTarget === "all";
+
+  const handleStoreSelect = (store: PartnerStore, segment: string) => {
+    toast({
+      title: "Store Selected",
+      description: `Ready to save to ${store.name} → ${segment}. Save logic coming in Stage 4.`,
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -36,9 +47,7 @@ function BuilderModules() {
       </InlineDebugBoundary>
       {showStoreModule && (
         <InlineDebugBoundary label="StoreModule">
-          <div className="p-4 bg-muted/30 rounded-lg border text-center">
-            <p className="text-sm text-muted-foreground">StoreModule coming in Stage 2...</p>
-          </div>
+          <StoreModule saveTarget={saveTarget} onStoreSelect={handleStoreSelect} />
         </InlineDebugBoundary>
       )}
     </div>
