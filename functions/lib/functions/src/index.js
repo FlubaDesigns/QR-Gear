@@ -2809,6 +2809,49 @@ app.get('/test/stores/:storeId/channels', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Test endpoint: partner-stores (no auth required) - mirrors admin endpoint for save funnel testing
+app.get('/test/partner-stores', async (req, res) => {
+    try {
+        console.log('[TestPartnerStores] GET partner-stores');
+        const mockStores = [
+            {
+                id: "qrgear-main",
+                name: "QR Gear Main Store",
+                isInternal: true,
+                isActive: true,
+                availableSegments: ["QR Basics", "QR Plus", "QR Canvas", "QR Play", "QR Dynamics™"],
+                apiKey: "test-key-1",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+            {
+                id: "kingdom-connects",
+                name: "Kingdom Connects",
+                isInternal: false,
+                isActive: true,
+                availableSegments: ["Church Merch", "Ministry Items", "Youth Group"],
+                apiKey: "test-key-2",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+            {
+                id: "partner-demo",
+                name: "Partner Demo Store",
+                isInternal: false,
+                isActive: true,
+                availableSegments: ["Corporate", "Events", "Promotional"],
+                apiKey: "test-key-3",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+        ];
+        res.json(mockStores);
+    }
+    catch (error) {
+        console.error('[TestPartnerStores] GET error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // Brands known to manufacture garments in the USA
 const TEST_USA_MADE_BRANDS = [
     'american apparel', 'royal apparel', 'bayside', 'los angeles apparel',

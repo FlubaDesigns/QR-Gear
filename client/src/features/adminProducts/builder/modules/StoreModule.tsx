@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Store, Building2, Globe, ChevronRight, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,19 +18,20 @@ import type { SaveTarget } from "./SaveOptionsModule";
 
 interface StoreModuleProps {
   saveTarget: SaveTarget;
-  onStoreSelect?: (store: PartnerStore, segment: string) => void;
+  onStoreSelect?: (store: PartnerStore, channel: string) => void;
   isSaving?: boolean;
 }
 
 type StoreType = "internal" | "external" | null;
 
 export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModuleProps) {
+  const { apiBase } = useAdminAuth();
   const [selectedType, setSelectedType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
 
   const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
-    queryKey: ["/api/admin/partner-stores"],
+    queryKey: [`${apiBase}/partner-stores`],
   });
 
   const filteredStores = stores.filter((store) => {
