@@ -1828,6 +1828,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test endpoint: Mock product config data for ProductConfigSkin demo
+  app.get("/api/test/product-configs", async (req: any, res) => {
+    try {
+      console.log('[TestProductConfigs] GET mock product configs');
+      
+      const mockProducts = [
+        {
+          id: "demo-tshirt-1",
+          name: "Classic Cotton T-Shirt",
+          imageUrl: "https://images.printify.com/mockup/64e1234567890abcdef12345/64e1234567890abcdef12346/64e1234567890abcdef12347.jpg",
+          sizes: ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
+          colors: [
+            { name: "Black", hex: "#1a1a1a" },
+            { name: "White", hex: "#ffffff" },
+            { name: "Navy", hex: "#1e3a5f" },
+            { name: "Red", hex: "#dc2626" },
+            { name: "Heather Gray", hex: "#9ca3af" },
+            { name: "Forest Green", hex: "#166534" },
+            { name: "Royal Blue", hex: "#1d4ed8" },
+            { name: "Maroon", hex: "#7f1d1d" },
+          ],
+          enabledSizes: ["S", "M", "L", "XL", "2XL"],
+          enabledColors: ["Black", "White", "Navy", "Red"],
+          defaultColor: "Black",
+          mockupsByColor: {
+            "Black": { front: "https://images.printify.com/mockup/64e1234567890abcdef12345/black-front.jpg" },
+            "White": { front: "https://images.printify.com/mockup/64e1234567890abcdef12345/white-front.jpg" },
+            "Navy": { front: "https://images.printify.com/mockup/64e1234567890abcdef12345/navy-front.jpg" },
+          },
+        },
+        {
+          id: "demo-hoodie-1",
+          name: "Premium Pullover Hoodie",
+          imageUrl: "https://images.printify.com/mockup/64e9876543210fedcba98765/hoodie-main.jpg",
+          sizes: ["S", "M", "L", "XL", "2XL"],
+          colors: [
+            { name: "Black", hex: "#1a1a1a" },
+            { name: "Charcoal", hex: "#374151" },
+            { name: "Sand", hex: "#d4c5a9" },
+            { name: "Olive", hex: "#4b5320" },
+          ],
+          enabledSizes: ["M", "L", "XL"],
+          enabledColors: ["Black", "Charcoal"],
+          defaultColor: "Charcoal",
+          mockupsByColor: {
+            "Black": { front: "https://images.printify.com/mockup/64e9876543210fedcba98765/black-front.jpg" },
+            "Charcoal": { front: "https://images.printify.com/mockup/64e9876543210fedcba98765/charcoal-front.jpg", lifestyle: "https://images.printify.com/mockup/64e9876543210fedcba98765/charcoal-lifestyle.jpg" },
+          },
+        },
+        {
+          id: "demo-mug-1",
+          name: "Ceramic Coffee Mug (11oz)",
+          imageUrl: "https://images.printify.com/mockup/64eabcdef1234567890abcde/mug-main.jpg",
+          sizes: ["11oz", "15oz"],
+          colors: [
+            { name: "White", hex: "#ffffff" },
+            { name: "Black", hex: "#1a1a1a" },
+          ],
+          enabledSizes: ["11oz"],
+          enabledColors: ["White"],
+          defaultColor: "White",
+          mockupsByColor: {
+            "White": { front: "https://images.printify.com/mockup/64eabcdef1234567890abcde/white-front.jpg" },
+          },
+        },
+      ];
+      
+      res.json(mockProducts);
+    } catch (error: any) {
+      console.error('[TestProductConfigs] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Hosted Images API
   app.post("/api/images/upload", async (req, res) => {
     try {
