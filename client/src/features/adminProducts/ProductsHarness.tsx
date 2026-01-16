@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
 import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
+import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 import type { Product } from "./shared/types";
 
@@ -55,6 +56,8 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
         onSelectionChange={setSelectedProviders}
         productCount={productCount}
       />
+
+      <StoreChannelDropdownModule />
 
       <BuilderHarness />
     </div>

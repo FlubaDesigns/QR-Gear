@@ -18,11 +18,11 @@ export function StoreChannelDropdownModule() {
     api, 
     setSelectedRole,
     setSelectedStore, 
+    selectedStore,
     selectedChannel, 
     setSelectedChannel 
   } = useProductsContext();
 
-  // Fetch all stores for all roles
   const { data: internalStores = [], isLoading: loadingInternal } = useQuery<StoreType[]>({
     queryKey: ["stores", "internal"],
     queryFn: () => api.fetchStores("internal"),
@@ -38,7 +38,6 @@ export function StoreChannelDropdownModule() {
     queryFn: () => api.fetchStores("member"),
   });
 
-  // Fetch channels for all stores
   const allStores = useMemo(() => [
     ...internalStores.map(s => ({ ...s, role: "internal" as RoleType })),
     ...externalStores.map(s => ({ ...s, role: "external" as RoleType })),
@@ -66,7 +65,6 @@ export function StoreChannelDropdownModule() {
 
   const isLoading = loadingInternal || loadingExternal || loadingMember || loadingChannels;
 
-  // Build combined options: "StoreName → ChannelName"
   const combinedOptions = useMemo(() => {
     const options: CombinedOption[] = [];
     allStores.forEach(store => {
@@ -93,19 +91,18 @@ export function StoreChannelDropdownModule() {
     }
   };
 
-  const currentValue = selectedChannel 
-    ? combinedOptions.find(o => o.channel.id === selectedChannel.id)?.value || ""
+  const currentValue = selectedStore && selectedChannel 
+    ? `${selectedStore.id}|${selectedChannel.id}`
     : "";
 
   return (
-    <div className="p-3 bg-muted/30 rounded-lg border" data-testid="module-store-channel-dropdown">
-      <label className="text-xs text-muted-foreground mb-2 block">Store & Channel</label>
+    <div data-testid="module-store-channel-dropdown">
       <Select value={currentValue} onValueChange={handleChange} disabled={isLoading}>
-        <SelectTrigger className="w-full" data-testid="select-store-channel">
+        <SelectTrigger className="w-full min-h-12 text-base" data-testid="select-store-channel">
           {isLoading ? (
             <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading...
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading stores...
             </span>
           ) : (
             <SelectValue placeholder="Select store and channel..." />
@@ -113,12 +110,17 @@ export function StoreChannelDropdownModule() {
         </SelectTrigger>
         <SelectContent>
           {combinedOptions.length === 0 && !isLoading && (
-            <SelectItem value="_none" disabled>No stores/channels available</SelectItem>
+            <SelectItem value="_none" disabled>No stores available</SelectItem>
           )}
           {combinedOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value} data-testid={`option-${option.value}`}>
+            <SelectItem 
+              key={option.value} 
+              value={option.value} 
+              className="py-3 text-base"
+              data-testid={`option-${option.value}`}
+            >
               <span className="flex items-center gap-2">
-                <Store className="h-4 w-4 flex-shrink-0" />
+                <Store className="h-5 w-5 flex-shrink-0" />
                 {option.label}
               </span>
             </SelectItem>
