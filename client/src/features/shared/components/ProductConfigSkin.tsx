@@ -32,15 +32,10 @@ interface ProductConfigSkinProps {
   readOnly?: boolean;
 }
 
-function ColorSwatch({ hex, className = "", testId, size = "md" }: { hex: string; className?: string; testId?: string; size?: "sm" | "md" | "lg" }) {
-  const sizeClasses = {
-    sm: "w-5 h-5",
-    md: "w-8 h-8",
-    lg: "w-10 h-10"
-  };
+function ColorSwatch({ hex, className = "", testId }: { hex: string; className?: string; testId?: string }) {
   return (
     <div
-      className={`${sizeClasses[size]} rounded-md border-2 flex-shrink-0 ${className}`}
+      className={`w-5 h-5 rounded-sm border flex-shrink-0 ${className}`}
       style={{ backgroundColor: hex }}
       data-testid={testId || "color-swatch"}
     />
@@ -271,79 +266,77 @@ export function ProductConfigSkin({
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-lg" data-testid={`text-product-name-${productId}`}>
+          <h3 className="font-medium text-sm truncate" data-testid={`text-product-name-${productId}`}>
             {productName}
           </h3>
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-1 mt-2">
             {defaultColor && (
-              <Badge variant="outline" data-testid={`badge-default-color-${productId}`}>
+              <Badge variant="outline" className="text-xs" data-testid={`badge-default-color-${productId}`}>
                 Default: {defaultColor}
               </Badge>
             )}
-            <Badge variant="secondary" data-testid={`badge-sizes-${productId}`}>
+            <Badge variant="secondary" className="text-xs" data-testid={`badge-sizes-${productId}`}>
               {enabledSizes.size}/{sizes.length} sizes
             </Badge>
-            <Badge variant="secondary" data-testid={`badge-colors-${productId}`}>
+            <Badge variant="secondary" className="text-xs" data-testid={`badge-colors-${productId}`}>
               {enabledColors.size}/{colors.length} colors
             </Badge>
             {mockupCount > 0 && (
-              <Badge variant="outline" className="text-green-600" data-testid={`badge-mockups-${productId}`}>
-                <Check className="w-4 h-4 mr-1" />
+              <Badge variant="outline" className="text-xs text-green-600" data-testid={`badge-mockups-${productId}`}>
+                <Check className="w-3 h-3 mr-1" />
                 {mockupCount} mockups
               </Badge>
             )}
           </div>
+          {hasPrintifyData && !readOnly && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={triggerSync}
+              disabled={syncing}
+              className="mt-2 h-8"
+              data-testid={`button-sync-${productId}`}
+            >
+              {syncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              Sync Printify
+            </Button>
+          )}
         </div>
       </div>
-      
-      {hasPrintifyData && !readOnly && (
-        <Button 
-          variant="outline" 
-          onClick={triggerSync}
-          disabled={syncing}
-          className="w-full h-12 text-base"
-          data-testid={`button-sync-${productId}`}
-        >
-          {syncing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <RefreshCw className="h-5 w-5 mr-2" />}
-          Sync from Printify
-        </Button>
-      )}
 
       {sizes.length > 0 && (
         <div>
           <button
             type="button"
             onClick={() => setShowSizes(!showSizes)}
-            className="flex items-center gap-3 text-base font-medium hover-elevate px-3 py-3 rounded-lg -ml-3 w-full"
+            className="flex items-center gap-2 text-sm font-medium hover-elevate px-2 py-1 rounded -ml-2"
             data-testid={`toggle-sizes-${productId}`}
           >
-            {showSizes ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-            <span className="flex-1 text-left">Sizes</span>
-            <Badge variant="secondary" className="text-sm">{enabledSizes.size}/{sizes.length}</Badge>
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {showSizes ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Sizes ({enabledSizes.size}/{sizes.length})
+            {saving && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
           </button>
           {showSizes && (
-            <div className="flex flex-col gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2 pl-6">
               {sizes.map((size) => (
-                <button
+                <div
                   key={size}
-                  type="button"
-                  onClick={() => !saving && !readOnly && toggleSize(size)}
-                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border-2 transition-all ${
-                    enabledSizes.has(size) 
-                      ? "bg-primary/10 border-primary" 
-                      : "bg-muted/30 border-transparent hover:border-muted-foreground/20"
-                  }`}
-                  disabled={saving || readOnly}
-                  data-testid={`switch-size-${productId}-${size}`}
+                  className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded"
                 >
-                  <span className="text-base font-medium">{size}</span>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                    enabledSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted"
-                  }`}>
-                    {enabledSizes.has(size) && <Check className="w-4 h-4" />}
-                  </div>
-                </button>
+                  <Switch
+                    id={`size-${productId}-${size}`}
+                    checked={enabledSizes.has(size)}
+                    onCheckedChange={() => toggleSize(size)}
+                    disabled={saving || readOnly}
+                    data-testid={`switch-size-${productId}-${size}`}
+                  />
+                  <Label
+                    htmlFor={`size-${productId}-${size}`}
+                    className="text-sm cursor-pointer"
+                  >
+                    {size}
+                  </Label>
+                </div>
               ))}
             </div>
           )}
@@ -355,40 +348,38 @@ export function ProductConfigSkin({
           <button
             type="button"
             onClick={() => setShowColors(!showColors)}
-            className="flex items-center gap-3 text-base font-medium hover-elevate px-3 py-3 rounded-lg -ml-3 w-full"
+            className="flex items-center gap-2 text-sm font-medium hover-elevate px-2 py-1 rounded -ml-2"
             data-testid={`toggle-colors-${productId}`}
           >
-            {showColors ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-            <span className="flex-1 text-left">Colors</span>
-            <Badge variant="secondary" className="text-sm">{enabledColors.size}/{colors.length}</Badge>
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {showColors ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Colors ({enabledColors.size}/{colors.length})
+            {saving && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
           </button>
           {showColors && (
-            <div className="flex flex-col gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2 pl-6">
               {colors.map((color) => {
                 const hasMockup = mockupsByColor?.[color.name]?.front;
                 return (
-                  <button
+                  <div
                     key={color.name}
-                    type="button"
-                    onClick={() => !saving && !readOnly && toggleColor(color.name)}
-                    className={`flex items-center gap-4 px-4 py-3 rounded-lg border-2 transition-all ${
-                      enabledColors.has(color.name) 
-                        ? "bg-primary/10 border-primary" 
-                        : "bg-muted/30 border-transparent hover:border-muted-foreground/20"
-                    }`}
-                    disabled={saving || readOnly}
-                    data-testid={`switch-color-${productId}-${color.name}`}
+                    className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded"
                   >
+                    <Switch
+                      id={`color-${productId}-${color.name}`}
+                      checked={enabledColors.has(color.name)}
+                      onCheckedChange={() => toggleColor(color.name)}
+                      disabled={saving || readOnly}
+                      data-testid={`switch-color-${productId}-${color.name}`}
+                    />
                     <ColorSwatch hex={color.hex} testId={`swatch-color-${productId}-${color.name}`} />
-                    <span className="flex-1 text-left text-base font-medium">{color.name}</span>
-                    {hasMockup && <Check className="w-5 h-5 text-green-500" />}
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      enabledColors.has(color.name) ? "bg-primary text-primary-foreground" : "bg-muted"
-                    }`}>
-                      {enabledColors.has(color.name) && <Check className="w-4 h-4" />}
-                    </div>
-                  </button>
+                    <Label
+                      htmlFor={`color-${productId}-${color.name}`}
+                      className="text-sm cursor-pointer"
+                    >
+                      {color.name}
+                    </Label>
+                    {hasMockup && <Check className="w-4 h-4 text-green-500" />}
+                  </div>
                 );
               })}
             </div>
@@ -397,45 +388,42 @@ export function ProductConfigSkin({
           {!readOnly && (
             <>
               {/* Default Image Picker */}
-              <div className="mt-4 p-4 bg-muted/30 rounded-xl border">
+              <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
                 <button
                   type="button"
                   onClick={() => setShowImagePicker(!showImagePicker)}
-                  className="flex items-center gap-3 text-base font-medium hover-elevate px-3 py-3 rounded-lg -ml-3 w-full"
+                  className="flex items-center gap-2 text-sm font-medium hover-elevate px-2 py-1 rounded -ml-2"
                   data-testid={`toggle-image-picker-${productId}`}
                 >
-                  {showImagePicker ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                  <span className="flex-1 text-left">Default Display Image</span>
+                  {showImagePicker ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  Default Display Image
                   {defaultColor && (
-                    <Badge variant="outline">{defaultColor}</Badge>
+                    <Badge variant="outline" className="text-xs ml-2">
+                      {defaultColor}
+                    </Badge>
                   )}
                 </button>
                 {showImagePicker && (
-                  <div className="mt-3">
-                    <p className="text-sm text-muted-foreground mb-3">Tap to select default color:</p>
-                    <div className="flex flex-col gap-2">
+                  <div className="mt-2 pl-6">
+                    <p className="text-xs text-muted-foreground mb-2">Select which color to display by default:</p>
+                    <div className="flex flex-wrap gap-2">
                       {colors.filter((c) => enabledColors.has(c.name)).map((color) => {
                         const hasMockup = mockupsByColor?.[color.name]?.front;
                         const isDefault = defaultColor === color.name;
                         return (
                           <button
                             key={color.name}
-                            className={`flex items-center gap-4 px-4 py-3 rounded-lg border-2 transition-all ${
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs transition-all ${
                               isDefault
-                                ? "border-primary bg-primary/10"
-                                : "border-transparent bg-background hover:border-muted-foreground/20"
+                                ? "border-primary bg-primary/10 ring-2 ring-primary ring-offset-1"
+                                : "border-border hover:border-primary/50"
                             }`}
                             onClick={() => selectDefaultColor(color.name)}
                             data-testid={`button-select-default-${productId}-${color.name}`}
                           >
-                            <ColorSwatch hex={color.hex} testId={`swatch-default-${productId}-${color.name}`} />
-                            <span className="flex-1 text-left text-base font-medium">{color.name}</span>
-                            {hasMockup && <Check className="w-5 h-5 text-green-500" />}
-                            {isDefault && (
-                              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                                <Check className="w-4 h-4" />
-                              </div>
-                            )}
+                            <ColorSwatch hex={color.hex} className="w-4 h-4" testId={`swatch-default-${productId}-${color.name}`} />
+                            <span>{color.name}</span>
+                            {hasMockup && <Check className="w-3 h-3 text-green-500" />}
                           </button>
                         );
                       })}
@@ -445,72 +433,54 @@ export function ProductConfigSkin({
               </div>
 
               {/* Mockup Generation Section */}
-              <div className="mt-4 p-4 bg-muted/30 rounded-xl border">
-                <h4 className="text-base font-medium mb-4">Generate Mockup</h4>
-                
-                {/* Color search with voice support */}
-                <div className="mb-4">
-                  <label className="text-sm text-muted-foreground mb-2 block">Color (tap or speak):</label>
-                  <input
-                    type="text"
-                    inputMode="text"
-                    autoComplete="off"
-                    list={`colors-${productId}`}
-                    placeholder="Type or speak color name..."
-                    className="w-full h-12 px-4 rounded-lg border-2 bg-background text-base"
+              <div className="mt-3 p-3 bg-muted/30 rounded-lg border">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm font-medium">Generate Mockup:</span>
+                  <select
+                    className="h-9 px-3 rounded border bg-background text-sm"
                     value={selectedColor || ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const match = colors.find(c => c.name.toLowerCase() === val.toLowerCase());
-                      setSelectedColor(match ? match.name : val);
-                    }}
-                    data-testid={`input-color-${productId}`}
-                  />
-                  <datalist id={`colors-${productId}`}>
+                    onChange={(e) => setSelectedColor(e.target.value || null)}
+                    data-testid={`select-color-${productId}`}
+                  >
+                    <option value="">Select color...</option>
                     {colors.filter(c => enabledColors.has(c.name)).map(c => (
                       <option key={c.name} value={c.name}>
-                        {mockupsByColor?.[c.name]?.front ? '(has mockup)' : ''}
+                        {c.name} {mockupsByColor?.[c.name]?.front ? '✓' : ''}
                       </option>
                     ))}
-                  </datalist>
-                </div>
-                
-                {/* QR Size Selector - bigger buttons */}
-                <div className="mb-4">
-                  <label className="text-sm text-muted-foreground mb-2 block">QR Code Size:</label>
-                  <div className="flex gap-2">
+                  </select>
+                  
+                  {/* QR Size Selector */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground mr-1">QR:</span>
                     {(['S', 'M', 'L'] as const).map(size => (
                       <Button
                         key={size}
+                        size="sm"
                         variant={selectedQrSize === size ? 'default' : 'outline'}
-                        className="flex-1 h-12 text-lg"
+                        className="h-8 w-8 p-0"
                         onClick={() => setSelectedQrSize(size)}
                         data-testid={`button-qr-${size}-${productId}`}
                       >
-                        {size === 'S' ? 'Small' : size === 'M' ? 'Medium' : 'Large'}
-                        <span className="text-xs ml-1 opacity-70">({qrSizePercent[size]}%)</span>
+                        {size}
                       </Button>
                     ))}
+                    <span className="text-xs text-muted-foreground ml-1">({qrSizePercent[selectedQrSize]}%)</span>
                   </div>
+                  
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    disabled={!selectedColor || generateMockupMutation.isPending}
+                    onClick={() => selectedColor && generateMockupMutation.mutate(selectedColor)}
+                    data-testid={`button-generate-${productId}`}
+                  >
+                    {generateMockupMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : null}
+                    Generate
+                  </Button>
                 </div>
-                
-                {/* Generate button - full width */}
-                <Button
-                  className="w-full h-14 text-lg"
-                  disabled={!selectedColor || !colors.some(c => c.name.toLowerCase() === selectedColor?.toLowerCase()) || generateMockupMutation.isPending}
-                  onClick={() => {
-                    const match = colors.find(c => c.name.toLowerCase() === selectedColor?.toLowerCase());
-                    if (match) generateMockupMutation.mutate(match.name);
-                  }}
-                  data-testid={`button-generate-${productId}`}
-                >
-                  {generateMockupMutation.isPending ? (
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  ) : (
-                    <ImageIcon className="w-5 h-5 mr-2" />
-                  )}
-                  Generate Mockup
-                </Button>
               </div>
             </>
           )}

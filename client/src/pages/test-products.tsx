@@ -120,6 +120,8 @@ export default function TestProductsPage() {
           </CardContent>
         </Card>
 
+        <ProductsHarness />
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2" data-testid="text-demo-title">
@@ -134,8 +136,6 @@ export default function TestProductsPage() {
             <ProductConfigDemo />
           </CardContent>
         </Card>
-
-        <ProductsHarness />
       </div>
     </AdminAuthProvider>
   );
