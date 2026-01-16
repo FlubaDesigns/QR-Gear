@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
 import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
-import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 import type { Product } from "./shared/types";
 
@@ -16,9 +15,6 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
     providers, 
     selectedProviders, 
     setSelectedProviders,
-    selectedRole,
-    selectedStore,
-    selectedChannel,
   } = useProductsContext();
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -60,20 +56,7 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
         productCount={productCount}
       />
 
-      <StoreChannelDropdownModule />
-
-      {selectedChannel ? (
-        <BuilderHarness />
-      ) : (
-        <div className="text-center py-8 text-muted-foreground border rounded-md">
-          {!selectedRole 
-            ? `Select a role, store, and channel to start (${filteredProducts.length} products available)`
-            : !selectedStore 
-              ? "Select a store and channel to continue"
-              : "Select a channel to manage products"
-          }
-        </div>
-      )}
+      <BuilderHarness />
     </div>
   );
 }
