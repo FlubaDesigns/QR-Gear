@@ -14,7 +14,7 @@ interface BuilderState {
 
 interface SaveToStoreParams {
   store: PartnerStore;
-  segment: string;
+  channel: string;
   builderState: BuilderState;
 }
 
@@ -29,34 +29,51 @@ export function useSaveProduct() {
   const queryClient = useQueryClient();
 
   const saveToStoreMutation = useMutation({
-    mutationFn: async ({ store, segment, builderState }: SaveToStoreParams): Promise<SaveResult> => {
+    mutationFn: async ({ store, channel, builderState }: SaveToStoreParams): Promise<SaveResult> => {
       const { selectedProduct, qrProductState, content } = builderState;
       
       if (!selectedProduct?.id) {
         throw new Error("No product selected");
       }
 
-      // Add product to partner store
-      const currentProducts = await fetch(`/api/admin/partner-stores/${store.id}/products`)
-        .then(r => r.json());
-      
+      // Get current products in store
+      const currentProductsRes = await fetch(`/api/admin/partner-stores/${store.id}/products`);
+      if (!currentProductsRes.ok) {
+        throw new Error("Failed to fetch store products");
+      }
+      const currentProducts = await currentProductsRes.json();
       const existingProductIds = currentProducts.map((p: any) => p.productId);
       
       // Add this product if not already in store
       if (!existingProductIds.includes(selectedProduct.id)) {
-        await apiRequest("POST", `/api/admin/partner-stores/${store.id}/products`, {
+        const syncRes = await apiRequest("POST", `/api/admin/partner-stores/${store.id}/products`, {
           productIds: [...existingProductIds, selectedProduct.id],
         });
+        if (!syncRes.ok) {
+          throw new Error("Failed to add product to store");
+        }
+      }
+
+      // Update product's channel assignment
+      const updateRes = await apiRequest("PUT", `/api/admin/products/${selectedProduct.id}`, {
+        segment: channel,
+        storeType: store.isInternal ? "Internal" : "External",
+        storeName: store.name,
+      });
+      if (!updateRes.ok) {
+        const errData = await updateRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to update product channel");
       }
 
       return {
         success: true,
-        message: `Saved to ${store.name} → ${segment}`,
+        message: `Added to ${store.name} → ${channel}`,
         productId: selectedProduct.id,
       };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
     },
   });
 
@@ -90,7 +107,7 @@ export function useSaveProduct() {
   });
 
   const saveAllMutation = useMutation({
-    mutationFn: async ({ store, segment, builderState }: SaveToStoreParams): Promise<SaveResult[]> => {
+    mutationFn: async ({ store, channel, builderState }: SaveToStoreParams): Promise<SaveResult[]> => {
       const results: SaveResult[] = [];
 
       // Save as template
@@ -98,15 +115,21 @@ export function useSaveProduct() {
         const templateResult = await saveAsTemplateMutation.mutateAsync(builderState);
         results.push(templateResult);
       } catch (e: any) {
-        results.push({ success: false, message: `Template: ${e.message}` });
+        results.push({ success: false, message: `Template failed: ${e.message}` });
       }
 
-      // Save to store
+      // Save to store with channel
       try {
-        const storeResult = await saveToStoreMutation.mutateAsync({ store, segment, builderState });
+        const storeResult = await saveToStoreMutation.mutateAsync({ store, channel, builderState });
         results.push(storeResult);
       } catch (e: any) {
-        results.push({ success: false, message: `Store: ${e.message}` });
+        results.push({ success: false, message: `Store failed: ${e.message}` });
+      }
+
+      // Check if all failed
+      const allFailed = results.every(r => !r.success);
+      if (allFailed) {
+        throw new Error(results.map(r => r.message).join("; "));
       }
 
       return results;

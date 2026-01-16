@@ -26,7 +26,7 @@ type StoreType = "internal" | "external" | null;
 export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModuleProps) {
   const [selectedType, setSelectedType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
-  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
 
   const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
     queryKey: ["/api/admin/partner-stores"],
@@ -39,15 +39,15 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
   });
 
   const selectedStore = stores.find((s) => s.id === selectedStoreId);
-  const segments = selectedStore?.availableSegments || [];
+  const channels = selectedStore?.availableSegments || [];
 
   const handleConfirm = () => {
-    if (selectedStore && selectedSegment && onStoreSelect) {
-      onStoreSelect(selectedStore, selectedSegment);
+    if (selectedStore && selectedChannel && onStoreSelect) {
+      onStoreSelect(selectedStore, selectedChannel);
     }
   };
 
-  const canConfirm = selectedStore && selectedSegment;
+  const canConfirm = selectedStore && selectedChannel;
 
   return (
     <CollapsibleModule
@@ -70,7 +70,7 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
               onClick={() => {
                 setSelectedType("internal");
                 setSelectedStoreId(null);
-                setSelectedSegment(null);
+                setSelectedChannel(null);
               }}
               data-testid="store-type-internal"
             >
@@ -89,7 +89,7 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
               onClick={() => {
                 setSelectedType("external");
                 setSelectedStoreId(null);
-                setSelectedSegment(null);
+                setSelectedChannel(null);
               }}
               data-testid="store-type-external"
             >
@@ -117,7 +117,7 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
                 value={selectedStoreId || ""}
                 onValueChange={(val) => {
                   setSelectedStoreId(val);
-                  setSelectedSegment(null);
+                  setSelectedChannel(null);
                 }}
               >
                 <SelectTrigger data-testid="store-select">
@@ -135,27 +135,27 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
           </div>
         )}
 
-        {/* Step 3: Segment/Channel Selection */}
+        {/* Step 3: Channel Selection */}
         {selectedStore && (
           <div className="space-y-2">
             <p className="text-sm font-medium">Select Channel</p>
-            {segments.length === 0 ? (
+            {channels.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No channels available for this store
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {segments.map((segment) => (
+                {channels.map((channel) => (
                   <Badge
-                    key={segment}
-                    variant={selectedSegment === segment ? "default" : "outline"}
+                    key={channel}
+                    variant={selectedChannel === channel ? "default" : "outline"}
                     className={`cursor-pointer h-10 px-4 text-sm ${
-                      selectedSegment === segment ? "" : "hover-elevate"
+                      selectedChannel === channel ? "" : "hover-elevate"
                     }`}
-                    onClick={() => setSelectedSegment(segment)}
-                    data-testid={`segment-${segment}`}
+                    onClick={() => setSelectedChannel(channel)}
+                    data-testid={`channel-${channel}`}
                   >
-                    {segment}
+                    {channel}
                   </Badge>
                 ))}
               </div>
@@ -169,7 +169,7 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
             <div className="p-3 bg-primary/5 rounded-md">
               <p className="text-sm">
                 <span className="font-medium">Saving to: </span>
-                {selectedStore.name} &rarr; {selectedSegment}
+                {selectedStore.name} &rarr; {selectedChannel}
               </p>
               {saveTarget === "all" && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -188,7 +188,7 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
               ) : (
                 <Store className="h-5 w-5 mr-2" />
               )}
-              {isSaving ? "Saving..." : `Save to ${selectedSegment}`}
+              {isSaving ? "Saving..." : `Save to ${selectedChannel}`}
               {!isSaving && <ChevronRight className="h-4 w-4 ml-2" />}
             </Button>
           </div>

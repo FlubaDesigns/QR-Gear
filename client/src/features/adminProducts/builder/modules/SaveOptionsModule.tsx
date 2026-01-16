@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Save, Layers, Store, Archive } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { useBuilderContext } from "../BuilderContext";
 
 export type SaveTarget = "template" | "graphic-set" | "store" | "all" | null;
@@ -13,7 +12,6 @@ interface SaveOptionsModuleProps {
 
 export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps) {
   const { state } = useBuilderContext();
-  const { toast } = useToast();
   const [selectedTarget, setSelectedTarget] = useState<SaveTarget>(null);
 
   const hasContent = state.content.url || state.content.title;
@@ -28,19 +26,8 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
   const handleSelect = (target: SaveTarget) => {
     setSelectedTarget(target);
     onSaveTargetChange?.(target);
-
-    if (target === "template") {
-      toast({
-        title: "Save as Template",
-        description: "Template save coming soon - StoreModule will handle this",
-      });
-    } else if (target === "graphic-set") {
-      toast({
-        title: "Save as Graphic Set",
-        description: "Graphic set save coming soon - StoreModule will handle this",
-      });
-    }
-    // "store" and "all" will trigger StoreModule to appear
+    // Template and graphic-set saves are handled by BuilderHarness
+    // Store and All will show StoreModule for channel selection
   };
 
   const options = [

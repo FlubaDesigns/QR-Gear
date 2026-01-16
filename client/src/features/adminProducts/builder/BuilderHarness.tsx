@@ -20,7 +20,7 @@ function BuilderModules() {
 
   const showStoreModule = saveTarget === "store" || saveTarget === "all";
 
-  const handleStoreSelect = async (store: PartnerStore, segment: string) => {
+  const handleStoreSelect = async (store: PartnerStore, channel: string) => {
     const builderState = {
       selectedProduct: state.selectedProduct,
       qrProductState: state.qrProductState,
@@ -29,7 +29,7 @@ function BuilderModules() {
 
     try {
       if (saveTarget === "all") {
-        const results = await saveAll.mutateAsync({ store, segment, builderState });
+        const results = await saveAll.mutateAsync({ store, channel, builderState });
         const allSuccess = results.every(r => r.success);
         toast({
           title: allSuccess ? "Saved Successfully" : "Partially Saved",
@@ -37,7 +37,7 @@ function BuilderModules() {
           variant: allSuccess ? "default" : "destructive",
         });
       } else {
-        const result = await saveToStore.mutateAsync({ store, segment, builderState });
+        const result = await saveToStore.mutateAsync({ store, channel, builderState });
         toast({
           title: "Saved to Store",
           description: result.message,
