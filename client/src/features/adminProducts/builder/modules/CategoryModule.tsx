@@ -1,9 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Layers } from "lucide-react";
-import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Layers, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBuilderContext } from "../BuilderContext";
 import type { CatalogCategory } from "../types";
 
@@ -80,44 +78,41 @@ export function CategoryModule() {
   }
 
   return (
-    <CollapsibleModule
-      title="Product Category"
-      icon={<Layers className="h-4 w-4" />}
-      className="bg-muted/30"
-      defaultOpen
-    >
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Select a product category to browse available items.
-        </p>
-        
-        {isLoading ? (
-          <Skeleton className="h-10 w-full max-w-xs" />
-        ) : sortedCategories.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No categories found for this provider.
-          </p>
-        ) : (
-          <ScrollArea className="w-full">
-            <div className="flex flex-wrap gap-2">
-              {sortedCategories.map((cat) => (
-                <button
-                  key={cat.name}
-                  onClick={() => setCategory(cat.name)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    state.category === cat.name
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
-                  data-testid={`button-category-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  {cat.name} ({cat.itemCount})
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-      </div>
-    </CollapsibleModule>
+    <div className="p-3 bg-muted/30 rounded-lg border" data-testid="module-category">
+      <label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1">
+        <Layers className="h-3 w-3" />
+        Product Category
+      </label>
+      <Select 
+        value={state.category || ""} 
+        onValueChange={(value) => setCategory(value)}
+        disabled={isLoading}
+      >
+        <SelectTrigger className="w-full" data-testid="select-category">
+          {isLoading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading categories...
+            </span>
+          ) : (
+            <SelectValue placeholder="Select a category..." />
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          {sortedCategories.map((cat) => (
+            <SelectItem 
+              key={cat.name} 
+              value={cat.name}
+              data-testid={`option-category-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              {cat.name} ({cat.itemCount})
+            </SelectItem>
+          ))}
+          {sortedCategories.length === 0 && !isLoading && (
+            <SelectItem value="_none" disabled>No categories found</SelectItem>
+          )}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

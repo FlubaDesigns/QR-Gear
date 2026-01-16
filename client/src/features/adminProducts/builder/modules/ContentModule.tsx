@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link2, Type, FileText } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
@@ -77,13 +76,16 @@ export function ContentModule() {
 
             <div className="space-y-2">
               <Label htmlFor="content-description">Description</Label>
-              <Textarea
+              <textarea
                 id="content-description"
-                placeholder="Enter description text"
+                inputMode="text"
+                autoComplete="off"
+                placeholder="Enter description text (voice input supported)"
                 value={state.content.description}
                 onChange={(e) => setContent({ description: e.target.value })}
                 maxLength={200}
                 rows={3}
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid="input-content-description"
               />
             </div>
@@ -123,13 +125,16 @@ export function ContentModule() {
                   <Type className="h-3.5 w-3.5" />
                   Text to Encode
                 </Label>
-                <Textarea
+                <textarea
                   id="plain-text-content"
-                  placeholder="Enter your message, contact info, or any text"
+                  inputMode="text"
+                  autoComplete="off"
+                  placeholder="Enter your message, contact info, or any text (voice input supported)"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
                   maxLength={500}
                   rows={3}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   data-testid="input-plain-text-content"
                 />
                 <p className="text-xs text-muted-foreground">

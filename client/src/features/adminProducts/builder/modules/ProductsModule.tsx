@@ -221,7 +221,7 @@ export function ProductsModule() {
               aspectRatio: "square",
               emptyMessage: "No products match the current filters.",
               layout: "vertical",
-              gridHeight: "calc(100vh - 400px)",
+              gridHeight: "min(70vh, 600px)",
             }}
           />
         )}

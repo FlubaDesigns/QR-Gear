@@ -2,9 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
 import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
-import { RolePickerModule } from "./modules/RolePickerModule";
-import { StoreModule } from "./modules/StoreModule";
-import { ChannelModule } from "./modules/ChannelModule";
+import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 import type { Product } from "./shared/types";
 
@@ -62,31 +60,18 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
         productCount={productCount}
       />
 
-      <RolePickerModule />
+      <StoreChannelDropdownModule />
 
-      <StoreModule />
-
-      <ChannelModule />
-
-      {selectedChannel && (
+      {selectedChannel ? (
         <BuilderHarness />
-      )}
-
-      {!selectedRole && (
+      ) : (
         <div className="text-center py-8 text-muted-foreground border rounded-md">
-          Select a role to manage stores and channels ({filteredProducts.length} products available)
-        </div>
-      )}
-
-      {selectedRole && !selectedStore && (
-        <div className="text-center py-8 text-muted-foreground border rounded-md">
-          Select or create a store to manage channels
-        </div>
-      )}
-
-      {selectedStore && !selectedChannel && (
-        <div className="text-center py-8 text-muted-foreground border rounded-md">
-          Select or create a channel to manage products
+          {!selectedRole 
+            ? `Select a role, store, and channel to start (${filteredProducts.length} products available)`
+            : !selectedStore 
+              ? "Select a store and channel to continue"
+              : "Select a channel to manage products"
+          }
         </div>
       )}
     </div>

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Image, Settings2, Loader2, RefreshCw } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
-import { StoreBuilderHarness } from "@/features/adminProducts/storeBuilder/StoreBuilderHarness";
 import { ProductConfigSkin } from "@/features/shared/components/ProductConfigSkin";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -122,8 +121,6 @@ export default function TestProductsPage() {
         </Card>
 
         <ProductsHarness />
-
-        <StoreBuilderHarness />
 
         <Card>
           <CardHeader>
