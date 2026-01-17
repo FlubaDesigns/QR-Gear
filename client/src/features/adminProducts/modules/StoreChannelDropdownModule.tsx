@@ -62,19 +62,14 @@ export function StoreChannelDropdownModule() {
 
   const roles: RoleType[] = ["internal", "external", "member"];
 
-  // Handlers
+  // Handlers - clean, no fake values
   const handleRoleChange = (role: string) => {
-    if (role === "_none") return;
     setSelectedRole(role as RoleType);
     setSelectedStore(null);
     setSelectedChannel(null);
   };
 
   const handleStoreChange = (storeId: string) => {
-    if (storeId === "_none" || storeId === "_add") {
-      if (storeId === "_add") setShowAddStore(true);
-      return;
-    }
     const store = allStores.find(s => s.id === storeId);
     if (store) {
       setSelectedRole(store.roleType);
@@ -84,10 +79,6 @@ export function StoreChannelDropdownModule() {
   };
 
   const handleChannelChange = (channelId: string) => {
-    if (channelId === "_none" || channelId === "_add") {
-      if (channelId === "_add") setShowAddChannel(true);
-      return;
-    }
     const channel = channels.find(c => c.id === channelId);
     if (channel) {
       setSelectedChannel(channel);
@@ -208,12 +199,12 @@ export function StoreChannelDropdownModule() {
         {/* Role Dropdown */}
         <div className="flex-1 min-w-[140px]">
           <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Role</label>
-          <Select value={selectedRole || ""} onValueChange={handleRoleChange}>
+          <Select value={selectedRole ?? undefined} onValueChange={handleRoleChange}>
             <SelectTrigger 
               className="w-full min-h-12 text-base bg-white/10 border-white/20 text-white" 
               data-testid="select-role"
             >
-              <SelectValue placeholder="Select role..." />
+              <SelectValue placeholder="Pick a role..." />
             </SelectTrigger>
             <SelectContent>
               {roles.map((role) => (
@@ -238,9 +229,9 @@ export function StoreChannelDropdownModule() {
           <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Store</label>
           <div className="flex gap-2">
             <Select 
-              value={selectedStore?.id || ""} 
+              value={selectedStore?.id ?? undefined} 
               onValueChange={handleStoreChange} 
-              disabled={isLoading || !selectedRole}
+              disabled={isLoading}
             >
               <SelectTrigger 
                 className="flex-1 min-h-12 text-base bg-white/10 border-white/20 text-white" 
@@ -252,20 +243,10 @@ export function StoreChannelDropdownModule() {
                     Loading...
                   </span>
                 ) : (
-                  <SelectValue placeholder={selectedRole ? "Select store..." : "Pick role first"} />
+                  <SelectValue placeholder="Find your store..." />
                 )}
               </SelectTrigger>
               <SelectContent>
-                {!selectedRole && (
-                  <SelectItem value="_none" disabled>
-                    Select a role first
-                  </SelectItem>
-                )}
-                {selectedRole && filteredStores.length === 0 && (
-                  <SelectItem value="_none" disabled>
-                    No {selectedRole} stores
-                  </SelectItem>
-                )}
                 {filteredStores.map((store) => (
                   <SelectItem 
                     key={store.id} 
@@ -313,7 +294,7 @@ export function StoreChannelDropdownModule() {
           <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Channel</label>
           <div className="flex gap-2">
             <Select 
-              value={selectedChannel?.id || ""} 
+              value={selectedChannel?.id ?? undefined} 
               onValueChange={handleChannelChange} 
               disabled={loadingChannels || !selectedStore}
             >
@@ -327,20 +308,10 @@ export function StoreChannelDropdownModule() {
                     Loading...
                   </span>
                 ) : (
-                  <SelectValue placeholder={selectedStore ? "Select channel..." : "Pick store first"} />
+                  <SelectValue placeholder="Pick a channel..." />
                 )}
               </SelectTrigger>
               <SelectContent>
-                {!selectedStore && (
-                  <SelectItem value="_none" disabled>
-                    Select a store first
-                  </SelectItem>
-                )}
-                {selectedStore && channels.length === 0 && (
-                  <SelectItem value="_none" disabled>
-                    No channels yet
-                  </SelectItem>
-                )}
                 {channels.map((channel) => (
                   <SelectItem 
                     key={channel.id} 
