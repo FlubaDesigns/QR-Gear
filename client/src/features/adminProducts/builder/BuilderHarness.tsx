@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
@@ -18,10 +19,27 @@ interface SaveStatus {
 function BuilderModules() {
   const { state } = useBuilderContext();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const { saveAsTemplate, saveGraphics } = useSaveProduct();
 
+  const storePackageAndNavigate = () => {
+    const productPackage = {
+      productName: state.selectedProduct?.title || "Untitled Product",
+      qrContent: state.content.url || state.content.title || "",
+      compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+      qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+    };
+    sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
+    navigate("/test-store-builder");
+  };
+
   const handleSaveTargetChange = async (target: SaveTarget) => {
+    if (target === "store") {
+      storePackageAndNavigate();
+      return;
+    }
+
     if (target === "template") {
       const builderState = {
         selectedProduct: state.selectedProduct,
@@ -67,6 +85,49 @@ function BuilderModules() {
         setSaveStatus({ type: "success", message: result.message || "Graphics saved to library", timestamp: new Date() });
       } catch (error: any) {
         const errorMessage = error.message || "Could not save graphics";
+        toast({
+          title: "Save Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
+      }
+    } else if (target === "all") {
+      const builderState = {
+        selectedProduct: state.selectedProduct,
+        qrProductState: state.qrProductState,
+        content: state.content,
+        placements: ["front", "back"],
+        artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+        qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+        artworkVariant: "black" as const,
+      };
+      setSaveStatus({ type: "saving", message: "Saving all...", timestamp: new Date() });
+      try {
+        const [templateResult, graphicsResult] = await Promise.all([
+          saveAsTemplate.mutateAsync(builderState),
+          saveGraphics.mutateAsync(builderState),
+        ]);
+        
+        const productPackage = {
+          templateId: templateResult.templateId,
+          graphicsId: graphicsResult.compositeAssetId || graphicsResult.qrAssetId,
+          productName: state.selectedProduct?.title || "Untitled Product",
+          qrContent: state.content.url || state.content.title || "",
+          compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+          qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+        };
+        sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
+        
+        toast({
+          title: "Saved Successfully",
+          description: "Template and graphics saved. Going to store assignment...",
+        });
+        setSaveStatus({ type: "success", message: "Saved! Redirecting...", timestamp: new Date() });
+        
+        setTimeout(() => navigate("/test-store-builder"), 500);
+      } catch (error: any) {
+        const errorMessage = error.message || "Could not save";
         toast({
           title: "Save Failed",
           description: errorMessage,
