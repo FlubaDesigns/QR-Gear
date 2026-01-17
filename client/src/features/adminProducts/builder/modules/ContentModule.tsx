@@ -48,7 +48,9 @@ export function ContentModule() {
             <Input
               id="content-url"
               type="text"
-              inputMode="url"
+              inputMode="text"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder={state.qrProductState === "qr_dynamics" 
                 ? "https://example.com/image.jpg" 
                 : "https://example.com"}
@@ -161,7 +163,7 @@ export function ContentModule() {
                 <input
                   id="plain-url-content"
                   type="text"
-                  inputMode="url"
+                  inputMode="text"
                   autoComplete="off"
                   autoCorrect="off"
                   spellCheck={false}

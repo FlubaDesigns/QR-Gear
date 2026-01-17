@@ -49,6 +49,14 @@ interface SaveResult {
 export function useSaveProduct() {
   const queryClient = useQueryClient();
 
+  // Helper to invalidate both admin + test library keys so whichever surface is open updates
+  const invalidateLibrary = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/test/library-assets"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/templates"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/test/templates"] });
+  };
+
   const saveToStoreMutation = useMutation({
     mutationFn: async ({ store, channel, builderState }: SaveToStoreParams): Promise<SaveResult> => {
       const { selectedProduct, qrProductState, content } = builderState;
@@ -134,7 +142,7 @@ export function useSaveProduct() {
       throw new Error(result.error || "Failed to save template");
     }
     
-    queryClient.invalidateQueries({ queryKey: ["/api/admin/templates"] });
+    invalidateLibrary();
     
     return {
       success: true,
@@ -149,7 +157,7 @@ export function useSaveProduct() {
       return saveAsTemplate(builderState, false);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/templates"] });
+      invalidateLibrary();
     },
   });
 
@@ -185,7 +193,7 @@ export function useSaveProduct() {
       throw new Error(result.error || "Failed to save graphics");
     }
     
-    queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
+    invalidateLibrary();
     
     return {
       success: true,
@@ -200,7 +208,7 @@ export function useSaveProduct() {
       return saveGraphics(builderState, false);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
+      invalidateLibrary();
     },
   });
 

@@ -151,6 +151,17 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
         <CardDescription>
           Based on current configuration
         </CardDescription>
+        <div className="mt-2 text-xs text-muted-foreground leading-relaxed">
+          <p className="mb-1">
+            <span className="font-medium">How this is calculated:</span> Base price uses the product's highest variant cost
+            (maxPrice). Extra placements are charged for each additional print area beyond the first. "Text Lines" charges only
+            when Header/Footer text is enabled. Hosting applies only to QR Canvas/Play/Dynamics products. Markup is your %
+            markup plus your fixed markup.
+          </p>
+          <p>
+            <span className="font-medium">Customer Price</span> = Subtotal + Markup.
+          </p>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {requiresHosting && settings?.hostingTiers && (
