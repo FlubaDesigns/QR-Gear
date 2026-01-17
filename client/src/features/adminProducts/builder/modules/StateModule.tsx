@@ -1,6 +1,8 @@
-import { QrCode, Type, ExternalLink, Sparkles, Package } from "lucide-react";
+import { QrCode, Type, ExternalLink, Sparkles, Package, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { QR_PRODUCT_STATES } from "../types";
 import { ProductsModule } from "./ProductsModule";
@@ -74,6 +76,21 @@ export function StateModule() {
                   {QR_PRODUCT_STATES.find(s => s.id === state.qrProductState)?.label}
                 </p>
               </div>
+            )}
+
+            {state.qrProductState === "qr_dynamics" && (
+              <Link href="/test-dynamics">
+                <Button 
+                  variant="default" 
+                  size="lg" 
+                  className="w-full min-h-[48px] mt-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  data-testid="button-dynamics-page"
+                >
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Open Dynamics Builder
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              </Link>
             )}
           </div>
         )}
