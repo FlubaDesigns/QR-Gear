@@ -15,6 +15,12 @@ npm run build && echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-key.json &
 
 **Then TEST production endpoints with curl before reporting success.**
 
+**Run Null Guard Tests (before deployment):**
+```bash
+cd client && npx vitest run src/features/adminProducts/builder/__tests__/nullGuards.test.ts
+```
+All 8 tests must pass before deploying.
+
 ---
 
 ## Overview
