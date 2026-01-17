@@ -6,6 +6,7 @@ import { ContentModule } from "./modules/ContentModule";
 import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
+import { PreviewModule } from "./modules/PreviewModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { useToast } from "@/hooks/use-toast";
@@ -156,6 +157,9 @@ function BuilderModules() {
       </InlineDebugBoundary>
       <InlineDebugBoundary label="BackgroundPickerModule">
         <BackgroundPickerModule />
+      </InlineDebugBoundary>
+      <InlineDebugBoundary label="PreviewModule">
+        <PreviewModule />
       </InlineDebugBoundary>
       <InlineDebugBoundary label="SaveOptionsModule">
         <SaveOptionsModule onSaveTargetChange={handleSaveTargetChange} />
