@@ -57,3 +57,42 @@ All files in this archive work WITHOUT authentication using `/api/test` endpoint
 - **storeLibrary/** - Store/channel/product listing modules
 - **shared/** - Shared components
 - **server/** - Server route extracts
+
+## Server Libraries (server/lib/)
+
+| File | Purpose |
+|------|---------|
+| firebase-admin.ts | Firebase Admin SDK initialization |
+| firestore-adapter.ts | Firestore CRUD operations adapter |
+| firebase-storage-service.ts | Firebase Storage file operations |
+| storage-factory.ts | Storage mode switching (postgres/dual/firestore) |
+| field-mapper.ts | Field name mapping between systems |
+| qr-generator.ts | QR code generation with styling |
+| mockup-service.ts | Printful mockup generation |
+| image-upload.ts | Image upload handling |
+
+## Database Schema (db/schema.ts, shared/schema.ts)
+
+Drizzle ORM schema definitions for PostgreSQL tables including:
+- products, productTemplates, graphicAssets
+- stores, channels, orders
+- mockupJobs, printifyProducts
+- pricingSettings, and more
+
+## Client Libraries (client/lib/)
+
+| File | Purpose |
+|------|---------|
+| firebase.ts | Firebase client SDK initialization |
+| auth.ts | Authentication helpers |
+| queryClient.ts | TanStack Query configuration |
+| nexus.ts | Self-healing system client |
+
+## Firestore Collections Used
+
+- `productTemplates` - Saved product configurations
+- `graphicAssets` - QR/composite images library
+- `stores` - Store configurations
+- `channels` - Sales channels
+- `orders` - Customer orders
+- `pricingSettings` - Admin pricing config
