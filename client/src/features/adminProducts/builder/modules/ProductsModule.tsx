@@ -65,8 +65,10 @@ export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const [previewProduct, setPreviewProduct] = useState<CatalogProduct | null>(null);
 
-  // Default to printify
-  const provider = state.fulfillmentProvider || "printify";
+  // TODO: Provider selection will be handled in StoreChannelDropdownModule
+  // For now, hardwired to Printify. When ready, uncomment to use state:
+  // const provider = state.fulfillmentProvider || "printify";
+  const provider = "printify";
 
   // Fetch categories for the dropdown
   const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
