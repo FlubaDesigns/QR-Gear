@@ -24,10 +24,13 @@ interface SaveStatus {
 function BuilderModules() {
   const { state } = useBuilderContext();
   const { toast } = useToast();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [currentPricing, setCurrentPricing] = useState<PricingBreakdown | null>(null);
-  const { saveAsTemplate, saveGraphics } = useSaveProduct();
+  const { saveAsTemplate, saveGraphics, saveAsTemplateWithOptions, saveGraphicsWithOptions } = useSaveProduct();
+  
+  // Use test endpoints when on /test-products page
+  const useTestEndpoints = location.startsWith("/test-products");
 
   const handlePricingCalculated = useCallback((pricing: PricingBreakdown | null) => {
     setCurrentPricing(pricing);
@@ -64,7 +67,9 @@ function BuilderModules() {
       };
       setSaveStatus({ type: "saving", message: "Saving template...", timestamp: new Date() });
       try {
-        const result = await saveAsTemplate.mutateAsync(builderState);
+        const result = useTestEndpoints 
+          ? await saveAsTemplateWithOptions(builderState, true)
+          : await saveAsTemplate.mutateAsync(builderState);
         toast({
           title: "Template Saved",
           description: result.message,
@@ -90,7 +95,9 @@ function BuilderModules() {
       };
       setSaveStatus({ type: "saving", message: "Saving graphics...", timestamp: new Date() });
       try {
-        const result = await saveGraphics.mutateAsync(builderState);
+        const result = useTestEndpoints
+          ? await saveGraphicsWithOptions(builderState, true)
+          : await saveGraphics.mutateAsync(builderState);
         toast({
           title: "Graphics Saved",
           description: result.message,
@@ -118,10 +125,15 @@ function BuilderModules() {
       };
       setSaveStatus({ type: "saving", message: "Saving all...", timestamp: new Date() });
       try {
-        const [templateResult, graphicsResult] = await Promise.all([
-          saveAsTemplate.mutateAsync(builderState),
-          saveGraphics.mutateAsync(builderState),
-        ]);
+        const [templateResult, graphicsResult] = useTestEndpoints
+          ? await Promise.all([
+              saveAsTemplateWithOptions(builderState, true),
+              saveGraphicsWithOptions(builderState, true),
+            ])
+          : await Promise.all([
+              saveAsTemplate.mutateAsync(builderState),
+              saveGraphics.mutateAsync(builderState),
+            ]);
         
         const productPackage = {
           templateId: templateResult.templateId,

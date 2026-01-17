@@ -4469,22 +4469,39 @@ app.post('/test/graphics/save', async (req, res) => {
 // PUBLIC TEST: Full template save with batch mockup generation - NO AUTH REQUIRED
 app.post('/test/templates/full-save', async (req, res) => {
     try {
-        const { template, colors = [], placements = ['front', 'back'] } = req.body;
-        if (!template) {
-            res.status(400).json({ error: 'Template data is required' });
+        // Accept data directly (not wrapped in 'template' object) to match client format
+        const { name, description, category, productId, blueprintId, printProviderId, colors = [], placements = ['front'], qrSizes: customQrSizes, artworkUrl, artworkVariant, thumbnailUrl, qrContent, pricing, } = req.body;
+        if (!name && !productId) {
+            res.status(400).json({ error: 'Template name or productId is required' });
             return;
         }
         const now = admin.firestore.FieldValue.serverTimestamp();
-        // Save template
+        // Build template data from direct fields
         const templateData = {
-            ...template,
+            name: name || `Template - ${new Date().toISOString()}`,
+            description: description || '',
+            category: category || 'General',
+            productId: productId || null,
+            blueprintId: blueprintId || 0,
+            printProviderId: printProviderId || 0,
+            artworkUrl: artworkUrl || '',
+            artworkVariant: artworkVariant || 'black',
+            thumbnailUrl: thumbnailUrl || artworkUrl || '',
+            qrContent: qrContent || '',
+            isActive: true,
             createdAt: now,
             updatedAt: now,
         };
+        // Store pricing in template if provided
+        if (pricing) {
+            templateData.pricing = pricing;
+            templateData.customerPrice = pricing.customerPrice || 0;
+            templateData.hostingTierCode = pricing.hostingTierCode || null;
+        }
         const templateRef = await db.collection('productTemplates').add(templateData);
         const templateId = templateRef.id;
         // Queue mockup generation jobs for each color × placement × qr size combo
-        const qrSizes = ['small', 'medium', 'large'];
+        const qrSizes = customQrSizes || ['small', 'medium', 'large'];
         let jobsQueued = 0;
         for (const color of colors) {
             for (const placement of placements) {
@@ -4493,8 +4510,8 @@ app.post('/test/templates/full-save', async (req, res) => {
                 for (const qrSize of sizesToGenerate) {
                     const jobData = {
                         templateId,
-                        colorName: color.name,
-                        colorHex: color.hex,
+                        colorName: color.name || color,
+                        colorHex: color.hex || '#000000',
                         placement,
                         qrSize,
                         status: 'pending',
@@ -4508,6 +4525,7 @@ app.post('/test/templates/full-save', async (req, res) => {
         console.log(`[Templates TEST] Full save complete: template=${templateId}, ${jobsQueued} mockup jobs queued`);
         res.json({
             success: true,
+            template: { id: templateId, ...templateData },
             templateId,
             jobsQueued,
             message: `Template saved with ${jobsQueued} mockup jobs queued (test endpoint)`,
