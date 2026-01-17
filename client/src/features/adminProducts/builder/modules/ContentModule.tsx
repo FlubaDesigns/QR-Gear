@@ -179,7 +179,7 @@ export function ContentModule() {
                   onClick={async () => {
                     setIsGenerating(true);
                     try {
-                      const qrUrl = generateQRCodeUrl(state.content.url.trim(), 300);
+                      const qrUrl = generateQRCodeUrl(state.content.url.trim());
                       await new Promise((resolve, reject) => {
                         const img = new Image();
                         img.onload = () => resolve(true);
@@ -214,14 +214,17 @@ export function ContentModule() {
                 </Button>
                 
                 {state.loadedGraphic?.qrOnlyUrl && (
-                  <div className="mt-4 flex flex-col items-center gap-2">
+                  <div className="mt-4 flex flex-col items-center gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border-2 border-green-500">
+                    <p className="text-base font-semibold text-green-700 dark:text-green-400">
+                      Your QR Code Preview
+                    </p>
                     <img 
                       src={state.loadedGraphic.qrOnlyUrl} 
                       alt="Generated QR Code" 
-                      className="w-32 h-32 border rounded-md"
+                      className="w-32 h-32 sm:w-48 sm:h-48 border rounded-md shadow-md"
                     />
-                    <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                      QR Code generated and ready to save
+                    <p className="text-xs sm:text-sm text-muted-foreground text-center">
+                      3000x3000px print-ready
                     </p>
                   </div>
                 )}
