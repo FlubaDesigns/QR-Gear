@@ -33,6 +33,7 @@ export function LibraryProvider({
   }, [requiresAuth]);
 
   const api = useMemo<LibraryApi>(() => {
+    const adminSegment = requiresAuth ? "/admin" : "";
     const getQueryKey = (type: AssetType): string[] => ["library", apiBase, "assets", type];
 
     const invalidateAssets = (type: AssetType): void => {
@@ -45,14 +46,14 @@ export function LibraryProvider({
 
       fetchAssets: async (type: AssetType): Promise<LibraryAssetWithProxy[]> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/background-assets?type=${type}`, { headers });
+        const res = await fetch(`${apiBase}${adminSegment}/background-assets?type=${type}`, { headers });
         if (!res.ok) throw new Error(`Failed to fetch assets: ${res.status}`);
         return res.json();
       },
 
       uploadAsset: async (params: UploadAssetParams): Promise<{ id: string; extractedCount?: number }> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/background-assets`, {
+        const res = await fetch(`${apiBase}${adminSegment}/background-assets`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify(params),
@@ -66,7 +67,7 @@ export function LibraryProvider({
 
       uploadZip: async (params: UploadAssetParams): Promise<{ extractedCount: number }> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/background-assets`, {
+        const res = await fetch(`${apiBase}${adminSegment}/background-assets`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify(params),
@@ -80,7 +81,7 @@ export function LibraryProvider({
 
       deleteAsset: async (id: string): Promise<void> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/admin/background-assets/${id}`, {
+        const res = await fetch(`${apiBase}${adminSegment}/background-assets/${id}`, {
           method: "DELETE",
           headers,
         });
@@ -95,7 +96,7 @@ export function LibraryProvider({
         return URL.createObjectURL(blob);
       },
     };
-  }, [apiBase, getAuthHeaders]);
+  }, [apiBase, getAuthHeaders, requiresAuth]);
 
   const value = useMemo<LibraryContextValue>(() => ({
     storeId: storeId ?? null,
