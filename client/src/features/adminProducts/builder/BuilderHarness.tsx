@@ -124,20 +124,35 @@ function BuilderModules() {
         pricing: currentPricing,
       };
       setSaveStatus({ type: "saving", message: "Saving all...", timestamp: new Date() });
+      
+      const results: { template?: any; graphics?: any; errors: string[] } = { errors: [] };
+      
+      // Save template first
       try {
-        const [templateResult, graphicsResult] = useTestEndpoints
-          ? await Promise.all([
-              saveAsTemplateWithOptions(builderState, true),
-              saveGraphicsWithOptions(builderState, true),
-            ])
-          : await Promise.all([
-              saveAsTemplate.mutateAsync(builderState),
-              saveGraphics.mutateAsync(builderState),
-            ]);
-        
+        results.template = useTestEndpoints 
+          ? await saveAsTemplateWithOptions(builderState, true)
+          : await saveAsTemplate.mutateAsync(builderState);
+      } catch (error: any) {
+        results.errors.push(`Template: ${error.message}`);
+      }
+      
+      // Save graphics (skip if no artwork available)
+      const hasArtwork = builderState.artworkUrl || builderState.qrOnlyUrl;
+      if (hasArtwork) {
+        try {
+          results.graphics = useTestEndpoints
+            ? await saveGraphicsWithOptions(builderState, true)
+            : await saveGraphics.mutateAsync(builderState);
+        } catch (error: any) {
+          results.errors.push(`Graphics: ${error.message}`);
+        }
+      }
+      
+      // Check results
+      if (results.template || results.graphics) {
         const productPackage = {
-          templateId: templateResult.templateId,
-          graphicsId: graphicsResult.compositeAssetId || graphicsResult.qrAssetId,
+          templateId: results.template?.templateId,
+          graphicsId: results.graphics?.compositeAssetId || results.graphics?.qrAssetId,
           productName: state.selectedProduct?.title || "Untitled Product",
           qrContent: state.content.url || state.content.title || "",
           compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
@@ -146,15 +161,20 @@ function BuilderModules() {
         };
         sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
         
+        const successMsg = results.errors.length > 0 
+          ? `Saved with warnings: ${results.errors.join("; ")}` 
+          : "Template and graphics saved!";
+        
         toast({
-          title: "Saved Successfully",
-          description: "Template and graphics saved. Going to store assignment...",
+          title: results.errors.length > 0 ? "Partially Saved" : "Saved Successfully",
+          description: successMsg,
+          variant: results.errors.length > 0 ? "default" : "default",
         });
-        setSaveStatus({ type: "success", message: "Saved! Redirecting...", timestamp: new Date() });
+        setSaveStatus({ type: "success", message: successMsg, timestamp: new Date() });
         
         setTimeout(() => navigate("/test-store-builder"), 500);
-      } catch (error: any) {
-        const errorMessage = error.message || "Could not save";
+      } else {
+        const errorMessage = results.errors.join("; ") || "Could not save";
         toast({
           title: "Save Failed",
           description: errorMessage,

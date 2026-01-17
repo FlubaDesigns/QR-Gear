@@ -46,7 +46,9 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
   const pricing = useMemo((): PricingBreakdown | null => {
     if (!settings || !state.selectedProduct) return null;
 
-    const baseProductCost = parseFloat(state.selectedProduct.minPrice || "0");
+    const product = state.selectedProduct as any;
+    // Use maxPrice (highest variant cost) as base, fallback to basePrice, then minPrice
+    const baseProductCost = parseFloat(product.maxPrice || product.basePrice || product.minPrice || product.customerPrice || "0");
     
     const placementCount = state.selectedPlacements.length || 1;
     const additionalPlacements = Math.max(0, placementCount - 1);
@@ -155,75 +157,66 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
             <DollarSign className="h-4 w-4" />
-            Base Product Cost
+            Item Price (Base)
           </div>
           <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
             ${pricing.baseProductCost.toFixed(2)}
           </div>
 
-          {pricing.placementCost > 0 && (
-            <>
-              <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
-                <Layers className="h-4 w-4" />
-                <span>
-                  Placements ({state.selectedPlacements.length - 1} extra × ${settings?.additionalPlacementCost.toFixed(2)})
-                </span>
-              </div>
-              <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
-                +${pricing.placementCost.toFixed(2)}
-              </div>
-            </>
-          )}
+          <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
+            <Layers className="h-4 w-4" />
+            <span>
+              Placements ({state.selectedPlacements.length} total, {Math.max(0, state.selectedPlacements.length - 1)} extra × ${settings?.additionalPlacementCost.toFixed(2)})
+            </span>
+          </div>
+          <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
+            {pricing.placementCost > 0 ? `+$${pricing.placementCost.toFixed(2)}` : "$0.00"}
+          </div>
 
-          {pricing.textUpcharge > 0 && (
-            <>
-              <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
-                <Type className="h-4 w-4" />
-                <span>
-                  Text Lines ({Math.round(pricing.textUpcharge / (settings?.textLineUpcharge || 1))} × ${settings?.textLineUpcharge.toFixed(2)})
-                </span>
-              </div>
-              <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
-                +${pricing.textUpcharge.toFixed(2)}
-              </div>
-            </>
-          )}
+          <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
+            <Type className="h-4 w-4" />
+            <span>
+              Text Lines ({Math.round(pricing.textUpcharge / (settings?.textLineUpcharge || 1))} lines × ${settings?.textLineUpcharge.toFixed(2)})
+            </span>
+          </div>
+          <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
+            {pricing.textUpcharge > 0 ? `+$${pricing.textUpcharge.toFixed(2)}` : "$0.00"}
+          </div>
 
-          {pricing.hostingCost > 0 && (
-            <>
-              <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
-                <Clock className="h-4 w-4" />
-                Hosting ({selectedTier?.name || "1 Year"})
-              </div>
-              <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
-                +${pricing.hostingCost.toFixed(2)}
-              </div>
-            </>
-          )}
+          <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
+            <Clock className="h-4 w-4" />
+            Hosting ({selectedTier?.name || "None"})
+          </div>
+          <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
+            {pricing.hostingCost > 0 ? `+$${pricing.hostingCost.toFixed(2)}` : "$0.00"}
+          </div>
         </div>
 
         <div className="border-t border-green-200 dark:border-green-800 pt-3 mt-3">
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground min-h-[36px] flex items-center">Subtotal</div>
-            <div className="text-right min-h-[36px] flex items-center justify-end">${pricing.subtotal.toFixed(2)}</div>
+            <div className="text-muted-foreground min-h-[36px] flex items-center font-medium">Subtotal</div>
+            <div className="text-right font-bold min-h-[36px] flex items-center justify-end">${pricing.subtotal.toFixed(2)}</div>
             
             <div className="text-muted-foreground min-h-[36px] flex items-center">
-              Markup ({settings?.markupPercent}% = ${(pricing.subtotal * (settings?.markupPercent || 0) / 100).toFixed(2)})
+              Markup ({settings?.markupPercent}%)
             </div>
             <div className="text-right min-h-[36px] flex items-center justify-end">
               +${(pricing.subtotal * (settings?.markupPercent || 0) / 100).toFixed(2)}
             </div>
             
-            {(settings?.markupFixed || 0) > 0 && (
-              <>
-                <div className="text-muted-foreground min-h-[36px] flex items-center">
-                  Fixed Markup
-                </div>
-                <div className="text-right min-h-[36px] flex items-center justify-end">
-                  +${settings?.markupFixed.toFixed(2)}
-                </div>
-              </>
-            )}
+            <div className="text-muted-foreground min-h-[36px] flex items-center">
+              Fixed Markup
+            </div>
+            <div className="text-right min-h-[36px] flex items-center justify-end">
+              +${(settings?.markupFixed || 0).toFixed(2)}
+            </div>
+            
+            <div className="text-muted-foreground min-h-[36px] flex items-center font-medium">
+              Total Markup
+            </div>
+            <div className="text-right font-bold min-h-[36px] flex items-center justify-end">
+              +${pricing.markupAmount.toFixed(2)}
+            </div>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { CollapsibleModule } from "@/features/shared/components/CollapsibleModul
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
 import { ContentViewerControls } from "../components/ContentViewerControls";
@@ -125,24 +126,19 @@ export function ContentModule() {
                   <Type className="h-3.5 w-3.5" />
                   Text to Encode
                 </Label>
-                <textarea
+                <Textarea
                   id="plain-text-content"
-                  inputMode="text"
-                  autoComplete="off"
-                  autoCorrect="on"
-                  spellCheck={true}
-                  enterKeyHint="done"
-                  placeholder="Tap here and use microphone to speak your text"
+                  placeholder="Tap here, then use your keyboard's microphone to speak"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
                   maxLength={500}
                   rows={4}
-                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-3 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-[120px] text-base resize-none"
                   style={{ fontSize: '16px' }}
                   data-testid="input-plain-text-content"
                 />
-                <p className="text-xs text-muted-foreground">
-                  This text will be encoded directly in the QR code. Use your keyboard's microphone button to speak.
+                <p className="text-sm text-muted-foreground">
+                  Tap field above, then tap the microphone icon on your keyboard to speak.
                 </p>
               </div>
             ) : (
@@ -154,12 +150,7 @@ export function ContentModule() {
                 <Input
                   id="plain-url-content"
                   type="text"
-                  inputMode="text"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="done"
-                  placeholder="Tap here and speak a URL"
+                  placeholder="Tap here, then use keyboard microphone"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
                   className="min-h-[48px] text-base"
