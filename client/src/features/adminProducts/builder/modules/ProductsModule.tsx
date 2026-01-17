@@ -199,12 +199,20 @@ export function ProductsModule() {
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
   
+  // Filter by origin first, then count genders from that subset
+  const originFilteredProducts = useMemo(() => {
+    return productsWithGender.filter(p => 
+      (state.originFilter.showUSA && p.madeInUSA) || 
+      (state.originFilter.showOther && !p.madeInUSA)
+    );
+  }, [productsWithGender, state.originFilter]);
+
   const genderCounts = useMemo(() => ({
-    all: productsWithGender.length,
-    mens: productsWithGender.filter(p => p.gender === "mens").length,
-    womens: productsWithGender.filter(p => p.gender === "womens").length,
-    unisex: productsWithGender.filter(p => p.gender === "unisex").length,
-  }), [productsWithGender]);
+    all: originFilteredProducts.length,
+    mens: originFilteredProducts.filter(p => p.gender === "mens").length,
+    womens: originFilteredProducts.filter(p => p.gender === "womens").length,
+    unisex: originFilteredProducts.filter(p => p.gender === "unisex").length,
+  }), [originFilteredProducts]);
 
   // Always show the module
 
