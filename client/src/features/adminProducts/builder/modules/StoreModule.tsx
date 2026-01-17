@@ -6,15 +6,10 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { PartnerStore } from "@shared/schema";
 import type { SaveTarget } from "./SaveOptionsModule";
+
+const selectStyles = "w-full min-h-12 text-base px-4 py-3 rounded-lg border border-input bg-background text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed";
 
 interface StoreModuleProps {
   saveTarget: SaveTarget;
@@ -49,6 +44,14 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
     }
   };
 
+  const handleStoreChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val) {
+      setSelectedStoreId(val);
+      setSelectedChannel(null);
+    }
+  };
+
   const canConfirm = selectedStore && selectedChannel;
 
   return (
@@ -59,7 +62,6 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
       defaultOpen
     >
       <div className="space-y-4">
-        {/* Step 1: Store Type */}
         <div className="space-y-2">
           <p className="text-sm font-medium">Store Type</p>
           <div className="grid grid-cols-2 gap-3">
@@ -104,7 +106,6 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
           </div>
         </div>
 
-        {/* Step 2: Store Selection */}
         {selectedType && (
           <div className="space-y-2">
             <p className="text-sm font-medium">Select Store</p>
@@ -115,29 +116,30 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
                 No {selectedType} stores found
               </p>
             ) : (
-              <Select
-                value={selectedStoreId || ""}
-                onValueChange={(val) => {
-                  setSelectedStoreId(val);
-                  setSelectedChannel(null);
-                }}
-              >
-                <SelectTrigger data-testid="store-select">
-                  <SelectValue placeholder="Choose a store..." />
-                </SelectTrigger>
-                <SelectContent>
+              <div className="relative">
+                <select
+                  value={selectedStoreId || ""}
+                  onChange={handleStoreChange}
+                  className={selectStyles}
+                  data-testid="store-select"
+                >
+                  <option value="" disabled>Choose a store...</option>
                   {filteredStores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
+                    <option key={store.id} value={store.id}>
                       {store.name}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                  </svg>
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {/* Step 3: Channel Selection */}
         {selectedStore && (
           <div className="space-y-2">
             <p className="text-sm font-medium">Select Channel</p>
@@ -165,7 +167,6 @@ export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModule
           </div>
         )}
 
-        {/* Summary & Confirm */}
         {canConfirm && (
           <div className="pt-2 border-t space-y-3">
             <div className="p-3 bg-primary/5 rounded-md">
