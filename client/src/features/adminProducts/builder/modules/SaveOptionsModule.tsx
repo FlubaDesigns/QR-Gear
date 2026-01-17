@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Save, Layers, Archive } from "lucide-react";
+import { Save, Layers, Store, Archive } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Card } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
 
-export type SaveTarget = "template" | "graphic-set" | "all" | null;
+export type SaveTarget = "template" | "graphic-set" | "store" | "all" | null;
 
 interface SaveOptionsModuleProps {
   onSaveTargetChange?: (target: SaveTarget) => void;
@@ -26,8 +26,6 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
   const handleSelect = (target: SaveTarget) => {
     setSelectedTarget(target);
     onSaveTargetChange?.(target);
-    // Template and graphic-set saves are handled by BuilderHarness
-    // Store and All will show StoreModule for channel selection
   };
 
   const options = [
@@ -44,9 +42,15 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
       icon: Archive,
     },
     {
+      id: "store" as const,
+      label: "Store",
+      description: "Add to a store channel",
+      icon: Store,
+    },
+    {
       id: "all" as const,
-      label: "Save & Link",
-      description: "Save + prepare for store assignment",
+      label: "Save All",
+      description: "Template + Graphics + Store",
       icon: Save,
     },
   ];
@@ -108,9 +112,9 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
               <span className="font-medium">Selected: </span>
               {options.find(o => o.id === selectedTarget)?.label}
             </p>
-            {selectedTarget === "all" && (
+            {(selectedTarget === "store" || selectedTarget === "all") && (
               <p className="text-xs text-muted-foreground mt-1">
-                After saving, go to Store Builder to assign.
+                Choose your store and channel below ↓
               </p>
             )}
           </div>
