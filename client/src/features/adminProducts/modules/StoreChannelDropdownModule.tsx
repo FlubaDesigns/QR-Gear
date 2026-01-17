@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Store, Plus, Trash2, Loader2 } from "lucide-react";
+import { Store, Plus, Trash2, Loader2, Hash, Users } from "lucide-react";
+import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useProductsContext } from "../ProductsContext";
 import type { Store as StoreType, Channel, RoleType } from "../shared/types";
-
-const selectStyles = "w-full min-h-12 text-base px-4 py-3 rounded-lg border border-white/20 bg-white/10 text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ice-2 disabled:opacity-50 disabled:cursor-not-allowed";
 
 export function StoreChannelDropdownModule() {
   const { 
@@ -60,34 +59,43 @@ export function StoreChannelDropdownModule() {
 
   const roles: RoleType[] = ["internal", "external", "member"];
 
-  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const role = e.target.value as RoleType;
-    if (role) {
-      setSelectedRole(role);
-      setSelectedStore(null);
+  const roleOptions = roles.map(role => ({
+    value: role,
+    label: role.charAt(0).toUpperCase() + role.slice(1),
+    icon: <Users className="h-4 w-4 flex-shrink-0" />,
+  }));
+
+  const storeOptions = filteredStores.map(store => ({
+    value: store.id,
+    label: store.name,
+    icon: <Store className="h-4 w-4 flex-shrink-0" />,
+  }));
+
+  const channelOptions = channels.map(channel => ({
+    value: channel.id,
+    label: channel.productCount ? `${channel.name} (${channel.productCount})` : channel.name,
+    icon: <Hash className="h-4 w-4 flex-shrink-0" />,
+  }));
+
+  const handleRoleChange = (role: string) => {
+    setSelectedRole(role as RoleType);
+    setSelectedStore(null);
+    setSelectedChannel(null);
+  };
+
+  const handleStoreChange = (storeId: string) => {
+    const store = allStores.find(s => s.id === storeId);
+    if (store) {
+      setSelectedRole(store.roleType);
+      setSelectedStore(store);
       setSelectedChannel(null);
     }
   };
 
-  const handleStoreChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const storeId = e.target.value;
-    if (storeId) {
-      const store = allStores.find(s => s.id === storeId);
-      if (store) {
-        setSelectedRole(store.roleType);
-        setSelectedStore(store);
-        setSelectedChannel(null);
-      }
-    }
-  };
-
-  const handleChannelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const channelId = e.target.value;
-    if (channelId) {
-      const channel = channels.find(c => c.id === channelId);
-      if (channel) {
-        setSelectedChannel(channel);
-      }
+  const handleChannelChange = (channelId: string) => {
+    const channel = channels.find(c => c.id === channelId);
+    if (channel) {
+      setSelectedChannel(channel);
     }
   };
 
@@ -199,58 +207,27 @@ export function StoreChannelDropdownModule() {
       <div className="flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[140px]">
           <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Role</label>
-          <div className="relative">
-            <select
-              value={selectedRole || ""}
-              onChange={handleRoleChange}
-              className={selectStyles}
-              data-testid="select-role"
-            >
-              <option value="" disabled>Pick a role...</option>
-              {roles.map((role) => (
-                <option key={role} value={role} data-testid={`option-role-${role}`}>
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/60">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
-              </svg>
-            </div>
-          </div>
+          <CustomDropdown
+            value={selectedRole || ""}
+            onChange={handleRoleChange}
+            options={roleOptions}
+            placeholder="Pick a role..."
+            data-testid="select-role"
+          />
         </div>
 
         <div className="flex-1 min-w-[180px]">
           <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Store</label>
           <div className="flex gap-2">
-            <div className="relative flex-1">
-              <select
-                value={selectedStore?.id || ""}
-                onChange={handleStoreChange}
-                disabled={isLoading}
-                className={selectStyles}
-                data-testid="select-store"
-              >
-                <option value="" disabled>
-                  {isLoading ? "Loading..." : "Find your store..."}
-                </option>
-                {filteredStores.map((store) => (
-                  <option key={store.id} value={store.id} data-testid={`option-store-${store.id}`}>
-                    {store.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/60">
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                  </svg>
-                )}
-              </div>
-            </div>
+            <CustomDropdown
+              value={selectedStore?.id || ""}
+              onChange={handleStoreChange}
+              options={storeOptions}
+              placeholder="Find your store..."
+              loading={isLoading}
+              className="flex-1"
+              data-testid="select-store"
+            />
             <button
               onClick={() => setShowAddStore(!showAddStore)}
               disabled={!selectedRole}
@@ -281,33 +258,16 @@ export function StoreChannelDropdownModule() {
         <div className="flex-1 min-w-[180px]">
           <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Channel</label>
           <div className="flex gap-2">
-            <div className="relative flex-1">
-              <select
-                value={selectedChannel?.id || ""}
-                onChange={handleChannelChange}
-                disabled={loadingChannels || !selectedStore}
-                className={selectStyles}
-                data-testid="select-channel"
-              >
-                <option value="" disabled>
-                  {loadingChannels ? "Loading..." : "Pick a channel..."}
-                </option>
-                {channels.map((channel) => (
-                  <option key={channel.id} value={channel.id} data-testid={`option-channel-${channel.id}`}>
-                    {channel.name} {channel.productCount ? `(${channel.productCount})` : ""}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/60">
-                {loadingChannels ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                  </svg>
-                )}
-              </div>
-            </div>
+            <CustomDropdown
+              value={selectedChannel?.id || ""}
+              onChange={handleChannelChange}
+              options={channelOptions}
+              placeholder="Pick a channel..."
+              loading={loadingChannels}
+              disabled={!selectedStore}
+              className="flex-1"
+              data-testid="select-channel"
+            />
             <button
               onClick={() => setShowAddChannel(!showAddChannel)}
               disabled={!selectedStore}

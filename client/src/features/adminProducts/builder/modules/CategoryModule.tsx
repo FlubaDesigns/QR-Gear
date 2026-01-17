@@ -1,10 +1,9 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Layers, Loader2 } from "lucide-react";
+import { Layers } from "lucide-react";
+import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useBuilderContext } from "../BuilderContext";
 import type { CatalogCategory } from "../types";
-
-const selectStyles = "w-full min-h-12 text-base px-4 py-3 rounded-lg border border-input bg-background text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed";
 
 interface CatalogCategoryResponse {
   name: string;
@@ -75,12 +74,11 @@ export function CategoryModule() {
     return null;
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (value) {
-      setCategory(value);
-    }
-  };
+  const categoryOptions = sortedCategories.map(cat => ({
+    value: cat.name,
+    label: `${cat.name} (${cat.itemCount})`,
+    icon: <Layers className="h-4 w-4 flex-shrink-0" />,
+  }));
 
   return (
     <div className="p-3 bg-muted/30 rounded-lg border" data-testid="module-category">
@@ -88,37 +86,14 @@ export function CategoryModule() {
         <Layers className="h-3 w-3" />
         Product Category
       </label>
-      <div className="relative">
-        <select
-          value={state.category || ""}
-          onChange={handleChange}
-          disabled={isLoading}
-          className={selectStyles}
-          data-testid="select-category"
-        >
-          <option value="" disabled>
-            {isLoading ? "Loading categories..." : "Select a category..."}
-          </option>
-          {sortedCategories.map((cat) => (
-            <option 
-              key={cat.name} 
-              value={cat.name}
-              data-testid={`option-category-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              {cat.name} ({cat.itemCount})
-            </option>
-          ))}
-        </select>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
-            </svg>
-          )}
-        </div>
-      </div>
+      <CustomDropdown
+        value={state.category || ""}
+        onChange={(value) => setCategory(value)}
+        options={categoryOptions}
+        placeholder="Select a category..."
+        loading={isLoading}
+        data-testid="select-category"
+      />
     </div>
   );
 }

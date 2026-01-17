@@ -150,36 +150,39 @@ export function ScrollView({
   if (layout === "vertical") {
     return (
       <div className="relative">
-        <div style={{ height: gridHeight, overflow: "hidden" }}>
-          <ScrollArea className="h-full" type="scroll">
-            <div className="grid grid-cols-1 gap-4 p-1 pr-3">
-              {items.map((item) => {
-                const priceRange = item.minPrice && item.maxPrice 
-                  ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
-                  : item.minPrice 
-                    ? { min: parseFloat(item.minPrice), max: parseFloat(item.minPrice) }
-                    : undefined;
-                
-                return (
-                  <ProductSkin
-                    key={item.id}
-                    id={item.id}
-                    title={item.title}
-                    brand={item.subtitle}
-                    image={item.imageUrl}
-                    priceRange={priceRange}
-                    madeInUSA={item.madeInUSA}
-                    colors={item.colorCount}
-                    sizes={item.sizes}
-                    description={item.description}
-                    onClick={() => onSelect?.(item)}
-                    className={selectedId === item.id ? "ring-2 ring-primary ring-offset-2" : ""}
-                  />
-                );
-              })}
-            </div>
-            <ScrollBar orientation="vertical" />
-          </ScrollArea>
+        <div 
+          className="overflow-y-auto overscroll-contain touch-pan-y pr-2"
+          style={{ 
+            height: gridHeight, 
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          <div className="grid grid-cols-1 gap-4 p-1">
+            {items.map((item) => {
+              const priceRange = item.minPrice && item.maxPrice 
+                ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
+                : item.minPrice 
+                  ? { min: parseFloat(item.minPrice), max: parseFloat(item.minPrice) }
+                  : undefined;
+              
+              return (
+                <ProductSkin
+                  key={item.id}
+                  id={item.id}
+                  title={item.title}
+                  brand={item.subtitle}
+                  image={item.imageUrl}
+                  priceRange={priceRange}
+                  madeInUSA={item.madeInUSA}
+                  colors={item.colorCount}
+                  sizes={item.sizes}
+                  description={item.description}
+                  onClick={() => onSelect?.(item)}
+                  className={selectedId === item.id ? "ring-2 ring-primary ring-offset-2" : ""}
+                />
+              );
+            })}
+          </div>
         </div>
         <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
           {items.length} products available
