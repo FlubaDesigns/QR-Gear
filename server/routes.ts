@@ -1569,6 +1569,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update product (test endpoint - no auth required)
+  app.put("/api/test/products/:id", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      const { products } = await import("@shared/schema");
+      
+      // Build update object, filtering out undefined values
+      const cleanUpdate: Record<string, any> = {};
+      for (const [key, value] of Object.entries(updateData)) {
+        if (value !== undefined) {
+          cleanUpdate[key] = value;
+        }
+      }
+      cleanUpdate.updatedAt = new Date();
+      
+      const [updated] = await db
+        .update(products)
+        .set(cleanUpdate)
+        .where(eq(products.id, id))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+      
+      console.log(`[TestProducts] PUT ${id} updated:`, Object.keys(cleanUpdate));
+      res.json(updated);
+    } catch (error: any) {
+      console.error('[TestProducts] PUT error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get stores by role type (test endpoint) - uses Firestore
   app.get("/api/test/stores", async (req: any, res) => {
     try {
@@ -1783,6 +1818,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(mockStores);
     } catch (error: any) {
       console.error('[TestPartnerStores] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint: Get products for a partner store (no auth required)
+  app.get("/api/test/partner-stores/:id/products", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`[TestPartnerStores] GET products for store ${id}`);
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const snapshot = await firestoreDb.collection('partnerStoreProducts')
+        .where('storeId', '==', id)
+        .get();
+      
+      const products = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      
+      console.log(`[TestPartnerStores] Found ${products.length} products for store ${id}`);
+      res.json(products);
+    } catch (error: any) {
+      console.error('[TestPartnerStores] GET products error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint: Sync products to a partner store (no auth required)
+  app.post("/api/test/partner-stores/:id/products", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { productIds } = req.body;
+      
+      console.log(`[TestPartnerStores] POST sync products for store ${id}:`, productIds);
+      
+      if (!Array.isArray(productIds)) {
+        return res.status(400).json({ error: 'productIds must be an array' });
+      }
+      
+      const { getFirestoreDb, getFirebaseAdmin } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const admin = getFirebaseAdmin();
+      
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const batch = firestoreDb.batch();
+      
+      // Remove existing products for this store
+      const existingSnapshot = await firestoreDb.collection('partnerStoreProducts')
+        .where('storeId', '==', id)
+        .get();
+      existingSnapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
+      
+      // Add new products
+      for (const productId of productIds) {
+        const docRef = firestoreDb.collection('partnerStoreProducts').doc();
+        batch.set(docRef, {
+          storeId: id,
+          productId,
+          createdAt: now,
+        });
+      }
+      
+      await batch.commit();
+      
+      console.log(`[TestPartnerStores] Synced ${productIds.length} products to store ${id}`);
+      res.json({ success: true, synced: productIds.length });
+    } catch (error: any) {
+      console.error('[TestPartnerStores] POST products error:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -7410,6 +7516,127 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: error.errors });
       }
       console.error("[Templates] Full save error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Save graphics (enlarged QR and composite graphic) - NO AUTH REQUIRED
+  app.post("/api/test/graphics/save", async (req: any, res) => {
+    try {
+      const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
+
+      if (!qrOnlyUrl || !compositeUrl) {
+        return res.status(400).json({ error: "Both qrOnlyUrl and compositeUrl are required" });
+      }
+
+      // Build metadata object without undefined values
+      const qrMetadata: Record<string, any> = { isQrOnly: true };
+      if (storeId) qrMetadata.storeId = storeId;
+      if (channelId) qrMetadata.channelId = channelId;
+      
+      const compositeMetadata: Record<string, any> = { isComposite: true };
+      if (storeId) compositeMetadata.storeId = storeId;
+      if (channelId) compositeMetadata.channelId = channelId;
+
+      // Save both graphics as library assets
+      const qrAsset = await storage.createLibraryAsset({
+        name: `${name || 'Untitled'} - QR Only`,
+        assetType: "graphic",
+        mediaType: "image",
+        ownerType: "admin",
+        publicUrl: qrOnlyUrl,
+        storageUrl: qrOnlyUrl,
+        thumbnailUrl: qrOnlyUrl,
+        category: category || "qr-graphics",
+        isActive: true,
+        metadata: qrMetadata,
+      });
+
+      const compositeAsset = await storage.createLibraryAsset({
+        name: `${name || 'Untitled'} - Composite`,
+        assetType: "graphic",
+        mediaType: "image",
+        ownerType: "admin",
+        publicUrl: compositeUrl,
+        storageUrl: compositeUrl,
+        thumbnailUrl: compositeUrl,
+        category: category || "composite-graphics",
+        isActive: true,
+        metadata: compositeMetadata,
+      });
+
+      console.log(`[Graphics TEST] Saved graphics: QR=${qrAsset.id}, Composite=${compositeAsset.id}`);
+
+      res.json({
+        success: true,
+        qrAssetId: qrAsset.id,
+        compositeAssetId: compositeAsset.id,
+        message: "Graphics saved to library (test endpoint)",
+      });
+    } catch (error: any) {
+      console.error("[Graphics TEST] Error saving graphics:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Full template save with batch mockup generation - NO AUTH REQUIRED
+  app.post("/api/test/templates/full-save", async (req: any, res) => {
+    try {
+      const { template, colors = [], placements = ["front", "back"] } = req.body;
+
+      if (!template) {
+        return res.status(400).json({ error: "Template data is required" });
+      }
+
+      // For test endpoint, just save the template without actual Printful job queue
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const admin = (await import("./lib/firebase-admin")).getFirebaseAdmin();
+      
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      
+      const templateData = {
+        ...template,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const templateRef = await firestoreDb.collection("productTemplates").add(templateData);
+      const templateId = templateRef.id;
+
+      // Queue mockup generation jobs
+      const qrSizes = ["small", "medium", "large"];
+      let jobsQueued = 0;
+
+      for (const color of colors) {
+        for (const placement of placements) {
+          const sizesToGenerate = (placement === "front" || placement === "back") ? qrSizes : ["large"];
+          
+          for (const qrSize of sizesToGenerate) {
+            const jobData = {
+              templateId,
+              colorName: color.name,
+              colorHex: color.hex,
+              placement,
+              qrSize,
+              status: "pending",
+              createdAt: now,
+            };
+            await firestoreDb.collection("mockupJobs").add(jobData);
+            jobsQueued++;
+          }
+        }
+      }
+
+      console.log(`[Templates TEST] Full save: template=${templateId}, ${jobsQueued} jobs queued`);
+
+      res.json({
+        success: true,
+        templateId,
+        jobsQueued,
+        message: `Template saved with ${jobsQueued} mockup jobs queued (test endpoint)`,
+      });
+    } catch (error: any) {
+      console.error("[Templates TEST] Error in full save:", error);
       res.status(500).json({ error: error.message });
     }
   });

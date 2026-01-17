@@ -2851,6 +2851,33 @@ app.post('/test/products/sync', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Update product (test endpoint - no auth required)
+app.put('/test/products/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        // Build update object, filtering out undefined values
+        const cleanUpdate = {};
+        for (const [key, value] of Object.entries(updateData)) {
+            if (value !== undefined) {
+                cleanUpdate[key] = value;
+            }
+        }
+        cleanUpdate.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+        await db.collection('products').doc(id).update(cleanUpdate);
+        const doc = await db.collection('products').doc(id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Product not found' });
+            return;
+        }
+        console.log(`[TestProducts] PUT ${id} updated:`, Object.keys(cleanUpdate));
+        res.json(docToObject(doc));
+    }
+    catch (error) {
+        console.error('[TestProducts] PUT error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // Get stores by role type (test endpoint - no /admin segment for test routes) - uses Firestore
 app.get('/test/stores', async (req, res) => {
     try {
@@ -3054,6 +3081,61 @@ app.get('/test/partner-stores', async (req, res) => {
     }
     catch (error) {
         console.error('[TestPartnerStores] GET error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Test endpoint: Get products for a partner store (no auth required)
+app.get('/test/partner-stores/:id/products', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`[TestPartnerStores] GET products for store ${id}`);
+        const snapshot = await db.collection('partnerStoreProducts')
+            .where('storeId', '==', id)
+            .get();
+        const products = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+        console.log(`[TestPartnerStores] Found ${products.length} products for store ${id}`);
+        res.json(products);
+    }
+    catch (error) {
+        console.error('[TestPartnerStores] GET products error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Test endpoint: Sync products to a partner store (no auth required)
+app.post('/test/partner-stores/:id/products', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { productIds } = req.body;
+        console.log(`[TestPartnerStores] POST sync products for store ${id}:`, productIds);
+        if (!Array.isArray(productIds)) {
+            res.status(400).json({ error: 'productIds must be an array' });
+            return;
+        }
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        const batch = db.batch();
+        // Remove existing products for this store
+        const existingSnapshot = await db.collection('partnerStoreProducts')
+            .where('storeId', '==', id)
+            .get();
+        existingSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+        // Add new products
+        for (const productId of productIds) {
+            const docRef = db.collection('partnerStoreProducts').doc();
+            batch.set(docRef, {
+                storeId: id,
+                productId,
+                createdAt: now,
+            });
+        }
+        await batch.commit();
+        console.log(`[TestPartnerStores] Synced ${productIds.length} products to store ${id}`);
+        res.json({ success: true, synced: productIds.length });
+    }
+    catch (error) {
+        console.error('[TestPartnerStores] POST products error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -4329,6 +4411,58 @@ app.post('/test/graphics/save', async (req, res) => {
     }
     catch (error) {
         console.error('[Graphics TEST] Error saving graphics:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// PUBLIC TEST: Full template save with batch mockup generation - NO AUTH REQUIRED
+app.post('/test/templates/full-save', async (req, res) => {
+    try {
+        const { template, colors = [], placements = ['front', 'back'] } = req.body;
+        if (!template) {
+            res.status(400).json({ error: 'Template data is required' });
+            return;
+        }
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        // Save template
+        const templateData = {
+            ...template,
+            createdAt: now,
+            updatedAt: now,
+        };
+        const templateRef = await db.collection('productTemplates').add(templateData);
+        const templateId = templateRef.id;
+        // Queue mockup generation jobs for each color × placement × qr size combo
+        const qrSizes = ['small', 'medium', 'large'];
+        let jobsQueued = 0;
+        for (const color of colors) {
+            for (const placement of placements) {
+                // For front/back, generate all 3 QR sizes; for other placements, only large
+                const sizesToGenerate = (placement === 'front' || placement === 'back') ? qrSizes : ['large'];
+                for (const qrSize of sizesToGenerate) {
+                    const jobData = {
+                        templateId,
+                        colorName: color.name,
+                        colorHex: color.hex,
+                        placement,
+                        qrSize,
+                        status: 'pending',
+                        createdAt: now,
+                    };
+                    await db.collection('mockupJobs').add(jobData);
+                    jobsQueued++;
+                }
+            }
+        }
+        console.log(`[Templates TEST] Full save complete: template=${templateId}, ${jobsQueued} mockup jobs queued`);
+        res.json({
+            success: true,
+            templateId,
+            jobsQueued,
+            message: `Template saved with ${jobsQueued} mockup jobs queued (test endpoint)`,
+        });
+    }
+    catch (error) {
+        console.error('[Templates TEST] Error in full save:', error);
         res.status(500).json({ error: error.message });
     }
 });
