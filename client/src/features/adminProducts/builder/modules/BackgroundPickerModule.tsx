@@ -71,7 +71,7 @@ export function BackgroundPickerModule() {
     setActiveTab("cropped");
   };
 
-  if (!state.qrProductState || !state.selectedProduct) {
+  if (!state.qrProductState || !state.selectedProduct || state.qrProductState !== "qr_dynamics") {
     return null;
   }
 
