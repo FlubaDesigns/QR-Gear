@@ -9,8 +9,9 @@ import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
 import { ContentViewerControls } from "../components/ContentViewerControls";
 
-function generateQRCodeUrl(content: string, size: number = 300): string {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png`;
+function generateQRCodeUrl(content: string, size: number = 1000): string {
+  // 1000px for print-quality output (300+ DPI at 3" print size)
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H`;
 }
 
 export function ContentModule() {
