@@ -4870,6 +4870,126 @@ app.delete('/admin/library/:id', requireAdmin, async (req: Request, res: Respons
   }
 });
 
+// Admin: Save graphics (QR-only and composite) to library
+app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
+
+    if (!qrOnlyUrl || !compositeUrl) {
+      res.status(400).json({ error: 'Both qrOnlyUrl and compositeUrl are required' });
+      return;
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Create QR-only asset
+    const qrAssetData = {
+      name: `${name} - QR Only`,
+      assetType: 'graphic',
+      mediaType: 'image',
+      ownerType: 'admin',
+      publicUrl: qrOnlyUrl,
+      storageUrl: qrOnlyUrl,
+      thumbnailUrl: qrOnlyUrl,
+      category: category || 'qr-graphics',
+      isActive: true,
+      metadata: { storeId, channelId, isQrOnly: true },
+      createdAt: now,
+      updatedAt: now,
+    };
+    const qrDocRef = await db.collection('libraryAssets').add(qrAssetData);
+
+    // Create composite asset
+    const compositeAssetData = {
+      name: `${name} - Composite`,
+      assetType: 'graphic',
+      mediaType: 'image',
+      ownerType: 'admin',
+      publicUrl: compositeUrl,
+      storageUrl: compositeUrl,
+      thumbnailUrl: compositeUrl,
+      category: category || 'composite-graphics',
+      isActive: true,
+      metadata: { storeId, channelId, isComposite: true },
+      createdAt: now,
+      updatedAt: now,
+    };
+    const compositeDocRef = await db.collection('libraryAssets').add(compositeAssetData);
+
+    console.log(`[Graphics] Saved graphics: QR=${qrDocRef.id}, Composite=${compositeDocRef.id}`);
+
+    res.json({
+      success: true,
+      qrAssetId: qrDocRef.id,
+      compositeAssetId: compositeDocRef.id,
+      message: 'Graphics saved to library',
+    });
+  } catch (error: any) {
+    console.error('[Graphics] Error saving graphics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Full template save with batch mockup generation
+app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { template, colors = [], placements = ['front', 'back'] } = req.body;
+
+    if (!template) {
+      res.status(400).json({ error: 'Template data is required' });
+      return;
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Save template
+    const templateData = {
+      ...template,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const templateRef = await db.collection('productTemplates').add(templateData);
+    const templateId = templateRef.id;
+
+    // Queue mockup generation jobs for each color × placement × qr size combo
+    const qrSizes = ['small', 'medium', 'large'];
+    let jobsQueued = 0;
+
+    for (const color of colors) {
+      for (const placement of placements) {
+        // For front/back, generate all 3 QR sizes; for other placements, only large
+        const sizesToGenerate = (placement === 'front' || placement === 'back') ? qrSizes : ['large'];
+        
+        for (const qrSize of sizesToGenerate) {
+          const jobData = {
+            templateId,
+            colorName: color.name,
+            colorHex: color.hex,
+            placement,
+            qrSize,
+            status: 'pending',
+            createdAt: now,
+          };
+          await db.collection('mockupJobs').add(jobData);
+          jobsQueued++;
+        }
+      }
+    }
+
+    console.log(`[Templates] Full save complete: template=${templateId}, ${jobsQueued} mockup jobs queued`);
+
+    res.json({
+      success: true,
+      templateId,
+      jobsQueued,
+      message: `Template saved with ${jobsQueued} mockup jobs queued`,
+    });
+  } catch (error: any) {
+    console.error('[Templates] Error in full save:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
@@ -4885,4 +5005,4 @@ export const api = onRequest(
   app
 );
 // Force redeploy: 1768535037
-// Build: 1768540909
+// Build: 1768650001

@@ -7318,6 +7318,169 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Admin: Create template with full mockup generation
+  // This is for admin-only batch generation of all color/placement/size combinations
+  app.post("/api/admin/templates/full-save", isAdmin, async (req, res) => {
+    try {
+      const fullSaveSchema = z.object({
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        category: z.string().nullable().optional(),
+        productId: z.string(),
+        blueprintId: z.number(),
+        printProviderId: z.number(),
+        colors: z.array(z.object({
+          name: z.string(),
+          hex: z.string(),
+        })),
+        placements: z.array(z.string()).default(["front"]),
+        qrSizes: z.array(z.enum(["small", "medium", "large"])).default(["small", "medium", "large"]),
+        artworkUrl: z.string().url(),
+        artworkVariant: z.enum(["black", "white"]).default("black"),
+        thumbnailUrl: z.string().url().optional(),
+        storeId: z.string().optional(),
+        channelId: z.string().optional(),
+      });
+
+      const data = fullSaveSchema.parse(req.body);
+
+      // 1. Create the template record
+      const template = await storage.createQrTemplate({
+        name: data.name,
+        description: data.description || null,
+        category: data.category || null,
+        thumbnailUrl: data.thumbnailUrl || data.artworkUrl,
+        fullImageUrl: data.artworkUrl,
+        storageUrl: data.artworkUrl,
+        priceUpcharge: "0",
+        isActive: true,
+        isFeatured: false,
+      });
+
+      // 2. Queue batch mockup jobs for all color/placement/size combinations
+      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+      
+      // For front and back placements, use all QR sizes
+      // For other placements (sleeves, chest), use only large
+      const frontBackPlacements = data.placements.filter(p => p === "front" || p === "back");
+      const otherPlacements = data.placements.filter(p => p !== "front" && p !== "back");
+
+      const allJobs: any[] = [];
+
+      // Queue jobs for front/back with all QR sizes
+      if (frontBackPlacements.length > 0) {
+        const jobs = await mockupJobQueue.createBatchJobs({
+          productId: data.productId,
+          colors: data.colors,
+          qrSizes: data.qrSizes,
+          placements: frontBackPlacements,
+          blueprintId: data.blueprintId,
+          printProviderId: data.printProviderId,
+          artworkUrl: data.artworkUrl,
+          artworkVariant: data.artworkVariant,
+        });
+        allJobs.push(...jobs);
+      }
+
+      // Queue jobs for other placements with only large QR
+      if (otherPlacements.length > 0) {
+        const jobs = await mockupJobQueue.createBatchJobs({
+          productId: data.productId,
+          colors: data.colors,
+          qrSizes: ["large"],
+          placements: otherPlacements,
+          blueprintId: data.blueprintId,
+          printProviderId: data.printProviderId,
+          artworkUrl: data.artworkUrl,
+          artworkVariant: data.artworkVariant,
+        });
+        allJobs.push(...jobs);
+      }
+
+      console.log(`[Templates] Created template ${template.id} with ${allJobs.length} mockup jobs queued`);
+
+      res.json({
+        success: true,
+        template,
+        jobsQueued: allJobs.length,
+        message: `Template created with ${allJobs.length} mockups queued for generation`,
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error("[Templates] Full save error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Save graphics (enlarged QR and composite graphic)
+  app.post("/api/admin/graphics/save", isAdmin, async (req, res) => {
+    try {
+      const graphicsSaveSchema = z.object({
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        category: z.string().nullable().optional(),
+        qrOnlyUrl: z.string().url(),
+        compositeUrl: z.string().url(),
+        storeId: z.string().optional(),
+        channelId: z.string().optional(),
+      });
+
+      const data = graphicsSaveSchema.parse(req.body);
+
+      // Save both graphics as library assets
+      const qrAsset = await storage.createLibraryAsset({
+        name: `${data.name} - QR Only`,
+        assetType: "graphic",
+        mediaType: "image",
+        ownerType: "admin",
+        publicUrl: data.qrOnlyUrl,
+        storageUrl: data.qrOnlyUrl,
+        thumbnailUrl: data.qrOnlyUrl,
+        category: data.category || "qr-graphics",
+        isActive: true,
+        metadata: {
+          storeId: data.storeId,
+          channelId: data.channelId,
+          isQrOnly: true,
+        },
+      });
+
+      const compositeAsset = await storage.createLibraryAsset({
+        name: `${data.name} - Composite`,
+        assetType: "graphic",
+        mediaType: "image",
+        ownerType: "admin",
+        publicUrl: data.compositeUrl,
+        storageUrl: data.compositeUrl,
+        thumbnailUrl: data.compositeUrl,
+        category: data.category || "composite-graphics",
+        isActive: true,
+        metadata: {
+          storeId: data.storeId,
+          channelId: data.channelId,
+          isComposite: true,
+        },
+      });
+
+      console.log(`[Graphics] Saved graphics: QR=${qrAsset.id}, Composite=${compositeAsset.id}`);
+
+      res.json({
+        success: true,
+        qrAsset,
+        compositeAsset,
+        message: "Graphics saved to library",
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error("[Graphics] Save error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ CUSTOM DESIGNS ENDPOINTS ============
   
   // Public: Get custom design by ID (for /customs/:id page)

@@ -21,7 +21,7 @@ function BuilderModules() {
   const { toast } = useToast();
   const [saveTarget, setSaveTarget] = useState<SaveTarget>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
-  const { saveToStore, saveAsTemplate, saveAll, isSaving } = useSaveProduct();
+  const { saveToStore, saveAsTemplate, saveGraphics, saveAll, isSaving } = useSaveProduct();
 
   const showStoreModule = saveTarget === "store" || saveTarget === "all";
 
@@ -30,6 +30,10 @@ function BuilderModules() {
       selectedProduct: state.selectedProduct,
       qrProductState: state.qrProductState,
       content: state.content,
+      placements: ["front", "back"],
+      artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+      qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+      artworkVariant: "black" as const,
     };
 
     setSaveStatus({ type: "saving", message: "Saving...", timestamp: new Date() });
@@ -80,6 +84,10 @@ function BuilderModules() {
         selectedProduct: state.selectedProduct,
         qrProductState: state.qrProductState,
         content: state.content,
+        placements: ["front", "back"],
+        artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+        qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+        artworkVariant: "black" as const,
       };
       setSaveStatus({ type: "saving", message: "Saving template...", timestamp: new Date() });
       try {
@@ -88,7 +96,7 @@ function BuilderModules() {
           title: "Template Saved",
           description: result.message,
         });
-        setSaveStatus({ type: "success", message: "Template saved successfully", timestamp: new Date() });
+        setSaveStatus({ type: "success", message: result.message || "Template saved successfully", timestamp: new Date() });
       } catch (error: any) {
         const errorMessage = error.message || "Could not save template";
         toast({
@@ -99,11 +107,30 @@ function BuilderModules() {
         setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
       }
     } else if (target === "graphic-set") {
-      toast({
-        title: "Graphic Set",
-        description: "Graphic set save coming soon",
-      });
-      setSaveStatus({ type: "success", message: "Graphic set feature coming soon", timestamp: new Date() });
+      const builderState = {
+        selectedProduct: state.selectedProduct,
+        qrProductState: state.qrProductState,
+        content: state.content,
+        artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+        qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+      };
+      setSaveStatus({ type: "saving", message: "Saving graphics...", timestamp: new Date() });
+      try {
+        const result = await saveGraphics.mutateAsync(builderState);
+        toast({
+          title: "Graphics Saved",
+          description: result.message,
+        });
+        setSaveStatus({ type: "success", message: result.message || "Graphics saved to library", timestamp: new Date() });
+      } catch (error: any) {
+        const errorMessage = error.message || "Could not save graphics";
+        toast({
+          title: "Save Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
+      }
     }
   };
 
