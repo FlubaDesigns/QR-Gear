@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Save, Layers, Store, Archive } from "lucide-react";
+import { Save, Layers, Archive } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Card } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
 
-export type SaveTarget = "template" | "graphic-set" | "store" | "all" | null;
+export type SaveTarget = "template" | "graphic-set" | null;
 
 interface SaveOptionsModuleProps {
   onSaveTargetChange?: (target: SaveTarget) => void;
@@ -41,18 +41,6 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
       description: "Save artwork + QR combo",
       icon: Archive,
     },
-    {
-      id: "store" as const,
-      label: "Store",
-      description: "Add to a store channel",
-      icon: Store,
-    },
-    {
-      id: "all" as const,
-      label: "Save All",
-      description: "Template + Graphics + Store",
-      icon: Save,
-    },
   ];
 
   return (
@@ -71,28 +59,19 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
           {options.map((option) => {
             const Icon = option.icon;
             const isSelected = selectedTarget === option.id;
-            const isPrimary = option.id === "all";
 
             return (
               <Card
                 key={option.id}
                 className={`p-4 cursor-pointer hover-elevate transition-all ${
-                  isSelected 
-                    ? "ring-2 ring-primary bg-primary/10" 
-                    : isPrimary 
-                      ? "border-primary bg-primary/5" 
-                      : ""
+                  isSelected ? "ring-2 ring-primary bg-primary/10" : ""
                 }`}
                 onClick={() => handleSelect(option.id)}
                 data-testid={`save-option-${option.id}`}
               >
                 <div className="flex flex-col items-center text-center gap-3">
                   <div className={`p-3 rounded-lg ${
-                    isSelected 
-                      ? "bg-primary text-primary-foreground" 
-                      : isPrimary 
-                        ? "bg-primary/20 text-primary" 
-                        : "bg-muted"
+                    isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
                   }`}>
                     <Icon className="h-6 w-6" />
                   </div>
@@ -112,11 +91,6 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
               <span className="font-medium">Selected: </span>
               {options.find(o => o.id === selectedTarget)?.label}
             </p>
-            {(selectedTarget === "store" || selectedTarget === "all") && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Choose your store and channel below ↓
-              </p>
-            )}
           </div>
         )}
       </div>
