@@ -154,76 +154,86 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
-            <DollarSign className="h-4 w-4" />
-            Item Price (Base)
-          </div>
-          <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
-            ${pricing.baseProductCost.toFixed(2)}
-          </div>
-
-          <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
-            <Layers className="h-4 w-4" />
-            <span>
-              Placements ({state.selectedPlacements.length} total, {Math.max(0, state.selectedPlacements.length - 1)} extra × ${settings?.additionalPlacementCost.toFixed(2)})
-            </span>
-          </div>
-          <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
-            {pricing.placementCost > 0 ? `+$${pricing.placementCost.toFixed(2)}` : "$0.00"}
+        <div className="space-y-2 text-sm">
+          <div className="p-3 bg-white/50 dark:bg-black/20 rounded-md">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="h-4 w-4 flex-shrink-0 text-green-600" />
+              <span className="font-medium">Item Base Price</span>
+            </div>
+            <div className="text-right font-bold text-lg">${pricing.baseProductCost.toFixed(2)}</div>
           </div>
 
-          <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
-            <Type className="h-4 w-4" />
-            <span>
-              Text Lines ({Math.round(pricing.textUpcharge / (settings?.textLineUpcharge || 1))} lines × ${settings?.textLineUpcharge.toFixed(2)})
-            </span>
-          </div>
-          <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
-            {pricing.textUpcharge > 0 ? `+$${pricing.textUpcharge.toFixed(2)}` : "$0.00"}
+          <div className="p-3 bg-white/50 dark:bg-black/20 rounded-md">
+            <div className="flex items-center gap-2 mb-1">
+              <Layers className="h-4 w-4 flex-shrink-0 text-blue-600" />
+              <span>Extra Placements</span>
+            </div>
+            <div className="text-right font-medium text-sm">
+              {Math.max(0, state.selectedPlacements.length - 1) > 0 
+                ? `${Math.max(0, state.selectedPlacements.length - 1)} × $${settings?.additionalPlacementCost.toFixed(2)} = +$${pricing.placementCost.toFixed(2)}`
+                : "None (+$0.00)"}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 text-muted-foreground min-h-[40px]">
-            <Clock className="h-4 w-4" />
-            Hosting ({selectedTier?.name || "None"})
+          <div className="p-3 bg-white/50 dark:bg-black/20 rounded-md">
+            <div className="flex items-center gap-2 mb-1">
+              <Type className="h-4 w-4 flex-shrink-0 text-purple-600" />
+              <span>Text Lines</span>
+            </div>
+            <div className="text-right font-medium text-sm">
+              {(() => {
+                const lineCount = Math.round(pricing.textUpcharge / (settings?.textLineUpcharge || 1));
+                return lineCount > 0 
+                  ? `${lineCount} × $${settings?.textLineUpcharge.toFixed(2)} = +$${pricing.textUpcharge.toFixed(2)}`
+                  : "None (+$0.00)";
+              })()}
+            </div>
           </div>
-          <div className="text-right font-medium min-h-[40px] flex items-center justify-end">
-            {pricing.hostingCost > 0 ? `+$${pricing.hostingCost.toFixed(2)}` : "$0.00"}
+
+          <div className="p-3 bg-white/50 dark:bg-black/20 rounded-md">
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-4 w-4 flex-shrink-0 text-orange-600" />
+              <span>Hosting</span>
+            </div>
+            <div className="text-right font-medium text-sm">
+              {pricing.hostingCost > 0 
+                ? `${selectedTier?.name} = +$${pricing.hostingCost.toFixed(2)}`
+                : "Not required (+$0.00)"}
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-green-200 dark:border-green-800 pt-3 mt-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground min-h-[36px] flex items-center font-medium">Subtotal</div>
-            <div className="text-right font-bold min-h-[36px] flex items-center justify-end">${pricing.subtotal.toFixed(2)}</div>
-            
-            <div className="text-muted-foreground min-h-[36px] flex items-center">
-              Markup ({settings?.markupPercent}%)
+        <div className="border-t border-green-200 dark:border-green-800 pt-3 mt-3 space-y-2">
+          <div className="p-3 bg-green-100/50 dark:bg-green-900/30 rounded-md">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Subtotal</span>
+              <span className="font-bold">${pricing.subtotal.toFixed(2)}</span>
             </div>
-            <div className="text-right min-h-[36px] flex items-center justify-end">
-              +${(pricing.subtotal * (settings?.markupPercent || 0) / 100).toFixed(2)}
-            </div>
-            
-            <div className="text-muted-foreground min-h-[36px] flex items-center">
-              Fixed Markup
-            </div>
-            <div className="text-right min-h-[36px] flex items-center justify-end">
-              +${(settings?.markupFixed || 0).toFixed(2)}
-            </div>
-            
-            <div className="text-muted-foreground min-h-[36px] flex items-center font-medium">
-              Total Markup
-            </div>
-            <div className="text-right font-bold min-h-[36px] flex items-center justify-end">
-              +${pricing.markupAmount.toFixed(2)}
+          </div>
+          
+          <div className="p-3 bg-white/50 dark:bg-black/20 rounded-md">
+            <div className="mb-1">Your Markup</div>
+            <div className="text-right font-medium text-sm break-words">
+              {(() => {
+                const percentMarkup = pricing.subtotal * (settings?.markupPercent || 0) / 100;
+                const fixedMarkup = settings?.markupFixed || 0;
+                if (percentMarkup > 0 && fixedMarkup > 0) {
+                  return `$${percentMarkup.toFixed(2)} + $${fixedMarkup.toFixed(2)} = +$${pricing.markupAmount.toFixed(2)}`;
+                } else if (percentMarkup > 0) {
+                  return `${settings?.markupPercent}% = +$${percentMarkup.toFixed(2)}`;
+                } else if (fixedMarkup > 0) {
+                  return `+$${fixedMarkup.toFixed(2)}`;
+                }
+                return "+$0.00";
+              })()}
             </div>
           </div>
         </div>
 
         <div className="border-t-2 border-green-300 dark:border-green-700 pt-3 mt-3">
-          <div className="flex items-center justify-between min-h-[48px]">
-            <span className="text-lg font-semibold text-green-700 dark:text-green-300">Customer Price</span>
-            <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[48px]">
+            <span className="text-base sm:text-lg font-semibold text-green-700 dark:text-green-300">Customer Price</span>
+            <span className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
               ${pricing.customerPrice.toFixed(2)}
             </span>
           </div>
