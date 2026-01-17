@@ -150,11 +150,8 @@ export function ScrollView({
   if (layout === "vertical") {
     return (
       <div className="relative">
-        <div 
-          className="overflow-y-auto pr-2" 
-          style={{ maxHeight: gridHeight, WebkitOverflowScrolling: 'touch' }}
-        >
-          <div className="grid grid-cols-1 gap-4 p-1">
+        <ScrollArea style={{ height: gridHeight }} type="scroll">
+          <div className="grid grid-cols-1 gap-4 p-1 pr-3">
             {items.map((item) => {
               const priceRange = item.minPrice && item.maxPrice 
                 ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
@@ -180,7 +177,8 @@ export function ScrollView({
               );
             })}
           </div>
-        </div>
+          <ScrollBar orientation="vertical" />
+        </ScrollArea>
         <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
           {items.length} products available
         </p>
