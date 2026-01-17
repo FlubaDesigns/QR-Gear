@@ -132,14 +132,19 @@ export function ContentModule() {
                   <Type className="h-3.5 w-3.5" />
                   Text to Encode
                 </Label>
-                <Textarea
+                <textarea
                   id="plain-text-content"
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="done"
                   placeholder="Tap here, then use your keyboard's microphone to speak"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
                   maxLength={500}
                   rows={4}
-                  className="min-h-[120px] text-base resize-none"
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                   style={{ fontSize: '16px' }}
                   data-testid="input-plain-text-content"
                 />
