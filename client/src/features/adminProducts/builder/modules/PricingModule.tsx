@@ -28,8 +28,10 @@ interface PricingModuleProps {
 export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
   const { state, setContent } = useBuilderContext();
   
-  const { data: settings, isLoading } = useQuery<PricingSettings>({
+  const { data: settings, isLoading, error } = useQuery<PricingSettings>({
     queryKey: ["/api/test/pricing-settings"],
+    retry: 2,
+    staleTime: 60000,
   });
 
   const requiresHosting = useMemo(() => {
@@ -103,13 +105,31 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
       <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 border-green-200 dark:border-green-800">
         <CardContent className="py-6 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+          <span className="ml-2 text-sm">Loading pricing...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/50 dark:to-orange-950/50 border-red-200 dark:border-red-800">
+        <CardContent className="py-6">
+          <p className="text-sm text-red-600 dark:text-red-400 font-medium">Failed to load pricing settings</p>
+          <p className="text-xs text-muted-foreground mt-1">Please refresh the page</p>
         </CardContent>
       </Card>
     );
   }
 
   if (!pricing) {
-    return null;
+    return (
+      <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50 border-yellow-200 dark:border-yellow-800">
+        <CardContent className="py-6">
+          <p className="text-sm text-yellow-700 dark:text-yellow-400">Waiting for product selection...</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
