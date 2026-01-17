@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link2, Type, FileText } from "lucide-react";
+import { Link2, Type, FileText, QrCode, Loader2, Check } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,14 @@ import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
 import { ContentViewerControls } from "../components/ContentViewerControls";
 
+function generateQRCodeUrl(content: string, size: number = 300): string {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png`;
+}
+
 export function ContentModule() {
-  const { state, setContent } = useBuilderContext();
+  const { state, setContent, loadGraphic } = useBuilderContext();
   const [basicsMode, setBasicsMode] = useState<"text" | "url">("text");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const needsUrl = state.qrProductState === "qr_canvas" || 
                    state.qrProductState === "qr_play" || 
@@ -160,6 +165,65 @@ export function ContentModule() {
                 <p className="text-xs text-muted-foreground">
                   Scanning will open this URL directly
                 </p>
+              </div>
+            )}
+
+            {state.content.url && (
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full h-14 text-base"
+                  disabled={isGenerating || !state.content.url.trim()}
+                  onClick={async () => {
+                    setIsGenerating(true);
+                    try {
+                      const qrUrl = generateQRCodeUrl(state.content.url.trim(), 300);
+                      await new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(true);
+                        img.onerror = () => reject(new Error("Failed to generate QR code"));
+                        img.src = qrUrl;
+                      });
+                      loadGraphic({ compositeUrl: "", qrOnlyUrl: qrUrl });
+                    } catch (err) {
+                      console.error("QR generation failed:", err);
+                    } finally {
+                      setIsGenerating(false);
+                    }
+                  }}
+                  data-testid="button-generate-qr"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : state.loadedGraphic?.qrOnlyUrl ? (
+                    <>
+                      <Check className="h-5 w-5 mr-2" />
+                      QR Code Ready - Tap to Regenerate
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="h-5 w-5 mr-2" />
+                      Generate QR Code
+                    </>
+                  )}
+                </Button>
+                
+                {state.loadedGraphic?.qrOnlyUrl && (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <img 
+                      src={state.loadedGraphic.qrOnlyUrl} 
+                      alt="Generated QR Code" 
+                      className="w-32 h-32 border rounded-md"
+                    />
+                    <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                      QR Code generated and ready to save
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
