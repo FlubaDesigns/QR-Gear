@@ -30,6 +30,11 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
   
   const { data: settings, isLoading, error } = useQuery<PricingSettings>({
     queryKey: ["/api/test/pricing-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/test/pricing-settings");
+      if (!res.ok) throw new Error(`pricing-settings HTTP ${res.status}`);
+      return res.json();
+    },
     retry: 2,
     staleTime: 60000,
   });
@@ -97,7 +102,35 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
   };
 
   if (!state.selectedProduct) {
-    return null;
+    return (
+      <Card className="border-2 border-red-400 bg-red-50/50 dark:bg-red-950/30">
+        <CardContent className="py-4 text-sm">
+          <div className="font-semibold text-red-700 dark:text-red-400">
+            PricingModule is mounted, but sees NO selectedProduct.
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            This means PricingModule is reading a DIFFERENT CONTEXT
+            than the selection UI, or selectedProduct is never being
+            set in BuilderContext.
+          </div>
+          <pre className="mt-3 p-2 rounded bg-white/60 dark:bg-black/30 text-[11px] overflow-auto max-h-48">
+{JSON.stringify(
+  {
+    hasSelectedProduct: !!state.selectedProduct,
+    selectedProduct: state.selectedProduct,
+    placements: state.selectedPlacements?.length || 0,
+    contentUrl: state.content?.url || "",
+    qrProductState: state.qrProductState,
+    sourceType: state.sourceType,
+    category: state.category,
+  },
+  null,
+  2
+)}
+          </pre>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (isLoading) {
