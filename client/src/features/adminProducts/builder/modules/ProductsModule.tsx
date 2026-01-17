@@ -235,7 +235,7 @@ export function ProductsModule() {
 
   return (
     <CollapsibleModule
-      title="Select Product"
+      title="Product Configuration"
       icon={<Package className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen
