@@ -7541,7 +7541,7 @@ ${allPages.map(page => `  <url>
   // Test: Save graphics (enlarged QR and composite graphic) - NO AUTH REQUIRED
   app.post("/api/test/graphics/save", async (req: any, res) => {
     try {
-      const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent } = req.body;
+      const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent, pricing } = req.body;
 
       // At least one URL is required
       if (!qrOnlyUrl && !compositeUrl) {
@@ -7553,6 +7553,7 @@ ${allPages.map(page => `  <url>
       if (storeId) baseMetadata.storeId = storeId;
       if (channelId) baseMetadata.channelId = channelId;
       if (qrContent) baseMetadata.qrContent = qrContent;
+      if (pricing) baseMetadata.pricing = pricing;
 
       let qrAsset = null;
       let compositeAsset = null;
@@ -7663,9 +7664,38 @@ ${allPages.map(page => `  <url>
   // Test: Full template save with batch mockup generation - NO AUTH REQUIRED
   app.post("/api/test/templates/full-save", async (req: any, res) => {
     try {
-      const { template, colors = [], placements = ["front", "back"] } = req.body;
-
-      if (!template) {
+      // Accept both formats: nested { template, colors, placements } or flat object
+      let template: any;
+      let colors: any[] = [];
+      let placements: string[] = ["front", "back"];
+      
+      if (req.body.template) {
+        // Old nested format
+        template = req.body.template;
+        colors = req.body.colors || [];
+        placements = req.body.placements || ["front", "back"];
+      } else if (req.body.name || req.body.productId) {
+        // New flat format from useSaveProduct
+        const { name, description, category, productId, blueprintId, printProviderId, 
+                artworkUrl, artworkVariant, thumbnailUrl, qrContent, pricing, 
+                colors: bodyColors, placements: bodyPlacements, qrSizes } = req.body;
+        
+        template = {
+          name: name || `Template - ${new Date().toLocaleDateString()}`,
+          description: description || "",
+          category: category || "General",
+          productId,
+          blueprintId,
+          printProviderId,
+          artworkUrl,
+          artworkVariant: artworkVariant || "black",
+          thumbnailUrl: thumbnailUrl || artworkUrl,
+          qrContent: qrContent || "",
+          pricing: pricing || null,
+        };
+        colors = bodyColors || [];
+        placements = bodyPlacements || ["front"];
+      } else {
         return res.status(400).json({ error: "Template data is required" });
       }
 
