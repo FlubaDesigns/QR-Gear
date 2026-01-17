@@ -129,16 +129,20 @@ export function ContentModule() {
                   id="plain-text-content"
                   inputMode="text"
                   autoComplete="off"
-                  placeholder="Enter your message, contact info, or any text (voice input supported)"
+                  autoCorrect="on"
+                  spellCheck={true}
+                  enterKeyHint="done"
+                  placeholder="Tap here and use microphone to speak your text"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
                   maxLength={500}
-                  rows={3}
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  rows={4}
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-3 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ fontSize: '16px' }}
                   data-testid="input-plain-text-content"
                 />
                 <p className="text-xs text-muted-foreground">
-                  This text will be encoded directly in the QR code
+                  This text will be encoded directly in the QR code. Use your keyboard's microphone button to speak.
                 </p>
               </div>
             ) : (
@@ -150,10 +154,16 @@ export function ContentModule() {
                 <Input
                   id="plain-url-content"
                   type="text"
-                  inputMode="url"
-                  placeholder="https://example.com"
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="done"
+                  placeholder="Tap here and speak a URL"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
+                  className="min-h-[48px] text-base"
+                  style={{ fontSize: '16px' }}
                   data-testid="input-plain-url-content"
                 />
                 <p className="text-xs text-muted-foreground">
