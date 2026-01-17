@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image, Loader2, Check, Crop, ImagePlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -24,6 +24,16 @@ export function BackgroundPickerModule() {
   const [cropAsset, setCropAsset] = useState<BackgroundAsset | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  
+  // Reset viewerIndex when tab changes to prevent out-of-bounds
+  useEffect(() => {
+    setViewerIndex(0);
+  }, [activeTab]);
+  
+  // Ensure viewerIndex stays in bounds when source data changes
+  const safeViewerIndex = sourceBackgrounds.length > 0 
+    ? Math.min(viewerIndex, sourceBackgrounds.length - 1) 
+    : 0;
 
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
     queryKey: ["/api/test/background-assets", "cropped"],
@@ -77,7 +87,7 @@ export function BackgroundPickerModule() {
     return null;
   }
 
-  const currentSourceImage = sourceBackgrounds[viewerIndex];
+  const currentSourceImage = sourceBackgrounds[safeViewerIndex];
 
   return (
     <>
@@ -213,33 +223,29 @@ export function BackgroundPickerModule() {
                         {currentSourceImage?.name}
                       </p>
                       <p className="text-white/70 text-xs">
-                        {viewerIndex + 1} of {sourceBackgrounds.length}
+                        {safeViewerIndex + 1} of {sourceBackgrounds.length}
                       </p>
                     </div>
 
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white h-12 w-12"
-                      onClick={() => setViewerIndex(Math.max(0, viewerIndex - 1))}
-                      disabled={viewerIndex === 0}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white min-h-[48px] min-w-[48px] h-12 w-12 rounded-md flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      onClick={() => setViewerIndex(Math.max(0, safeViewerIndex - 1))}
+                      disabled={safeViewerIndex === 0}
                       data-testid="button-prev-source"
                     >
                       <ChevronLeft className="h-6 w-6" />
-                    </Button>
+                    </button>
 
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white h-12 w-12"
-                      onClick={() => setViewerIndex(Math.min(sourceBackgrounds.length - 1, viewerIndex + 1))}
-                      disabled={viewerIndex >= sourceBackgrounds.length - 1}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white min-h-[48px] min-w-[48px] h-12 w-12 rounded-md flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      onClick={() => setViewerIndex(Math.min(sourceBackgrounds.length - 1, safeViewerIndex + 1))}
+                      disabled={safeViewerIndex >= sourceBackgrounds.length - 1}
                       data-testid="button-next-source"
                     >
                       <ChevronRight className="h-6 w-6" />
-                    </Button>
+                    </button>
                   </div>
 
                   <Button
