@@ -7452,9 +7452,9 @@ ${allPages.map(page => `  <url>
         })),
         placements: z.array(z.string()).default(["front"]),
         qrSizes: z.array(z.enum(["small", "medium", "large"])).default(["small", "medium", "large"]),
-        artworkUrl: z.string().url(),
+        artworkUrl: z.string().optional().default(""),
         artworkVariant: z.enum(["black", "white"]).default("black"),
-        thumbnailUrl: z.string().url().optional(),
+        thumbnailUrl: z.string().optional(),
         storeId: z.string().optional(),
         channelId: z.string().optional(),
         qrContent: z.string().optional(),
@@ -7575,7 +7575,7 @@ ${allPages.map(page => `  <url>
           category: category || "qr-graphics",
           isActive: true,
           metadata: { ...baseMetadata, isQrOnly: true },
-        });
+        } as any);
       }
 
       // Save composite asset if provided
@@ -7595,7 +7595,7 @@ ${allPages.map(page => `  <url>
           category: category || "composite-graphics",
           isActive: true,
           metadata: { ...baseMetadata, isComposite: true },
-        });
+        } as any);
       }
 
       const savedParts = [qrAsset ? 'QR' : null, compositeAsset ? 'Composite' : null].filter(Boolean).join(' + ');
@@ -7819,88 +7819,78 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Admin: Save graphics (enlarged QR and composite graphic)
+  // Admin: Save graphics (enlarged QR and/or composite graphic)
   app.post("/api/admin/graphics/save", isAdmin, async (req, res) => {
     try {
-      const pricingSchema = z.object({
-        baseProductCost: z.number(),
-        placementCost: z.number(),
-        textUpcharge: z.number(),
-        hostingCost: z.number(),
-        subtotal: z.number(),
-        markupAmount: z.number(),
-        customerPrice: z.number(),
-        hostingTierCode: z.string(),
-      }).nullable().optional();
+      const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent, pricing } = req.body;
 
-      const graphicsSaveSchema = z.object({
-        name: z.string().min(1),
-        description: z.string().nullable().optional(),
-        category: z.string().nullable().optional(),
-        qrOnlyUrl: z.string().url(),
-        compositeUrl: z.string().url(),
-        storeId: z.string().optional(),
-        channelId: z.string().optional(),
-        qrContent: z.string().optional(),
-        pricing: pricingSchema,
-      });
+      // At least one URL is required
+      if (!qrOnlyUrl && !compositeUrl) {
+        return res.status(400).json({ error: "At least one of qrOnlyUrl or compositeUrl is required" });
+      }
 
-      const data = graphicsSaveSchema.parse(req.body);
+      // Build metadata object without undefined values
+      const baseMetadata: Record<string, any> = {};
+      if (storeId) baseMetadata.storeId = storeId;
+      if (channelId) baseMetadata.channelId = channelId;
+      if (qrContent) baseMetadata.qrContent = qrContent;
+      if (pricing) baseMetadata.pricing = pricing;
 
-      // Build metadata with optional fields
-      const qrMetadata: Record<string, any> = { isQrOnly: true };
-      if (data.storeId) qrMetadata.storeId = data.storeId;
-      if (data.channelId) qrMetadata.channelId = data.channelId;
-      if (data.qrContent) qrMetadata.qrContent = data.qrContent;
-      if (data.pricing) qrMetadata.pricing = data.pricing;
-      
-      const compositeMetadata: Record<string, any> = { isComposite: true };
-      if (data.storeId) compositeMetadata.storeId = data.storeId;
-      if (data.channelId) compositeMetadata.channelId = data.channelId;
-      if (data.qrContent) compositeMetadata.qrContent = data.qrContent;
-      if (data.pricing) compositeMetadata.pricing = data.pricing;
+      let qrAsset = null;
+      let compositeAsset = null;
 
-      // Save both graphics as library assets
-      const qrAsset = await storage.createLibraryAsset({
-        name: `${data.name} - QR Only`,
-        assetType: "graphic",
-        mediaType: "image",
-        ownerType: "admin",
-        publicUrl: data.qrOnlyUrl,
-        storageUrl: data.qrOnlyUrl,
-        thumbnailUrl: data.qrOnlyUrl,
-        category: data.category || "qr-graphics",
-        isActive: true,
-        metadata: qrMetadata,
-      });
+      // Save QR-only asset if provided
+      if (qrOnlyUrl) {
+        qrAsset = await storage.createLibraryAsset({
+          name: `${name || 'Untitled'} - QR Only`,
+          assetType: "graphic",
+          mediaType: "image",
+          ownerType: "admin",
+          publicUrl: qrOnlyUrl,
+          storageUrl: qrOnlyUrl,
+          thumbnailUrl: qrOnlyUrl,
+          fileName: `qr-only-${Date.now()}.png`,
+          originalName: `qr-only.png`,
+          mimeType: "image/png",
+          sizeBytes: 0,
+          category: category || "qr-graphics",
+          isActive: true,
+          metadata: { ...baseMetadata, isQrOnly: true },
+        } as any);
+      }
 
-      const compositeAsset = await storage.createLibraryAsset({
-        name: `${data.name} - Composite`,
-        assetType: "graphic",
-        mediaType: "image",
-        ownerType: "admin",
-        publicUrl: data.compositeUrl,
-        storageUrl: data.compositeUrl,
-        thumbnailUrl: data.compositeUrl,
-        category: data.category || "composite-graphics",
-        isActive: true,
-        metadata: compositeMetadata,
-      });
+      // Save composite asset if provided
+      if (compositeUrl) {
+        compositeAsset = await storage.createLibraryAsset({
+          name: `${name || 'Untitled'} - Composite`,
+          assetType: "graphic",
+          mediaType: "image",
+          ownerType: "admin",
+          publicUrl: compositeUrl,
+          storageUrl: compositeUrl,
+          thumbnailUrl: compositeUrl,
+          fileName: `composite-${Date.now()}.png`,
+          originalName: `composite.png`,
+          mimeType: "image/png",
+          sizeBytes: 0,
+          category: category || "composite-graphics",
+          isActive: true,
+          metadata: { ...baseMetadata, isComposite: true },
+        } as any);
+      }
 
-      console.log(`[Graphics] Saved graphics: QR=${qrAsset.id}, Composite=${compositeAsset.id}`);
+      const savedParts = [qrAsset ? 'QR' : null, compositeAsset ? 'Composite' : null].filter(Boolean).join(' + ');
+      console.log(`[Graphics] Saved graphics: ${savedParts}`);
 
       res.json({
         success: true,
         qrAsset,
         compositeAsset,
-        qrAssetId: qrAsset.id,
-        compositeAssetId: compositeAsset.id,
+        qrAssetId: qrAsset?.id,
+        compositeAssetId: compositeAsset?.id,
         message: "Graphics saved to library",
       });
     } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
-      }
       console.error("[Graphics] Save error:", error);
       res.status(500).json({ error: error.message });
     }

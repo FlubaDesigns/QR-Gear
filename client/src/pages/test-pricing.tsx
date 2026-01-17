@@ -290,6 +290,68 @@ export default function TestPricingPage() {
               <p>Customer Price = Base × (1 + {markupPercent || 0}%) + ${markupFixed || 0}</p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-green-600" />
+                Example Price Breakdown
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground mb-4">
+                Here's how pricing works for a $15 base product with 1 extra placement, 1 text line, and 1-year hosting:
+              </p>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                  <span>Base Product Cost:</span>
+                  <span className="font-bold">$15.00</span>
+                </div>
+                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                  <span>Extra Placement (1 × ${additionalPlacementCost || 4}):</span>
+                  <span className="font-medium">+${parseFloat(additionalPlacementCost || "4").toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                  <span>Text Line (1 × ${textLineUpcharge || 2}):</span>
+                  <span className="font-medium">+${parseFloat(textLineUpcharge || "2").toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                  <span>Hosting ({hostingTiers[0]?.name || "1 Year"}):</span>
+                  <span className="font-medium">+${(hostingTiers[0]?.price || 5).toFixed(2)}</span>
+                </div>
+                
+                <div className="border-t pt-2 mt-2">
+                  <div className="flex justify-between p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+                    <span className="font-medium">Subtotal:</span>
+                    <span className="font-bold">
+                      ${(15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                  <span>Your Markup ({markupPercent || 0}% + ${markupFixed || 0}):</span>
+                  <span className="font-medium">
+                    +${(((15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5)) * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0")).toFixed(2)}
+                  </span>
+                </div>
+                
+                <div className="border-t-2 pt-2 mt-2">
+                  <div className="flex justify-between p-3 bg-green-100 dark:bg-green-950 rounded border-2 border-green-300 dark:border-green-700">
+                    <span className="font-semibold text-green-700 dark:text-green-300">Customer Price:</span>
+                    <span className="font-bold text-xl text-green-600 dark:text-green-400">
+                      ${(() => {
+                        const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5);
+                        const markup = (subtotal * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0");
+                        return (subtotal + markup).toFixed(2);
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

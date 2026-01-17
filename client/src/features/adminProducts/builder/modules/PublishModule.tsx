@@ -57,22 +57,11 @@ export function PublishModule() {
     return null;
   }
 
-  const handleAddToStore = () => {
-    toast({ title: "Added to store", description: "Product added to your store catalog" });
-  };
-
-  const handleSaveAsTemplate = () => {
-    toast({ title: "Saved as template", description: "Design saved for reuse" });
-  };
-
-  const handleSaveGraphics = () => {
-    toast({ title: "Graphics saved", description: "Graphics exported to library" });
-  };
-
-  const handleSaveAll = () => {
-    handleAddToStore();
-    handleSaveAsTemplate();
-    handleSaveGraphics();
+  const handleSaveAction = (action: string) => {
+    toast({ 
+      title: action, 
+      description: "Use the Save Options cards below to save your design" 
+    });
   };
 
   return (
@@ -143,12 +132,12 @@ export function PublishModule() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Add to...</Label>
+              <Label className="text-sm font-medium">Quick Actions</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleAddToStore}
+                  onClick={() => handleSaveAction("Store")}
                   data-testid="button-add-to-store"
                 >
                   <Store className="h-3.5 w-3.5 mr-1.5" />
@@ -157,7 +146,7 @@ export function PublishModule() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleSaveAsTemplate}
+                  onClick={() => handleSaveAction("Templates")}
                   data-testid="button-save-template"
                 >
                   <Layout className="h-3.5 w-3.5 mr-1.5" />
@@ -166,7 +155,7 @@ export function PublishModule() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleSaveGraphics}
+                  onClick={() => handleSaveAction("Graphics")}
                   data-testid="button-save-graphics"
                 >
                   <Image className="h-3.5 w-3.5 mr-1.5" />
@@ -175,13 +164,16 @@ export function PublishModule() {
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={handleSaveAll}
+                  onClick={() => handleSaveAction("Save All")}
                   data-testid="button-save-all"
                 >
                   <Layers className="h-3.5 w-3.5 mr-1.5" />
                   All
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Use the Save Options section below for full save functionality.
+              </p>
             </div>
 
             <Button

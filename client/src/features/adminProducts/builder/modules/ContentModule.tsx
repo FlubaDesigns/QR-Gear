@@ -136,22 +136,25 @@ export function ContentModule() {
                 </Label>
                 <textarea
                   id="plain-text-content"
+                  name="plain-text-content"
                   inputMode="text"
-                  autoComplete="on"
-                  autoCorrect="on"
+                  enterKeyHint="done"
+                  autoComplete="off"
+                  autoCorrect="off"
                   autoCapitalize="sentences"
-                  spellCheck={true}
-                  placeholder="Tap here, then use your keyboard's microphone to speak"
+                  spellCheck={false}
+                  aria-label="Text to encode in QR code - voice input supported"
+                  placeholder="Tap here to type or use voice input"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
+                  onInput={(e) => setContent({ url: (e.target as HTMLTextAreaElement).value })}
                   maxLength={500}
                   rows={4}
-                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-                  style={{ fontSize: '16px' }}
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                   data-testid="input-plain-text-content"
                 />
                 <p className="text-sm text-muted-foreground">
-                  Tap field above, then tap the microphone icon on your keyboard to speak.
+                  Tap the field, then use your keyboard's microphone button for voice input.
                 </p>
               </div>
             ) : (
