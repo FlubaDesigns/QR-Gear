@@ -208,10 +208,7 @@ export function ProductsModule() {
     unisex: productsWithGender.filter(p => p.gender === "unisex").length,
   }), [productsWithGender]);
 
-  // Early return AFTER all hooks are called - but now show module if we have provider (for category selection)
-  if (state.sourceType !== "custom" || !state.fulfillmentProvider) {
-    return null;
-  }
+  // Always show the Fulfillment Center - no early return needed
 
   const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
     id: String(p.id),
@@ -238,7 +235,7 @@ export function ProductsModule() {
 
   return (
     <CollapsibleModule
-      title="Select Product"
+      title="Fulfillment Center"
       icon={<Package className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen
