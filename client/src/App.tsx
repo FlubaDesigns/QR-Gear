@@ -76,6 +76,7 @@ import AdminTestUpload from "@/pages/admin-test-upload";
 import TestLibrary from "@/pages/test-library";
 import TestProducts from "@/pages/test-products";
 import TestStores from "@/pages/test-stores";
+import TestStoreBuilder from "@/pages/test-store-builder";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -123,6 +124,7 @@ function Router() {
       <Route path="/test-library" component={TestLibrary} />
       <Route path="/test-products" component={TestProducts} />
       <Route path="/test-stores" component={TestStores} />
+      <Route path="/test-store-builder" component={TestStoreBuilder} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />

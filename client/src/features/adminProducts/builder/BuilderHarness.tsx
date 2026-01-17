@@ -3,12 +3,10 @@ import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
-import { StoreModule } from "./modules/StoreModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { useToast } from "@/hooks/use-toast";
 import { useSaveProduct } from "./hooks/useSaveProduct";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import type { PartnerStore } from "@shared/schema";
 
 interface SaveStatus {
   type: "success" | "error" | "saving";
@@ -21,60 +19,7 @@ function BuilderModules() {
   const { toast } = useToast();
   const [saveTarget, setSaveTarget] = useState<SaveTarget>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
-  const { saveToStore, saveAsTemplate, saveGraphics, saveAll, isSaving } = useSaveProduct();
-
-  const showStoreModule = saveTarget === "store" || saveTarget === "all";
-
-  const handleStoreSelect = async (store: PartnerStore, channel: string) => {
-    const builderState = {
-      selectedProduct: state.selectedProduct,
-      qrProductState: state.qrProductState,
-      content: state.content,
-      placements: ["front", "back"],
-      artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
-      qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
-      artworkVariant: "black" as const,
-    };
-
-    setSaveStatus({ type: "saving", message: "Saving...", timestamp: new Date() });
-
-    try {
-      if (saveTarget === "all") {
-        const results = await saveAll.mutateAsync({ store, channel, builderState });
-        const allSuccess = results.every(r => r.success);
-        const message = results.map(r => r.message).join(" | ");
-        toast({
-          title: allSuccess ? "Saved Successfully" : "Partially Saved",
-          description: message,
-          variant: allSuccess ? "default" : "destructive",
-        });
-        setSaveStatus({ 
-          type: allSuccess ? "success" : "error", 
-          message: allSuccess ? `Saved to ${store.name} / ${channel}` : message, 
-          timestamp: new Date() 
-        });
-      } else {
-        const result = await saveToStore.mutateAsync({ store, channel, builderState });
-        toast({
-          title: "Saved to Store",
-          description: result.message,
-        });
-        setSaveStatus({ 
-          type: "success", 
-          message: `Saved to ${store.name} / ${channel}`, 
-          timestamp: new Date() 
-        });
-      }
-    } catch (error: any) {
-      const errorMessage = error.message || "An error occurred while saving";
-      toast({
-        title: "Save Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
-    }
-  };
+  const { saveAsTemplate, saveGraphics, saveAll } = useSaveProduct();
 
   const handleSaveTargetChange = async (target: SaveTarget) => {
     setSaveTarget(target);
@@ -131,6 +76,66 @@ function BuilderModules() {
         });
         setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
       }
+    } else if (target === "store" || target === "all") {
+      const qrState = state.qrProductState as Record<string, any> | null;
+      const productPackage: Record<string, any> = {
+        productName: (state.selectedProduct as any)?.name || (state.selectedProduct as any)?.title || "Untitled Product",
+        compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+        qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+        qrContent: qrState?.url || qrState?.text || "",
+      };
+      
+      if (target === "all") {
+        setSaveStatus({ type: "saving", message: "Saving template and graphics...", timestamp: new Date() });
+        try {
+          const builderState = {
+            selectedProduct: state.selectedProduct,
+            qrProductState: state.qrProductState,
+            content: state.content,
+            placements: ["front", "back"],
+            artworkUrl: productPackage.compositeUrl,
+            qrOnlyUrl: productPackage.qrOnlyUrl,
+            artworkVariant: "black" as const,
+          };
+          
+          const templateResult = await saveAsTemplate.mutateAsync(builderState) as any;
+          const graphicsResult = await saveGraphics.mutateAsync(builderState) as any;
+          
+          productPackage.templateId = templateResult.templateId;
+          productPackage.graphicsId = graphicsResult.qrAssetId;
+          
+          sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
+          
+          toast({
+            title: "Saved! Ready for Store Assignment",
+            description: "Go to Store Builder to assign to a store.",
+          });
+          setSaveStatus({ 
+            type: "success", 
+            message: "Package saved! Go to Store Builder to assign.", 
+            timestamp: new Date() 
+          });
+        } catch (error: any) {
+          const errorMessage = error.message || "Could not save";
+          toast({
+            title: "Save Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
+        }
+      } else {
+        sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
+        toast({
+          title: "Package Ready",
+          description: "Go to Store Builder to assign to a store.",
+        });
+        setSaveStatus({ 
+          type: "success", 
+          message: "Package ready! Go to Store Builder to assign.", 
+          timestamp: new Date() 
+        });
+      }
     }
   };
 
@@ -145,11 +150,6 @@ function BuilderModules() {
       <InlineDebugBoundary label="SaveOptionsModule">
         <SaveOptionsModule onSaveTargetChange={handleSaveTargetChange} />
       </InlineDebugBoundary>
-      {showStoreModule && (
-        <InlineDebugBoundary label="StoreModule">
-          <StoreModule saveTarget={saveTarget} onStoreSelect={handleStoreSelect} isSaving={isSaving} />
-        </InlineDebugBoundary>
-      )}
 
       {saveStatus && (
         <div 
