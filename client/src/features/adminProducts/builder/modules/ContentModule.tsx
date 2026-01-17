@@ -135,10 +135,10 @@ export function ContentModule() {
                 <textarea
                   id="plain-text-content"
                   inputMode="text"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="done"
+                  autoComplete="on"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck={true}
                   placeholder="Tap here, then use your keyboard's microphone to speak"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
