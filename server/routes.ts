@@ -7446,6 +7446,7 @@ ${allPages.map(page => `  <url>
         thumbnailUrl: z.string().url().optional(),
         storeId: z.string().optional(),
         channelId: z.string().optional(),
+        qrContent: z.string().optional(),
       });
 
       const data = fullSaveSchema.parse(req.body);
@@ -7523,7 +7524,7 @@ ${allPages.map(page => `  <url>
   // Test: Save graphics (enlarged QR and composite graphic) - NO AUTH REQUIRED
   app.post("/api/test/graphics/save", async (req: any, res) => {
     try {
-      const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
+      const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent } = req.body;
 
       if (!qrOnlyUrl || !compositeUrl) {
         return res.status(400).json({ error: "Both qrOnlyUrl and compositeUrl are required" });
@@ -7533,10 +7534,12 @@ ${allPages.map(page => `  <url>
       const qrMetadata: Record<string, any> = { isQrOnly: true };
       if (storeId) qrMetadata.storeId = storeId;
       if (channelId) qrMetadata.channelId = channelId;
+      if (qrContent) qrMetadata.qrContent = qrContent;
       
       const compositeMetadata: Record<string, any> = { isComposite: true };
       if (storeId) compositeMetadata.storeId = storeId;
       if (channelId) compositeMetadata.channelId = channelId;
+      if (qrContent) compositeMetadata.qrContent = qrContent;
 
       // Save both graphics as library assets
       const qrAsset = await storage.createLibraryAsset({
@@ -7652,9 +7655,21 @@ ${allPages.map(page => `  <url>
         compositeUrl: z.string().url(),
         storeId: z.string().optional(),
         channelId: z.string().optional(),
+        qrContent: z.string().optional(),
       });
 
       const data = graphicsSaveSchema.parse(req.body);
+
+      // Build metadata with optional fields
+      const qrMetadata: Record<string, any> = { isQrOnly: true };
+      if (data.storeId) qrMetadata.storeId = data.storeId;
+      if (data.channelId) qrMetadata.channelId = data.channelId;
+      if (data.qrContent) qrMetadata.qrContent = data.qrContent;
+      
+      const compositeMetadata: Record<string, any> = { isComposite: true };
+      if (data.storeId) compositeMetadata.storeId = data.storeId;
+      if (data.channelId) compositeMetadata.channelId = data.channelId;
+      if (data.qrContent) compositeMetadata.qrContent = data.qrContent;
 
       // Save both graphics as library assets
       const qrAsset = await storage.createLibraryAsset({
@@ -7667,11 +7682,7 @@ ${allPages.map(page => `  <url>
         thumbnailUrl: data.qrOnlyUrl,
         category: data.category || "qr-graphics",
         isActive: true,
-        metadata: {
-          storeId: data.storeId,
-          channelId: data.channelId,
-          isQrOnly: true,
-        },
+        metadata: qrMetadata,
       });
 
       const compositeAsset = await storage.createLibraryAsset({
@@ -7684,11 +7695,7 @@ ${allPages.map(page => `  <url>
         thumbnailUrl: data.compositeUrl,
         category: data.category || "composite-graphics",
         isActive: true,
-        metadata: {
-          storeId: data.storeId,
-          channelId: data.channelId,
-          isComposite: true,
-        },
+        metadata: compositeMetadata,
       });
 
       console.log(`[Graphics] Saved graphics: QR=${qrAsset.id}, Composite=${compositeAsset.id}`);

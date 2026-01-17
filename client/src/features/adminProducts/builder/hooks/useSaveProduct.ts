@@ -105,6 +105,7 @@ export function useSaveProduct() {
         artworkUrl: artworkUrl || selectedProduct?.imageUrl || "",
         artworkVariant: artworkVariant || "black",
         thumbnailUrl: selectedProduct?.imageUrl || "",
+        qrContent: content.url || "",
       };
 
       const response = await apiRequest("POST", "/api/admin/templates/full-save", templateData);
@@ -143,6 +144,7 @@ export function useSaveProduct() {
         category: qrProductState?.line || "General",
         qrOnlyUrl: qrOnlyUrl,
         compositeUrl: compositeUrl,
+        qrContent: content.url || "",
       };
 
       const response = await apiRequest("POST", "/api/admin/graphics/save", graphicsData);
