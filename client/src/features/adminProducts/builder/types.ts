@@ -109,6 +109,7 @@ export interface ContentData {
   title: string;
   description: string;
   backgroundType: "image" | "video";
+  videoUrl: string;
   overlayPosition: "top" | "bottom" | "center";
   overlayColor: string;
   overlayFontFamily: string;

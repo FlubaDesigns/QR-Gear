@@ -28,6 +28,7 @@ const initialContent: ContentData = {
   title: "",
   description: "",
   backgroundType: "image",
+  videoUrl: "",
   overlayPosition: "top",
   overlayColor: "#FFFFFF",
   overlayFontFamily: "Arial",
