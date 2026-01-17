@@ -13,8 +13,10 @@ export interface LoadedGraphic {
 }
 
 export interface LoadedBackground {
+  id: string;
+  name: string;
   url: string;
-  isClipped: boolean;
+  isClipped?: boolean;
 }
 
 export interface CatalogCategory {

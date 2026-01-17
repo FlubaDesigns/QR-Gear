@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
+import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { useToast } from "@/hooks/use-toast";
@@ -133,6 +134,9 @@ function BuilderModules() {
       </InlineDebugBoundary>
       <InlineDebugBoundary label="ContentModule">
         <ContentModule />
+      </InlineDebugBoundary>
+      <InlineDebugBoundary label="BackgroundPickerModule">
+        <BackgroundPickerModule />
       </InlineDebugBoundary>
       <InlineDebugBoundary label="SaveOptionsModule">
         <SaveOptionsModule onSaveTargetChange={handleSaveTargetChange} />
