@@ -29,11 +29,6 @@ export function BackgroundPickerModule() {
   useEffect(() => {
     setViewerIndex(0);
   }, [activeTab]);
-  
-  // Ensure viewerIndex stays in bounds when source data changes
-  const safeViewerIndex = sourceBackgrounds.length > 0 
-    ? Math.min(viewerIndex, sourceBackgrounds.length - 1) 
-    : 0;
 
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
     queryKey: ["/api/test/background-assets", "cropped"],
@@ -53,6 +48,11 @@ export function BackgroundPickerModule() {
     },
     enabled: activeTab === "background",
   });
+  
+  // Ensure viewerIndex stays in bounds when source data changes
+  const safeViewerIndex = sourceBackgrounds.length > 0 
+    ? Math.min(viewerIndex, sourceBackgrounds.length - 1) 
+    : 0;
 
   const handleSelectCropped = (bg: BackgroundAsset) => {
     setSelectedId(bg.id);
