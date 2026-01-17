@@ -18,10 +18,7 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
   const hasProduct = state.selectedProduct;
   const hasQRState = state.qrProductState;
   const canSave = hasProduct && hasQRState && hasContent;
-
-  if (!canSave) {
-    return null;
-  }
+  const showModule = hasProduct && hasQRState;
 
   const handleSelect = (target: SaveTarget) => {
     setSelectedTarget(target);
@@ -56,6 +53,10 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
     },
   ];
 
+  if (!showModule) {
+    return null;
+  }
+
   return (
     <CollapsibleModule
       title="Save Options"
@@ -64,6 +65,14 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
       defaultOpen
     >
       <div className="space-y-4">
+        {!canSave && (
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-md border border-yellow-200 dark:border-yellow-800">
+            <p className="text-sm text-yellow-700 dark:text-yellow-400">
+              Enter content above to enable save options
+            </p>
+          </div>
+        )}
+
         <p className="text-sm text-muted-foreground">
           Choose where to save your design.
         </p>
@@ -73,18 +82,23 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
             const Icon = option.icon;
             const isSelected = selectedTarget === option.id;
             const isPrimary = "isPrimary" in option && option.isPrimary;
+            const isDisabled = !canSave;
 
             return (
               <Card
                 key={option.id}
-                className={`min-h-[100px] p-4 cursor-pointer hover-elevate transition-all ${
+                className={`min-h-[100px] p-4 transition-all ${
+                  isDisabled 
+                    ? "opacity-50 cursor-not-allowed" 
+                    : "cursor-pointer hover-elevate"
+                } ${
                   isSelected 
                     ? "ring-2 ring-primary bg-primary/10" 
                     : isPrimary 
                       ? "border-primary bg-primary/5" 
                       : ""
                 }`}
-                onClick={() => handleSelect(option.id)}
+                onClick={() => !isDisabled && handleSelect(option.id)}
                 data-testid={`save-option-${option.id}`}
               >
                 <div className="flex flex-col items-center text-center gap-3 min-h-[48px]">
@@ -107,7 +121,7 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
           })}
         </div>
 
-        {selectedTarget && (
+        {selectedTarget && canSave && (
           <div className="p-3 bg-primary/5 rounded-md border">
             <p className="text-sm">
               <span className="font-medium">Selected: </span>

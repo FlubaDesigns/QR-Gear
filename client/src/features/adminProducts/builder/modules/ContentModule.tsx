@@ -158,13 +158,18 @@ export function ContentModule() {
                   <Link2 className="h-3.5 w-3.5" />
                   URL to Encode
                 </Label>
-                <Input
+                <input
                   id="plain-url-content"
                   type="text"
+                  inputMode="url"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="done"
                   placeholder="Tap here, then use keyboard microphone"
                   value={state.content.url}
                   onChange={(e) => setContent({ url: e.target.value })}
-                  className="min-h-[48px] text-base"
+                  className="flex h-12 min-h-[48px] w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ fontSize: '16px' }}
                   data-testid="input-plain-url-content"
                 />

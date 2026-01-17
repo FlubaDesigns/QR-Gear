@@ -52,7 +52,7 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
     // Use maxPrice (highest variant cost) as base, fallback to basePrice, then minPrice
     const baseProductCost = parseFloat(product.maxPrice || product.basePrice || product.minPrice || product.customerPrice || "0");
     
-    const placementCount = state.selectedPlacements.length || 1;
+    const placementCount = (state.selectedPlacements || []).length || 1;
     const additionalPlacements = Math.max(0, placementCount - 1);
     const placementCost = additionalPlacements * settings.additionalPlacementCost;
     
@@ -189,8 +189,8 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
               <span>Extra Placements</span>
             </div>
             <div className="text-right font-medium text-sm">
-              {Math.max(0, state.selectedPlacements.length - 1) > 0 
-                ? `${Math.max(0, state.selectedPlacements.length - 1)} × $${settings?.additionalPlacementCost.toFixed(2)} = +$${pricing.placementCost.toFixed(2)}`
+              {Math.max(0, (state.selectedPlacements || []).length - 1) > 0 
+                ? `${Math.max(0, (state.selectedPlacements || []).length - 1)} × $${settings?.additionalPlacementCost.toFixed(2)} = +$${pricing.placementCost.toFixed(2)}`
                 : "None (+$0.00)"}
             </div>
           </div>
