@@ -2851,26 +2851,79 @@ app.post('/test/products/sync', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// Get stores by role type (test endpoint - no /admin segment for test routes)
+// Get stores by role type (test endpoint - no /admin segment for test routes) - uses Firestore
 app.get('/test/stores', async (req, res) => {
     try {
         const roleType = req.query.roleType;
         console.log(`[TestStores] GET stores for roleType: ${roleType}`);
-        // Mock data for testing - will be replaced with database queries
-        const mockStores = {
-            internal: [
-                { id: "qrgear-main", name: "QR Gear Main", roleType: "internal", isActive: true, channelCount: 3 },
-            ],
-            external: [
-                { id: "kingdom-connects", name: "Kingdom Connects", roleType: "external", isActive: true, channelCount: 2 },
-            ],
-            member: [],
-        };
-        const stores = mockStores[roleType] || [];
+        let query = db.collection('stores');
+        if (roleType) {
+            query = query.where('roleType', '==', roleType);
+        }
+        const snapshot = await query.get();
+        const stores = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+        // Sort by name
+        stores.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        console.log(`[TestStores] Found ${stores.length} stores for roleType: ${roleType || 'all'}`);
         res.json(stores);
     }
     catch (error) {
         console.error('[TestStores] GET error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Create a new store (test endpoint) - uses Firestore
+app.post('/test/stores', async (req, res) => {
+    try {
+        const { name, roleType } = req.body;
+        if (!name || !name.trim()) {
+            res.status(400).json({ error: 'Store name is required' });
+            return;
+        }
+        if (!roleType || !['internal', 'external', 'member'].includes(roleType)) {
+            res.status(400).json({ error: 'Valid roleType is required (internal, external, member)' });
+            return;
+        }
+        const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const storeData = {
+            name: name.trim(),
+            roleType,
+            isActive: true,
+            channelCount: 0,
+            createdAt: new Date().toISOString(),
+        };
+        await db.collection('stores').doc(storeId).set(storeData);
+        console.log(`[TestStores] Created store: ${storeId} (${roleType})`);
+        res.json({ id: storeId, ...storeData });
+    }
+    catch (error) {
+        console.error('[TestStores] POST error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Delete a store (test endpoint) - uses Firestore
+app.delete('/test/stores/:storeId', async (req, res) => {
+    try {
+        const { storeId } = req.params;
+        // First delete all channels for this store
+        const channelsSnapshot = await db.collection('storeChannels')
+            .where('storeId', '==', storeId)
+            .get();
+        const batch = db.batch();
+        channelsSnapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        // Delete the store
+        batch.delete(db.collection('stores').doc(storeId));
+        await batch.commit();
+        console.log(`[TestStores] Deleted store: ${storeId} (and ${channelsSnapshot.size} channels)`);
+        res.json({ success: true, deletedChannels: channelsSnapshot.size });
+    }
+    catch (error) {
+        console.error('[TestStores] DELETE error:', error);
         res.status(500).json({ error: error.message });
     }
 });

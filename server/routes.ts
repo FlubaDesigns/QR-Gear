@@ -1569,27 +1569,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get stores by role type (test endpoint)
+  // Get stores by role type (test endpoint) - uses Firestore
   app.get("/api/test/stores", async (req: any, res) => {
     try {
       const roleType = req.query.roleType as string;
       console.log(`[TestStores] GET stores for roleType: ${roleType}`);
       
-      // Mock data for testing - will be replaced with database queries
-      const mockStores: Record<string, Array<{ id: string; name: string; roleType: string; isActive: boolean; channelCount: number }>> = {
-        internal: [
-          { id: "qrgear-main", name: "QR Gear Main", roleType: "internal", isActive: true, channelCount: 3 },
-        ],
-        external: [
-          { id: "kingdom-connects", name: "Kingdom Connects", roleType: "external", isActive: true, channelCount: 2 },
-        ],
-        member: [],
-      };
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
       
-      const stores = mockStores[roleType] || [];
+      let query = db.collection('stores');
+      if (roleType) {
+        query = query.where('roleType', '==', roleType) as any;
+      }
+      
+      const snapshot = await query.get();
+      const stores = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      
+      // Sort by name
+      stores.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+      
+      console.log(`[TestStores] Found ${stores.length} stores for roleType: ${roleType || 'all'}`);
       res.json(stores);
     } catch (error: any) {
       console.error('[TestStores] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new store (test endpoint) - uses Firestore
+  app.post("/api/test/stores", async (req: any, res) => {
+    try {
+      const { name, roleType } = req.body;
+      
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Store name is required' });
+      }
+      if (!roleType || !['internal', 'external', 'member'].includes(roleType)) {
+        return res.status(400).json({ error: 'Valid roleType is required (internal, external, member)' });
+      }
+      
+      const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const storeData = {
+        name: name.trim(),
+        roleType,
+        isActive: true,
+        channelCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      await db.collection('stores').doc(storeId).set(storeData);
+      
+      console.log(`[TestStores] Created store: ${storeId} (${roleType})`);
+      res.json({ id: storeId, ...storeData });
+    } catch (error: any) {
+      console.error('[TestStores] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a store (test endpoint) - uses Firestore
+  app.delete("/api/test/stores/:storeId", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      
+      // First delete all channels for this store
+      const channelsSnapshot = await db.collection('storeChannels')
+        .where('storeId', '==', storeId)
+        .get();
+      
+      const batch = db.batch();
+      channelsSnapshot.docs.forEach((doc: any) => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete the store
+      batch.delete(db.collection('stores').doc(storeId));
+      await batch.commit();
+      
+      console.log(`[TestStores] Deleted store: ${storeId} (and ${channelsSnapshot.size} channels)`);
+      res.json({ success: true, deletedChannels: channelsSnapshot.size });
+    } catch (error: any) {
+      console.error('[TestStores] DELETE error:', error);
       res.status(500).json({ error: error.message });
     }
   });
