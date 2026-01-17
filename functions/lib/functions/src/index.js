@@ -2879,15 +2879,20 @@ app.get('/test/stores/:storeId/channels', async (req, res) => {
     try {
         const { storeId } = req.params;
         console.log(`[TestChannels] GET channels for store: ${storeId}`);
-        // Fetch channels from Firestore
+        // Fetch channels from Firestore (no orderBy to avoid needing composite index)
         const snapshot = await db.collection('storeChannels')
             .where('storeId', '==', storeId)
-            .orderBy('createdAt', 'desc')
             .get();
         const channels = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
         }));
+        // Sort by createdAt in memory
+        channels.sort((a, b) => {
+            const dateA = a.createdAt || '';
+            const dateB = b.createdAt || '';
+            return dateB.localeCompare(dateA);
+        });
         console.log(`[TestChannels] Found ${channels.length} channels for ${storeId}`);
         res.json(channels);
     }

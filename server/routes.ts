@@ -1602,15 +1602,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const db = getFirestoreDb();
+      // No orderBy to avoid needing composite index
       const snapshot = await db.collection('storeChannels')
         .where('storeId', '==', storeId)
-        .orderBy('createdAt', 'desc')
         .get();
       
       const channels = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
       }));
+      
+      // Sort by createdAt in memory
+      channels.sort((a: any, b: any) => {
+        const dateA = a.createdAt || '';
+        const dateB = b.createdAt || '';
+        return dateB.localeCompare(dateA);
+      });
       
       console.log(`[TestChannels] Found ${channels.length} channels for ${storeId}`);
       res.json(channels);
