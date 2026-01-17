@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Store, Building2, Globe, ChevronRight, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { useProductsContext } from "../../ProductsContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,13 +21,35 @@ type StoreType = "internal" | "external" | null;
 
 export function StoreModule({ saveTarget, onStoreSelect, isSaving }: StoreModuleProps) {
   const { apiBase } = useAdminAuth();
+  const { selectedStore: contextStore, selectedChannel: contextChannel, selectedRole } = useProductsContext();
+  
   const [selectedType, setSelectedType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
     queryKey: [`${apiBase}/partner-stores`],
   });
+
+  useEffect(() => {
+    if (!initialized && stores.length > 0) {
+      if (contextStore && contextChannel) {
+        const matchingStore = stores.find(s => s.name === contextStore.name);
+        if (matchingStore) {
+          setSelectedType(matchingStore.isInternal ? "internal" : "external");
+          setSelectedStoreId(matchingStore.id);
+          if (matchingStore.availableSegments?.includes(contextChannel.name)) {
+            setSelectedChannel(contextChannel.name);
+          }
+          setInitialized(true);
+        }
+      } else if (selectedRole && selectedRole !== "member") {
+        setSelectedType(selectedRole as StoreType);
+        setInitialized(true);
+      }
+    }
+  }, [contextStore, contextChannel, selectedRole, stores, initialized]);
 
   const filteredStores = stores.filter((store) => {
     if (selectedType === "internal") return store.isInternal === true;
