@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { FulfillmentModule } from "./modules/FulfillmentModule";
-import { CategoryModule } from "./modules/CategoryModule";
 import { ProductsModule } from "./modules/ProductsModule";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
@@ -114,9 +113,6 @@ function BuilderModules() {
     <div className="space-y-4">
       <InlineDebugBoundary label="FulfillmentModule">
         <FulfillmentModule />
-      </InlineDebugBoundary>
-      <InlineDebugBoundary label="CategoryModule">
-        <CategoryModule />
       </InlineDebugBoundary>
       <InlineDebugBoundary label="ProductsModule">
         <ProductsModule />

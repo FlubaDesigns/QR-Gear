@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Package } from "lucide-react";
+import { Package, Layers } from "lucide-react";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductViewerControls } from "../components/ProductViewerControls";
 import { ProductDetailModal } from "../components/ProductDetailModal";
-import type { CatalogProduct, GenderFilter } from "../types";
+import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
 function detectGender(title: string): "mens" | "womens" | "unisex" {
@@ -55,9 +56,76 @@ interface CatalogCategoryResponse {
   count: number;
 }
 
+interface CatalogCategoryListResponse {
+  name: string;
+  items: { id: number }[];
+}
+
 export function ProductsModule() {
-  const { state, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const [previewProduct, setPreviewProduct] = useState<CatalogProduct | null>(null);
+
+  // Fetch categories for the dropdown
+  const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
+    queryKey: ["catalog-categories", state.fulfillmentProvider],
+    queryFn: async () => {
+      if (!state.fulfillmentProvider) return [];
+      
+      const headers = await api.getAuthHeaders();
+      const isTestEndpoint = api.baseUrl.includes("/test");
+      const adminSegment = isTestEndpoint ? "" : "/admin";
+      let endpoint = "";
+      
+      if (state.fulfillmentProvider === "printify") {
+        endpoint = `${api.baseUrl}/printify/catalog`;
+      } else if (state.fulfillmentProvider === "printful") {
+        endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
+      }
+      
+      if (!endpoint) return [];
+      
+      const res = await fetch(endpoint, { headers });
+      if (!res.ok) return [];
+      
+      const data = await res.json();
+      
+      if (state.fulfillmentProvider === "printify") {
+        return (data as CatalogCategoryListResponse[]).map((cat) => ({
+          name: cat.name,
+          itemCount: cat.items?.length || 0,
+        }));
+      } else if (state.fulfillmentProvider === "printful") {
+        const grouped: Record<string, number> = {};
+        for (const product of data) {
+          const category = product.type || "Other";
+          grouped[category] = (grouped[category] || 0) + 1;
+        }
+        return Object.entries(grouped).map(([name, count]) => ({
+          name,
+          itemCount: count,
+        }));
+      }
+      
+      return [];
+    },
+    enabled: !!state.fulfillmentProvider,
+  });
+
+  const sortedCategories = useMemo(() => {
+    return [...categories]
+      .filter(c => c.itemCount > 0 && c.name && c.name.trim() !== "")
+      .sort((a, b) => {
+        if (a.name === "T-Shirts") return -1;
+        if (b.name === "T-Shirts") return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [categories]);
+
+  const categoryOptions = sortedCategories.map(cat => ({
+    value: cat.name,
+    label: `${cat.name} (${cat.itemCount})`,
+    icon: <Layers className="h-4 w-4 flex-shrink-0" />,
+  }));
 
   const { data: categoryData, isLoading, error } = useQuery<CatalogCategoryResponse | null>({
     queryKey: ["catalog-products", state.fulfillmentProvider, state.category],
@@ -140,8 +208,8 @@ export function ProductsModule() {
     unisex: productsWithGender.filter(p => p.gender === "unisex").length,
   }), [productsWithGender]);
 
-  // Early return AFTER all hooks are called
-  if (state.sourceType !== "custom" || !state.fulfillmentProvider || !state.category) {
+  // Early return AFTER all hooks are called - but now show module if we have provider (for category selection)
+  if (state.sourceType !== "custom" || !state.fulfillmentProvider) {
     return null;
   }
 
@@ -176,68 +244,91 @@ export function ProductsModule() {
       defaultOpen
     >
       <div className="space-y-4">
-        <ProductViewerControls
-          showUSA={state.originFilter.showUSA}
-          showOther={state.originFilter.showOther}
-          usaCount={usaCount}
-          otherCount={otherCount}
-          genderFilter={state.genderFilter}
-          genderCounts={genderCounts}
-          onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
-          onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
-          onGenderFilterChange={setGenderFilter}
-        />
+        {/* Category selector at the top */}
+        <div data-testid="module-category">
+          <label className="text-xs text-muted-foreground mb-2 block flex items-center gap-1">
+            <Layers className="h-3 w-3" />
+            Product Category
+          </label>
+          <CustomDropdown
+            value={state.category || ""}
+            onChange={(value) => setCategory(value)}
+            options={categoryOptions}
+            placeholder="Select a category..."
+            loading={loadingCategories}
+            data-testid="select-category"
+          />
+        </div>
 
-        {error ? (
-          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
-            <p className="text-sm text-destructive">
-              {error instanceof Error ? error.message : "Failed to load products"}
-            </p>
-            <p className="text-xs text-muted-foreground break-all">
-              Debug: endpoint =
-              {" "}
-              {(() => {
-                const isTestEndpoint = api.baseUrl.includes("/test");
-                const adminSegment = isTestEndpoint ? "" : "/admin";
-                if (state.fulfillmentProvider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
-                if (state.fulfillmentProvider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
-                return "NO_PROVIDER";
-              })()}
-            </p>
-          </div>
-        ) : isLoading ? (
-          <div className="flex gap-3 overflow-hidden">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
-            ))}
-          </div>
-        ) : (
-          <SharedViewer
-            mode="scroll"
-            scrollProps={{
-              items: scrollItems,
-              selectedId: state.selectedProduct ? String(state.selectedProduct.id) : undefined,
-              onSelect: handleItemTap,
-              aspectRatio: "square",
-              emptyMessage: "No products match the current filters.",
-              layout: "vertical",
-              gridHeight: "min(70vh, 600px)",
-            }}
+        {/* Only show filters and products if category is selected */}
+        {state.category && (
+          <ProductViewerControls
+            showUSA={state.originFilter.showUSA}
+            showOther={state.originFilter.showOther}
+            usaCount={usaCount}
+            otherCount={otherCount}
+            genderFilter={state.genderFilter}
+            genderCounts={genderCounts}
+            onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
+            onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
+            onGenderFilterChange={setGenderFilter}
           />
         )}
 
-        {state.selectedProduct && (
-          <div className="p-3 bg-primary/5 rounded-md border space-y-3">
-            <div>
-              <p className="text-sm font-medium">Selected: {state.selectedProduct.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {state.selectedProduct.brand} - {state.selectedProduct.model}
-              </p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Now choose your QR product type below ↓
-            </p>
-          </div>
+        {state.category && (
+          <>
+            {error ? (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
+                <p className="text-sm text-destructive">
+                  {error instanceof Error ? error.message : "Failed to load products"}
+                </p>
+                <p className="text-xs text-muted-foreground break-all">
+                  Debug: endpoint =
+                  {" "}
+                  {(() => {
+                    const isTestEndpoint = api.baseUrl.includes("/test");
+                    const adminSegment = isTestEndpoint ? "" : "/admin";
+                    if (state.fulfillmentProvider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
+                    if (state.fulfillmentProvider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
+                    return "NO_PROVIDER";
+                  })()}
+                </p>
+              </div>
+            ) : isLoading ? (
+              <div className="flex gap-3 overflow-hidden">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <SharedViewer
+                mode="scroll"
+                scrollProps={{
+                  items: scrollItems,
+                  selectedId: state.selectedProduct ? String(state.selectedProduct.id) : undefined,
+                  onSelect: handleItemTap,
+                  aspectRatio: "square",
+                  emptyMessage: "No products match the current filters.",
+                  layout: "vertical",
+                  gridHeight: "min(70vh, 600px)",
+                }}
+              />
+            )}
+
+            {state.selectedProduct && (
+              <div className="p-3 bg-primary/5 rounded-md border space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Selected: {state.selectedProduct.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {state.selectedProduct.brand} - {state.selectedProduct.model}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Now choose your QR product type below
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
