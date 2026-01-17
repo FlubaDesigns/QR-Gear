@@ -77,7 +77,7 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
             return (
               <Card
                 key={option.id}
-                className={`p-4 cursor-pointer hover-elevate transition-all ${
+                className={`min-h-[100px] p-4 cursor-pointer hover-elevate transition-all ${
                   isSelected 
                     ? "ring-2 ring-primary bg-primary/10" 
                     : isPrimary 
@@ -87,8 +87,8 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
                 onClick={() => handleSelect(option.id)}
                 data-testid={`save-option-${option.id}`}
               >
-                <div className="flex flex-col items-center text-center gap-3">
-                  <div className={`p-3 rounded-lg ${
+                <div className="flex flex-col items-center text-center gap-3 min-h-[48px]">
+                  <div className={`p-3 rounded-lg min-w-[48px] min-h-[48px] flex items-center justify-center ${
                     isSelected 
                       ? "bg-primary text-primary-foreground" 
                       : isPrimary 

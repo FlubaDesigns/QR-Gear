@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
@@ -7,11 +7,13 @@ import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
 import { PreviewModule } from "./modules/PreviewModule";
+import { PricingModule } from "./modules/PricingModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { useToast } from "@/hooks/use-toast";
 import { useSaveProduct } from "./hooks/useSaveProduct";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import type { PricingBreakdown } from "./types";
 
 interface SaveStatus {
   type: "success" | "error" | "saving";
@@ -24,7 +26,12 @@ function BuilderModules() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
+  const [currentPricing, setCurrentPricing] = useState<PricingBreakdown | null>(null);
   const { saveAsTemplate, saveGraphics } = useSaveProduct();
+
+  const handlePricingCalculated = useCallback((pricing: PricingBreakdown | null) => {
+    setCurrentPricing(pricing);
+  }, []);
 
   const storePackageAndNavigate = () => {
     const productPackage = {
@@ -32,6 +39,7 @@ function BuilderModules() {
       qrContent: state.content.url || state.content.title || "",
       compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
       qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+      pricing: currentPricing,
     };
     sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
     navigate("/test-store-builder");
@@ -52,6 +60,7 @@ function BuilderModules() {
         artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
         qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
         artworkVariant: "black" as const,
+        pricing: currentPricing,
       };
       setSaveStatus({ type: "saving", message: "Saving template...", timestamp: new Date() });
       try {
@@ -77,6 +86,7 @@ function BuilderModules() {
         content: state.content,
         artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
         qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+        pricing: currentPricing,
       };
       setSaveStatus({ type: "saving", message: "Saving graphics...", timestamp: new Date() });
       try {
@@ -104,6 +114,7 @@ function BuilderModules() {
         artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
         qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
         artworkVariant: "black" as const,
+        pricing: currentPricing,
       };
       setSaveStatus({ type: "saving", message: "Saving all...", timestamp: new Date() });
       try {
@@ -119,6 +130,7 @@ function BuilderModules() {
           qrContent: state.content.url || state.content.title || "",
           compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
           qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+          pricing: currentPricing,
         };
         sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
         
@@ -160,6 +172,9 @@ function BuilderModules() {
       </InlineDebugBoundary>
       <InlineDebugBoundary label="PreviewModule">
         <PreviewModule />
+      </InlineDebugBoundary>
+      <InlineDebugBoundary label="PricingModule">
+        <PricingModule onPricingCalculated={handlePricingCalculated} />
       </InlineDebugBoundary>
       <InlineDebugBoundary label="SaveOptionsModule">
         <SaveOptionsModule onSaveTargetChange={handleSaveTargetChange} />

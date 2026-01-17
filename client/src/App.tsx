@@ -78,6 +78,7 @@ import TestProducts from "@/pages/test-products";
 import TestStores from "@/pages/test-stores";
 import TestStoreBuilder from "@/pages/test-store-builder";
 import TestDynamics from "@/pages/test-dynamics";
+import TestPricing from "@/pages/test-pricing";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -126,6 +127,7 @@ function Router() {
       <Route path="/test-products" component={TestProducts} />
       <Route path="/test-stores" component={TestStores} />
       <Route path="/test-dynamics" component={TestDynamics} />
+      <Route path="/test-pricing" component={TestPricing} />
       <Route path="/test-store-builder" component={TestStoreBuilder} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />

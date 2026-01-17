@@ -42,7 +42,14 @@ After every code fix, the agent MUST:
 The storefront displays lifestyle mockups over flat product shots for a more engaging user experience. Product pricing shown to customers is the admin-configured retail price (`customer_price`).
 
 ### Technical Implementations
-- **Pricing System**: Prices are set by the admin and stored in `products.customer_price`. This value is the single source of truth for retail pricing.
+- **Pricing System**: Prices are set by the admin and stored in `products.customer_price`. The admin can configure pricing via `/test-pricing`:
+  - Markup percentage and fixed markup
+  - Additional placement costs (per extra placement beyond first)
+  - Text line upcharges (per header/footer line)
+  - Hosting tiers (1/2/3 year) for Canvas/Play/Dynamics modes
+  - Pricing formula: `CustomerPrice = (Base + Placements + Text + Hosting) × (1 + markup%) + fixedMarkup`
+  - PricingModule displays live pricing breakdown in product builder
+  - Pricing data is passed to save flows and stored in template/graphics metadata
 - **Mockup System**: Utilizes Printful for generating high-quality mockups, including lifestyle images, for all product colors and three QR code sizes. Mockups are generated via a background job queue and stored in object storage.
 - **QR Artwork Selection**: Automatic selection of QR code color (black or white) based on background product color luminance to ensure scannability.
 - **Printify Local Catalog**: Product colors and sizes are synced weekly from Printify into `printify_print_providers` table, serving as a local source of truth.

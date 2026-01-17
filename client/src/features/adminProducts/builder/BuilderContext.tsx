@@ -54,6 +54,7 @@ const initialContent: ContentData = {
     strokeColor: "",
     strokeWidth: 0,
   },
+  hostingTierCode: "1_year",
 };
 
 const initialState: BuilderState = {

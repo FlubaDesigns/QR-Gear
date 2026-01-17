@@ -115,6 +115,18 @@ export interface ContentData {
   overlayFontFamily: string;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
+  hostingTierCode: string;
+}
+
+export interface PricingBreakdown {
+  baseProductCost: number;
+  placementCost: number;
+  textUpcharge: number;
+  hostingCost: number;
+  subtotal: number;
+  markupAmount: number;
+  customerPrice: number;
+  hostingTierCode: string;
 }
 
 export type PlacementId = "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder";

@@ -7428,6 +7428,17 @@ ${allPages.map(page => `  <url>
   // This is for admin-only batch generation of all color/placement/size combinations
   app.post("/api/admin/templates/full-save", isAdmin, async (req, res) => {
     try {
+      const templatePricingSchema = z.object({
+        baseProductCost: z.number(),
+        placementCost: z.number(),
+        textUpcharge: z.number(),
+        hostingCost: z.number(),
+        subtotal: z.number(),
+        markupAmount: z.number(),
+        customerPrice: z.number(),
+        hostingTierCode: z.string(),
+      }).nullable().optional();
+
       const fullSaveSchema = z.object({
         name: z.string().min(1),
         description: z.string().nullable().optional(),
@@ -7447,11 +7458,13 @@ ${allPages.map(page => `  <url>
         storeId: z.string().optional(),
         channelId: z.string().optional(),
         qrContent: z.string().optional(),
+        pricing: templatePricingSchema,
       });
 
       const data = fullSaveSchema.parse(req.body);
 
-      // 1. Create the template record
+      // 1. Create the template record with pricing in priceUpcharge
+      const customerPrice = data.pricing?.customerPrice?.toFixed(2) || "0";
       const template = await storage.createQrTemplate({
         name: data.name,
         description: data.description || null,
@@ -7459,7 +7472,11 @@ ${allPages.map(page => `  <url>
         thumbnailUrl: data.thumbnailUrl || data.artworkUrl,
         fullImageUrl: data.artworkUrl,
         storageUrl: data.artworkUrl,
-        priceUpcharge: "0",
+        priceUpcharge: customerPrice,
+        textStyle: data.pricing ? {
+          pricing: data.pricing,
+          hostingTierCode: data.pricing.hostingTierCode,
+        } : null,
         isActive: true,
         isFeatured: false,
       });
@@ -7692,9 +7709,87 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Get pricing settings - NO AUTH REQUIRED
+  app.get("/api/test/pricing-settings", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const doc = await firestoreDb.collection("testSettings").doc("pricing").get();
+      
+      if (!doc.exists) {
+        // Return defaults
+        return res.json({
+          markupPercent: 25,
+          markupFixed: 0,
+          additionalPlacementCost: 4,
+          textLineUpcharge: 2,
+          hostingTiers: [
+            { code: "1_year", name: "1 Year", price: 5 },
+            { code: "2_year", name: "2 Years", price: 8 },
+            { code: "3_year", name: "3 Years", price: 10 },
+          ],
+        });
+      }
+      
+      res.json(doc.data());
+    } catch (error: any) {
+      console.error("[Pricing Settings TEST] Error getting settings:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Save pricing settings - NO AUTH REQUIRED
+  app.post("/api/test/pricing-settings", async (req: any, res) => {
+    try {
+      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, hostingTiers } = req.body;
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const admin = (await import("./lib/firebase-admin")).getFirebaseAdmin();
+      
+      const settings = {
+        markupPercent: parseFloat(markupPercent) || 25,
+        markupFixed: parseFloat(markupFixed) || 0,
+        additionalPlacementCost: parseFloat(additionalPlacementCost) || 4,
+        textLineUpcharge: parseFloat(textLineUpcharge) || 2,
+        hostingTiers: hostingTiers || [
+          { code: "1_year", name: "1 Year", price: 5 },
+          { code: "2_year", name: "2 Years", price: 8 },
+          { code: "3_year", name: "3 Years", price: 10 },
+        ],
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      
+      await firestoreDb.collection("testSettings").doc("pricing").set(settings, { merge: true });
+      
+      console.log("[Pricing Settings TEST] Saved settings:", settings);
+      
+      res.json({
+        success: true,
+        settings,
+        message: "Pricing settings saved",
+      });
+    } catch (error: any) {
+      console.error("[Pricing Settings TEST] Error saving settings:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Save graphics (enlarged QR and composite graphic)
   app.post("/api/admin/graphics/save", isAdmin, async (req, res) => {
     try {
+      const pricingSchema = z.object({
+        baseProductCost: z.number(),
+        placementCost: z.number(),
+        textUpcharge: z.number(),
+        hostingCost: z.number(),
+        subtotal: z.number(),
+        markupAmount: z.number(),
+        customerPrice: z.number(),
+        hostingTierCode: z.string(),
+      }).nullable().optional();
+
       const graphicsSaveSchema = z.object({
         name: z.string().min(1),
         description: z.string().nullable().optional(),
@@ -7704,6 +7799,7 @@ ${allPages.map(page => `  <url>
         storeId: z.string().optional(),
         channelId: z.string().optional(),
         qrContent: z.string().optional(),
+        pricing: pricingSchema,
       });
 
       const data = graphicsSaveSchema.parse(req.body);
@@ -7713,11 +7809,13 @@ ${allPages.map(page => `  <url>
       if (data.storeId) qrMetadata.storeId = data.storeId;
       if (data.channelId) qrMetadata.channelId = data.channelId;
       if (data.qrContent) qrMetadata.qrContent = data.qrContent;
+      if (data.pricing) qrMetadata.pricing = data.pricing;
       
       const compositeMetadata: Record<string, any> = { isComposite: true };
       if (data.storeId) compositeMetadata.storeId = data.storeId;
       if (data.channelId) compositeMetadata.channelId = data.channelId;
       if (data.qrContent) compositeMetadata.qrContent = data.qrContent;
+      if (data.pricing) compositeMetadata.pricing = data.pricing;
 
       // Save both graphics as library assets
       const qrAsset = await storage.createLibraryAsset({

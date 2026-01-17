@@ -1035,6 +1035,58 @@ app.get('/settings', async (_req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+app.get('/test/pricing-settings', async (_req, res) => {
+    try {
+        const doc = await db.collection('testSettings').doc('pricing').get();
+        if (!doc.exists) {
+            res.json({
+                markupPercent: 25,
+                markupFixed: 0,
+                additionalPlacementCost: 4,
+                textLineUpcharge: 2,
+                hostingTiers: [
+                    { code: "1_year", name: "1 Year", price: 5 },
+                    { code: "2_year", name: "2 Years", price: 8 },
+                    { code: "3_year", name: "3 Years", price: 10 },
+                ],
+            });
+            return;
+        }
+        res.json(doc.data());
+    }
+    catch (error) {
+        console.error("[Pricing Settings] Error getting settings:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/test/pricing-settings', async (req, res) => {
+    try {
+        const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, hostingTiers } = req.body;
+        const settings = {
+            markupPercent: parseFloat(markupPercent) || 25,
+            markupFixed: parseFloat(markupFixed) || 0,
+            additionalPlacementCost: parseFloat(additionalPlacementCost) || 4,
+            textLineUpcharge: parseFloat(textLineUpcharge) || 2,
+            hostingTiers: hostingTiers || [
+                { code: "1_year", name: "1 Year", price: 5 },
+                { code: "2_year", name: "2 Years", price: 8 },
+                { code: "3_year", name: "3 Years", price: 10 },
+            ],
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        await db.collection('testSettings').doc('pricing').set(settings, { merge: true });
+        console.log("[Pricing Settings] Saved settings:", settings);
+        res.json({
+            success: true,
+            settings,
+            message: "Pricing settings saved",
+        });
+    }
+    catch (error) {
+        console.error("[Pricing Settings] Error saving settings:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/stripe/publishable-key', async (_req, res) => {
     const key = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
     if (!key) {

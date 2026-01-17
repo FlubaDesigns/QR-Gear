@@ -2,6 +2,17 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { PartnerStore } from "@shared/schema";
 
+interface PricingData {
+  baseProductCost: number;
+  placementCost: number;
+  textUpcharge: number;
+  hostingCost: number;
+  subtotal: number;
+  markupAmount: number;
+  customerPrice: number;
+  hostingTierCode: string;
+}
+
 interface BuilderState {
   selectedProduct: any;
   qrProductState: any;
@@ -15,6 +26,7 @@ interface BuilderState {
   artworkUrl?: string;
   qrOnlyUrl?: string;
   artworkVariant?: "black" | "white";
+  pricing?: PricingData | null;
 }
 
 interface SaveToStoreParams {
@@ -94,6 +106,7 @@ export function useSaveProduct() {
       }
 
       // Use full-save endpoint for batch mockup generation
+      const pricing = (builderState as any).pricing;
       const templateData = {
         name: content.title || `Template - ${new Date().toLocaleDateString()}`,
         description: content.description || "",
@@ -108,6 +121,7 @@ export function useSaveProduct() {
         artworkVariant: artworkVariant || "black",
         thumbnailUrl: selectedProduct?.imageUrl || "",
         qrContent: content.url || "",
+        pricing: pricing || null,
       };
 
       const response = await apiRequest("POST", "/api/admin/templates/full-save", templateData);
@@ -140,6 +154,7 @@ export function useSaveProduct() {
         throw new Error("No graphic to save");
       }
 
+      const graphicsPricing = (builderState as any).pricing;
       const graphicsData = {
         name: content.title || `Graphic - ${new Date().toLocaleDateString()}`,
         description: content.description || "",
@@ -147,6 +162,7 @@ export function useSaveProduct() {
         qrOnlyUrl: qrOnlyUrl,
         compositeUrl: compositeUrl,
         qrContent: content.url || "",
+        pricing: graphicsPricing || null,
       };
 
       const response = await apiRequest("POST", "/api/admin/graphics/save", graphicsData);
