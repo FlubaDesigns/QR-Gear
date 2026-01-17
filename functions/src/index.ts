@@ -4870,6 +4870,75 @@ app.delete('/admin/library/:id', requireAdmin, async (req: Request, res: Respons
   }
 });
 
+// PUBLIC TEST: Save graphics (QR-only and composite) to library - NO AUTH REQUIRED
+app.post('/test/graphics/save', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
+
+    if (!qrOnlyUrl || !compositeUrl) {
+      res.status(400).json({ error: 'Both qrOnlyUrl and compositeUrl are required' });
+      return;
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    
+    // Build metadata object without undefined values
+    const qrMetadata: Record<string, any> = { isQrOnly: true };
+    if (storeId) qrMetadata.storeId = storeId;
+    if (channelId) qrMetadata.channelId = channelId;
+    
+    const compositeMetadata: Record<string, any> = { isComposite: true };
+    if (storeId) compositeMetadata.storeId = storeId;
+    if (channelId) compositeMetadata.channelId = channelId;
+
+    // Create QR-only asset
+    const qrAssetData = {
+      name: `${name || 'Untitled'} - QR Only`,
+      assetType: 'graphic',
+      mediaType: 'image',
+      ownerType: 'admin',
+      publicUrl: qrOnlyUrl,
+      storageUrl: qrOnlyUrl,
+      thumbnailUrl: qrOnlyUrl,
+      category: category || 'qr-graphics',
+      isActive: true,
+      metadata: qrMetadata,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const qrDocRef = await db.collection('libraryAssets').add(qrAssetData);
+
+    // Create composite asset
+    const compositeAssetData = {
+      name: `${name || 'Untitled'} - Composite`,
+      assetType: 'graphic',
+      mediaType: 'image',
+      ownerType: 'admin',
+      publicUrl: compositeUrl,
+      storageUrl: compositeUrl,
+      thumbnailUrl: compositeUrl,
+      category: category || 'composite-graphics',
+      isActive: true,
+      metadata: compositeMetadata,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const compositeDocRef = await db.collection('libraryAssets').add(compositeAssetData);
+
+    console.log(`[Graphics TEST] Saved graphics: QR=${qrDocRef.id}, Composite=${compositeDocRef.id}`);
+
+    res.json({
+      success: true,
+      qrAssetId: qrDocRef.id,
+      compositeAssetId: compositeDocRef.id,
+      message: 'Graphics saved to library (test endpoint)',
+    });
+  } catch (error: any) {
+    console.error('[Graphics TEST] Error saving graphics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin: Save graphics (QR-only and composite) to library
 app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -4881,10 +4950,19 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
     }
 
     const now = admin.firestore.FieldValue.serverTimestamp();
+    
+    // Build metadata object without undefined values
+    const qrMetadata: Record<string, any> = { isQrOnly: true };
+    if (storeId) qrMetadata.storeId = storeId;
+    if (channelId) qrMetadata.channelId = channelId;
+    
+    const compositeMetadata: Record<string, any> = { isComposite: true };
+    if (storeId) compositeMetadata.storeId = storeId;
+    if (channelId) compositeMetadata.channelId = channelId;
 
     // Create QR-only asset
     const qrAssetData = {
-      name: `${name} - QR Only`,
+      name: `${name || 'Untitled'} - QR Only`,
       assetType: 'graphic',
       mediaType: 'image',
       ownerType: 'admin',
@@ -4893,7 +4971,7 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
       thumbnailUrl: qrOnlyUrl,
       category: category || 'qr-graphics',
       isActive: true,
-      metadata: { storeId, channelId, isQrOnly: true },
+      metadata: qrMetadata,
       createdAt: now,
       updatedAt: now,
     };
@@ -4901,7 +4979,7 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
 
     // Create composite asset
     const compositeAssetData = {
-      name: `${name} - Composite`,
+      name: `${name || 'Untitled'} - Composite`,
       assetType: 'graphic',
       mediaType: 'image',
       ownerType: 'admin',
@@ -4910,7 +4988,7 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
       thumbnailUrl: compositeUrl,
       category: category || 'composite-graphics',
       isActive: true,
-      metadata: { storeId, channelId, isComposite: true },
+      metadata: compositeMetadata,
       createdAt: now,
       updatedAt: now,
     };
