@@ -31,6 +31,28 @@ const initialContent: ContentData = {
   overlayPosition: "top",
   overlayColor: "#FFFFFF",
   overlayFontFamily: "Arial",
+  headerStyle: {
+    text: "",
+    enabled: false,
+    fontFamily: "Arial",
+    fontSize: "144",
+    color: "#FFFFFF",
+    warpPreset: "straight",
+    letterSpacing: 0,
+    strokeColor: "",
+    strokeWidth: 0,
+  },
+  footerStyle: {
+    text: "",
+    enabled: false,
+    fontFamily: "Arial",
+    fontSize: "144",
+    color: "#FFFFFF",
+    warpPreset: "straight",
+    letterSpacing: 0,
+    strokeColor: "",
+    strokeWidth: 0,
+  },
 };
 
 const initialState: BuilderState = {

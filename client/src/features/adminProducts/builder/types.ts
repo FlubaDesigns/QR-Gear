@@ -59,6 +59,51 @@ export const QR_PRODUCT_STATES = [
   { id: "qr_dynamics", label: "QR Dynamics™", state: "Living Space", description: "Content that changes over time. Scheduled updates, rotating content." },
 ] as const;
 
+export interface TextStyleConfig {
+  text: string;
+  enabled: boolean;
+  fontFamily: string;
+  fontSize: string;
+  color: string;
+  warpPreset: string;
+  letterSpacing: number;
+  strokeColor: string;
+  strokeWidth: number;
+}
+
+export const FONT_FAMILIES = [
+  "Arial",
+  "Helvetica", 
+  "Times New Roman",
+  "Georgia",
+  "Verdana",
+  "Courier New",
+  "Impact",
+  "Comic Sans MS",
+  "Trebuchet MS",
+  "Palatino Linotype",
+];
+
+export const FONT_SIZES = ["72", "96", "120", "144", "168", "192", "216", "240", "280", "320"];
+
+export const WARP_PRESETS = [
+  { value: "straight", label: "Straight" },
+  { value: "arc-up", label: "Arc Up" },
+  { value: "arc-down", label: "Arc Down" },
+];
+
+export const defaultTextStyle: TextStyleConfig = {
+  text: "",
+  enabled: false,
+  fontFamily: "Arial",
+  fontSize: "144",
+  color: "#FFFFFF",
+  warpPreset: "straight",
+  letterSpacing: 0,
+  strokeColor: "",
+  strokeWidth: 0,
+};
+
 export interface ContentData {
   url: string;
   title: string;
@@ -67,6 +112,8 @@ export interface ContentData {
   overlayPosition: "top" | "bottom" | "center";
   overlayColor: string;
   overlayFontFamily: string;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
 }
 
 export type PlacementId = "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder";
