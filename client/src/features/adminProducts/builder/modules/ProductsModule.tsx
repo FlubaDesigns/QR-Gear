@@ -65,20 +65,21 @@ export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const [previewProduct, setPreviewProduct] = useState<CatalogProduct | null>(null);
 
+  // Default to printify
+  const provider = state.fulfillmentProvider || "printify";
+
   // Fetch categories for the dropdown
   const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
-    queryKey: ["catalog-categories", state.fulfillmentProvider],
+    queryKey: ["catalog-categories", provider],
     queryFn: async () => {
-      if (!state.fulfillmentProvider) return [];
-      
       const headers = await api.getAuthHeaders();
       const isTestEndpoint = api.baseUrl.includes("/test");
       const adminSegment = isTestEndpoint ? "" : "/admin";
       let endpoint = "";
       
-      if (state.fulfillmentProvider === "printify") {
+      if (provider === "printify") {
         endpoint = `${api.baseUrl}/printify/catalog`;
-      } else if (state.fulfillmentProvider === "printful") {
+      } else if (provider === "printful") {
         endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
       }
       
@@ -89,12 +90,12 @@ export function ProductsModule() {
       
       const data = await res.json();
       
-      if (state.fulfillmentProvider === "printify") {
+      if (provider === "printify") {
         return (data as CatalogCategoryListResponse[]).map((cat) => ({
           name: cat.name,
           itemCount: cat.items?.length || 0,
         }));
-      } else if (state.fulfillmentProvider === "printful") {
+      } else if (provider === "printful") {
         const grouped: Record<string, number> = {};
         for (const product of data) {
           const category = product.type || "Other";
@@ -108,7 +109,6 @@ export function ProductsModule() {
       
       return [];
     },
-    enabled: !!state.fulfillmentProvider,
   });
 
   const sortedCategories = useMemo(() => {
@@ -128,25 +128,23 @@ export function ProductsModule() {
   }));
 
   const { data: categoryData, isLoading, error } = useQuery<CatalogCategoryResponse | null>({
-    queryKey: ["catalog-products", state.fulfillmentProvider, state.category],
+    queryKey: ["catalog-products", provider, state.category],
     queryFn: async () => {
-      if (!state.fulfillmentProvider || !state.category) return null;
+      if (!state.category) return null;
       
       const headers = await api.getAuthHeaders();
       const isTestEndpoint = api.baseUrl.includes("/test");
       const adminSegment = isTestEndpoint ? "" : "/admin";
       let endpoint = "";
       
-      if (state.fulfillmentProvider === "printify") {
-        // Printify is NOT under /admin in server routes
+      if (provider === "printify") {
         endpoint = `${api.baseUrl}/printify/catalog`;
-      } else if (state.fulfillmentProvider === "printful") {
-        // Printful IS under /admin in prod, but NOT in /api/test
+      } else if (provider === "printful") {
         endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
       }
       
       if (!endpoint) {
-        console.error("[ProductsModule] No catalog endpoint for provider:", state.fulfillmentProvider);
+        console.error("[ProductsModule] No catalog endpoint for provider:", provider);
         return null;
       }
       
@@ -174,7 +172,7 @@ export function ProductsModule() {
         return null;
       }
     },
-    enabled: !!state.fulfillmentProvider && !!state.category,
+    enabled: !!state.category,
     retry: (failureCount, err) => {
       if (err instanceof Error && err.message.includes("Authorization")) return false;
       return failureCount < 2;
@@ -208,10 +206,7 @@ export function ProductsModule() {
     unisex: productsWithGender.filter(p => p.gender === "unisex").length,
   }), [productsWithGender]);
 
-  // Early return AFTER all hooks are called - but now show module if we have provider (for category selection)
-  if (state.sourceType !== "custom" || !state.fulfillmentProvider) {
-    return null;
-  }
+  // Always show the module
 
   const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
     id: String(p.id),
