@@ -123,10 +123,19 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
   }
 
   if (!pricing) {
+    // Debug: show what's missing
+    const missingItems: string[] = [];
+    if (!settings) missingItems.push("pricing settings");
+    if (!state.selectedProduct) missingItems.push("product selection");
+    
     return (
       <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50 border-yellow-200 dark:border-yellow-800">
         <CardContent className="py-6">
-          <p className="text-sm text-yellow-700 dark:text-yellow-400">Waiting for product selection...</p>
+          <p className="text-sm text-yellow-700 dark:text-yellow-400">
+            {missingItems.length > 0 
+              ? `Waiting for: ${missingItems.join(", ")}`
+              : "Calculating pricing..."}
+          </p>
         </CardContent>
       </Card>
     );
