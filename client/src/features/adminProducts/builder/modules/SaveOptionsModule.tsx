@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Save, Layers, Store, Archive } from "lucide-react";
+import { Save, Layers, Archive } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Card } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
 
-export type SaveTarget = "template" | "graphic-set" | "store" | "all" | null;
+export type SaveTarget = "template" | "graphic-set" | "all" | null;
 
 interface SaveOptionsModuleProps {
   onSaveTargetChange?: (target: SaveTarget) => void;
@@ -44,15 +44,9 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
       icon: Archive,
     },
     {
-      id: "store" as const,
-      label: "Store",
-      description: "Add to a store channel",
-      icon: Store,
-    },
-    {
       id: "all" as const,
-      label: "Save All",
-      description: "Template + Graphics + Store",
+      label: "Save & Link",
+      description: "Save + prepare for store assignment",
       icon: Save,
     },
   ];
@@ -114,9 +108,9 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
               <span className="font-medium">Selected: </span>
               {options.find(o => o.id === selectedTarget)?.label}
             </p>
-            {(selectedTarget === "store" || selectedTarget === "all") && (
+            {selectedTarget === "all" && (
               <p className="text-xs text-muted-foreground mt-1">
-                Choose your store and channel below ↓
+                After saving, go to Store Builder to assign.
               </p>
             )}
           </div>

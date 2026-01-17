@@ -76,7 +76,7 @@ function BuilderModules() {
         });
         setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
       }
-    } else if (target === "store" || target === "all") {
+    } else if (target === "all") {
       const qrState = state.qrProductState as Record<string, any> | null;
       const productPackage: Record<string, any> = {
         productName: (state.selectedProduct as any)?.name || (state.selectedProduct as any)?.title || "Untitled Product",
@@ -85,56 +85,43 @@ function BuilderModules() {
         qrContent: qrState?.url || qrState?.text || "",
       };
       
-      if (target === "all") {
-        setSaveStatus({ type: "saving", message: "Saving template and graphics...", timestamp: new Date() });
-        try {
-          const builderState = {
-            selectedProduct: state.selectedProduct,
-            qrProductState: state.qrProductState,
-            content: state.content,
-            placements: ["front", "back"],
-            artworkUrl: productPackage.compositeUrl,
-            qrOnlyUrl: productPackage.qrOnlyUrl,
-            artworkVariant: "black" as const,
-          };
-          
-          const templateResult = await saveAsTemplate.mutateAsync(builderState) as any;
-          const graphicsResult = await saveGraphics.mutateAsync(builderState) as any;
-          
-          productPackage.templateId = templateResult.templateId;
-          productPackage.graphicsId = graphicsResult.qrAssetId;
-          
-          sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
-          
-          toast({
-            title: "Saved! Ready for Store Assignment",
-            description: "Go to Store Builder to assign to a store.",
-          });
-          setSaveStatus({ 
-            type: "success", 
-            message: "Package saved! Go to Store Builder to assign.", 
-            timestamp: new Date() 
-          });
-        } catch (error: any) {
-          const errorMessage = error.message || "Could not save";
-          toast({
-            title: "Save Failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
-          setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
-        }
-      } else {
+      setSaveStatus({ type: "saving", message: "Saving template and graphics...", timestamp: new Date() });
+      try {
+        const builderState = {
+          selectedProduct: state.selectedProduct,
+          qrProductState: state.qrProductState,
+          content: state.content,
+          placements: ["front", "back"],
+          artworkUrl: productPackage.compositeUrl,
+          qrOnlyUrl: productPackage.qrOnlyUrl,
+          artworkVariant: "black" as const,
+        };
+        
+        const templateResult = await saveAsTemplate.mutateAsync(builderState) as any;
+        const graphicsResult = await saveGraphics.mutateAsync(builderState) as any;
+        
+        productPackage.templateId = templateResult.templateId;
+        productPackage.graphicsId = graphicsResult.qrAssetId;
+        
         sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
+        
         toast({
-          title: "Package Ready",
+          title: "Saved! Ready for Store Assignment",
           description: "Go to Store Builder to assign to a store.",
         });
         setSaveStatus({ 
           type: "success", 
-          message: "Package ready! Go to Store Builder to assign.", 
+          message: "Package saved! Go to Store Builder to assign.", 
           timestamp: new Date() 
         });
+      } catch (error: any) {
+        const errorMessage = error.message || "Could not save";
+        toast({
+          title: "Save Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setSaveStatus({ type: "error", message: errorMessage, timestamp: new Date() });
       }
     }
   };

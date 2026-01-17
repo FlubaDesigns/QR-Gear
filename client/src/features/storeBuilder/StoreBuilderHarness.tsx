@@ -305,11 +305,19 @@ export function StoreBuilderHarness() {
     setSaveStatus(null);
 
     try {
-      const response = await fetch("/api/test/partner-stores/" + store.id + "/products", {
+      const response = await fetch("/api/test/store-product-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productIds: [productPackage.templateId || productPackage.graphicsId].filter(Boolean),
+          storeId: store.id,
+          storeName: store.name,
+          channel,
+          templateId: productPackage.templateId,
+          graphicsId: productPackage.graphicsId,
+          qrContent: productPackage.qrContent,
+          productName: productPackage.productName,
+          compositeUrl: productPackage.compositeUrl,
+          qrOnlyUrl: productPackage.qrOnlyUrl,
         }),
       });
 
@@ -320,8 +328,11 @@ export function StoreBuilderHarness() {
       const result = await response.json();
       setSaveStatus({
         type: "success",
-        message: `Assigned to ${store.name} / ${channel} (${result.synced} products)`,
+        message: `Linked to ${store.name} / ${channel}`,
       });
+      
+      sessionStorage.removeItem("productPackage");
+      setProductPackage(null);
     } catch (error: any) {
       setSaveStatus({
         type: "error",

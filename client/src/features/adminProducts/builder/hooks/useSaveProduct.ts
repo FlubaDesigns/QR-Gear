@@ -29,6 +29,8 @@ interface SaveResult {
   templateId?: string;
   productId?: string;
   jobsQueued?: number;
+  qrAssetId?: string;
+  compositeAssetId?: string;
 }
 
 export function useSaveProduct() {
@@ -157,6 +159,8 @@ export function useSaveProduct() {
       return {
         success: true,
         message: "Graphics saved to library",
+        qrAssetId: result.qrAssetId || result.qrAsset?.id,
+        compositeAssetId: result.compositeAssetId || result.compositeAsset?.id,
       };
     },
     onSuccess: () => {

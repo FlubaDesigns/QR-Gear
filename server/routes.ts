@@ -7582,6 +7582,54 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Create store-product link (package linking) - NO AUTH REQUIRED
+  app.post("/api/test/store-product-links", async (req: any, res) => {
+    try {
+      const { storeId, storeName, channel, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl } = req.body;
+
+      if (!storeId || !channel) {
+        return res.status(400).json({ error: "storeId and channel are required" });
+      }
+      
+      if (!templateId && !graphicsId) {
+        return res.status(400).json({ error: "At least one of templateId or graphicsId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const admin = (await import("./lib/firebase-admin")).getFirebaseAdmin();
+      
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      
+      const linkData = {
+        storeId,
+        storeName: storeName || "",
+        channel,
+        templateId: templateId || null,
+        graphicsId: graphicsId || null,
+        qrContent: qrContent || null,
+        productName: productName || null,
+        compositeUrl: compositeUrl || null,
+        qrOnlyUrl: qrOnlyUrl || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      const linkRef = await firestoreDb.collection("storeProductLinks").add(linkData);
+      
+      console.log(`[Store Links TEST] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);
+
+      res.json({
+        success: true,
+        linkId: linkRef.id,
+        message: `Product linked to ${storeName || storeId} / ${channel}`,
+      });
+    } catch (error: any) {
+      console.error("[Store Links TEST] Error creating link:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test: Full template save with batch mockup generation - NO AUTH REQUIRED
   app.post("/api/test/templates/full-save", async (req: any, res) => {
     try {
@@ -7704,6 +7752,8 @@ ${allPages.map(page => `  <url>
         success: true,
         qrAsset,
         compositeAsset,
+        qrAssetId: qrAsset.id,
+        compositeAssetId: compositeAsset.id,
         message: "Graphics saved to library",
       });
     } catch (error: any) {
