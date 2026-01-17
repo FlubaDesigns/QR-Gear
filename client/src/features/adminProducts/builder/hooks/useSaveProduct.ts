@@ -156,11 +156,12 @@ export function useSaveProduct() {
   const saveGraphics = async (builderState: BuilderState, useTestEndpoints = false): Promise<SaveResult> => {
     const { content, qrProductState, artworkUrl, qrOnlyUrl: qrOnlyUrlFromState } = builderState;
     
-    const qrOnlyUrl = qrOnlyUrlFromState || artworkUrl || "";
+    const qrOnlyUrl = qrOnlyUrlFromState || "";
     const compositeUrl = artworkUrl || "";
     
-    if (!compositeUrl) {
-      throw new Error("No graphic to save");
+    // At least one URL is required
+    if (!qrOnlyUrl && !compositeUrl) {
+      throw new Error("No graphic to save - generate a QR code first");
     }
 
     const graphicsPricing = (builderState as any).pricing;
