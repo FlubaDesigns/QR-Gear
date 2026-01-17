@@ -7543,55 +7543,68 @@ ${allPages.map(page => `  <url>
     try {
       const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent } = req.body;
 
-      if (!qrOnlyUrl || !compositeUrl) {
-        return res.status(400).json({ error: "Both qrOnlyUrl and compositeUrl are required" });
+      // At least one URL is required
+      if (!qrOnlyUrl && !compositeUrl) {
+        return res.status(400).json({ error: "At least one of qrOnlyUrl or compositeUrl is required" });
       }
 
       // Build metadata object without undefined values
-      const qrMetadata: Record<string, any> = { isQrOnly: true };
-      if (storeId) qrMetadata.storeId = storeId;
-      if (channelId) qrMetadata.channelId = channelId;
-      if (qrContent) qrMetadata.qrContent = qrContent;
-      
-      const compositeMetadata: Record<string, any> = { isComposite: true };
-      if (storeId) compositeMetadata.storeId = storeId;
-      if (channelId) compositeMetadata.channelId = channelId;
-      if (qrContent) compositeMetadata.qrContent = qrContent;
+      const baseMetadata: Record<string, any> = {};
+      if (storeId) baseMetadata.storeId = storeId;
+      if (channelId) baseMetadata.channelId = channelId;
+      if (qrContent) baseMetadata.qrContent = qrContent;
 
-      // Save both graphics as library assets
-      const qrAsset = await storage.createLibraryAsset({
-        name: `${name || 'Untitled'} - QR Only`,
-        assetType: "graphic",
-        mediaType: "image",
-        ownerType: "admin",
-        publicUrl: qrOnlyUrl,
-        storageUrl: qrOnlyUrl,
-        thumbnailUrl: qrOnlyUrl,
-        category: category || "qr-graphics",
-        isActive: true,
-        metadata: qrMetadata,
-      });
+      let qrAsset = null;
+      let compositeAsset = null;
 
-      const compositeAsset = await storage.createLibraryAsset({
-        name: `${name || 'Untitled'} - Composite`,
-        assetType: "graphic",
-        mediaType: "image",
-        ownerType: "admin",
-        publicUrl: compositeUrl,
-        storageUrl: compositeUrl,
-        thumbnailUrl: compositeUrl,
-        category: category || "composite-graphics",
-        isActive: true,
-        metadata: compositeMetadata,
-      });
+      // Save QR-only asset if provided
+      if (qrOnlyUrl) {
+        qrAsset = await storage.createLibraryAsset({
+          name: `${name || 'Untitled'} - QR Only`,
+          assetType: "graphic",
+          mediaType: "image",
+          ownerType: "admin",
+          publicUrl: qrOnlyUrl,
+          storageUrl: qrOnlyUrl,
+          thumbnailUrl: qrOnlyUrl,
+          fileName: `qr-only-${Date.now()}.png`,
+          originalName: `qr-only.png`,
+          mimeType: "image/png",
+          sizeBytes: 0,
+          category: category || "qr-graphics",
+          isActive: true,
+          metadata: { ...baseMetadata, isQrOnly: true },
+        });
+      }
 
-      console.log(`[Graphics TEST] Saved graphics: QR=${qrAsset.id}, Composite=${compositeAsset.id}`);
+      // Save composite asset if provided
+      if (compositeUrl) {
+        compositeAsset = await storage.createLibraryAsset({
+          name: `${name || 'Untitled'} - Composite`,
+          assetType: "graphic",
+          mediaType: "image",
+          ownerType: "admin",
+          publicUrl: compositeUrl,
+          storageUrl: compositeUrl,
+          thumbnailUrl: compositeUrl,
+          fileName: `composite-${Date.now()}.png`,
+          originalName: `composite.png`,
+          mimeType: "image/png",
+          sizeBytes: 0,
+          category: category || "composite-graphics",
+          isActive: true,
+          metadata: { ...baseMetadata, isComposite: true },
+        });
+      }
+
+      const savedParts = [qrAsset ? 'QR' : null, compositeAsset ? 'Composite' : null].filter(Boolean).join(' + ');
+      console.log(`[Graphics TEST] Saved: ${savedParts}`);
 
       res.json({
         success: true,
-        qrAssetId: qrAsset.id,
-        compositeAssetId: compositeAsset.id,
-        message: "Graphics saved to library (test endpoint)",
+        qrAssetId: qrAsset?.id || null,
+        compositeAssetId: compositeAsset?.id || null,
+        message: `Graphics saved to library: ${savedParts}`,
       });
     } catch (error: any) {
       console.error("[Graphics TEST] Error saving graphics:", error);
