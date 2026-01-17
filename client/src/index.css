@@ -349,4 +349,30 @@
   a:has(.hover-glow-accent) {
     text-decoration: none !important;
   }
+
+  /* ========== Global Dropdown Fix ========== */
+  /* Ensures all Select/Dropdown items are visible - no cut-off first item */
+  [data-radix-select-viewport],
+  [data-radix-popper-content-wrapper] [role="listbox"] {
+    max-height: 60vh !important;
+    min-height: auto !important;
+    overflow-y: auto !important;
+    padding: 0.5rem !important;
+  }
+
+  /* Ensure dropdown content has proper sizing */
+  [data-radix-select-content],
+  [data-radix-popper-content-wrapper] {
+    max-height: 60vh !important;
+    overflow: visible !important;
+  }
+
+  /* Make dropdown items touch-friendly (48px minimum) */
+  [data-radix-select-viewport] [role="option"],
+  [data-radix-collection-item] {
+    min-height: 48px !important;
+    padding: 0.75rem 0.5rem 0.75rem 2rem !important;
+    display: flex !important;
+    align-items: center !important;
+  }
 }
