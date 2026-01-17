@@ -291,15 +291,33 @@ export function StoreBuilderHarness() {
     const savedPackage = sessionStorage.getItem("productPackage");
     if (savedPackage) {
       try {
-        setProductPackage(JSON.parse(savedPackage));
+        const parsed = JSON.parse(savedPackage);
+        // Validate package has at least one ID for linking
+        if (!parsed.templateId && !parsed.graphicsId) {
+          console.warn("Stale package without IDs found, clearing");
+          sessionStorage.removeItem("productPackage");
+          setProductPackage(null);
+        } else {
+          setProductPackage(parsed);
+        }
       } catch (e) {
         console.error("Failed to parse product package:", e);
+        sessionStorage.removeItem("productPackage");
       }
     }
   }, []);
 
   const handleStoreSelect = async (store: PartnerStore, channel: string) => {
     if (!productPackage) return;
+    
+    // Validate package has required IDs
+    if (!productPackage.templateId && !productPackage.graphicsId) {
+      setSaveStatus({
+        type: "error",
+        message: "Package missing IDs. Please use 'Save & Link' in Products Builder first.",
+      });
+      return;
+    }
 
     setIsSaving(true);
     setSaveStatus(null);
