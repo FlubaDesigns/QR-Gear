@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Package, Layers } from "lucide-react";
-import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
-import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
+import { Layers } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
@@ -234,100 +232,93 @@ export function ProductsModule() {
   };
 
   return (
-    <CollapsibleModule
-      title="Product Configuration"
-      icon={<Package className="h-4 w-4" />}
-      className="bg-muted/30"
-      defaultOpen
-    >
-      <div className="space-y-4">
-        {/* Category selector at the top */}
-        <div data-testid="module-category">
-          <label className="text-xs text-muted-foreground mb-2 block flex items-center gap-1">
-            <Layers className="h-3 w-3" />
-            Product Category
-          </label>
-          <CustomDropdown
-            value={state.category || ""}
-            onChange={(value) => setCategory(value)}
-            options={categoryOptions}
-            placeholder="Select a category..."
-            loading={loadingCategories}
-            data-testid="select-category"
-          />
+    <div className="space-y-4">
+      {/* Category selector */}
+      <div data-testid="module-category">
+        <div className="flex items-center gap-2 mb-2">
+          <Layers className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-medium">Product Category</p>
         </div>
-
-        {/* Only show filters and products if category is selected */}
-        {state.category && (
-          <ProductViewerControls
-            showUSA={state.originFilter.showUSA}
-            showOther={state.originFilter.showOther}
-            usaCount={usaCount}
-            otherCount={otherCount}
-            genderFilter={state.genderFilter}
-            genderCounts={genderCounts}
-            onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
-            onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
-            onGenderFilterChange={setGenderFilter}
-          />
-        )}
-
-        {state.category && (
-          <>
-            {error ? (
-              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
-                <p className="text-sm text-destructive">
-                  {error instanceof Error ? error.message : "Failed to load products"}
-                </p>
-                <p className="text-xs text-muted-foreground break-all">
-                  Debug: endpoint =
-                  {" "}
-                  {(() => {
-                    const isTestEndpoint = api.baseUrl.includes("/test");
-                    const adminSegment = isTestEndpoint ? "" : "/admin";
-                    if (state.fulfillmentProvider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
-                    if (state.fulfillmentProvider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
-                    return "NO_PROVIDER";
-                  })()}
-                </p>
-              </div>
-            ) : isLoading ? (
-              <div className="flex gap-3 overflow-hidden">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
-                ))}
-              </div>
-            ) : (
-              <SharedViewer
-                mode="scroll"
-                scrollProps={{
-                  items: scrollItems,
-                  selectedId: state.selectedProduct ? String(state.selectedProduct.id) : undefined,
-                  onSelect: handleItemTap,
-                  aspectRatio: "square",
-                  emptyMessage: "No products match the current filters.",
-                  layout: "vertical",
-                  gridHeight: "min(70vh, 600px)",
-                }}
-              />
-            )}
-
-            {state.selectedProduct && (
-              <div className="p-3 bg-primary/5 rounded-md border space-y-3">
-                <div>
-                  <p className="text-sm font-medium">Selected: {state.selectedProduct.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {state.selectedProduct.brand} - {state.selectedProduct.model}
-                  </p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Now choose your QR product type below
-                </p>
-              </div>
-            )}
-          </>
-        )}
+        <CustomDropdown
+          value={state.category || ""}
+          onChange={(value) => setCategory(value)}
+          options={categoryOptions}
+          placeholder="Select a category..."
+          loading={loadingCategories}
+          data-testid="select-category"
+        />
       </div>
+
+      {/* Only show filters and products if category is selected */}
+      {state.category && (
+        <ProductViewerControls
+          showUSA={state.originFilter.showUSA}
+          showOther={state.originFilter.showOther}
+          usaCount={usaCount}
+          otherCount={otherCount}
+          genderFilter={state.genderFilter}
+          genderCounts={genderCounts}
+          onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
+          onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
+          onGenderFilterChange={setGenderFilter}
+        />
+      )}
+
+      {state.category && (
+        <>
+          {error ? (
+            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
+              <p className="text-sm text-destructive">
+                {error instanceof Error ? error.message : "Failed to load products"}
+              </p>
+              <p className="text-xs text-muted-foreground break-all">
+                Debug: endpoint =
+                {" "}
+                {(() => {
+                  const isTestEndpoint = api.baseUrl.includes("/test");
+                  const adminSegment = isTestEndpoint ? "" : "/admin";
+                  if (state.fulfillmentProvider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
+                  if (state.fulfillmentProvider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
+                  return "NO_PROVIDER";
+                })()}
+              </p>
+            </div>
+          ) : isLoading ? (
+            <div className="flex gap-3 overflow-hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <SharedViewer
+              mode="scroll"
+              scrollProps={{
+                items: scrollItems,
+                selectedId: state.selectedProduct ? String(state.selectedProduct.id) : undefined,
+                onSelect: handleItemTap,
+                aspectRatio: "square",
+                emptyMessage: "No products match the current filters.",
+                layout: "vertical",
+                gridHeight: "min(70vh, 600px)",
+              }}
+            />
+          )}
+
+          {state.selectedProduct && (
+            <div className="p-3 bg-primary/5 rounded-md border space-y-3">
+              <div>
+                <p className="text-sm font-medium">Selected: {state.selectedProduct.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {state.selectedProduct.brand} - {state.selectedProduct.model}
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Now choose your QR product type below
+              </p>
+            </div>
+          )}
+        </>
+      )}
 
       <ProductDetailModal
         product={previewProduct}
@@ -335,6 +326,6 @@ export function ProductsModule() {
         onClose={() => setPreviewProduct(null)}
         onSelect={handleProductSelect}
       />
-    </CollapsibleModule>
+    </div>
   );
 }

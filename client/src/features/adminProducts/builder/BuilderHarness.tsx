@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
-import { ProductsModule } from "./modules/ProductsModule";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
@@ -110,9 +109,6 @@ function BuilderModules() {
 
   return (
     <div className="space-y-4">
-      <InlineDebugBoundary label="ProductsModule">
-        <ProductsModule />
-      </InlineDebugBoundary>
       <InlineDebugBoundary label="StateModule">
         <StateModule />
       </InlineDebugBoundary>
