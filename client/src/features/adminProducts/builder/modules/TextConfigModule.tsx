@@ -36,11 +36,16 @@ function TextBlock({ label, maxLength, style, onChange, testIdPrefix }: TextBloc
       {style.enabled && (
         <div className="space-y-4">
           <Input
+            type="text"
             placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars)`}
             value={style.text}
             onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
             maxLength={maxLength}
             inputMode="text"
+            autoComplete="off"
+            autoCorrect="on"
+            spellCheck={true}
+            enterKeyHint="done"
             className="text-base min-h-[48px]"
             data-testid={`input-${testIdPrefix}-text`}
           />
