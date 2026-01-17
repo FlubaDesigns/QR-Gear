@@ -10,7 +10,7 @@ export function PlacementModule() {
     return null;
   }
 
-  const selectedCount = state.selectedPlacements.length;
+  const selectedCount = (state.selectedPlacements || []).length;
 
   return (
     <CollapsibleModule
@@ -26,7 +26,7 @@ export function PlacementModule() {
         
         <div className="grid grid-cols-2 gap-3">
           {PLACEMENT_OPTIONS.map((placement) => {
-            const isSelected = state.selectedPlacements.includes(placement.id);
+            const isSelected = (state.selectedPlacements || []).includes(placement.id);
             return (
               <button
                 key={placement.id}
@@ -58,7 +58,7 @@ export function PlacementModule() {
               {selectedCount} placement{selectedCount > 1 ? "s" : ""} selected
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {state.selectedPlacements.map(p => 
+              {(state.selectedPlacements || []).map(p => 
                 PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label
               ).join(", ")}
             </p>

@@ -125,9 +125,9 @@ export function PreviewModule() {
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
               <div className="text-[10px] text-white/80 text-center space-y-0.5">
                 <div className="font-semibold">{state.qrProductState?.replace("qr_", "QR ").replace("_", " ").toUpperCase()}</div>
-                {state.selectedPlacements.length > 0 && (
+                {(state.selectedPlacements || []).length > 0 && (
                   <div className="text-white/60">
-                    {state.selectedPlacements.length} placement{state.selectedPlacements.length > 1 ? "s" : ""}
+                    {(state.selectedPlacements || []).length} placement{(state.selectedPlacements || []).length > 1 ? "s" : ""}
                   </div>
                 )}
               </div>
