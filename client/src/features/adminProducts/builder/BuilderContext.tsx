@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
@@ -16,6 +16,7 @@ interface BuilderContextValue {
   selectProduct: (product: CatalogProduct | null) => void;
   setQRProductState: (state: QRProductState) => void;
   setContent: (content: Partial<ContentData>) => void;
+  togglePlacement: (placementId: PlacementId) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
@@ -44,6 +45,7 @@ const initialState: BuilderState = {
   selectedProduct: null,
   qrProductState: null,
   content: initialContent,
+  selectedPlacements: [],
 };
 
 interface BuilderProviderProps {
@@ -135,6 +137,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       ...prev,
       qrProductState: qrState,
       content: initialContent, // Reset content when QR state changes
+      selectedPlacements: [], // Reset placements when QR state changes
     }));
   }, []);
 
@@ -143,6 +146,18 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       ...prev,
       content: { ...prev.content, ...content },
     }));
+  }, []);
+
+  const togglePlacement = useCallback((placementId: PlacementId) => {
+    setState(prev => {
+      const isSelected = prev.selectedPlacements.includes(placementId);
+      return {
+        ...prev,
+        selectedPlacements: isSelected
+          ? prev.selectedPlacements.filter(p => p !== placementId)
+          : [...prev.selectedPlacements, placementId],
+      };
+    });
   }, []);
 
   const resetBuilder = useCallback(() => {
@@ -163,9 +178,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     selectProduct,
     setQRProductState,
     setContent,
+    togglePlacement,
     resetBuilder,
     api,
-  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, resetBuilder, api]);
+  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

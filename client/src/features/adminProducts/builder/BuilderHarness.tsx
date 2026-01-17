@@ -4,6 +4,7 @@ import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
 import { ContentModule } from "./modules/ContentModule";
 import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
+import { PlacementModule } from "./modules/PlacementModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +46,7 @@ function BuilderModules() {
         selectedProduct: state.selectedProduct,
         qrProductState: state.qrProductState,
         content: state.content,
-        placements: ["front", "back"],
+        placements: state.selectedPlacements.length > 0 ? state.selectedPlacements : ["front-chest"],
         artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
         qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
         artworkVariant: "black" as const,
@@ -97,7 +98,7 @@ function BuilderModules() {
         selectedProduct: state.selectedProduct,
         qrProductState: state.qrProductState,
         content: state.content,
-        placements: ["front", "back"],
+        placements: state.selectedPlacements.length > 0 ? state.selectedPlacements : ["front-chest"],
         artworkUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
         qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
         artworkVariant: "black" as const,
@@ -142,6 +143,9 @@ function BuilderModules() {
     <div className="space-y-4">
       <InlineDebugBoundary label="StateModule">
         <StateModule />
+      </InlineDebugBoundary>
+      <InlineDebugBoundary label="PlacementModule">
+        <PlacementModule />
       </InlineDebugBoundary>
       <InlineDebugBoundary label="ContentModule">
         <ContentModule />

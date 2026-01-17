@@ -69,6 +69,16 @@ export interface ContentData {
   overlayFontFamily: string;
 }
 
+export type PlacementId = "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder";
+
+export const PLACEMENT_OPTIONS: Array<{ id: PlacementId; label: string }> = [
+  { id: "front-chest", label: "Front Chest" },
+  { id: "front-center", label: "Front Center" },
+  { id: "back", label: "Back" },
+  { id: "left-shoulder", label: "Left Shoulder" },
+  { id: "right-shoulder", label: "Right Shoulder" },
+];
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -81,4 +91,5 @@ export interface BuilderState {
   selectedProduct: CatalogProduct | null;
   qrProductState: QRProductState;
   content: ContentData;
+  selectedPlacements: PlacementId[];
 }
