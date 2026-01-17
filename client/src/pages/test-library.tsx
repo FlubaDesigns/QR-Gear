@@ -5,9 +5,11 @@ import { LibraryProvider } from "@/features/adminLibrary/LibraryContext";
 import SourceImagesTab from "@/features/adminLibrary/tabs/SourceImagesTab";
 import CroppedImagesTab from "@/features/adminLibrary/tabs/CroppedImagesTab";
 import BackgroundsTab from "@/features/adminLibrary/tabs/BackgroundsTab";
+import TemplatesTab from "@/features/adminLibrary/tabs/TemplatesTab";
+import GraphicsTab from "@/features/adminLibrary/tabs/GraphicsTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Package } from "lucide-react";
+import { AlertTriangle, Package, Store } from "lucide-react";
 
 export default function TestLibraryPage() {
   const [tab, setTab] = useState<string>("source");
@@ -27,12 +29,20 @@ export default function TestLibraryPage() {
               This is a public test version of the library for debugging. 
               Uses /api/test endpoints instead of /api/admin endpoints.
             </p>
-            <Link href="/test-products">
-              <Button variant="outline" size="sm" data-testid="link-test-products">
-                <Package className="h-4 w-4 mr-2" />
-                Go to Products Builder
-              </Button>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/test-products">
+                <Button variant="outline" size="sm" data-testid="link-test-products">
+                  <Package className="h-4 w-4 mr-2" />
+                  Products Builder
+                </Button>
+              </Link>
+              <Link href="/test-store-builder">
+                <Button variant="outline" size="sm" data-testid="link-test-store-builder">
+                  <Store className="h-4 w-4 mr-2" />
+                  Store Builder
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
 
@@ -47,9 +57,11 @@ export default function TestLibraryPage() {
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="h-auto flex flex-wrap gap-2 p-2 bg-muted/50">
-            <TabsTrigger value="source" className="flex-1 min-w-[120px]">Source Images</TabsTrigger>
-            <TabsTrigger value="cropped" className="flex-1 min-w-[120px]">Cropped Images</TabsTrigger>
-            <TabsTrigger value="backgrounds" className="flex-1 min-w-[120px]">Backgrounds</TabsTrigger>
+            <TabsTrigger value="source" className="flex-1 min-w-[100px]">Source</TabsTrigger>
+            <TabsTrigger value="cropped" className="flex-1 min-w-[100px]">Cropped</TabsTrigger>
+            <TabsTrigger value="backgrounds" className="flex-1 min-w-[100px]">Backgrounds</TabsTrigger>
+            <TabsTrigger value="templates" className="flex-1 min-w-[100px]">Templates</TabsTrigger>
+            <TabsTrigger value="graphics" className="flex-1 min-w-[100px]">Graphics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="source" className="mt-6">
@@ -62,6 +74,14 @@ export default function TestLibraryPage() {
 
           <TabsContent value="backgrounds" className="mt-6">
             <BackgroundsTab />
+          </TabsContent>
+
+          <TabsContent value="templates" className="mt-6">
+            <TemplatesTab />
+          </TabsContent>
+
+          <TabsContent value="graphics" className="mt-6">
+            <GraphicsTab />
           </TabsContent>
         </Tabs>
       </div>
