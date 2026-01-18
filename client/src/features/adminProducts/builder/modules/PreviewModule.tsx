@@ -135,6 +135,7 @@ export function PreviewModule() {
           </div>
         </div>
 
+        {/* Product Graphic Preview */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="p-2 bg-muted/30 rounded border">
             <div className="font-medium text-muted-foreground">Header</div>
@@ -165,6 +166,34 @@ export function PreviewModule() {
             </div>
           )}
         </div>
+
+        {/* URL/Landing Page Preview */}
+        {(state.content.title || state.content.description) && (
+          <div className="mt-4 pt-4 border-t">
+            <p className="text-sm font-medium mb-3 flex items-center gap-2">
+              <span className="text-purple-600 dark:text-purple-400">Landing Page Preview</span>
+            </p>
+            <div 
+              className="p-4 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30"
+            >
+              {state.content.title && (
+                <h3 className="text-lg font-bold text-purple-900 dark:text-purple-100 mb-2">
+                  {state.content.title}
+                </h3>
+              )}
+              {state.content.description && (
+                <p className="text-sm text-purple-700 dark:text-purple-300">
+                  {state.content.description}
+                </p>
+              )}
+              <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-700">
+                <p className="text-xs text-purple-500 dark:text-purple-400">
+                  URL will be auto-generated when you create graphics
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </CollapsibleModule>
   );

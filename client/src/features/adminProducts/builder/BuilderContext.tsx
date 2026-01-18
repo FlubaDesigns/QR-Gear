@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId, PlacementType, PlacementConfig } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
@@ -17,6 +17,7 @@ interface BuilderContextValue {
   setQRProductState: (state: QRProductState) => void;
   setContent: (content: Partial<ContentData>) => void;
   togglePlacement: (placementId: PlacementId) => void;
+  setPlacementType: (placementId: PlacementId, type: PlacementType) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
@@ -70,6 +71,7 @@ const initialState: BuilderState = {
   qrProductState: null,
   content: initialContent,
   selectedPlacements: [],
+  placementConfig: {},
 };
 
 interface BuilderProviderProps {
@@ -162,6 +164,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       qrProductState: qrState,
       content: initialContent, // Reset content when QR state changes
       selectedPlacements: [], // Reset placements when QR state changes
+      placementConfig: {}, // Reset placement config when QR state changes
     }));
   }, []);
 
@@ -175,13 +178,34 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const togglePlacement = useCallback((placementId: PlacementId) => {
     setState(prev => {
       const isSelected = prev.selectedPlacements.includes(placementId);
+      const newPlacements = isSelected
+        ? prev.selectedPlacements.filter(p => p !== placementId)
+        : [...prev.selectedPlacements, placementId];
+      
+      // Also update placementConfig - default new placements to "qr"
+      const newConfig = { ...prev.placementConfig };
+      if (!isSelected) {
+        newConfig[placementId] = "qr"; // Default to QR when adding
+      } else {
+        delete newConfig[placementId]; // Remove from config when removing
+      }
+      
       return {
         ...prev,
-        selectedPlacements: isSelected
-          ? prev.selectedPlacements.filter(p => p !== placementId)
-          : [...prev.selectedPlacements, placementId],
+        selectedPlacements: newPlacements,
+        placementConfig: newConfig,
       };
     });
+  }, []);
+
+  const setPlacementType = useCallback((placementId: PlacementId, type: PlacementType) => {
+    setState(prev => ({
+      ...prev,
+      placementConfig: {
+        ...prev.placementConfig,
+        [placementId]: type,
+      },
+    }));
   }, []);
 
   const resetBuilder = useCallback(() => {
@@ -203,9 +227,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setQRProductState,
     setContent,
     togglePlacement,
+    setPlacementType,
     resetBuilder,
     api,
-  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, resetBuilder, api]);
+  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

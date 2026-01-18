@@ -138,15 +138,85 @@ export interface PricingBreakdown {
   hostingTierCode: string;
 }
 
-export type PlacementId = "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder";
+export type PlacementId = 
+  // Shirts/Hoodies
+  | "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder" | "left-sleeve" | "right-sleeve" | "pocket"
+  // Mugs
+  | "mug-wrap" | "mug-front" | "mug-back"
+  // Hats
+  | "hat-front" | "hat-side" | "hat-back"
+  // Bags
+  | "bag-front" | "bag-back" | "bag-pocket";
 
-export const PLACEMENT_OPTIONS: Array<{ id: PlacementId; label: string }> = [
+export type PlacementType = "graphic" | "qr";
+
+export interface PlacementConfig {
+  [key: string]: PlacementType;
+}
+
+export interface PlacementOption {
+  id: PlacementId;
+  label: string;
+}
+
+// All available placements
+export const ALL_PLACEMENT_OPTIONS: PlacementOption[] = [
+  // Shirts/Hoodies
   { id: "front-chest", label: "Front Chest" },
   { id: "front-center", label: "Front Center" },
   { id: "back", label: "Back" },
   { id: "left-shoulder", label: "Left Shoulder" },
   { id: "right-shoulder", label: "Right Shoulder" },
+  { id: "left-sleeve", label: "Left Sleeve" },
+  { id: "right-sleeve", label: "Right Sleeve" },
+  { id: "pocket", label: "Pocket" },
+  // Mugs
+  { id: "mug-wrap", label: "Wrap Around" },
+  { id: "mug-front", label: "Front" },
+  { id: "mug-back", label: "Back" },
+  // Hats
+  { id: "hat-front", label: "Front" },
+  { id: "hat-side", label: "Side" },
+  { id: "hat-back", label: "Back" },
+  // Bags
+  { id: "bag-front", label: "Front Panel" },
+  { id: "bag-back", label: "Back Panel" },
+  { id: "bag-pocket", label: "Pocket" },
 ];
+
+// Category to placement mapping
+export const CATEGORY_PLACEMENTS: Record<string, PlacementId[]> = {
+  // Apparel
+  "T-shirts": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve"],
+  "Long Sleeve Shirts": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve"],
+  "Sweatshirts": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve"],
+  "Hoodies": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve", "pocket"],
+  "Tank Tops": ["front-chest", "front-center", "back"],
+  // Drinkware
+  "Mugs": ["mug-wrap", "mug-front", "mug-back"],
+  "Tumblers": ["mug-wrap", "mug-front", "mug-back"],
+  // Headwear
+  "Hats": ["hat-front", "hat-side", "hat-back"],
+  "Beanies": ["hat-front"],
+  // Bags
+  "Bags": ["bag-front", "bag-back", "bag-pocket"],
+  "Tote Bags": ["bag-front", "bag-back"],
+  "Backpacks": ["bag-front", "bag-pocket"],
+};
+
+// Default placements for unknown categories
+export const DEFAULT_PLACEMENTS: PlacementId[] = ["front-chest", "front-center", "back"];
+
+// Helper function to get placements for a category
+export function getPlacementsForCategory(category: string | null): PlacementOption[] {
+  const placementIds = category ? (CATEGORY_PLACEMENTS[category] || DEFAULT_PLACEMENTS) : DEFAULT_PLACEMENTS;
+  return placementIds
+    .map(id => ALL_PLACEMENT_OPTIONS.find(opt => opt.id === id))
+    .filter((opt): opt is PlacementOption => opt !== undefined);
+}
+
+// Legacy export for backward compatibility
+export const PLACEMENT_OPTIONS = ALL_PLACEMENT_OPTIONS.slice(0, 5);
 
 export interface BuilderState {
   sourceType: SourceType;
@@ -161,4 +231,5 @@ export interface BuilderState {
   qrProductState: QRProductState;
   content: ContentData;
   selectedPlacements: PlacementId[];
+  placementConfig: PlacementConfig;
 }
