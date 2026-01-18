@@ -16,7 +16,8 @@ export function PlacementModule() {
   const placementOptions = getPlacementsForCategory(category);
   
   const selectedCount = (state.selectedPlacements || []).length;
-  const isQrPlus = state.qrProductState === "qr_plus";
+  const isQrBasics = state.qrProductState === "qr_basics";
+  const showPlacementTypeToggle = !isQrBasics;
 
   return (
     <CollapsibleModule
@@ -27,7 +28,7 @@ export function PlacementModule() {
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          {isQrPlus 
+          {showPlacementTypeToggle 
             ? "Select placement locations and choose Graphic or QR for each spot."
             : "Select where to place your design. You can select multiple locations."
           }
@@ -61,15 +62,15 @@ export function PlacementModule() {
                     )}
                     <span>{placement.label}</span>
                   </div>
-                  {isSelected && isQrPlus && (
+                  {isSelected && showPlacementTypeToggle && (
                     <span className="text-xs px-2 py-1 rounded bg-muted">
                       {placementType === "qr" ? "QR Code" : "Graphic"}
                     </span>
                   )}
                 </button>
                 
-                {/* Show Graphic/QR toggle for QR Plus when placement is selected (except QR-only placements) */}
-                {isSelected && isQrPlus && !isQrOnly && (
+                {/* Show Graphic/QR toggle for QR Plus or Play mode when placement is selected (except QR-only placements) */}
+                {isSelected && showPlacementTypeToggle && !isQrOnly && (
                   <div className="flex gap-2 ml-4">
                     <Button
                       type="button"
@@ -96,7 +97,7 @@ export function PlacementModule() {
                   </div>
                 )}
                 {/* Show QR Only indicator for shoulder placements */}
-                {isSelected && isQrPlus && isQrOnly && (
+                {isSelected && showPlacementTypeToggle && isQrOnly && (
                   <div className="ml-4 text-xs text-muted-foreground flex items-center gap-1">
                     <QrCode className="h-3 w-3" />
                     This placement only supports QR codes
@@ -112,7 +113,7 @@ export function PlacementModule() {
             <p className="text-sm font-medium">
               {selectedCount} placement{selectedCount > 1 ? "s" : ""} selected
             </p>
-            {isQrPlus && (
+            {showPlacementTypeToggle && (
               <div className="text-xs text-muted-foreground mt-2 space-y-1">
                 {(state.selectedPlacements || []).map(p => {
                   const label = ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label;
@@ -126,7 +127,7 @@ export function PlacementModule() {
                 })}
               </div>
             )}
-            {!isQrPlus && (
+            {!showPlacementTypeToggle && (
               <p className="text-xs text-muted-foreground mt-1">
                 {(state.selectedPlacements || []).map(p => 
                   ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label
