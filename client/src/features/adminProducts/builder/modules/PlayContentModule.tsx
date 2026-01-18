@@ -16,26 +16,6 @@ export function PlayContentModule() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (state.qrProductState !== "qr_play" || !state.selectedProduct) {
-    return null;
-  }
-
-  const handleSourceChange = (source: "url" | "upload") => {
-    setContent({
-      playMediaSource: source,
-      playMediaUrl: "",
-      playMediaFile: null,
-      playMediaPreview: "",
-      playMediaMimeType: "",
-    });
-    setUploadError(null);
-  };
-
-  const handleUrlChange = (url: string) => {
-    setContent({ playMediaUrl: url });
-    setUploadError(null);
-  };
-
   const handleFileSelect = useCallback((file: File) => {
     setUploadError(null);
     
@@ -67,6 +47,26 @@ export function PlayContentModule() {
     };
     reader.readAsDataURL(file);
   }, [setContent]);
+
+  if (state.qrProductState !== "qr_play" || !state.selectedProduct) {
+    return null;
+  }
+
+  const handleSourceChange = (source: "url" | "upload") => {
+    setContent({
+      playMediaSource: source,
+      playMediaUrl: "",
+      playMediaFile: null,
+      playMediaPreview: "",
+      playMediaMimeType: "",
+    });
+    setUploadError(null);
+  };
+
+  const handleUrlChange = (url: string) => {
+    setContent({ playMediaUrl: url });
+    setUploadError(null);
+  };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
