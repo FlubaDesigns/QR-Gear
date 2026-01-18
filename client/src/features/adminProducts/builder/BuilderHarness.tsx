@@ -1,6 +1,7 @@
 import { BuilderProvider } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
 import { URLContentModule } from "./modules/URLContentModule";
+import { PlayContentModule } from "./modules/PlayContentModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
@@ -24,7 +25,12 @@ function BuilderModules() {
         <TextConfigModule />
       </InlineDebugBoundary>
       
-      {/* Step 4: URL Content (Background + Title/Description + Preview) */}
+      {/* Step 4a: Play Media (for QR Play mode) */}
+      <InlineDebugBoundary label="PlayContentModule">
+        <PlayContentModule />
+      </InlineDebugBoundary>
+      
+      {/* Step 4b: URL Content (Background + Title/Description + Preview) */}
       <InlineDebugBoundary label="URLContentModule">
         <URLContentModule />
       </InlineDebugBoundary>

@@ -129,6 +129,13 @@ export interface ContentData {
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   hostingTierCode: string;
+  // Play-specific fields
+  playMediaSource: "url" | "upload" | null;
+  playMediaUrl: string;         // External URL (YouTube, etc.)
+  playMediaFile: File | null;   // Uploaded file
+  playMediaPreview: string;     // Data URL or blob URL for preview
+  playMediaMimeType: string;    // video/mp4, image/gif, etc.
+  playPermissionConfirmed: boolean;  // Required before saving
 }
 
 export interface PricingBreakdown {

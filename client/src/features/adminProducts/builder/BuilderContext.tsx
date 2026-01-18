@@ -43,6 +43,8 @@ const initialContent: ContentData = {
     letterSpacing: 0,
     strokeColor: "",
     strokeWidth: 0,
+    verticalOffset: 20,
+    horizontalOffset: 0,
   },
   footerStyle: {
     text: "",
@@ -54,8 +56,17 @@ const initialContent: ContentData = {
     letterSpacing: 0,
     strokeColor: "",
     strokeWidth: 0,
+    verticalOffset: 20,
+    horizontalOffset: 0,
   },
   hostingTierCode: "1_year",
+  // Play-specific fields
+  playMediaSource: null,
+  playMediaUrl: "",
+  playMediaFile: null,
+  playMediaPreview: "",
+  playMediaMimeType: "",
+  playPermissionConfirmed: false,
 };
 
 const initialState: BuilderState = {

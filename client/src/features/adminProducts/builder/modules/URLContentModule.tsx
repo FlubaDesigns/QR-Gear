@@ -128,7 +128,7 @@ export function URLContentModule() {
   const backgroundUrl = state.loadedBackground?.url;
   const hasContent = state.content.title || state.content.description || backgroundUrl;
   
-  const needsDestinationUrl = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play";
+  const needsDestinationUrl = state.qrProductState === "qr_canvas";
 
   return (
     <CollapsibleModule
