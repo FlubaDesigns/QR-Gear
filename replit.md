@@ -76,6 +76,38 @@ The storefront displays lifestyle mockups over flat product shots for a more eng
 - **Shopping Cart**: Standard e-commerce cart operations.
 - **Order Fulfillment Flow**: Integrates with Stripe for checkout, creates orders in Firestore, allows admin review, and submission/status sync with Printify. Automatic shipping and confirmation emails.
 
+### Product Packet Architecture (January 2026)
+The save system uses a **Product Packet** as the single source of truth:
+
+```
+PRODUCT PACKET (master record)
+├── packetId
+├── Large QR image (high-res master)
+├── Large composite graphic (high-res master)
+├── qrContent: URL (Canvas/Play/Dynamics) or Text (Basics)
+├── Header/footer text
+├── Pricing data
+└── Product reference (id, name, blueprint, provider)
+
+GRAPHICS ENTRY (lightweight reference)
+├── graphicsId
+├── packetId → references packet
+└── Pulls images/content from packet on demand
+
+TEMPLATE ENTRY (has its own sized copy)
+├── templateId
+├── packetId → references packet
+├── selectedSize: "small" | "medium" | "large"
+├── resizedImage: (generated at save time from packet's large master)
+└── Triggers Printful mockup queue (size × color × location)
+
+STORE BUILDER
+├── Receives lightweight reference (packetId + what's available)
+└── Queries database directly for actual assets
+```
+
+**Flow:** One save creates the packet → Graphics and Templates link to it → Store Builder queries DB by ID.
+
 ### System Design Choices
 - **Printful-First Mockup Architecture**: Decouples mockup generation (Printful) from order fulfillment (Printify).
 - **Backend**: Node.js, Express, TypeScript.
