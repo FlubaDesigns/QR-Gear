@@ -49,12 +49,14 @@ export function CustomDropdown({
   };
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`${className}`}>
       <button
         type="button"
         onClick={() => !disabled && !loading && setIsOpen(!isOpen)}
         disabled={disabled || loading}
-        className="w-full min-h-12 text-base px-4 py-3 rounded-lg border border-white/20 bg-white/10 text-white flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-ice-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`w-full min-h-12 text-base px-4 py-3 border border-white/20 bg-white/10 text-white flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-ice-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+          isOpen ? "rounded-t-lg border-b-0" : "rounded-lg"
+        }`}
         data-testid={testId}
       >
         <span className="flex items-center gap-2 truncate">
@@ -76,7 +78,7 @@ export function CustomDropdown({
       </button>
 
       {isOpen && options.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full max-h-64 overflow-y-auto rounded-lg border border-white/20 bg-slate-900 shadow-xl">
+        <div className="w-full max-h-64 overflow-y-auto rounded-b-lg border border-white/20 border-t-0 bg-slate-900">
           {options.map((opt) => (
             <button
               key={opt.value}
