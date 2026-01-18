@@ -27,25 +27,33 @@ function BuilderModules() {
   const [location, navigate] = useLocation();
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [currentPricing, setCurrentPricing] = useState<PricingBreakdown | null>(null);
+  const [currentPacketId, setCurrentPacketId] = useState<string | null>(null);
   const { saveAsTemplate, saveGraphics, saveAsTemplateWithOptions, saveGraphicsWithOptions } = useSaveProduct();
   
   // Use test endpoints when on /test-products page
   const useTestEndpoints = location.startsWith("/test-products");
 
-  const handleGraphicsCreated = useCallback((graphics: any, pricing: PricingBreakdown) => {
+  const handleGraphicsCreated = useCallback((graphics: any, pricing: PricingBreakdown, packetId: string) => {
     setCurrentPricing(pricing);
+    setCurrentPacketId(packetId);
   }, []);
 
   const storePackageAndNavigate = () => {
-    const productPackage = {
-      productName: state.selectedProduct?.title || "Untitled Product",
-      qrContent: state.content.url || state.content.title || "",
-      compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
-      qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
-      pricing: currentPricing,
-    };
-    sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
-    navigate("/test-store-builder");
+    if (currentPacketId) {
+      // Use packetId in URL - Store Builder will query database directly
+      navigate(`/test-store-builder?packetId=${currentPacketId}`);
+    } else {
+      // Fallback to sessionStorage if no packetId (shouldn't happen if graphics were created)
+      const productPackage = {
+        productName: state.selectedProduct?.title || "Untitled Product",
+        qrContent: state.content.url || state.content.title || "",
+        compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+        qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+        pricing: currentPricing,
+      };
+      sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
+      navigate("/test-store-builder");
+    }
   };
 
   const handleSaveTargetChange = async (target: SaveTarget) => {
@@ -149,18 +157,7 @@ function BuilderModules() {
       }
       
       // Check results
-      if (results.template || results.graphics) {
-        const productPackage = {
-          templateId: results.template?.templateId,
-          graphicsId: results.graphics?.compositeAssetId || results.graphics?.qrAssetId,
-          productName: state.selectedProduct?.title || "Untitled Product",
-          qrContent: state.content.url || state.content.title || "",
-          compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
-          qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
-          pricing: currentPricing,
-        };
-        sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
-        
+      if (results.template || results.graphics) {        
         const successMsg = results.errors.length > 0 
           ? `Saved with warnings: ${results.errors.join("; ")}` 
           : "Template and graphics saved!";
@@ -172,7 +169,23 @@ function BuilderModules() {
         });
         setSaveStatus({ type: "success", message: successMsg, timestamp: new Date() });
         
-        setTimeout(() => navigate("/test-store-builder"), 500);
+        // Navigate using packetId in URL instead of sessionStorage
+        if (currentPacketId) {
+          setTimeout(() => navigate(`/test-store-builder?packetId=${currentPacketId}`), 500);
+        } else {
+          // Fallback to sessionStorage
+          const productPackage = {
+            templateId: results.template?.templateId,
+            graphicsId: results.graphics?.compositeAssetId || results.graphics?.qrAssetId,
+            productName: state.selectedProduct?.title || "Untitled Product",
+            qrContent: state.content.url || state.content.title || "",
+            compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
+            qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
+            pricing: currentPricing,
+          };
+          sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
+          setTimeout(() => navigate("/test-store-builder"), 500);
+        }
       } else {
         const errorMessage = results.errors.join("; ") || "Could not save";
         toast({

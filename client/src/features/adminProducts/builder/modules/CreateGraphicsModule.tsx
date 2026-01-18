@@ -25,10 +25,11 @@ interface GeneratedGraphics {
   qrOnlyUrl: string;
   compositeUrl: string;
   generatedAt: Date;
+  packetId: string;
 }
 
 interface CreateGraphicsModuleProps {
-  onGraphicsCreated?: (graphics: GeneratedGraphics, pricing: PricingBreakdown) => void;
+  onGraphicsCreated?: (graphics: GeneratedGraphics, pricing: PricingBreakdown, packetId: string) => void;
 }
 
 function generateQRCodeUrl(content: string, size: number = 3000): string {
@@ -120,24 +121,58 @@ export function CreateGraphicsModule({ onGraphicsCreated }: CreateGraphicsModule
         img.src = qrUrl;
       });
 
+      const compositeUrl = state.selectedProduct?.imageUrl || "";
+      const pricing = calculatePricing();
+      
+      // Create product packet via API
+      const packetPayload = {
+        qrOnlyUrl: qrUrl,
+        compositeUrl,
+        qrContent: qrContent.trim(),
+        headerText: state.content.headerStyle?.enabled ? state.content.headerStyle.text : null,
+        footerText: state.content.footerStyle?.enabled ? state.content.footerStyle.text : null,
+        pricing,
+        productId: state.selectedProduct?.id || null,
+        productName: state.selectedProduct?.title || null,
+        blueprintId: (state.selectedProduct as any)?.blueprintId || null,
+        printProviderId: (state.selectedProduct as any)?.printProviderId || null,
+        qrProductState: state.qrProductState,
+        placements: state.selectedPlacements || [],
+        sizes: [],
+        colors: [],
+      };
+
+      const packetRes = await fetch("/api/test/packets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(packetPayload),
+      });
+
+      if (!packetRes.ok) {
+        const errData = await packetRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Packet API error ${packetRes.status}`);
+      }
+
+      const packetData = await packetRes.json();
+      const packetId = packetData.packetId;
+
       const graphics: GeneratedGraphics = {
         qrOnlyUrl: qrUrl,
-        compositeUrl: state.selectedProduct?.imageUrl || "",
+        compositeUrl,
         generatedAt: new Date(),
+        packetId,
       };
 
       loadGraphic({ 
         compositeUrl: graphics.compositeUrl, 
         qrOnlyUrl: graphics.qrOnlyUrl 
       });
-
-      const pricing = calculatePricing();
       
       setGeneratedGraphics(graphics);
       setCalculatedPricing(pricing);
 
       if (pricing) {
-        onGraphicsCreated?.(graphics, pricing);
+        onGraphicsCreated?.(graphics, pricing, packetId);
       }
 
     } catch (err: any) {

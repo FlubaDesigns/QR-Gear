@@ -7819,6 +7819,105 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Create product packet (master record) - NO AUTH REQUIRED
+  app.post("/api/test/packets", async (req: any, res) => {
+    try {
+      const { 
+        qrOnlyUrl, 
+        compositeUrl, 
+        qrContent,
+        headerText,
+        footerText,
+        pricing,
+        productId,
+        productName,
+        blueprintId,
+        printProviderId,
+        qrProductState,
+        placements,
+        sizes,
+        colors
+      } = req.body;
+
+      if (!qrContent && !qrOnlyUrl) {
+        return res.status(400).json({ error: "Either qrContent or qrOnlyUrl is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const firestoreDb = getFirestoreDb();
+      
+      const now = FieldValue.serverTimestamp();
+      
+      const packetData = {
+        qrOnlyUrl: qrOnlyUrl || null,
+        compositeUrl: compositeUrl || null,
+        qrContent: qrContent || null,
+        headerText: headerText || null,
+        footerText: footerText || null,
+        pricing: pricing || null,
+        productId: productId || null,
+        productName: productName || null,
+        blueprintId: blueprintId || null,
+        printProviderId: printProviderId || null,
+        qrProductState: qrProductState || null,
+        placements: placements || [],
+        sizes: sizes || [],
+        colors: colors || [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      const packetRef = await firestoreDb.collection("productPackets").add(packetData);
+      
+      console.log(`[Packets TEST] Created packet: ${packetRef.id}`);
+
+      res.json({
+        success: true,
+        packetId: packetRef.id,
+        message: `Product packet created`,
+      });
+    } catch (error: any) {
+      console.error("[Packets TEST] Error creating packet:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Get product packet by ID - NO AUTH REQUIRED
+  app.get("/api/test/packets/:packetId", async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+
+      if (!packetId) {
+        return res.status(400).json({ error: "packetId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const doc = await firestoreDb.collection("productPackets").doc(packetId).get();
+      
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      
+      const data = doc.data();
+      
+      res.json({
+        success: true,
+        packet: {
+          id: doc.id,
+          ...data,
+          createdAt: data?.createdAt?.toDate?.() || null,
+          updatedAt: data?.updatedAt?.toDate?.() || null,
+        },
+      });
+    } catch (error: any) {
+      console.error("[Packets TEST] Error getting packet:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Save graphics (enlarged QR and/or composite graphic)
   app.post("/api/admin/graphics/save", isAdmin, async (req, res) => {
     try {

@@ -10,17 +10,44 @@ import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import type { PartnerStore } from "@shared/schema";
 
 interface ProductPackage {
+  packetId?: string;
   templateId?: string;
   graphicsId?: string;
   qrContent?: string;
   productName?: string;
   compositeUrl?: string;
   qrOnlyUrl?: string;
+  pricing?: {
+    baseProductCost: number;
+    placementCost: number;
+    textUpcharge: number;
+    hostingCost: number;
+    subtotal: number;
+    markupAmount: number;
+    customerPrice: number;
+    hostingTierCode?: string;
+  };
 }
 
 type StoreType = "internal" | "external" | null;
 
-function PackagePreviewModule({ productPackage }: { productPackage: ProductPackage | null }) {
+function PackagePreviewModule({ productPackage, isLoading }: { productPackage: ProductPackage | null; isLoading?: boolean }) {
+  if (isLoading) {
+    return (
+      <CollapsibleModule
+        title="Product Package"
+        icon={<Package className="h-4 w-4" />}
+        className="bg-muted/30"
+        defaultOpen
+      >
+        <div className="p-4 text-center flex items-center justify-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading package from database...</span>
+        </div>
+      </CollapsibleModule>
+    );
+  }
+
   if (!productPackage) {
     return (
       <CollapsibleModule
@@ -83,7 +110,46 @@ function PackagePreviewModule({ productPackage }: { productPackage: ProductPacka
           </div>
         )}
 
+        {productPackage.pricing && (
+          <div className="p-3 bg-green-50 dark:bg-green-950/50 rounded-lg border border-green-200 dark:border-green-800">
+            <p className="text-xs font-semibold text-green-700 dark:text-green-300 mb-2">Pricing Breakdown</p>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>Base Price</span>
+                <span>${productPackage.pricing.baseProductCost.toFixed(2)}</span>
+              </div>
+              {productPackage.pricing.placementCost > 0 && (
+                <div className="flex justify-between">
+                  <span>Extra Placements</span>
+                  <span>+${productPackage.pricing.placementCost.toFixed(2)}</span>
+                </div>
+              )}
+              {productPackage.pricing.textUpcharge > 0 && (
+                <div className="flex justify-between">
+                  <span>Text Lines</span>
+                  <span>+${productPackage.pricing.textUpcharge.toFixed(2)}</span>
+                </div>
+              )}
+              {productPackage.pricing.hostingCost > 0 && (
+                <div className="flex justify-between">
+                  <span>Hosting</span>
+                  <span>+${productPackage.pricing.hostingCost.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t pt-1 font-semibold text-green-700 dark:text-green-300">
+                <span>Customer Price</span>
+                <span>${productPackage.pricing.customerPrice.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
+          {productPackage.packetId && (
+            <Badge variant="secondary" data-testid="badge-packet">
+              Packet: {productPackage.packetId.slice(0, 8)}...
+            </Badge>
+          )}
           {productPackage.templateId && (
             <Badge variant="outline" data-testid="badge-template">
               Template: {productPackage.templateId.slice(0, 8)}...
@@ -285,15 +351,51 @@ function StoreAssignmentModule({
 export function StoreBuilderHarness() {
   const [productPackage, setProductPackage] = useState<ProductPackage | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingPacket, setIsLoadingPacket] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
+    // Check for packetId in URL first
+    const urlParams = new URLSearchParams(window.location.search);
+    const packetId = urlParams.get("packetId");
+    
+    if (packetId) {
+      setIsLoadingPacket(true);
+      fetch(`/api/test/packets/${packetId}`)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          if (data.success && data.packet) {
+            const packet = data.packet;
+            setProductPackage({
+              packetId: packet.id,
+              qrContent: packet.qrContent,
+              productName: packet.productName,
+              compositeUrl: packet.compositeUrl,
+              qrOnlyUrl: packet.qrOnlyUrl,
+              pricing: packet.pricing,
+            });
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load packet:", err);
+          setSaveStatus({ type: "error", message: `Failed to load packet: ${err.message}` });
+        })
+        .finally(() => {
+          setIsLoadingPacket(false);
+        });
+      return;
+    }
+
+    // Fallback to sessionStorage
     const savedPackage = sessionStorage.getItem("productPackage");
     if (savedPackage) {
       try {
         const parsed = JSON.parse(savedPackage);
         // Validate package has at least one ID for linking
-        if (!parsed.templateId && !parsed.graphicsId) {
+        if (!parsed.templateId && !parsed.graphicsId && !parsed.packetId) {
           console.warn("Stale package without IDs found, clearing");
           sessionStorage.removeItem("productPackage");
           setProductPackage(null);
@@ -310,11 +412,11 @@ export function StoreBuilderHarness() {
   const handleStoreSelect = async (store: PartnerStore, channel: string) => {
     if (!productPackage) return;
     
-    // Validate package has required IDs
-    if (!productPackage.templateId && !productPackage.graphicsId) {
+    // Validate package has required IDs (packetId, templateId, or graphicsId)
+    if (!productPackage.packetId && !productPackage.templateId && !productPackage.graphicsId) {
       setSaveStatus({
         type: "error",
-        message: "Package missing IDs. Please use 'Save & Link' in Products Builder first.",
+        message: "Package missing IDs. Please use 'Create Graphics' in Products Builder first.",
       });
       return;
     }
@@ -330,12 +432,14 @@ export function StoreBuilderHarness() {
           storeId: store.id,
           storeName: store.name,
           channel,
+          packetId: productPackage.packetId,
           templateId: productPackage.templateId,
           graphicsId: productPackage.graphicsId,
           qrContent: productPackage.qrContent,
           productName: productPackage.productName,
           compositeUrl: productPackage.compositeUrl,
           qrOnlyUrl: productPackage.qrOnlyUrl,
+          pricing: productPackage.pricing,
         }),
       });
 
@@ -363,7 +467,7 @@ export function StoreBuilderHarness() {
 
   return (
     <div className="space-y-4">
-      <PackagePreviewModule productPackage={productPackage} />
+      <PackagePreviewModule productPackage={productPackage} isLoading={isLoadingPacket} />
       <StoreAssignmentModule
         onStoreSelect={handleStoreSelect}
         isSaving={isSaving}

@@ -5196,6 +5196,101 @@ app.post('/test/templates/full-save', async (req: Request, res: Response): Promi
   }
 });
 
+// PUBLIC TEST: Create product packet (master record) - NO AUTH REQUIRED
+app.post('/test/packets', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { 
+      qrOnlyUrl, 
+      compositeUrl, 
+      qrContent,
+      headerText,
+      footerText,
+      pricing,
+      productId,
+      productName,
+      blueprintId,
+      printProviderId,
+      qrProductState,
+      placements,
+      sizes,
+      colors
+    } = req.body;
+
+    if (!qrContent && !qrOnlyUrl) {
+      res.status(400).json({ error: 'Either qrContent or qrOnlyUrl is required' });
+      return;
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    
+    const packetData = {
+      qrOnlyUrl: qrOnlyUrl || null,
+      compositeUrl: compositeUrl || null,
+      qrContent: qrContent || null,
+      headerText: headerText || null,
+      footerText: footerText || null,
+      pricing: pricing || null,
+      productId: productId || null,
+      productName: productName || null,
+      blueprintId: blueprintId || null,
+      printProviderId: printProviderId || null,
+      qrProductState: qrProductState || null,
+      placements: placements || [],
+      sizes: sizes || [],
+      colors: colors || [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    const packetRef = await db.collection('productPackets').add(packetData);
+    
+    console.log(`[Packets TEST] Created packet: ${packetRef.id}`);
+
+    res.json({
+      success: true,
+      packetId: packetRef.id,
+      message: 'Product packet created',
+    });
+  } catch (error: any) {
+    console.error('[Packets TEST] Error creating packet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUBLIC TEST: Get product packet by ID - NO AUTH REQUIRED
+app.get('/test/packets/:packetId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packetId } = req.params;
+
+    if (!packetId) {
+      res.status(400).json({ error: 'packetId is required' });
+      return;
+    }
+
+    const doc = await db.collection('productPackets').doc(packetId).get();
+    
+    if (!doc.exists) {
+      res.status(404).json({ error: 'Packet not found' });
+      return;
+    }
+    
+    const data = doc.data();
+    
+    res.json({
+      success: true,
+      packet: {
+        id: doc.id,
+        ...data,
+        createdAt: data?.createdAt?.toDate?.() || null,
+        updatedAt: data?.updatedAt?.toDate?.() || null,
+      },
+    });
+  } catch (error: any) {
+    console.error('[Packets TEST] Error getting packet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin: Save graphics (QR-only and/or composite) to library
 app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
