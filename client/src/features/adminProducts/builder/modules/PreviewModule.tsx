@@ -135,37 +135,19 @@ export function PreviewModule() {
           </div>
         </div>
 
-        {/* Product Graphic Preview */}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2 bg-muted/30 rounded border">
-            <div className="font-medium text-muted-foreground">Header</div>
-            <div className={state.content.headerStyle.enabled ? "text-foreground" : "text-muted-foreground/50"}>
-              {state.content.headerStyle.enabled 
-                ? state.content.headerStyle.text || "(empty)" 
-                : "Disabled"}
+        {/* Background/Video Info */}
+        {(hasBackground || hasVideo) && (
+          <div className="p-2 bg-muted/30 rounded border text-xs">
+            <div className="font-medium text-muted-foreground">
+              {hasVideo ? "Video" : "Background"}
+            </div>
+            <div className={backgroundUrl || videoUrl ? "text-foreground truncate" : "text-muted-foreground/50"}>
+              {hasVideo 
+                ? (videoUrl || "No video selected")
+                : (state.loadedBackground?.name || "No background selected")}
             </div>
           </div>
-          <div className="p-2 bg-muted/30 rounded border">
-            <div className="font-medium text-muted-foreground">Footer</div>
-            <div className={state.content.footerStyle.enabled ? "text-foreground" : "text-muted-foreground/50"}>
-              {state.content.footerStyle.enabled 
-                ? state.content.footerStyle.text || "(empty)" 
-                : "Disabled"}
-            </div>
-          </div>
-          {(hasBackground || hasVideo) && (
-            <div className="p-2 bg-muted/30 rounded border col-span-2">
-              <div className="font-medium text-muted-foreground">
-                {hasVideo ? "Video" : "Background"}
-              </div>
-              <div className={backgroundUrl || videoUrl ? "text-foreground truncate" : "text-muted-foreground/50"}>
-                {hasVideo 
-                  ? (videoUrl || "No video selected")
-                  : (state.loadedBackground?.name || "No background selected")}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* URL/Landing Page Preview */}
         {(state.content.title || state.content.description) && (
