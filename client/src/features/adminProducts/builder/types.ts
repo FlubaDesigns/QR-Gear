@@ -210,9 +210,30 @@ export const CATEGORY_PLACEMENTS: Record<string, PlacementId[]> = {
 // Default placements for unknown categories
 export const DEFAULT_PLACEMENTS: PlacementId[] = ["front-chest", "front-center", "back"];
 
+// Helper function to normalize category names for matching
+function normalizeCategory(category: string): string {
+  const lower = category.toLowerCase();
+  if (lower.includes("t-shirt") || lower.includes("tshirt") || lower.includes("tee")) return "T-shirts";
+  if (lower.includes("long sleeve")) return "Long Sleeve Shirts";
+  if (lower.includes("sweatshirt")) return "Sweatshirts";
+  if (lower.includes("hoodie")) return "Hoodies";
+  if (lower.includes("tank")) return "Tank Tops";
+  if (lower.includes("mug")) return "Mugs";
+  if (lower.includes("tumbler")) return "Tumblers";
+  if (lower.includes("hat") || lower.includes("cap")) return "Hats";
+  if (lower.includes("beanie")) return "Beanies";
+  if (lower.includes("tote")) return "Tote Bags";
+  if (lower.includes("backpack")) return "Backpacks";
+  if (lower.includes("bag")) return "Bags";
+  return category;
+}
+
 // Helper function to get placements for a category
 export function getPlacementsForCategory(category: string | null): PlacementOption[] {
-  const placementIds = category ? (CATEGORY_PLACEMENTS[category] || DEFAULT_PLACEMENTS) : DEFAULT_PLACEMENTS;
+  if (!category) return DEFAULT_PLACEMENTS.map(id => ALL_PLACEMENT_OPTIONS.find(opt => opt.id === id)).filter((opt): opt is PlacementOption => opt !== undefined);
+  
+  const normalized = normalizeCategory(category);
+  const placementIds = CATEGORY_PLACEMENTS[normalized] || DEFAULT_PLACEMENTS;
   return placementIds
     .map(id => ALL_PLACEMENT_OPTIONS.find(opt => opt.id === id))
     .filter((opt): opt is PlacementOption => opt !== undefined);

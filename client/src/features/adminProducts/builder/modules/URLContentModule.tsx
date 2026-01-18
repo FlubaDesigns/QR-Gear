@@ -40,7 +40,7 @@ export function URLContentModule() {
     queryKey: ["/api/test/background-assets", "cropped"],
     queryFn: async () => {
       const res = await fetch("/api/test/background-assets?type=cropped");
-      if (!res.ok) throw new Error("Failed to fetch cropped backgrounds");
+      if (!res.ok) return [];
       return res.json();
     },
   });
@@ -49,7 +49,7 @@ export function URLContentModule() {
     queryKey: ["/api/test/background-assets", "background"],
     queryFn: async () => {
       const res = await fetch("/api/test/background-assets?type=background");
-      if (!res.ok) throw new Error("Failed to fetch backgrounds");
+      if (!res.ok) return [];
       return res.json();
     },
     enabled: activeTab === "backgrounds",
