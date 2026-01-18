@@ -5208,12 +5208,23 @@ app.post('/test/packets', async (req: Request, res: Response): Promise<void> => 
       pricing,
       productId,
       productName,
+      productDescription,
+      productImageUrl,
       blueprintId,
       printProviderId,
+      manufacturer,
+      madeInUSA,
+      category,
+      defaultColor,
+      defaultPlacement,
       qrProductState,
       placements,
+      availablePlacements,
       sizes,
-      colors
+      colors,
+      basePrice,
+      customerPrice,
+      mockupsByColor
     } = req.body;
 
     if (!qrContent && !qrOnlyUrl) {
@@ -5232,12 +5243,23 @@ app.post('/test/packets', async (req: Request, res: Response): Promise<void> => 
       pricing: pricing || null,
       productId: productId || null,
       productName: productName || null,
+      productDescription: productDescription || null,
+      productImageUrl: productImageUrl || null,
       blueprintId: blueprintId || null,
       printProviderId: printProviderId || null,
+      manufacturer: manufacturer || null,
+      madeInUSA: madeInUSA || false,
+      category: category || null,
+      defaultColor: defaultColor || null,
+      defaultPlacement: defaultPlacement || null,
       qrProductState: qrProductState || null,
       placements: placements || [],
+      availablePlacements: availablePlacements || [],
       sizes: sizes || [],
       colors: colors || [],
+      basePrice: basePrice || null,
+      customerPrice: customerPrice || null,
+      mockupsByColor: mockupsByColor || null,
       createdAt: now,
       updatedAt: now,
     };
@@ -5287,6 +5309,174 @@ app.get('/test/packets/:packetId', async (req: Request, res: Response): Promise<
     });
   } catch (error: any) {
     console.error('[Packets TEST] Error getting packet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUBLIC TEST: Get mockup queue status - NO AUTH REQUIRED
+app.get('/test/queue/status', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const pendingSnapshot = await db.collection('mockupJobs').where('status', '==', 'pending').get();
+    const processingSnapshot = await db.collection('mockupJobs').where('status', '==', 'processing').get();
+    const completedSnapshot = await db.collection('mockupJobs').where('status', '==', 'completed').limit(100).get();
+    const failedSnapshot = await db.collection('mockupJobs').where('status', '==', 'failed').limit(100).get();
+
+    res.json({
+      success: true,
+      queue: {
+        pending: pendingSnapshot.size,
+        processing: processingSnapshot.size,
+        completed: completedSnapshot.size,
+        failed: failedSnapshot.size,
+      },
+      message: `Queue status: ${pendingSnapshot.size} pending, ${processingSnapshot.size} processing`,
+    });
+  } catch (error: any) {
+    console.error('[Queue] Error getting status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUBLIC TEST: Process pending mockup jobs - NO AUTH REQUIRED
+app.post('/test/queue/process', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { limit = 5 } = req.body;
+    const processLimit = Math.min(limit, 20); // Cap at 20 per request
+
+    // First, recover any stale "processing" jobs (stuck for > 5 minutes)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const staleSnapshot = await db.collection('mockupJobs')
+      .where('status', '==', 'processing')
+      .where('startedAt', '<', fiveMinutesAgo)
+      .limit(10)
+      .get();
+    
+    for (const staleDoc of staleSnapshot.docs) {
+      await db.collection('mockupJobs').doc(staleDoc.id).update({
+        status: 'pending',
+        retryCount: admin.firestore.FieldValue.increment(1),
+        lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log(`[Queue] Recovered stale job ${staleDoc.id}`);
+    }
+
+    // Fetch pending jobs
+    const pendingSnapshot = await db.collection('mockupJobs')
+      .where('status', '==', 'pending')
+      .limit(processLimit)
+      .get();
+
+    if (pendingSnapshot.empty) {
+      res.json({
+        success: true,
+        processed: 0,
+        recovered: staleSnapshot.size,
+        message: 'No pending jobs in queue',
+      });
+      return;
+    }
+
+    console.log(`[Queue] Processing ${pendingSnapshot.size} mockup jobs`);
+
+    const results: Array<{ jobId: string; status: string; error?: string }> = [];
+
+    for (const jobDoc of pendingSnapshot.docs) {
+      const job = jobDoc.data();
+      const jobId = jobDoc.id;
+
+      try {
+        // Atomic claim: Use transaction to ensure only one processor claims this job
+        const claimed = await db.runTransaction(async (transaction) => {
+          const jobRef = db.collection('mockupJobs').doc(jobId);
+          const freshDoc = await transaction.get(jobRef);
+          
+          if (!freshDoc.exists || freshDoc.data()?.status !== 'pending') {
+            return false; // Already claimed by another processor
+          }
+          
+          transaction.update(jobRef, {
+            status: 'processing',
+            startedAt: admin.firestore.FieldValue.serverTimestamp(),
+            processorId: `prod-${Date.now()}`,
+          });
+          return true;
+        });
+
+        if (!claimed) {
+          console.log(`[Queue] Job ${jobId} already claimed, skipping`);
+          continue;
+        }
+
+        // Rate limiting: Wait 2 seconds between API calls to avoid hitting Printful limits
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Get template to find artwork URL and blueprint
+        const templateDoc = await db.collection('productTemplates').doc(job.templateId).get();
+        if (!templateDoc.exists) {
+          throw new Error(`Template ${job.templateId} not found`);
+        }
+        const template = templateDoc.data()!;
+
+        // Generate mockup via Printful
+        const mockupResult = await generateMockupFromPrintful({
+          blueprintId: template.blueprintId || 5,
+          printProviderId: template.printProviderId || 39,
+          colorName: job.colorName,
+          colorHex: job.colorHex || '#000000',
+          artworkUrl: template.artworkUrl,
+          artworkVariant: template.artworkVariant || 'black',
+        });
+
+        // Store mockup URL in template's mockupsByColor
+        const colorKey = job.colorName.replace(/\s+/g, '_').toLowerCase();
+        const placementKey = job.placement || 'front';
+        const sizeKey = job.qrSize || 'large';
+        
+        const mockupPath = `mockupsByColor.${colorKey}.${placementKey}.${sizeKey}`;
+        await db.collection('productTemplates').doc(job.templateId).update({
+          [mockupPath]: mockupResult.mockupUrl,
+          [`mockupsByColor.${colorKey}.${placementKey}.lifestyle`]: mockupResult.lifestyleMockupUrl || null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Mark job completed
+        await db.collection('mockupJobs').doc(jobId).update({
+          status: 'completed',
+          mockupUrl: mockupResult.mockupUrl,
+          lifestyleMockupUrl: mockupResult.lifestyleMockupUrl || null,
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        results.push({ jobId, status: 'completed' });
+        console.log(`[Queue] Job ${jobId} completed: ${job.colorName} / ${job.placement} / ${job.qrSize}`);
+
+      } catch (error: any) {
+        console.error(`[Queue] Job ${jobId} failed:`, error.message);
+        
+        await db.collection('mockupJobs').doc(jobId).update({
+          status: 'failed',
+          error: error.message,
+          failedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        results.push({ jobId, status: 'failed', error: error.message });
+      }
+    }
+
+    const completed = results.filter(r => r.status === 'completed').length;
+    const failed = results.filter(r => r.status === 'failed').length;
+
+    res.json({
+      success: true,
+      processed: results.length,
+      completed,
+      failed,
+      results,
+      message: `Processed ${results.length} jobs: ${completed} completed, ${failed} failed`,
+    });
+
+  } catch (error: any) {
+    console.error('[Queue] Error processing jobs:', error);
     res.status(500).json({ error: error.message });
   }
 });

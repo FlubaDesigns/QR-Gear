@@ -151,6 +151,11 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         productImageUrl: product?.imageUrl || null,
         blueprintId: product?.blueprintId || null,
         printProviderId: product?.printProviderId || null,
+        manufacturer: product?.manufacturer || null,
+        madeInUSA: product?.madeInUSA || false,
+        category: product?.category || null,
+        defaultColor: product?.defaultColor || null,
+        defaultPlacement: product?.defaultPlacement || null,
         qrProductState: state.qrProductState,
         placements: state.selectedPlacements || [],
         availablePlacements,
@@ -264,6 +269,16 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
 
       if (templateRes.ok) {
         results.template = true;
+        
+        // Trigger mockup queue processing in background (fire and forget)
+        // Process only 3 at a time with 2-second delays to avoid API rate limits
+        fetch("/api/test/queue/process", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ limit: 3 }),
+        }).then(res => res.json())
+          .then(data => console.log("[Queue] Started processing:", data.message))
+          .catch(err => console.warn("[Queue] Background processing failed:", err.message));
       } else {
         const err = await templateRes.json().catch(() => ({}));
         results.errors.push(`Template: ${err.error || "Failed"}`);
@@ -278,7 +293,7 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     if (results.graphics && results.template) {
       toast({
         title: "Saved Successfully",
-        description: "Graphics and Template saved! Navigating to Store Builder...",
+        description: "Graphics and Template saved! Generating mockups in background...",
       });
 
       setTimeout(() => {
