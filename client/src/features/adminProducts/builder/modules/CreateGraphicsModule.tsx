@@ -205,12 +205,30 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
   );
   const playPermissionOk = !isPlayMode || state.content.playPermissionConfirmed;
 
+  // For Play mode, we don't need URL/title - we need media
+  // For other modes, we need URL or title
+  const hasRequiredContent = isPlayMode ? hasPlayMedia : (state.content.url || state.content.title);
+
   const canCreate = Boolean(
     state.selectedProduct &&
     state.qrProductState &&
-    (state.content.url || state.content.title || hasPlayMedia) &&
+    hasRequiredContent &&
     playPermissionOk
   );
+  
+  // Debug logging
+  console.log("[CreateGraphics] canCreate check:", {
+    isPlayMode,
+    hasPlayMedia,
+    playPermissionOk,
+    hasRequiredContent,
+    canCreate,
+    playMediaSource: state.content.playMediaSource,
+    playMediaFile: !!state.content.playMediaFile,
+    playMediaUrl: state.content.playMediaUrl,
+    url: state.content.url,
+    title: state.content.title,
+  });
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct) return null;
@@ -636,9 +654,9 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
           <div className="text-sm text-muted-foreground text-center">
             {!state.selectedProduct && "Select a product first"}
             {state.selectedProduct && !state.qrProductState && "Select a QR mode first"}
-            {state.selectedProduct && state.qrProductState && isPlayMode && !hasPlayMedia && "Add your video or media above"}
-            {state.selectedProduct && state.qrProductState && isPlayMode && hasPlayMedia && !playPermissionOk && "Confirm you have rights to use this content"}
-            {state.selectedProduct && state.qrProductState && !isPlayMode && !(state.content.url || state.content.title) && "Enter content first"}
+            {state.selectedProduct && state.qrProductState && isPlayMode && !hasPlayMedia && "Upload a video or add a media URL above"}
+            {state.selectedProduct && state.qrProductState && isPlayMode && hasPlayMedia && !playPermissionOk && "Check the permission box to confirm you have rights to this content"}
+            {state.selectedProduct && state.qrProductState && !isPlayMode && !hasRequiredContent && "Add a URL or content above"}
           </div>
         )}
 
