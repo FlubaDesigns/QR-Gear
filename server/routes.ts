@@ -7640,6 +7640,56 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Get mockups for a template - NO AUTH REQUIRED
+  app.get("/api/test/templates/:templateId/mockups", async (req: any, res) => {
+    try {
+      const { templateId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      // Get all mockup jobs for this template
+      const jobsSnapshot = await firestoreDb.collection("mockupJobs")
+        .where("templateId", "==", templateId)
+        .get();
+
+      const mockups = jobsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          status: data.status,
+          color: data.color,
+          size: data.size,
+          placement: data.placement,
+          mockupUrl: data.mockupUrl || null,
+          error: data.error || null,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+          completedAt: data.completedAt?.toDate?.()?.toISOString() || null,
+        };
+      });
+
+      const completed = mockups.filter(m => m.status === "completed");
+      const pending = mockups.filter(m => m.status === "pending");
+      const processing = mockups.filter(m => m.status === "processing");
+      const failed = mockups.filter(m => m.status === "failed");
+
+      res.json({
+        success: true,
+        templateId,
+        summary: {
+          total: mockups.length,
+          completed: completed.length,
+          pending: pending.length,
+          processing: processing.length,
+          failed: failed.length,
+        },
+        mockups,
+      });
+    } catch (error: any) {
+      console.error("[Mockups] Error getting mockups:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test: Process pending mockup jobs - NO AUTH REQUIRED
   app.post("/api/test/queue/process", async (req: any, res) => {
     try {
@@ -8115,11 +8165,23 @@ ${allPages.map(page => `  <url>
       
       const data = doc.data();
       
+      // Also find linked template by packetId
+      let linkedTemplateId = null;
+      const templatesSnapshot = await firestoreDb.collection("productTemplates")
+        .where("packetId", "==", packetId)
+        .limit(1)
+        .get();
+      
+      if (!templatesSnapshot.empty) {
+        linkedTemplateId = templatesSnapshot.docs[0].id;
+      }
+      
       res.json({
         success: true,
         packet: {
           id: doc.id,
           ...data,
+          templateId: linkedTemplateId,
           createdAt: data?.createdAt?.toDate?.() || null,
           updatedAt: data?.updatedAt?.toDate?.() || null,
         },

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Store, Building2, Globe, ChevronRight, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2 } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Image, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -529,6 +529,142 @@ function ProductConfigurationModule({
   );
 }
 
+interface MockupJob {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  color?: string;
+  size?: string;
+  placement?: string;
+  mockupUrl?: string | null;
+  error?: string | null;
+}
+
+function MockupsModule({ templateId }: { templateId?: string }) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const { data: mockupsData, isLoading, refetch } = useQuery<{
+    success: boolean;
+    summary: { total: number; completed: number; pending: number; processing: number; failed: number };
+    mockups: MockupJob[];
+  }>({
+    queryKey: ["/api/test/templates", templateId, "mockups"],
+    queryFn: async () => {
+      if (!templateId) return { success: false, summary: { total: 0, completed: 0, pending: 0, processing: 0, failed: 0 }, mockups: [] };
+      const res = await fetch(`/api/test/templates/${templateId}/mockups`);
+      return res.json();
+    },
+    enabled: !!templateId,
+    refetchInterval: 10000, // Auto-refresh every 10 seconds
+  });
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
+
+  if (!templateId) {
+    return null;
+  }
+
+  const summary = mockupsData?.summary || { total: 0, completed: 0, pending: 0, processing: 0, failed: 0 };
+  const mockups = mockupsData?.mockups || [];
+  const completedMockups = mockups.filter(m => m.status === "completed" && m.mockupUrl);
+
+  return (
+    <CollapsibleModule
+      title="Product Mockups"
+      icon={<Image className="h-4 w-4" />}
+      className="bg-muted/30"
+      defaultOpen
+    >
+      <div className="space-y-4">
+        {/* Status Bar */}
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>{summary.completed} completed</span>
+            </div>
+            {summary.pending > 0 && (
+              <div className="flex items-center gap-1">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span>{summary.pending + summary.processing} pending</span>
+              </div>
+            )}
+            {summary.failed > 0 && (
+              <div className="flex items-center gap-1">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <span>{summary.failed} failed</span>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading || isRefreshing}
+            data-testid="button-refresh-mockups"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+
+        {/* Mockup Grid */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading mockups...</span>
+          </div>
+        ) : completedMockups.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {completedMockups.map((mockup) => (
+              <div
+                key={mockup.id}
+                className="relative rounded-lg border overflow-hidden bg-white"
+                data-testid={`mockup-${mockup.id}`}
+              >
+                <img
+                  src={mockup.mockupUrl!}
+                  alt={`${mockup.color} - ${mockup.size}`}
+                  className="w-full h-32 object-contain"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 text-center">
+                  {mockup.color} • {mockup.placement}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : summary.pending > 0 || summary.processing > 0 ? (
+          <div className="p-4 text-center text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+            <p>Mockups are being generated...</p>
+            <p className="text-xs">This may take a few minutes. The page will auto-refresh.</p>
+          </div>
+        ) : (
+          <div className="p-4 text-center text-muted-foreground">
+            <p>No mockups generated yet.</p>
+          </div>
+        )}
+
+        {/* Failed Jobs */}
+        {summary.failed > 0 && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/50 rounded-lg border border-red-200 dark:border-red-800">
+            <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">
+              {summary.failed} mockup(s) failed to generate
+            </p>
+            <div className="text-xs text-red-600 dark:text-red-400 space-y-1">
+              {mockups.filter(m => m.status === "failed").slice(0, 3).map(m => (
+                <p key={m.id}>{m.color}: {m.error || "Unknown error"}</p>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </CollapsibleModule>
+  );
+}
+
 function StoreAssignmentModule({ 
   onStoreSelect,
   isSaving,
@@ -756,6 +892,7 @@ export function StoreBuilderHarness() {
             const packet = data.packet;
             setProductPackage({
               packetId: packet.id,
+              templateId: packet.templateId || null,
               qrContent: packet.qrContent,
               productName: packet.productName,
               productDescription: packet.productDescription,
@@ -876,6 +1013,7 @@ export function StoreBuilderHarness() {
         configuration={configuration}
         onConfigurationChange={setConfiguration}
       />
+      <MockupsModule templateId={productPackage?.templateId} />
       <StoreAssignmentModule
         onStoreSelect={handleStoreSelect}
         isSaving={isSaving}

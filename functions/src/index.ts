@@ -5298,17 +5298,76 @@ app.get('/test/packets/:packetId', async (req: Request, res: Response): Promise<
     
     const data = doc.data();
     
+    // Also find linked template by packetId
+    let linkedTemplateId = null;
+    const templatesSnapshot = await db.collection('productTemplates')
+      .where('packetId', '==', packetId)
+      .limit(1)
+      .get();
+    
+    if (!templatesSnapshot.empty) {
+      linkedTemplateId = templatesSnapshot.docs[0].id;
+    }
+    
     res.json({
       success: true,
       packet: {
         id: doc.id,
         ...data,
+        templateId: linkedTemplateId,
         createdAt: data?.createdAt?.toDate?.() || null,
         updatedAt: data?.updatedAt?.toDate?.() || null,
       },
     });
   } catch (error: any) {
     console.error('[Packets TEST] Error getting packet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUBLIC TEST: Get mockups for a template - NO AUTH REQUIRED
+app.get('/test/templates/:templateId/mockups', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { templateId } = req.params;
+
+    const jobsSnapshot = await db.collection('mockupJobs')
+      .where('templateId', '==', templateId)
+      .get();
+
+    const mockups = jobsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        status: data.status,
+        color: data.color,
+        size: data.size,
+        placement: data.placement,
+        mockupUrl: data.mockupUrl || null,
+        error: data.error || null,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        completedAt: data.completedAt?.toDate?.()?.toISOString() || null,
+      };
+    });
+
+    const completed = mockups.filter(m => m.status === 'completed');
+    const pending = mockups.filter(m => m.status === 'pending');
+    const processing = mockups.filter(m => m.status === 'processing');
+    const failed = mockups.filter(m => m.status === 'failed');
+
+    res.json({
+      success: true,
+      templateId,
+      summary: {
+        total: mockups.length,
+        completed: completed.length,
+        pending: pending.length,
+        processing: processing.length,
+        failed: failed.length,
+      },
+      mockups,
+    });
+  } catch (error: any) {
+    console.error('[Mockups] Error getting mockups:', error);
     res.status(500).json({ error: error.message });
   }
 });
