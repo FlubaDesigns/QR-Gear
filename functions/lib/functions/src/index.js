@@ -4639,6 +4639,86 @@ app.get('/test/packets/:packetId', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// PUBLIC TEST: Upload content (composite or media) to Firebase Storage - NO AUTH REQUIRED
+app.post('/test/content/upload', async (req, res) => {
+    try {
+        const { mode, userId, packetId, base64Data, mimeType, fileName } = req.body;
+        if (!mode || !userId || !packetId || !base64Data) {
+            res.status(400).json({
+                error: 'mode, userId, packetId, and base64Data are required'
+            });
+            return;
+        }
+        const validModes = ['canvas', 'play', 'dynamics', 'basics'];
+        if (!validModes.includes(mode)) {
+            res.status(400).json({
+                error: `Invalid mode. Must be one of: ${validModes.join(', ')}`
+            });
+            return;
+        }
+        // Parse base64 data
+        const base64Match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+        const actualMimeType = base64Match?.[1] || mimeType || 'image/png';
+        const actualBase64 = base64Match?.[2] || base64Data;
+        const buffer = Buffer.from(actualBase64, 'base64');
+        // Determine storage path based on mode
+        let storagePath;
+        if (mode === 'canvas' || mode === 'basics') {
+            storagePath = `content/members/${userId}/${mode}/${packetId}.png`;
+        }
+        else {
+            const safeName = (fileName || 'upload').replace(/[^a-zA-Z0-9.-]/g, '_');
+            storagePath = `content/members/${userId}/${mode}/${packetId}/${safeName}`;
+        }
+        // Upload to Firebase Storage
+        const bucket = storage.bucket();
+        const file = bucket.file(storagePath);
+        await file.save(buffer, {
+            metadata: {
+                contentType: actualMimeType,
+                metadata: {
+                    mode,
+                    userId,
+                    packetId,
+                    uploadedAt: new Date().toISOString(),
+                },
+            },
+        });
+        await file.makePublic();
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+        // Update the packet with the uploaded content URL
+        const updateData = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (mode === 'canvas' || mode === 'basics') {
+            updateData.compositeUrl = publicUrl;
+        }
+        else if (mode === 'play') {
+            updateData.playMediaUrl = publicUrl;
+            updateData.playMediaType = actualMimeType;
+        }
+        else if (mode === 'dynamics') {
+            updateData.dynamicsMediaUrl = publicUrl;
+            updateData.dynamicsMediaType = actualMimeType;
+        }
+        await db.collection('productPackets').doc(packetId).update(updateData);
+        console.log(`[Content Upload] Uploaded ${mode} content for packet ${packetId}: ${storagePath}`);
+        res.json({
+            success: true,
+            fileName: storagePath.split('/').pop() || storagePath,
+            storagePath,
+            publicUrl,
+            sizeBytes: buffer.length,
+            mimeType: actualMimeType,
+            mode,
+            message: `${mode} content uploaded successfully`,
+        });
+    }
+    catch (error) {
+        console.error('[Content Upload] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // PUBLIC TEST: Get mockups for a template - NO AUTH REQUIRED
 app.get('/test/templates/:templateId/mockups', async (req, res) => {
     try {

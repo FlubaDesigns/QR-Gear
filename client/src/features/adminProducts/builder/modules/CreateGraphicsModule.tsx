@@ -331,9 +331,37 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       const packetData = await packetRes.json();
       const packetId = packetData.packetId;
 
+      // Upload composite to Firebase Storage for permanent storage
+      let finalCompositeUrl = compositeUrl;
+      try {
+        const uploadRes = await fetch("/api/test/content/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: state.qrProductState === "qr_canvas" ? "canvas" : 
+                  state.qrProductState === "qr_play" ? "play" :
+                  state.qrProductState === "qr_dynamics" ? "dynamics" : "basics",
+            userId: "admin", // TODO: Replace with actual user ID when auth is ready
+            packetId,
+            base64Data: compositeUrl,
+            mimeType: "image/png",
+          }),
+        });
+        
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          finalCompositeUrl = uploadData.publicUrl;
+          console.log("[CreateGraphics] Composite uploaded to:", finalCompositeUrl);
+        } else {
+          console.warn("[CreateGraphics] Upload failed, using data URL as fallback");
+        }
+      } catch (uploadErr) {
+        console.warn("[CreateGraphics] Upload error, using data URL as fallback:", uploadErr);
+      }
+
       const graphics: GeneratedGraphics = {
         qrOnlyUrl: qrUrl,
-        compositeUrl,
+        compositeUrl: finalCompositeUrl,
         generatedAt: new Date(),
         packetId,
       };

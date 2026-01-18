@@ -8198,6 +8198,79 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Upload content (composite or media) to Firebase Storage - NO AUTH REQUIRED
+  app.post("/api/test/content/upload", async (req: any, res) => {
+    try {
+      const { mode, userId, packetId, base64Data, mimeType, fileName } = req.body;
+
+      if (!mode || !userId || !packetId || !base64Data) {
+        return res.status(400).json({ 
+          error: "mode, userId, packetId, and base64Data are required" 
+        });
+      }
+
+      const validModes = ['canvas', 'play', 'dynamics', 'basics'];
+      if (!validModes.includes(mode)) {
+        return res.status(400).json({ 
+          error: `Invalid mode. Must be one of: ${validModes.join(', ')}` 
+        });
+      }
+
+      const { uploadCanvasComposite, uploadContent } = await import("./lib/content-upload-service");
+      
+      let result;
+      
+      if (mode === 'canvas' || mode === 'basics') {
+        result = await uploadCanvasComposite(base64Data, userId, packetId);
+      } else {
+        const base64Match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+        const actualMimeType = base64Match?.[1] || mimeType || 'application/octet-stream';
+        const actualBase64 = base64Match?.[2] || base64Data;
+        const buffer = Buffer.from(actualBase64, 'base64');
+        
+        result = await uploadContent(
+          buffer, 
+          mode as any, 
+          userId, 
+          packetId, 
+          actualMimeType, 
+          fileName || 'upload'
+        );
+      }
+
+      // Update the packet with the uploaded content URL
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const updateData: Record<string, any> = {
+        updatedAt: new Date(),
+      };
+      
+      if (mode === 'canvas' || mode === 'basics') {
+        updateData.compositeUrl = result.publicUrl;
+      } else if (mode === 'play') {
+        updateData.playMediaUrl = result.publicUrl;
+        updateData.playMediaType = result.mimeType;
+      } else if (mode === 'dynamics') {
+        updateData.dynamicsMediaUrl = result.publicUrl;
+        updateData.dynamicsMediaType = result.mimeType;
+      }
+      
+      await firestoreDb.collection("productPackets").doc(packetId).update(updateData);
+
+      console.log(`[Content Upload] Uploaded ${mode} content for packet ${packetId}`);
+
+      res.json({
+        success: true,
+        ...result,
+        message: `${mode} content uploaded successfully`,
+      });
+    } catch (error: any) {
+      console.error("[Content Upload] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Save graphics (enlarged QR and/or composite graphic)
   app.post("/api/admin/graphics/save", isAdmin, async (req, res) => {
     try {
