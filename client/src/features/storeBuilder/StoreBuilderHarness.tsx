@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -176,15 +177,19 @@ function HeroImageLightbox({
                   <button
                     key={color.name}
                     onClick={() => onSelectColor(color.name)}
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${
+                    className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
                       configuration.defaultColor === color.name
                         ? "ring-2 ring-offset-2 ring-primary border-primary"
                         : "border-muted hover:border-primary/50"
                     }`}
-                    style={{ backgroundColor: color.hex }}
+                    style={{ backgroundColor: color.hex || '#cccccc' }}
                     title={color.name}
                     data-testid={`lightbox-color-${color.name}`}
-                  />
+                  >
+                    {!color.hex && (
+                      <span className="text-[8px] text-center leading-tight">{color.name.slice(0, 3)}</span>
+                    )}
+                  </button>
                 ))}
               </div>
               {configuration.defaultColor && (
@@ -225,6 +230,7 @@ function HeroImageLightbox({
 
 export function StoreBuilderHarness() {
   const { apiBase } = useAdminAuth();
+  const [, navigate] = useLocation();
   const [productPackage, setProductPackage] = useState<ProductPackage | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPacket, setIsLoadingPacket] = useState(false);
@@ -263,6 +269,15 @@ export function StoreBuilderHarness() {
   });
 
   useEffect(() => {
+    if (selectedStoreId && stores.length > 0 && !selectedStoreType) {
+      const store = stores.find(s => s.id === selectedStoreId);
+      if (store) {
+        setSelectedStoreType(store.isInternal ? "internal" : "external");
+      }
+    }
+  }, [selectedStoreId, stores, selectedStoreType]);
+
+  useEffect(() => {
     if (productPackage) {
       const colors = productPackage.colors?.map(c => c.name) || [];
       const sizes = productPackage.sizes || [];
@@ -279,6 +294,15 @@ export function StoreBuilderHarness() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const packetId = urlParams.get("packetId");
+    const urlStoreId = urlParams.get("storeId");
+    const urlChannel = urlParams.get("channel");
+    
+    if (urlStoreId) {
+      setSelectedStoreId(urlStoreId);
+    }
+    if (urlChannel) {
+      setSelectedChannel(urlChannel);
+    }
     
     if (packetId) {
       setIsLoadingPacket(true);
@@ -452,6 +476,12 @@ export function StoreBuilderHarness() {
       });
       
       sessionStorage.removeItem("productPackage");
+      
+      if (selectedStore?.id && selectedChannel) {
+        setTimeout(() => {
+          navigate(`/test-stores?storeId=${selectedStore.id}&channel=${encodeURIComponent(selectedChannel)}`);
+        }, 1000);
+      }
     } catch (error: any) {
       setSaveStatus({
         type: "error",
@@ -680,9 +710,13 @@ export function StoreBuilderHarness() {
             >
               <div className="flex items-center gap-2">
                 <div 
-                  className="w-6 h-6 rounded-full border"
-                  style={{ backgroundColor: color.hex }}
-                />
+                  className="w-6 h-6 rounded-full border flex items-center justify-center"
+                  style={{ backgroundColor: color.hex || '#cccccc' }}
+                >
+                  {!color.hex && (
+                    <span className="text-[6px] text-center leading-tight">{color.name.slice(0, 2)}</span>
+                  )}
+                </div>
                 <span className="font-medium text-sm">{color.name}</span>
               </div>
               <Switch

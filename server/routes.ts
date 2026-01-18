@@ -1635,6 +1635,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get store by ID (test endpoint) - uses Firestore
+  app.get("/api/test/stores/by-id/:storeId", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      console.log(`[TestStores] GET store by ID: ${storeId}`);
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      
+      const doc = await db.collection('stores').doc(storeId).get();
+      
+      if (!doc.exists) {
+        return res.status(404).json({ error: 'Store not found' });
+      }
+      
+      const data = doc.data();
+      const store = {
+        id: doc.id,
+        name: data?.name || storeId,
+        type: data?.roleType || 'internal',
+        roleType: data?.roleType || 'internal',
+        isActive: data?.isActive ?? true,
+      };
+      
+      console.log(`[TestStores] Found store: ${storeId}`);
+      res.json(store);
+    } catch (error: any) {
+      console.error('[TestStores] GET by-id error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Create a new store (test endpoint) - uses Firestore
   app.post("/api/test/stores", async (req: any, res) => {
     try {

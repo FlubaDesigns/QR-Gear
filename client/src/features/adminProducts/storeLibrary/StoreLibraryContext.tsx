@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type StoreType = "internal" | "external" | "member";
 
@@ -52,6 +52,49 @@ export function StoreLibraryProvider({ children }: { children: ReactNode }) {
   const [selectedStore, setSelectedStore] = useState<StoreInfo | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<ChannelInfo | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<ProductInfo[]>([]);
+  const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
+
+  useEffect(() => {
+    if (urlParamsProcessed) return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlStoreId = urlParams.get("storeId");
+    const urlChannel = urlParams.get("channel");
+    
+    if (urlStoreId && urlStoreId !== "null") {
+      fetch(`/api/test/stores/by-id/${urlStoreId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(async (store) => {
+          if (store && store.id) {
+            setSelectedType((store.type || store.roleType || "internal") as StoreType);
+            setSelectedStore({
+              id: store.id,
+              name: store.name || urlStoreId,
+              type: (store.type || store.roleType || "internal") as StoreType,
+            });
+            
+            if (urlChannel && urlChannel !== "null") {
+              try {
+                const channelsRes = await fetch(`/api/test/stores/${urlStoreId}/channels`);
+                if (channelsRes.ok) {
+                  const channels: ChannelInfo[] = await channelsRes.json();
+                  const channel = channels.find(c => c.name === urlChannel || c.id === urlChannel);
+                  if (channel) {
+                    setSelectedChannel(channel);
+                  }
+                }
+              } catch (e) {
+                console.warn("Failed to load channels from URL params:", e);
+              }
+            }
+          }
+          setUrlParamsProcessed(true);
+        })
+        .catch(() => setUrlParamsProcessed(true));
+    } else {
+      setUrlParamsProcessed(true);
+    }
+  }, [urlParamsProcessed]);
 
   const addToSelection = (product: ProductInfo) => {
     setSelectedProducts(prev => {
