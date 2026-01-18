@@ -108,6 +108,15 @@ STORE BUILDER
 
 **Flow:** One save creates the packet → Graphics and Templates link to it → Store Builder queries DB by ID.
 
+**API Endpoints (Test):**
+- POST `/api/test/packets` - Create packet with qrOnlyUrl, compositeUrl, qrContent, pricing, productId, etc.
+- GET `/api/test/packets/:packetId` - Retrieve packet by ID from Firestore
+
+**Navigation Flow:**
+- BuilderHarness creates packet via API when "Create Graphics" is clicked
+- Navigates to Store Builder with `?packetId=xxx` in URL
+- Store Builder fetches packet from database and displays pricing breakdown
+
 ### System Design Choices
 - **Printful-First Mockup Architecture**: Decouples mockup generation (Printful) from order fulfillment (Printify).
 - **Backend**: Node.js, Express, TypeScript.
