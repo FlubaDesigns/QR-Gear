@@ -5291,6 +5291,54 @@ app.get('/test/packets/:packetId', async (req: Request, res: Response): Promise<
   }
 });
 
+// PUBLIC TEST: Create store-product link (package linking) - NO AUTH REQUIRED
+app.post('/test/store-product-links', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, storeName, channel, packetId, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl, pricing } = req.body;
+
+    if (!storeId || !channel) {
+      res.status(400).json({ error: 'storeId and channel are required' });
+      return;
+    }
+    
+    if (!packetId && !templateId && !graphicsId) {
+      res.status(400).json({ error: 'At least one of packetId, templateId, or graphicsId is required' });
+      return;
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    
+    const linkData = {
+      storeId,
+      storeName: storeName || '',
+      channel,
+      packetId: packetId || null,
+      templateId: templateId || null,
+      graphicsId: graphicsId || null,
+      qrContent: qrContent || null,
+      productName: productName || null,
+      compositeUrl: compositeUrl || null,
+      qrOnlyUrl: qrOnlyUrl || null,
+      pricing: pricing || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    const linkRef = await db.collection('storeProductLinks').add(linkData);
+    
+    console.log(`[Store Links TEST] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);
+
+    res.json({
+      success: true,
+      linkId: linkRef.id,
+      message: `Product linked to ${storeName || storeId} / ${channel}`,
+    });
+  } catch (error: any) {
+    console.error('[Store Links TEST] Error creating link:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin: Save graphics (QR-only and/or composite) to library
 app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {

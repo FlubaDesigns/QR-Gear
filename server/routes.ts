@@ -7616,14 +7616,14 @@ ${allPages.map(page => `  <url>
   // Test: Create store-product link (package linking) - NO AUTH REQUIRED
   app.post("/api/test/store-product-links", async (req: any, res) => {
     try {
-      const { storeId, storeName, channel, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl } = req.body;
+      const { storeId, storeName, channel, packetId, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl, pricing } = req.body;
 
       if (!storeId || !channel) {
         return res.status(400).json({ error: "storeId and channel are required" });
       }
       
-      if (!templateId && !graphicsId) {
-        return res.status(400).json({ error: "At least one of templateId or graphicsId is required" });
+      if (!packetId && !templateId && !graphicsId) {
+        return res.status(400).json({ error: "At least one of packetId, templateId, or graphicsId is required" });
       }
 
       const { getFirestoreDb } = await import("./lib/firebase-admin");
@@ -7636,12 +7636,14 @@ ${allPages.map(page => `  <url>
         storeId,
         storeName: storeName || "",
         channel,
+        packetId: packetId || null,
         templateId: templateId || null,
         graphicsId: graphicsId || null,
         qrContent: qrContent || null,
         productName: productName || null,
         compositeUrl: compositeUrl || null,
         qrOnlyUrl: qrOnlyUrl || null,
+        pricing: pricing || null,
         createdAt: now,
         updatedAt: now,
       };
