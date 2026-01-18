@@ -165,6 +165,47 @@ function TextBlock({ label, maxLength, style, onChange, testIdPrefix }: TextBloc
               </div>
             </div>
           </div>
+
+          {/* Position Controls */}
+          <div className="pt-3 border-t border-border/50">
+            <p className="text-sm font-medium mb-3 text-muted-foreground">Position</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-sm mb-1.5 block text-muted-foreground">
+                  Distance from QR: {style.verticalOffset ?? 20}%
+                </Label>
+                <div className="min-h-[48px] flex items-center py-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={style.verticalOffset ?? 20}
+                    onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
+                    className="w-full h-6 accent-primary cursor-pointer"
+                    style={{ touchAction: 'none' }}
+                    data-testid={`slider-${testIdPrefix}-vertical`}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm mb-1.5 block text-muted-foreground">
+                  Horizontal: {style.horizontalOffset ?? 0 > 0 ? `+${style.horizontalOffset ?? 0}` : style.horizontalOffset ?? 0}%
+                </Label>
+                <div className="min-h-[48px] flex items-center py-2">
+                  <input
+                    type="range"
+                    min="-50"
+                    max="50"
+                    value={style.horizontalOffset ?? 0}
+                    onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
+                    className="w-full h-6 accent-primary cursor-pointer"
+                    style={{ touchAction: 'none' }}
+                    data-testid={`slider-${testIdPrefix}-horizontal`}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
           
           {style.text && (
             <div className="p-4 bg-muted/50 rounded-md border text-center overflow-hidden">
@@ -251,14 +292,21 @@ export function TextConfigModule() {
         {/* Combined Text Preview */}
         {hasAnyText && (
           <div className="mt-4 pt-4 border-t">
-            <p className="text-sm font-medium mb-3 text-muted-foreground">Text Preview</p>
+            <p className="text-sm font-medium mb-3 text-muted-foreground">Graphic Preview</p>
             <div className="flex justify-center">
               <div 
                 className="relative w-[160px] aspect-square rounded-lg overflow-hidden border-2 border-border shadow-lg bg-white dark:bg-black"
               >
-                {/* Header text */}
+                {/* Header text - positioned based on verticalOffset and horizontalOffset */}
                 {state.content.headerStyle.enabled && state.content.headerStyle.text && (
-                  <div className="absolute top-2 left-0 right-0 text-center px-1">
+                  <div 
+                    className="absolute left-0 right-0 px-1"
+                    style={{
+                      top: `${Math.max(2, 40 - (state.content.headerStyle.verticalOffset ?? 20) * 0.38)}%`,
+                      transform: `translateX(${(state.content.headerStyle.horizontalOffset ?? 0) * 0.5}%)`,
+                      textAlign: 'center',
+                    }}
+                  >
                     <span 
                       style={{ 
                         fontFamily: state.content.headerStyle.fontFamily, 
@@ -290,9 +338,16 @@ export function TextConfigModule() {
                   </div>
                 </div>
 
-                {/* Footer text */}
+                {/* Footer text - positioned based on verticalOffset and horizontalOffset */}
                 {state.content.footerStyle.enabled && state.content.footerStyle.text && (
-                  <div className="absolute bottom-2 left-0 right-0 text-center px-1">
+                  <div 
+                    className="absolute left-0 right-0 px-1"
+                    style={{
+                      bottom: `${Math.max(2, 40 - (state.content.footerStyle.verticalOffset ?? 20) * 0.38)}%`,
+                      transform: `translateX(${(state.content.footerStyle.horizontalOffset ?? 0) * 0.5}%)`,
+                      textAlign: 'center',
+                    }}
+                  >
                     <span 
                       style={{ 
                         fontFamily: state.content.footerStyle.fontFamily, 

@@ -3,7 +3,6 @@ import { StateModule } from "./modules/StateModule";
 import { URLContentModule } from "./modules/URLContentModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
-import { PreviewModule } from "./modules/PreviewModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
@@ -30,12 +29,7 @@ function BuilderModules() {
         <URLContentModule />
       </InlineDebugBoundary>
       
-      {/* Step 5: Preview */}
-      <InlineDebugBoundary label="PreviewModule">
-        <PreviewModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 6: Create Graphics */}
+      {/* Step 5: Create Graphics */}
       <InlineDebugBoundary label="CreateGraphicsModule">
         <CreateGraphicsModule />
       </InlineDebugBoundary>

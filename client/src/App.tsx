@@ -27,6 +27,7 @@ import StoreBuild from "@/pages/store-build";
 import Checkout from "@/pages/checkout";
 import CheckoutSuccess from "@/pages/checkout-success";
 import Customs from "@/pages/customs";
+import Packet from "@/pages/packet";
 import GiftShop from "@/pages/gift-shop";
 import GiftRedeem from "@/pages/gift-redeem";
 import AdminGifts from "@/pages/admin-gifts";
@@ -116,6 +117,7 @@ function Router() {
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />
       <Route path="/customs/:id" component={Customs} />
+      <Route path="/p/:id" component={Packet} />
       <Route path="/gifts" component={GiftShop} />
       <Route path="/gift/redeem" component={GiftRedeem} />
       <Route path="/gift/redeem/:code" component={GiftRedeem} />

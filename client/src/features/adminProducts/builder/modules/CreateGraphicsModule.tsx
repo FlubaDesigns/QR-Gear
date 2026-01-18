@@ -39,6 +39,143 @@ function generateQRCodeUrl(content: string, size: number = 3000): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H`;
 }
 
+interface TextStyle {
+  text: string;
+  enabled: boolean;
+  fontFamily: string;
+  fontSize: string;
+  color: string;
+  letterSpacing: number;
+  strokeColor: string;
+  strokeWidth: number;
+  verticalOffset: number;
+  horizontalOffset: number;
+}
+
+async function generateCompositeGraphic(
+  qrUrl: string,
+  backgroundUrl: string | null,
+  headerStyle: TextStyle | null,
+  footerStyle: TextStyle | null
+): Promise<string> {
+  const CANVAS_WIDTH = 1080;
+  const CANVAS_HEIGHT = 1920;
+  const QR_SIZE = 400;
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = CANVAS_WIDTH;
+  canvas.height = CANVAS_HEIGHT;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas not supported');
+
+  // Fill with white background by default
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  // Draw background image if available
+  if (backgroundUrl) {
+    try {
+      const bgImg = await loadImage(backgroundUrl);
+      const scale = Math.max(CANVAS_WIDTH / bgImg.width, CANVAS_HEIGHT / bgImg.height);
+      const scaledWidth = bgImg.width * scale;
+      const scaledHeight = bgImg.height * scale;
+      const x = (CANVAS_WIDTH - scaledWidth) / 2;
+      const y = (CANVAS_HEIGHT - scaledHeight) / 2;
+      ctx.drawImage(bgImg, x, y, scaledWidth, scaledHeight);
+    } catch (e) {
+      console.warn('Failed to load background image:', e);
+    }
+  }
+
+  // Draw QR code in center
+  try {
+    const qrImg = await loadImage(qrUrl);
+    const qrX = (CANVAS_WIDTH - QR_SIZE) / 2;
+    const qrY = (CANVAS_HEIGHT - QR_SIZE) / 2;
+    
+    // White background for QR code
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(qrX - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
+    ctx.drawImage(qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
+  } catch (e) {
+    console.warn('Failed to load QR image:', e);
+  }
+
+  // Draw header text if enabled
+  if (headerStyle?.enabled && headerStyle.text) {
+    const fontSize = parseInt(headerStyle.fontSize) || 144;
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    
+    ctx.font = `bold ${scaledFontSize}px ${headerStyle.fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Calculate vertical position (distance from QR center)
+    const qrCenterY = CANVAS_HEIGHT / 2;
+    const qrTopEdge = qrCenterY - (QR_SIZE / 2) - 20; // 20px padding
+    const verticalOffset = headerStyle.verticalOffset ?? 20;
+    const textY = qrTopEdge - (verticalOffset * 4); // Scale offset
+    
+    // Horizontal offset
+    const horizontalOffset = headerStyle.horizontalOffset ?? 0;
+    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
+    
+    // Draw stroke if configured
+    if (headerStyle.strokeColor && headerStyle.strokeWidth > 0) {
+      ctx.strokeStyle = headerStyle.strokeColor;
+      ctx.lineWidth = headerStyle.strokeWidth * 2;
+      ctx.strokeText(headerStyle.text, textX, textY);
+    }
+    
+    // Draw fill
+    ctx.fillStyle = headerStyle.color;
+    ctx.fillText(headerStyle.text, textX, textY);
+  }
+
+  // Draw footer text if enabled
+  if (footerStyle?.enabled && footerStyle.text) {
+    const fontSize = parseInt(footerStyle.fontSize) || 144;
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    
+    ctx.font = `bold ${scaledFontSize}px ${footerStyle.fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Calculate vertical position (distance from QR center)
+    const qrCenterY = CANVAS_HEIGHT / 2;
+    const qrBottomEdge = qrCenterY + (QR_SIZE / 2) + 20; // 20px padding
+    const verticalOffset = footerStyle.verticalOffset ?? 20;
+    const textY = qrBottomEdge + (verticalOffset * 4); // Scale offset
+    
+    // Horizontal offset
+    const horizontalOffset = footerStyle.horizontalOffset ?? 0;
+    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
+    
+    // Draw stroke if configured
+    if (footerStyle.strokeColor && footerStyle.strokeWidth > 0) {
+      ctx.strokeStyle = footerStyle.strokeColor;
+      ctx.lineWidth = footerStyle.strokeWidth * 2;
+      ctx.strokeText(footerStyle.text, textX, textY);
+    }
+    
+    // Draw fill
+    ctx.fillStyle = footerStyle.color;
+    ctx.fillText(footerStyle.text, textX, textY);
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.src = src;
+  });
+}
+
 export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: CreateGraphicsModuleProps) {
   const { state, loadGraphic, setContent } = useBuilderContext();
   const { toast } = useToast();
@@ -128,7 +265,18 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         img.src = qrUrl;
       });
 
-      const compositeUrl = state.selectedProduct?.imageUrl || "";
+      // Generate actual composite graphic with header, QR, and footer
+      const backgroundUrl = state.loadedBackground?.url || null;
+      const headerStyle = state.content.headerStyle as TextStyle | null;
+      const footerStyle = state.content.footerStyle as TextStyle | null;
+      
+      let compositeUrl: string;
+      try {
+        compositeUrl = await generateCompositeGraphic(qrUrl, backgroundUrl, headerStyle, footerStyle);
+      } catch (e) {
+        console.warn('Composite generation failed, using product image as fallback:', e);
+        compositeUrl = state.selectedProduct?.imageUrl || "";
+      }
       const pricing = calculatePricing();
       
       // Get product data for the packet
@@ -144,6 +292,9 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         qrContent: qrContent.trim(),
         headerText: state.content.headerStyle?.enabled ? state.content.headerStyle.text : null,
         footerText: state.content.footerStyle?.enabled ? state.content.footerStyle.text : null,
+        headerStyle: state.content.headerStyle?.enabled ? state.content.headerStyle : null,
+        footerStyle: state.content.footerStyle?.enabled ? state.content.footerStyle : null,
+        backgroundUrl: state.loadedBackground?.url || null,
         pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,

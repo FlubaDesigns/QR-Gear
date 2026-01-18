@@ -365,7 +365,71 @@ export function URLContentModule() {
                 {/* Dark overlay for text readability */}
                 <div className="absolute inset-0 bg-black/30" />
                 
-                {/* Content overlay */}
+                {/* Header text - styled like graphic with position */}
+                {state.content.headerStyle?.enabled && state.content.headerStyle.text && (
+                  <div 
+                    className="absolute left-0 right-0 px-2 z-10"
+                    style={{
+                      top: `${Math.max(2, 40 - (state.content.headerStyle.verticalOffset ?? 20) * 0.38)}%`,
+                      transform: `translateX(${(state.content.headerStyle.horizontalOffset ?? 0) * 0.5}%)`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <span 
+                      style={{ 
+                        fontFamily: state.content.headerStyle.fontFamily, 
+                        fontSize: `${Math.max(8, Math.min(parseInt(state.content.headerStyle.fontSize) * 0.06, 14))}px`,
+                        color: state.content.headerStyle.color,
+                        letterSpacing: `${state.content.headerStyle.letterSpacing * 0.02}px`,
+                        textShadow: state.content.headerStyle.strokeColor && state.content.headerStyle.strokeWidth > 0 
+                          ? `0 0 ${Math.max(1, state.content.headerStyle.strokeWidth * 0.15)}px ${state.content.headerStyle.strokeColor}` 
+                          : "0 1px 3px rgba(0,0,0,0.7)",
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {state.content.headerStyle.text}
+                    </span>
+                  </div>
+                )}
+
+                {/* Footer text - styled like graphic with position */}
+                {state.content.footerStyle?.enabled && state.content.footerStyle.text && (
+                  <div 
+                    className="absolute left-0 right-0 px-2 z-10"
+                    style={{
+                      bottom: `${Math.max(2, 40 - (state.content.footerStyle.verticalOffset ?? 20) * 0.38)}%`,
+                      transform: `translateX(${(state.content.footerStyle.horizontalOffset ?? 0) * 0.5}%)`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <span 
+                      style={{ 
+                        fontFamily: state.content.footerStyle.fontFamily, 
+                        fontSize: `${Math.max(8, Math.min(parseInt(state.content.footerStyle.fontSize) * 0.06, 14))}px`,
+                        color: state.content.footerStyle.color,
+                        letterSpacing: `${state.content.footerStyle.letterSpacing * 0.02}px`,
+                        textShadow: state.content.footerStyle.strokeColor && state.content.footerStyle.strokeWidth > 0 
+                          ? `0 0 ${Math.max(1, state.content.footerStyle.strokeWidth * 0.15)}px ${state.content.footerStyle.strokeColor}` 
+                          : "0 1px 3px rgba(0,0,0,0.7)",
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {state.content.footerStyle.text}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Content overlay - Title & Description */}
                 <div className="absolute inset-0 flex flex-col justify-end p-3">
                   {state.content.title && (
                     <h3 className="text-white text-sm font-bold mb-1 drop-shadow-lg">

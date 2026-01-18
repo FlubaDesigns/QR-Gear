@@ -78,6 +78,8 @@ export interface TextStyleConfig {
   letterSpacing: number;
   strokeColor: string;
   strokeWidth: number;
+  verticalOffset: number;   // Distance from QR code (0-100, higher = further from QR)
+  horizontalOffset: number; // Left/right position (-50 to 50, 0 = centered)
 }
 
 export const FONT_FAMILIES = [
@@ -111,6 +113,8 @@ export const defaultTextStyle: TextStyleConfig = {
   letterSpacing: 0,
   strokeColor: "",
   strokeWidth: 0,
+  verticalOffset: 20,   // Default spacing from QR
+  horizontalOffset: 0,  // Centered by default
 };
 
 export interface ContentData {
