@@ -4,6 +4,7 @@ import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
+import { PricingModule } from "./modules/PricingModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
@@ -35,7 +36,12 @@ function BuilderModules() {
         <URLContentModule />
       </InlineDebugBoundary>
       
-      {/* Step 5: Create Graphics */}
+      {/* Step 5: Pricing Breakdown */}
+      <InlineDebugBoundary label="PricingModule">
+        <PricingModule />
+      </InlineDebugBoundary>
+      
+      {/* Step 6: Create Graphics */}
       <InlineDebugBoundary label="CreateGraphicsModule">
         <CreateGraphicsModule />
       </InlineDebugBoundary>

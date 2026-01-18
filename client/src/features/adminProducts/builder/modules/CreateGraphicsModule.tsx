@@ -626,7 +626,9 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
           <div className="text-sm text-muted-foreground text-center">
             {!state.selectedProduct && "Select a product first"}
             {state.selectedProduct && !state.qrProductState && "Select a QR mode first"}
-            {state.selectedProduct && state.qrProductState && !(state.content.url || state.content.title) && "Enter content first"}
+            {state.selectedProduct && state.qrProductState && isPlayMode && !hasPlayMedia && "Add your video or media above"}
+            {state.selectedProduct && state.qrProductState && isPlayMode && hasPlayMedia && !playPermissionOk && "Confirm you have rights to use this content"}
+            {state.selectedProduct && state.qrProductState && !isPlayMode && !(state.content.url || state.content.title) && "Enter content first"}
           </div>
         )}
 

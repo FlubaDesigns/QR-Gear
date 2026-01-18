@@ -202,6 +202,8 @@ export function PlayContentModule() {
                   <video
                     src={state.content.playMediaPreview}
                     controls
+                    playsInline
+                    preload="metadata"
                     className="w-full max-h-[200px] object-contain bg-black"
                     data-testid="play-video-preview"
                   />
