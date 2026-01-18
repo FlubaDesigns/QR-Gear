@@ -397,7 +397,7 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
               </div>
             </div>
 
-            {calculatedPricing && (
+            {calculatedPricing && pricingSettings && (
               <div className="border-t pt-4">
                 <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
@@ -407,30 +407,41 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
                 <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 border-green-200 dark:border-green-800">
                   <CardContent className="p-4 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Base Price</span>
+                      <span>Base Product Cost</span>
                       <span className="font-medium">${calculatedPricing.baseProductCost.toFixed(2)}</span>
                     </div>
                     
-                    {calculatedPricing.placementCost > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span>Extra Placements</span>
-                        <span className="font-medium">+${calculatedPricing.placementCost.toFixed(2)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        Extra Placements ({Math.max(0, (state.selectedPlacements?.length || 1) - 1)} x ${pricingSettings.additionalPlacementCost.toFixed(2)})
+                      </span>
+                      <span className="font-medium">
+                        {calculatedPricing.placementCost > 0 ? `+$${calculatedPricing.placementCost.toFixed(2)}` : '$0.00'}
+                      </span>
+                    </div>
                     
-                    {calculatedPricing.textUpcharge > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span>Text Lines</span>
-                        <span className="font-medium">+${calculatedPricing.textUpcharge.toFixed(2)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        Text Lines ({(() => {
+                          let count = 0;
+                          if (state.content.headerStyle?.enabled && state.content.headerStyle.text) count++;
+                          if (state.content.footerStyle?.enabled && state.content.footerStyle.text) count++;
+                          return count;
+                        })()} x ${pricingSettings.textLineUpcharge.toFixed(2)})
+                      </span>
+                      <span className="font-medium">
+                        {calculatedPricing.textUpcharge > 0 ? `+$${calculatedPricing.textUpcharge.toFixed(2)}` : '$0.00'}
+                      </span>
+                    </div>
                     
-                    {calculatedPricing.hostingCost > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span>Hosting</span>
-                        <span className="font-medium">+${calculatedPricing.hostingCost.toFixed(2)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        Hosting ({calculatedPricing.hostingTierCode || 'none'})
+                      </span>
+                      <span className="font-medium">
+                        {calculatedPricing.hostingCost > 0 ? `+$${calculatedPricing.hostingCost.toFixed(2)}` : '$0.00'}
+                      </span>
+                    </div>
                     
                     <div className="flex justify-between text-sm border-t pt-2">
                       <span>Subtotal</span>
@@ -438,7 +449,7 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
                     </div>
                     
                     <div className="flex justify-between text-sm">
-                      <span>Markup</span>
+                      <span>Markup ({pricingSettings.markupPercent}% + ${pricingSettings.markupFixed.toFixed(2)})</span>
                       <span className="font-medium">+${calculatedPricing.markupAmount.toFixed(2)}</span>
                     </div>
                     
