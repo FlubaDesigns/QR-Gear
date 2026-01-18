@@ -29,23 +29,13 @@ export function PlayContentModule() {
       return;
     }
 
-    setIsUploading(true);
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const preview = e.target?.result as string;
-      setContent({
-        playMediaFile: file,
-        playMediaPreview: preview,
-        playMediaMimeType: file.type,
-      });
-      setIsUploading(false);
-    };
-    reader.onerror = () => {
-      setUploadError("Failed to read file");
-      setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    // Use object URL for preview - more reliable than base64 for videos
+    const objectUrl = URL.createObjectURL(file);
+    setContent({
+      playMediaFile: file,
+      playMediaPreview: objectUrl,
+      playMediaMimeType: file.type,
+    });
   }, [setContent]);
 
   if (state.qrProductState !== "qr_play" || !state.selectedProduct) {
