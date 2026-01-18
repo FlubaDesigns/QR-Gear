@@ -650,6 +650,11 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
           )}
         </Button>
 
+        {/* Debug info - remove after fixing */}
+        <div className="text-xs text-muted-foreground bg-yellow-100 dark:bg-yellow-900 p-2 rounded">
+          DEBUG: canCreate={String(canCreate)} | isPlayMode={String(isPlayMode)} | hasPlayMedia={String(hasPlayMedia)} | playPermissionOk={String(playPermissionOk)} | hasFile={String(!!state.content.playMediaFile)} | source={state.content.playMediaSource || "none"}
+        </div>
+
         {!canCreate && (
           <div className="text-sm text-muted-foreground text-center">
             {!state.selectedProduct && "Select a product first"}
