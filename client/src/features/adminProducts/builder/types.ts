@@ -140,7 +140,7 @@ export interface PricingBreakdown {
 
 export type PlacementId = 
   // Shirts/Hoodies
-  | "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder" | "left-sleeve" | "right-sleeve" | "pocket"
+  | "front-chest" | "front-center" | "small-chest" | "back" | "left-shoulder" | "right-shoulder" | "left-sleeve" | "right-sleeve" | "pocket"
   // Mugs
   | "mug-wrap" | "mug-front" | "mug-back"
   // Hats
@@ -159,14 +159,18 @@ export interface PlacementOption {
   label: string;
 }
 
+// Placements that can ONLY have QR codes (no graphics option)
+export const QR_ONLY_PLACEMENTS: PlacementId[] = ["left-shoulder", "right-shoulder"];
+
 // All available placements
 export const ALL_PLACEMENT_OPTIONS: PlacementOption[] = [
   // Shirts/Hoodies
   { id: "front-chest", label: "Front Chest" },
   { id: "front-center", label: "Front Center" },
+  { id: "small-chest", label: "Small Chest" },
   { id: "back", label: "Back" },
-  { id: "left-shoulder", label: "Left Shoulder" },
-  { id: "right-shoulder", label: "Right Shoulder" },
+  { id: "left-shoulder", label: "Left Shoulder (QR Only)" },
+  { id: "right-shoulder", label: "Right Shoulder (QR Only)" },
   { id: "left-sleeve", label: "Left Sleeve" },
   { id: "right-sleeve", label: "Right Sleeve" },
   { id: "pocket", label: "Pocket" },
@@ -187,11 +191,11 @@ export const ALL_PLACEMENT_OPTIONS: PlacementOption[] = [
 // Category to placement mapping
 export const CATEGORY_PLACEMENTS: Record<string, PlacementId[]> = {
   // Apparel
-  "T-shirts": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve"],
-  "Long Sleeve Shirts": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve"],
-  "Sweatshirts": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve"],
-  "Hoodies": ["front-chest", "front-center", "back", "left-sleeve", "right-sleeve", "pocket"],
-  "Tank Tops": ["front-chest", "front-center", "back"],
+  "T-shirts": ["front-chest", "front-center", "small-chest", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
+  "Long Sleeve Shirts": ["front-chest", "front-center", "small-chest", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
+  "Sweatshirts": ["front-chest", "front-center", "small-chest", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
+  "Hoodies": ["front-chest", "front-center", "small-chest", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve", "pocket"],
+  "Tank Tops": ["front-chest", "front-center", "small-chest", "back"],
   // Drinkware
   "Mugs": ["mug-wrap", "mug-front", "mug-back"],
   "Tumblers": ["mug-wrap", "mug-front", "mug-back"],

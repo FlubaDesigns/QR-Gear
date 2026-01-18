@@ -2,7 +2,7 @@ import { MapPin, Check, QrCode, Image } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, type PlacementId, type PlacementType } from "../types";
+import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType } from "../types";
 
 export function PlacementModule() {
   const { state, togglePlacement, setPlacementType } = useBuilderContext();
@@ -37,6 +37,7 @@ export function PlacementModule() {
           {placementOptions.map((placement) => {
             const isSelected = (state.selectedPlacements || []).includes(placement.id);
             const placementType = state.placementConfig[placement.id] || "qr";
+            const isQrOnly = QR_ONLY_PLACEMENTS.includes(placement.id);
             
             return (
               <div key={placement.id} className="space-y-2">
@@ -67,8 +68,8 @@ export function PlacementModule() {
                   )}
                 </button>
                 
-                {/* Show Graphic/QR toggle for QR Plus when placement is selected */}
-                {isSelected && isQrPlus && (
+                {/* Show Graphic/QR toggle for QR Plus when placement is selected (except QR-only placements) */}
+                {isSelected && isQrPlus && !isQrOnly && (
                   <div className="flex gap-2 ml-4">
                     <Button
                       type="button"
@@ -92,6 +93,13 @@ export function PlacementModule() {
                       <QrCode className="h-4 w-4 mr-2" />
                       QR Code
                     </Button>
+                  </div>
+                )}
+                {/* Show QR Only indicator for shoulder placements */}
+                {isSelected && isQrPlus && isQrOnly && (
+                  <div className="ml-4 text-xs text-muted-foreground flex items-center gap-1">
+                    <QrCode className="h-3 w-3" />
+                    This placement only supports QR codes
                   </div>
                 )}
               </div>
