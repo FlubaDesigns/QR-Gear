@@ -1,23 +1,16 @@
 import { useState } from "react";
-import { Link2, Type, FileText, QrCode, Loader2, Check } from "lucide-react";
+import { Link2, Type, FileText } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useBuilderContext } from "../BuilderContext";
 import { ContentViewerControls } from "../components/ContentViewerControls";
 
-function generateQRCodeUrl(content: string, size: number = 3000): string {
-  // 3000px for large print-quality output (300 DPI at 10" print size)
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H`;
-}
-
 export function ContentModule() {
-  const { state, setContent, loadGraphic } = useBuilderContext();
+  const { state, setContent } = useBuilderContext();
   const [basicsMode, setBasicsMode] = useState<"text" | "url">("text");
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const needsUrl = state.qrProductState === "qr_canvas" || 
                    state.qrProductState === "qr_play" || 
@@ -184,67 +177,6 @@ export function ContentModule() {
               </div>
             )}
 
-            {state.content.url && (
-              <div className="pt-2">
-                <Button
-                  type="button"
-                  size="lg"
-                  className="w-full h-14 text-base"
-                  disabled={isGenerating || !state.content.url.trim()}
-                  onClick={async () => {
-                    setIsGenerating(true);
-                    try {
-                      const qrUrl = generateQRCodeUrl(state.content.url.trim());
-                      await new Promise((resolve, reject) => {
-                        const img = new Image();
-                        img.onload = () => resolve(true);
-                        img.onerror = () => reject(new Error("Failed to generate QR code"));
-                        img.src = qrUrl;
-                      });
-                      loadGraphic({ compositeUrl: "", qrOnlyUrl: qrUrl });
-                    } catch (err) {
-                      console.error("QR generation failed:", err);
-                    } finally {
-                      setIsGenerating(false);
-                    }
-                  }}
-                  data-testid="button-generate-qr"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : state.loadedGraphic?.qrOnlyUrl ? (
-                    <>
-                      <Check className="h-5 w-5 mr-2" />
-                      QR Code Ready - Tap to Regenerate
-                    </>
-                  ) : (
-                    <>
-                      <QrCode className="h-5 w-5 mr-2" />
-                      Generate QR Code
-                    </>
-                  )}
-                </Button>
-                
-                {state.loadedGraphic?.qrOnlyUrl && (
-                  <div className="mt-4 flex flex-col items-center gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border-2 border-green-500">
-                    <p className="text-base font-semibold text-green-700 dark:text-green-400">
-                      Your QR Code Preview
-                    </p>
-                    <img 
-                      src={state.loadedGraphic.qrOnlyUrl} 
-                      alt="Generated QR Code" 
-                      className="w-32 h-32 sm:w-48 sm:h-48 border rounded-md shadow-md"
-                    />
-                    <p className="text-xs sm:text-sm text-muted-foreground text-center">
-                      3000x3000px print-ready
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
 

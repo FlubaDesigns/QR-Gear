@@ -7,7 +7,7 @@ import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
 import { PreviewModule } from "./modules/PreviewModule";
-import { PricingModule } from "./modules/PricingModule";
+import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +32,7 @@ function BuilderModules() {
   // Use test endpoints when on /test-products page
   const useTestEndpoints = location.startsWith("/test-products");
 
-  const handlePricingCalculated = useCallback((pricing: PricingBreakdown | null) => {
+  const handleGraphicsCreated = useCallback((graphics: any, pricing: PricingBreakdown) => {
     setCurrentPricing(pricing);
   }, []);
 
@@ -205,8 +205,8 @@ function BuilderModules() {
       <InlineDebugBoundary label="PreviewModule">
         <PreviewModule />
       </InlineDebugBoundary>
-      <InlineDebugBoundary label="PricingModule">
-        <PricingModule onPricingCalculated={handlePricingCalculated} />
+      <InlineDebugBoundary label="CreateGraphicsModule">
+        <CreateGraphicsModule onGraphicsCreated={handleGraphicsCreated} />
       </InlineDebugBoundary>
       <InlineDebugBoundary label="SaveOptionsModule">
         <SaveOptionsModule onSaveTargetChange={handleSaveTargetChange} />
