@@ -264,31 +264,20 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     setError(null);
 
     try {
-      // For Play mode, we'll set the QR content after creating the packet (needs packetId for landing page URL)
-      // For other modes, use the destination URL or title
-      const qrContent = state.content.url || state.content.title || "";
-      const qrUrl = generateQRCodeUrl(qrContent.trim());
-      
-      await new Promise((resolve, reject) => {
-        const img = new window.Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => reject(new Error("Failed to generate QR code"));
-        img.src = qrUrl;
-      });
-
-      // Generate actual composite graphic with header, QR, and footer
-      const backgroundUrl = state.loadedBackground?.url || null;
-      const headerStyle = state.content.headerStyle as TextStyle | null;
-      const footerStyle = state.content.footerStyle as TextStyle | null;
-      
-      let compositeUrl: string;
-      try {
-        compositeUrl = await generateCompositeGraphic(qrUrl, backgroundUrl, headerStyle, footerStyle);
-      } catch (e) {
-        console.warn('Composite generation failed, using product image as fallback:', e);
-        compositeUrl = state.selectedProduct?.imageUrl || "";
-      }
       const pricing = calculatePricing();
+      const isPlayMode = state.qrProductState === "qr_play";
+      
+      // For Play mode: First upload media if needed, then create packet to get packetId
+      // Then generate QR with landing page URL
+      let playMediaUrl: string | null = null;
+      
+      if (isPlayMode) {
+        // Handle play media - either external URL or uploaded file
+        if (state.content.playMediaSource === "url" && state.content.playMediaUrl) {
+          playMediaUrl = state.content.playMediaUrl;
+        }
+        // If uploaded file, we'll upload after creating packet to get the packetId
+      }
       
       // Get product data for the packet
       const product = state.selectedProduct as any;
@@ -296,11 +285,11 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       const availableSizes = product?.availableSizes || [];
       const availablePlacements = product?.availablePlacements || [];
       
-      // Create product packet via API with full product data
-      const packetPayload = {
-        qrOnlyUrl: qrUrl,
-        compositeUrl,
-        qrContent: qrContent.trim(),
+      // Create packet FIRST (for Play mode, we need packetId before generating QR)
+      const packetPayload: Record<string, any> = {
+        qrOnlyUrl: "", // Will be updated after QR generation
+        compositeUrl: "", // Will be updated after composite generation
+        qrContent: isPlayMode ? "" : (state.content.url || state.content.title || "").trim(),
         headerText: state.content.headerStyle?.enabled ? state.content.headerStyle.text : null,
         footerText: state.content.footerStyle?.enabled ? state.content.footerStyle.text : null,
         headerStyle: state.content.headerStyle?.enabled ? state.content.headerStyle : null,
@@ -327,7 +316,12 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         customerPrice: product?.customerPrice || null,
         mockupsByColor: product?.mockupsByColor || null,
       };
-
+      
+      // Add play media URL for Play mode (if external URL)
+      if (isPlayMode && playMediaUrl) {
+        packetPayload.playMediaUrl = playMediaUrl;
+      }
+      
       const packetRes = await fetch("/api/test/packets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -341,41 +335,9 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
 
       const packetData = await packetRes.json();
       const packetId = packetData.packetId;
-
-      // Upload composite to Firebase Storage for permanent storage
-      const mode = state.qrProductState === "qr_canvas" ? "canvas" : 
-                   state.qrProductState === "qr_play" ? "play" :
-                   state.qrProductState === "qr_dynamics" ? "dynamics" : "basics";
       
-      let finalCompositeUrl = compositeUrl;
-      try {
-        const uploadRes = await fetch("/api/test/content/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mode,
-            userId: "admin", // TODO: Replace with actual user ID when auth is ready
-            packetId,
-            base64Data: compositeUrl,
-            mimeType: "image/png",
-            fileName: `${packetId}-composite.png`,
-          }),
-        });
-        
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          finalCompositeUrl = uploadData.publicUrl;
-          console.log("[CreateGraphics] Composite uploaded to:", finalCompositeUrl);
-        } else {
-          console.warn("[CreateGraphics] Upload failed, using data URL as fallback");
-        }
-      } catch (uploadErr) {
-        console.warn("[CreateGraphics] Upload error, using data URL as fallback:", uploadErr);
-      }
-
-      // For Play mode: Also upload the media file (video/image)
-      let playMediaStorageUrl: string | null = null;
-      if (state.qrProductState === "qr_play" && state.content.playMediaSource === "upload" && state.content.playMediaPreview) {
+      // For Play mode with uploaded file: upload media now that we have packetId
+      if (isPlayMode && state.content.playMediaSource === "upload" && state.content.playMediaPreview) {
         try {
           const fileName = state.content.playMediaFile?.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
           const uploadRes = await fetch("/api/test/content/upload", {
@@ -393,18 +355,93 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
           
           if (uploadRes.ok) {
             const uploadData = await uploadRes.json();
-            playMediaStorageUrl = uploadData.publicUrl;
-            console.log("[CreateGraphics] Play media uploaded to:", playMediaStorageUrl);
+            playMediaUrl = uploadData.publicUrl;
+            console.log("[CreateGraphics] Play media uploaded to:", playMediaUrl);
           } else {
             console.warn("[CreateGraphics] Play media upload failed");
           }
         } catch (uploadErr) {
           console.warn("[CreateGraphics] Play media upload error:", uploadErr);
         }
-      } else if (state.qrProductState === "qr_play" && state.content.playMediaSource === "url" && state.content.playMediaUrl) {
-        // External URL - store directly
-        playMediaStorageUrl = state.content.playMediaUrl;
-        console.log("[CreateGraphics] Using external play media URL:", playMediaStorageUrl);
+      }
+      
+      // Determine QR content - for Play mode, point to landing page
+      const baseUrl = window.location.origin;
+      const qrContent = isPlayMode 
+        ? `${baseUrl}/play/${packetId}`
+        : (state.content.url || state.content.title || "");
+      
+      const qrUrl = generateQRCodeUrl(qrContent.trim());
+      
+      await new Promise((resolve, reject) => {
+        const img = new window.Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => reject(new Error("Failed to generate QR code"));
+        img.src = qrUrl;
+      });
+
+      // Generate actual composite graphic with header, QR, and footer
+      const backgroundUrl = state.loadedBackground?.url || null;
+      const headerStyle = state.content.headerStyle as TextStyle | null;
+      const footerStyle = state.content.footerStyle as TextStyle | null;
+      
+      let compositeUrl: string;
+      try {
+        compositeUrl = await generateCompositeGraphic(qrUrl, backgroundUrl, headerStyle, footerStyle);
+      } catch (e) {
+        console.warn('Composite generation failed, using product image as fallback:', e);
+        compositeUrl = state.selectedProduct?.imageUrl || "";
+      }
+
+      // Upload composite to Firebase Storage for permanent storage
+      const mode = state.qrProductState === "qr_canvas" ? "canvas" : 
+                   state.qrProductState === "qr_play" ? "play" :
+                   state.qrProductState === "qr_dynamics" ? "dynamics" : "basics";
+      
+      let finalCompositeUrl = compositeUrl;
+      try {
+        const uploadRes = await fetch("/api/test/content/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode,
+            userId: "admin",
+            packetId,
+            base64Data: compositeUrl,
+            mimeType: "image/png",
+            fileName: `${packetId}-composite.png`,
+          }),
+        });
+        
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          finalCompositeUrl = uploadData.publicUrl;
+          console.log("[CreateGraphics] Composite uploaded to:", finalCompositeUrl);
+        } else {
+          console.warn("[CreateGraphics] Upload failed, using data URL as fallback");
+        }
+      } catch (uploadErr) {
+        console.warn("[CreateGraphics] Upload error, using data URL as fallback:", uploadErr);
+      }
+      
+      // Update packet with final URLs (qrUrl, compositeUrl, and playMediaUrl if applicable)
+      try {
+        const updatePayload: Record<string, any> = {
+          qrOnlyUrl: qrUrl,
+          compositeUrl: finalCompositeUrl,
+          qrContent: qrContent.trim(),
+        };
+        if (isPlayMode && playMediaUrl) {
+          updatePayload.playMediaUrl = playMediaUrl;
+        }
+        
+        await fetch(`/api/test/packets/${packetId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+      } catch (updateErr) {
+        console.warn("[CreateGraphics] Failed to update packet with final URLs:", updateErr);
       }
 
       const graphics: GeneratedGraphics = {

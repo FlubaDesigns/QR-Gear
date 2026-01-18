@@ -124,3 +124,5 @@ export async function verifyFirebaseToken(idToken: string) {
     return null;
   }
 }
+
+export { FieldValue };

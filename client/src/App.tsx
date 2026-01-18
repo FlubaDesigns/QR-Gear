@@ -80,6 +80,7 @@ import TestStores from "@/pages/test-stores";
 import TestStoreBuilder from "@/pages/test-store-builder";
 import TestDynamics from "@/pages/test-dynamics";
 import TestPricing from "@/pages/test-pricing";
+import PlayLanding from "@/pages/play";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -118,6 +119,7 @@ function Router() {
       <Route path="/dynamic/:slug" component={ViewDynamic} />
       <Route path="/customs/:id" component={Customs} />
       <Route path="/p/:id" component={Packet} />
+      <Route path="/play/:packetId" component={PlayLanding} />
       <Route path="/gifts" component={GiftShop} />
       <Route path="/gift/redeem" component={GiftRedeem} />
       <Route path="/gift/redeem/:code" component={GiftRedeem} />

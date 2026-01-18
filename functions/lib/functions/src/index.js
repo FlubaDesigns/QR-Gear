@@ -4639,6 +4639,37 @@ app.get('/test/packets/:packetId', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// PUBLIC TEST: Update packet with final URLs - NO AUTH REQUIRED
+app.patch('/test/packets/:packetId', async (req, res) => {
+    try {
+        const { packetId } = req.params;
+        const updates = req.body;
+        if (!packetId) {
+            res.status(400).json({ error: 'packetId is required' });
+            return;
+        }
+        const docRef = db.collection('productPackets').doc(packetId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Packet not found' });
+            return;
+        }
+        await docRef.update({
+            ...updates,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`[Packets PATCH] Updated packet ${packetId}:`, Object.keys(updates));
+        res.json({
+            success: true,
+            packetId,
+            message: 'Packet updated',
+        });
+    }
+    catch (error) {
+        console.error('[Packets PATCH] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // PUBLIC TEST: Upload content (composite or media) to Firebase Storage - NO AUTH REQUIRED
 app.post('/test/content/upload', async (req, res) => {
     try {
