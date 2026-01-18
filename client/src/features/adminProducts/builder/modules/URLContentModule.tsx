@@ -32,10 +32,7 @@ export function URLContentModule() {
                           state.qrProductState === "qr_play" ||
                           state.qrProductState === "qr_plus";
 
-  if (!needsUrlContent || !state.selectedProduct) {
-    return null;
-  }
-
+  // Hooks must be called unconditionally (Rules of Hooks)
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
     queryKey: ["/api/test/background-assets", "cropped"],
     queryFn: async () => {
@@ -43,6 +40,7 @@ export function URLContentModule() {
       if (!res.ok) return [];
       return res.json();
     },
+    enabled: needsUrlContent && !!state.selectedProduct,
   });
 
   const { data: backgrounds = [], isLoading: loadingBackgrounds } = useQuery<BackgroundAsset[]>({
@@ -52,8 +50,13 @@ export function URLContentModule() {
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: activeTab === "backgrounds",
+    enabled: needsUrlContent && !!state.selectedProduct && activeTab === "backgrounds",
   });
+
+  // Early return AFTER all hooks
+  if (!needsUrlContent || !state.selectedProduct) {
+    return null;
+  }
 
   const handleSelectCropped = (bg: BackgroundAsset) => {
     setSelectedId(bg.id);
