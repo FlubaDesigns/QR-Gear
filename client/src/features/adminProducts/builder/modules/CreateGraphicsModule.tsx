@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
-import { Wand2, Loader2, Check, Image, QrCode, DollarSign } from "lucide-react";
+import { Wand2, Loader2, Check, Image, QrCode, DollarSign, Save, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
+import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 
 interface HostingTier {
@@ -30,18 +32,23 @@ interface GeneratedGraphics {
 
 interface CreateGraphicsModuleProps {
   onGraphicsCreated?: (graphics: GeneratedGraphics, pricing: PricingBreakdown, packetId: string) => void;
+  onSaveComplete?: () => void;
 }
 
 function generateQRCodeUrl(content: string, size: number = 3000): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H`;
 }
 
-export function CreateGraphicsModule({ onGraphicsCreated }: CreateGraphicsModuleProps) {
+export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: CreateGraphicsModuleProps) {
   const { state, loadGraphic, setContent } = useBuilderContext();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [generatedGraphics, setGeneratedGraphics] = useState<GeneratedGraphics | null>(null);
   const [calculatedPricing, setCalculatedPricing] = useState<PricingBreakdown | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saveResults, setSaveResults] = useState<{ graphics?: boolean; template?: boolean; errors: string[] } | null>(null);
 
   const { data: pricingSettings } = useQuery<PricingSettings>({
     queryKey: ["/api/test/pricing-settings"],
@@ -180,6 +187,102 @@ export function CreateGraphicsModule({ onGraphicsCreated }: CreateGraphicsModule
       setError(err.message || "Failed to create graphics");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSaveAndContinue = async () => {
+    if (!generatedGraphics || !calculatedPricing) return;
+
+    setIsSaving(true);
+    setError(null);
+    const results: { graphics?: boolean; template?: boolean; errors: string[] } = { errors: [] };
+
+    try {
+      const graphicsPayload = {
+        name: state.content.title || `Graphic - ${new Date().toLocaleDateString()}`,
+        description: state.content.description || "",
+        category: state.qrProductState || "General",
+        qrOnlyUrl: generatedGraphics.qrOnlyUrl,
+        compositeUrl: generatedGraphics.compositeUrl,
+        qrContent: state.content.url || state.content.title || "",
+        pricing: calculatedPricing,
+        packetId: generatedGraphics.packetId,
+      };
+
+      const graphicsRes = await fetch("/api/test/graphics/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(graphicsPayload),
+      });
+
+      if (graphicsRes.ok) {
+        results.graphics = true;
+      } else {
+        const err = await graphicsRes.json().catch(() => ({}));
+        results.errors.push(`Graphics: ${err.error || "Failed"}`);
+      }
+    } catch (e: any) {
+      results.errors.push(`Graphics: ${e.message}`);
+    }
+
+    try {
+      const templatePayload = {
+        name: state.content.title || `Template - ${new Date().toLocaleDateString()}`,
+        description: state.content.description || "",
+        category: state.qrProductState || "General",
+        productId: state.selectedProduct?.id || null,
+        blueprintId: (state.selectedProduct as any)?.blueprintId || 0,
+        printProviderId: (state.selectedProduct as any)?.printProviderId || 0,
+        colors: [],
+        placements: state.selectedPlacements || ["front"],
+        qrSizes: ["small", "medium", "large"],
+        artworkUrl: generatedGraphics.compositeUrl || state.selectedProduct?.imageUrl || "",
+        artworkVariant: "black",
+        thumbnailUrl: state.selectedProduct?.imageUrl || "",
+        qrContent: state.content.url || state.content.title || "",
+        pricing: calculatedPricing,
+        packetId: generatedGraphics.packetId,
+      };
+
+      const templateRes = await fetch("/api/test/templates/full-save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(templatePayload),
+      });
+
+      if (templateRes.ok) {
+        results.template = true;
+      } else {
+        const err = await templateRes.json().catch(() => ({}));
+        results.errors.push(`Template: ${err.error || "Failed"}`);
+      }
+    } catch (e: any) {
+      results.errors.push(`Template: ${e.message}`);
+    }
+
+    setSaveResults(results);
+    setIsSaving(false);
+
+    if (results.graphics && results.template) {
+      toast({
+        title: "Saved Successfully",
+        description: "Graphics and Template saved! Navigating to Store Builder...",
+      });
+
+      setTimeout(() => {
+        navigate(`/test-store-builder?packetId=${generatedGraphics.packetId}`);
+        onSaveComplete?.();
+      }, 800);
+    } else {
+      const errorDetails = results.errors.length > 0 
+        ? results.errors.join("; ")
+        : "Unknown error - please try again";
+      toast({
+        title: "Save Failed",
+        description: errorDetails,
+        variant: "destructive",
+      });
+      setError(errorDetails);
     }
   };
 
@@ -348,13 +451,50 @@ export function CreateGraphicsModule({ onGraphicsCreated }: CreateGraphicsModule
               </div>
             )}
 
-            <div className="p-3 bg-green-50 dark:bg-green-950/50 rounded-md border border-green-200 dark:border-green-800">
-              <p className="text-sm text-green-700 dark:text-green-300 font-medium">
-                Graphics and pricing ready! You can now save to Graphics, Template, or Store.
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                Generated at {generatedGraphics.generatedAt.toLocaleTimeString()}
-              </p>
+            <div className="space-y-3">
+              <Button
+                type="button"
+                size="lg"
+                className="w-full h-14 text-base bg-green-600 hover:bg-green-700"
+                disabled={isSaving || !calculatedPricing}
+                onClick={handleSaveAndContinue}
+                data-testid="button-save-continue"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : saveResults?.graphics || saveResults?.template ? (
+                  <>
+                    <Check className="h-5 w-5 mr-2" />
+                    Saved! Going to Store...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-5 w-5 mr-2" />
+                    Save & Continue to Store
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </>
+                )}
+              </Button>
+
+              <div className="p-3 bg-green-50 dark:bg-green-950/50 rounded-md border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                  Graphics and pricing ready!
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  Generated at {generatedGraphics.generatedAt.toLocaleTimeString()}
+                </p>
+              </div>
+
+              {saveResults && saveResults.errors.length > 0 && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-950/50 rounded-md border border-yellow-200 dark:border-yellow-800">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    {saveResults.errors.join("; ")}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
