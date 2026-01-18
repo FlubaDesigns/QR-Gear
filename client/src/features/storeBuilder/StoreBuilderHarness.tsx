@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Store, Building2, Globe, ChevronRight, Loader2, Package, QrCode, Link as LinkIcon } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import type { PartnerStore } from "@shared/schema";
 
@@ -28,6 +29,7 @@ interface ProductPackage {
   footerText?: string;
   colors?: ProductColor[];
   sizes?: string[];
+  qrSizes?: string[];
   availablePlacements?: string[];
   placements?: string[];
   basePrice?: string;
@@ -45,6 +47,13 @@ interface ProductPackage {
     customerPrice: number;
     hostingTierCode?: string;
   };
+}
+
+interface ProductConfiguration {
+  enabledColors: Set<string>;
+  enabledSizes: Set<string>;
+  enabledQrSizes: Set<string>;
+  defaultColor: string;
 }
 
 type StoreType = "internal" | "external" | null;
@@ -265,6 +274,261 @@ function PackagePreviewModule({ productPackage, isLoading }: { productPackage: P
   );
 }
 
+function ProductConfigurationModule({ 
+  productPackage,
+  configuration,
+  onConfigurationChange,
+}: { 
+  productPackage: ProductPackage | null;
+  configuration: ProductConfiguration;
+  onConfigurationChange: (config: ProductConfiguration) => void;
+}) {
+  if (!productPackage) {
+    return null;
+  }
+
+  const availableColors = productPackage.colors || [];
+  const availableSizes = productPackage.sizes || [];
+  const availableQrSizes = productPackage.qrSizes || ["small", "medium", "large"];
+
+  const toggleColor = (colorName: string) => {
+    const newColors = new Set(configuration.enabledColors);
+    if (newColors.has(colorName)) {
+      if (newColors.size > 1) newColors.delete(colorName);
+    } else {
+      newColors.add(colorName);
+    }
+    let newDefault = configuration.defaultColor;
+    if (!newColors.has(newDefault)) {
+      newDefault = Array.from(newColors)[0] || "";
+    }
+    onConfigurationChange({ ...configuration, enabledColors: newColors, defaultColor: newDefault });
+  };
+
+  const toggleSize = (size: string) => {
+    const newSizes = new Set(configuration.enabledSizes);
+    if (newSizes.has(size)) {
+      if (newSizes.size > 1) newSizes.delete(size);
+    } else {
+      newSizes.add(size);
+    }
+    onConfigurationChange({ ...configuration, enabledSizes: newSizes });
+  };
+
+  const toggleQrSize = (qrSize: string) => {
+    const newQrSizes = new Set(configuration.enabledQrSizes);
+    if (newQrSizes.has(qrSize)) {
+      if (newQrSizes.size > 1) newQrSizes.delete(qrSize);
+    } else {
+      newQrSizes.add(qrSize);
+    }
+    onConfigurationChange({ ...configuration, enabledQrSizes: newQrSizes });
+  };
+
+  const setDefaultColor = (colorName: string) => {
+    onConfigurationChange({ ...configuration, defaultColor: colorName });
+  };
+
+  const toggleAllColors = (enable: boolean) => {
+    const newColors = enable 
+      ? new Set(availableColors.map(c => c.name))
+      : new Set([availableColors[0]?.name || ""]);
+    onConfigurationChange({ 
+      ...configuration, 
+      enabledColors: newColors,
+      defaultColor: enable ? configuration.defaultColor : (availableColors[0]?.name || "")
+    });
+  };
+
+  const toggleAllSizes = (enable: boolean) => {
+    const newSizes = enable
+      ? new Set(availableSizes)
+      : new Set([availableSizes[0] || ""]);
+    onConfigurationChange({ ...configuration, enabledSizes: newSizes });
+  };
+
+  return (
+    <CollapsibleModule
+      title="Product Configuration"
+      icon={<Palette className="h-4 w-4" />}
+      className="bg-muted/30"
+      defaultOpen
+    >
+      <div className="space-y-4">
+        {/* Colors Section */}
+        <div className="p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              <h5 className="text-sm font-medium">Colors</h5>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {configuration.enabledColors.size}/{availableColors.length}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={() => toggleAllColors(configuration.enabledColors.size < availableColors.length)}
+                data-testid="button-toggle-all-colors"
+              >
+                {configuration.enabledColors.size < availableColors.length ? "All" : "Min"}
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+            {availableColors.map((color) => (
+              <div
+                key={color.name}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-all ${
+                  configuration.enabledColors.has(color.name)
+                    ? "bg-primary/10 border-primary"
+                    : "bg-background hover-elevate"
+                }`}
+                onClick={() => toggleColor(color.name)}
+                data-testid={`toggle-color-${color.name}`}
+              >
+                <div
+                  className="w-5 h-5 rounded-full border-2 flex-shrink-0"
+                  style={{ backgroundColor: color.hex, borderColor: color.hex === "#FFFFFF" ? "#ccc" : color.hex }}
+                />
+                <span className="text-sm">{color.name}</span>
+                <Switch
+                  checked={configuration.enabledColors.has(color.name)}
+                  onCheckedChange={() => toggleColor(color.name)}
+                  className="ml-auto"
+                />
+              </div>
+            ))}
+          </div>
+          
+          {/* Default Color Selection */}
+          {configuration.enabledColors.size > 1 && (
+            <div className="mt-3 pt-3 border-t">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Default Display Color</p>
+              <div className="flex flex-wrap gap-1">
+                {Array.from(configuration.enabledColors).map((colorName) => {
+                  const color = availableColors.find(c => c.name === colorName);
+                  return (
+                    <Button
+                      key={colorName}
+                      variant={configuration.defaultColor === colorName ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDefaultColor(colorName)}
+                      data-testid={`default-color-${colorName}`}
+                    >
+                      {color?.hex && (
+                        <span 
+                          className="w-3 h-3 rounded-full mr-1 border flex-shrink-0" 
+                          style={{ backgroundColor: color.hex }}
+                        />
+                      )}
+                      {colorName}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sizes Section */}
+        <div className="p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Ruler className="h-4 w-4" />
+              <h5 className="text-sm font-medium">Sizes</h5>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {configuration.enabledSizes.size}/{availableSizes.length}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={() => toggleAllSizes(configuration.enabledSizes.size < availableSizes.length)}
+                data-testid="button-toggle-all-sizes"
+              >
+                {configuration.enabledSizes.size < availableSizes.length ? "All" : "Min"}
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {availableSizes.map((size) => (
+              <div
+                key={size}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-all ${
+                  configuration.enabledSizes.has(size)
+                    ? "bg-primary/10 border-primary"
+                    : "bg-background hover-elevate"
+                }`}
+                onClick={() => toggleSize(size)}
+                data-testid={`toggle-size-${size}`}
+              >
+                <span className="text-sm font-medium">{size}</span>
+                <Switch
+                  checked={configuration.enabledSizes.has(size)}
+                  onCheckedChange={() => toggleSize(size)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Graphic/QR Sizes Section */}
+        <div className="p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Maximize2 className="h-4 w-4" />
+              <h5 className="text-sm font-medium">Graphic Sizes</h5>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              {configuration.enabledQrSizes.size}/{availableQrSizes.length}
+            </Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {availableQrSizes.map((qrSize) => (
+              <div
+                key={qrSize}
+                className={`flex items-center gap-2 px-4 py-3 rounded-md border cursor-pointer transition-all ${
+                  configuration.enabledQrSizes.has(qrSize)
+                    ? "bg-primary/10 border-primary"
+                    : "bg-background hover-elevate"
+                }`}
+                onClick={() => toggleQrSize(qrSize)}
+                data-testid={`toggle-qr-${qrSize}`}
+              >
+                <QrCode className={`h-${qrSize === "small" ? "4" : qrSize === "medium" ? "5" : "6"} w-${qrSize === "small" ? "4" : qrSize === "medium" ? "5" : "6"}`} />
+                <span className="text-sm font-medium capitalize">{qrSize}</span>
+                <Switch
+                  checked={configuration.enabledQrSizes.has(qrSize)}
+                  onCheckedChange={() => toggleQrSize(qrSize)}
+                />
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Controls the QR code size on the product. Customers can choose from enabled sizes.
+          </p>
+        </div>
+
+        {/* Configuration Summary */}
+        <div className="p-3 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">Configuration Summary</p>
+          <div className="text-sm space-y-1">
+            <p><span className="font-medium">Colors:</span> {configuration.enabledColors.size} enabled (default: {configuration.defaultColor || "none"})</p>
+            <p><span className="font-medium">Sizes:</span> {Array.from(configuration.enabledSizes).join(", ") || "none"}</p>
+            <p><span className="font-medium">Graphic Sizes:</span> {Array.from(configuration.enabledQrSizes).join(", ") || "none"}</p>
+          </div>
+        </div>
+      </div>
+    </CollapsibleModule>
+  );
+}
+
 function StoreAssignmentModule({ 
   onStoreSelect,
   isSaving,
@@ -452,6 +716,28 @@ export function StoreBuilderHarness() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPacket, setIsLoadingPacket] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [configuration, setConfiguration] = useState<ProductConfiguration>({
+    enabledColors: new Set<string>(),
+    enabledSizes: new Set<string>(),
+    enabledQrSizes: new Set<string>(["small", "medium", "large"]),
+    defaultColor: "",
+  });
+
+  // Initialize configuration when package loads
+  useEffect(() => {
+    if (productPackage) {
+      const colors = productPackage.colors?.map(c => c.name) || [];
+      const sizes = productPackage.sizes || [];
+      const qrSizes = productPackage.qrSizes || ["small", "medium", "large"];
+      
+      setConfiguration({
+        enabledColors: new Set(colors),
+        enabledSizes: new Set(sizes),
+        enabledQrSizes: new Set(qrSizes),
+        defaultColor: colors[0] || "",
+      });
+    }
+  }, [productPackage]);
 
   useEffect(() => {
     // Check for packetId in URL first
@@ -480,6 +766,7 @@ export function StoreBuilderHarness() {
               footerText: packet.footerText,
               colors: packet.colors || [],
               sizes: packet.sizes || [],
+              qrSizes: packet.qrSizes || ["small", "medium", "large"],
               availablePlacements: packet.availablePlacements || [],
               placements: packet.placements || [],
               basePrice: packet.basePrice,
@@ -552,6 +839,10 @@ export function StoreBuilderHarness() {
           compositeUrl: productPackage.compositeUrl,
           qrOnlyUrl: productPackage.qrOnlyUrl,
           pricing: productPackage.pricing,
+          enabledColors: Array.from(configuration.enabledColors),
+          enabledSizes: Array.from(configuration.enabledSizes),
+          enabledQrSizes: Array.from(configuration.enabledQrSizes),
+          defaultColor: configuration.defaultColor,
         }),
       });
 
@@ -580,6 +871,11 @@ export function StoreBuilderHarness() {
   return (
     <div className="space-y-4">
       <PackagePreviewModule productPackage={productPackage} isLoading={isLoadingPacket} />
+      <ProductConfigurationModule
+        productPackage={productPackage}
+        configuration={configuration}
+        onConfigurationChange={setConfiguration}
+      />
       <StoreAssignmentModule
         onStoreSelect={handleStoreSelect}
         isSaving={isSaving}
