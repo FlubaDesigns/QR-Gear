@@ -5344,20 +5344,26 @@ app.post('/test/queue/process', async (req: Request, res: Response): Promise<voi
     const processLimit = Math.min(limit, 20); // Cap at 20 per request
 
     // First, recover any stale "processing" jobs (stuck for > 5 minutes)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const staleSnapshot = await db.collection('mockupJobs')
+    // Fetch all processing jobs and filter in code to avoid composite index requirement
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    const processingSnapshot = await db.collection('mockupJobs')
       .where('status', '==', 'processing')
-      .where('startedAt', '<', fiveMinutesAgo)
-      .limit(10)
+      .limit(50)
       .get();
     
-    for (const staleDoc of staleSnapshot.docs) {
-      await db.collection('mockupJobs').doc(staleDoc.id).update({
-        status: 'pending',
-        retryCount: admin.firestore.FieldValue.increment(1),
-        lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      console.log(`[Queue] Recovered stale job ${staleDoc.id}`);
+    let recoveredCount = 0;
+    for (const doc of processingSnapshot.docs) {
+      const data = doc.data();
+      const startedAt = data.startedAt?.toMillis?.() || data.startedAt || 0;
+      if (startedAt < fiveMinutesAgo) {
+        await db.collection('mockupJobs').doc(doc.id).update({
+          status: 'pending',
+          retryCount: admin.firestore.FieldValue.increment(1),
+          lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`[Queue] Recovered stale job ${doc.id}`);
+        recoveredCount++;
+      }
     }
 
     // Fetch pending jobs
@@ -5370,7 +5376,7 @@ app.post('/test/queue/process', async (req: Request, res: Response): Promise<voi
       res.json({
         success: true,
         processed: 0,
-        recovered: staleSnapshot.size,
+        recovered: recoveredCount,
         message: 'No pending jobs in queue',
       });
       return;
