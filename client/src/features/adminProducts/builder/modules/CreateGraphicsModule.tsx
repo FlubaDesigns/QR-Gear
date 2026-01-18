@@ -131,7 +131,13 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       const compositeUrl = state.selectedProduct?.imageUrl || "";
       const pricing = calculatePricing();
       
-      // Create product packet via API
+      // Get product data for the packet
+      const product = state.selectedProduct as any;
+      const availableColors = product?.availableColors || [];
+      const availableSizes = product?.availableSizes || [];
+      const availablePlacements = product?.availablePlacements || [];
+      
+      // Create product packet via API with full product data
       const packetPayload = {
         qrOnlyUrl: qrUrl,
         compositeUrl,
@@ -140,13 +146,19 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         footerText: state.content.footerStyle?.enabled ? state.content.footerStyle.text : null,
         pricing,
         productId: state.selectedProduct?.id || null,
-        productName: state.selectedProduct?.title || null,
-        blueprintId: (state.selectedProduct as any)?.blueprintId || null,
-        printProviderId: (state.selectedProduct as any)?.printProviderId || null,
+        productName: state.selectedProduct?.title || product?.name || null,
+        productDescription: product?.description || null,
+        productImageUrl: product?.imageUrl || null,
+        blueprintId: product?.blueprintId || null,
+        printProviderId: product?.printProviderId || null,
         qrProductState: state.qrProductState,
         placements: state.selectedPlacements || [],
-        sizes: [],
-        colors: [],
+        availablePlacements,
+        sizes: availableSizes,
+        colors: availableColors,
+        basePrice: product?.basePrice || null,
+        customerPrice: product?.customerPrice || null,
+        mockupsByColor: product?.mockupsByColor || null,
       };
 
       const packetRes = await fetch("/api/test/packets", {

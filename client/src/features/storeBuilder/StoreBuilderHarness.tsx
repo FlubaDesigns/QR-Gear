@@ -9,14 +9,32 @@ import { Badge } from "@/components/ui/badge";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import type { PartnerStore } from "@shared/schema";
 
+interface ProductColor {
+  hex: string;
+  name: string;
+}
+
 interface ProductPackage {
   packetId?: string;
   templateId?: string;
   graphicsId?: string;
   qrContent?: string;
   productName?: string;
+  productDescription?: string;
+  productImageUrl?: string;
   compositeUrl?: string;
   qrOnlyUrl?: string;
+  headerText?: string;
+  footerText?: string;
+  colors?: ProductColor[];
+  sizes?: string[];
+  availablePlacements?: string[];
+  placements?: string[];
+  basePrice?: string;
+  customerPrice?: string;
+  qrProductState?: string;
+  blueprintId?: number;
+  printProviderId?: number;
   pricing?: {
     baseProductCost: number;
     placementCost: number;
@@ -73,13 +91,31 @@ function PackagePreviewModule({ productPackage, isLoading }: { productPackage: P
       defaultOpen
     >
       <div className="space-y-4">
+        {productPackage.productName && (
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <p className="text-lg font-semibold" data-testid="text-product-name">
+              {productPackage.productName}
+            </p>
+            {productPackage.productDescription && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {productPackage.productDescription}
+              </p>
+            )}
+            {productPackage.qrProductState && (
+              <Badge variant="secondary" className="mt-2">
+                {productPackage.qrProductState.replace('qr_', '').toUpperCase()}
+              </Badge>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
-          {productPackage.compositeUrl && (
+          {(productPackage.productImageUrl || productPackage.compositeUrl) && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">Composite</p>
+              <p className="text-sm font-medium">Product Image</p>
               <img
-                src={productPackage.compositeUrl}
-                alt="Composite"
+                src={productPackage.productImageUrl || productPackage.compositeUrl}
+                alt="Product"
                 className="w-full h-32 object-contain rounded-lg border"
                 data-testid="img-composite"
               />
@@ -87,11 +123,11 @@ function PackagePreviewModule({ productPackage, isLoading }: { productPackage: P
           )}
           {productPackage.qrOnlyUrl && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">QR Only</p>
+              <p className="text-sm font-medium">QR Code</p>
               <img
                 src={productPackage.qrOnlyUrl}
-                alt="QR Only"
-                className="w-full h-32 object-contain rounded-lg border"
+                alt="QR Code"
+                className="w-full h-32 object-contain rounded-lg border bg-white"
                 data-testid="img-qr-only"
               />
             </div>
@@ -99,13 +135,74 @@ function PackagePreviewModule({ productPackage, isLoading }: { productPackage: P
         </div>
 
         {productPackage.qrContent && (
-          <div className="p-3 bg-primary/5 rounded-lg flex items-center gap-2">
-            <LinkIcon className="h-4 w-4 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">QR Content</p>
-              <p className="text-sm font-mono truncate" data-testid="text-qr-content">
-                {productPackage.qrContent}
-              </p>
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 flex-shrink-0 text-blue-600" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-blue-700 dark:text-blue-300">QR Content (URL/Text)</p>
+                <p className="text-sm font-mono break-all" data-testid="text-qr-content">
+                  {productPackage.qrContent}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(productPackage.headerText || productPackage.footerText) && (
+          <div className="p-3 bg-purple-50 dark:bg-purple-950/50 rounded-lg border border-purple-200 dark:border-purple-800">
+            <p className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-2">Custom Text</p>
+            {productPackage.headerText && (
+              <p className="text-sm"><span className="font-medium">Header:</span> {productPackage.headerText}</p>
+            )}
+            {productPackage.footerText && (
+              <p className="text-sm"><span className="font-medium">Footer:</span> {productPackage.footerText}</p>
+            )}
+          </div>
+        )}
+
+        {productPackage.colors && productPackage.colors.length > 0 && (
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <p className="text-xs font-medium mb-2">Available Colors ({productPackage.colors.length})</p>
+            <div className="flex flex-wrap gap-2">
+              {productPackage.colors.map((color, idx) => (
+                <div 
+                  key={idx} 
+                  className="flex items-center gap-1 px-2 py-1 bg-background rounded border text-xs"
+                  data-testid={`color-${idx}`}
+                >
+                  <div 
+                    className="w-4 h-4 rounded-full border" 
+                    style={{ backgroundColor: color.hex }}
+                  />
+                  <span>{color.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {productPackage.sizes && productPackage.sizes.length > 0 && (
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <p className="text-xs font-medium mb-2">Available Sizes ({productPackage.sizes.length})</p>
+            <div className="flex flex-wrap gap-1">
+              {productPackage.sizes.map((size, idx) => (
+                <Badge key={idx} variant="outline" className="text-xs" data-testid={`size-${idx}`}>
+                  {size}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {productPackage.placements && productPackage.placements.length > 0 && (
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <p className="text-xs font-medium mb-2">Selected Placements</p>
+            <div className="flex flex-wrap gap-1">
+              {productPackage.placements.map((placement, idx) => (
+                <Badge key={idx} variant="secondary" className="text-xs capitalize">
+                  {placement}
+                </Badge>
+              ))}
             </div>
           </div>
         )}
@@ -118,24 +215,26 @@ function PackagePreviewModule({ productPackage, isLoading }: { productPackage: P
                 <span>Base Price</span>
                 <span>${productPackage.pricing.baseProductCost.toFixed(2)}</span>
               </div>
-              {productPackage.pricing.placementCost > 0 && (
-                <div className="flex justify-between">
-                  <span>Extra Placements</span>
-                  <span>+${productPackage.pricing.placementCost.toFixed(2)}</span>
-                </div>
-              )}
-              {productPackage.pricing.textUpcharge > 0 && (
-                <div className="flex justify-between">
-                  <span>Text Lines</span>
-                  <span>+${productPackage.pricing.textUpcharge.toFixed(2)}</span>
-                </div>
-              )}
-              {productPackage.pricing.hostingCost > 0 && (
-                <div className="flex justify-between">
-                  <span>Hosting</span>
-                  <span>+${productPackage.pricing.hostingCost.toFixed(2)}</span>
-                </div>
-              )}
+              <div className="flex justify-between text-muted-foreground">
+                <span>Extra Placements</span>
+                <span>{productPackage.pricing.placementCost > 0 ? `+$${productPackage.pricing.placementCost.toFixed(2)}` : '$0.00'}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Text Lines</span>
+                <span>{productPackage.pricing.textUpcharge > 0 ? `+$${productPackage.pricing.textUpcharge.toFixed(2)}` : '$0.00'}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Hosting</span>
+                <span>{productPackage.pricing.hostingCost > 0 ? `+$${productPackage.pricing.hostingCost.toFixed(2)}` : '$0.00'}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1">
+                <span>Subtotal</span>
+                <span>${productPackage.pricing.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Markup</span>
+                <span>+${productPackage.pricing.markupAmount.toFixed(2)}</span>
+              </div>
               <div className="flex justify-between border-t pt-1 font-semibold text-green-700 dark:text-green-300">
                 <span>Customer Price</span>
                 <span>${productPackage.pricing.customerPrice.toFixed(2)}</span>
@@ -373,8 +472,21 @@ export function StoreBuilderHarness() {
               packetId: packet.id,
               qrContent: packet.qrContent,
               productName: packet.productName,
+              productDescription: packet.productDescription,
+              productImageUrl: packet.productImageUrl,
               compositeUrl: packet.compositeUrl,
               qrOnlyUrl: packet.qrOnlyUrl,
+              headerText: packet.headerText,
+              footerText: packet.footerText,
+              colors: packet.colors || [],
+              sizes: packet.sizes || [],
+              availablePlacements: packet.availablePlacements || [],
+              placements: packet.placements || [],
+              basePrice: packet.basePrice,
+              customerPrice: packet.customerPrice,
+              qrProductState: packet.qrProductState,
+              blueprintId: packet.blueprintId,
+              printProviderId: packet.printProviderId,
               pricing: packet.pricing,
             });
           }

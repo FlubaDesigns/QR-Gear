@@ -7834,12 +7834,18 @@ ${allPages.map(page => `  <url>
         pricing,
         productId,
         productName,
+        productDescription,
+        productImageUrl,
         blueprintId,
         printProviderId,
         qrProductState,
         placements,
+        availablePlacements,
         sizes,
-        colors
+        colors,
+        basePrice,
+        customerPrice,
+        mockupsByColor
       } = req.body;
 
       if (!qrContent && !qrOnlyUrl) {
@@ -7861,12 +7867,18 @@ ${allPages.map(page => `  <url>
         pricing: pricing || null,
         productId: productId || null,
         productName: productName || null,
+        productDescription: productDescription || null,
+        productImageUrl: productImageUrl || null,
         blueprintId: blueprintId || null,
         printProviderId: printProviderId || null,
         qrProductState: qrProductState || null,
         placements: placements || [],
+        availablePlacements: availablePlacements || [],
         sizes: sizes || [],
         colors: colors || [],
+        basePrice: basePrice || null,
+        customerPrice: customerPrice || null,
+        mockupsByColor: mockupsByColor || null,
         createdAt: now,
         updatedAt: now,
       };
