@@ -1,7 +1,6 @@
 import { BuilderProvider } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
-import { ContentModule } from "./modules/ContentModule";
-import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
+import { URLContentModule } from "./modules/URLContentModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
 import { PreviewModule } from "./modules/PreviewModule";
@@ -9,8 +8,6 @@ import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
 function BuilderModules() {
-  // QR Plus flow: State → Placement → Text → Background → Content → Preview → CreateGraphics
-  // Other flows: State → Placement → Content → Text → Background → Preview → CreateGraphics
   return (
     <div className="space-y-4">
       {/* Step 1: Product Type & QR State Selection */}
@@ -28,22 +25,17 @@ function BuilderModules() {
         <TextConfigModule />
       </InlineDebugBoundary>
       
-      {/* Step 4: Background Selection */}
-      <InlineDebugBoundary label="BackgroundPickerModule">
-        <BackgroundPickerModule />
+      {/* Step 4: URL Content (Background + Title/Description + Preview) */}
+      <InlineDebugBoundary label="URLContentModule">
+        <URLContentModule />
       </InlineDebugBoundary>
       
-      {/* Step 5: Content (Title/Description) */}
-      <InlineDebugBoundary label="ContentModule">
-        <ContentModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 6: Preview */}
+      {/* Step 5: Preview */}
       <InlineDebugBoundary label="PreviewModule">
         <PreviewModule />
       </InlineDebugBoundary>
       
-      {/* Step 7: Create Graphics */}
+      {/* Step 6: Create Graphics */}
       <InlineDebugBoundary label="CreateGraphicsModule">
         <CreateGraphicsModule />
       </InlineDebugBoundary>
