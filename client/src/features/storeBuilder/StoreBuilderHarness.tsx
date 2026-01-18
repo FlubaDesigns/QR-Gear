@@ -54,6 +54,7 @@ interface ProductConfiguration {
   enabledSizes: Set<string>;
   enabledQrSizes: Set<string>;
   defaultColor: string;
+  defaultQrSize: string;
 }
 
 type StoreType = "internal" | "external" | null;
@@ -329,6 +330,10 @@ function ProductConfigurationModule({
     onConfigurationChange({ ...configuration, defaultColor: colorName });
   };
 
+  const setDefaultQrSize = (qrSize: string) => {
+    onConfigurationChange({ ...configuration, defaultQrSize: qrSize });
+  };
+
   const toggleAllColors = (enable: boolean) => {
     const newColors = enable 
       ? new Set(availableColors.map(c => c.name))
@@ -348,93 +353,69 @@ function ProductConfigurationModule({
   };
 
   return (
-    <CollapsibleModule
-      title="Product Configuration"
-      icon={<Palette className="h-4 w-4" />}
-      className="bg-muted/30"
-      defaultOpen
-    >
-      <div className="space-y-4">
-        {/* Colors Section */}
-        <div className="p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Palette className="h-4 w-4" />
-              <h5 className="text-sm font-medium">Colors</h5>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {configuration.enabledColors.size}/{availableColors.length}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-xs"
-                onClick={() => toggleAllColors(configuration.enabledColors.size < availableColors.length)}
-                data-testid="button-toggle-all-colors"
-              >
-                {configuration.enabledColors.size < availableColors.length ? "All" : "Min"}
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-            {availableColors.map((color) => (
-              <div
-                key={color.name}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-all ${
-                  configuration.enabledColors.has(color.name)
-                    ? "bg-primary/10 border-primary"
-                    : "bg-background hover-elevate"
-                }`}
-                onClick={() => toggleColor(color.name)}
-                data-testid={`toggle-color-${color.name}`}
-              >
-                <div
-                  className="w-5 h-5 rounded-full border-2 flex-shrink-0"
-                  style={{ backgroundColor: color.hex, borderColor: color.hex === "#FFFFFF" ? "#ccc" : color.hex }}
-                />
-                <span className="text-sm">{color.name}</span>
-                <Switch
-                  checked={configuration.enabledColors.has(color.name)}
-                  onCheckedChange={() => toggleColor(color.name)}
-                  className="ml-auto"
-                />
-              </div>
-            ))}
-          </div>
+    <div className="space-y-4">
+      {/* STEP 1: Customer Options - What colors/sizes are available */}
+      <CollapsibleModule
+        title="Step 1: Customer Options"
+        icon={<Palette className="h-4 w-4" />}
+        className="bg-muted/30"
+        defaultOpen
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Toggle which colors, sizes, and graphic sizes customers can choose from.
+          </p>
           
-          {/* Default Color Selection */}
-          {configuration.enabledColors.size > 1 && (
-            <div className="mt-3 pt-3 border-t">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Default Display Color</p>
-              <div className="flex flex-wrap gap-1">
-                {Array.from(configuration.enabledColors).map((colorName) => {
-                  const color = availableColors.find(c => c.name === colorName);
-                  return (
-                    <Button
-                      key={colorName}
-                      variant={configuration.defaultColor === colorName ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => setDefaultColor(colorName)}
-                      data-testid={`default-color-${colorName}`}
-                    >
-                      {color?.hex && (
-                        <span 
-                          className="w-3 h-3 rounded-full mr-1 border flex-shrink-0" 
-                          style={{ backgroundColor: color.hex }}
-                        />
-                      )}
-                      {colorName}
-                    </Button>
-                  );
-                })}
+          {/* Colors */}
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                <h5 className="text-sm font-medium">Available Colors</h5>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {configuration.enabledColors.size}/{availableColors.length}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={() => toggleAllColors(configuration.enabledColors.size < availableColors.length)}
+                  data-testid="button-toggle-all-colors"
+                >
+                  {configuration.enabledColors.size < availableColors.length ? "All" : "Min"}
+                </Button>
               </div>
             </div>
-          )}
-        </div>
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+              {availableColors.map((color) => (
+                <div
+                  key={color.name}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-all ${
+                    configuration.enabledColors.has(color.name)
+                      ? "bg-primary/10 border-primary"
+                      : "bg-background hover-elevate"
+                  }`}
+                  onClick={() => toggleColor(color.name)}
+                  data-testid={`toggle-color-${color.name}`}
+                >
+                  <div
+                    className="w-5 h-5 rounded-full border-2 flex-shrink-0"
+                    style={{ backgroundColor: color.hex, borderColor: color.hex === "#FFFFFF" ? "#ccc" : color.hex }}
+                  />
+                  <span className="text-sm">{color.name}</span>
+                  <Switch
+                    checked={configuration.enabledColors.has(color.name)}
+                    onCheckedChange={() => toggleColor(color.name)}
+                    className="ml-auto"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
-        {/* Sizes Section */}
+          {/* Sizes */}
         <div className="p-3 bg-muted/50 rounded-lg">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -497,12 +478,15 @@ function ProductConfigurationModule({
                   configuration.enabledQrSizes.has(qrSize)
                     ? "bg-primary/10 border-primary"
                     : "bg-background hover-elevate"
-                }`}
+                } ${configuration.defaultQrSize === qrSize ? "ring-2 ring-primary" : ""}`}
                 onClick={() => toggleQrSize(qrSize)}
                 data-testid={`toggle-qr-${qrSize}`}
               >
                 <QrCode className={`h-${qrSize === "small" ? "4" : qrSize === "medium" ? "5" : "6"} w-${qrSize === "small" ? "4" : qrSize === "medium" ? "5" : "6"}`} />
                 <span className="text-sm font-medium capitalize">{qrSize}</span>
+                {configuration.defaultQrSize === qrSize && (
+                  <Badge variant="default" className="text-xs">Default</Badge>
+                )}
                 <Switch
                   checked={configuration.enabledQrSizes.has(qrSize)}
                   onCheckedChange={() => toggleQrSize(qrSize)}
@@ -510,18 +494,105 @@ function ProductConfigurationModule({
               </div>
             ))}
           </div>
+          {configuration.enabledQrSizes.size > 0 && (
+            <div className="mt-3">
+              <p className="text-xs font-medium mb-2">Set Default Graphic Size (hero image):</p>
+              <div className="flex gap-2">
+                {Array.from(configuration.enabledQrSizes).map((qrSize) => (
+                  <Button
+                    key={qrSize}
+                    variant={configuration.defaultQrSize === qrSize ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs capitalize"
+                    onClick={() => setDefaultQrSize(qrSize)}
+                    data-testid={`default-qr-${qrSize}`}
+                  >
+                    {qrSize}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mt-2">
-            Controls the QR code size on the product. Customers can choose from enabled sizes.
+            Controls the QR code size on the product. The default determines the hero image shown to customers.
           </p>
+        </div>
+
+        {/* Hero Image Settings - SEPARATE from availability toggles */}
+        <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50 rounded-lg border-2 border-purple-300 dark:border-purple-700">
+          <div className="flex items-center gap-2 mb-3">
+            <Image className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <h5 className="text-sm font-bold text-purple-700 dark:text-purple-300">Hero Image Settings</h5>
+          </div>
+          <p className="text-xs text-purple-600 dark:text-purple-400 mb-4">
+            Choose which color and graphic size will be shown as the main product image to customers.
+          </p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            {/* Default Color Picker */}
+            <div>
+              <p className="text-xs font-medium mb-2">Default Color:</p>
+              {configuration.enabledColors.size > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {Array.from(configuration.enabledColors).map((colorName) => {
+                    const colorObj = availableColors.find(c => c.name === colorName);
+                    return (
+                      <button
+                        key={colorName}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                          configuration.defaultColor === colorName 
+                            ? "ring-2 ring-offset-2 ring-purple-500 border-purple-500" 
+                            : "border-gray-300 hover:border-purple-400"
+                        }`}
+                        style={{ backgroundColor: colorObj?.hex || "#ccc" }}
+                        onClick={() => setDefaultColor(colorName)}
+                        title={colorName}
+                        data-testid={`hero-color-${colorName}`}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Enable colors above first</p>
+              )}
+              {configuration.defaultColor && (
+                <p className="text-xs mt-1 font-medium">{configuration.defaultColor}</p>
+              )}
+            </div>
+            
+            {/* Default Graphic Size Picker */}
+            <div>
+              <p className="text-xs font-medium mb-2">Default Graphic Size:</p>
+              {configuration.enabledQrSizes.size > 0 ? (
+                <div className="flex gap-2">
+                  {Array.from(configuration.enabledQrSizes).map((qrSize) => (
+                    <Button
+                      key={qrSize}
+                      variant={configuration.defaultQrSize === qrSize ? "default" : "outline"}
+                      size="sm"
+                      className={`capitalize ${configuration.defaultQrSize === qrSize ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                      onClick={() => setDefaultQrSize(qrSize)}
+                      data-testid={`hero-qr-${qrSize}`}
+                    >
+                      {qrSize}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Enable sizes above first</p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Configuration Summary */}
         <div className="p-3 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-800">
           <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">Configuration Summary</p>
           <div className="text-sm space-y-1">
-            <p><span className="font-medium">Colors:</span> {configuration.enabledColors.size} enabled (default: {configuration.defaultColor || "none"})</p>
-            <p><span className="font-medium">Sizes:</span> {Array.from(configuration.enabledSizes).join(", ") || "none"}</p>
-            <p><span className="font-medium">Graphic Sizes:</span> {Array.from(configuration.enabledQrSizes).join(", ") || "none"}</p>
+            <p><span className="font-medium">Available Colors:</span> {configuration.enabledColors.size} enabled</p>
+            <p><span className="font-medium">Available Sizes:</span> {Array.from(configuration.enabledSizes).join(", ") || "none"}</p>
+            <p><span className="font-medium">Available Graphic Sizes:</span> {Array.from(configuration.enabledQrSizes).join(", ") || "none"}</p>
+            <p className="pt-2 border-t"><span className="font-medium">Hero Image:</span> {configuration.defaultColor || "none"} / {configuration.defaultQrSize || "none"}</p>
           </div>
         </div>
       </div>
@@ -857,6 +928,7 @@ export function StoreBuilderHarness() {
     enabledSizes: new Set<string>(),
     enabledQrSizes: new Set<string>(["small", "medium", "large"]),
     defaultColor: "",
+    defaultQrSize: "medium",
   });
 
   // Initialize configuration when package loads
@@ -871,6 +943,7 @@ export function StoreBuilderHarness() {
         enabledSizes: new Set(sizes),
         enabledQrSizes: new Set(qrSizes),
         defaultColor: colors[0] || "",
+        defaultQrSize: "medium",
       });
     }
   }, [productPackage]);
@@ -980,6 +1053,7 @@ export function StoreBuilderHarness() {
           enabledSizes: Array.from(configuration.enabledSizes),
           enabledQrSizes: Array.from(configuration.enabledQrSizes),
           defaultColor: configuration.defaultColor,
+          defaultQrSize: configuration.defaultQrSize,
         }),
       });
 
