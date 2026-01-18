@@ -254,10 +254,7 @@ export function TextConfigModule() {
             <p className="text-sm font-medium mb-3 text-muted-foreground">Text Preview</p>
             <div className="flex justify-center">
               <div 
-                className="relative w-[160px] aspect-square rounded-lg overflow-hidden border-2 border-border shadow-lg"
-                style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                }}
+                className="relative w-[160px] aspect-square rounded-lg overflow-hidden border-2 border-border shadow-lg bg-white dark:bg-black"
               >
                 {/* Header text */}
                 {state.content.headerStyle.enabled && state.content.headerStyle.text && (
