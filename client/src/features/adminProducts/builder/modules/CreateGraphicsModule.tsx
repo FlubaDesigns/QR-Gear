@@ -201,7 +201,7 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
   const isPlayMode = state.qrProductState === "qr_play";
   const hasPlayMedia = isPlayMode && (
     (state.content.playMediaSource === "url" && state.content.playMediaUrl) ||
-    (state.content.playMediaSource === "upload" && state.content.playMediaPreview)
+    (state.content.playMediaSource === "upload" && state.content.playMediaFile)
   );
   const playPermissionOk = !isPlayMode || state.content.playPermissionConfirmed;
 
@@ -337,9 +337,19 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       const packetId = packetData.packetId;
       
       // For Play mode with uploaded file: upload media now that we have packetId
-      if (isPlayMode && state.content.playMediaSource === "upload" && state.content.playMediaPreview) {
+      if (isPlayMode && state.content.playMediaSource === "upload" && state.content.playMediaFile) {
         try {
-          const fileName = state.content.playMediaFile?.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
+          const file = state.content.playMediaFile;
+          const fileName = file.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
+          
+          // Convert file to base64 for upload
+          const base64Data = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.readAsDataURL(file);
+          });
+          
           const uploadRes = await fetch("/api/test/content/upload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -347,8 +357,8 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
               mode: "play",
               userId: "admin",
               packetId,
-              base64Data: state.content.playMediaPreview,
-              mimeType: state.content.playMediaMimeType || "video/mp4",
+              base64Data,
+              mimeType: file.type || state.content.playMediaMimeType || "video/mp4",
               fileName,
             }),
           });
