@@ -8,7 +8,7 @@ interface BuilderContextValue {
   setSourceType: (type: SourceType) => void;
   loadTemplate: (template: LoadedTemplate) => void;
   loadGraphic: (graphic: LoadedGraphic) => void;
-  loadBackground: (background: LoadedBackground) => void;
+  loadBackground: (background: LoadedBackground | null) => void;
   setFulfillmentProvider: (provider: string | null) => void;
   setCategory: (category: string | null) => void;
   setOriginFilter: (filter: Partial<OriginFilter>) => void;
@@ -108,7 +108,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
-  const loadBackground = useCallback((background: LoadedBackground) => {
+  const loadBackground = useCallback((background: LoadedBackground | null) => {
     setState(prev => ({
       ...prev,
       loadedBackground: background,
