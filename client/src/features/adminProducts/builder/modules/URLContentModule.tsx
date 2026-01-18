@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Check, Crop, Trash2, X, Type, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { Image, Loader2, Check, Crop, Trash2, X, Type, FileText, Link2, RefreshCw } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,10 +63,14 @@ export function URLContentModule() {
       name: bg.name,
       url: bgUrl,
     });
-    setContent({ 
-      backgroundType: "image", 
-      url: bgUrl 
-    });
+    if (state.qrProductState === "qr_dynamics" || state.qrProductState === "qr_plus") {
+      setContent({ 
+        backgroundType: "image", 
+        url: bgUrl 
+      });
+    } else {
+      setContent({ backgroundType: "image" });
+    }
   };
 
   const handleOpenLightbox = (bg: BackgroundAsset) => {
@@ -108,8 +112,20 @@ export function URLContentModule() {
     setActiveTab("cropped");
   };
 
+  const handleClearBackground = () => {
+    setSelectedId(null);
+    loadBackground(null);
+    if (state.qrProductState === "qr_dynamics" || state.qrProductState === "qr_plus") {
+      setContent({ backgroundType: undefined, url: "" });
+    } else {
+      setContent({ backgroundType: undefined });
+    }
+  };
+
   const backgroundUrl = state.loadedBackground?.url;
   const hasContent = state.content.title || state.content.description || backgroundUrl;
+  
+  const needsDestinationUrl = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play";
 
   return (
     <CollapsibleModule
@@ -236,9 +252,66 @@ export function URLContentModule() {
               )}
             </div>
           )}
+
+          {/* Current Background Preview */}
+          {state.loadedBackground && (
+            <div className="p-3 bg-primary/5 rounded-md border space-y-2">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-16 rounded overflow-hidden border flex-shrink-0">
+                  <img
+                    src={state.loadedBackground.url}
+                    alt={state.loadedBackground.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Background Selected</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {state.loadedBackground.name}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearBackground}
+                className="w-full"
+                data-testid="button-clear-background"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                Change Background
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Section 2: Title & Description */}
+        {/* Section 2: Destination URL (for Canvas/Play modes) */}
+        {needsDestinationUrl && (
+          <div className="space-y-2 pt-4 border-t">
+            <Label htmlFor="destination-url" className="flex items-center gap-2">
+              <Link2 className="h-3.5 w-3.5" />
+              Destination URL
+            </Label>
+            <Input
+              id="destination-url"
+              type="text"
+              inputMode="url"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="https://example.com"
+              value={state.content.url || ""}
+              onChange={(e) => setContent({ url: e.target.value })}
+              className="min-h-[44px]"
+              data-testid="input-destination-url"
+            />
+            <p className="text-xs text-muted-foreground">
+              Where users go when they scan the QR code
+            </p>
+          </div>
+        )}
+
+        {/* Section 3: Title & Description */}
         <div className="space-y-4 pt-4 border-t">
           <p className="text-sm font-medium">Landing Page Content</p>
           
