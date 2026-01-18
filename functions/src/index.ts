@@ -3712,6 +3712,8 @@ app.get('/test/printify/catalog', async (req: Request, res: Response): Promise<v
       const minPrice = provider?.minCost ? (provider.minCost / 100).toFixed(2) : (bp.minPrice || null);
       const maxPrice = provider?.maxCost ? (provider.maxCost / 100).toFixed(2) : (bp.maxPrice || null);
       
+      const sizes = provider?.availableSizes as string[] || ["S", "M", "L", "XL", "2XL"];
+      
       const item = {
         id: bp.id,
         title: bp.title || "",
@@ -3722,6 +3724,10 @@ app.get('/test/printify/catalog', async (req: Request, res: Response): Promise<v
         minPrice,
         maxPrice,
         colorCount,
+        availableColors: colors || [],
+        availableSizes: sizes,
+        blueprintId: bp.id,
+        printProviderId: provider?.printProviderId || null,
       };
       
       if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {

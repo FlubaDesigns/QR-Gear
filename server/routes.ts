@@ -1944,6 +1944,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const minPrice = provider?.minCost ? (provider.minCost / 100).toFixed(2) : null;
         const maxPrice = provider?.maxCost ? (provider.maxCost / 100).toFixed(2) : null;
         
+        const sizes = provider?.availableSizes as string[] || ["S", "M", "L", "XL", "2XL"];
+        
         const item = {
           id: bp.id,
           title: bp.title,
@@ -1954,6 +1956,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           minPrice,
           maxPrice,
           colorCount,
+          availableColors: colors || [],
+          availableSizes: sizes,
+          blueprintId: bp.id,
+          printProviderId: provider?.providerId || null,
         };
         
         if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
@@ -2018,7 +2024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         id: blueprintId,
-        providerId: provider.printProviderId,
+        providerId: provider.providerId,
         colors,
         sizes,
         minPrice: provider.minCost ? (provider.minCost / 100).toFixed(2) : null,

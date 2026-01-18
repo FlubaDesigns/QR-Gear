@@ -24,6 +24,11 @@ export interface CatalogCategory {
   itemCount: number;
 }
 
+export interface ProductColor {
+  name: string;
+  hex: string;
+}
+
 export interface CatalogProduct {
   id: number;
   title: string;
@@ -34,6 +39,10 @@ export interface CatalogProduct {
   minPrice: string | null;
   maxPrice: string | null;
   colorCount: number;
+  availableColors: ProductColor[];
+  availableSizes: string[];
+  blueprintId: number;
+  printProviderId: number | null;
 }
 
 export interface OriginFilter {
