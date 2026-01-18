@@ -264,17 +264,9 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     setError(null);
 
     try {
-      // For Play mode, QR points to the play landing page (URL determined after packet creation)
+      // For Play mode, we'll set the QR content after creating the packet (needs packetId for landing page URL)
       // For other modes, use the destination URL or title
-      let qrContent = state.content.url || state.content.title || "";
-      
-      // We'll update this after packet creation for Play mode
-      const isPlayMode = state.qrProductState === "qr_play";
-      if (isPlayMode) {
-        // Temporary placeholder - will update QR URL after packet created
-        qrContent = "PLAY_PLACEHOLDER";
-      }
-      
+      const qrContent = state.content.url || state.content.title || "";
       const qrUrl = generateQRCodeUrl(qrContent.trim());
       
       await new Promise((resolve, reject) => {
