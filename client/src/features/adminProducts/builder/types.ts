@@ -189,16 +189,17 @@ export const ALL_PLACEMENT_OPTIONS: PlacementOption[] = [
 
 // Category to placement mapping
 export const CATEGORY_PLACEMENTS: Record<string, PlacementId[]> = {
-  // Apparel
-  "T-shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
+  // Apparel - match exact API category names
+  "T-Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
+  "Sweatshirts & Hoodies": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve", "pocket"],
   "Long Sleeve Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
-  "Sweatshirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
-  "Hoodies": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve", "pocket"],
   "Tank Tops": ["front-chest", "front-center", "back"],
   // Drinkware
+  "Drinkware": ["mug-wrap", "mug-front", "mug-back"],
   "Mugs": ["mug-wrap", "mug-front", "mug-back"],
   "Tumblers": ["mug-wrap", "mug-front", "mug-back"],
   // Headwear
+  "Hats & Caps": ["hat-front", "hat-side", "hat-back"],
   "Hats": ["hat-front", "hat-side", "hat-back"],
   "Beanies": ["hat-front"],
   // Bags
@@ -213,17 +214,13 @@ export const DEFAULT_PLACEMENTS: PlacementId[] = ["front-chest", "front-center",
 // Helper function to normalize category names for matching
 function normalizeCategory(category: string): string {
   const lower = category.toLowerCase();
-  if (lower.includes("t-shirt") || lower.includes("tshirt") || lower.includes("tee")) return "T-shirts";
+  if (lower.includes("t-shirt") || lower.includes("tshirt") || lower.includes("tee")) return "T-Shirts";
   if (lower.includes("long sleeve")) return "Long Sleeve Shirts";
-  if (lower.includes("sweatshirt")) return "Sweatshirts";
-  if (lower.includes("hoodie")) return "Hoodies";
+  if (lower.includes("sweatshirt") || lower.includes("hoodie")) return "Sweatshirts & Hoodies";
   if (lower.includes("tank")) return "Tank Tops";
-  if (lower.includes("mug")) return "Mugs";
-  if (lower.includes("tumbler")) return "Tumblers";
-  if (lower.includes("hat") || lower.includes("cap")) return "Hats";
-  if (lower.includes("beanie")) return "Beanies";
-  if (lower.includes("tote")) return "Tote Bags";
-  if (lower.includes("backpack")) return "Backpacks";
+  if (lower.includes("drinkware") || lower.includes("mug") || lower.includes("tumbler")) return "Drinkware";
+  if (lower.includes("hat") || lower.includes("cap")) return "Hats & Caps";
+  if (lower.includes("beanie")) return "Hats & Caps";
   if (lower.includes("bag")) return "Bags";
   return category;
 }
