@@ -197,10 +197,19 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     staleTime: 60000,
   });
 
+  // Play mode requires media and permission confirmation
+  const isPlayMode = state.qrProductState === "qr_play";
+  const hasPlayMedia = isPlayMode && (
+    (state.content.playMediaSource === "url" && state.content.playMediaUrl) ||
+    (state.content.playMediaSource === "upload" && state.content.playMediaPreview)
+  );
+  const playPermissionOk = !isPlayMode || state.content.playPermissionConfirmed;
+
   const canCreate = Boolean(
     state.selectedProduct &&
     state.qrProductState &&
-    (state.content.url || state.content.title)
+    (state.content.url || state.content.title || hasPlayMedia) &&
+    playPermissionOk
   );
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
@@ -255,7 +264,17 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     setError(null);
 
     try {
-      const qrContent = state.content.url || state.content.title || "";
+      // For Play mode, QR points to the play landing page (URL determined after packet creation)
+      // For other modes, use the destination URL or title
+      let qrContent = state.content.url || state.content.title || "";
+      
+      // We'll update this after packet creation for Play mode
+      const isPlayMode = state.qrProductState === "qr_play";
+      if (isPlayMode) {
+        // Temporary placeholder - will update QR URL after packet created
+        qrContent = "PLAY_PLACEHOLDER";
+      }
+      
       const qrUrl = generateQRCodeUrl(qrContent.trim());
       
       await new Promise((resolve, reject) => {
@@ -332,19 +351,22 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       const packetId = packetData.packetId;
 
       // Upload composite to Firebase Storage for permanent storage
+      const mode = state.qrProductState === "qr_canvas" ? "canvas" : 
+                   state.qrProductState === "qr_play" ? "play" :
+                   state.qrProductState === "qr_dynamics" ? "dynamics" : "basics";
+      
       let finalCompositeUrl = compositeUrl;
       try {
         const uploadRes = await fetch("/api/test/content/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            mode: state.qrProductState === "qr_canvas" ? "canvas" : 
-                  state.qrProductState === "qr_play" ? "play" :
-                  state.qrProductState === "qr_dynamics" ? "dynamics" : "basics",
+            mode,
             userId: "admin", // TODO: Replace with actual user ID when auth is ready
             packetId,
             base64Data: compositeUrl,
             mimeType: "image/png",
+            fileName: `${packetId}-composite.png`,
           }),
         });
         
@@ -357,6 +379,40 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         }
       } catch (uploadErr) {
         console.warn("[CreateGraphics] Upload error, using data URL as fallback:", uploadErr);
+      }
+
+      // For Play mode: Also upload the media file (video/image)
+      let playMediaStorageUrl: string | null = null;
+      if (state.qrProductState === "qr_play" && state.content.playMediaSource === "upload" && state.content.playMediaPreview) {
+        try {
+          const fileName = state.content.playMediaFile?.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
+          const uploadRes = await fetch("/api/test/content/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode: "play",
+              userId: "admin",
+              packetId,
+              base64Data: state.content.playMediaPreview,
+              mimeType: state.content.playMediaMimeType || "video/mp4",
+              fileName,
+            }),
+          });
+          
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            playMediaStorageUrl = uploadData.publicUrl;
+            console.log("[CreateGraphics] Play media uploaded to:", playMediaStorageUrl);
+          } else {
+            console.warn("[CreateGraphics] Play media upload failed");
+          }
+        } catch (uploadErr) {
+          console.warn("[CreateGraphics] Play media upload error:", uploadErr);
+        }
+      } else if (state.qrProductState === "qr_play" && state.content.playMediaSource === "url" && state.content.playMediaUrl) {
+        // External URL - store directly
+        playMediaStorageUrl = state.content.playMediaUrl;
+        console.log("[CreateGraphics] Using external play media URL:", playMediaStorageUrl);
       }
 
       const graphics: GeneratedGraphics = {
