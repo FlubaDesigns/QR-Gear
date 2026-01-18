@@ -444,6 +444,39 @@ export function StoreBuilderHarness() {
     setSaveStatus(null);
 
     try {
+      let templateId = productPackage.templateId;
+      
+      if (productPackage.packetId && !templateId) {
+        const templateResponse = await fetch("/api/test/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            packetId: productPackage.packetId,
+            name: productPackage.productName || `Template - ${new Date().toLocaleDateString()}`,
+            productId: productPackage.productId,
+            blueprintId: productPackage.blueprintId,
+            printProviderId: productPackage.printProviderId,
+            artworkUrl: productPackage.compositeUrl,
+            thumbnailUrl: productPackage.compositeUrl,
+            qrContent: productPackage.qrContent,
+            pricing: productPackage.pricing,
+            selectedSize: configuration.selectedGraphicSize,
+            enabledColors: Array.from(configuration.enabledColors),
+            enabledSizes: Array.from(configuration.enabledSizes),
+            defaultColor: configuration.defaultColor,
+            isActive: true,
+          }),
+        });
+
+        if (templateResponse.ok) {
+          const templateData = await templateResponse.json();
+          templateId = templateData.templateId;
+          console.log("[StoreBuilder] Created template:", templateId);
+        } else {
+          console.warn("[StoreBuilder] Template creation failed, continuing with store link");
+        }
+      }
+
       const response = await fetch("/api/test/store-product-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -452,7 +485,7 @@ export function StoreBuilderHarness() {
           storeName: selectedStore.name,
           channel: selectedChannel,
           packetId: productPackage.packetId,
-          templateId: productPackage.templateId,
+          templateId: templateId,
           graphicsId: productPackage.graphicsId,
           qrContent: productPackage.qrContent,
           productName: productPackage.productName,

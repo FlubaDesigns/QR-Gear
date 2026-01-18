@@ -5107,6 +5107,57 @@ app.post('/test/graphics/save', async (req: Request, res: Response): Promise<voi
   }
 });
 
+// PUBLIC TEST: Create template linked to packet - NO AUTH REQUIRED
+app.post('/test/templates', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { 
+      packetId, name, productId, blueprintId, printProviderId,
+      artworkUrl, thumbnailUrl, qrContent, pricing,
+      selectedSize, enabledColors, enabledSizes, defaultColor, isActive
+    } = req.body;
+
+    if (!packetId) {
+      res.status(400).json({ error: 'packetId is required' });
+      return;
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    const templateData = {
+      packetId,
+      name: name || `Template - ${new Date().toLocaleDateString()}`,
+      productId: productId || null,
+      blueprintId: blueprintId || null,
+      printProviderId: printProviderId || null,
+      artworkUrl: artworkUrl || null,
+      thumbnailUrl: thumbnailUrl || artworkUrl || null,
+      qrContent: qrContent || null,
+      pricing: pricing || null,
+      selectedSize: selectedSize || 'medium',
+      enabledColors: enabledColors || [],
+      enabledSizes: enabledSizes || [],
+      defaultColor: defaultColor || null,
+      isActive: isActive !== false,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const templateRef = await db.collection('productTemplates').add(templateData);
+    
+    console.log(`[Templates TEST] Created template ${templateRef.id} linked to packet ${packetId}`);
+
+    res.json({
+      success: true,
+      templateId: templateRef.id,
+      packetId,
+      message: 'Template created and linked to packet',
+    });
+  } catch (error: any) {
+    console.error('[Templates TEST] Error creating template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUBLIC TEST: Full template save with batch mockup generation - NO AUTH REQUIRED
 app.post('/test/templates/full-save', async (req: Request, res: Response): Promise<void> => {
   try {
