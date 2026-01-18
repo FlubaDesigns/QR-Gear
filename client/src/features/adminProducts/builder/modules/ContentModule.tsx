@@ -12,13 +12,13 @@ export function ContentModule() {
   const { state, setContent } = useBuilderContext();
   const [basicsMode, setBasicsMode] = useState<"text" | "url">("text");
 
+  // Play mode uses PlayContentModule for media, not this URL input
   const needsUrl = state.qrProductState === "qr_canvas" || 
-                   state.qrProductState === "qr_play" || 
                    state.qrProductState === "qr_dynamics";
 
+  // Play mode has its own content module (PlayContentModule)
   const needsOverlay = state.qrProductState === "qr_dynamics" || 
-                       state.qrProductState === "qr_plus" ||
-                       state.qrProductState === "qr_play";
+                       state.qrProductState === "qr_plus";
 
   if (!state.qrProductState || !state.selectedProduct) {
     return null;

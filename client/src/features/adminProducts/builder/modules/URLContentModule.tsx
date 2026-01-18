@@ -27,9 +27,9 @@ export function URLContentModule() {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [cropAsset, setCropAsset] = useState<BackgroundAsset | null>(null);
 
+  // Play mode uses PlayContentModule for media selection, not background picker
   const needsUrlContent = state.qrProductState === "qr_canvas" || 
                           state.qrProductState === "qr_dynamics" ||
-                          state.qrProductState === "qr_play" ||
                           state.qrProductState === "qr_plus";
 
   // Hooks must be called unconditionally (Rules of Hooks)
