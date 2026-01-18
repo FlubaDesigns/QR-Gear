@@ -1,5 +1,5 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getFirestore, Firestore, FieldValue } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
@@ -94,6 +94,17 @@ export function getStorageBucketName(): string {
 
 export function isFirebaseInitialized(): boolean {
   return initialized && db !== null;
+}
+
+export function getFirebaseAdmin() {
+  if (!initialized) {
+    initializeFirebase();
+  }
+  return {
+    firestore: {
+      FieldValue
+    }
+  };
 }
 
 export function getFirebaseAuth(): Auth {

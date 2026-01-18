@@ -7686,14 +7686,15 @@ ${allPages.map(page => `  <url>
           name: name || `Template - ${new Date().toLocaleDateString()}`,
           description: description || "",
           category: category || "General",
-          productId,
-          blueprintId,
-          printProviderId,
-          artworkUrl,
+          productId: productId || "",
+          blueprintId: blueprintId || 0,
+          printProviderId: printProviderId || 0,
+          artworkUrl: artworkUrl || "",
           artworkVariant: artworkVariant || "black",
-          thumbnailUrl: thumbnailUrl || artworkUrl,
+          thumbnailUrl: thumbnailUrl || artworkUrl || "",
           qrContent: qrContent || "",
           pricing: pricing || null,
+          isActive: true,
         };
         colors = bodyColors || [];
         placements = bodyPlacements || ["front"];
