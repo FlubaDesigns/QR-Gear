@@ -26,8 +26,9 @@ interface PricingSettings {
 interface PacketResult {
   packetId: string;
   landingPageUrl: string;
+  landingPageSnapshotUrl: string;
+  productGraphicUrl: string;
   qrOnlyUrl: string;
-  compositeUrl: string;
   pricing: PricingBreakdown;
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
@@ -451,6 +452,19 @@ export function CreateGraphicsModule() {
         productGraphicUrl = state.selectedProduct?.imageUrl || "";
       }
 
+      let landingPageSnapshotUrl: string = "";
+      if (isLandingPageMode) {
+        try {
+          landingPageSnapshotUrl = await generateLandingPageSnapshot({
+            backgroundUrl,
+            titleStyle,
+            descriptionStyle,
+          });
+        } catch (e) {
+          console.warn('Landing page snapshot generation failed:', e);
+        }
+      }
+
       const mode = state.qrProductState === "qr_canvas" ? "canvas" : 
                    state.qrProductState === "qr_play" ? "play" :
                    state.qrProductState === "qr_dynamics" ? "dynamics" : "basics";
@@ -465,7 +479,7 @@ export function CreateGraphicsModule() {
             packetId,
             base64Data: productGraphicUrl,
             mimeType: "image/png",
-            fileName: `${packetId}-composite.png`,
+            fileName: `${packetId}-product-graphic.png`,
           }),
         });
         if (uploadRes.ok) {
@@ -473,7 +487,30 @@ export function CreateGraphicsModule() {
           productGraphicUrl = uploadData.publicUrl;
         }
       } catch (uploadErr) {
-        console.warn("Upload error, using data URL:", uploadErr);
+        console.warn("Product graphic upload error, using data URL:", uploadErr);
+      }
+
+      if (landingPageSnapshotUrl) {
+        try {
+          const uploadRes = await fetch("/api/test/content/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode,
+              userId: "admin",
+              packetId,
+              base64Data: landingPageSnapshotUrl,
+              mimeType: "image/png",
+              fileName: `${packetId}-landing-snapshot.png`,
+            }),
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            landingPageSnapshotUrl = uploadData.publicUrl;
+          }
+        } catch (uploadErr) {
+          console.warn("Landing page snapshot upload error:", uploadErr);
+        }
       }
 
       await fetch(`/api/test/packets/${packetId}`, {
@@ -481,6 +518,8 @@ export function CreateGraphicsModule() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           qrOnlyUrl: finalQrUrl,
+          productGraphicUrl,
+          landingPageSnapshotUrl: landingPageSnapshotUrl || null,
           compositeUrl: productGraphicUrl,
           qrContent: finalQrContent.trim(),
         }),
@@ -541,8 +580,9 @@ export function CreateGraphicsModule() {
       const initialResult: PacketResult = {
         packetId,
         landingPageUrl: finalQrContent,
+        landingPageSnapshotUrl: landingPageSnapshotUrl || "",
+        productGraphicUrl,
         qrOnlyUrl: finalQrUrl,
-        compositeUrl: productGraphicUrl,
         pricing,
         priorityMockupUrl: null,
         priorityMockupLoading: true,
@@ -705,10 +745,10 @@ export function CreateGraphicsModule() {
                       style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
                     >
                       <img
-                        src={packetResult.compositeUrl}
-                        alt="Composite Preview"
+                        src={packetResult.productGraphicUrl}
+                        alt="Product Graphic Preview"
                         className="max-w-[200px] h-auto object-contain"
-                        data-testid="img-packet-composite-fallback"
+                        data-testid="img-packet-product-graphic-fallback"
                       />
                     </div>
                   )}
@@ -777,17 +817,17 @@ export function CreateGraphicsModule() {
                 <CardContent className="p-2">
                   <p className="text-xs font-medium mb-1 flex items-center gap-1">
                     <Image className="h-3 w-3" />
-                    Composite
+                    Product Graphic
                   </p>
                   <div 
                     className="rounded p-1 flex items-center justify-center"
                     style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
                   >
                     <img
-                      src={packetResult.compositeUrl}
-                      alt="Composite"
+                      src={packetResult.productGraphicUrl}
+                      alt="Product Graphic"
                       className="w-full max-w-[80px] h-auto object-contain"
-                      data-testid="img-packet-composite"
+                      data-testid="img-packet-product-graphic"
                     />
                   </div>
                 </CardContent>
