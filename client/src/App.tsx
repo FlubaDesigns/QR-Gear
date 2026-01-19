@@ -80,6 +80,7 @@ import TestStores from "@/pages/test-stores";
 import TestStoreBuilder from "@/pages/test-store-builder";
 import TestDynamics from "@/pages/test-dynamics";
 import TestPricing from "@/pages/test-pricing";
+import TestSettings from "@/pages/test-settings";
 import PlayLanding from "@/pages/play";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
@@ -133,6 +134,7 @@ function Router() {
       <Route path="/test-dynamics" component={TestDynamics} />
       <Route path="/test-pricing" component={TestPricing} />
       <Route path="/test-store-builder" component={TestStoreBuilder} />
+      <Route path="/test-settings" component={TestSettings} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />
