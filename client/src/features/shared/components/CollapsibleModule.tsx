@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface CollapsibleModuleProps {
@@ -9,6 +8,7 @@ interface CollapsibleModuleProps {
   children: React.ReactNode;
   defaultOpen?: boolean;
   className?: string;
+  variant?: "default" | "glass";
 }
 
 export function CollapsibleModule({
@@ -18,29 +18,32 @@ export function CollapsibleModule({
   children,
   defaultOpen = true,
   className = "",
+  variant = "glass",
 }: CollapsibleModuleProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
+  const baseClasses = variant === "glass"
+    ? "glass-card rounded-lg overflow-hidden"
+    : "bg-card border rounded-lg";
+
   return (
-    <Card className={`${className}`}>
-      <CardHeader
-        className="py-3 px-4 cursor-pointer select-none"
+    <div className={`${baseClasses} ${className}`}>
+      <div
+        className="py-3 px-4 cursor-pointer select-none flex items-center gap-2"
         onClick={() => setIsOpen(!isOpen)}
         data-testid={`collapsible-header-${title.toLowerCase().replace(/\s+/g, "-")}`}
       >
-        <CardTitle className="text-base flex items-center gap-2">
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-          {icon}
-          <span className="flex-1">{title}</span>
-          {badge}
-        </CardTitle>
-      </CardHeader>
-      {isOpen && <CardContent className="pt-0 px-4 pb-4">{children}</CardContent>}
-    </Card>
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+        {icon && <span className="text-primary">{icon}</span>}
+        <span className="flex-1 font-semibold text-base">{title}</span>
+        {badge}
+      </div>
+      {isOpen && <div className="px-4 pb-4">{children}</div>}
+    </div>
   );
 }
 

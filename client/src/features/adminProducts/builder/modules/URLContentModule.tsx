@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Check, Crop, Trash2, X, Type, FileText, Link2, RefreshCw } from "lucide-react";
+import { Image, Loader2, Check, Crop, Trash2, X, FileText, Link2, RefreshCw } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
+import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 
 interface BackgroundAsset {
   id: string;
@@ -308,10 +310,7 @@ export function URLContentModule() {
           <p className="text-sm font-medium">Landing Page Content</p>
           
           <div className="space-y-2">
-            <Label htmlFor="url-content-title" className="flex items-center gap-2">
-              <Type className="h-3.5 w-3.5" />
-              Title
-            </Label>
+            <Label htmlFor="url-content-title">Title</Label>
             <Input
               id="url-content-title"
               placeholder="Enter title for the landing page"
@@ -325,17 +324,55 @@ export function URLContentModule() {
 
           <div className="space-y-2">
             <Label htmlFor="url-content-description">Description</Label>
-            <textarea
+            <Textarea
               id="url-content-description"
               placeholder="Enter description text"
               value={state.content.description}
               onChange={(e) => setContent({ description: e.target.value })}
               maxLength={200}
               rows={3}
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="min-h-[80px]"
               data-testid="input-url-content-description"
             />
           </div>
+        </div>
+
+        {/* Section 4: Header & Footer Text Overlays */}
+        <div className="space-y-4 pt-4 border-t">
+          <p className="text-sm font-medium">Graphic Text Overlays</p>
+          <p className="text-xs text-muted-foreground">
+            Add styled text to the top (header) or bottom (footer) of your graphic
+          </p>
+          
+          <TextStyleEditor
+            label="Header Text"
+            sublabel="Appears at top of graphic"
+            maxLength={30}
+            style={(state.content.headerStyle as TextStyleConfig) || defaultTextStyle}
+            onChange={(updates) => setContent({ 
+              headerStyle: { 
+                ...((state.content.headerStyle as TextStyleConfig) || defaultTextStyle), 
+                ...updates 
+              } 
+            })}
+            testIdPrefix="header"
+            showPositionControls={true}
+          />
+          
+          <TextStyleEditor
+            label="Footer Text"
+            sublabel="Appears at bottom of graphic"
+            maxLength={30}
+            style={(state.content.footerStyle as TextStyleConfig) || defaultTextStyle}
+            onChange={(updates) => setContent({ 
+              footerStyle: { 
+                ...((state.content.footerStyle as TextStyleConfig) || defaultTextStyle), 
+                ...updates 
+              } 
+            })}
+            testIdPrefix="footer"
+            showPositionControls={true}
+          />
         </div>
 
         {/* Section 3: Landing Page Viewer */}

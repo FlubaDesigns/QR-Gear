@@ -774,7 +774,10 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
                       <Image className="h-3 w-3" />
                       Composite
                     </p>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-md p-2 flex items-center justify-center">
+                    <div 
+                      className="rounded-md p-2 flex items-center justify-center"
+                      style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
+                    >
                       <img
                         src={localGraphics.compositeUrl}
                         alt="Composite"
@@ -849,104 +852,26 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
             )}
 
             <div className="border-t pt-4">
-              <h4 className="text-sm font-semibold mb-3">What would you like to do?</h4>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  size="lg"
-                  className="h-auto py-4 flex flex-col items-center gap-2 bg-blue-600 hover:bg-blue-700"
-                  disabled={isSaving}
-                  onClick={() => handleSave("store")}
-                  data-testid="button-assign-store"
-                >
-                  {isSaving && selectedPath === "store" ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <Store className="h-6 w-6" />
-                  )}
-                  <span className="font-semibold">Assign to Store</span>
-                  <span className="text-xs opacity-80">Save and configure for a store channel</span>
-                </Button>
-
-                <Button
-                  type="button"
-                  size="lg"
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col items-center gap-2"
-                  disabled={isSaving}
-                  onClick={() => handleSave("library")}
-                  data-testid="button-save-library"
-                >
-                  {isSaving && selectedPath === "library" ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <Library className="h-6 w-6" />
-                  )}
-                  <span className="font-semibold">Save to Library</span>
-                  <span className="text-xs text-muted-foreground">Save for later use</span>
-                </Button>
-              </div>
+              <Button
+                type="button"
+                size="lg"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                disabled={isSaving}
+                onClick={() => handleSave("store")}
+                data-testid="button-assign-store"
+              >
+                {isSaving && selectedPath === "store" ? (
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                ) : (
+                  <Store className="h-6 w-6" />
+                )}
+                <span className="font-semibold">Assign to Store</span>
+                <span className="text-xs opacity-80">Save and configure for a store channel</span>
+              </Button>
             </div>
           </div>
         )}
 
-        {saveComplete && savedPacketId && selectedPath === "library" && (
-          <div className="space-y-4">
-            <div className="p-4 bg-green-50 dark:bg-green-950/50 rounded-md border border-green-200 dark:border-green-800">
-              <div className="flex items-center gap-2 mb-2">
-                <Check className="h-5 w-5 text-green-600" />
-                <p className="text-sm font-semibold text-green-700 dark:text-green-300">
-                  Saved to Library!
-                </p>
-              </div>
-              <p className="text-xs text-green-600 dark:text-green-400">
-                Your graphics and template are now available in the library.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/test-library?tab=graphics")}
-                data-testid="link-view-graphics"
-              >
-                <QrCode className="h-4 w-4 mr-2" />
-                View in Graphics
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/test-library?tab=templates")}
-                data-testid="link-view-templates"
-              >
-                <Image className="h-4 w-4 mr-2" />
-                View in Templates
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/test-store-builder?packetId=${savedPacketId}`)}
-                data-testid="link-assign-later"
-              >
-                <Store className="h-4 w-4 mr-2" />
-                Assign to Store Later
-              </Button>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleReset}
-              className="w-full"
-              data-testid="button-create-another"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Create Another
-            </Button>
-          </div>
-        )}
       </div>
     </CollapsibleModule>
   );
