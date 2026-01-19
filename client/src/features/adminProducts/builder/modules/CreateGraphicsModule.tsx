@@ -344,6 +344,8 @@ export function CreateGraphicsModule() {
       textUpcharge,
       hostingCost,
       subtotal,
+      markupPercent: pricingSettings.markupPercent,
+      markupFixed: pricingSettings.markupFixed,
       markupAmount,
       customerPrice,
       hostingTierCode: state.content.hostingTierCode || "1_year",
@@ -1020,28 +1022,28 @@ export function CreateGraphicsModule() {
             </div>
 
             {pricingSettings && (
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 border-green-200 dark:border-green-800">
+              <Card className="border-2">
                 <CardContent className="p-4 space-y-2">
                   <h4 className="text-sm font-semibold flex items-center gap-2 mb-3">
                     <DollarSign className="h-4 w-4" />
                     Itemized Pricing
                   </h4>
                   
-                  <div className="flex justify-between text-sm">
-                    <span>Base Product Cost</span>
-                    <span className="font-medium">${packetResult.pricing.baseProductCost.toFixed(2)}</span>
+                  <div className="flex justify-between text-base font-semibold">
+                    <span>Provider Cost</span>
+                    <span className="text-lg">${packetResult.pricing.baseProductCost.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Extra Placements</span>
-                    <span className="font-medium">
+                    <span>
                       {packetResult.pricing.placementCost > 0 ? `+$${packetResult.pricing.placementCost.toFixed(2)}` : '$0.00'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Text Lines</span>
-                    <span className="font-medium">
+                    <span>
                       {packetResult.pricing.textUpcharge > 0 ? `+$${packetResult.pricing.textUpcharge.toFixed(2)}` : '$0.00'}
                     </span>
                   </div>
@@ -1051,12 +1053,12 @@ export function CreateGraphicsModule() {
                     <span className="font-medium">${packetResult.pricing.subtotal.toFixed(2)}</span>
                   </div>
                   
-                  <div className="flex justify-between text-sm">
-                    <span>Markup</span>
-                    <span className="font-medium">+${packetResult.pricing.markupAmount.toFixed(2)}</span>
+                  <div className="flex justify-between text-base font-semibold bg-muted/50 rounded px-2 py-1 -mx-2">
+                    <span>Markup ({packetResult.pricing.markupPercent}%{packetResult.pricing.markupFixed > 0 ? ` + $${packetResult.pricing.markupFixed.toFixed(2)}` : ''})</span>
+                    <span>+${packetResult.pricing.markupAmount.toFixed(2)}</span>
                   </div>
                   
-                  <div className="flex justify-between text-lg font-bold border-t pt-2 text-green-700 dark:text-green-300">
+                  <div className="flex justify-between text-lg font-bold border-t pt-2">
                     <span>Customer Price</span>
                     <span>${packetResult.pricing.customerPrice.toFixed(2)}</span>
                   </div>

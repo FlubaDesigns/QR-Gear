@@ -147,7 +147,9 @@ export interface PricingBreakdown {
   textUpcharge: number;
   hostingCost: number;
   subtotal: number;
-  markupAmount: number;
+  markupPercent: number;      // The percentage we mark up (e.g., 25)
+  markupFixed: number;        // Fixed markup amount
+  markupAmount: number;       // Calculated total markup in dollars
   customerPrice: number;
   hostingTierCode: string;
 }

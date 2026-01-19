@@ -37,8 +37,9 @@ export function ProductSkin({
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const colorCount = Array.isArray(colors) ? colors.length : colors;
-  const priceDisplay = priceRange 
-    ? `$${priceRange.min.toFixed(2)} - $${priceRange.max.toFixed(2)}`
+  // Show the higher cost (max) as "Cost" - what we pay the provider
+  const costDisplay = priceRange 
+    ? `$${priceRange.max.toFixed(2)}`
     : price 
       ? `$${price.toFixed(2)}`
       : null;
@@ -101,11 +102,10 @@ export function ProductSkin({
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            {priceDisplay && (
-              <Badge variant="secondary" className="gap-1 text-xs">
-                <DollarSign className="w-3 h-3" />
-                {priceDisplay}
-              </Badge>
+            {costDisplay && (
+              <div className="text-sm font-semibold">
+                Cost: {costDisplay}
+              </div>
             )}
 
             {colorCount !== undefined && colorCount > 0 && (
