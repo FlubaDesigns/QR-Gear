@@ -8524,6 +8524,40 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Delete packet - NO AUTH REQUIRED
+  app.delete("/api/test/packets/:packetId", async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+
+      if (!packetId) {
+        return res.status(400).json({ error: "packetId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const docRef = firestoreDb.collection("productPackets").doc(packetId);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      
+      await docRef.delete();
+      
+      console.log(`[Packets DELETE] Deleted packet ${packetId}`);
+      
+      res.json({
+        success: true,
+        packetId,
+        message: "Packet deleted",
+      });
+    } catch (error: any) {
+      console.error("[Packets DELETE] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test: Upload content (composite or media) to Firebase Storage - NO AUTH REQUIRED
   app.post("/api/test/content/upload", async (req: any, res) => {
     try {
