@@ -851,11 +851,11 @@ export function StoreBuilderHarness() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2 flex-wrap">
+      <div className="flex items-center justify-end gap-3 flex-wrap">
         {productPackage?.packetId && (
           <Button
             variant="outline"
-            size="sm"
+            className="min-h-10"
             onClick={() => {
               const currentPacketId = productPackage.packetId;
               if (currentPacketId) {
@@ -867,18 +867,18 @@ export function StoreBuilderHarness() {
             }}
             data-testid="button-refresh-packet"
           >
-            <RefreshCw className="h-4 w-4 mr-1" />
+            <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
         )}
         <Button
           variant="default"
-          size="sm"
+          className="min-h-10"
           onClick={() => setTemplatePickerOpen(true)}
           data-testid="button-load-templates"
         >
-          <Layers className="h-4 w-4 mr-1" />
-          Templates
+          <Layers className="h-4 w-4 mr-2" />
+          Load Template
         </Button>
       </div>
 
@@ -1199,21 +1199,21 @@ export function StoreBuilderHarness() {
                 className="w-full h-10 px-3 rounded-md border bg-background text-sm"
                 data-testid="input-new-store"
               />
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Button
-                  size="sm"
+                  size="lg"
                   onClick={handleCreateStore}
                   disabled={!newStoreName.trim() || isCreatingStore}
-                  className="flex-1"
+                  className="flex-1 min-h-12"
                   data-testid="button-save-store"
                 >
-                  {isCreatingStore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+                  {isCreatingStore ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Store"}
                 </Button>
                 <Button
-                  size="sm"
+                  size="lg"
                   variant="outline"
                   onClick={() => { setShowAddStore(false); setNewStoreName(""); }}
-                  className="flex-1"
+                  className="flex-1 min-h-12"
                   data-testid="button-cancel-store"
                 >
                   Cancel
@@ -1224,12 +1224,12 @@ export function StoreBuilderHarness() {
 
           {selectedStore && (
             <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {channels.map((channel) => (
                   <Badge
                     key={channel}
                     variant={selectedChannel === channel ? "default" : "outline"}
-                    className={`cursor-pointer h-8 px-3 ${
+                    className={`cursor-pointer min-h-10 px-4 text-sm ${
                       selectedChannel === channel ? "" : "hover-elevate"
                     }`}
                     onClick={() => setSelectedChannel(channel)}
@@ -1240,13 +1240,12 @@ export function StoreBuilderHarness() {
                 ))}
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="h-8"
+                  className="min-h-10 px-4"
                   onClick={() => setShowAddChannel(!showAddChannel)}
                   data-testid="button-add-channel"
                 >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Channel
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Channel
                 </Button>
               </div>
 
@@ -1264,21 +1263,21 @@ export function StoreBuilderHarness() {
                     className="w-full h-10 px-3 rounded-md border bg-background text-sm"
                     data-testid="input-new-channel"
                   />
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <Button
-                      size="sm"
+                      size="lg"
                       onClick={handleCreateChannel}
                       disabled={!newChannelName.trim() || isCreatingChannel}
-                      className="flex-1"
+                      className="flex-1 min-h-12"
                       data-testid="button-save-channel"
                     >
-                      {isCreatingChannel ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+                      {isCreatingChannel ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Channel"}
                     </Button>
                     <Button
-                      size="sm"
+                      size="lg"
                       variant="outline"
                       onClick={() => { setShowAddChannel(false); setNewChannelName(""); }}
-                      className="flex-1"
+                      className="flex-1 min-h-12"
                       data-testid="button-cancel-channel"
                     >
                       Cancel
@@ -1291,19 +1290,20 @@ export function StoreBuilderHarness() {
 
           {selectedStore && selectedChannel && (
             <Button
-              className="w-full"
+              size="lg"
+              className="w-full min-h-14 text-lg font-semibold"
               onClick={handleAssign}
               disabled={isSaving}
               data-testid="button-assign"
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                   Assigning...
                 </>
               ) : (
                 <>
-                  <ChevronRight className="h-4 w-4 mr-2" />
+                  <ChevronRight className="h-5 w-5 mr-2" />
                   Assign to {selectedChannel}
                 </>
               )}
@@ -1323,10 +1323,11 @@ export function StoreBuilderHarness() {
         >
           <span className="text-sm font-medium block mb-2">{saveStatus.message}</span>
           {saveStatus.type === "success" && (
-            <div className="flex gap-2">
+            <div className="flex gap-3 mt-3">
               <Button
-                size="sm"
+                size="lg"
                 variant="outline"
+                className="flex-1 min-h-12 text-base"
                 onClick={() => {
                   setSaveStatus(null);
                   setProductPackage(null);
@@ -1348,7 +1349,8 @@ export function StoreBuilderHarness() {
                 Clear & New
               </Button>
               <Button
-                size="sm"
+                size="lg"
+                className="flex-1 min-h-12 text-base"
                 onClick={() => {
                   if (selectedStoreId && selectedChannel) {
                     navigate(`/test-stores?storeId=${selectedStoreId}&channel=${encodeURIComponent(selectedChannel)}`);

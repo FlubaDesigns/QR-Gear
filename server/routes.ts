@@ -1674,7 +1674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get store by ID (test endpoint) - uses Firestore
+  // Get store by ID (test endpoint) - uses Firestore, checks both stores and partnerStores
   app.get("/api/test/stores/by-id/:storeId", async (req: any, res) => {
     try {
       const { storeId } = req.params;
@@ -1683,23 +1683,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const db = getFirestoreDb();
       
-      const doc = await db.collection('stores').doc(storeId).get();
+      // First check the regular stores collection
+      let doc = await db.collection('stores').doc(storeId).get();
       
-      if (!doc.exists) {
-        return res.status(404).json({ error: 'Store not found' });
+      if (doc.exists) {
+        const data = doc.data();
+        const store = {
+          id: doc.id,
+          name: data?.name || storeId,
+          type: data?.roleType || 'internal',
+          roleType: data?.roleType || 'internal',
+          isActive: data?.isActive ?? true,
+        };
+        console.log(`[TestStores] Found store in stores: ${storeId}`);
+        return res.json(store);
       }
       
-      const data = doc.data();
-      const store = {
-        id: doc.id,
-        name: data?.name || storeId,
-        type: data?.roleType || 'internal',
-        roleType: data?.roleType || 'internal',
-        isActive: data?.isActive ?? true,
-      };
+      // Check partnerStores collection as fallback
+      doc = await db.collection('partnerStores').doc(storeId).get();
       
-      console.log(`[TestStores] Found store: ${storeId}`);
-      res.json(store);
+      if (doc.exists) {
+        const data = doc.data();
+        const store = {
+          id: doc.id,
+          name: data?.name || storeId,
+          type: data?.isInternal ? 'internal' : 'external',
+          roleType: data?.isInternal ? 'internal' : 'external',
+          isActive: data?.isActive ?? true,
+          isPartnerStore: true,
+        };
+        console.log(`[TestStores] Found store in partnerStores: ${storeId}`);
+        return res.json(store);
+      }
+      
+      return res.status(404).json({ error: 'Store not found' });
     } catch (error: any) {
       console.error('[TestStores] GET by-id error:', error);
       res.status(500).json({ error: error.message });
@@ -8021,10 +8038,42 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: List all store-product links - NO AUTH REQUIRED (for debugging)
+  app.get("/api/test/store-product-links", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+        .orderBy("createdAt", "desc")
+        .limit(100)
+        .get();
+
+      const links = linksSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || null,
+      }));
+
+      console.log(`[Store Links TEST] Listed ${links.length} total links`);
+      res.json({ success: true, links, count: links.length });
+    } catch (error: any) {
+      console.error("[Store Links TEST] Error listing links:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test: Create store-product link (package linking) - NO AUTH REQUIRED
   app.post("/api/test/store-product-links", async (req: any, res) => {
     try {
-      const { storeId, storeName, channel, packetId, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl, pricing } = req.body;
+      const { 
+        storeId, storeName, channel, packetId, templateId, graphicsId, 
+        qrContent, productName, compositeUrl, qrOnlyUrl, pricing,
+        enabledColors, enabledSizes, selectedGraphicSize, defaultColor 
+      } = req.body;
+
+      console.log("[Store Links TEST] Creating link:", { storeId, channel, packetId, templateId, productName });
 
       if (!storeId || !channel) {
         return res.status(400).json({ error: "storeId and channel are required" });
@@ -8052,6 +8101,10 @@ ${allPages.map(page => `  <url>
         compositeUrl: compositeUrl || null,
         qrOnlyUrl: qrOnlyUrl || null,
         pricing: pricing || null,
+        enabledColors: enabledColors || [],
+        enabledSizes: enabledSizes || [],
+        selectedGraphicSize: selectedGraphicSize || null,
+        defaultColor: defaultColor || null,
         createdAt: now,
         updatedAt: now,
       };
