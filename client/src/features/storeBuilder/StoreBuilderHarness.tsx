@@ -578,7 +578,7 @@ export function StoreBuilderHarness() {
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3">
+        <div className="grid grid-cols-2 gap-3 p-3">
           <div className="space-y-2">
             <button
               type="button"
@@ -626,7 +626,8 @@ export function StoreBuilderHarness() {
               {productPackage.productName || "Untitled Product"}
             </h2>
             <div className="space-y-1 text-sm text-muted-foreground">
-              <p><span className="font-medium">Brand:</span> {productPackage.manufacturer || "Printify"}</p>
+              <p><span className="font-medium">Brand:</span> Plus</p>
+              <p><span className="font-medium">Fulfillment:</span> Printify</p>
               <p><span className="font-medium">Made in:</span> {productPackage.madeIn || "USA"}</p>
             </div>
             {productPackage.qrProductState && (
