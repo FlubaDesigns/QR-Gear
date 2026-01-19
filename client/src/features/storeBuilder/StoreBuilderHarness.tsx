@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, Library, FolderOpen, Layers, RefreshCw } from "lucide-react";
 import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
+import { TemplatePickerSkin } from "@/features/shared/components/skins";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,151 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { PartnerStore } from "@shared/schema";
-
-interface LibraryItem {
-  id: string;
-  type: "packet" | "template";
-  name: string;
-  compositeUrl?: string;
-  qrOnlyUrl?: string;
-  productName?: string;
-  createdAt?: string;
-  packetId?: string;
-}
-
-function LibraryPickerModal({
-  isOpen,
-  onClose,
-  onSelect,
-  apiBase,
-  initialTab = "packets",
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSelect: (item: LibraryItem) => void;
-  apiBase: string;
-  initialTab?: "packets" | "templates";
-}) {
-  const [activeTab, setActiveTab] = useState<"packets" | "templates">(initialTab);
-  const [isLoading, setIsLoading] = useState(false);
-  const [items, setItems] = useState<LibraryItem[]>([]);
-
-  useEffect(() => {
-    if (isOpen) setActiveTab(initialTab);
-  }, [isOpen, initialTab]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    setIsLoading(true);
-    const endpoint = activeTab === "packets" ? `${apiBase}/packets` : `${apiBase}/templates`;
-    
-    fetch(endpoint)
-      .then(res => res.json())
-      .then(data => {
-        if (activeTab === "packets" && data.packets) {
-          setItems(data.packets.map((p: any) => ({
-            id: p.id,
-            type: "packet" as const,
-            name: p.productName || `Packet ${p.id.slice(0, 6)}`,
-            compositeUrl: p.compositeUrl,
-            qrOnlyUrl: p.qrOnlyUrl,
-            productName: p.productName,
-            createdAt: p.createdAt,
-          })));
-        } else if (activeTab === "templates" && data.templates) {
-          setItems(data.templates.map((t: any) => ({
-            id: t.id,
-            type: "template" as const,
-            name: t.name || `Template ${t.id.slice(0, 6)}`,
-            compositeUrl: t.thumbnailUrl || t.artworkUrl,
-            packetId: t.packetId,
-            productName: t.productName,
-            createdAt: t.createdAt,
-          })));
-        }
-      })
-      .catch(err => console.error("Failed to load library:", err))
-      .finally(() => setIsLoading(false));
-  }, [isOpen, activeTab, apiBase]);
-
-  if (!isOpen) return null;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Load from Library</DialogTitle>
-          <DialogDescription>
-            Select a packet (graphics only) or template (pre-configured) to load
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="flex gap-2 mb-4">
-          <Button
-            variant={activeTab === "packets" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab("packets")}
-            data-testid="tab-packets"
-          >
-            <QrCode className="h-4 w-4 mr-2" />
-            Packets
-          </Button>
-          <Button
-            variant={activeTab === "templates" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab("templates")}
-            data-testid="tab-templates"
-          >
-            <Layers className="h-4 w-4 mr-2" />
-            Templates
-          </Button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : items.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No {activeTab} found. Create one in the Products Builder first.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {items.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onSelect(item)}
-                  className="border rounded-lg p-2 hover-elevate text-left"
-                  data-testid={`library-item-${item.id}`}
-                >
-                  {item.compositeUrl ? (
-                    <img 
-                      src={item.compositeUrl} 
-                      alt={item.name}
-                      className="w-full aspect-square object-contain bg-muted rounded mb-2"
-                    />
-                  ) : (
-                    <div className="w-full aspect-square bg-muted rounded mb-2 flex items-center justify-center">
-                      <Package className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
-                  <p className="text-xs font-medium truncate">{item.name}</p>
-                  <Badge variant="secondary" className="text-[10px] mt-1">
-                    {item.type === "packet" ? "Packet" : "Template"}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 const COLOR_HEX_MAP: Record<string, string> = {
   "White": "#FFFFFF", "Black": "#000000", "Navy": "#1F2937", "Navy Blue": "#1F2937",
@@ -411,10 +268,28 @@ export function StoreBuilderHarness() {
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
-  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
-  const [libraryPickerInitialTab, setLibraryPickerInitialTab] = useState<"packets" | "templates">("packets");
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [originalConfiguration, setOriginalConfiguration] = useState<ProductConfiguration | null>(null);
 
+  const fetchTemplates = useCallback(async () => {
+    const res = await fetch(`${apiBase}/templates`);
+    const data = await res.json();
+    if (data.templates) {
+      return data.templates.map((t: any) => ({
+        id: t.id,
+        name: t.name || t.productName || `Template ${t.id.slice(0, 6)}`,
+        primaryImage: t.thumbnailUrl || t.artworkUrl || t.compositeUrl,
+        secondaryImage: t.qrOnlyUrl,
+        productName: t.productName,
+        packetId: t.packetId,
+        qrMode: t.qrMode || t.qrProductState,
+        colorCount: t.colorCount || t.colors?.length,
+        sizeCount: t.sizeCount || t.sizes?.length,
+      }));
+    }
+    return [];
+  }, [apiBase]);
+  
   const [configuration, setConfiguration] = useState<ProductConfiguration>({
     enabledColors: new Set<string>(),
     enabledSizes: new Set<string>(),
@@ -650,11 +525,11 @@ export function StoreBuilderHarness() {
     
     const colorsChanged = 
       configuration.enabledColors.size !== originalConfiguration.enabledColors.size ||
-      ![...configuration.enabledColors].every(c => originalConfiguration.enabledColors.has(c));
+      !Array.from(configuration.enabledColors).every(c => originalConfiguration.enabledColors.has(c));
     
     const sizesChanged = 
       configuration.enabledSizes.size !== originalConfiguration.enabledSizes.size ||
-      ![...configuration.enabledSizes].every(s => originalConfiguration.enabledSizes.has(s));
+      !Array.from(configuration.enabledSizes).every(s => originalConfiguration.enabledSizes.has(s));
     
     const graphicSizeChanged = configuration.selectedGraphicSize !== originalConfiguration.selectedGraphicSize;
     const defaultColorChanged = configuration.defaultColor !== originalConfiguration.defaultColor;
@@ -824,15 +699,8 @@ export function StoreBuilderHarness() {
     );
   }
 
-  const handleLibrarySelect = (item: LibraryItem) => {
-    setLibraryPickerOpen(false);
-    const packetId = item.type === "template" ? item.packetId : item.id;
-    if (packetId) {
-      // Use SPA navigation - navigate to new URL and useEffect will handle loading
-      navigate(`/test-store-builder?packetId=${packetId}`);
-    } else {
-      setSaveStatus({ type: "error", message: "Selected item has no packet ID" });
-    }
+  const handleTemplateSelect = (packetId: string) => {
+    navigate(`/test-store-builder?packetId=${packetId}`);
   };
 
   if (!productPackage) {
@@ -848,11 +716,11 @@ export function StoreBuilderHarness() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 size="lg"
-                onClick={() => setLibraryPickerOpen(true)}
-                data-testid="button-load-library"
+                onClick={() => setTemplatePickerOpen(true)}
+                data-testid="button-load-templates"
               >
-                <FolderOpen className="h-5 w-5 mr-2" />
-                Load from Library
+                <Layers className="h-5 w-5 mr-2" />
+                Load Template
               </Button>
               <Button
                 variant="outline"
@@ -861,17 +729,16 @@ export function StoreBuilderHarness() {
                 data-testid="button-go-products"
               >
                 <Package className="h-5 w-5 mr-2" />
-                Go to Products
+                Create New in Products
               </Button>
             </div>
           </div>
         </Card>
-        <LibraryPickerModal
-          isOpen={libraryPickerOpen}
-          onClose={() => setLibraryPickerOpen(false)}
-          onSelect={handleLibrarySelect}
-          apiBase={apiBase}
-          initialTab={libraryPickerInitialTab}
+        <TemplatePickerSkin
+          isOpen={templatePickerOpen}
+          onClose={() => setTemplatePickerOpen(false)}
+          onSelect={handleTemplateSelect}
+          fetchTemplates={fetchTemplates}
         />
       </>
     );
@@ -908,35 +775,8 @@ export function StoreBuilderHarness() {
         <Button
           variant="default"
           size="sm"
-          onClick={() => {
-            setLibraryPickerInitialTab("packets");
-            setLibraryPickerOpen(true);
-          }}
-          data-testid="button-load-library-header"
-        >
-          <FolderOpen className="h-4 w-4 mr-1" />
-          Load
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setLibraryPickerInitialTab("packets");
-            setLibraryPickerOpen(true);
-          }}
-          data-testid="link-graphics-library"
-        >
-          <QrCode className="h-4 w-4 mr-1" />
-          Graphics
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setLibraryPickerInitialTab("templates");
-            setLibraryPickerOpen(true);
-          }}
-          data-testid="link-templates-library"
+          onClick={() => setTemplatePickerOpen(true)}
+          data-testid="button-load-templates"
         >
           <Layers className="h-4 w-4 mr-1" />
           Templates
@@ -1285,7 +1125,7 @@ export function StoreBuilderHarness() {
                     enabledColors: new Set<string>(),
                     enabledSizes: new Set<string>(),
                     selectedGraphicSize: "medium",
-                    defaultColor: null,
+                    defaultColor: "",
                   });
                   navigate("/test-store-builder");
                 }}
@@ -1324,12 +1164,11 @@ export function StoreBuilderHarness() {
         onClose={() => setThumbnailLightbox(null)}
       />
 
-      <LibraryPickerModal
-        isOpen={libraryPickerOpen}
-        onClose={() => setLibraryPickerOpen(false)}
-        onSelect={handleLibrarySelect}
-        apiBase={apiBase}
-        initialTab={libraryPickerInitialTab}
+      <TemplatePickerSkin
+        isOpen={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        onSelect={handleTemplateSelect}
+        fetchTemplates={fetchTemplates}
       />
     </div>
   );

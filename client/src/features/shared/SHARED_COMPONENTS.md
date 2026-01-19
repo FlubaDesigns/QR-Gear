@@ -113,6 +113,55 @@ interface SkinActions {
 | BackgroundSkin | BackgroundCardSkin | BackgroundDetailSkin | delete | BackgroundsTab |
 | SourceImageSkin | SourceImageCardSkin | SourceImageDetailSkin | crop, delete | SourceImagesTab |
 | CroppedImageSkin | CroppedImageCardSkin | CroppedImageDetailSkin | delete | CroppedImagesTab |
+| TemplatePickerSkin | - | Gallery lightbox | select | StoreBuilderHarness |
+
+### TemplatePickerSkin
+
+Self-contained gallery lightbox for browsing and loading templates.
+
+**Props:**
+```typescript
+interface TemplatePickerSkinProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (packetId: string) => void;
+  fetchTemplates: () => Promise<TemplateItem[]>;
+}
+```
+
+**Features:**
+- Gallery-style modal with left/right navigation (large buttons)
+- Toggle between composite and QR-only images (dot indicators)
+- Shows template count badge (e.g., "1 / 5")
+- Displays name, qrMode, colorCount, sizeCount badges
+- Single "Load This Template" action button
+- Tap image to load (accessibility shortcut)
+- Empty state with guidance
+
+**Usage in StoreBuilderHarness:**
+```tsx
+const fetchTemplates = useCallback(async () => {
+  const res = await fetch(`${apiBase}/templates`);
+  const data = await res.json();
+  return data.templates.map(t => ({
+    id: t.id,
+    name: t.name,
+    primaryImage: t.compositeUrl,
+    secondaryImage: t.qrOnlyUrl,
+    packetId: t.packetId,
+    qrMode: t.qrMode,
+    colorCount: t.colorCount,
+    sizeCount: t.sizeCount,
+  }));
+}, [apiBase]);
+
+<TemplatePickerSkin
+  isOpen={templatePickerOpen}
+  onClose={() => setTemplatePickerOpen(false)}
+  onSelect={handleTemplateSelect}
+  fetchTemplates={fetchTemplates}
+/>
+```
 
 ---
 
@@ -270,6 +319,39 @@ const skinItems = assets.map(assetToSkinItem);
 
 - **AssetGrid:** Component that knows about asset display and actions
 - **SkinGridViewer + Skins:** Separation of concerns - Viewer handles state/navigation, Skins handle appearance/actions
+
+---
+
+## Common Patterns
+
+### Library Picker → Load Pattern
+
+When a button (like "Graphics" or "Templates") needs to load content from the library:
+
+1. Open a **LibraryPickerModal** with `initialTab` set to the appropriate tab
+2. User selects an item from the grid
+3. Modal closes and navigates to builder with `?packetId=xxx`
+4. Builder's useEffect detects URL change and loads the packet
+
+```tsx
+// Graphics button opens library picker to packets tab
+<Button onClick={() => {
+  setLibraryPickerInitialTab("packets");
+  setLibraryPickerOpen(true);
+}}>
+  Graphics
+</Button>
+
+// Templates button opens library picker to templates tab
+<Button onClick={() => {
+  setLibraryPickerInitialTab("templates");
+  setLibraryPickerOpen(true);
+}}>
+  Templates
+</Button>
+```
+
+This pattern keeps users on the page (modal overlay) while they pick, then loads the selected packet.
 
 ---
 
