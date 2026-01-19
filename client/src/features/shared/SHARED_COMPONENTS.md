@@ -11,9 +11,9 @@ The shared component system follows a **three-layer architecture**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        VIEWER ENGINE                             │
+│                      SKIN GRID VIEWER                            │
 │  Orchestrates everything: state, navigation, dialogs, actions   │
-│  Location: /features/shared/components/ViewerEngine.tsx         │
+│  Location: /features/shared/components/SkinGridViewer.tsx       │
 └────────────────────────────┬────────────────────────────────────┘
                              │
          ┌───────────────────┼───────────────────┐
@@ -54,7 +54,7 @@ The shared component system follows a **three-layer architecture**:
    - Hover states, selection states, badges
    - Context-specific actions
 
-3. **ViewerEngine** = The orchestrator that:
+3. **SkinGridViewer** = The orchestrator that:
    - Accepts which View to use
    - Accepts which Skin to use (CardSkin + DetailSkin)
    - Handles state (selected item, dialog open, pending actions)
@@ -182,17 +182,17 @@ interface CropUtilityProps {
 
 ---
 
-## ViewerEngine Usage
+## SkinGridViewer Usage
 
-Location: `/features/shared/components/ViewerEngine.tsx`
+Location: `/features/shared/components/SkinGridViewer.tsx`
 
 ### Basic Usage
 
 ```tsx
-import { ViewerEngine } from "@/features/shared/components/ViewerEngine";
+import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { GraphicsCardSkin, GraphicsDetailSkin } from "@/features/shared/components/skins";
 
-<ViewerEngine
+<SkinGridViewer
   items={skinItems}                    // Array of SkinItem
   CardSkin={GraphicsCardSkin}          // Card component
   DetailSkin={GraphicsDetailSkin}      // Detail/gallery component
@@ -209,12 +209,12 @@ import { GraphicsCardSkin, GraphicsDetailSkin } from "@/features/shared/componen
 />
 ```
 
-### How Tabs Use ViewerEngine
+### How Tabs Use SkinGridViewer
 
 1. **Fetch data** from API (useQuery)
 2. **Map to SkinItem** format
-3. **Pass to ViewerEngine** with appropriate skins and actions
-4. **ViewerEngine handles:** grid display, item click → detail view, navigation, confirmations
+3. **Pass to SkinGridViewer** with appropriate skins and actions
+4. **SkinGridViewer handles:** grid display, item click → detail view, navigation, confirmations
 
 ---
 
@@ -230,7 +230,7 @@ Panel for displaying selected items with remove/clear actions.
 
 ## SharedViewer (Legacy)
 
-Orchestrator for multiple modes. Being replaced by ViewerEngine for skins-based rendering.
+Orchestrator for multiple modes. SkinGridViewer is the newer pattern for skins-based rendering.
 
 **Modes:**
 - `scroll` - Uses ScrollView
@@ -242,7 +242,7 @@ Orchestrator for multiple modes. Being replaced by ViewerEngine for skins-based 
 
 ## Migration Notes
 
-### From AssetGrid to ViewerEngine + Skins
+### From AssetGrid to SkinGridViewer + Skins
 
 Old pattern:
 ```tsx
@@ -258,7 +258,7 @@ New pattern:
 ```tsx
 const skinItems = assets.map(assetToSkinItem);
 
-<ViewerEngine
+<SkinGridViewer
   items={skinItems}
   CardSkin={SourceImageCardSkin}
   DetailSkin={SourceImageDetailSkin}
@@ -269,7 +269,7 @@ const skinItems = assets.map(assetToSkinItem);
 ### Key Difference
 
 - **AssetGrid:** Component that knows about asset display and actions
-- **ViewerEngine + Skins:** Separation of concerns - Engine handles state/navigation, Skins handle appearance/actions
+- **SkinGridViewer + Skins:** Separation of concerns - Viewer handles state/navigation, Skins handle appearance/actions
 
 ---
 
@@ -278,7 +278,7 @@ const skinItems = assets.map(assetToSkinItem);
 ```
 /features/shared/
 ├── components/
-│   ├── ViewerEngine.tsx          # Main orchestrator
+│   ├── SkinGridViewer.tsx        # Skin-based grid with detail view
 │   ├── SharedViewer.tsx          # Legacy orchestrator
 │   ├── SharedLightbox.tsx        # Multi-select panel
 │   ├── ProductLightbox.tsx       # Product selection panel

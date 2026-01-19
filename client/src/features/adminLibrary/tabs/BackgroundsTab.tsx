@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Image as ImageIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
-import { ViewerEngine } from "@/features/shared/components/ViewerEngine";
+import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { BackgroundCardSkin, BackgroundDetailSkin } from "@/features/shared/components/skins";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import type { LibraryAssetWithProxy } from "../shared/types";
@@ -71,7 +71,7 @@ export default function BackgroundsTab() {
           </p>
         </div>
       ) : (
-        <ViewerEngine
+        <SkinGridViewer
           items={skinItems}
           CardSkin={BackgroundCardSkin}
           DetailSkin={BackgroundDetailSkin}

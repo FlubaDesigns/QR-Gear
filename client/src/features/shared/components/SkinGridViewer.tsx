@@ -8,7 +8,7 @@ import type { SkinItem, SkinActions, CardSkinProps, DetailSkinProps } from "./sk
 type CardSkinComponent = React.ComponentType<CardSkinProps>;
 type DetailSkinComponent = React.ComponentType<DetailSkinProps>;
 
-interface ViewerEngineProps {
+interface SkinGridViewerProps {
   items: SkinItem[];
   CardSkin: CardSkinComponent;
   DetailSkin: DetailSkinComponent;
@@ -22,7 +22,7 @@ interface ViewerEngineProps {
   };
 }
 
-export function ViewerEngine({
+export function SkinGridViewer({
   items,
   CardSkin,
   DetailSkin,
@@ -30,7 +30,7 @@ export function ViewerEngine({
   isActionPending = false,
   gridColumns = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
   confirmAction,
-}: ViewerEngineProps) {
+}: SkinGridViewerProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showPrimary, setShowPrimary] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);

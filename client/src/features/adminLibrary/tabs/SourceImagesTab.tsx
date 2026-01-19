@@ -5,7 +5,7 @@ import { ImagePlus } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { ImageUploader } from "../components/ImageUploader";
 import { CropDialog } from "../components/CropDialog";
-import { ViewerEngine } from "@/features/shared/components/ViewerEngine";
+import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { SourceImageCardSkin, SourceImageDetailSkin } from "@/features/shared/components/skins";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import type { LibraryAssetWithProxy } from "../shared/types";
@@ -83,7 +83,7 @@ export default function SourceImagesTab() {
           </p>
         </div>
       ) : (
-        <ViewerEngine
+        <SkinGridViewer
           items={skinItems}
           CardSkin={SourceImageCardSkin}
           DetailSkin={SourceImageDetailSkin}

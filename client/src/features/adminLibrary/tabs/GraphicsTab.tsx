@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Loader2, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ViewerEngine } from "@/features/shared/components/ViewerEngine";
+import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { GraphicsCardSkin, GraphicsDetailSkin } from "@/features/shared/components/skins/GraphicsSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 
@@ -103,7 +103,7 @@ export default function GraphicsTab() {
   }
 
   return (
-    <ViewerEngine
+    <SkinGridViewer
       items={skinItems}
       CardSkin={GraphicsCardSkin}
       DetailSkin={GraphicsDetailSkin}

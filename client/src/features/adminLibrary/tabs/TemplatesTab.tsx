@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Loader2, Image } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ViewerEngine } from "@/features/shared/components/ViewerEngine";
+import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { TemplateCardSkin, TemplateDetailSkin } from "@/features/shared/components/skins/TemplateSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 
@@ -124,7 +124,7 @@ export default function TemplatesTab() {
   }
 
   return (
-    <ViewerEngine
+    <SkinGridViewer
       items={skinItems}
       CardSkin={TemplateCardSkin}
       DetailSkin={TemplateDetailSkin}
