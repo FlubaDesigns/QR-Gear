@@ -3449,6 +3449,54 @@ app.delete('/test/stores/:storeId', async (req: Request, res: Response): Promise
   }
 });
 
+// Get store by ID (test endpoint) - checks both stores and partnerStores collections
+app.get('/test/stores/by-id/:storeId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    console.log(`[TestStores] GET store by ID: ${storeId}`);
+    
+    // First check the regular stores collection
+    let doc = await db.collection('stores').doc(storeId).get();
+    
+    if (doc.exists) {
+      const data = doc.data();
+      const store = {
+        id: doc.id,
+        name: data?.name || storeId,
+        type: data?.roleType || 'internal',
+        roleType: data?.roleType || 'internal',
+        isActive: data?.isActive ?? true,
+      };
+      console.log(`[TestStores] Found store in stores: ${storeId}`);
+      res.json(store);
+      return;
+    }
+    
+    // Check partnerStores collection as fallback
+    doc = await db.collection('partnerStores').doc(storeId).get();
+    
+    if (doc.exists) {
+      const data = doc.data();
+      const store = {
+        id: doc.id,
+        name: data?.name || storeId,
+        type: data?.isInternal ? 'internal' : 'external',
+        roleType: data?.isInternal ? 'internal' : 'external',
+        isActive: data?.isActive ?? true,
+        isPartnerStore: true,
+      };
+      console.log(`[TestStores] Found store in partnerStores: ${storeId}`);
+      res.json(store);
+      return;
+    }
+    
+    res.status(404).json({ error: 'Store not found' });
+  } catch (error: any) {
+    console.error('[TestStores] GET by-id error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get channels for a store (test endpoint)
 app.get('/test/stores/:storeId/channels', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -5968,10 +6016,37 @@ app.post('/test/queue/process', async (req: Request, res: Response): Promise<voi
   }
 });
 
+// PUBLIC TEST: Get all store-product links (for debugging) - NO AUTH REQUIRED
+app.get('/test/store-product-links', async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('[Store Links GET] Fetching all links for debugging');
+    
+    const snapshot = await db.collection('storeProductLinks')
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
+    
+    const links = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+      updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
+    }));
+    
+    console.log(`[Store Links GET] Found ${links.length} links`);
+    res.json(links);
+  } catch (error: any) {
+    console.error('[Store Links GET] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUBLIC TEST: Create store-product link (package linking) - NO AUTH REQUIRED
 app.post('/test/store-product-links', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { storeId, storeName, channel, packetId, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl, pricing } = req.body;
+    const { storeId, storeName, channel, packetId, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl, pricing, enabledColors, enabledSizes, selectedGraphicSize, defaultColor } = req.body;
+
+    console.log('[Store Links POST] Received request:', { storeId, channel, packetId, enabledColors, enabledSizes, selectedGraphicSize, defaultColor });
 
     if (!storeId || !channel) {
       res.status(400).json({ error: 'storeId and channel are required' });
@@ -5997,6 +6072,10 @@ app.post('/test/store-product-links', async (req: Request, res: Response): Promi
       compositeUrl: compositeUrl || null,
       qrOnlyUrl: qrOnlyUrl || null,
       pricing: pricing || null,
+      enabledColors: enabledColors || [],
+      enabledSizes: enabledSizes || [],
+      selectedGraphicSize: selectedGraphicSize || 'medium',
+      defaultColor: defaultColor || null,
       createdAt: now,
       updatedAt: now,
     };
