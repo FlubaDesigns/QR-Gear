@@ -92,9 +92,9 @@ const initialState: BuilderState = {
       color: "#FFFFFF",  // White text
     },
   },
-  selectedPlacements: [],
-  placementConfig: {},
-  placementSizes: {},
+  selectedPlacements: ["front-center"],  // Default to front center
+  placementConfig: { "front-center": "graphic" },  // Default to graphic type
+  placementSizes: { "front-center": "medium" },  // Default to medium size
 };
 
 interface BuilderProviderProps {

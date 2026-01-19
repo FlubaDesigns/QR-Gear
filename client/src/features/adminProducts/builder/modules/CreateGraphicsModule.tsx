@@ -422,6 +422,8 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         defaultPlacement: product?.defaultPlacement || null,
         qrProductState: state.qrProductState,
         placements: state.selectedPlacements || [],
+        placementConfig: state.placementConfig || {},  // graphic vs qr per placement
+        placementSizes: state.placementSizes || {},    // S/M/L per placement
         availablePlacements,
         sizes: availableSizes,
         colors: availableColors,
