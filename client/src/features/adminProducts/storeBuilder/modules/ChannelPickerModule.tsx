@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Layers, Plus, Loader2, Package } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface StoreChannel {
   id: string;
@@ -17,11 +18,12 @@ interface StoreChannel {
 
 export function ChannelPickerModule() {
   const { step, currentStore, currentChannel, setCurrentChannel, setStep } = useStoreBuilderContext();
+  const { apiBase } = useAdminAuth();
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
 
   const { data: channels = [], isLoading } = useQuery<StoreChannel[]>({
-    queryKey: ["/api/test/stores", currentStore?.id, "channels"],
+    queryKey: [`${apiBase}/stores`, currentStore?.id, "channels"],
     enabled: !!currentStore?.id,
   });
 

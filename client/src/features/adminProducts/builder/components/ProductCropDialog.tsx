@@ -4,6 +4,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Loader2 } from "lucide-react";
 
 interface BackgroundAsset {
@@ -23,6 +24,7 @@ interface ProductCropDialogProps {
 
 export function ProductCropDialog({ asset, open, onOpenChange, onCropComplete }: ProductCropDialogProps) {
   const { toast } = useToast();
+  const { apiBase } = useAdminAuth();
   const [cropImageBlobUrl, setCropImageBlobUrl] = useState<string | null>(null);
   const [cropImageLoading, setCropImageLoading] = useState(false);
   const [cropSaving, setCropSaving] = useState(false);
@@ -107,7 +109,7 @@ export function ProductCropDialog({ asset, open, onOpenChange, onCropComplete }:
       });
       const imageData = await base64Promise;
 
-      const response = await fetch("/api/test/background-assets", {
+      const response = await fetch(`${apiBase}/background-assets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

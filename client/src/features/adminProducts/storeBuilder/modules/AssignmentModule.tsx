@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Trash2, Package, Loader2, Plus, CheckCircle } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -18,6 +19,7 @@ export function AssignmentModule() {
     setStep,
     reset,
   } = useStoreBuilderContext();
+  const { apiBase } = useAdminAuth();
   const { toast } = useToast();
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
@@ -25,7 +27,7 @@ export function AssignmentModule() {
     mutationFn: async () => {
       const response = await apiRequest(
         "POST",
-        `/api/test/stores/${currentStore!.id}/channels/${currentChannel!.id}/products`,
+        `${apiBase}/stores/${currentStore!.id}/channels/${currentChannel!.id}/products`,
         { products: configuredProducts }
       );
       return response.json();

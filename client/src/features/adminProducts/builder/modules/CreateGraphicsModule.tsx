@@ -6,6 +6,7 @@ import { CollapsibleModule } from "@/features/shared/components/CollapsibleModul
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 
@@ -272,6 +273,7 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
 
 export function CreateGraphicsModule() {
   const { state, loadGraphic, selectedRole, selectedStore, selectedChannel } = useBuilderContext();
+  const { apiBase } = useAdminAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
@@ -279,9 +281,9 @@ export function CreateGraphicsModule() {
   const [error, setError] = useState<string | null>(null);
 
   const { data: pricingSettings } = useQuery<PricingSettings>({
-    queryKey: ["/api/test/pricing-settings"],
+    queryKey: [`${apiBase}/pricing-settings`],
     queryFn: async () => {
-      const res = await fetch("/api/test/pricing-settings");
+      const res = await fetch(`${apiBase}/pricing-settings`);
       if (!res.ok) throw new Error(`pricing-settings HTTP ${res.status}`);
       return res.json();
     },
@@ -405,7 +407,7 @@ export function CreateGraphicsModule() {
         packetPayload.playMediaUrl = state.content.playMediaUrl;
       }
 
-      const packetRes = await fetch("/api/test/packets", {
+      const packetRes = await fetch(`${apiBase}/packets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(packetPayload),
@@ -429,7 +431,7 @@ export function CreateGraphicsModule() {
             reader.onerror = () => reject(new Error("Failed to read file"));
             reader.readAsDataURL(file);
           });
-          await fetch("/api/test/content/upload", {
+          await fetch(`${apiBase}/content/upload`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -495,7 +497,7 @@ export function CreateGraphicsModule() {
                    state.qrProductState === "qr_dynamics" ? "dynamics" : "basics";
       
       try {
-        const uploadRes = await fetch("/api/test/content/upload", {
+        const uploadRes = await fetch(`${apiBase}/content/upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -517,7 +519,7 @@ export function CreateGraphicsModule() {
 
       if (landingPageSnapshotUrl) {
         try {
-          const uploadRes = await fetch("/api/test/content/upload", {
+          const uploadRes = await fetch(`${apiBase}/content/upload`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -538,7 +540,7 @@ export function CreateGraphicsModule() {
         }
       }
 
-      await fetch(`/api/test/packets/${packetId}`, {
+      await fetch(`${apiBase}/packets/${packetId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -550,7 +552,7 @@ export function CreateGraphicsModule() {
         }),
       });
 
-      await fetch("/api/test/graphics/save", {
+      await fetch(`${apiBase}/graphics/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -569,7 +571,7 @@ export function CreateGraphicsModule() {
         ? availableColors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color || '#000000' }))
         : [{ name: state.selectedColor?.name || 'Black', hex: state.selectedColor?.hex || '#000000' }];
 
-      const templateSaveRes = await fetch("/api/test/templates/full-save", {
+      const templateSaveRes = await fetch(`${apiBase}/templates/full-save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -594,7 +596,7 @@ export function CreateGraphicsModule() {
       const templateData = await templateSaveRes.json().catch(() => ({}));
       console.log(`[CreatePacket] Template saved, mockup jobs queued: ${templateData.jobsQueued || 0}`);
 
-      fetch("/api/test/queue/process", {
+      fetch(`${apiBase}/queue/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 3 }),
@@ -622,7 +624,7 @@ export function CreateGraphicsModule() {
       const selectedPlacement = (state.selectedPlacements || ["front"])[0];
       const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
       
-      fetch("/api/test/mockup/priority", {
+      fetch(`${apiBase}/mockup/priority`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -639,7 +641,7 @@ export function CreateGraphicsModule() {
         .then(async data => {
           if (data.success && data.mockupUrl) {
             // Save the priority mockup URL to the packet so Store Builder can load it
-            await fetch(`/api/test/packets/${packetId}`, {
+            await fetch(`${apiBase}/packets/${packetId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ priorityMockupUrl: data.mockupUrl }),

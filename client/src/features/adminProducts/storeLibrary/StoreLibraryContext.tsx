@@ -42,6 +42,7 @@ interface StoreLibraryContextValue {
   addToSelection: (product: ProductInfo) => void;
   removeFromSelection: (productId: string) => void;
   clearSelection: () => void;
+  apiBase: string;
 }
 
 const StoreLibraryContext = createContext<StoreLibraryContextValue | null>(null);
@@ -54,7 +55,12 @@ export function useStoreLibraryContext() {
   return context;
 }
 
-export function StoreLibraryProvider({ children }: { children: ReactNode }) {
+interface StoreLibraryProviderProps {
+  children: ReactNode;
+  apiBase?: string;
+}
+
+export function StoreLibraryProvider({ children, apiBase = "/api/test" }: StoreLibraryProviderProps) {
   const [selectedType, setSelectedType] = useState<StoreType>("internal");
   const [selectedStore, setSelectedStore] = useState<StoreInfo | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<ChannelInfo | null>(null);
@@ -69,7 +75,7 @@ export function StoreLibraryProvider({ children }: { children: ReactNode }) {
     const urlChannel = urlParams.get("channel");
     
     if (urlStoreId && urlStoreId !== "null") {
-      fetch(`/api/test/stores/by-id/${urlStoreId}`)
+      fetch(`${apiBase}/stores/by-id/${urlStoreId}`)
         .then(res => res.ok ? res.json() : null)
         .then(async (store) => {
           if (store && store.id) {
@@ -82,7 +88,7 @@ export function StoreLibraryProvider({ children }: { children: ReactNode }) {
             
             if (urlChannel && urlChannel !== "null") {
               try {
-                const channelsRes = await fetch(`/api/test/stores/${urlStoreId}/channels`);
+                const channelsRes = await fetch(`${apiBase}/stores/${urlStoreId}/channels`);
                 if (channelsRes.ok) {
                   const channels: ChannelInfo[] = await channelsRes.json();
                   const channel = channels.find(c => c.name === urlChannel || c.id === urlChannel);
@@ -101,7 +107,7 @@ export function StoreLibraryProvider({ children }: { children: ReactNode }) {
     } else {
       setUrlParamsProcessed(true);
     }
-  }, [urlParamsProcessed]);
+  }, [urlParamsProcessed, apiBase]);
 
   const addToSelection = (product: ProductInfo) => {
     setSelectedProducts(prev => {
@@ -142,6 +148,7 @@ export function StoreLibraryProvider({ children }: { children: ReactNode }) {
         addToSelection,
         removeFromSelection,
         clearSelection,
+        apiBase,
       }}
     >
       {children}

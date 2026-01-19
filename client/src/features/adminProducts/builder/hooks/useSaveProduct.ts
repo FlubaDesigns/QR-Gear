@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import type { PartnerStore } from "@shared/schema";
 
 interface PricingData {
@@ -64,13 +65,14 @@ interface SaveResult {
 
 export function useSaveProduct() {
   const queryClient = useQueryClient();
+  const { apiBase } = useAdminAuth();
 
   // Helper to invalidate both admin + test library keys so whichever surface is open updates
   const invalidateLibrary = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/test/library-assets"] });
+    queryClient.invalidateQueries({ queryKey: [`${apiBase}/library-assets`] });
     queryClient.invalidateQueries({ queryKey: ["/api/admin/templates"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/test/templates"] });
+    queryClient.invalidateQueries({ queryKey: [`${apiBase}/templates`] });
   };
 
   const saveToStoreMutation = useMutation({
@@ -151,7 +153,7 @@ export function useSaveProduct() {
     };
 
     const endpoint = useTestEndpoints 
-      ? "/api/test/templates/full-save" 
+      ? `${apiBase}/templates/full-save` 
       : "/api/admin/templates/full-save";
     const response = await apiRequest("POST", endpoint, templateData);
     const result = await response.json();
@@ -201,7 +203,7 @@ export function useSaveProduct() {
     };
 
     const endpoint = useTestEndpoints 
-      ? "/api/test/graphics/save" 
+      ? `${apiBase}/graphics/save` 
       : "/api/admin/graphics/save";
     const response = await apiRequest("POST", endpoint, graphicsData);
     const result = await response.json();

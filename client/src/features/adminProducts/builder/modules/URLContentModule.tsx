@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { LandingPageViewer } from "@/features/shared/components/LandingPageViewer";
@@ -26,6 +27,7 @@ type TabType = "backgrounds" | "cropped";
 
 export function URLContentModule() {
   const { state, loadBackground, setContent } = useBuilderContext();
+  const { apiBase } = useAdminAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>("cropped");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -40,9 +42,9 @@ export function URLContentModule() {
 
   // Hooks must be called unconditionally (Rules of Hooks)
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
-    queryKey: ["/api/test/background-assets", "cropped"],
+    queryKey: [`${apiBase}/background-assets`, "cropped"],
     queryFn: async () => {
-      const res = await fetch("/api/test/background-assets?type=cropped");
+      const res = await fetch(`${apiBase}/background-assets?type=cropped`);
       if (!res.ok) return [];
       return res.json();
     },
@@ -50,9 +52,9 @@ export function URLContentModule() {
   });
 
   const { data: backgrounds = [], isLoading: loadingBackgrounds } = useQuery<BackgroundAsset[]>({
-    queryKey: ["/api/test/background-assets", "background"],
+    queryKey: [`${apiBase}/background-assets`, "background"],
     queryFn: async () => {
-      const res = await fetch("/api/test/background-assets?type=background");
+      const res = await fetch(`${apiBase}/background-assets?type=background`);
       if (!res.ok) return [];
       return res.json();
     },
@@ -104,11 +106,11 @@ export function URLContentModule() {
     if (!confirm(`Delete "${lightboxAsset.name}"?`)) return;
     
     try {
-      const res = await fetch(`/api/test/background-assets/${lightboxAsset.id}`, {
+      const res = await fetch(`${apiBase}/background-assets/${lightboxAsset.id}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: ["/api/test/background-assets"] });
+        queryClient.invalidateQueries({ queryKey: [`${apiBase}/background-assets`] });
         setLightboxAsset(null);
       }
     } catch (error) {
@@ -117,7 +119,7 @@ export function URLContentModule() {
   };
 
   const handleCropComplete = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/test/background-assets", "cropped"] });
+    queryClient.invalidateQueries({ queryKey: [`${apiBase}/background-assets`, "cropped"] });
     setActiveTab("cropped");
   };
 

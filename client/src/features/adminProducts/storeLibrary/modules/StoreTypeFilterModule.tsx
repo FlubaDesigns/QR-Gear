@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Building2, Users, Globe, Store, Layers } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useStoreLibraryContext, StoreType, StoreInfo, ChannelInfo } from "../StoreLibraryContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 
 const storeTypes: { type: StoreType; label: string; icon: typeof Building2 }[] = [
@@ -19,13 +20,14 @@ export function StoreTypeFilterModule() {
     selectedChannel,
     setSelectedChannel,
   } = useStoreLibraryContext();
+  const { apiBase } = useAdminAuth();
 
   const { data: stores = [] } = useQuery<StoreInfo[]>({
-    queryKey: [`/api/test/stores?roleType=${selectedType}`],
+    queryKey: [`${apiBase}/stores?roleType=${selectedType}`],
   });
 
   const { data: channels = [] } = useQuery<ChannelInfo[]>({
-    queryKey: [`/api/test/stores/${selectedStore?.id}/channels`],
+    queryKey: [`${apiBase}/stores/${selectedStore?.id}/channels`],
     enabled: !!selectedStore,
   });
 

@@ -5,6 +5,7 @@ import { Loader2, Package, Plus, Check } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useStoreLibraryContext, ProductInfo } from "../StoreLibraryContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 export function ProductGridModule() {
   const { 
@@ -14,9 +15,10 @@ export function ProductGridModule() {
     addToSelection,
     removeFromSelection 
   } = useStoreLibraryContext();
+  const { apiBase } = useAdminAuth();
 
   const { data: products = [], isLoading, error } = useQuery<ProductInfo[]>({
-    queryKey: [`/api/test/stores/${selectedStore?.id}/channels/${selectedChannel?.name}/products`],
+    queryKey: [`${apiBase}/stores/${selectedStore?.id}/channels/${selectedChannel?.name}/products`],
     enabled: !!selectedStore && !!selectedChannel?.name,
   });
 

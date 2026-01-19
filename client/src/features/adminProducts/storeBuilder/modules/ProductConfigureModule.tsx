@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Palette, Image, Wand2, Loader2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface ColorOption {
   name: string;
@@ -22,6 +23,7 @@ interface BlueprintDetails {
 
 export function ProductConfigureModule() {
   const { step, selectedBaseProduct, addConfiguredProduct, setStep } = useStoreBuilderContext();
+  const { apiBase } = useAdminAuth();
   const [enabledColors, setEnabledColors] = useState<Set<string>>(new Set());
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(new Set());
   const [defaultColor, setDefaultColor] = useState("");
@@ -29,7 +31,7 @@ export function ProductConfigureModule() {
   const [isConfiguring, setIsConfiguring] = useState(false);
 
   const { data: blueprintDetails, isLoading } = useQuery<BlueprintDetails>({
-    queryKey: ["/api/test/printify/catalog", selectedBaseProduct?.id],
+    queryKey: [`${apiBase}/printify/catalog`, selectedBaseProduct?.id],
     enabled: !!selectedBaseProduct?.id,
   });
 

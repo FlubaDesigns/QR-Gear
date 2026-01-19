@@ -5,10 +5,10 @@ import { CollapsibleModule } from "@/features/shared/components/CollapsibleModul
 import { useStoreLibraryContext, StoreInfo } from "../StoreLibraryContext";
 
 export function StoreListModule() {
-  const { selectedType, selectedStore, setSelectedStore } = useStoreLibraryContext();
+  const { selectedType, selectedStore, setSelectedStore, apiBase } = useStoreLibraryContext();
 
   const { data: stores = [], isLoading, error } = useQuery<StoreInfo[]>({
-    queryKey: ["/api/test/stores", selectedType],
+    queryKey: [`${apiBase}/stores`, selectedType],
   });
 
   const handleSelectStore = (store: StoreInfo) => {

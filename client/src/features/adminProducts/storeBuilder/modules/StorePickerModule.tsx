@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Store, Plus, Loader2, Shield } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface PartnerStore {
   id: string;
@@ -17,11 +18,12 @@ interface PartnerStore {
 
 export function StorePickerModule() {
   const { step, currentStore, setCurrentStore, setCurrentChannel, setStep } = useStoreBuilderContext();
+  const { apiBase } = useAdminAuth();
   const [showAddStore, setShowAddStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
 
   const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
-    queryKey: ["/api/test/partner-stores"],
+    queryKey: [`${apiBase}/partner-stores`],
   });
 
   const handleStoreSelect = (store: PartnerStore) => {

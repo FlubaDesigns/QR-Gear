@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Package, Search, Loader2, ChevronRight } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface CatalogItem {
   id: string;
@@ -26,11 +27,12 @@ interface CatalogCategory {
 
 export function CatalogBrowserModule() {
   const { step, currentChannel, selectedBaseProduct, setSelectedBaseProduct, setStep } = useStoreBuilderContext();
+  const { apiBase } = useAdminAuth();
   const [search, setSearch] = useState("");
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
-    queryKey: ["/api/test/printify/catalog"],
+    queryKey: [`${apiBase}/printify/catalog`],
     enabled: !!currentChannel,
   });
 
