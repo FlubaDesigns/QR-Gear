@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, ArrowLeft, Library, FolderOpen, Layers, RefreshCw } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, Library, FolderOpen, Layers, RefreshCw } from "lucide-react";
 import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -745,7 +745,6 @@ export function StoreBuilderHarness() {
           channel: selectedChannel,
           packetId: currentPacketId,
           templateId: templateId,
-          graphicsId: productPackage.graphicsId,
           qrContent: productPackage.qrContent,
           productName: productPackage.productName,
           compositeUrl: productPackage.compositeUrl,
@@ -770,12 +769,6 @@ export function StoreBuilderHarness() {
         type: "success",
         message: successMsg,
       });
-      
-      if (selectedStore?.id && selectedChannel) {
-        setTimeout(() => {
-          navigate(`/test-stores?storeId=${selectedStore.id}&channel=${encodeURIComponent(selectedChannel)}`);
-        }, 1000);
-      }
     } catch (error: any) {
       setSaveStatus({
         type: "error",
@@ -855,65 +848,53 @@ export function StoreBuilderHarness() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        {productPackage?.packetId && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const currentPacketId = productPackage.packetId;
+              if (currentPacketId) {
+                setProductPackage(null);
+                setTimeout(() => {
+                  navigate(`/test-store-builder?packetId=${currentPacketId}`);
+                }, 50);
+              }
+            }}
+            data-testid="button-refresh-packet"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh
+          </Button>
+        )}
         <Button
-          variant="ghost"
+          variant="default"
           size="sm"
-          onClick={() => navigate("/test-products")}
-          data-testid="button-back-builder"
+          onClick={() => setLibraryPickerOpen(true)}
+          data-testid="button-load-library-header"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Products
+          <FolderOpen className="h-4 w-4 mr-1" />
+          Load
         </Button>
-        <div className="flex gap-2">
-          {productPackage?.packetId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Re-trigger packet load by navigating to same URL
-                const currentPacketId = productPackage.packetId;
-                if (currentPacketId) {
-                  setProductPackage(null);
-                  setTimeout(() => {
-                    navigate(`/test-store-builder?packetId=${currentPacketId}`);
-                  }, 50);
-                }
-              }}
-              data-testid="button-refresh-packet"
-            >
-              <RefreshCw className="h-4 w-4 mr-1" />
-              Refresh
-            </Button>
-          )}
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setLibraryPickerOpen(true)}
-            data-testid="button-load-library-header"
-          >
-            <FolderOpen className="h-4 w-4 mr-1" />
-            Load
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/admin/library?tab=graphics")}
-            data-testid="link-graphics-library"
-          >
-            <QrCode className="h-4 w-4 mr-1" />
-            Graphics
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/admin/library?tab=templates")}
-            data-testid="link-templates-library"
-          >
-            <Layers className="h-4 w-4 mr-1" />
-            Templates
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate("/admin/library?tab=graphics")}
+          data-testid="link-graphics-library"
+        >
+          <QrCode className="h-4 w-4 mr-1" />
+          Graphics
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate("/admin/library?tab=templates")}
+          data-testid="link-templates-library"
+        >
+          <Layers className="h-4 w-4 mr-1" />
+          Templates
+        </Button>
       </div>
 
       {isEditMode && (
@@ -1233,14 +1214,42 @@ export function StoreBuilderHarness() {
 
       {saveStatus && (
         <div
-          className={`p-3 rounded-md border flex items-center gap-2 ${
+          className={`p-3 rounded-md border ${
             saveStatus.type === "success"
               ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200"
               : "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200"
           }`}
           data-testid="store-save-status"
         >
-          <span className="text-sm font-medium">{saveStatus.message}</span>
+          <span className="text-sm font-medium block mb-2">{saveStatus.message}</span>
+          {saveStatus.type === "success" && (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSaveStatus(null);
+                  setProductPackage(null);
+                  setSelectedStoreId(null);
+                  setSelectedChannel(null);
+                }}
+                data-testid="button-clear-after-assign"
+              >
+                Clear & New
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (selectedStoreId && selectedChannel) {
+                    navigate(`/test-stores?storeId=${selectedStoreId}&channel=${encodeURIComponent(selectedChannel)}`);
+                  }
+                }}
+                data-testid="button-view-store"
+              >
+                View in Store
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
