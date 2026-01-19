@@ -90,27 +90,23 @@ export default function TestPricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/test-products">
-            <Button 
-              variant="outline" 
-              size="default"
-              className="min-h-[48px] min-w-[48px]"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <DollarSign className="h-8 w-8 text-green-600" />
+    <div className="page-wrap">
+      <div className="container mobile-compact mobile-compact-stack">
+        <div className="glass-card">
+          <div className="flex flex-col gap-4">
+            <Link href="/test-products" className="block">
+              <button 
+                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+                data-testid="button-back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                Back to Products
+              </button>
+            </Link>
+            <h1 className="glass-title text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
               Pricing Configuration
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Set markup, placement costs, text upcharges, and hosting fees
-            </p>
           </div>
         </div>
 
@@ -262,24 +258,21 @@ export default function TestPricingPage() {
             </CardContent>
           </Card>
 
-          <div className="flex gap-4">
-            <Button
-              size="lg"
-              className="min-h-[48px] flex-1"
-              onClick={handleSave}
-              disabled={saveMutation.isPending}
-              data-testid="button-save"
-            >
-              {saveMutation.isPending ? (
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              ) : saveMutation.isSuccess ? (
-                <Check className="h-5 w-5 mr-2" />
-              ) : (
-                <Save className="h-5 w-5 mr-2" />
-              )}
-              Save Pricing Settings
-            </Button>
-          </div>
+          <button
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            className="qr-btn qr-btn--primary qr-btn--xxl qr-btn--full disabled:opacity-50"
+            data-testid="button-save"
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : saveMutation.isSuccess ? (
+              <Check className="h-6 w-6" />
+            ) : (
+              <Save className="h-6 w-6" />
+            )}
+            Save Pricing Settings
+          </button>
 
           <Card className="bg-muted/50">
             <CardHeader>

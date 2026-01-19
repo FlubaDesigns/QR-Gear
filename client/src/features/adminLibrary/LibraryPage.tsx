@@ -31,39 +31,38 @@ export default function LibraryPage() {
 
   return (
     <LibraryProvider>
-      <div className="container mx-auto py-6 space-y-6">
-        <BreadcrumbTrail />
+      <div className="page-wrap">
+        <div className="container mobile-compact mobile-compact-stack">
+          <BreadcrumbTrail />
 
-        <div className="glass-card">
-          <h1 className="glass-title text-xl mb-2">Library</h1>
-          <p className="glass-body">
-            Graphics, templates, and source images.
-          </p>
-        </div>
+          <div className="glass-card">
+            <h1 className="glass-title text-lg">Library</h1>
+          </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const isActive = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`qr-btn qr-btn--touch ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
-                data-testid={`tab-${t.id}`}
-              >
-                <Icon className="h-5 w-5" />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+          <div className="flex flex-col gap-2">
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const isActive = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`qr-btn qr-btn--touch qr-btn--full ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
+                  data-testid={`tab-${t.id}`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
 
-        <div className="glass-card">
-          {tab === "graphics" && <GraphicsTab />}
-          {tab === "templates" && <TemplatesTab />}
-          {tab === "source" && <SourceImagesTab />}
-          {tab === "cropped" && <CroppedImagesTab />}
+          <div className="glass-card">
+            {tab === "graphics" && <GraphicsTab />}
+            {tab === "templates" && <TemplatesTab />}
+            {tab === "source" && <SourceImagesTab />}
+            {tab === "cropped" && <CroppedImagesTab />}
+          </div>
         </div>
       </div>
     </LibraryProvider>
