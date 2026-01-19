@@ -114,7 +114,35 @@ export const defaultTextStyle: TextStyleConfig = {
   strokeColor: "",
   strokeWidth: 0,
   verticalOffset: 20,   // Default spacing from QR
-  horizontalOffset: 0,  // Centered by default
+  horizontalOffset: 0,  // Centered (100% width)
+};
+
+export const defaultHeaderStyle: TextStyleConfig = {
+  text: "Hello",
+  enabled: true,
+  fontFamily: "Arial",
+  fontSize: "144",
+  color: "#FFFFFF",
+  warpPreset: "straight",
+  letterSpacing: 0,
+  strokeColor: "#FF0000",
+  strokeWidth: 20,
+  verticalOffset: 20,
+  horizontalOffset: 0,  // Centered (100% width)
+};
+
+export const defaultFooterStyle: TextStyleConfig = {
+  text: "World!",
+  enabled: true,
+  fontFamily: "Arial",
+  fontSize: "144",
+  color: "#FFFFFF",
+  warpPreset: "straight",
+  letterSpacing: 0,
+  strokeColor: "#FF0000",
+  strokeWidth: 20,
+  verticalOffset: 20,
+  horizontalOffset: 0,  // Centered (100% width)
 };
 
 export interface ContentData {
