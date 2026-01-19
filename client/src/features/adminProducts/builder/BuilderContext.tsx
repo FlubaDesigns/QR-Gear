@@ -1,11 +1,16 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useProductsContext } from "../ProductsContext";
 import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor } from "./types";
+import type { RoleType, Store, Channel } from "../shared/types";
 import { defaultTextStyle } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
   activeProviders: string[];
+  // Role/Store/Channel from ProductsContext
+  selectedRole: RoleType | null;
+  selectedStore: Store | null;
+  selectedChannel: Channel | null;
   setSourceType: (type: SourceType) => void;
   loadTemplate: (template: LoadedTemplate) => void;
   loadGraphic: (graphic: LoadedGraphic) => void;
@@ -87,7 +92,7 @@ interface BuilderProviderProps {
 }
 
 export function BuilderProvider({ children }: BuilderProviderProps) {
-  const { api, selectedProviders } = useProductsContext();
+  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
 
   const setSourceType = useCallback((type: SourceType) => {
@@ -245,6 +250,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const value = useMemo<BuilderContextValue>(() => ({
     state,
     activeProviders: selectedProviders,
+    selectedRole,
+    selectedStore,
+    selectedChannel,
     setSourceType,
     loadTemplate,
     loadGraphic,
@@ -262,7 +270,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setSelectedColor,
     resetBuilder,
     api,
-  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor, resetBuilder, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

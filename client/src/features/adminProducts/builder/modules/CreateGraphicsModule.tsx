@@ -177,7 +177,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export function CreateGraphicsModule() {
-  const { state, loadGraphic } = useBuilderContext();
+  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel } = useBuilderContext();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
@@ -312,6 +312,12 @@ export function CreateGraphicsModule() {
         landingPageDescription: state.content?.description || null,
         landingPageBackgroundUrl: state.loadedBackground?.url || null,
         landingPageSlug,
+        // Role/Store/Channel from top of page
+        roleType: selectedRole || null,
+        storeId: selectedStore?.id || null,
+        storeName: selectedStore?.name || null,
+        channelId: selectedChannel?.id || null,
+        channelName: selectedChannel?.name || null,
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {

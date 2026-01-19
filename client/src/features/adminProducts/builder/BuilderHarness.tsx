@@ -21,7 +21,7 @@ interface SaveStatus {
 }
 
 function BuilderModules() {
-  const { state } = useBuilderContext();
+  const { state, selectedRole, selectedStore, selectedChannel } = useBuilderContext();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
@@ -39,6 +39,12 @@ function BuilderModules() {
       compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
       qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
       pricing: currentPricing,
+      // Role/Store/Channel from top of page
+      roleType: selectedRole || null,
+      storeId: selectedStore?.id || null,
+      storeName: selectedStore?.name || null,
+      channelId: selectedChannel?.id || null,
+      channelName: selectedChannel?.name || null,
     };
     sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
     navigate("/test-store-builder");
@@ -136,6 +142,12 @@ function BuilderModules() {
           compositeUrl: state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "",
           qrOnlyUrl: state.loadedGraphic?.qrOnlyUrl || "",
           pricing: currentPricing,
+          // Role/Store/Channel from top of page
+          roleType: selectedRole || null,
+          storeId: selectedStore?.id || null,
+          storeName: selectedStore?.name || null,
+          channelId: selectedChannel?.id || null,
+          channelName: selectedChannel?.name || null,
         };
         sessionStorage.setItem("productPackage", JSON.stringify(productPackage));
         
