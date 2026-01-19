@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Check, Crop, Trash2, X, FileText, RefreshCw } from "lucide-react";
+import { Image, Loader2, Check, Crop, Trash2, X, FileText, RefreshCw, Type } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
@@ -292,7 +293,114 @@ export function URLContentModule() {
         </div>
 
 
-        {/* Section 2: URL Title & Description */}
+        {/* Section 2: Product Graphic Text (in its own card) */}
+        <Card className="mt-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Type className="h-4 w-4" />
+              Product Graphic Text
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Add styled text to the top or bottom of your product graphic
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <TextStyleEditor
+              label="Top Text"
+              sublabel="Appears at top of graphic"
+              maxLength={30}
+              style={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
+              onChange={(updates) => setContent({ 
+                headerStyle: { 
+                  ...((state.content.headerStyle as TextStyleConfig) || headerDefaultStyle), 
+                  ...updates 
+                } 
+              })}
+              testIdPrefix="header"
+              showPositionControls={true}
+              previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+            />
+            
+            <TextStyleEditor
+              label="Bottom Text"
+              sublabel="Appears at bottom of graphic"
+              maxLength={30}
+              style={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
+              onChange={(updates) => setContent({ 
+                footerStyle: { 
+                  ...((state.content.footerStyle as TextStyleConfig) || footerDefaultStyle), 
+                  ...updates 
+                } 
+              })}
+              testIdPrefix="footer"
+              showPositionControls={true}
+              previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+            />
+            
+            {/* Combined Product Graphic Preview */}
+            {((state.content.headerStyle as TextStyleConfig)?.enabled || (state.content.footerStyle as TextStyleConfig)?.enabled) && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
+                <div 
+                  className="relative aspect-square rounded-lg overflow-hidden"
+                  style={{ backgroundColor: state.selectedColor?.hex || '#1a1a2e' }}
+                >
+                  {/* Top Text */}
+                  {(state.content.headerStyle as TextStyleConfig)?.enabled && (state.content.headerStyle as TextStyleConfig)?.text && (
+                    <div 
+                      className="absolute left-0 right-0 text-center px-2"
+                      style={{
+                        top: `${(state.content.headerStyle as TextStyleConfig)?.verticalOffset || 0}%`,
+                        transform: 'translateY(-50%)',
+                        fontFamily: (state.content.headerStyle as TextStyleConfig)?.fontFamily || 'Arial',
+                        fontSize: `${Math.max(8, parseInt((state.content.headerStyle as TextStyleConfig)?.fontSize || '24') / 12)}px`,
+                        color: (state.content.headerStyle as TextStyleConfig)?.color || '#FFFFFF',
+                        letterSpacing: `${((state.content.headerStyle as TextStyleConfig)?.letterSpacing || 0) / 20}px`,
+                        WebkitTextStroke: (state.content.headerStyle as TextStyleConfig)?.strokeWidth 
+                          ? `${(state.content.headerStyle as TextStyleConfig)!.strokeWidth! / 10}px ${(state.content.headerStyle as TextStyleConfig)?.strokeColor || '#000000'}`
+                          : undefined,
+                      }}
+                    >
+                      {(state.content.headerStyle as TextStyleConfig)?.text}
+                    </div>
+                  )}
+                  
+                  {/* Center QR placeholder */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-1/3 h-1/3 border-2 border-dashed border-white/30 rounded flex items-center justify-center">
+                      <span className="text-white/30 text-xs">QR</span>
+                    </div>
+                  </div>
+                  
+                  {/* Bottom Text */}
+                  {(state.content.footerStyle as TextStyleConfig)?.enabled && (state.content.footerStyle as TextStyleConfig)?.text && (
+                    <div 
+                      className="absolute left-0 right-0 text-center px-2"
+                      style={{
+                        bottom: `${100 - ((state.content.footerStyle as TextStyleConfig)?.verticalOffset || 100)}%`,
+                        transform: 'translateY(50%)',
+                        fontFamily: (state.content.footerStyle as TextStyleConfig)?.fontFamily || 'Arial',
+                        fontSize: `${Math.max(8, parseInt((state.content.footerStyle as TextStyleConfig)?.fontSize || '24') / 12)}px`,
+                        color: (state.content.footerStyle as TextStyleConfig)?.color || '#FFFFFF',
+                        letterSpacing: `${((state.content.footerStyle as TextStyleConfig)?.letterSpacing || 0) / 20}px`,
+                        WebkitTextStroke: (state.content.footerStyle as TextStyleConfig)?.strokeWidth 
+                          ? `${(state.content.footerStyle as TextStyleConfig)!.strokeWidth! / 10}px ${(state.content.footerStyle as TextStyleConfig)?.strokeColor || '#000000'}`
+                          : undefined,
+                      }}
+                    >
+                      {(state.content.footerStyle as TextStyleConfig)?.text}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  This is how your product graphic will appear
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Section 3: URL Title & Description */}
         <div className="space-y-4 pt-4 border-t">
           <p className="text-sm font-medium">URL Content Text</p>
           <p className="text-xs text-muted-foreground">
@@ -332,107 +440,6 @@ export function URLContentModule() {
             previewBackgroundImage={backgroundUrl}
             previewBackgroundColor="#1a1a2e"
           />
-        </div>
-
-        {/* Section 4: Top & Bottom Text Overlays (for graphic) */}
-        <div className="space-y-4 pt-4 border-t">
-          <p className="text-sm font-medium">Product Graphic Text</p>
-          <p className="text-xs text-muted-foreground">
-            Add styled text to the top or bottom of your product graphic
-          </p>
-          
-          <TextStyleEditor
-            label="Top Text"
-            sublabel="Appears at top of graphic"
-            maxLength={30}
-            style={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
-            onChange={(updates) => setContent({ 
-              headerStyle: { 
-                ...((state.content.headerStyle as TextStyleConfig) || headerDefaultStyle), 
-                ...updates 
-              } 
-            })}
-            testIdPrefix="header"
-            showPositionControls={true}
-            previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-          />
-          
-          <TextStyleEditor
-            label="Bottom Text"
-            sublabel="Appears at bottom of graphic"
-            maxLength={30}
-            style={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
-            onChange={(updates) => setContent({ 
-              footerStyle: { 
-                ...((state.content.footerStyle as TextStyleConfig) || footerDefaultStyle), 
-                ...updates 
-              } 
-            })}
-            testIdPrefix="footer"
-            showPositionControls={true}
-            previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-          />
-          
-          {/* Combined Product Graphic Preview */}
-          {((state.content.headerStyle as TextStyleConfig)?.enabled || (state.content.footerStyle as TextStyleConfig)?.enabled) && (
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
-              <div 
-                className="relative aspect-square rounded-lg overflow-hidden"
-                style={{ backgroundColor: state.selectedColor?.hex || '#1a1a2e' }}
-              >
-                {/* Top Text */}
-                {(state.content.headerStyle as TextStyleConfig)?.enabled && (state.content.headerStyle as TextStyleConfig)?.text && (
-                  <div 
-                    className="absolute left-0 right-0 text-center px-2"
-                    style={{
-                      top: `${(state.content.headerStyle as TextStyleConfig)?.verticalOffset || 0}%`,
-                      transform: 'translateY(-50%)',
-                      fontFamily: (state.content.headerStyle as TextStyleConfig)?.fontFamily || 'Arial',
-                      fontSize: `${Math.max(8, parseInt((state.content.headerStyle as TextStyleConfig)?.fontSize || '24') / 12)}px`,
-                      color: (state.content.headerStyle as TextStyleConfig)?.color || '#FFFFFF',
-                      letterSpacing: `${((state.content.headerStyle as TextStyleConfig)?.letterSpacing || 0) / 20}px`,
-                      WebkitTextStroke: (state.content.headerStyle as TextStyleConfig)?.strokeWidth 
-                        ? `${(state.content.headerStyle as TextStyleConfig)!.strokeWidth! / 10}px ${(state.content.headerStyle as TextStyleConfig)?.strokeColor || '#000000'}`
-                        : undefined,
-                    }}
-                  >
-                    {(state.content.headerStyle as TextStyleConfig)?.text}
-                  </div>
-                )}
-                
-                {/* Center QR placeholder */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-1/3 h-1/3 border-2 border-dashed border-white/30 rounded flex items-center justify-center">
-                    <span className="text-white/30 text-xs">QR</span>
-                  </div>
-                </div>
-                
-                {/* Bottom Text */}
-                {(state.content.footerStyle as TextStyleConfig)?.enabled && (state.content.footerStyle as TextStyleConfig)?.text && (
-                  <div 
-                    className="absolute left-0 right-0 text-center px-2"
-                    style={{
-                      bottom: `${100 - ((state.content.footerStyle as TextStyleConfig)?.verticalOffset || 100)}%`,
-                      transform: 'translateY(50%)',
-                      fontFamily: (state.content.footerStyle as TextStyleConfig)?.fontFamily || 'Arial',
-                      fontSize: `${Math.max(8, parseInt((state.content.footerStyle as TextStyleConfig)?.fontSize || '24') / 12)}px`,
-                      color: (state.content.footerStyle as TextStyleConfig)?.color || '#FFFFFF',
-                      letterSpacing: `${((state.content.footerStyle as TextStyleConfig)?.letterSpacing || 0) / 20}px`,
-                      WebkitTextStroke: (state.content.footerStyle as TextStyleConfig)?.strokeWidth 
-                        ? `${(state.content.footerStyle as TextStyleConfig)!.strokeWidth! / 10}px ${(state.content.footerStyle as TextStyleConfig)?.strokeColor || '#000000'}`
-                        : undefined,
-                    }}
-                  >
-                    {(state.content.footerStyle as TextStyleConfig)?.text}
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                This is how your product graphic will appear
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Landing Page Viewer */}
