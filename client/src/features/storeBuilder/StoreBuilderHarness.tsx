@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library, FolderOpen, Layers, RefreshCw } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, ArrowLeft, Library, FolderOpen, Layers, RefreshCw } from "lucide-react";
 import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
