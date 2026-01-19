@@ -8686,6 +8686,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Test: Delete packet - NO AUTH REQUIRED
+  // CASCADE DELETE: Also removes graphics, templates, and storeProductLinks that reference this packet
   app.delete("/api/test/packets/:packetId", async (req: any, res) => {
     try {
       const { packetId } = req.params;
@@ -8704,14 +8705,50 @@ ${allPages.map(page => `  <url>
         return res.status(404).json({ error: "Packet not found" });
       }
       
+      // CASCADE DELETE: Clean up all related records
+      const cascadeResults = {
+        graphics: 0,
+        templates: 0,
+        storeProductLinks: 0,
+      };
+      
+      // Delete related graphics
+      const graphicsSnap = await firestoreDb.collection("productGraphics")
+        .where("packetId", "==", packetId)
+        .get();
+      for (const graphicDoc of graphicsSnap.docs) {
+        await graphicDoc.ref.delete();
+        cascadeResults.graphics++;
+      }
+      
+      // Delete related templates
+      const templatesSnap = await firestoreDb.collection("productTemplates")
+        .where("packetId", "==", packetId)
+        .get();
+      for (const templateDoc of templatesSnap.docs) {
+        await templateDoc.ref.delete();
+        cascadeResults.templates++;
+      }
+      
+      // Delete related storeProductLinks
+      const linksSnap = await firestoreDb.collection("storeProductLinks")
+        .where("packetId", "==", packetId)
+        .get();
+      for (const linkDoc of linksSnap.docs) {
+        await linkDoc.ref.delete();
+        cascadeResults.storeProductLinks++;
+      }
+      
+      // Delete the packet itself
       await docRef.delete();
       
-      console.log(`[Packets DELETE] Deleted packet ${packetId}`);
+      console.log(`[Packets DELETE] Deleted packet ${packetId} with cascade:`, cascadeResults);
       
       res.json({
         success: true,
         packetId,
-        message: "Packet deleted",
+        message: "Packet deleted with cascade cleanup",
+        cascade: cascadeResults,
       });
     } catch (error: any) {
       console.error("[Packets DELETE] Error:", error);
