@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Check, Crop, ImagePlus, ChevronLeft, ChevronRight, Video, Link2, Upload } from "lucide-react";
+import { Image, Loader2, Check, Crop, ImagePlus, ChevronLeft, ChevronRight, Video, Link2, Upload, Type, ChevronDown, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
 
@@ -397,11 +398,79 @@ function VideoPicker() {
   );
 }
 
+function TitleDescriptionEditor() {
+  const { state, setContent } = useBuilderContext();
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const title = state.content?.title || "";
+  const description = state.content?.description || "";
+  const hasContent = title || description;
+
+  return (
+    <div className="bg-background rounded-lg border mt-3">
+      <div 
+        className="mobile-compact-module-header flex items-center cursor-pointer select-none"
+        onClick={() => setIsOpen(!isOpen)}
+        data-testid="collapsible-title-description"
+      >
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
+        )}
+        <Type className="h-4 w-4 text-primary ml-1" />
+        <Label className="font-semibold text-base flex-1 cursor-pointer ml-2">Title & Description</Label>
+        {hasContent && (
+          <span className="text-xs text-muted-foreground mr-2">Has content</span>
+        )}
+      </div>
+      
+      {isOpen && (
+        <div className="mobile-compact-module-content space-y-3">
+          <div>
+            <Label htmlFor="content-title" className="text-sm mb-1.5 block text-muted-foreground">
+              Title
+            </Label>
+            <Input
+              id="content-title"
+              placeholder="Enter title text"
+              value={title}
+              onChange={(e) => setContent({ title: e.target.value })}
+              maxLength={50}
+              className="min-h-[48px]"
+              data-testid="input-content-title"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="content-description" className="text-sm mb-1.5 block text-muted-foreground">
+              Description
+            </Label>
+            <textarea
+              id="content-description"
+              inputMode="text"
+              autoComplete="off"
+              placeholder="Enter description text"
+              value={description}
+              onChange={(e) => setContent({ description: e.target.value })}
+              maxLength={200}
+              rows={3}
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              data-testid="input-content-description"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BackgroundPickerModule() {
   const { state } = useBuilderContext();
 
   const isCanvasOrDynamics = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_dynamics";
   const isPlayMode = state.qrProductState === "qr_play";
+  const isDynamics = state.qrProductState === "qr_dynamics";
 
   if (!state.selectedProduct || (!isCanvasOrDynamics && !isPlayMode)) {
     return null;
@@ -419,6 +488,7 @@ export function BackgroundPickerModule() {
           Add a video that plays on the QR landing page.
         </p>
         <VideoPicker />
+        <TitleDescriptionEditor />
       </CollapsibleModule>
     );
   }
@@ -431,6 +501,7 @@ export function BackgroundPickerModule() {
       defaultOpen
     >
       <ImagePicker />
+      {isDynamics && <TitleDescriptionEditor />}
     </CollapsibleModule>
   );
 }
