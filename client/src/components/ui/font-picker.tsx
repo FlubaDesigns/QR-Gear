@@ -139,7 +139,7 @@ export function FontPicker({
         >
           <ScrollArea className="h-72">
             <div className="p-2 space-y-1">
-              {fonts.map((font, index) => (
+              {fonts.filter(Boolean).map((font, index) => (
                 <button
                   key={font}
                   id={`font-option-${index}`}
@@ -156,7 +156,7 @@ export function FontPicker({
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                     value === font && "bg-accent"
                   )}
-                  data-testid={`font-option-${font.replace(/\s+/g, '-').toLowerCase()}`}
+                  data-testid={`font-option-${(font || '').replace(/\s+/g, '-').toLowerCase()}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{font}</span>
