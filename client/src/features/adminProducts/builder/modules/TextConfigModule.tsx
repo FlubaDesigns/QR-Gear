@@ -67,7 +67,7 @@ export function TextConfigModule() {
         )}
         
         <TextStyleEditor
-          label="Top Text (Header)"
+          label="Top Text"
           maxLength={35}
           style={headerStyle}
           onChange={updateHeaderStyle}
@@ -76,7 +76,7 @@ export function TextConfigModule() {
         />
         
         <TextStyleEditor
-          label="Bottom Text (Footer)"
+          label="Bottom Text"
           maxLength={40}
           style={footerStyle}
           onChange={updateFooterStyle}
