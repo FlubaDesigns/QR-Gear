@@ -357,7 +357,29 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
   };
 
   const handleSave = async (path: SavePath) => {
-    if (!localGraphics || !calculatedPricing || !path || isSaving) return;
+    console.log("[CreateGraphics] handleSave called with path:", path);
+    console.log("[CreateGraphics] localGraphics:", !!localGraphics);
+    console.log("[CreateGraphics] calculatedPricing:", !!calculatedPricing);
+    console.log("[CreateGraphics] isSaving:", isSaving);
+    
+    if (!localGraphics) {
+      console.error("[CreateGraphics] No localGraphics - user must click Create Graphics first");
+      toast({ title: "Error", description: "Please create graphics preview first", variant: "destructive" });
+      return;
+    }
+    if (!calculatedPricing) {
+      console.error("[CreateGraphics] No calculatedPricing");
+      toast({ title: "Error", description: "Pricing not calculated", variant: "destructive" });
+      return;
+    }
+    if (!path) {
+      console.error("[CreateGraphics] No path specified");
+      return;
+    }
+    if (isSaving) {
+      console.log("[CreateGraphics] Already saving, ignoring");
+      return;
+    }
 
     setIsSaving(true);
     setError(null);
@@ -417,6 +439,7 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         packetPayload.playMediaUrl = state.content.playMediaUrl;
       }
 
+      console.log("[CreateGraphics] Creating packet...", packetPayload);
       const packetRes = await fetch("/api/test/packets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -425,11 +448,13 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
 
       if (!packetRes.ok) {
         const errData = await packetRes.json().catch(() => ({}));
+        console.error("[CreateGraphics] Packet creation failed:", errData);
         throw new Error(errData.error || `Packet API error ${packetRes.status}`);
       }
 
       const packetData = await packetRes.json();
       const packetId = packetData.packetId;
+      console.log("[CreateGraphics] Packet created:", packetId);
 
       if (isPlayMode && state.content.playMediaSource === "upload" && state.content.playMediaFile) {
         try {
@@ -594,16 +619,19 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         packetId,
       };
 
+      console.log("[CreateGraphics] Save complete, packetId:", packetId, "path:", path);
       onGraphicsCreated?.(generatedGraphics, calculatedPricing, packetId);
       setSaveComplete(true);
       setSavedPacketId(packetId);
 
       if (path === "store") {
+        console.log("[CreateGraphics] Navigating to Store Builder...");
         toast({
           title: "Saved Successfully",
           description: "Opening Store Builder with your product...",
         });
         setTimeout(() => {
+          console.log("[CreateGraphics] Executing navigation to:", `/test-store-builder?packetId=${packetId}`);
           navigate(`/test-store-builder?packetId=${packetId}`);
           onSaveComplete?.();
         }, 800);
@@ -615,8 +643,9 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       }
 
     } catch (err: any) {
-      console.error("Save failed:", err);
+      console.error("[CreateGraphics] Save failed:", err);
       setError(err.message || "Failed to save");
+      toast({ title: "Save Failed", description: err.message || "Failed to save", variant: "destructive" });
       setSelectedPath(null);
     } finally {
       setIsSaving(false);
