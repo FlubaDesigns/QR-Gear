@@ -27,7 +27,7 @@
 /* Mobile gutter reduction */
 @media (max-width: 640px) {
   :root {
-    --gutter: 4px;
+    --gutter: 2px;
   }
 }
 
