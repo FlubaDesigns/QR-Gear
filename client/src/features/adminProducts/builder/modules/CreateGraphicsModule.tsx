@@ -74,11 +74,29 @@ interface ProductGraphicOptions {
   useTransparentBackground?: boolean;
 }
 
+async function fetchImageAsDataUrl(url: string): Promise<string> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('[fetchImageAsDataUrl] Failed:', url, e);
+    throw e;
+  }
+}
+
 async function generateProductGraphic(options: ProductGraphicOptions): Promise<string> {
   const { qrUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground } = options;
   const CANVAS_WIDTH = 1080;
   const CANVAS_HEIGHT = 1920;
   const QR_SIZE = 400;
+  
+  console.log('[generateProductGraphic] Starting with QR URL:', qrUrl);
   
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_WIDTH;
@@ -97,14 +115,17 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   }
 
   try {
-    const qrImg = await loadImage(qrUrl);
+    // Fetch QR as data URL to avoid CORS issues with external QR API
+    const qrDataUrl = await fetchImageAsDataUrl(qrUrl);
+    const qrImg = await loadImage(qrDataUrl);
     const qrX = (CANVAS_WIDTH - QR_SIZE) / 2;
     const qrY = (CANVAS_HEIGHT - QR_SIZE) / 2;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(qrX - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
     ctx.drawImage(qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
+    console.log('[generateProductGraphic] QR drawn successfully');
   } catch (e) {
-    console.warn('Failed to load QR image:', e);
+    console.warn('[generateProductGraphic] Failed to load QR image:', e);
   }
 
   if (headerStyle?.enabled && headerStyle.text) {
@@ -157,8 +178,14 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
+    img.onerror = (e) => {
+      console.error(`[loadImage] Failed to load: ${src}`, e);
+      reject(new Error(`Failed to load image: ${src}`));
+    };
+    // Convert relative URLs to absolute for canvas CORS
+    const absoluteSrc = src.startsWith('/') ? `${window.location.origin}${src}` : src;
+    console.log(`[loadImage] Loading: ${absoluteSrc}`);
+    img.src = absoluteSrc;
   });
 }
 
@@ -173,6 +200,8 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
   const CANVAS_WIDTH = 1080;
   const CANVAS_HEIGHT = 1920;
   
+  console.log('[generateLandingPageSnapshot] Starting with:', { backgroundUrl, titleStyle, descriptionStyle });
+  
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_WIDTH;
   canvas.height = CANVAS_HEIGHT;
@@ -184,6 +213,7 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
 
   if (backgroundUrl) {
     try {
+      console.log('[generateLandingPageSnapshot] Loading background...');
       const bgImg = await loadImage(backgroundUrl);
       const scale = Math.max(CANVAS_WIDTH / bgImg.width, CANVAS_HEIGHT / bgImg.height);
       const scaledWidth = bgImg.width * scale;
@@ -191,9 +221,12 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
       const x = (CANVAS_WIDTH - scaledWidth) / 2;
       const y = (CANVAS_HEIGHT - scaledHeight) / 2;
       ctx.drawImage(bgImg, x, y, scaledWidth, scaledHeight);
+      console.log('[generateLandingPageSnapshot] Background drawn successfully');
     } catch (e) {
-      console.warn('Failed to load background image for landing page:', e);
+      console.warn('[generateLandingPageSnapshot] Failed to load background image:', e);
     }
+  } else {
+    console.log('[generateLandingPageSnapshot] No background URL provided');
   }
 
   if (titleStyle?.text) {
