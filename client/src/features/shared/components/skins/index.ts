@@ -4,3 +4,7 @@ export * from "./TemplateSkin";
 export * from "./BackgroundSkin";
 export * from "./SourceImageSkin";
 export * from "./CroppedImageSkin";
+export * from "./TextPreviewSkin";
+export * from "./LandingPageSkin";
+export * from "./GraphicPreviewSkin";
+export * from "./MediaPreviewSkin";
