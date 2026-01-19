@@ -628,6 +628,40 @@ export function CreateGraphicsModule() {
         body: JSON.stringify({ limit: 3 }),
       }).catch(() => {});
 
+      // Create storeProductLink if store and channel are selected (locks in assignment before Store Builder)
+      if (selectedStore?.id && selectedChannel?.name) {
+        try {
+          const linkRes = await fetch(`${apiBase}/store-product-links`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              storeId: selectedStore.id,
+              storeName: selectedStore.name,
+              channel: selectedChannel.name,
+              packetId,
+              templateId: templateData.templateId || null,
+              productName: state.selectedProduct?.title || product?.name || null,
+              compositeUrl: productGraphicUrl,
+              qrOnlyUrl: finalQrUrl,
+              qrContent: finalQrContent,
+              pricing,
+              enabledColors: availableColors.map((c: any) => c.name || c),
+              enabledSizes: availableSizes,
+              selectedGraphicSize: state.placementSizes?.[(state.selectedPlacements || ["front"])[0]] || "medium",
+              defaultColor: state.selectedColor?.name || null,
+            }),
+          });
+          if (linkRes.ok) {
+            const linkData = await linkRes.json();
+            console.log(`[CreatePacket] Store product link created: ${linkData.linkId} for ${selectedStore.name}/${selectedChannel.name}`);
+          } else {
+            console.warn('[CreatePacket] Failed to create store product link:', await linkRes.text());
+          }
+        } catch (linkErr) {
+          console.warn('[CreatePacket] Store product link creation error:', linkErr);
+        }
+      }
+
       loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: finalQrUrl });
 
       const initialResult: PacketResult = {

@@ -124,17 +124,27 @@ STORE BUILDER
 - GET `/api/test/templates` - Get all templates with linked packet data
 - POST `/api/test/templates` - Create template linked to packet
 
-**Navigation Flow:**
-- BuilderHarness creates packet via API when "Create Graphics" is clicked
-- Navigates to Store Builder with `?packetId=xxx` in URL
-- Store Builder fetches packet from database and displays pricing breakdown
+**Product Lifecycle Flow (January 2026):**
+1. **Products Builder** (test-products page):
+   - User selects store + channel at top of page
+   - User configures product, QR content, pricing
+   - Clicks "Create Graphics" → creates packet + graphics + template + **storeProductLink**
+   - storeProductLink locks in the store/channel assignment immediately
+   - Navigates to Store Builder with `?packetId=xxx` in URL
+
+2. **Store Builder** (test-store-builder page):
+   - Loads packet from database, displays pricing breakdown
+   - Store/channel dropdowns auto-populate from packet's saved destination
+   - **If nothing changed** → nothing saved (just viewing)
+   - **If anything changed** → creates NEW packet ID (fork) with its own storeProductLink
+   - Original assignment stays intact; edits fork into separate item
 
 **Fork-on-Edit Pattern (January 2026):**
-When loading an existing packet from the library and saving:
+When loading an existing packet and making changes:
 1. Store Builder detects "edit mode" when loaded via `?packetId=xxx`
 2. On save, creates a NEW packet (fork) instead of modifying original
-3. New template links to the new packet
-4. Original packet remains unchanged in library
+3. New template and storeProductLink created for the fork
+4. Original packet + original storeProductLink remain unchanged
 5. UI shows "Edit Mode" warning: "Saving will create a new version"
 
 **Admin Library Tabs:**
