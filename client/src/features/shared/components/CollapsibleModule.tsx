@@ -29,7 +29,7 @@ export function CollapsibleModule({
   return (
     <div className={`${baseClasses} ${className}`}>
       <div
-        className="py-3 px-4 cursor-pointer select-none flex items-center gap-2"
+        className="py-2 px-2 sm:py-3 sm:px-4 cursor-pointer select-none flex items-center gap-2"
         onClick={() => setIsOpen(!isOpen)}
         data-testid={`collapsible-header-${title.toLowerCase().replace(/\s+/g, "-")}`}
       >
@@ -42,7 +42,7 @@ export function CollapsibleModule({
         <span className="flex-1 font-semibold text-base">{title}</span>
         {badge}
       </div>
-      {isOpen && <div className="px-4 pb-4">{children}</div>}
+      {isOpen && <div className="px-2 pb-2 sm:px-4 sm:pb-4">{children}</div>}
     </div>
   );
 }

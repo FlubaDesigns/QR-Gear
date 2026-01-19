@@ -38,7 +38,7 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 sm:space-y-6">
       {showHeader && (
         <div className="glass-card">
           <h1 className="glass-title text-2xl mb-2">Products</h1>
