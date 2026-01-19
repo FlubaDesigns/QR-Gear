@@ -80,11 +80,11 @@ export function GraphicsDetailSkin({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid-2x2">
         {actions?.onEdit && (
           <Button
             variant="outline"
-            className="h-14 text-base"
+            className="w-full h-14 text-base"
             onClick={() => actions.onEdit?.(item.packetId || item.id)}
             data-testid="button-gallery-edit"
           >
@@ -95,7 +95,7 @@ export function GraphicsDetailSkin({
         {actions?.onArchive && (
           <Button
             variant="outline"
-            className="h-14 text-base"
+            className="w-full h-14 text-base"
             onClick={() => actions.onArchive?.(item.id)}
             disabled={isActionPending}
             data-testid="button-gallery-archive"

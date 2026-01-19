@@ -81,11 +81,11 @@ export function SourceImageDetailSkin({ item, actions, onClose }: DetailSkinProp
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid-2x2">
         {actions?.onCrop && (
           <Button
             variant="outline"
-            className="h-14 text-base"
+            className="w-full h-14 text-base"
             onClick={() => { actions.onCrop?.(item.id); onClose?.(); }}
             data-testid="button-detail-crop"
           >
@@ -96,7 +96,7 @@ export function SourceImageDetailSkin({ item, actions, onClose }: DetailSkinProp
         {actions?.onDelete && (
           <Button
             variant="destructive"
-            className="h-14 text-base"
+            className="w-full h-14 text-base"
             onClick={() => actions.onDelete?.(item.id)}
             data-testid="button-detail-delete"
           >

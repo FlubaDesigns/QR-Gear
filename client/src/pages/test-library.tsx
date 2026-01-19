@@ -14,8 +14,8 @@ const TABS = [
   { id: "graphics" as const, label: "Graphics", icon: QrCode },
   { id: "templates" as const, label: "Templates", icon: Layers },
   { id: "backgrounds" as const, label: "Backgrounds", icon: Image },
-  { id: "source" as const, label: "Source", icon: Image },
   { id: "cropped" as const, label: "Cropped", icon: Crop },
+  { id: "source" as const, label: "Source", icon: Image },
 ];
 
 export default function TestLibraryPage() {

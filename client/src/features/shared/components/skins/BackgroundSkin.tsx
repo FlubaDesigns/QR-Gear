@@ -56,11 +56,11 @@ export function BackgroundDetailSkin({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid-2x2">
         {actions?.onDelete && (
           <Button
             variant="destructive"
-            className="h-14 text-base"
+            className="w-full h-14 text-base"
             onClick={() => actions.onDelete?.(item.id)}
             disabled={isActionPending}
             data-testid="button-gallery-delete"
