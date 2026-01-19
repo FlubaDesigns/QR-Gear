@@ -7,7 +7,7 @@ import { FontPicker } from "@/components/ui/font-picker";
 import { useBuilderContext } from "../BuilderContext";
 import { FONT_FAMILIES, FONT_SIZES, WARP_PRESETS, type TextStyleConfig } from "../types";
 import { ColorSwatchPicker, getContrastQRColor } from "@/features/shared/components/ColorSwatchPicker";
-import { GraphicPreviewSkin } from "@/features/shared/components/skins/GraphicPreviewSkin";
+import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 
 interface TextBlockProps {
   label: string;
@@ -314,7 +314,7 @@ export function TextConfigModule() {
           <div className="mt-4 pt-4 border-t">
             <p className="text-sm font-medium mb-3 text-muted-foreground">Graphic Preview</p>
             <div className="flex justify-center">
-              <GraphicPreviewSkin
+              <GraphicPreviewView
                 backgroundColor={state.selectedColor?.hex || '#ffffff'}
                 headerStyle={state.content.headerStyle.enabled ? state.content.headerStyle : undefined}
                 footerStyle={state.content.footerStyle.enabled ? state.content.footerStyle : undefined}

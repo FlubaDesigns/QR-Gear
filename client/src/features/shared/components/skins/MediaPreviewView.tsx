@@ -1,19 +1,19 @@
 import { Play, Image, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export interface MediaPreviewSkinProps {
+export interface MediaPreviewViewProps {
   mediaUrl?: string;
   mimeType?: string;
   onClear?: () => void;
   className?: string;
 }
 
-export function MediaPreviewSkin({
+export function MediaPreviewView({
   mediaUrl,
   mimeType,
   onClear,
   className = "",
-}: MediaPreviewSkinProps) {
+}: MediaPreviewViewProps) {
   const isVideo = mimeType?.startsWith("video/");
 
   if (!mediaUrl) {
@@ -37,7 +37,7 @@ export function MediaPreviewSkin({
   return (
     <div 
       className={`relative rounded-lg overflow-hidden border ${className}`}
-      data-testid="media-preview-skin"
+      data-testid="media-preview-view"
     >
       {isVideo ? (
         <video

@@ -14,7 +14,7 @@ interface TextOverlay {
   horizontalOffset?: number;
 }
 
-export interface GraphicPreviewSkinProps {
+export interface GraphicPreviewViewProps {
   backgroundColor?: string;
   backgroundImage?: string;
   headerStyle?: TextOverlay;
@@ -93,7 +93,7 @@ function SampleQRCode() {
   );
 }
 
-export function GraphicPreviewSkin({
+export function GraphicPreviewView({
   backgroundColor = '#1a1a2e',
   backgroundImage,
   headerStyle,
@@ -101,7 +101,7 @@ export function GraphicPreviewSkin({
   showQRCode = true,
   aspectRatio = "square",
   className = "",
-}: GraphicPreviewSkinProps) {
+}: GraphicPreviewViewProps) {
   const aspectClass = aspectRatio === "portrait" ? "aspect-[9/16]" : "aspect-square";
   
   const getBackground = () => {
@@ -115,7 +115,7 @@ export function GraphicPreviewSkin({
     <div 
       className={`relative w-[160px] ${aspectClass} rounded-lg overflow-hidden border-2 border-border shadow-lg ${className}`}
       style={{ background: getBackground() }}
-      data-testid="graphic-preview-skin"
+      data-testid="graphic-preview-view"
     >
       {headerStyle && (
         <TextOverlayDisplay style={headerStyle} position="top" />

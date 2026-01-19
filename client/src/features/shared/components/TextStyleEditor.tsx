@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { FontPicker } from "@/components/ui/font-picker";
 import { ChevronDown, ChevronRight, Eye } from "lucide-react";
-import { TextPreviewSkin } from "./skins/TextPreviewSkin";
+import { TextPreviewView } from "./skins/TextPreviewView";
 
 export interface TextStyleConfig {
   text: string;
@@ -109,7 +109,7 @@ export function TextStyleEditor({
               <Eye className="h-4 w-4" />
               <span>Live Preview</span>
             </div>
-            <TextPreviewSkin 
+            <TextPreviewView 
               style={style} 
               backgroundColor={previewBackgroundColor}
               backgroundImage={previewBackgroundImage}

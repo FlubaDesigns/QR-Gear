@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
-import { MediaPreviewSkin } from "@/features/shared/components/skins/MediaPreviewSkin";
+import { MediaPreviewView } from "@/features/shared/components/skins/MediaPreviewView";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ACCEPTED_TYPES = "video/mp4,video/webm,video/quicktime,image/gif,image/webp";
@@ -199,7 +199,7 @@ export function PlayContentModule() {
               </div>
             ) : (
               <div className="space-y-2">
-                <MediaPreviewSkin
+                <MediaPreviewView
                   mediaUrl={state.content.playMediaPreview}
                   mimeType={state.content.playMediaMimeType}
                   onClear={handleClearMedia}

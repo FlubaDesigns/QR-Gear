@@ -1,18 +1,18 @@
 import { Image } from "lucide-react";
 
-export interface LandingPageSkinProps {
+export interface LandingPageViewProps {
   title?: string;
   description?: string;
   backgroundImage?: string;
   className?: string;
 }
 
-export function LandingPageSkin({ 
+export function LandingPageView({ 
   title,
   description,
   backgroundImage,
   className = "",
-}: LandingPageSkinProps) {
+}: LandingPageViewProps) {
   const hasContent = !!(title || description);
 
   return (
@@ -23,7 +23,7 @@ export function LandingPageSkin({
           ? `url(${backgroundImage}) center/cover` 
           : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
       }}
-      data-testid="landing-page-skin"
+      data-testid="landing-page-view"
     >
       <div className="absolute inset-0 bg-black/30" />
       

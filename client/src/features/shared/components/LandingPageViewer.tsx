@@ -1,4 +1,4 @@
-import { LandingPageSkin } from "./skins/LandingPageSkin";
+import { LandingPageView } from "./skins/LandingPageView";
 
 export interface LandingPageViewerProps {
   title?: string;
@@ -18,7 +18,7 @@ export function LandingPageViewer({
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex justify-center">
-        <LandingPageSkin
+        <LandingPageView
           title={title}
           description={description}
           backgroundImage={backgroundImage}

@@ -10,19 +10,19 @@ interface TextStyle {
   strokeWidth: number;
 }
 
-export interface TextPreviewSkinProps {
+export interface TextPreviewViewProps {
   style: TextStyle;
   backgroundColor?: string;
   backgroundImage?: string;
   className?: string;
 }
 
-export function TextPreviewSkin({ 
+export function TextPreviewView({ 
   style, 
   backgroundColor = '#1a1a2e',
   backgroundImage,
   className = "",
-}: TextPreviewSkinProps) {
+}: TextPreviewViewProps) {
   if (!style.enabled || !style.text) {
     return (
       <div 
@@ -66,7 +66,7 @@ export function TextPreviewSkin({
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
-      data-testid="text-preview-skin"
+      data-testid="text-preview-view"
     >
       <span 
         style={{ 
