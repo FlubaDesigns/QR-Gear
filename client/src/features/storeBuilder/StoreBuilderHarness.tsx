@@ -75,6 +75,8 @@ interface ProductPackage {
     textUpcharge: number;
     hostingCost: number;
     subtotal: number;
+    markupPercent: number;
+    markupFixed: number;
     markupAmount: number;
     customerPrice: number;
     hostingTierCode?: string;
@@ -826,9 +828,9 @@ export function StoreBuilderHarness() {
         <Card className="p-3">
           <h3 className="font-medium text-sm mb-2">Pricing</h3>
           <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span>Base Price</span>
-              <span>${productPackage.pricing.baseProductCost.toFixed(2)}</span>
+            <div className="flex justify-between font-semibold">
+              <span>Provider Cost</span>
+              <span className="text-base">${productPackage.pricing.baseProductCost.toFixed(2)}</span>
             </div>
             {productPackage.pricing.placementCost > 0 && (
               <div className="flex justify-between text-muted-foreground">
@@ -850,13 +852,25 @@ export function StoreBuilderHarness() {
             )}
             <div className="flex justify-between border-t pt-1">
               <span>Subtotal</span>
-              <span>${productPackage.pricing.subtotal.toFixed(2)}</span>
+              <span className="font-medium">${productPackage.pricing.subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Markup</span>
-              <span>+${productPackage.pricing.markupAmount.toFixed(2)}</span>
+            <div className="bg-muted/50 rounded px-2 py-1 -mx-1 space-y-1">
+              <div className="flex justify-between">
+                <span>Your Markup</span>
+                <span className="font-bold">{productPackage.pricing.markupPercent || 0}%</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span>Calculated</span>
+                <span>+${productPackage.pricing.markupAmount.toFixed(2)}</span>
+              </div>
+              {(productPackage.pricing.markupFixed || 0) > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Fixed markup</span>
+                  <span>+${productPackage.pricing.markupFixed.toFixed(2)}</span>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between border-t pt-1 font-semibold text-green-700 dark:text-green-400">
+            <div className="flex justify-between border-t pt-1 font-bold text-base">
               <span>Customer Price</span>
               <span>${productPackage.pricing.customerPrice.toFixed(2)}</span>
             </div>
