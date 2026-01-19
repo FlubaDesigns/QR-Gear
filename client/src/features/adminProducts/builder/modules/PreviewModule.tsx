@@ -81,6 +81,20 @@ export function PreviewModule() {
   const hasVideo = state.qrProductState === "qr_play";
   const backgroundUrl = state.loadedBackground?.url;
   const videoUrl = state.content.videoUrl;
+  const swatchColor = state.selectedColor?.hex;
+
+  const getPreviewBackground = () => {
+    if (hasBackground && backgroundUrl) {
+      return `url(${backgroundUrl}) center/cover`;
+    }
+    if (hasVideo && videoUrl) {
+      return 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)';
+    }
+    if (swatchColor) {
+      return swatchColor;
+    }
+    return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+  };
 
   return (
     <CollapsibleModule
@@ -94,16 +108,21 @@ export function PreviewModule() {
           Live preview of your QR product composite
         </p>
 
+        {/* Swatch color indicator */}
+        {swatchColor && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div 
+              className="w-4 h-4 rounded-full border border-border shadow-sm"
+              style={{ backgroundColor: swatchColor }}
+            />
+            <span>Swatch: {state.selectedColor?.name || swatchColor}</span>
+          </div>
+        )}
+
         <div className="flex justify-center">
           <div 
             className="relative w-[180px] aspect-[9/16] rounded-lg overflow-hidden border-2 border-border shadow-lg"
-            style={{
-              background: hasBackground && backgroundUrl 
-                ? `url(${backgroundUrl}) center/cover` 
-                : hasVideo && videoUrl 
-                  ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
-                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            }}
+            style={{ background: getPreviewBackground() }}
           >
             {hasVideo && videoUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
