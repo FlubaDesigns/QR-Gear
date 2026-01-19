@@ -141,160 +141,8 @@ export function URLContentModule() {
       defaultOpen
     >
       <div className="space-y-6">
-        {/* Section 1: Background Picker */}
-        <div className="space-y-3">
-          <p className="text-sm font-medium">Background Image</p>
-          
-          {/* Tabs */}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={activeTab === "cropped" ? "default" : "outline"}
-              size="default"
-              onClick={() => setActiveTab("cropped")}
-              className="flex-1 min-h-[44px]"
-              data-testid="tab-cropped-backgrounds"
-            >
-              Cropped Backgrounds
-            </Button>
-            <Button
-              type="button"
-              variant={activeTab === "backgrounds" ? "default" : "outline"}
-              size="default"
-              onClick={() => setActiveTab("backgrounds")}
-              className="flex-1 min-h-[44px]"
-              data-testid="tab-background-images"
-            >
-              Background Images
-            </Button>
-          </div>
-
-          {/* Cropped Backgrounds Tab - Select Only */}
-          {activeTab === "cropped" && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Select a ready-to-use cropped background
-              </p>
-              
-              {loadingCropped ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" data-testid="loader-cropped" />
-                </div>
-              ) : croppedBackgrounds.length === 0 ? (
-                <div className="text-center py-6 border rounded-md bg-muted/20">
-                  <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm text-muted-foreground">
-                    No cropped backgrounds yet. Crop one from Background Images.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {croppedBackgrounds.map((bg) => {
-                    const isSelected = selectedId === bg.id || state.loadedBackground?.id === bg.id;
-                    return (
-                      <button
-                        key={bg.id}
-                        type="button"
-                        onClick={() => handleSelectCropped(bg)}
-                        className={`relative aspect-[9/16] rounded-md overflow-hidden border-2 transition-all ${
-                          isSelected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50"
-                        }`}
-                        data-testid={`button-select-cropped-${bg.id}`}
-                      >
-                        <img
-                          src={bg.thumbnailUrl || bg.proxyUrl || bg.storageUrl}
-                          alt={bg.name}
-                          className="w-full h-full object-cover"
-                        />
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                            <Check className="h-6 w-6 text-primary" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Background Images Tab - Lightbox with Crop/Delete */}
-          {activeTab === "backgrounds" && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Click an image to view, crop, or delete
-              </p>
-              
-              {loadingBackgrounds ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" data-testid="loader-backgrounds" />
-                </div>
-              ) : backgrounds.length === 0 ? (
-                <div className="text-center py-6 border rounded-md bg-muted/20">
-                  <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm text-muted-foreground">
-                    No background images found. Upload in Library.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {backgrounds.map((bg) => (
-                    <button
-                      key={bg.id}
-                      type="button"
-                      onClick={() => handleOpenLightbox(bg)}
-                      className="relative aspect-square rounded-md overflow-hidden border border-border hover:border-primary/50 transition-all"
-                      data-testid={`button-open-lightbox-${bg.id}`}
-                    >
-                      <img
-                        src={bg.thumbnailUrl || bg.proxyUrl || bg.storageUrl}
-                        alt={bg.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Current Background Preview */}
-          {state.loadedBackground && (
-            <div className="p-3 bg-primary/5 rounded-md border space-y-2">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-16 rounded overflow-hidden border flex-shrink-0">
-                  <img
-                    src={state.loadedBackground.url}
-                    alt={state.loadedBackground.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Background Selected</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {state.loadedBackground.name}
-                  </p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleClearBackground}
-                className="w-full"
-                data-testid="button-clear-background"
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                Change Background
-              </Button>
-            </div>
-          )}
-        </div>
-
-
-        {/* Section 2: Product Graphic Text (in its own card) */}
-        <Card className="mt-4">
+        {/* Section 1: Product Graphic Text (in its own card - FIRST) */}
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Type className="h-4 w-4" />
@@ -400,12 +248,163 @@ export function URLContentModule() {
           </CardContent>
         </Card>
 
-        {/* Section 3: URL Title & Description */}
+        {/* Section 2: URL Content (Background + Title + Description) */}
         <div className="space-y-4 pt-4 border-t">
-          <p className="text-sm font-medium">URL Content Text</p>
+          <p className="text-sm font-medium">URL Content</p>
           <p className="text-xs text-muted-foreground">
-            Add styled title and description for the landing page
+            Configure the landing page background and text
           </p>
+
+          {/* Background Image Picker */}
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-muted-foreground">Background Image</p>
+            
+            {/* Tabs */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={activeTab === "cropped" ? "default" : "outline"}
+                size="default"
+                onClick={() => setActiveTab("cropped")}
+                className="flex-1 min-h-[44px]"
+                data-testid="tab-cropped-backgrounds"
+              >
+                Cropped Backgrounds
+              </Button>
+              <Button
+                type="button"
+                variant={activeTab === "backgrounds" ? "default" : "outline"}
+                size="default"
+                onClick={() => setActiveTab("backgrounds")}
+                className="flex-1 min-h-[44px]"
+                data-testid="tab-background-images"
+              >
+                Background Images
+              </Button>
+            </div>
+
+            {/* Cropped Backgrounds Tab - Select Only */}
+            {activeTab === "cropped" && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Select a ready-to-use cropped background
+                </p>
+                
+                {loadingCropped ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" data-testid="loader-cropped" />
+                  </div>
+                ) : croppedBackgrounds.length === 0 ? (
+                  <div className="text-center py-6 border rounded-md bg-muted/20">
+                    <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm text-muted-foreground">
+                      No cropped backgrounds yet. Crop one from Background Images.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {croppedBackgrounds.map((bg) => {
+                      const isSelected = selectedId === bg.id || state.loadedBackground?.id === bg.id;
+                      return (
+                        <button
+                          key={bg.id}
+                          type="button"
+                          onClick={() => handleSelectCropped(bg)}
+                          className={`relative aspect-[9/16] rounded-md overflow-hidden border-2 transition-all ${
+                            isSelected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50"
+                          }`}
+                          data-testid={`button-select-cropped-${bg.id}`}
+                        >
+                          <img
+                            src={bg.thumbnailUrl || bg.proxyUrl || bg.storageUrl}
+                            alt={bg.name}
+                            className="w-full h-full object-cover"
+                          />
+                          {isSelected && (
+                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                              <Check className="h-6 w-6 text-primary" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Background Images Tab - Lightbox with Crop/Delete */}
+            {activeTab === "backgrounds" && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Click an image to view, crop, or delete
+                </p>
+                
+                {loadingBackgrounds ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" data-testid="loader-backgrounds" />
+                  </div>
+                ) : backgrounds.length === 0 ? (
+                  <div className="text-center py-6 border rounded-md bg-muted/20">
+                    <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm text-muted-foreground">
+                      No background images found. Upload in Library.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {backgrounds.map((bg) => (
+                      <button
+                        key={bg.id}
+                        type="button"
+                        onClick={() => handleOpenLightbox(bg)}
+                        className="relative aspect-square rounded-md overflow-hidden border border-border hover:border-primary/50 transition-all"
+                        data-testid={`button-open-lightbox-${bg.id}`}
+                      >
+                        <img
+                          src={bg.thumbnailUrl || bg.proxyUrl || bg.storageUrl}
+                          alt={bg.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Current Background Preview */}
+            {state.loadedBackground && (
+              <div className="p-3 bg-primary/5 rounded-md border space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-16 rounded overflow-hidden border flex-shrink-0">
+                    <img
+                      src={state.loadedBackground.url}
+                      alt={state.loadedBackground.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Background Selected</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {state.loadedBackground.name}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearBackground}
+                  className="w-full"
+                  data-testid="button-clear-background"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                  Change Background
+                </Button>
+              </div>
+            )}
+          </div>
           
           <TextStyleEditor
             label="URL Title"
