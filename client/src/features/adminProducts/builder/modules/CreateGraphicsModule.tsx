@@ -257,7 +257,6 @@ export function CreateGraphicsModule() {
 
   const isPlayMode = state.qrProductState === "qr_play";
   const isBasicsOrPlusMode = state.qrProductState === "qr_basics" || state.qrProductState === "qr_plus";
-  const isHostedMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_dynamics";
   
   const hasPlayMedia = isPlayMode && (
     (state.content?.playMediaSource === "url" && state.content?.playMediaUrl) ||
@@ -284,17 +283,10 @@ export function CreateGraphicsModule() {
     if (state.content.footerStyle?.enabled && state.content.footerStyle.text) textLineCount++;
     const textUpcharge = textLineCount * pricingSettings.textLineUpcharge;
     
-    const requiresHosting = state.qrProductState === "qr_canvas" || 
-                            state.qrProductState === "qr_play" || 
-                            state.qrProductState === "qr_dynamics";
+    // Note: Hosting cost is NOT charged to admins - customers select hosting plan at checkout
+    const hostingCost = 0;
     
-    let hostingCost = 0;
-    if (requiresHosting) {
-      const selectedTier = pricingSettings.hostingTiers.find(t => t.code === state.content.hostingTierCode) || pricingSettings.hostingTiers[0];
-      hostingCost = selectedTier?.price || 0;
-    }
-    
-    const subtotal = baseProductCost + placementCost + textUpcharge + hostingCost;
+    const subtotal = baseProductCost + placementCost + textUpcharge;
     const markupAmount = (subtotal * (pricingSettings.markupPercent / 100)) + pricingSettings.markupFixed;
     const customerPrice = subtotal + markupAmount;
 
@@ -903,13 +895,6 @@ export function CreateGraphicsModule() {
                     <span>Text Lines</span>
                     <span className="font-medium">
                       {packetResult.pricing.textUpcharge > 0 ? `+$${packetResult.pricing.textUpcharge.toFixed(2)}` : '$0.00'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Hosting ({packetResult.pricing.hostingTierCode})</span>
-                    <span className="font-medium">
-                      {packetResult.pricing.hostingCost > 0 ? `+$${packetResult.pricing.hostingCost.toFixed(2)}` : '$0.00'}
                     </span>
                   </div>
                   
