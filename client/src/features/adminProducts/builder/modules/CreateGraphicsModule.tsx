@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks } from "lucide-react";
+import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -77,12 +77,23 @@ interface ProductGraphicOptions {
 
 async function fetchImageAsDataUrl(url: string): Promise<string> {
   try {
-    const response = await fetch(url);
+    console.log('[fetchImageAsDataUrl] Fetching:', url);
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
     const blob = await response.blob();
+    console.log('[fetchImageAsDataUrl] Blob received, size:', blob.size);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
+      reader.onload = () => {
+        console.log('[fetchImageAsDataUrl] Converted to data URL successfully');
+        resolve(reader.result as string);
+      };
+      reader.onerror = (e) => {
+        console.error('[fetchImageAsDataUrl] FileReader error:', e);
+        reject(e);
+      };
       reader.readAsDataURL(blob);
     });
   } catch (e) {
@@ -624,6 +635,14 @@ export function CreateGraphicsModule() {
       const selectedPlacement = (state.selectedPlacements || ["front"])[0];
       const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
       
+      console.log('[CreatePacket] Requesting priority mockup:', {
+        blueprintId: product?.blueprintId,
+        printProviderId: product?.printProviderId,
+        colorName: state.selectedColor?.name,
+        placement: selectedPlacement,
+        artworkUrl: productGraphicUrl?.substring(0, 100),
+      });
+      
       fetch(`${apiBase}/mockup/priority`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -639,8 +658,8 @@ export function CreateGraphicsModule() {
       })
         .then(res => res.json())
         .then(async data => {
+          console.log('[CreatePacket] Mockup response:', data);
           if (data.success && data.mockupUrl) {
-            // Save the priority mockup URL to the packet so Store Builder can load it
             await fetch(`${apiBase}/packets/${packetId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
@@ -650,10 +669,12 @@ export function CreateGraphicsModule() {
             setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
             toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
           } else {
+            console.warn('[CreatePacket] Mockup failed or no URL:', data);
             setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false } : prev);
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error('[CreatePacket] Mockup fetch error:', err);
           setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false } : prev);
         });
 
@@ -675,6 +696,40 @@ export function CreateGraphicsModule() {
   const handleReset = () => {
     setPacketResult(null);
     setError(null);
+  };
+
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const handleDeletePacket = async () => {
+    if (!packetResult?.packetId || isDeleting) return;
+    
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${apiBase}/packets/${packetResult.packetId}`, {
+        method: "DELETE",
+      });
+      
+      if (res.ok) {
+        toast({
+          title: "Packet Deleted",
+          description: "Starting fresh...",
+        });
+        setPacketResult(null);
+        setError(null);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Delete failed: ${res.status}`);
+      }
+    } catch (err: any) {
+      console.error("Delete packet failed:", err);
+      toast({
+        title: "Delete Failed",
+        description: err.message || "Could not delete packet",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!state.selectedProduct || !state.qrProductState || !state.content) {
@@ -952,6 +1007,18 @@ export function CreateGraphicsModule() {
             )}
 
             <div className="flex gap-2 pt-2">
+              <Button
+                variant="destructive"
+                onClick={handleDeletePacket}
+                disabled={isDeleting}
+                data-testid="button-delete-packet"
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleReset}
