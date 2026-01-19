@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library, Smartphone } from "lucide-react";
+import { ARPreviewModal } from "@/features/shared/components/ARPreviewModal";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
@@ -264,6 +265,7 @@ export function StoreBuilderHarness() {
   const [isLoadingPacket, setIsLoadingPacket] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [arPreviewOpen, setArPreviewOpen] = useState(false);
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
@@ -774,6 +776,19 @@ export function StoreBuilderHarness() {
                 ))}
               </div>
             )}
+            
+            {previewImageUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setArPreviewOpen(true)}
+                data-testid="button-ar-preview"
+              >
+                <Smartphone className="h-4 w-4 mr-2" />
+                View in AR
+              </Button>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -1047,6 +1062,13 @@ export function StoreBuilderHarness() {
         mockups={mockups}
         onSelectColor={setDefaultColor}
         onSelectGraphicSize={setGraphicSize}
+      />
+
+      <ARPreviewModal
+        isOpen={arPreviewOpen}
+        onClose={() => setArPreviewOpen(false)}
+        imageUrl={previewImageUrl || ""}
+        productName={productPackage.productName}
       />
     </div>
   );
