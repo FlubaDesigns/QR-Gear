@@ -5,13 +5,15 @@ import SourceImagesTab from "@/features/adminLibrary/tabs/SourceImagesTab";
 import CroppedImagesTab from "@/features/adminLibrary/tabs/CroppedImagesTab";
 import TemplatesTab from "@/features/adminLibrary/tabs/TemplatesTab";
 import GraphicsTab from "@/features/adminLibrary/tabs/GraphicsTab";
+import BackgroundsTab from "@/features/adminLibrary/tabs/BackgroundsTab";
 import { Package, Store, QrCode, Layers, Image, Crop } from "lucide-react";
 
-type TabType = "graphics" | "templates" | "source" | "cropped";
+type TabType = "graphics" | "templates" | "backgrounds" | "source" | "cropped";
 
 const TABS = [
   { id: "graphics" as const, label: "Graphics", icon: QrCode },
   { id: "templates" as const, label: "Templates", icon: Layers },
+  { id: "backgrounds" as const, label: "Backgrounds", icon: Image },
   { id: "source" as const, label: "Source Images", icon: Image },
   { id: "cropped" as const, label: "Cropped", icon: Crop },
 ];
@@ -82,6 +84,7 @@ export default function TestLibraryPage() {
           <div className="glass-card">
             {tab === "graphics" && <GraphicsTab />}
             {tab === "templates" && <TemplatesTab />}
+            {tab === "backgrounds" && <BackgroundsTab />}
             {tab === "source" && <SourceImagesTab />}
             {tab === "cropped" && <CroppedImagesTab />}
           </div>
