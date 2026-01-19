@@ -181,7 +181,6 @@ interface ProductColor {
 interface ProductPackage {
   packetId?: string;
   templateId?: string;
-  graphicsId?: string;
   productId?: string;
   qrContent?: string;
   productName?: string;
@@ -632,7 +631,7 @@ export function StoreBuilderHarness() {
   const handleAssign = async () => {
     if (!productPackage || !selectedStore || !selectedChannel) return;
 
-    if (!productPackage.packetId && !productPackage.templateId && !productPackage.graphicsId) {
+    if (!productPackage.packetId && !productPackage.templateId) {
       setSaveStatus({
         type: "error",
         message: "Package missing IDs. Please use 'Create Graphics' in Products Builder first.",
@@ -975,8 +974,8 @@ export function StoreBuilderHarness() {
               {productPackage.productName || "Untitled Product"}
             </h2>
             <div className="space-y-1 text-sm text-muted-foreground">
-              <p><span className="font-medium">Brand:</span> Plus</p>
-              <p><span className="font-medium">Fulfillment:</span> Printify</p>
+              <p><span className="font-medium">Brand:</span> {productPackage.manufacturer || "Unknown"}</p>
+              <p><span className="font-medium">Fulfillment:</span> {productPackage.printProviderId ? "Printify" : "TBD"}</p>
               <p><span className="font-medium">Made in:</span> {productPackage.madeIn || "USA"}</p>
             </div>
             {productPackage.qrProductState && (
