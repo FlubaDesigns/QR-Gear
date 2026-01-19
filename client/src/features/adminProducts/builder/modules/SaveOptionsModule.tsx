@@ -14,7 +14,7 @@ export function SaveOptionsModule({ onSaveTargetChange }: SaveOptionsModuleProps
   const { state } = useBuilderContext();
   const [selectedTarget, setSelectedTarget] = useState<SaveTarget>(null);
 
-  const hasContent = state.content.url || state.content.title;
+  const hasContent = state.content?.url || state.content?.title;
   const hasProduct = state.selectedProduct;
   const hasQRState = state.qrProductState;
   const canSave = hasProduct && hasQRState && hasContent;
