@@ -48,6 +48,14 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
 - **Deployment**: ALL fixes must be deployed to Firebase production after making changes in dev. Never just fix in dev without deploying.
 
+## Session Rules (Hard and Fast)
+1. Handle voice-to-text transcription errors
+2. Verify/confirm before acting
+3. Deploy and test BOTH dev AND production every time
+4. Automate everything - no manual testing requests
+5. "Let's talk" = discussion only, no code changes
+6. Always read the page code before making new code
+
 ## Deployment Process (MANDATORY)
 After every code fix, the agent MUST:
 1. Run `npm run build` to build the frontend
