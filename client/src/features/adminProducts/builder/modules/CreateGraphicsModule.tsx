@@ -795,14 +795,56 @@ export function CreateGraphicsModule() {
               </CardContent>
             </Card>
 
+            <p className="text-sm font-semibold mb-2">Generated Thumbnails</p>
             <div className="grid grid-cols-2 gap-3">
+              <Card className="overflow-hidden">
+                <CardContent className="p-2">
+                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
+                    <Image className="h-3 w-3" />
+                    Landing Page
+                  </p>
+                  <div className="bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px]">
+                    {packetResult.landingPageSnapshotUrl ? (
+                      <img
+                        src={packetResult.landingPageSnapshotUrl}
+                        alt="Landing Page Snapshot"
+                        className="w-full max-w-[80px] h-auto object-contain"
+                        data-testid="img-packet-landing-snapshot"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">N/A</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="overflow-hidden">
+                <CardContent className="p-2">
+                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
+                    <Image className="h-3 w-3" />
+                    Product Graphic
+                  </p>
+                  <div 
+                    className="rounded p-1 flex items-center justify-center min-h-[100px]"
+                    style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
+                  >
+                    <img
+                      src={packetResult.productGraphicUrl}
+                      alt="Product Graphic"
+                      className="w-full max-w-[80px] h-auto object-contain"
+                      data-testid="img-packet-product-graphic"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="overflow-hidden">
                 <CardContent className="p-2">
                   <p className="text-xs font-medium mb-1 flex items-center gap-1">
                     <QrCode className="h-3 w-3" />
                     QR Code
                   </p>
-                  <div className="bg-white rounded p-1 flex items-center justify-center">
+                  <div className="bg-white rounded p-1 flex items-center justify-center min-h-[100px]">
                     <img
                       src={packetResult.qrOnlyUrl}
                       alt="QR Code"
@@ -816,19 +858,22 @@ export function CreateGraphicsModule() {
               <Card className="overflow-hidden">
                 <CardContent className="p-2">
                   <p className="text-xs font-medium mb-1 flex items-center gap-1">
-                    <Image className="h-3 w-3" />
-                    Product Graphic
+                    <Shirt className="h-3 w-3" />
+                    Mockup
                   </p>
-                  <div 
-                    className="rounded p-1 flex items-center justify-center"
-                    style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
-                  >
-                    <img
-                      src={packetResult.productGraphicUrl}
-                      alt="Product Graphic"
-                      className="w-full max-w-[80px] h-auto object-contain"
-                      data-testid="img-packet-product-graphic"
-                    />
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded p-1 flex items-center justify-center min-h-[100px]">
+                    {packetResult.priorityMockupLoading ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    ) : packetResult.priorityMockupUrl ? (
+                      <img
+                        src={packetResult.priorityMockupUrl}
+                        alt="Product Mockup"
+                        className="w-full max-w-[80px] h-auto object-contain"
+                        data-testid="img-packet-mockup"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">Generating...</span>
+                    )}
                   </div>
                 </CardContent>
               </Card>
