@@ -838,37 +838,40 @@ export function CreateGraphicsModule() {
                 </CardContent>
               </Card>
 
-              <Card className="overflow-hidden">
-                <CardContent className="p-2">
-                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
+              <Card className="overflow-hidden col-span-2">
+                <CardContent className="p-3">
+                  <p className="text-xs font-medium mb-2 flex items-center gap-1">
                     <QrCode className="h-3 w-3" />
-                    QR Code
+                    QR Code (scan to test)
                   </p>
-                  <div className="bg-white rounded p-1 flex items-center justify-center min-h-[100px]">
+                  <div className="bg-white rounded p-3 flex flex-col items-center justify-center gap-2">
                     <img
                       src={packetResult.qrOnlyUrl}
                       alt="QR Code"
-                      className="w-full max-w-[80px] h-auto"
+                      className="w-full max-w-[250px] h-auto"
                       data-testid="img-packet-qr"
                     />
+                    <p className="text-xs text-gray-600 font-mono break-all text-center max-w-[250px]">
+                      {packetResult.landingPageUrl}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden col-span-2">
                 <CardContent className="p-2">
                   <p className="text-xs font-medium mb-1 flex items-center gap-1">
                     <Shirt className="h-3 w-3" />
-                    Mockup
+                    Mockup Preview
                   </p>
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded p-1 flex items-center justify-center min-h-[100px]">
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
                     {packetResult.priorityMockupLoading ? (
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     ) : packetResult.priorityMockupUrl ? (
                       <img
                         src={packetResult.priorityMockupUrl}
                         alt="Product Mockup"
-                        className="w-full max-w-[80px] h-auto object-contain"
+                        className="w-full max-w-[200px] h-auto object-contain"
                         data-testid="img-packet-mockup"
                       />
                     ) : (
