@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link2, Type, FileText } from "lucide-react";
+import { Type, FileText } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,6 @@ import { ContentViewerControls } from "../components/ContentViewerControls";
 export function ContentModule() {
   const { state, setContent } = useBuilderContext();
   const [basicsMode, setBasicsMode] = useState<"text" | "url">("text");
-
-  // Play mode uses PlayContentModule for media, not this URL input
-  const needsUrl = state.qrProductState === "qr_canvas" || 
-                   state.qrProductState === "qr_dynamics";
 
   // Play mode has its own content module (PlayContentModule)
   const needsOverlay = state.qrProductState === "qr_dynamics" || 
@@ -32,33 +28,6 @@ export function ContentModule() {
       defaultOpen
     >
       <div className="space-y-4">
-        {needsUrl && (
-          <div className="space-y-2">
-            <Label htmlFor="content-url" className="flex items-center gap-2">
-              <Link2 className="h-3.5 w-3.5" />
-              {state.qrProductState === "qr_dynamics" ? "Background URL" : "Destination URL"}
-            </Label>
-            <Input
-              id="content-url"
-              type="text"
-              inputMode="text"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder={state.qrProductState === "qr_dynamics" 
-                ? "https://example.com/image.jpg" 
-                : "https://example.com"}
-              value={state.content.url}
-              onChange={(e) => setContent({ url: e.target.value })}
-              data-testid="input-content-url"
-            />
-            {state.qrProductState === "qr_dynamics" && (
-              <p className="text-xs text-muted-foreground">
-                Enter an image or video URL for the landing page background
-              </p>
-            )}
-          </div>
-        )}
-
         {needsOverlay && (
           <>
             <div className="space-y-2">
