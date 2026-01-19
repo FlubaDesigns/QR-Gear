@@ -1,6 +1,4 @@
 import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Package, Library, Store, DollarSign, Layers } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { StoreLibraryHarness } from "@/features/adminProducts/storeLibrary/StoreLibraryHarness";
@@ -8,49 +6,43 @@ import { StoreLibraryHarness } from "@/features/adminProducts/storeLibrary/Store
 export default function TestStoresPage() {
   return (
     <AdminAuthProvider apiBase="/api/test">
-      <div className="container mx-auto px-4 py-6 space-y-6 overflow-x-hidden">
-        <Card className="border-blue-500/50 bg-blue-500/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-blue-600" data-testid="text-page-title">
-              <Library className="h-5 w-5" />
-              Test Stores (No Auth Required)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Browse and manage stores by type (internal, external, member). 
-              Use the lightbox to move products between stores and channels.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/test-products">
-                <Button variant="outline" size="sm" data-testid="link-test-products">
-                  <Package className="h-4 w-4 mr-2" />
+      <div className="page-wrap">
+        <div className="container mobile-compact mobile-compact-stack">
+          <div className="glass-card">
+            <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
+              <Library className="h-5 w-5 text-blue-400" />
+              Store Library
+            </h1>
+            <div className="flex flex-col gap-3">
+              <Link href="/test-products" className="block">
+                <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-test-products">
+                  <Package className="h-5 w-5" />
                   Products
-                </Button>
+                </button>
               </Link>
-              <Link href="/test-store-builder">
-                <Button variant="outline" size="sm" data-testid="link-test-store-builder">
-                  <Store className="h-4 w-4 mr-2" />
+              <Link href="/test-store-builder" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-store-builder">
+                  <Store className="h-5 w-5" />
                   Store Builder
-                </Button>
+                </button>
               </Link>
-              <Link href="/test-pricing">
-                <Button variant="outline" size="sm" data-testid="link-test-pricing">
-                  <DollarSign className="h-4 w-4 mr-2" />
+              <Link href="/test-pricing" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-pricing">
+                  <DollarSign className="h-5 w-5" />
                   Pricing
-                </Button>
+                </button>
               </Link>
-              <Link href="/test-library">
-                <Button variant="outline" size="sm" data-testid="link-test-library">
-                  <Layers className="h-4 w-4 mr-2" />
+              <Link href="/test-library" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-library">
+                  <Layers className="h-5 w-5" />
                   Library
-                </Button>
+                </button>
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <StoreLibraryHarness />
+          <StoreLibraryHarness />
+        </div>
       </div>
     </AdminAuthProvider>
   );
