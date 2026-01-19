@@ -3,8 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { FontPicker } from "@/components/ui/font-picker";
-import { ChevronDown, ChevronRight, Eye } from "lucide-react";
-import { TextPreviewView } from "./skins/TextPreviewView";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { TextStyleViewer } from "./TextStyleViewer";
 
 export interface TextStyleConfig {
   text: string;
@@ -131,17 +131,11 @@ export function TextStyleEditor({
       
       {!isCollapsed && style.enabled && (
         <div className="space-y-4 p-4 pt-0">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Eye className="h-4 w-4" />
-              <span>Live Preview</span>
-            </div>
-            <TextPreviewView 
-              style={style} 
-              backgroundColor={previewBackgroundColor}
-              backgroundImage={previewBackgroundImage}
-            />
-          </div>
+          <TextStyleViewer 
+            style={style} 
+            backgroundColor={previewBackgroundColor}
+            backgroundImage={previewBackgroundImage}
+          />
 
           <Input
             type="text"
