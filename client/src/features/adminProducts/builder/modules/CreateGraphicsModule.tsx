@@ -65,17 +65,16 @@ interface TextStyle {
   horizontalOffset: number;
 }
 
-interface CompositeOptions {
+interface ProductGraphicOptions {
   qrUrl: string;
-  backgroundUrl: string | null;
   productColorHex: string | null;
   headerStyle: TextStyle | null;
   footerStyle: TextStyle | null;
   useTransparentBackground?: boolean;
 }
 
-async function generateCompositeGraphic(options: CompositeOptions): Promise<string> {
-  const { qrUrl, backgroundUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground } = options;
+async function generateProductGraphic(options: ProductGraphicOptions): Promise<string> {
+  const { qrUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground } = options;
   const CANVAS_WIDTH = 1080;
   const CANVAS_HEIGHT = 1920;
   const QR_SIZE = 400;
@@ -94,20 +93,6 @@ async function generateCompositeGraphic(options: CompositeOptions): Promise<stri
   } else {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  }
-
-  if (backgroundUrl) {
-    try {
-      const bgImg = await loadImage(backgroundUrl);
-      const scale = Math.max(CANVAS_WIDTH / bgImg.width, CANVAS_HEIGHT / bgImg.height);
-      const scaledWidth = bgImg.width * scale;
-      const scaledHeight = bgImg.height * scale;
-      const x = (CANVAS_WIDTH - scaledWidth) / 2;
-      const y = (CANVAS_HEIGHT - scaledHeight) / 2;
-      ctx.drawImage(bgImg, x, y, scaledWidth, scaledHeight);
-    } catch (e) {
-      console.warn('Failed to load background image:', e);
-    }
   }
 
   try {
@@ -448,21 +433,22 @@ export function CreateGraphicsModule() {
       const backgroundUrl = state.loadedBackground?.url || null;
       const headerStyle = state.content?.headerStyle as TextStyle | null;
       const footerStyle = state.content?.footerStyle as TextStyle | null;
+      const titleStyle = state.content?.titleStyle as TextStyle | null;
+      const descriptionStyle = state.content?.descriptionStyle as TextStyle | null;
       const productColorHex = state.selectedColor?.hex || null;
       
-      let finalCompositeUrl: string;
+      let productGraphicUrl: string;
       try {
-        finalCompositeUrl = await generateCompositeGraphic({
+        productGraphicUrl = await generateProductGraphic({
           qrUrl: finalQrUrl,
-          backgroundUrl,
           productColorHex,
           headerStyle,
           footerStyle,
           useTransparentBackground: false,
         });
       } catch (e) {
-        console.warn('Composite generation failed:', e);
-        finalCompositeUrl = state.selectedProduct?.imageUrl || "";
+        console.warn('Product graphic generation failed:', e);
+        productGraphicUrl = state.selectedProduct?.imageUrl || "";
       }
 
       const mode = state.qrProductState === "qr_canvas" ? "canvas" : 
@@ -477,14 +463,14 @@ export function CreateGraphicsModule() {
             mode,
             userId: "admin",
             packetId,
-            base64Data: finalCompositeUrl,
+            base64Data: productGraphicUrl,
             mimeType: "image/png",
             fileName: `${packetId}-composite.png`,
           }),
         });
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
-          finalCompositeUrl = uploadData.publicUrl;
+          productGraphicUrl = uploadData.publicUrl;
         }
       } catch (uploadErr) {
         console.warn("Upload error, using data URL:", uploadErr);
@@ -495,7 +481,7 @@ export function CreateGraphicsModule() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           qrOnlyUrl: finalQrUrl,
-          compositeUrl: finalCompositeUrl,
+          compositeUrl: productGraphicUrl,
           qrContent: finalQrContent.trim(),
         }),
       });
@@ -508,7 +494,7 @@ export function CreateGraphicsModule() {
           description: state.content?.description || "",
           category: state.qrProductState || "General",
           qrOnlyUrl: finalQrUrl,
-          compositeUrl: finalCompositeUrl,
+          compositeUrl: productGraphicUrl,
           qrContent: finalQrContent,
           pricing,
           packetId,
@@ -532,7 +518,7 @@ export function CreateGraphicsModule() {
           colors: productColors,
           placements: state.selectedPlacements || ["front"],
           qrSizes: ["small", "medium", "large"],
-          artworkUrl: finalCompositeUrl,
+          artworkUrl: productGraphicUrl,
           artworkVariant: "black",
           thumbnailUrl: state.selectedProduct?.imageUrl || "",
           qrContent: finalQrContent,
@@ -550,13 +536,13 @@ export function CreateGraphicsModule() {
         body: JSON.stringify({ limit: 3 }),
       }).catch(() => {});
 
-      loadGraphic({ compositeUrl: finalCompositeUrl, qrOnlyUrl: finalQrUrl });
+      loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: finalQrUrl });
 
       const initialResult: PacketResult = {
         packetId,
         landingPageUrl: finalQrContent,
         qrOnlyUrl: finalQrUrl,
-        compositeUrl: finalCompositeUrl,
+        compositeUrl: productGraphicUrl,
         pricing,
         priorityMockupUrl: null,
         priorityMockupLoading: true,
@@ -580,7 +566,7 @@ export function CreateGraphicsModule() {
           colorName: state.selectedColor?.name || 'Black',
           colorHex: state.selectedColor?.hex || '#000000',
           placement: selectedPlacement + "-center",
-          artworkUrl: finalCompositeUrl,
+          artworkUrl: productGraphicUrl,
           qrSize: selectedSize,
         }),
       })
