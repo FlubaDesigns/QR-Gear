@@ -79,11 +79,19 @@ const initialState: BuilderState = {
   fulfillmentProvider: "printify",
   category: "T-Shirts",
   originFilter: { showUSA: true, showOther: false },
-  genderFilter: "all",
+  genderFilter: "mens",  // Default to men's for faster testing
   selectedProduct: null,
-  selectedColor: null,
-  qrProductState: null,
-  content: initialContent,
+  selectedColor: { name: "Black", hex: "#000000" },  // Default to black
+  qrProductState: "qr_canvas",  // Default to QR Canvas mode
+  content: {
+    ...initialContent,
+    headerStyle: {
+      ...initialContent.headerStyle,
+      text: "hi",
+      enabled: true,
+      color: "#FFFFFF",  // White text
+    },
+  },
   selectedPlacements: [],
   placementConfig: {},
   placementSizes: {},
