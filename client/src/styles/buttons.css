@@ -343,6 +343,52 @@
   width: auto !important;
 }
 
+/* ===== Square Button Grid (2x2) ===== */
+.qr-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.qr-btn-grid > button {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(0,160,255,0.15), rgba(0,120,255,0.08));
+  border: 1px solid var(--ice-2, rgba(46,169,255,0.3));
+  color: var(--ice-1, #2ea9ff);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.qr-btn-grid > button:hover {
+  background: linear-gradient(180deg, rgba(0,160,255,0.25), rgba(0,120,255,0.15));
+  border-color: var(--ice-1, #2ea9ff);
+  transform: translateY(-2px);
+}
+
+.qr-btn-grid > button.active,
+.qr-btn-grid > button[data-active="true"] {
+  background: linear-gradient(180deg, var(--ice-1) 0%, var(--ice-3) 100%);
+  border-color: var(--ice-1);
+  color: var(--bg-0);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.qr-btn-grid > button svg {
+  width: 2rem;
+  height: 2rem;
+}
+
 /* ===== Table Action Buttons ===== */
 .qr-table-actions {
   display: flex;

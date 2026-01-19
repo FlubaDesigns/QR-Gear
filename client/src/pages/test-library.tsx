@@ -61,7 +61,7 @@ export default function TestLibraryPage() {
         </header>
 
         <main className="qr-admin-main">
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="qr-btn-grid mb-6">
             {TABS.map((t) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
@@ -69,10 +69,10 @@ export default function TestLibraryPage() {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`qr-btn qr-btn--touch ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
+                  className={isActive ? "active" : ""}
                   data-testid={`tab-${t.id}`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon />
                   {t.label}
                 </button>
               );
