@@ -209,9 +209,6 @@ export function CreateGraphicsModule() {
   if (!state.selectedProduct) validationErrors.push("Select a product");
   if (!state.qrProductState) validationErrors.push("Select a QR mode");
   if (!hasPlacement) validationErrors.push("Select at least one placement");
-  if (isPlayMode && !hasPlayMedia) validationErrors.push("Upload media or add media URL");
-  if (isPlayMode && hasPlayMedia && !playPermissionOk) validationErrors.push("Confirm media permissions");
-  if (isBasicsOrPlusMode && !state.content?.url) validationErrors.push("Add URL or content");
 
   const canCreate = validationErrors.length === 0;
 
