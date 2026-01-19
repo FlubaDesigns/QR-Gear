@@ -28,15 +28,21 @@ function LibraryPickerModal({
   onClose,
   onSelect,
   apiBase,
+  initialTab = "packets",
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (item: LibraryItem) => void;
   apiBase: string;
+  initialTab?: "packets" | "templates";
 }) {
-  const [activeTab, setActiveTab] = useState<"packets" | "templates">("packets");
+  const [activeTab, setActiveTab] = useState<"packets" | "templates">(initialTab);
   const [isLoading, setIsLoading] = useState(false);
   const [items, setItems] = useState<LibraryItem[]>([]);
+
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -406,6 +412,8 @@ export function StoreBuilderHarness() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
+  const [libraryPickerInitialTab, setLibraryPickerInitialTab] = useState<"packets" | "templates">("packets");
+  const [originalConfiguration, setOriginalConfiguration] = useState<ProductConfiguration | null>(null);
 
   const [configuration, setConfiguration] = useState<ProductConfiguration>({
     enabledColors: new Set<string>(),
@@ -453,14 +461,21 @@ export function StoreBuilderHarness() {
         ? packetDefaultColor 
         : colors[0] || "";
       
-      setConfiguration({
+      const initialConfig = {
         enabledColors: new Set(colors),
         enabledSizes: new Set(sizes),
         selectedGraphicSize: (productPackage as any).placementSizes?.front || "medium",
         defaultColor: resolvedDefaultColor,
-      });
+      };
+      
+      setConfiguration(initialConfig);
+      
+      // Store original config only on first load (when originalConfiguration is null)
+      if (isEditMode && !originalConfiguration) {
+        setOriginalConfiguration(initialConfig);
+      }
     }
-  }, [productPackage]);
+  }, [productPackage, isEditMode, originalConfiguration]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -628,6 +643,24 @@ export function StoreBuilderHarness() {
   const selectedStore = stores.find((s) => s.id === selectedStoreId);
   const channels = selectedStore?.availableSegments || [];
 
+  // Check if configuration has changed from original (for fork-on-edit)
+  const hasConfigurationChanges = (): boolean => {
+    if (!originalConfiguration) return true; // No original = always "changed"
+    
+    const colorsChanged = 
+      configuration.enabledColors.size !== originalConfiguration.enabledColors.size ||
+      ![...configuration.enabledColors].every(c => originalConfiguration.enabledColors.has(c));
+    
+    const sizesChanged = 
+      configuration.enabledSizes.size !== originalConfiguration.enabledSizes.size ||
+      ![...configuration.enabledSizes].every(s => originalConfiguration.enabledSizes.has(s));
+    
+    const graphicSizeChanged = configuration.selectedGraphicSize !== originalConfiguration.selectedGraphicSize;
+    const defaultColorChanged = configuration.defaultColor !== originalConfiguration.defaultColor;
+    
+    return colorsChanged || sizesChanged || graphicSizeChanged || defaultColorChanged;
+  };
+
   const handleAssign = async () => {
     if (!productPackage || !selectedStore || !selectedChannel) return;
 
@@ -647,9 +680,11 @@ export function StoreBuilderHarness() {
       let templateId = productPackage.templateId;
       let wasForked = false; // Track if we forked for success message
       
-      // Fork-on-edit: When editing an existing packet from library, create a NEW packet
-      // This preserves the original and creates a new version
-      if (isEditMode && originalPacketId) {
+      // Fork-on-edit: Only fork when configuration has actually changed
+      // If no changes, just link the existing packet to the store
+      const shouldFork = isEditMode && originalPacketId && hasConfigurationChanges();
+      
+      if (shouldFork) {
         console.log("[StoreBuilder] Edit mode - creating new packet (fork from:", originalPacketId, ")");
         
         const packetResponse = await fetch(`${apiBase}/packets`, {
@@ -835,6 +870,7 @@ export function StoreBuilderHarness() {
           onClose={() => setLibraryPickerOpen(false)}
           onSelect={handleLibrarySelect}
           apiBase={apiBase}
+          initialTab={libraryPickerInitialTab}
         />
       </>
     );
@@ -871,7 +907,10 @@ export function StoreBuilderHarness() {
         <Button
           variant="default"
           size="sm"
-          onClick={() => setLibraryPickerOpen(true)}
+          onClick={() => {
+            setLibraryPickerInitialTab("packets");
+            setLibraryPickerOpen(true);
+          }}
           data-testid="button-load-library-header"
         >
           <FolderOpen className="h-4 w-4 mr-1" />
@@ -880,7 +919,10 @@ export function StoreBuilderHarness() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate("/admin/library?tab=graphics")}
+          onClick={() => {
+            setLibraryPickerInitialTab("packets");
+            setLibraryPickerOpen(true);
+          }}
           data-testid="link-graphics-library"
         >
           <QrCode className="h-4 w-4 mr-1" />
@@ -889,7 +931,10 @@ export function StoreBuilderHarness() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate("/admin/library?tab=templates")}
+          onClick={() => {
+            setLibraryPickerInitialTab("templates");
+            setLibraryPickerOpen(true);
+          }}
           data-testid="link-templates-library"
         >
           <Layers className="h-4 w-4 mr-1" />
@@ -1234,6 +1279,7 @@ export function StoreBuilderHarness() {
                   setSelectedChannel(null);
                   setIsEditMode(false);
                   setOriginalPacketId(null);
+                  setOriginalConfiguration(null);
                   setConfiguration({
                     enabledColors: new Set<string>(),
                     enabledSizes: new Set<string>(),
@@ -1282,6 +1328,7 @@ export function StoreBuilderHarness() {
         onClose={() => setLibraryPickerOpen(false)}
         onSelect={handleLibrarySelect}
         apiBase={apiBase}
+        initialTab={libraryPickerInitialTab}
       />
     </div>
   );
