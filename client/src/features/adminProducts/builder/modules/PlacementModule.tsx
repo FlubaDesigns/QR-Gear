@@ -2,21 +2,27 @@ import { MapPin, Check, QrCode, Image } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType } from "../types";
+import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType, type PlacementSize } from "../types";
+
+const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
+  { value: "small", label: "S" },
+  { value: "medium", label: "M" },
+  { value: "large", label: "L" },
+];
 
 export function PlacementModule() {
-  const { state, togglePlacement, setPlacementType } = useBuilderContext();
+  const { state, togglePlacement, setPlacementType, setPlacementSize } = useBuilderContext();
   
   if (!state.qrProductState || !state.selectedProduct) {
     return null;
   }
 
-  // Get placements based on selected product category
   const category = state.category;
   const placementOptions = getPlacementsForCategory(category);
   
   const selectedPlacements = state.selectedPlacements || [];
   const placementConfig = state.placementConfig || {};
+  const placementSizes = state.placementSizes || {};
   const selectedCount = selectedPlacements.length;
   const isQrBasics = state.qrProductState === "qr_basics";
   const showPlacementTypeToggle = !isQrBasics;
@@ -31,8 +37,8 @@ export function PlacementModule() {
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           {showPlacementTypeToggle 
-            ? "Select placement locations and choose Graphic or QR for each spot."
-            : "Select where to place your design. You can select multiple locations."
+            ? "Select placement locations, choose Graphic or QR, and pick the size for each spot."
+            : "Select where to place your design and pick the size. You can select multiple locations."
           }
         </p>
         
@@ -40,6 +46,7 @@ export function PlacementModule() {
           {placementOptions.map((placement) => {
             const isSelected = selectedPlacements.includes(placement.id);
             const placementType = placementConfig[placement.id] || "qr";
+            const placementSize = placementSizes[placement.id] || "medium";
             const isQrOnly = QR_ONLY_PLACEMENTS.includes(placement.id);
             
             return (
@@ -64,45 +71,74 @@ export function PlacementModule() {
                     )}
                     <span>{placement.label}</span>
                   </div>
-                  {isSelected && showPlacementTypeToggle && (
-                    <span className="text-xs px-2 py-1 rounded bg-muted">
-                      {placementType === "qr" ? "QR Code" : "Graphic"}
-                    </span>
+                  {isSelected && (
+                    <div className="flex items-center gap-2">
+                      {showPlacementTypeToggle && (
+                        <span className="text-xs px-2 py-1 rounded bg-muted">
+                          {placementType === "qr" ? "QR" : "Graphic"}
+                        </span>
+                      )}
+                      <span className="text-xs px-2 py-1 rounded bg-primary/20 font-bold">
+                        {placementSize.toUpperCase()}
+                      </span>
+                    </div>
                   )}
                 </button>
                 
-                {/* Show Graphic/QR toggle for QR Plus or Play mode when placement is selected (except QR-only placements) */}
-                {isSelected && showPlacementTypeToggle && !isQrOnly && (
-                  <div className="flex gap-2 ml-4">
-                    <Button
-                      type="button"
-                      variant={placementType === "graphic" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPlacementType(placement.id, "graphic")}
-                      className="flex-1"
-                      data-testid={`placement-type-graphic-${placement.id}`}
-                    >
-                      <Image className="h-4 w-4 mr-2" />
-                      Graphic
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={placementType === "qr" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPlacementType(placement.id, "qr")}
-                      className="flex-1"
-                      data-testid={`placement-type-qr-${placement.id}`}
-                    >
-                      <QrCode className="h-4 w-4 mr-2" />
-                      QR Code
-                    </Button>
-                  </div>
-                )}
-                {/* Show QR Only indicator for shoulder placements */}
-                {isSelected && showPlacementTypeToggle && isQrOnly && (
-                  <div className="ml-4 text-xs text-muted-foreground flex items-center gap-1">
-                    <QrCode className="h-3 w-3" />
-                    This placement only supports QR codes
+                {isSelected && (
+                  <div className="ml-4 space-y-2">
+                    {showPlacementTypeToggle && !isQrOnly && (
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={placementType === "graphic" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPlacementType(placement.id, "graphic")}
+                          className="flex-1"
+                          data-testid={`placement-type-graphic-${placement.id}`}
+                        >
+                          <Image className="h-4 w-4 mr-2" />
+                          Graphic
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={placementType === "qr" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPlacementType(placement.id, "qr")}
+                          className="flex-1"
+                          data-testid={`placement-type-qr-${placement.id}`}
+                        >
+                          <QrCode className="h-4 w-4 mr-2" />
+                          QR Code
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {showPlacementTypeToggle && isQrOnly && (
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <QrCode className="h-3 w-3" />
+                        This placement only supports QR codes
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Size:</span>
+                      <div className="flex gap-1">
+                        {SIZE_OPTIONS.map((size) => (
+                          <Button
+                            key={size.value}
+                            type="button"
+                            variant={placementSize === size.value ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPlacementSize(placement.id, size.value)}
+                            className="w-10 h-8 px-0"
+                            data-testid={`placement-size-${size.value}-${placement.id}`}
+                          >
+                            {size.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -115,27 +151,20 @@ export function PlacementModule() {
             <p className="text-sm font-medium">
               {selectedCount} placement{selectedCount > 1 ? "s" : ""} selected
             </p>
-            {showPlacementTypeToggle && (
-              <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                {selectedPlacements.map(p => {
-                  const label = ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label;
-                  const type = placementConfig[p] || "qr";
-                  return (
-                    <p key={p}>
-                      <span className="font-medium">{label}:</span>{" "}
-                      {type === "qr" ? "QR Code" : "Graphic"}
-                    </p>
-                  );
-                })}
-              </div>
-            )}
-            {!showPlacementTypeToggle && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {selectedPlacements.map(p => 
-                  ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label
-                ).join(", ")}
-              </p>
-            )}
+            <div className="text-xs text-muted-foreground mt-2 space-y-1">
+              {selectedPlacements.map(p => {
+                const label = ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label;
+                const type = placementConfig[p] || "qr";
+                const size = placementSizes[p] || "medium";
+                return (
+                  <p key={p}>
+                    <span className="font-medium">{label}:</span>{" "}
+                    {showPlacementTypeToggle ? (type === "qr" ? "QR Code" : "Graphic") + " • " : ""}
+                    {size.charAt(0).toUpperCase() + size.slice(1)}
+                  </p>
+                );
+              })}
+            </div>
           </div>
         )}
 

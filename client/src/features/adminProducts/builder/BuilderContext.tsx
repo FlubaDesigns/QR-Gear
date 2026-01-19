@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId, PlacementType, PlacementConfig, SelectedColor } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
@@ -18,6 +18,7 @@ interface BuilderContextValue {
   setContent: (content: Partial<ContentData>) => void;
   togglePlacement: (placementId: PlacementId) => void;
   setPlacementType: (placementId: PlacementId, type: PlacementType) => void;
+  setPlacementSize: (placementId: PlacementId, size: PlacementSize) => void;
   setSelectedColor: (color: SelectedColor | null) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
@@ -85,6 +86,7 @@ const initialState: BuilderState = {
   content: initialContent,
   selectedPlacements: [],
   placementConfig: {},
+  placementSizes: {},
 };
 
 interface BuilderProviderProps {
@@ -178,6 +180,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       content: initialContent, // Reset content when QR state changes
       selectedPlacements: [], // Reset placements when QR state changes
       placementConfig: {}, // Reset placement config when QR state changes
+      placementSizes: {}, // Reset placement sizes when QR state changes
     }));
   }, []);
 
@@ -197,16 +200,20 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       
       // Also update placementConfig - default new placements to "qr"
       const newConfig = { ...prev.placementConfig };
+      const newSizes = { ...prev.placementSizes };
       if (!isSelected) {
         newConfig[placementId] = "qr"; // Default to QR when adding
+        newSizes[placementId] = "medium"; // Default to medium size when adding
       } else {
         delete newConfig[placementId]; // Remove from config when removing
+        delete newSizes[placementId]; // Remove size when removing
       }
       
       return {
         ...prev,
         selectedPlacements: newPlacements,
         placementConfig: newConfig,
+        placementSizes: newSizes,
       };
     });
   }, []);
@@ -217,6 +224,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementConfig: {
         ...prev.placementConfig,
         [placementId]: type,
+      },
+    }));
+  }, []);
+
+  const setPlacementSize = useCallback((placementId: PlacementId, size: PlacementSize) => {
+    setState(prev => ({
+      ...prev,
+      placementSizes: {
+        ...prev.placementSizes,
+        [placementId]: size,
       },
     }));
   }, []);
@@ -248,10 +265,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setContent,
     togglePlacement,
     setPlacementType,
+    setPlacementSize,
     setSelectedColor,
     resetBuilder,
     api,
-  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setSelectedColor, resetBuilder, api]);
+  }), [state, selectedProviders, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

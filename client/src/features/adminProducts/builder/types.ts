@@ -161,9 +161,39 @@ export type PlacementId =
 
 export type PlacementType = "graphic" | "qr";
 
+export type PlacementSize = "small" | "medium" | "large";
+
 export interface PlacementConfig {
   [key: string]: PlacementType;
 }
+
+export interface PlacementSizeConfig {
+  [key: string]: PlacementSize;
+}
+
+// Size scaling for different placement areas
+// Front/Back have more dramatic size differences
+// Sleeve/Shoulder have more gradual/subtle differences
+export const PLACEMENT_SIZE_SCALES: Record<string, Record<PlacementSize, number>> = {
+  // Large areas - more dramatic differences
+  "front-chest": { small: 0.6, medium: 0.8, large: 1.0 },
+  "front-center": { small: 0.6, medium: 0.8, large: 1.0 },
+  "back": { small: 0.6, medium: 0.8, large: 1.0 },
+  "bag-front": { small: 0.6, medium: 0.8, large: 1.0 },
+  "bag-back": { small: 0.6, medium: 0.8, large: 1.0 },
+  // Small areas - more gradual differences
+  "left-shoulder": { small: 0.7, medium: 0.85, large: 1.0 },
+  "right-shoulder": { small: 0.7, medium: 0.85, large: 1.0 },
+  "pocket": { small: 0.7, medium: 0.85, large: 1.0 },
+  "hat-front": { small: 0.7, medium: 0.85, large: 1.0 },
+  "hat-side": { small: 0.7, medium: 0.85, large: 1.0 },
+  "hat-back": { small: 0.7, medium: 0.85, large: 1.0 },
+  "bag-pocket": { small: 0.7, medium: 0.85, large: 1.0 },
+  // Mugs - medium differences
+  "mug-wrap": { small: 0.65, medium: 0.8, large: 1.0 },
+  "mug-front": { small: 0.65, medium: 0.8, large: 1.0 },
+  "mug-back": { small: 0.65, medium: 0.8, large: 1.0 },
+};
 
 export interface PlacementOption {
   id: PlacementId;
@@ -268,4 +298,5 @@ export interface BuilderState {
   content: ContentData;
   selectedPlacements: PlacementId[];
   placementConfig: PlacementConfig;
+  placementSizes: PlacementSizeConfig;
 }
