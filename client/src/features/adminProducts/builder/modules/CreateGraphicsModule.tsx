@@ -1053,9 +1053,21 @@ export function CreateGraphicsModule() {
                     <span className="font-medium">${packetResult.pricing.subtotal.toFixed(2)}</span>
                   </div>
                   
-                  <div className="flex justify-between text-base font-semibold bg-muted/50 rounded px-2 py-1 -mx-2">
-                    <span>Markup ({packetResult.pricing.markupPercent}%{packetResult.pricing.markupFixed > 0 ? ` + $${packetResult.pricing.markupFixed.toFixed(2)}` : ''})</span>
-                    <span>+${packetResult.pricing.markupAmount.toFixed(2)}</span>
+                  <div className="bg-muted/50 rounded px-2 py-2 -mx-2 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>Your Markup</span>
+                      <span className="font-bold text-base">{packetResult.pricing.markupPercent}%</span>
+                    </div>
+                    <div className="flex justify-between text-base font-semibold">
+                      <span>Calculated</span>
+                      <span>+${packetResult.pricing.markupAmount.toFixed(2)}</span>
+                    </div>
+                    {packetResult.pricing.markupFixed > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Fixed markup included</span>
+                        <span>+${packetResult.pricing.markupFixed.toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex justify-between text-lg font-bold border-t pt-2">
