@@ -176,6 +176,81 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+interface LandingPageSnapshotOptions {
+  backgroundUrl: string | null;
+  titleStyle: TextStyle | null;
+  descriptionStyle: TextStyle | null;
+}
+
+async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions): Promise<string> {
+  const { backgroundUrl, titleStyle, descriptionStyle } = options;
+  const CANVAS_WIDTH = 1080;
+  const CANVAS_HEIGHT = 1920;
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = CANVAS_WIDTH;
+  canvas.height = CANVAS_HEIGHT;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas not supported');
+
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  if (backgroundUrl) {
+    try {
+      const bgImg = await loadImage(backgroundUrl);
+      const scale = Math.max(CANVAS_WIDTH / bgImg.width, CANVAS_HEIGHT / bgImg.height);
+      const scaledWidth = bgImg.width * scale;
+      const scaledHeight = bgImg.height * scale;
+      const x = (CANVAS_WIDTH - scaledWidth) / 2;
+      const y = (CANVAS_HEIGHT - scaledHeight) / 2;
+      ctx.drawImage(bgImg, x, y, scaledWidth, scaledHeight);
+    } catch (e) {
+      console.warn('Failed to load background image for landing page:', e);
+    }
+  }
+
+  if (titleStyle?.text) {
+    const fontSize = parseInt(titleStyle.fontSize) || 72;
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    ctx.font = `bold ${scaledFontSize}px ${titleStyle.fontFamily || 'Arial'}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const verticalOffset = titleStyle.verticalOffset ?? 84;
+    const horizontalOffset = titleStyle.horizontalOffset ?? 8;
+    const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
+    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
+    if (titleStyle.strokeColor && titleStyle.strokeWidth > 0) {
+      ctx.strokeStyle = titleStyle.strokeColor;
+      ctx.lineWidth = titleStyle.strokeWidth * 2;
+      ctx.strokeText(titleStyle.text, textX, textY);
+    }
+    ctx.fillStyle = titleStyle.color || '#ffffff';
+    ctx.fillText(titleStyle.text, textX, textY);
+  }
+
+  if (descriptionStyle?.text) {
+    const fontSize = parseInt(descriptionStyle.fontSize) || 48;
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    ctx.font = `${scaledFontSize}px ${descriptionStyle.fontFamily || 'Arial'}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const verticalOffset = descriptionStyle.verticalOffset ?? 72;
+    const horizontalOffset = descriptionStyle.horizontalOffset ?? 10;
+    const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
+    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
+    if (descriptionStyle.strokeColor && descriptionStyle.strokeWidth > 0) {
+      ctx.strokeStyle = descriptionStyle.strokeColor;
+      ctx.lineWidth = descriptionStyle.strokeWidth * 2;
+      ctx.strokeText(descriptionStyle.text, textX, textY);
+    }
+    ctx.fillStyle = descriptionStyle.color || '#cccccc';
+    ctx.fillText(descriptionStyle.text, textX, textY);
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
 export function CreateGraphicsModule() {
   const { state, loadGraphic, selectedRole, selectedStore, selectedChannel } = useBuilderContext();
   const { toast } = useToast();
