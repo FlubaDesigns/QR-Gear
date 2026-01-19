@@ -44,15 +44,15 @@ export const WARP_PRESETS = [
 export const defaultTextStyle: TextStyleConfig = {
   text: "",
   enabled: false,
-  fontFamily: "Arial",
-  fontSize: "144",
+  fontFamily: "Courier New",
+  fontSize: "280",
   color: "#FFFFFF",
   warpPreset: "straight",
   letterSpacing: 0,
   strokeColor: "",
   strokeWidth: 0,
-  verticalOffset: 20,
-  horizontalOffset: 0,
+  verticalOffset: 50,
+  horizontalOffset: 50,
 };
 
 interface TextStyleEditorProps {
@@ -65,6 +65,7 @@ interface TextStyleEditorProps {
   showPositionControls?: boolean;
   previewBackgroundColor?: string;
   previewBackgroundImage?: string;
+  defaultCollapsed?: boolean;
 }
 
 export function TextStyleEditor({ 
@@ -77,33 +78,59 @@ export function TextStyleEditor({
   showPositionControls = true,
   previewBackgroundColor,
   previewBackgroundImage,
+  defaultCollapsed = true,
 }: TextStyleEditorProps) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [controlsOpen, setControlsOpen] = useState(false);
 
+  const hasContent = style.enabled && style.text;
+
   return (
-    <div className="space-y-3 p-4 bg-background rounded-lg border">
-      <div className="flex items-center justify-between min-h-[48px]">
-        <div>
-          <Label htmlFor={`${testIdPrefix}-enabled`} className="font-semibold text-base">
-            {label}
-          </Label>
-          {sublabel && (
-            <p className="text-xs text-muted-foreground">{sublabel}</p>
+    <div className="bg-background rounded-lg border overflow-hidden">
+      <div 
+        className="flex items-center justify-between min-h-[48px] px-4 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        data-testid={`toggle-${testIdPrefix}-collapse`}
+      >
+        <div className="flex items-center gap-2">
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+          <div>
+            <span className="font-semibold text-base">{label}</span>
+            {sublabel && (
+              <span className="text-xs text-muted-foreground ml-2">{sublabel}</span>
+            )}
+          </div>
+          {hasContent && (
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full ml-2">
+              {style.text.substring(0, 15)}{style.text.length > 15 ? "..." : ""}
+            </span>
           )}
         </div>
-        <div className="min-w-[48px] min-h-[48px] flex items-center justify-center">
+        <div 
+          className="min-w-[48px] min-h-[48px] flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Switch
             id={`${testIdPrefix}-enabled`}
             checked={style.enabled}
-            onCheckedChange={(checked) => onChange({ enabled: checked })}
+            onCheckedChange={(checked) => {
+              onChange({ enabled: checked });
+              if (checked && isCollapsed) {
+                setIsCollapsed(false);
+              }
+            }}
             className="scale-125"
             data-testid={`switch-${testIdPrefix}`}
           />
         </div>
       </div>
       
-      {style.enabled && (
-        <div className="space-y-4">
+      {!isCollapsed && style.enabled && (
+        <div className="space-y-4 p-4 pt-0">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Eye className="h-4 w-4" />
@@ -268,14 +295,14 @@ export function TextStyleEditor({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-sm mb-1.5 block text-muted-foreground">
-                        Distance from QR: {style.verticalOffset ?? 20}%
+                        Y Position: {style.verticalOffset ?? 50}% <span className="text-xs">(0=bottom, 100=top)</span>
                       </Label>
                       <div className="min-h-[48px] flex items-center py-2">
                         <input
                           type="range"
                           min="0"
                           max="100"
-                          value={style.verticalOffset ?? 20}
+                          value={style.verticalOffset ?? 50}
                           onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
                           className="w-full h-6 accent-primary cursor-pointer"
                           style={{ touchAction: 'none' }}
@@ -285,14 +312,14 @@ export function TextStyleEditor({
                     </div>
                     <div>
                       <Label className="text-sm mb-1.5 block text-muted-foreground">
-                        Horizontal: {style.horizontalOffset ?? 0}
+                        X Position: {style.horizontalOffset ?? 50}% <span className="text-xs">(0=left, 100=right)</span>
                       </Label>
                       <div className="min-h-[48px] flex items-center py-2">
                         <input
                           type="range"
-                          min="-50"
-                          max="50"
-                          value={style.horizontalOffset ?? 0}
+                          min="0"
+                          max="100"
+                          value={style.horizontalOffset ?? 50}
                           onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
                           className="w-full h-6 accent-primary cursor-pointer"
                           style={{ touchAction: 'none' }}

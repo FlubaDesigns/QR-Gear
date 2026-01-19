@@ -128,6 +128,8 @@ export interface ContentData {
   overlayFontFamily: string;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
+  titleStyle: TextStyleConfig;        // Styled title for landing page
+  descriptionStyle: TextStyleConfig;  // Styled description for landing page
   hostingTierCode: string;
   // Play-specific fields
   playMediaSource: "url" | "upload" | null;

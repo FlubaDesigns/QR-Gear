@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Check, Crop, Trash2, X, FileText, Link2, RefreshCw } from "lucide-react";
+import { Image, Loader2, Check, Crop, Trash2, X, FileText, RefreshCw } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
@@ -292,57 +289,54 @@ export function URLContentModule() {
           )}
         </div>
 
-        {/* URL is auto-generated - no manual input needed */}
-        {needsDestinationUrl && (
-          <div className="p-3 bg-primary/5 rounded-md border space-y-1 mt-4">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium">QR Landing Page</p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              A unique URL will be auto-generated when you create the graphics. 
-              This becomes a searchable page on qrgear.com.
-            </p>
-          </div>
-        )}
 
-        {/* Section 3: Title & Description */}
+        {/* Section 3: Landing Page Title & Description */}
         <div className="space-y-4 pt-4 border-t">
-          <p className="text-sm font-medium">Landing Page Content</p>
+          <p className="text-sm font-medium">Landing Page Text</p>
+          <p className="text-xs text-muted-foreground">
+            Add styled title and description for the landing page
+          </p>
           
-          <div className="space-y-2">
-            <Label htmlFor="url-content-title">Title</Label>
-            <Input
-              id="url-content-title"
-              placeholder="Enter title for the landing page"
-              value={state.content.title}
-              onChange={(e) => setContent({ title: e.target.value })}
-              maxLength={50}
-              className="min-h-[44px]"
-              data-testid="input-url-content-title"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="url-content-description">Description</Label>
-            <Textarea
-              id="url-content-description"
-              placeholder="Enter description text"
-              value={state.content.description}
-              onChange={(e) => setContent({ description: e.target.value })}
-              maxLength={200}
-              rows={3}
-              className="min-h-[80px]"
-              data-testid="input-url-content-description"
-            />
-          </div>
+          <TextStyleEditor
+            label="Title"
+            sublabel="Main heading on landing page"
+            maxLength={50}
+            style={(state.content.titleStyle as TextStyleConfig) || defaultTextStyle}
+            onChange={(updates) => setContent({ 
+              titleStyle: { 
+                ...((state.content.titleStyle as TextStyleConfig) || defaultTextStyle), 
+                ...updates 
+              } 
+            })}
+            testIdPrefix="title"
+            showPositionControls={true}
+            previewBackgroundImage={backgroundUrl}
+            previewBackgroundColor="#1a1a2e"
+          />
+          
+          <TextStyleEditor
+            label="Description"
+            sublabel="Supporting text on landing page"
+            maxLength={200}
+            style={(state.content.descriptionStyle as TextStyleConfig) || defaultTextStyle}
+            onChange={(updates) => setContent({ 
+              descriptionStyle: { 
+                ...((state.content.descriptionStyle as TextStyleConfig) || defaultTextStyle), 
+                ...updates 
+              } 
+            })}
+            testIdPrefix="description"
+            showPositionControls={true}
+            previewBackgroundImage={backgroundUrl}
+            previewBackgroundColor="#1a1a2e"
+          />
         </div>
 
-        {/* Section 4: Header & Footer Text Overlays */}
+        {/* Section 4: Header & Footer Text Overlays (for graphic) */}
         <div className="space-y-4 pt-4 border-t">
-          <p className="text-sm font-medium">Graphic Text Overlays</p>
+          <p className="text-sm font-medium">Product Graphic Text</p>
           <p className="text-xs text-muted-foreground">
-            Add styled text to the top (header) or bottom (footer) of your graphic
+            Add styled text to the top (header) or bottom (footer) of your product graphic
           </p>
           
           <TextStyleEditor
@@ -378,13 +372,15 @@ export function URLContentModule() {
           />
         </div>
 
-        {/* Section 3: Landing Page Viewer */}
-        {hasContent && (
+        {/* Landing Page Viewer */}
+        {(backgroundUrl || state.content.title || state.content.description || (state.content.titleStyle as TextStyleConfig)?.enabled || (state.content.descriptionStyle as TextStyleConfig)?.enabled) && (
           <div className="space-y-3 pt-4 border-t">
             <p className="text-sm font-medium">Landing Page Preview</p>
             <LandingPageViewer
               title={state.content.title}
               description={state.content.description}
+              titleStyle={(state.content.titleStyle as TextStyleConfig)}
+              descriptionStyle={(state.content.descriptionStyle as TextStyleConfig)}
               backgroundImage={backgroundUrl}
               caption="This is how your landing page will appear when the QR is scanned"
             />

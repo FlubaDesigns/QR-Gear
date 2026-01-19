@@ -1,8 +1,11 @@
 import { LandingPageView } from "./skins/LandingPageView";
+import type { TextStyleConfig } from "./TextStyleEditor";
 
 export interface LandingPageViewerProps {
   title?: string;
   description?: string;
+  titleStyle?: TextStyleConfig;
+  descriptionStyle?: TextStyleConfig;
   backgroundImage?: string;
   className?: string;
   caption?: string;
@@ -11,6 +14,8 @@ export interface LandingPageViewerProps {
 export function LandingPageViewer({ 
   title,
   description,
+  titleStyle,
+  descriptionStyle,
   backgroundImage,
   className = "",
   caption,
@@ -21,6 +26,8 @@ export function LandingPageViewer({
         <LandingPageView
           title={title}
           description={description}
+          titleStyle={titleStyle}
+          descriptionStyle={descriptionStyle}
           backgroundImage={backgroundImage}
         />
       </div>
