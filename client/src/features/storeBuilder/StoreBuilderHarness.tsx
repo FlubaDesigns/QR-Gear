@@ -1075,22 +1075,14 @@ export function StoreBuilderHarness() {
 
       {thumbnailLightbox && (
         <div 
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
           onClick={() => setThumbnailLightbox(null)}
+          data-testid="lightbox-overlay"
         >
-          <button
-            type="button"
-            className="absolute top-4 right-4 text-white/70 hover:text-white p-2"
-            onClick={() => setThumbnailLightbox(null)}
-            data-testid="button-close-thumbnail-lightbox"
-          >
-            <X className="h-8 w-8" />
-          </button>
           <img 
             src={thumbnailLightbox} 
             alt="Full size preview" 
-            className="max-w-full max-h-full object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full object-contain rounded-lg cursor-pointer"
           />
         </div>
       )}
