@@ -373,12 +373,10 @@ export function URLContentModule() {
         </div>
 
         {/* Landing Page Viewer */}
-        {(backgroundUrl || state.content.title || state.content.description || (state.content.titleStyle as TextStyleConfig)?.enabled || (state.content.descriptionStyle as TextStyleConfig)?.enabled) && (
+        {(backgroundUrl || (state.content.titleStyle as TextStyleConfig)?.enabled || (state.content.descriptionStyle as TextStyleConfig)?.enabled) && (
           <div className="space-y-3 pt-4 border-t">
             <p className="text-sm font-medium">Landing Page Preview</p>
             <LandingPageViewer
-              title={state.content.title}
-              description={state.content.description}
               titleStyle={(state.content.titleStyle as TextStyleConfig)}
               descriptionStyle={(state.content.descriptionStyle as TextStyleConfig)}
               backgroundImage={backgroundUrl}

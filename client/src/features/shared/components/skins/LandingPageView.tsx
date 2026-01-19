@@ -2,8 +2,6 @@ import { Image } from "lucide-react";
 import type { TextStyleConfig } from "../TextStyleEditor";
 
 export interface LandingPageViewProps {
-  title?: string;
-  description?: string;
   titleStyle?: TextStyleConfig;
   descriptionStyle?: TextStyleConfig;
   backgroundImage?: string;
@@ -11,18 +9,14 @@ export interface LandingPageViewProps {
 }
 
 export function LandingPageView({ 
-  title,
-  description,
   titleStyle,
   descriptionStyle,
   backgroundImage,
   className = "",
 }: LandingPageViewProps) {
-  const hasContent = !!(title || description || titleStyle?.text || descriptionStyle?.text);
+  const hasContent = !!(titleStyle?.text || descriptionStyle?.text);
 
-  const getTextStyles = (style?: TextStyleConfig) => {
-    if (!style) return {};
-    
+  const getTextStyles = (style: TextStyleConfig) => {
     const scale = 0.08;
     const fontSize = Math.max(8, parseInt(style.fontSize) * scale);
     
@@ -38,13 +32,7 @@ export function LandingPageView({
     };
   };
 
-  const getPositionStyles = (style?: TextStyleConfig, isTitle?: boolean) => {
-    if (!style) {
-      return isTitle 
-        ? { bottom: '30%', left: '5%', right: '5%' }
-        : { bottom: '10%', left: '5%', right: '5%' };
-    }
-    
+  const getPositionStyles = (style: TextStyleConfig) => {
     const y = 100 - (style.verticalOffset ?? 50);
     const x = style.horizontalOffset ?? 50;
     
@@ -56,9 +44,6 @@ export function LandingPageView({
       transform: 'translateY(-50%)',
     };
   };
-
-  const displayTitle = titleStyle?.enabled ? titleStyle.text : title;
-  const displayDescription = descriptionStyle?.enabled ? descriptionStyle.text : description;
 
   return (
     <div 
@@ -72,39 +57,32 @@ export function LandingPageView({
     >
       <div className="absolute inset-0 bg-black/30" />
       
-      {displayTitle && (
+      {titleStyle?.enabled && titleStyle.text && (
         <div 
           className="absolute px-2"
-          style={getPositionStyles(titleStyle, true)}
+          style={getPositionStyles(titleStyle)}
         >
           <h3 
             className="drop-shadow-lg"
-            style={titleStyle?.enabled ? getTextStyles(titleStyle) : {
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 'bold',
-            }}
+            style={getTextStyles(titleStyle)}
             data-testid="text-landing-title"
           >
-            {displayTitle}
+            {titleStyle.text}
           </h3>
         </div>
       )}
       
-      {displayDescription && (
+      {descriptionStyle?.enabled && descriptionStyle.text && (
         <div 
           className="absolute px-2"
-          style={getPositionStyles(descriptionStyle, false)}
+          style={getPositionStyles(descriptionStyle)}
         >
           <p 
             className="drop-shadow-md leading-tight"
-            style={descriptionStyle?.enabled ? getTextStyles(descriptionStyle) : {
-              color: 'rgba(255,255,255,0.9)',
-              fontSize: '10px',
-            }}
+            style={getTextStyles(descriptionStyle)}
             data-testid="text-landing-description"
           >
-            {displayDescription}
+            {descriptionStyle.text}
           </p>
         </div>
       )}
