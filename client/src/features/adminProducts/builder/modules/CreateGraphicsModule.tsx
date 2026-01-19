@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2 } from "lucide-react";
+import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -292,6 +292,7 @@ export function CreateGraphicsModule() {
   const [isCreating, setIsCreating] = useState(false);
   const [packetResult, setPacketResult] = useState<PacketResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
 
   const { data: pricingSettings } = useQuery<PricingSettings>({
     queryKey: [`${apiBase}/pricing-settings`],
@@ -920,18 +921,25 @@ export function CreateGraphicsModule() {
                     <Image className="h-3 w-3" />
                     Landing Page
                   </p>
-                  <div className="bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px]">
-                    {packetResult.landingPageSnapshotUrl ? (
+                  {packetResult.landingPageSnapshotUrl ? (
+                    <button 
+                      type="button"
+                      className="w-full bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px] cursor-pointer hover-elevate"
+                      onClick={() => setThumbnailLightbox(packetResult.landingPageSnapshotUrl)}
+                      data-testid="btn-landing-snapshot"
+                    >
                       <img
                         src={packetResult.landingPageSnapshotUrl}
                         alt="Landing Page Snapshot"
                         className="w-full max-w-[80px] h-auto object-contain"
                         data-testid="img-packet-landing-snapshot"
                       />
-                    ) : (
+                    </button>
+                  ) : (
+                    <div className="bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px]">
                       <span className="text-xs text-gray-400">N/A</span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -941,9 +949,12 @@ export function CreateGraphicsModule() {
                     <Image className="h-3 w-3" />
                     Product Graphic
                   </p>
-                  <div 
-                    className="rounded p-1 flex items-center justify-center min-h-[100px]"
+                  <button 
+                    type="button"
+                    className="w-full rounded p-1 flex items-center justify-center min-h-[100px] cursor-pointer hover-elevate"
                     style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
+                    onClick={() => setThumbnailLightbox(packetResult.productGraphicUrl)}
+                    data-testid="btn-product-graphic"
                   >
                     <img
                       src={packetResult.productGraphicUrl}
@@ -951,7 +962,7 @@ export function CreateGraphicsModule() {
                       className="w-full max-w-[80px] h-auto object-contain"
                       data-testid="img-packet-product-graphic"
                     />
-                  </div>
+                  </button>
                 </CardContent>
               </Card>
 
@@ -963,9 +974,12 @@ export function CreateGraphicsModule() {
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center">
-                      <div 
-                        className="rounded p-3 flex items-center justify-center"
+                      <button 
+                        type="button"
+                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate"
                         style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
+                        onClick={() => setThumbnailLightbox(packetResult.qrOnlyUrlBlack)}
+                        data-testid="btn-qr-black"
                       >
                         <img
                           src={packetResult.qrOnlyUrlBlack}
@@ -973,13 +987,16 @@ export function CreateGraphicsModule() {
                           className="w-full max-w-[140px] h-auto"
                           data-testid="img-packet-qr-black"
                         />
-                      </div>
+                      </button>
                       <p className="text-xs text-muted-foreground mt-1">Black QR</p>
                     </div>
                     <div className="text-center">
-                      <div 
-                        className="rounded p-3 flex items-center justify-center"
+                      <button 
+                        type="button"
+                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate"
                         style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
+                        onClick={() => setThumbnailLightbox(packetResult.qrOnlyUrlWhite)}
+                        data-testid="btn-qr-white"
                       >
                         <img
                           src={packetResult.qrOnlyUrlWhite}
@@ -987,7 +1004,7 @@ export function CreateGraphicsModule() {
                           className="w-full max-w-[140px] h-auto"
                           data-testid="img-packet-qr-white"
                         />
-                      </div>
+                      </button>
                       <p className="text-xs text-muted-foreground mt-1">White QR</p>
                     </div>
                   </div>
@@ -1003,20 +1020,29 @@ export function CreateGraphicsModule() {
                     <Shirt className="h-3 w-3" />
                     Mockup Preview
                   </p>
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
-                    {packetResult.priorityMockupLoading ? (
+                  {packetResult.priorityMockupLoading ? (
+                    <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    ) : packetResult.priorityMockupUrl ? (
+                    </div>
+                  ) : packetResult.priorityMockupUrl ? (
+                    <button 
+                      type="button"
+                      className="w-full bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px] cursor-pointer hover-elevate"
+                      onClick={() => setThumbnailLightbox(packetResult.priorityMockupUrl!)}
+                      data-testid="btn-mockup"
+                    >
                       <img
                         src={packetResult.priorityMockupUrl}
                         alt="Product Mockup"
                         className="w-full max-w-[200px] h-auto object-contain"
                         data-testid="img-packet-mockup"
                       />
-                    ) : (
+                    </button>
+                  ) : (
+                    <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
                       <span className="text-xs text-gray-400">Generating...</span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1108,6 +1134,28 @@ export function CreateGraphicsModule() {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
+          </div>
+        )}
+
+        {thumbnailLightbox && (
+          <div 
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setThumbnailLightbox(null)}
+          >
+            <button
+              type="button"
+              className="absolute top-4 right-4 text-white/70 hover:text-white p-2"
+              onClick={() => setThumbnailLightbox(null)}
+              data-testid="button-close-thumbnail-lightbox"
+            >
+              <X className="h-8 w-8" />
+            </button>
+            <img 
+              src={thumbnailLightbox} 
+              alt="Full size preview" 
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         )}
       </div>
