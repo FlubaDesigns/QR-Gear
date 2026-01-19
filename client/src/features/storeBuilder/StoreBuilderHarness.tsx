@@ -27,10 +27,12 @@ function LibraryPickerModal({
   isOpen,
   onClose,
   onSelect,
+  apiBase,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (item: LibraryItem) => void;
+  apiBase: string;
 }) {
   const [activeTab, setActiveTab] = useState<"packets" | "templates">("packets");
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +42,7 @@ function LibraryPickerModal({
     if (!isOpen) return;
     
     setIsLoading(true);
-    const endpoint = activeTab === "packets" ? "/api/test/packets" : "/api/test/templates";
+    const endpoint = activeTab === "packets" ? `${apiBase}/packets` : `${apiBase}/templates`;
     
     fetch(endpoint)
       .then(res => res.json())
@@ -69,7 +71,7 @@ function LibraryPickerModal({
       })
       .catch(err => console.error("Failed to load library:", err))
       .finally(() => setIsLoading(false));
-  }, [isOpen, activeTab]);
+  }, [isOpen, activeTab, apiBase]);
 
   if (!isOpen) return null;
 
@@ -421,10 +423,10 @@ export function StoreBuilderHarness() {
     summary: { total: number; completed: number; pending: number; processing: number; failed: number };
     mockups: MockupJob[];
   }>({
-    queryKey: ["/api/test/templates", productPackage?.templateId, "mockups"],
+    queryKey: [apiBase, "templates", productPackage?.templateId, "mockups"],
     queryFn: async () => {
       if (!productPackage?.templateId) return { success: false, summary: { total: 0, completed: 0, pending: 0, processing: 0, failed: 0 }, mockups: [] };
-      const res = await fetch(`/api/test/templates/${productPackage.templateId}/mockups`);
+      const res = await fetch(`${apiBase}/templates/${productPackage.templateId}/mockups`);
       return res.json();
     },
     enabled: !!productPackage?.templateId,
@@ -481,7 +483,7 @@ export function StoreBuilderHarness() {
       setIsLoadingPacket(true);
       setOriginalPacketId(packetId);
       setIsEditMode(true);
-      fetch(`/api/test/packets/${packetId}`)
+      fetch(`${apiBase}/packets/${packetId}`)
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
@@ -529,7 +531,7 @@ export function StoreBuilderHarness() {
               const colorHex = packet.defaultColorHex || (packet.colors?.[0]?.hex) || "#000000";
               const qrSize = packet.placementSizes?.[placement] || "medium";
               
-              fetch("/api/test/mockup/priority", {
+              fetch(`${apiBase}/mockup/priority`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -566,7 +568,7 @@ export function StoreBuilderHarness() {
 
     // No packetId in URL - user should go to Products Builder first
     setProductPackage(null);
-  }, [location]);
+  }, [location, apiBase]);
 
   const currentMockup = mockups.find(
     m => m.status === "completed" && 
@@ -654,7 +656,7 @@ export function StoreBuilderHarness() {
       if (isEditMode && originalPacketId) {
         console.log("[StoreBuilder] Edit mode - creating new packet (fork from:", originalPacketId, ")");
         
-        const packetResponse = await fetch("/api/test/packets", {
+        const packetResponse = await fetch(`${apiBase}/packets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -706,7 +708,7 @@ export function StoreBuilderHarness() {
       
       // Create template if needed
       if (currentPacketId && !templateId) {
-        const templateResponse = await fetch("/api/test/templates", {
+        const templateResponse = await fetch(`${apiBase}/templates`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -738,7 +740,7 @@ export function StoreBuilderHarness() {
         }
       }
 
-      const response = await fetch("/api/test/store-product-links", {
+      const response = await fetch(`${apiBase}/store-product-links`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -843,6 +845,7 @@ export function StoreBuilderHarness() {
           isOpen={libraryPickerOpen}
           onClose={() => setLibraryPickerOpen(false)}
           onSelect={handleLibrarySelect}
+          apiBase={apiBase}
         />
       </>
     );
@@ -1264,6 +1267,7 @@ export function StoreBuilderHarness() {
         isOpen={libraryPickerOpen}
         onClose={() => setLibraryPickerOpen(false)}
         onSelect={handleLibrarySelect}
+        apiBase={apiBase}
       />
     </div>
   );
