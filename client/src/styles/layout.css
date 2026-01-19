@@ -84,12 +84,12 @@ body {
 }
 
 .mobile-compact-module-header {
-  padding: 2px;
-  gap: 2px;
+  padding: 4px 6px;
+  gap: 4px;
 }
 
 .mobile-compact-module-content {
-  padding: 2px;
+  padding: 6px 8px 8px;
 }
 
 @media (min-width: 640px) {
