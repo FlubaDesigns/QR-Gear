@@ -1,23 +1,31 @@
 import { useState, useEffect } from "react";
+import { QrCode, Layers, Image, Crop } from "lucide-react";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { LibraryProvider } from "./LibraryContext";
 
 import GraphicsTab from "./tabs/GraphicsTab";
 import TemplatesTab from "./tabs/TemplatesTab";
-import BackgroundsTab from "./tabs/BackgroundsTab";
 import SourceImagesTab from "./tabs/SourceImagesTab";
 import CroppedImagesTab from "./tabs/CroppedImagesTab";
 
+type TabType = "graphics" | "templates" | "source" | "cropped";
+
+const TABS = [
+  { id: "graphics" as const, label: "Graphics", icon: QrCode },
+  { id: "templates" as const, label: "Templates", icon: Layers },
+  { id: "source" as const, label: "Source Images", icon: Image },
+  { id: "cropped" as const, label: "Cropped", icon: Crop },
+];
+
 export default function LibraryPage() {
-  const [tab, setTab] = useState<string>("graphics");
+  const [tab, setTab] = useState<TabType>("graphics");
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get("tab");
-    if (tabParam && ["graphics", "templates", "library", "source", "cropped"].includes(tabParam)) {
-      setTab(tabParam);
+    if (tabParam && TABS.some(t => t.id === tabParam)) {
+      setTab(tabParam as TabType);
     }
   }, []);
 
@@ -26,54 +34,37 @@ export default function LibraryPage() {
       <div className="container mx-auto py-6 space-y-6">
         <BreadcrumbTrail />
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Library</h1>
-            <p className="text-muted-foreground">
-              Graphics, templates, backgrounds, and source images.
-            </p>
-          </div>
+        <div className="glass-card">
+          <h1 className="glass-title text-xl mb-2">Library</h1>
+          <p className="glass-body">
+            Graphics, templates, and source images.
+          </p>
         </div>
 
-        <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="h-auto grid grid-cols-2 sm:grid-cols-5 gap-2 p-2 bg-muted/50">
-            <TabsTrigger value="graphics" className="h-12 text-base" data-testid="tab-graphics">
-              Graphics
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="h-12 text-base" data-testid="tab-templates">
-              Templates
-            </TabsTrigger>
-            <TabsTrigger value="library" className="h-12 text-base" data-testid="tab-backgrounds">
-              Backgrounds
-            </TabsTrigger>
-            <TabsTrigger value="source" className="h-12 text-base" data-testid="tab-source">
-              Source
-            </TabsTrigger>
-            <TabsTrigger value="cropped" className="h-12 text-base col-span-2 sm:col-span-1" data-testid="tab-cropped">
-              Cropped
-            </TabsTrigger>
-          </TabsList>
+        <div className="grid grid-cols-2 gap-3">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const isActive = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`qr-btn qr-btn--touch ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
+                data-testid={`tab-${t.id}`}
+              >
+                <Icon className="h-5 w-5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="graphics" className="mt-6">
-            <GraphicsTab />
-          </TabsContent>
-
-          <TabsContent value="templates" className="mt-6">
-            <TemplatesTab />
-          </TabsContent>
-
-          <TabsContent value="library" className="mt-6">
-            <BackgroundsTab />
-          </TabsContent>
-
-          <TabsContent value="source" className="mt-6">
-            <SourceImagesTab />
-          </TabsContent>
-
-          <TabsContent value="cropped" className="mt-6">
-            <CroppedImagesTab />
-          </TabsContent>
-        </Tabs>
+        <div className="glass-card">
+          {tab === "graphics" && <GraphicsTab />}
+          {tab === "templates" && <TemplatesTab />}
+          {tab === "source" && <SourceImagesTab />}
+          {tab === "cropped" && <CroppedImagesTab />}
+        </div>
       </div>
     </LibraryProvider>
   );
