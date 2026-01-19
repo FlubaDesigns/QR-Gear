@@ -127,8 +127,6 @@ export function URLContentModule() {
 
   const backgroundUrl = state.loadedBackground?.url;
   const hasContent = state.content.title || state.content.description || backgroundUrl;
-  
-  const needsDestinationUrl = state.qrProductState === "qr_canvas";
 
   return (
     <CollapsibleModule
@@ -290,7 +288,7 @@ export function URLContentModule() {
         </div>
 
 
-        {/* Section 3: Landing Page Title & Description */}
+        {/* Section 2: Landing Page Title & Description */}
         <div className="space-y-4 pt-4 border-t">
           <p className="text-sm font-medium">Landing Page Text</p>
           <p className="text-xs text-muted-foreground">
