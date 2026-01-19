@@ -1212,6 +1212,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Image proxy endpoint for CORS-blocked images (used by AR demo)
+  app.get("/api/proxy-image", async (req: any, res) => {
+    try {
+      const imageUrl = req.query.url as string;
+      if (!imageUrl) {
+        return res.status(400).json({ error: "Missing url parameter" });
+      }
+      
+      // Only allow certain domains for security
+      const allowedDomains = [
+        "images.printify.com",
+        "images-api.printify.com",
+        "printful.com",
+        "files.cdn.printful.com",
+      ];
+      
+      const url = new URL(imageUrl);
+      if (!allowedDomains.some(d => url.hostname.includes(d))) {
+        return res.status(403).json({ error: "Domain not allowed" });
+      }
+      
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        return res.status(response.status).json({ error: "Failed to fetch image" });
+      }
+      
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+      const buffer = Buffer.from(await response.arrayBuffer());
+      
+      res.set("Content-Type", contentType);
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Cache-Control", "public, max-age=86400");
+      res.send(buffer);
+    } catch (error: any) {
+      console.error("[ProxyImage] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // PUBLIC test endpoint for background-assets (mirrors /api/admin/background-assets but no auth)
   app.get("/api/test/background-assets", async (req: any, res) => {
     try {

@@ -91,8 +91,9 @@ export default function TestARDemo() {
   const [error, setError] = useState<string | null>(null);
   const modelViewerRef = useRef<HTMLElement>(null);
 
-  // Sample mockup image - a t-shirt with design
-  const sampleMockupUrl = "https://images.printify.com/mockup/66ae9a9f6e01d3e26f082ab7/95143/88414/unisex-heavy-cotton-tee.jpg";
+  // Use a CORS-friendly sample image for the demo
+  // In production, we use Firebase Storage URLs which allow CORS
+  const sampleMockupUrl = "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80";
 
   useEffect(() => {
     // Load model-viewer script
