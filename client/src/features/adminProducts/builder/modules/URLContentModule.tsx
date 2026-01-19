@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
+import { LandingPageViewer } from "@/features/shared/components/LandingPageViewer";
 
 interface BackgroundAsset {
   id: string;
@@ -381,44 +382,12 @@ export function URLContentModule() {
         {hasContent && (
           <div className="space-y-3 pt-4 border-t">
             <p className="text-sm font-medium">Landing Page Preview</p>
-            <div className="flex justify-center">
-              <div 
-                className="relative w-[180px] aspect-[9/16] rounded-lg overflow-hidden border-2 border-border shadow-lg"
-                style={{
-                  background: backgroundUrl 
-                    ? `url(${backgroundUrl}) center/cover` 
-                    : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                }}
-              >
-                {/* Dark overlay for text readability */}
-                <div className="absolute inset-0 bg-black/30" />
-                
-                {/* Content overlay - Title & Description (landing page only - no header/footer) */}
-                <div className="absolute inset-0 flex flex-col justify-end p-3">
-                  {state.content.title && (
-                    <h3 className="text-white text-sm font-bold mb-1 drop-shadow-lg">
-                      {state.content.title}
-                    </h3>
-                  )}
-                  {state.content.description && (
-                    <p className="text-white/90 text-xs leading-tight drop-shadow-md line-clamp-3">
-                      {state.content.description}
-                    </p>
-                  )}
-                </div>
-
-                {/* Placeholder when no background */}
-                {!backgroundUrl && (
-                  <div className="absolute top-1/3 left-0 right-0 text-center">
-                    <Image className="h-8 w-8 mx-auto text-white/30 mb-2" />
-                    <p className="text-white/50 text-xs">No background selected</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            <p className="text-xs text-center text-muted-foreground">
-              This is how your landing page will appear when the QR is scanned
-            </p>
+            <LandingPageViewer
+              title={state.content.title}
+              description={state.content.description}
+              backgroundImage={backgroundUrl}
+              caption="This is how your landing page will appear when the QR is scanned"
+            />
           </div>
         )}
       </div>
