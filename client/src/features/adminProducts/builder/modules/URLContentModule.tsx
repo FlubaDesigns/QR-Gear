@@ -8,6 +8,10 @@ import { ProductCropDialog } from "../components/ProductCropDialog";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { LandingPageViewer } from "@/features/shared/components/LandingPageViewer";
 
+// Test defaults for Top/Bottom text
+const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "Hello", enabled: true };
+const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "World!", enabled: true };
+
 interface BackgroundAsset {
   id: string;
   name: string;
@@ -341,10 +345,10 @@ export function URLContentModule() {
             label="Top Text"
             sublabel="Appears at top of graphic"
             maxLength={30}
-            style={(state.content.headerStyle as TextStyleConfig) || defaultTextStyle}
+            style={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
             onChange={(updates) => setContent({ 
               headerStyle: { 
-                ...((state.content.headerStyle as TextStyleConfig) || defaultTextStyle), 
+                ...((state.content.headerStyle as TextStyleConfig) || headerDefaultStyle), 
                 ...updates 
               } 
             })}
@@ -357,10 +361,10 @@ export function URLContentModule() {
             label="Bottom Text"
             sublabel="Appears at bottom of graphic"
             maxLength={30}
-            style={(state.content.footerStyle as TextStyleConfig) || defaultTextStyle}
+            style={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
             onChange={(updates) => setContent({ 
               footerStyle: { 
-                ...((state.content.footerStyle as TextStyleConfig) || defaultTextStyle), 
+                ...((state.content.footerStyle as TextStyleConfig) || footerDefaultStyle), 
                 ...updates 
               } 
             })}
