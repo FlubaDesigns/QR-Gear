@@ -206,11 +206,7 @@ export function CreateGraphicsModule() {
   const hasPlacement = (state.selectedPlacements || []).length > 0;
 
   const validationErrors: string[] = [];
-  if (!state.selectedProduct) validationErrors.push("Select a product");
-  if (!state.qrProductState) validationErrors.push("Select a QR mode");
-  if (!hasPlacement) validationErrors.push("Select at least one placement");
-
-  const canCreate = validationErrors.length === 0;
+  const canCreate = true;
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct || !state.content) return null;
