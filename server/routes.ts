@@ -1868,8 +1868,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isActive: data.isActive ?? true,
           availableSegments: data.availableSegments || [],
           apiKey: data.apiKey || null,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
         };
       });
       

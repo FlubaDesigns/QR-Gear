@@ -396,7 +396,7 @@ function HeroImageLightbox({
 
 export function StoreBuilderHarness() {
   const { apiBase } = useAdminAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [productPackage, setProductPackage] = useState<ProductPackage | null>(null);
   const [originalPacketId, setOriginalPacketId] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -568,7 +568,7 @@ export function StoreBuilderHarness() {
 
     // No packetId in URL - user should go to Products Builder first
     setProductPackage(null);
-  }, []);
+  }, [location]);
 
   const currentMockup = mockups.find(
     m => m.status === "completed" && 
@@ -799,65 +799,12 @@ export function StoreBuilderHarness() {
     );
   }
 
-  const loadPacketById = async (packetId: string) => {
-    setIsLoadingPacket(true);
-    setOriginalPacketId(packetId);
-    setIsEditMode(true);
-    setSaveStatus(null);
-    
-    try {
-      const res = await fetch(`/api/test/packets/${packetId}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      
-      if (data.success && data.packet) {
-        const packet = data.packet;
-        const loadedPackage: ProductPackage = {
-          packetId: packet.id,
-          templateId: packet.templateId || null,
-          qrContent: packet.qrContent,
-          productName: packet.productName,
-          productDescription: packet.productDescription,
-          productImageUrl: packet.productImageUrl,
-          compositeUrl: packet.compositeUrl,
-          qrOnlyUrl: packet.qrOnlyUrl,
-          headerText: packet.headerText,
-          footerText: packet.footerText,
-          colors: packet.colors || [],
-          sizes: packet.sizes || [],
-          qrSizes: packet.qrSizes || ["small", "medium", "large"],
-          availablePlacements: packet.availablePlacements || [],
-          placements: packet.placements || [],
-          basePrice: packet.basePrice,
-          customerPrice: packet.customerPrice,
-          qrProductState: packet.qrProductState,
-          blueprintId: packet.blueprintId,
-          printProviderId: packet.printProviderId,
-          pricing: packet.pricing,
-          manufacturer: packet.manufacturer || "Printify",
-          madeIn: packet.madeIn || "USA",
-          defaultColor: packet.defaultColor,
-          defaultColorHex: packet.defaultColorHex,
-          placementSizes: packet.placementSizes,
-          priorityMockupUrl: packet.priorityMockupUrl || null,
-        };
-        setProductPackage(loadedPackage);
-      }
-    } catch (err: any) {
-      console.error("Failed to load packet:", err);
-      setSaveStatus({ type: "error", message: `Failed to load packet: ${err.message}` });
-    } finally {
-      setIsLoadingPacket(false);
-    }
-  };
-
   const handleLibrarySelect = (item: LibraryItem) => {
     setLibraryPickerOpen(false);
     const packetId = item.type === "template" ? item.packetId : item.id;
     if (packetId) {
-      // Update URL without reload, then load packet directly
-      window.history.pushState({}, "", `/test-store-builder?packetId=${packetId}`);
-      loadPacketById(packetId);
+      // Use SPA navigation - navigate to new URL and useEffect will handle loading
+      navigate(`/test-store-builder?packetId=${packetId}`);
     } else {
       setSaveStatus({ type: "error", message: "Selected item has no packet ID" });
     }
