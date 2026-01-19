@@ -376,6 +376,7 @@ export function URLContentModule() {
             })}
             testIdPrefix="title"
             showPositionControls={true}
+            showPreview={false}
           />
           
           <TextStyleEditor
@@ -391,6 +392,7 @@ export function URLContentModule() {
             })}
             testIdPrefix="description"
             showPositionControls={true}
+            showPreview={false}
           />
         </div>
 

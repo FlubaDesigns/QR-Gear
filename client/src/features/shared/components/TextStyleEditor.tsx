@@ -63,6 +63,7 @@ interface TextStyleEditorProps {
   onChange: (updates: Partial<TextStyleConfig>) => void;
   testIdPrefix: string;
   showPositionControls?: boolean;
+  showPreview?: boolean;
   previewBackgroundColor?: string;
   previewBackgroundImage?: string;
   defaultCollapsed?: boolean;
@@ -76,6 +77,7 @@ export function TextStyleEditor({
   onChange, 
   testIdPrefix,
   showPositionControls = true,
+  showPreview = true,
   previewBackgroundColor,
   previewBackgroundImage,
   defaultCollapsed = true,
@@ -131,11 +133,13 @@ export function TextStyleEditor({
       
       {!isCollapsed && style.enabled && (
         <div className="space-y-4 p-4 pt-0">
-          <TextStyleViewer 
-            style={style} 
-            backgroundColor={previewBackgroundColor}
-            backgroundImage={previewBackgroundImage}
-          />
+          {showPreview && (
+            <TextStyleViewer 
+              style={style} 
+              backgroundColor={previewBackgroundColor}
+              backgroundImage={previewBackgroundImage}
+            />
+          )}
 
           <textarea
             placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
