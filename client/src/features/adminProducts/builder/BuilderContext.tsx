@@ -76,7 +76,7 @@ const initialState: BuilderState = {
   loadedGraphic: null,
   loadedBackground: null,
   fulfillmentProvider: "printify",
-  category: null,
+  category: "T-Shirts",
   originFilter: { showUSA: true, showOther: false },
   genderFilter: "all",
   selectedProduct: null,
