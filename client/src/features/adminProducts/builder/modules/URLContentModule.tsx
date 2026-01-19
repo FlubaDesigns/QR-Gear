@@ -130,7 +130,7 @@ export function URLContentModule() {
 
   return (
     <CollapsibleModule
-      title="URL Content"
+      title="URL Settings"
       icon={<FileText className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen

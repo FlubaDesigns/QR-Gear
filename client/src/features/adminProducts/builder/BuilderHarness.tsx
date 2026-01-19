@@ -2,9 +2,8 @@ import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
-import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
 import { PlacementModule } from "./modules/PlacementModule";
-import { TextConfigModule } from "./modules/TextConfigModule";
+import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
 import { PreviewModule } from "./modules/PreviewModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
@@ -172,19 +171,14 @@ function BuilderModules() {
         <PlacementModule />
       </InlineDebugBoundary>
       
-      {/* Step 3: Text Overlays (Header/Footer on graphic) */}
-      <InlineDebugBoundary label="TextConfigModule">
-        <TextConfigModule />
+      {/* Step 3: URL Settings (Background, Title, Description, Top/Bottom Text) */}
+      <InlineDebugBoundary label="URLContentModule">
+        <URLContentModule />
       </InlineDebugBoundary>
       
-      {/* Step 5a: Play Media (for QR Play mode) */}
+      {/* Step 4: Play Media (for QR Play mode) */}
       <InlineDebugBoundary label="PlayContentModule">
         <PlayContentModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 5b: Background Picker (for Canvas/Dynamics) */}
-      <InlineDebugBoundary label="BackgroundPickerModule">
-        <BackgroundPickerModule />
       </InlineDebugBoundary>
       
       {/* Step 6: Live Preview */}
