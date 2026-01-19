@@ -54,51 +54,50 @@ export function TemplateDetailSkin({
 }: DetailSkinProps) {
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
-            {item.name}
-          </h3>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {item.qrMode && (
-              <Badge variant="secondary">
-                <Package className="h-3 w-3 mr-1" />
-                {item.qrMode}
-              </Badge>
-            )}
-            {(item.colorCount ?? 0) > 0 && (
-              <Badge variant="outline">{item.colorCount} colors</Badge>
-            )}
-            {(item.sizeCount ?? 0) > 0 && (
-              <Badge variant="outline">{item.sizeCount} sizes</Badge>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          {actions?.onEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => actions.onEdit?.(item.packetId || item.id)}
-              data-testid="button-gallery-edit"
-            >
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
+      <div className="space-y-2">
+        <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
+          {item.name}
+        </h3>
+        <div className="flex flex-wrap gap-1">
+          {item.qrMode && (
+            <Badge variant="secondary">
+              <Package className="h-3 w-3 mr-1" />
+              {item.qrMode}
+            </Badge>
           )}
-          {actions?.onDelete && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => actions.onDelete?.(item.id)}
-              disabled={isActionPending}
-              data-testid="button-gallery-delete"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
+          {(item.colorCount ?? 0) > 0 && (
+            <Badge variant="outline">{item.colorCount} colors</Badge>
+          )}
+          {(item.sizeCount ?? 0) > 0 && (
+            <Badge variant="outline">{item.sizeCount} sizes</Badge>
           )}
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {actions?.onEdit && (
+          <Button
+            variant="outline"
+            className="h-14 text-base"
+            onClick={() => actions.onEdit?.(item.packetId || item.id)}
+            data-testid="button-gallery-edit"
+          >
+            <Edit className="h-5 w-5 mr-2" />
+            Edit
+          </Button>
+        )}
+        {actions?.onDelete && (
+          <Button
+            variant="destructive"
+            className="h-14 text-base"
+            onClick={() => actions.onDelete?.(item.id)}
+            disabled={isActionPending}
+            data-testid="button-gallery-delete"
+          >
+            <Trash2 className="h-5 w-5 mr-2" />
+            Delete
+          </Button>
+        )}
       </div>
 
       {item.qrContent && (

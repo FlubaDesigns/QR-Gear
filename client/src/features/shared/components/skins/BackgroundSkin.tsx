@@ -44,32 +44,31 @@ export function BackgroundDetailSkin({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
-            {item.name}
-          </h3>
-          {formattedDate && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-              <Calendar className="h-3 w-3" />
-              {formattedDate}
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          {actions?.onDelete && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => actions.onDelete?.(item.id)}
-              disabled={isActionPending}
-              data-testid="button-gallery-delete"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
-          )}
-        </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
+          {item.name}
+        </h3>
+        {formattedDate && (
+          <p className="text-sm text-muted-foreground flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {formattedDate}
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {actions?.onDelete && (
+          <Button
+            variant="destructive"
+            className="h-14 text-base"
+            onClick={() => actions.onDelete?.(item.id)}
+            disabled={isActionPending}
+            data-testid="button-gallery-delete"
+          >
+            <Trash2 className="h-5 w-5 mr-2" />
+            Delete
+          </Button>
+        )}
       </div>
     </div>
   );

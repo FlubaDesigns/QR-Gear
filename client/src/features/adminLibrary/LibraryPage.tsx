@@ -36,20 +36,20 @@ export default function LibraryPage() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="h-auto flex flex-wrap gap-2 p-2 bg-muted/50">
-            <TabsTrigger value="graphics" className="flex-1 min-w-[100px]" data-testid="tab-graphics">
+          <TabsList className="h-auto grid grid-cols-2 sm:grid-cols-5 gap-2 p-2 bg-muted/50">
+            <TabsTrigger value="graphics" className="h-12 text-base" data-testid="tab-graphics">
               Graphics
             </TabsTrigger>
-            <TabsTrigger value="templates" className="flex-1 min-w-[100px]" data-testid="tab-templates">
+            <TabsTrigger value="templates" className="h-12 text-base" data-testid="tab-templates">
               Templates
             </TabsTrigger>
-            <TabsTrigger value="library" className="flex-1 min-w-[100px]" data-testid="tab-backgrounds">
+            <TabsTrigger value="library" className="h-12 text-base" data-testid="tab-backgrounds">
               Backgrounds
             </TabsTrigger>
-            <TabsTrigger value="source" className="flex-1 min-w-[100px]" data-testid="tab-source">
-              Source Images
+            <TabsTrigger value="source" className="h-12 text-base" data-testid="tab-source">
+              Source
             </TabsTrigger>
-            <TabsTrigger value="cropped" className="flex-1 min-w-[100px]" data-testid="tab-cropped">
+            <TabsTrigger value="cropped" className="h-12 text-base col-span-2 sm:col-span-1" data-testid="tab-cropped">
               Cropped
             </TabsTrigger>
           </TabsList>

@@ -84,14 +84,15 @@ export function CroppedImageDetailSkin({ item, actions }: DetailSkinProps) {
         )}
       </div>
 
-      <div className="flex gap-2 pt-2">
+      <div className="grid grid-cols-2 gap-3 pt-2">
         {actions?.onDelete && (
           <Button
             variant="destructive"
+            className="h-14 text-base"
             onClick={() => actions.onDelete?.(item.id)}
             data-testid="button-detail-delete"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <Trash2 className="h-5 w-5 mr-2" />
             Delete
           </Button>
         )}
