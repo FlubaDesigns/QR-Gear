@@ -1,8 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Crop, Trash2, Image, Maximize2 } from "lucide-react";
-import type { SkinItem, CardSkinProps, DetailSkinProps } from "./types";
+import { Crop, Trash2, Image } from "lucide-react";
+import type { CardSkinProps, DetailSkinProps } from "./types";
 
 export function SourceImageCardSkin({ item, onClick, actions }: CardSkinProps) {
   const handleCrop = (e: React.MouseEvent) => {
@@ -74,21 +74,6 @@ export function SourceImageCardSkin({ item, onClick, actions }: CardSkinProps) {
 export function SourceImageDetailSkin({ item, actions, onClose }: DetailSkinProps) {
   return (
     <div className="space-y-4">
-      <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
-        {item.primaryImage ? (
-          <img
-            src={item.primaryImage}
-            alt={item.name}
-            className="w-full h-full object-contain"
-            data-testid="img-source-detail"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <Image className="h-16 w-16" />
-          </div>
-        )}
-      </div>
-      
       <div className="space-y-2">
         <h3 className="font-semibold text-lg" data-testid="text-source-detail-name">{item.name}</h3>
         {item.dimensions && (
@@ -96,7 +81,7 @@ export function SourceImageDetailSkin({ item, actions, onClose }: DetailSkinProp
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 pt-2">
+      <div className="grid grid-cols-2 gap-3">
         {actions?.onCrop && (
           <Button
             variant="outline"

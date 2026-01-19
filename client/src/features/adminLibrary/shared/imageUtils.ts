@@ -9,20 +9,3 @@ export function getImageUrl(asset: LibraryAssetWithProxy): string {
   }
   return "";
 }
-
-export async function fetchImageAsBlob(
-  imageUrl: string,
-  getAuthHeaders: () => Promise<HeadersInit>
-): Promise<string> {
-  if (!imageUrl) throw new Error("No image URL");
-  
-  const headers = await getAuthHeaders();
-  const response = await fetch(imageUrl, { headers });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to load image: ${response.status}`);
-  }
-  
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
-}

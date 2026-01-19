@@ -59,21 +59,6 @@ export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) 
 export function CroppedImageDetailSkin({ item, actions }: DetailSkinProps) {
   return (
     <div className="space-y-4">
-      <div className="relative aspect-[9/16] bg-muted rounded-lg overflow-hidden max-h-[60vh] mx-auto">
-        {item.primaryImage ? (
-          <img
-            src={item.primaryImage}
-            alt={item.name}
-            className="w-full h-full object-contain"
-            data-testid="img-cropped-detail"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <Image className="h-16 w-16" />
-          </div>
-        )}
-      </div>
-      
       <div className="space-y-2">
         <h3 className="font-semibold text-lg" data-testid="text-cropped-detail-name">{item.name}</h3>
         {item.isUsed && (
@@ -84,7 +69,7 @@ export function CroppedImageDetailSkin({ item, actions }: DetailSkinProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 pt-2">
+      <div className="grid grid-cols-2 gap-3">
         {actions?.onDelete && (
           <Button
             variant="destructive"

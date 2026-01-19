@@ -2,7 +2,7 @@ import { Archive, Edit, Link as LinkIcon, ExternalLink, QrCode } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import type { CardSkinProps, DetailSkinProps, SkinItem } from "./types";
+import type { CardSkinProps, DetailSkinProps } from "./types";
 
 export function GraphicsCardSkin({ item, onClick }: CardSkinProps) {
   const imageUrl = item.primaryImage || item.secondaryImage;
@@ -57,11 +57,6 @@ export function GraphicsDetailSkin({
   item, 
   actions, 
   isActionPending,
-  onClose,
-  onPrev,
-  onNext,
-  hasPrev,
-  hasNext,
 }: DetailSkinProps) {
   return (
     <div className="space-y-4">
