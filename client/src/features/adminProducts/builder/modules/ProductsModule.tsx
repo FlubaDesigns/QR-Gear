@@ -225,6 +225,7 @@ export function ProductsModule() {
     maxPrice: p.maxPrice,
     colorCount: p.colorCount,
     madeInUSA: p.madeInUSA,
+    hasMockupMapping: p.hasMockupMapping,
   }));
 
   const handleItemTap = (item: ScrollViewItem) => {

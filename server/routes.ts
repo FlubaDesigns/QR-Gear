@@ -1981,6 +1981,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
       
+      // Import mockup mapping checker
+      const { hasKnownMockupMapping } = await import("./lib/mockup-service");
+      
       // Fetch provider data for price/color info
       const { printifyPrintProviders } = await import("@shared/schema");
       const allProviders = await db.select().from(printifyPrintProviders);
@@ -2031,6 +2034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           availableSizes: sizes,
           blueprintId: bp.id,
           printProviderId: provider?.providerId || null,
+          hasMockupMapping: hasKnownMockupMapping(bp.id),
         };
         
         if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {

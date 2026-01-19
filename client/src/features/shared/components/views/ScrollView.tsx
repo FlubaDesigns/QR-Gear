@@ -1,6 +1,6 @@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Palette, DollarSign } from "lucide-react";
+import { Palette, DollarSign, AlertTriangle } from "lucide-react";
 import UsaFlag from "@/components/UsaFlag";
 import { ProductSkin } from "../ProductSkin";
 
@@ -15,6 +15,7 @@ export interface ScrollViewItem {
   madeInUSA?: boolean;
   sizes?: string[];
   description?: string;
+  hasMockupMapping?: boolean;
 }
 
 export interface ScrollViewProps {
@@ -74,6 +75,18 @@ export function ScrollView({
             alt={item.title}
             className="w-full h-full object-cover"
           />
+          {item.hasMockupMapping === false && (
+            <div className="absolute top-1 left-1 right-1">
+              <Badge 
+                variant="destructive" 
+                className="text-[9px] px-1 py-0.5 w-full justify-center gap-0.5 bg-orange-500/90"
+                data-testid={`badge-no-mapping-${item.id}`}
+              >
+                <AlertTriangle className="w-2.5 h-2.5" />
+                Preview Only
+              </Badge>
+            </div>
+          )}
           {item.madeInUSA && (
             <div className="absolute top-1 right-1">
               <UsaFlag className="w-5 h-5" />

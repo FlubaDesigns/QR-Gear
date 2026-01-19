@@ -3197,6 +3197,44 @@ const TEST_USA_MADE_BRANDS = [
     'bella+canvas', 'bella canvas', 'lane seven', 'cotton heritage',
     'shaka wear', 'backpacks usa', 'american giant', 'next level',
 ];
+// Known Printify Blueprint IDs that have proper Printful mockup mappings (not fallback)
+const KNOWN_MOCKUP_BLUEPRINT_IDS = new Set([
+    // T-SHIRTS (US-MADE)
+    6, 12, // Bella+Canvas 3001
+    5, // Next Level 3600
+    48, // Bella+Canvas 3005 V-Neck
+    184, // Bella+Canvas 3413 Tri-Blend
+    420, // Bella+Canvas 3001Y Youth
+    580, // Bella+Canvas 3001T Toddler
+    472, // Bella+Canvas 6400 Women's
+    145, // Gildan 64000
+    // TANK TOPS (US-MADE)
+    39, 91, // Bella+Canvas 3480 Unisex Tank
+    47, // Bella+Canvas 8803 Women's Muscle Tank
+    18, // Next Level 1533 Women's Racerback
+    141, // Next Level 6733 Women's Tri-Blend Racerback
+    // LONG SLEEVES (US-MADE)
+    41, 301, // Bella+Canvas 3501
+    45, // Next Level 3601
+    66, // Gildan 2400
+    // HOODIES & SWEATSHIRTS (US-MADE)
+    175, 394, // Bella+Canvas 3719 Pullover Hoodie
+    439, // Lane Seven LS14001 Hoodie
+    445, // Lane Seven LS14003 Zip Hoodie
+    446, // Lane Seven LS14004 Crewneck
+    77, // Gildan 18500 Heavy Blend Hoodie
+    76, // Gildan 18000 Crewneck Sweatshirt
+    // HATS
+    384, // Yupoong 6245CM Dad Hat
+    297, // Yupoong 6089M Snapback
+    // MUGS
+    68, // 11oz White Mug
+    69, // 15oz White Mug
+    // BAGS
+    456, // Liberty Bags 8502 Canvas Tote
+    // ACCESSORIES
+    502, 503, // Stickers
+]);
 // Test endpoint: Printify catalog (no auth required) - v2 with price fields from providers
 app.get('/test/printify/catalog', async (req, res) => {
     try {
@@ -3238,6 +3276,7 @@ app.get('/test/printify/catalog', async (req, res) => {
             const minPrice = provider?.minCost ? (provider.minCost / 100).toFixed(2) : (bp.minPrice || null);
             const maxPrice = provider?.maxCost ? (provider.maxCost / 100).toFixed(2) : (bp.maxPrice || null);
             const sizes = provider?.availableSizes || ["S", "M", "L", "XL", "2XL"];
+            const blueprintIdNum = typeof bp.id === 'string' ? parseInt(bp.id) : bp.id;
             const item = {
                 id: bp.id,
                 title: bp.title || "",
@@ -3252,6 +3291,7 @@ app.get('/test/printify/catalog', async (req, res) => {
                 availableSizes: sizes,
                 blueprintId: bp.id,
                 printProviderId: provider?.printProviderId || null,
+                hasMockupMapping: KNOWN_MOCKUP_BLUEPRINT_IDS.has(blueprintIdNum),
             };
             if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
                 categories["T-Shirts"].push(item);

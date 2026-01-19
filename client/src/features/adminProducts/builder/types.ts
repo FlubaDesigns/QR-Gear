@@ -43,6 +43,7 @@ export interface CatalogProduct {
   availableSizes: string[];
   blueprintId: number;
   printProviderId: number | null;
+  hasMockupMapping?: boolean;
 }
 
 export interface OriginFilter {

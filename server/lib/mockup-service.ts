@@ -247,7 +247,7 @@ async function generatePrintfulMockupInternal(params: {
   artworkUrl: string;
   canonicalPlacementId: string;
   qrSize?: 'small' | 'medium' | 'large';
-}): Promise<{ flat?: string; lifestyle?: string } | null> {
+}): Promise<{ flat?: string; lifestyle?: string; isFallback?: boolean } | null> {
   const { blueprintId, printProviderId, colorName, colorHex, artworkUrl, canonicalPlacementId } = params;
 
   console.log(`[MockupService/Printful] Generating mockup for blueprint ${blueprintId}, color ${colorName}`);
@@ -264,6 +264,8 @@ async function generatePrintfulMockupInternal(params: {
     )
     .limit(1);
 
+  let isFallbackMapping = false;
+  
   if (mapping.length === 0) {
     console.warn(`[MockupService/Printful] No mapping found for blueprint ${blueprintId}. Creating auto-mapping...`);
     
@@ -274,6 +276,12 @@ async function generatePrintfulMockupInternal(params: {
       return null;
     }
     mapping.push(autoMapping);
+    
+    // Check if this was a fallback mapping (brand contains "fallback")
+    if (autoMapping.printfulBrand?.includes('fallback')) {
+      isFallbackMapping = true;
+      console.log(`[MockupService/Printful] Using FALLBACK mapping - will add indicator to mockup`);
+    }
   }
 
   const printfulProductId = mapping[0].printfulProductId;
@@ -424,24 +432,157 @@ async function generatePrintfulMockupInternal(params: {
   return permanentImages;
 }
 
+// Known Printify Blueprint IDs that have proper Printful mappings (not fallback)
+// Export this so catalog can show "Preview Only" indicator for unmapped products
+export const KNOWN_MOCKUP_BLUEPRINT_IDS: Set<number> = new Set([
+  // ============ T-SHIRTS (US-MADE) ============
+  6,    // Bella+Canvas 3001 → Printful 71
+  12,   // Bella+Canvas 3001 (duplicate blueprint) → Printful 71
+  5,    // Next Level 3600 → Printful 108
+  48,   // Bella+Canvas 3005 V-Neck → Printful 223
+  184,  // Bella+Canvas 3413 Tri-Blend → Printful 162
+  420,  // Bella+Canvas 3001Y Youth → Printful 307
+  580,  // Bella+Canvas 3001T Toddler → Printful 306
+  472,  // Bella+Canvas 6400 Women's → Printful 360
+  
+  // ============ TANK TOPS (US-MADE) ============
+  39,   // Bella+Canvas 3480 Unisex Tank → Printful 248
+  47,   // Bella+Canvas 8803 Women's Muscle Tank → Printful 271
+  18,   // Next Level 1533 Women's Racerback → Printful 857
+  141,  // Next Level 6733 Women's Tri-Blend Racerback → Printful 163
+  
+  // ============ LONG SLEEVES (US-MADE) ============
+  41,   // Bella+Canvas 3501 → Printful 356
+  45,   // Next Level 3601 → Printful 116
+  66,   // Gildan 2400 → Printful 57
+  301,  // Bella+Canvas 3501 (duplicate) → Printful 356
+  
+  // ============ HOODIES & SWEATSHIRTS (US-MADE) ============
+  175,  // Bella+Canvas 3719 Pullover Hoodie → Printful 294
+  394,  // Bella+Canvas 3719 (duplicate) → Printful 294
+  439,  // Lane Seven LS14001 Hoodie → Printful 844
+  445,  // Lane Seven LS14003 Zip Hoodie → Printful 943
+  446,  // Lane Seven LS14004 Crewneck → Printful 845
+  77,   // Gildan 18500 Heavy Blend Hoodie → Printful 146
+  76,   // Gildan 18000 Crewneck Sweatshirt → Printful 145
+  
+  // ============ HATS ============
+  384,  // Yupoong 6245CM Dad Hat → Printful 206
+  297,  // Yupoong 6089M Snapback → Printful 99
+  
+  // ============ MUGS ============
+  68,   // 11oz White Mug → Printful 19
+  69,   // 15oz White Mug → Printful 88
+  
+  // ============ BAGS ============
+  456,  // Liberty Bags 8502 Canvas Tote → Printful 97
+  
+  // ============ ACCESSORIES ============
+  502,  // Sticker → Printful 358
+  503,  // Sticker → Printful 358
+  
+  // ============ GILDAN T-SHIRTS ============
+  145,  // Gildan 64000 → Printful 12
+]);
+
+/**
+ * Check if a blueprint has a known mockup mapping (not fallback)
+ */
+export function hasKnownMockupMapping(blueprintId: number): boolean {
+  return KNOWN_MOCKUP_BLUEPRINT_IDS.has(blueprintId);
+}
+
 /**
  * Auto-create a mapping between Printify blueprint and Printful product
  * Uses common product mappings for known blueprints
  */
 async function createAutoMapping(printifyBlueprintId: number): Promise<typeof printifyPrintfulMapping.$inferSelect | null> {
   // Common mappings: Printify Blueprint ID → Printful Product ID
+  // References: https://www.printful.com/custom-products
   const knownMappings: Record<number, { printfulId: number; brand: string; model: string; colorMapping?: Record<string, string> }> = {
+    // ============ T-SHIRTS (US-MADE) ============
     // Bella+Canvas 3001 Unisex Short Sleeve Jersey T-Shirt
-    6: { printfulId: 71, brand: 'Bella+Canvas', model: '3001', colorMapping: { 'Solid Black': 'Black', 'Solid White': 'White' } },
-    // Gildan 64000 Unisex Softstyle T-Shirt
-    5: { printfulId: 145, brand: 'Gildan', model: '64000' },
-    // Add more mappings as needed
+    6: { printfulId: 71, brand: 'Bella+Canvas', model: '3001', colorMapping: { 'Solid Black': 'Black', 'Solid White': 'White', 'Sport Grey': 'Athletic Heather' } },
+    12: { printfulId: 71, brand: 'Bella+Canvas', model: '3001', colorMapping: { 'Solid Black': 'Black', 'Solid White': 'White' } },
+    // Next Level 3600 Premium Fitted T-Shirt
+    5: { printfulId: 108, brand: 'Next Level', model: '3600' },
+    // Bella+Canvas 3005 V-Neck
+    48: { printfulId: 223, brand: 'Bella+Canvas', model: '3005' },
+    // Bella+Canvas 3413 Tri-Blend
+    184: { printfulId: 162, brand: 'Bella+Canvas', model: '3413' },
+    // Bella+Canvas 3001Y Youth Tee
+    420: { printfulId: 307, brand: 'Bella+Canvas', model: '3001Y' },
+    // Bella+Canvas 3001T Toddler Tee
+    580: { printfulId: 306, brand: 'Bella+Canvas', model: '3001T' },
+    // Bella+Canvas 6400 Women's Relaxed T-Shirt
+    472: { printfulId: 360, brand: 'Bella+Canvas', model: '6400' },
+    // Gildan 64000 Softstyle
+    145: { printfulId: 12, brand: 'Gildan', model: '64000' },
+    
+    // ============ TANK TOPS (US-MADE) ============
+    // Bella+Canvas 3480 Unisex Jersey Tank
+    39: { printfulId: 248, brand: 'Bella+Canvas', model: '3480' },
+    91: { printfulId: 248, brand: 'Bella+Canvas', model: '3480' },
+    // Bella+Canvas 8803 Women's Flowy Muscle Tank
+    47: { printfulId: 271, brand: 'Bella+Canvas', model: '8803' },
+    // Next Level 1533 Women's Ideal Racerback Tank
+    18: { printfulId: 857, brand: 'Next Level', model: '1533' },
+    // Next Level 6733 Women's Tri-Blend Racerback Tank
+    141: { printfulId: 163, brand: 'Next Level', model: '6733' },
+    
+    // ============ LONG SLEEVES (US-MADE) ============
+    // Bella+Canvas 3501 Unisex Jersey Long Sleeve
+    41: { printfulId: 356, brand: 'Bella+Canvas', model: '3501' },
+    301: { printfulId: 356, brand: 'Bella+Canvas', model: '3501' },
+    // Next Level 3601 Men's Long Sleeve
+    45: { printfulId: 116, brand: 'Next Level', model: '3601' },
+    // Gildan 2400 Ultra Cotton Long Sleeve
+    66: { printfulId: 57, brand: 'Gildan', model: '2400' },
+    
+    // ============ HOODIES & SWEATSHIRTS (US-MADE) ============
+    // Bella+Canvas 3719 Unisex Sponge Fleece Hoodie
+    175: { printfulId: 294, brand: 'Bella+Canvas', model: '3719' },
+    394: { printfulId: 294, brand: 'Bella+Canvas', model: '3719' },
+    // Lane Seven LS14001 Premium Mid-Weight Hoodie
+    439: { printfulId: 844, brand: 'Lane Seven', model: 'LS14001' },
+    // Lane Seven LS14003 Premium Full Zip Hoodie
+    445: { printfulId: 943, brand: 'Lane Seven', model: 'LS14003' },
+    // Lane Seven LS14004 Premium Crew Neck Sweatshirt
+    446: { printfulId: 845, brand: 'Lane Seven', model: 'LS14004' },
+    // Gildan 18500 Heavy Blend Hoodie
+    77: { printfulId: 146, brand: 'Gildan', model: '18500' },
+    // Gildan 18000 Heavy Blend Crewneck Sweatshirt
+    76: { printfulId: 145, brand: 'Gildan', model: '18000' },
+    
+    // ============ HATS ============
+    // Yupoong 6245CM Dad Hat
+    384: { printfulId: 206, brand: 'Yupoong', model: '6245CM' },
+    // Yupoong 6089M Snapback
+    297: { printfulId: 99, brand: 'Yupoong', model: '6089M' },
+    
+    // ============ MUGS ============
+    // 11oz White Mug
+    68: { printfulId: 19, brand: 'Generic', model: '11oz Mug' },
+    // 15oz White Mug
+    69: { printfulId: 88, brand: 'Generic', model: '15oz Mug' },
+    
+    // ============ BAGS ============
+    // Liberty Bags 8502 Canvas Tote
+    456: { printfulId: 97, brand: 'Liberty Bags', model: '8502' },
+    
+    // ============ ACCESSORIES ============
+    // Stickers (multiple Printify blueprints map to Printful stickers)
+    502: { printfulId: 358, brand: 'Generic', model: 'Sticker' },
+    503: { printfulId: 358, brand: 'Generic', model: 'Sticker' },
   };
 
-  const mapping = knownMappings[printifyBlueprintId];
+  let mapping = knownMappings[printifyBlueprintId];
+  
+  // FALLBACK: If no specific mapping exists, use Bella+Canvas 3001 as a generic t-shirt mockup
+  // This ensures mockups always work even for unmapped products
   if (!mapping) {
-    console.warn(`[MockupService/Printful] No known mapping for blueprint ${printifyBlueprintId}`);
-    return null;
+    console.warn(`[MockupService/Printful] No known mapping for blueprint ${printifyBlueprintId}, using fallback Bella+Canvas 3001`);
+    mapping = { printfulId: 71, brand: 'Bella+Canvas (fallback)', model: '3001', colorMapping: { 'Solid Black': 'Black', 'Solid White': 'White' } };
   }
 
   console.log(`[MockupService/Printful] Creating auto-mapping: Blueprint ${printifyBlueprintId} → Printful ${mapping.printfulId}`);
