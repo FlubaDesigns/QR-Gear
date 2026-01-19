@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { AlertTriangle, DollarSign, Image, Layers, QrCode, LogIn, LogOut, Server, User } from "lucide-react";
+import { AlertTriangle, DollarSign, Image, Layers, QrCode, LogIn, LogOut, Server, User, Store } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
 import { useAuth } from "@/hooks/useAuth";
@@ -145,8 +145,14 @@ export default function TestProductsPage() {
                   Create and manage QR-enabled products. All changes are saved to the database.
                 </p>
                 <div className="flex flex-wrap gap-2">
+                  <Link href="/test-store-builder">
+                    <button className="qr-btn qr-btn--primary qr-btn--touch" data-testid="link-store-builder">
+                      <Store className="h-5 w-5 mr-2" />
+                      Store Builder
+                    </button>
+                  </Link>
                   <Link href="/test-pricing">
-                    <button className="qr-btn qr-btn--primary qr-btn--touch" data-testid="link-test-pricing">
+                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-pricing">
                       <DollarSign className="h-5 w-5 mr-2" />
                       Pricing Settings
                     </button>
