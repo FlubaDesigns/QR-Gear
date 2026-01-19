@@ -8552,13 +8552,54 @@ ${allPages.map(page => `  <url>
       };
       
       const packetRef = await firestoreDb.collection("productPackets").add(packetData);
+      const packetId = packetRef.id;
       
-      console.log(`[Packets TEST] Created packet: ${packetRef.id}`);
+      console.log(`[Packets TEST] Created packet: ${packetId}`);
+
+      // Queue batch mockup jobs for all color × placement × size combinations
+      let mockupJobsQueued = 0;
+      if (blueprintId && printProviderId && colors && Array.isArray(colors) && colors.length > 0) {
+        try {
+          const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+          
+          // Use compositeUrl as the artwork URL for mockups
+          const artworkUrl = compositeUrl || qrOnlyUrl;
+          if (artworkUrl) {
+            const targetPlacements = (placements && placements.length > 0) ? placements : ["front"];
+            const qrSizes: Array<"small" | "medium" | "large"> = ["small", "medium", "large"];
+            
+            // Create a pseudo-product ID for the packet to track mockup jobs
+            const productIdForMockups = `packet_${packetId}`;
+            
+            console.log(`[Packets TEST] Queueing mockups for ${colors.length} colors × ${targetPlacements.length} placements × ${qrSizes.length} sizes`);
+            
+            const jobs = await mockupJobQueue.createBatchJobs({
+              productId: productIdForMockups,
+              colors: colors.map((c: any) => ({ name: c.name || c, hex: c.hex || '#000000' })),
+              qrSizes,
+              placements: targetPlacements,
+              blueprintId: parseInt(blueprintId),
+              printProviderId: parseInt(printProviderId),
+              artworkUrl,
+              artworkVariant: "black",
+            });
+            
+            mockupJobsQueued = jobs.length;
+            console.log(`[Packets TEST] Queued ${mockupJobsQueued} mockup jobs for packet ${packetId}`);
+          } else {
+            console.log(`[Packets TEST] No artwork URL available yet, skipping mockup queue`);
+          }
+        } catch (err: any) {
+          console.error(`[Packets TEST] Failed to queue mockup jobs:`, err.message);
+          // Don't fail packet creation if mockup queueing fails
+        }
+      }
 
       res.json({
         success: true,
-        packetId: packetRef.id,
-        message: `Product packet created`,
+        packetId,
+        mockupJobsQueued,
+        message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
       });
     } catch (error: any) {
       console.error("[Packets TEST] Error creating packet:", error);
