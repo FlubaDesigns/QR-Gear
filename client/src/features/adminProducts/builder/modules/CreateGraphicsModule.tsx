@@ -195,12 +195,14 @@ export function CreateGraphicsModule() {
   });
 
   const isPlayMode = state.qrProductState === "qr_play";
+  const isBasicsOrPlusMode = state.qrProductState === "qr_basics" || state.qrProductState === "qr_plus";
+  const isHostedMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_dynamics";
+  
   const hasPlayMedia = isPlayMode && (
     (state.content?.playMediaSource === "url" && state.content?.playMediaUrl) ||
     (state.content?.playMediaSource === "upload" && state.content?.playMediaFile)
   );
   const playPermissionOk = !isPlayMode || state.content?.playPermissionConfirmed;
-  const hasRequiredContent = isPlayMode ? hasPlayMedia : (state.content?.url || state.content?.title);
   const hasPlacement = (state.selectedPlacements || []).length > 0;
 
   const validationErrors: string[] = [];
@@ -209,7 +211,7 @@ export function CreateGraphicsModule() {
   if (!hasPlacement) validationErrors.push("Select at least one placement");
   if (isPlayMode && !hasPlayMedia) validationErrors.push("Upload media or add media URL");
   if (isPlayMode && hasPlayMedia && !playPermissionOk) validationErrors.push("Confirm media permissions");
-  if (!isPlayMode && !hasRequiredContent) validationErrors.push("Add URL or content");
+  if (isBasicsOrPlusMode && !state.content?.url) validationErrors.push("Add URL or content");
 
   const canCreate = validationErrors.length === 0;
 
