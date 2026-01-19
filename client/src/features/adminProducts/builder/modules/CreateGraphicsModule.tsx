@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Wand2, Loader2, Check, Image, QrCode, DollarSign, Save, ArrowRight, Library, Store, ArrowLeft } from "lucide-react";
+import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -23,28 +23,19 @@ interface PricingSettings {
   hostingTiers: HostingTier[];
 }
 
-interface LocalGraphics {
-  qrOnlyUrl: string;
-  compositeUrl: string;
-  compositeDataUrl: string;
-  generatedAt: Date;
-}
-
-interface GeneratedGraphics {
-  qrOnlyUrl: string;
-  compositeUrl: string;
-  generatedAt: Date;
+interface PacketResult {
   packetId: string;
-}
-
-interface CreateGraphicsModuleProps {
-  onGraphicsCreated?: (graphics: GeneratedGraphics, pricing: PricingBreakdown, packetId: string) => void;
-  onSaveComplete?: () => void;
+  landingPageUrl: string;
+  qrOnlyUrl: string;
+  compositeUrl: string;
+  pricing: PricingBreakdown;
+  priorityMockupUrl?: string | null;
+  priorityMockupLoading?: boolean;
 }
 
 function generateQRCodeUrl(content: string, size: number = 3000, qrColor: "black" | "white" = "black"): string {
   const color = qrColor === "white" ? "ffffff" : "000000";
-  const bgColor = qrColor === "white" ? "00000000" : "ffffff"; // transparent bg for white QR
+  const bgColor = qrColor === "white" ? "00000000" : "ffffff";
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${color}&bgcolor=${bgColor}`;
 }
 
@@ -95,7 +86,6 @@ async function generateCompositeGraphic(options: CompositeOptions): Promise<stri
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas not supported');
 
-  // Background: transparent, product color, or white
   if (useTransparentBackground) {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   } else if (productColorHex) {
@@ -106,7 +96,6 @@ async function generateCompositeGraphic(options: CompositeOptions): Promise<stri
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   }
 
-  // Draw background image if provided (for landing page composite)
   if (backgroundUrl) {
     try {
       const bgImg = await loadImage(backgroundUrl);
@@ -121,13 +110,10 @@ async function generateCompositeGraphic(options: CompositeOptions): Promise<stri
     }
   }
 
-  // Draw QR code with white border for scanability
   try {
     const qrImg = await loadImage(qrUrl);
     const qrX = (CANVAS_WIDTH - QR_SIZE) / 2;
     const qrY = (CANVAS_HEIGHT - QR_SIZE) / 2;
-    
-    // White border around QR for scanability on any background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(qrX - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
     ctx.drawImage(qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
@@ -138,25 +124,20 @@ async function generateCompositeGraphic(options: CompositeOptions): Promise<stri
   if (headerStyle?.enabled && headerStyle.text) {
     const fontSize = parseInt(headerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
-    
     ctx.font = `bold ${scaledFontSize}px ${headerStyle.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
     const qrCenterY = CANVAS_HEIGHT / 2;
     const qrTopEdge = qrCenterY - (QR_SIZE / 2) - 20;
     const verticalOffset = headerStyle.verticalOffset ?? 20;
     const textY = qrTopEdge - (verticalOffset * 4);
-    
     const horizontalOffset = headerStyle.horizontalOffset ?? 0;
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    
     if (headerStyle.strokeColor && headerStyle.strokeWidth > 0) {
       ctx.strokeStyle = headerStyle.strokeColor;
       ctx.lineWidth = headerStyle.strokeWidth * 2;
       ctx.strokeText(headerStyle.text, textX, textY);
     }
-    
     ctx.fillStyle = headerStyle.color;
     ctx.fillText(headerStyle.text, textX, textY);
   }
@@ -164,25 +145,20 @@ async function generateCompositeGraphic(options: CompositeOptions): Promise<stri
   if (footerStyle?.enabled && footerStyle.text) {
     const fontSize = parseInt(footerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
-    
     ctx.font = `bold ${scaledFontSize}px ${footerStyle.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
     const qrCenterY = CANVAS_HEIGHT / 2;
     const qrBottomEdge = qrCenterY + (QR_SIZE / 2) + 20;
     const verticalOffset = footerStyle.verticalOffset ?? 20;
     const textY = qrBottomEdge + (verticalOffset * 4);
-    
     const horizontalOffset = footerStyle.horizontalOffset ?? 0;
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    
     if (footerStyle.strokeColor && footerStyle.strokeWidth > 0) {
       ctx.strokeStyle = footerStyle.strokeColor;
       ctx.lineWidth = footerStyle.strokeWidth * 2;
       ctx.strokeText(footerStyle.text, textX, textY);
     }
-    
     ctx.fillStyle = footerStyle.color;
     ctx.fillText(footerStyle.text, textX, textY);
   }
@@ -200,20 +176,13 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-type SavePath = "store" | "library" | null;
-
-export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: CreateGraphicsModuleProps) {
+export function CreateGraphicsModule() {
   const { state, loadGraphic } = useBuilderContext();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [localGraphics, setLocalGraphics] = useState<LocalGraphics | null>(null);
-  const [calculatedPricing, setCalculatedPricing] = useState<PricingBreakdown | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [packetResult, setPacketResult] = useState<PacketResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPath, setSelectedPath] = useState<SavePath>(null);
-  const [saveComplete, setSaveComplete] = useState(false);
-  const [savedPacketId, setSavedPacketId] = useState<string | null>(null);
 
   const { data: pricingSettings } = useQuery<PricingSettings>({
     queryKey: ["/api/test/pricing-settings"],
@@ -232,13 +201,17 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
   );
   const playPermissionOk = !isPlayMode || state.content?.playPermissionConfirmed;
   const hasRequiredContent = isPlayMode ? hasPlayMedia : (state.content?.url || state.content?.title);
+  const hasPlacement = (state.selectedPlacements || []).length > 0;
 
-  const canCreate = Boolean(
-    state.selectedProduct &&
-    state.qrProductState &&
-    hasRequiredContent &&
-    playPermissionOk
-  );
+  const validationErrors: string[] = [];
+  if (!state.selectedProduct) validationErrors.push("Select a product");
+  if (!state.qrProductState) validationErrors.push("Select a QR mode");
+  if (!hasPlacement) validationErrors.push("Select at least one placement");
+  if (isPlayMode && !hasPlayMedia) validationErrors.push("Upload media or add media URL");
+  if (isPlayMode && hasPlayMedia && !playPermissionOk) validationErrors.push("Confirm media permissions");
+  if (!isPlayMode && !hasRequiredContent) validationErrors.push("Add URL or content");
+
+  const canCreate = validationErrors.length === 0;
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct || !state.content) return null;
@@ -251,12 +224,8 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     const placementCost = additionalPlacements * pricingSettings.additionalPlacementCost;
     
     let textLineCount = 0;
-    if (state.content.headerStyle?.enabled && state.content.headerStyle.text) {
-      textLineCount++;
-    }
-    if (state.content.footerStyle?.enabled && state.content.footerStyle.text) {
-      textLineCount++;
-    }
+    if (state.content.headerStyle?.enabled && state.content.headerStyle.text) textLineCount++;
+    if (state.content.footerStyle?.enabled && state.content.footerStyle.text) textLineCount++;
     const textUpcharge = textLineCount * pricingSettings.textLineUpcharge;
     
     const requiresHosting = state.qrProductState === "qr_canvas" || 
@@ -285,129 +254,38 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     };
   }, [pricingSettings, state.selectedProduct, state.selectedPlacements, state.content, state.qrProductState]);
 
-  const handleCreateGraphics = async () => {
-    if (!canCreate) return;
+  const handleCreatePacket = async () => {
+    if (!canCreate || isCreating) return;
 
-    setIsGenerating(true);
+    setIsCreating(true);
     setError(null);
-    setSelectedPath(null);
-    setSaveComplete(false);
-    setSavedPacketId(null);
+    setPacketResult(null);
 
     try {
       const pricing = calculatePricing();
-      
-      const qrContent = isPlayMode 
-        ? "PLACEHOLDER_PLAY_URL"
-        : (state.content.url || state.content.title || "").trim();
-      
-      // Auto-contrast QR color based on product color
-      const productColorHexTemp = state.selectedColor?.hex || "#ffffff";
-      const qrColor = getContrastQRColor(productColorHexTemp);
-      const qrUrl = generateQRCodeUrl(qrContent, 3000, qrColor);
-      
-      await new Promise((resolve, reject) => {
-        const img = new window.Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => reject(new Error("Failed to generate QR code"));
-        img.src = qrUrl;
-      });
+      if (!pricing) throw new Error("Could not calculate pricing");
 
-      const backgroundUrl = state.loadedBackground?.url || null;
-      const headerStyle = state.content.headerStyle as TextStyle | null;
-      const footerStyle = state.content.footerStyle as TextStyle | null;
-      const productColorHex = state.selectedColor?.hex || null;
-      
-      let compositeDataUrl: string;
-      try {
-        compositeDataUrl = await generateCompositeGraphic({
-          qrUrl,
-          backgroundUrl,
-          productColorHex,
-          headerStyle,
-          footerStyle,
-          useTransparentBackground: false,
-        });
-      } catch (e) {
-        console.warn('Composite generation failed, using product image as fallback:', e);
-        compositeDataUrl = state.selectedProduct?.imageUrl || "";
-      }
-
-      loadGraphic({ 
-        compositeUrl: compositeDataUrl, 
-        qrOnlyUrl: qrUrl 
-      });
-      
-      const graphics: LocalGraphics = {
-        qrOnlyUrl: qrUrl,
-        compositeUrl: compositeDataUrl,
-        compositeDataUrl,
-        generatedAt: new Date(),
-      };
-
-      setLocalGraphics(graphics);
-      setCalculatedPricing(pricing);
-
-    } catch (err: any) {
-      console.error("Graphics creation failed:", err);
-      setError(err.message || "Failed to create graphics");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleSave = async (path: SavePath) => {
-    console.log("[CreateGraphics] handleSave called with path:", path);
-    console.log("[CreateGraphics] localGraphics:", !!localGraphics);
-    console.log("[CreateGraphics] calculatedPricing:", !!calculatedPricing);
-    console.log("[CreateGraphics] isSaving:", isSaving);
-    
-    if (!localGraphics) {
-      console.error("[CreateGraphics] No localGraphics - user must click Create Graphics first");
-      toast({ title: "Error", description: "Please create graphics preview first", variant: "destructive" });
-      return;
-    }
-    if (!calculatedPricing) {
-      console.error("[CreateGraphics] No calculatedPricing");
-      toast({ title: "Error", description: "Pricing not calculated", variant: "destructive" });
-      return;
-    }
-    if (!path) {
-      console.error("[CreateGraphics] No path specified");
-      return;
-    }
-    if (isSaving) {
-      console.log("[CreateGraphics] Already saving, ignoring");
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-    setSelectedPath(path);
-
-    try {
       const product = state.selectedProduct as any;
       const availableColors = product?.availableColors || [];
       const availableSizes = product?.availableSizes || [];
       const availablePlacements = product?.availablePlacements || [];
 
-      // Generate SEO-friendly slug from title
       const generateSlug = (text: string): string => {
         return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
       };
       
-      const landingPageSlug = generateSlug(state.content.title || 'product') + '-' + Date.now().toString(36);
+      const landingPageSlug = generateSlug(state.content?.title || 'product') + '-' + Date.now().toString(36);
       
       const packetPayload: Record<string, any> = {
         qrOnlyUrl: "",
         compositeUrl: "",
-        qrContent: isPlayMode ? "" : (state.content.url || state.content.title || "").trim(),
-        headerText: state.content.headerStyle?.enabled ? state.content.headerStyle.text : null,
-        footerText: state.content.footerStyle?.enabled ? state.content.footerStyle.text : null,
-        headerStyle: state.content.headerStyle?.enabled ? state.content.headerStyle : null,
-        footerStyle: state.content.footerStyle?.enabled ? state.content.footerStyle : null,
+        qrContent: isPlayMode ? "" : (state.content?.url || state.content?.title || "").trim(),
+        headerText: state.content?.headerStyle?.enabled ? state.content.headerStyle.text : null,
+        footerText: state.content?.footerStyle?.enabled ? state.content.footerStyle.text : null,
+        headerStyle: state.content?.headerStyle?.enabled ? state.content.headerStyle : null,
+        footerStyle: state.content?.footerStyle?.enabled ? state.content.footerStyle : null,
         backgroundUrl: state.loadedBackground?.url || null,
-        pricing: calculatedPricing,
+        pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
         productDescription: product?.description || null,
@@ -422,26 +300,24 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         defaultPlacement: product?.defaultPlacement || null,
         qrProductState: state.qrProductState,
         placements: state.selectedPlacements || [],
-        placementConfig: state.placementConfig || {},  // graphic vs qr per placement
-        placementSizes: state.placementSizes || {},    // S/M/L per placement
+        placementConfig: state.placementConfig || {},
+        placementSizes: state.placementSizes || {},
         availablePlacements,
         sizes: availableSizes,
         colors: availableColors,
         basePrice: product?.basePrice || null,
         customerPrice: product?.customerPrice || null,
         mockupsByColor: product?.mockupsByColor || null,
-        // Landing page fields
-        landingPageTitle: state.content.title || null,
-        landingPageDescription: state.content.description || null,
+        landingPageTitle: state.content?.title || null,
+        landingPageDescription: state.content?.description || null,
         landingPageBackgroundUrl: state.loadedBackground?.url || null,
         landingPageSlug,
       };
 
-      if (isPlayMode && state.content.playMediaSource === "url" && state.content.playMediaUrl) {
+      if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
         packetPayload.playMediaUrl = state.content.playMediaUrl;
       }
 
-      console.log("[CreateGraphics] Creating packet...", packetPayload);
       const packetRes = await fetch("/api/test/packets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -450,27 +326,23 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
 
       if (!packetRes.ok) {
         const errData = await packetRes.json().catch(() => ({}));
-        console.error("[CreateGraphics] Packet creation failed:", errData);
         throw new Error(errData.error || `Packet API error ${packetRes.status}`);
       }
 
       const packetData = await packetRes.json();
       const packetId = packetData.packetId;
-      console.log("[CreateGraphics] Packet created:", packetId);
 
-      if (isPlayMode && state.content.playMediaSource === "upload" && state.content.playMediaFile) {
+      if (isPlayMode && state.content?.playMediaSource === "upload" && state.content?.playMediaFile) {
         try {
           const file = state.content.playMediaFile;
           const fileName = file.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
-          
           const base64Data = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
             reader.onerror = () => reject(new Error("Failed to read file"));
             reader.readAsDataURL(file);
           });
-          
-          const uploadRes = await fetch("/api/test/content/upload", {
+          await fetch("/api/test/content/upload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -482,53 +354,39 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
               fileName,
             }),
           });
-          
-          if (uploadRes.ok) {
-            const uploadData = await uploadRes.json();
-            console.log("[CreateGraphics] Play media uploaded to:", uploadData.publicUrl);
-          }
         } catch (uploadErr) {
-          console.warn("[CreateGraphics] Play media upload error:", uploadErr);
+          console.warn("Play media upload error:", uploadErr);
         }
       }
 
-      // Generate final QR content URL
-      // For Canvas/Play/Dynamics: use landing page URL (qrgear.com/m/{slug})
-      // For Basics: use the text content directly
       const baseUrl = window.location.origin;
       const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_dynamics";
       const finalQrContent = isLandingPageMode
         ? `${baseUrl}/m/${landingPageSlug}`
-        : (state.content.url || state.content.title || "");
+        : (state.content?.url || state.content?.title || "");
       
-      // Auto-contrast QR color for final URL
       const productColorForQr = state.selectedColor?.hex || "#ffffff";
       const qrColorForFinal = getContrastQRColor(productColorForQr);
-      
-      const finalQrUrl = isLandingPageMode 
-        ? generateQRCodeUrl(finalQrContent.trim(), 3000, qrColorForFinal)
-        : localGraphics.qrOnlyUrl;
+      const finalQrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000, qrColorForFinal);
 
-      let finalCompositeUrl = localGraphics.compositeDataUrl;
+      const backgroundUrl = state.loadedBackground?.url || null;
+      const headerStyle = state.content?.headerStyle as TextStyle | null;
+      const footerStyle = state.content?.footerStyle as TextStyle | null;
+      const productColorHex = state.selectedColor?.hex || null;
       
-      // Regenerate composite with final QR URL for landing page modes
-      if (isLandingPageMode) {
-        const backgroundUrl = state.loadedBackground?.url || null;
-        const headerStyle = state.content.headerStyle as TextStyle | null;
-        const footerStyle = state.content.footerStyle as TextStyle | null;
-        const productColorHex = state.selectedColor?.hex || null;
-        try {
-          finalCompositeUrl = await generateCompositeGraphic({
-            qrUrl: finalQrUrl,
-            backgroundUrl,
-            productColorHex,
-            headerStyle,
-            footerStyle,
-            useTransparentBackground: false,
-          });
-        } catch (e) {
-          console.warn('Composite regeneration failed:', e);
-        }
+      let finalCompositeUrl: string;
+      try {
+        finalCompositeUrl = await generateCompositeGraphic({
+          qrUrl: finalQrUrl,
+          backgroundUrl,
+          productColorHex,
+          headerStyle,
+          footerStyle,
+          useTransparentBackground: false,
+        });
+      } catch (e) {
+        console.warn('Composite generation failed:', e);
+        finalCompositeUrl = state.selectedProduct?.imageUrl || "";
       }
 
       const mode = state.qrProductState === "qr_canvas" ? "canvas" : 
@@ -548,13 +406,12 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
             fileName: `${packetId}-composite.png`,
           }),
         });
-        
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
           finalCompositeUrl = uploadData.publicUrl;
         }
       } catch (uploadErr) {
-        console.warn("[CreateGraphics] Upload error, using data URL as fallback:", uploadErr);
+        console.warn("Upload error, using data URL:", uploadErr);
       }
 
       await fetch(`/api/test/packets/${packetId}`, {
@@ -567,46 +424,49 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         }),
       });
 
-      const graphicsPayload = {
-        name: state.content.title || `Graphic - ${new Date().toLocaleDateString()}`,
-        description: state.content.description || "",
-        category: state.qrProductState || "General",
-        qrOnlyUrl: finalQrUrl,
-        compositeUrl: finalCompositeUrl,
-        qrContent: finalQrContent,
-        pricing: calculatedPricing,
-        packetId,
-      };
-
       await fetch("/api/test/graphics/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(graphicsPayload),
+        body: JSON.stringify({
+          name: state.content?.title || `Graphic - ${new Date().toLocaleDateString()}`,
+          description: state.content?.description || "",
+          category: state.qrProductState || "General",
+          qrOnlyUrl: finalQrUrl,
+          compositeUrl: finalCompositeUrl,
+          qrContent: finalQrContent,
+          pricing,
+          packetId,
+        }),
       });
 
-      const templatePayload = {
-        name: state.content.title || `Template - ${new Date().toLocaleDateString()}`,
-        description: state.content.description || "",
-        category: state.qrProductState || "General",
-        productId: state.selectedProduct?.id || null,
-        blueprintId: product?.blueprintId || 0,
-        printProviderId: product?.printProviderId || 0,
-        colors: [],
-        placements: state.selectedPlacements || ["front"],
-        qrSizes: ["small", "medium", "large"],
-        artworkUrl: finalCompositeUrl,
-        artworkVariant: "black",
-        thumbnailUrl: state.selectedProduct?.imageUrl || "",
-        qrContent: finalQrContent,
-        pricing: calculatedPricing,
-        packetId,
-      };
+      const productColors = availableColors.length > 0 
+        ? availableColors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color || '#000000' }))
+        : [{ name: state.selectedColor?.name || 'Black', hex: state.selectedColor?.hex || '#000000' }];
 
-      await fetch("/api/test/templates/full-save", {
+      const templateSaveRes = await fetch("/api/test/templates/full-save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(templatePayload),
+        body: JSON.stringify({
+          name: state.content?.title || `Template - ${new Date().toLocaleDateString()}`,
+          description: state.content?.description || "",
+          category: state.qrProductState || "General",
+          productId: state.selectedProduct?.id || null,
+          blueprintId: product?.blueprintId || 0,
+          printProviderId: product?.printProviderId || 0,
+          colors: productColors,
+          placements: state.selectedPlacements || ["front"],
+          qrSizes: ["small", "medium", "large"],
+          artworkUrl: finalCompositeUrl,
+          artworkVariant: "black",
+          thumbnailUrl: state.selectedProduct?.imageUrl || "",
+          qrContent: finalQrContent,
+          pricing,
+          packetId,
+        }),
       });
+      
+      const templateData = await templateSaveRes.json().catch(() => ({}));
+      console.log(`[CreatePacket] Template saved, mockup jobs queued: ${templateData.jobsQueued || 0}`);
 
       fetch("/api/test/queue/process", {
         method: "POST",
@@ -614,52 +474,70 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         body: JSON.stringify({ limit: 3 }),
       }).catch(() => {});
 
-      const generatedGraphics: GeneratedGraphics = {
+      loadGraphic({ compositeUrl: finalCompositeUrl, qrOnlyUrl: finalQrUrl });
+
+      const initialResult: PacketResult = {
+        packetId,
+        landingPageUrl: finalQrContent,
         qrOnlyUrl: finalQrUrl,
         compositeUrl: finalCompositeUrl,
-        generatedAt: new Date(),
-        packetId,
+        pricing,
+        priorityMockupUrl: null,
+        priorityMockupLoading: true,
       };
+      setPacketResult(initialResult);
 
-      console.log("[CreateGraphics] Save complete, packetId:", packetId, "path:", path);
-      onGraphicsCreated?.(generatedGraphics, calculatedPricing, packetId);
-      setSaveComplete(true);
-      setSavedPacketId(packetId);
+      toast({
+        title: "Packet Created",
+        description: "Generating digital proof...",
+      });
 
-      if (path === "store") {
-        console.log("[CreateGraphics] Navigating to Store Builder...");
-        toast({
-          title: "Saved Successfully",
-          description: "Opening Store Builder with your product...",
+      const selectedPlacement = (state.selectedPlacements || ["front"])[0];
+      const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
+      
+      fetch("/api/test/mockup/priority", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blueprintId: product?.blueprintId || 0,
+          printProviderId: product?.printProviderId || 99,
+          colorName: state.selectedColor?.name || 'Black',
+          colorHex: state.selectedColor?.hex || '#000000',
+          placement: selectedPlacement + "-center",
+          artworkUrl: finalCompositeUrl,
+          qrSize: selectedSize,
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.mockupUrl) {
+            setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
+            toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
+          } else {
+            setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false } : prev);
+          }
+        })
+        .catch(() => {
+          setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false } : prev);
         });
-        setTimeout(() => {
-          console.log("[CreateGraphics] Executing navigation to:", `/test-store-builder?packetId=${packetId}`);
-          navigate(`/test-store-builder?packetId=${packetId}`);
-          onSaveComplete?.();
-        }, 800);
-      } else {
-        toast({
-          title: "Saved to Library",
-          description: "Graphics and template saved! You can find them in the library.",
-        });
-      }
 
     } catch (err: any) {
-      console.error("[CreateGraphics] Save failed:", err);
-      setError(err.message || "Failed to save");
-      toast({ title: "Save Failed", description: err.message || "Failed to save", variant: "destructive" });
-      setSelectedPath(null);
+      console.error("Create packet failed:", err);
+      setError(err.message || "Failed to create packet");
+      toast({ title: "Error", description: err.message || "Failed to create packet", variant: "destructive" });
     } finally {
-      setIsSaving(false);
+      setIsCreating(false);
+    }
+  };
+
+  const handleNext = () => {
+    if (packetResult) {
+      navigate(`/test-store-builder?packetId=${packetResult.packetId}`);
     }
   };
 
   const handleReset = () => {
-    setLocalGraphics(null);
-    setCalculatedPricing(null);
-    setSelectedPath(null);
-    setSaveComplete(false);
-    setSavedPacketId(null);
+    setPacketResult(null);
     setError(null);
   };
 
@@ -669,51 +547,54 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
 
   return (
     <CollapsibleModule
-      title="Create Graphics"
-      icon={<Wand2 className="h-4 w-4" />}
+      title="Create Packet"
+      icon={<Package className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen
     >
       <div className="space-y-4">
-        {!localGraphics && (
+        {!packetResult && (
           <>
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/50 rounded-md border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                Click the button below to preview your QR code graphics and calculate pricing. 
-                Nothing is saved until you choose where to send it.
-              </p>
-            </div>
+            {validationErrors.length > 0 && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/50 rounded-md border border-amber-200 dark:border-amber-800">
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2">Complete these items first:</p>
+                <ul className="text-sm text-amber-600 dark:text-amber-400 list-disc list-inside space-y-1">
+                  {validationErrors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {validationErrors.length === 0 && (
+              <div className="p-3 bg-green-50 dark:bg-green-950/50 rounded-md border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                  <Check className="h-4 w-4" />
+                  Ready to create your product packet
+                </p>
+              </div>
+            )}
 
             <Button
               type="button"
               size="lg"
-              className="w-full h-14 text-base"
-              disabled={!canCreate || isGenerating}
-              onClick={handleCreateGraphics}
-              data-testid="button-create-graphics"
+              className="w-full h-14 text-base bg-blue-600 hover:bg-blue-700"
+              disabled={!canCreate || isCreating}
+              onClick={handleCreatePacket}
+              data-testid="button-create-packet"
             >
-              {isGenerating ? (
+              {isCreating ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Creating Preview...
+                  Creating Packet...
                 </>
               ) : (
                 <>
-                  <Wand2 className="h-5 w-5 mr-2" />
-                  Create Graphics Preview
+                  <Package className="h-5 w-5 mr-2" />
+                  Create Packet
                 </>
               )}
             </Button>
-
-            {!canCreate && (
-              <div className="text-sm text-muted-foreground text-center">
-                {!state.selectedProduct && "Select a product first"}
-                {state.selectedProduct && !state.qrProductState && "Select a QR mode first"}
-                {state.selectedProduct && state.qrProductState && isPlayMode && !hasPlayMedia && "Upload a video or add a media URL above"}
-                {state.selectedProduct && state.qrProductState && isPlayMode && hasPlayMedia && !playPermissionOk && "Check the permission box to confirm you have rights to this content"}
-                {state.selectedProduct && state.qrProductState && !isPlayMode && !hasRequiredContent && "Add a URL or content above"}
-              </div>
-            )}
           </>
         )}
 
@@ -723,157 +604,199 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
           </div>
         )}
 
-        {localGraphics && !saveComplete && (
+        {packetResult && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <Check className="h-4 w-4 text-green-600" />
-                Review Your Graphics
-              </h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleReset}
-                disabled={isSaving}
-                data-testid="button-reset-graphics"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Start Over
-              </Button>
+            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+              <Check className="h-5 w-5" />
+              <span className="font-semibold">Packet Created Successfully</span>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {localGraphics.qrOnlyUrl && (
-                <Card className="overflow-hidden">
-                  <CardContent className="p-3">
-                    <p className="text-xs font-medium mb-2 flex items-center gap-1">
-                      <QrCode className="h-3 w-3" />
-                      QR Code
-                    </p>
-                    <div className="bg-white rounded-md p-2 flex items-center justify-center">
-                      <img
-                        src={localGraphics.qrOnlyUrl}
-                        alt="QR Code"
-                        className="w-full max-w-[150px] h-auto"
-                        data-testid="img-generated-qr"
-                      />
-                    </div>
-                    {isPlayMode && (
-                      <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/50 rounded border border-amber-200 dark:border-amber-800">
-                        <p className="text-xs text-amber-700 dark:text-amber-300 text-center font-medium">
-                          Preview Only - QR will update on save
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
 
-              {localGraphics.compositeUrl && (
-                <Card className="overflow-hidden">
-                  <CardContent className="p-3">
-                    <p className="text-xs font-medium mb-2 flex items-center gap-1">
-                      <Image className="h-3 w-3" />
-                      Composite
-                    </p>
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-blue-300 dark:border-blue-700">
+              <CardContent className="p-4">
+                <p className="text-sm font-semibold mb-3 flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                  <Shirt className="h-5 w-5" />
+                  Digital Proof - Your Product Preview
+                </p>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 flex items-center justify-center min-h-[200px]">
+                  {packetResult.priorityMockupLoading ? (
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                      <span className="text-sm">Generating preview...</span>
+                    </div>
+                  ) : packetResult.priorityMockupUrl ? (
+                    <img
+                      src={packetResult.priorityMockupUrl}
+                      alt="Product Preview"
+                      className="max-w-full max-h-[300px] h-auto object-contain rounded"
+                      data-testid="img-priority-mockup"
+                    />
+                  ) : (
                     <div 
-                      className="rounded-md p-2 flex items-center justify-center"
+                      className="rounded-lg p-4 flex items-center justify-center"
                       style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
                     >
                       <img
-                        src={localGraphics.compositeUrl}
-                        alt="Composite"
-                        className="w-full max-w-[150px] h-auto object-contain"
-                        data-testid="img-generated-product"
+                        src={packetResult.compositeUrl}
+                        alt="Composite Preview"
+                        className="max-w-[200px] h-auto object-contain"
+                        data-testid="img-packet-composite-fallback"
                       />
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-green-50 dark:bg-green-950/50 border-green-200 dark:border-green-800">
+              <CardContent className="p-3">
+                <p className="text-sm font-medium mb-2 flex items-center gap-2 text-green-700 dark:text-green-300">
+                  <ListChecks className="h-4 w-4" />
+                  Completed Steps
+                </p>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Packet created with pricing data</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <Check className="h-3.5 w-3.5" />
+                    <span>QR code generated</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Composite graphic saved</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Mockup queue started for all colors</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
+              <CardContent className="p-3">
+                <p className="text-xs font-medium mb-2 flex items-center gap-1 text-blue-700 dark:text-blue-300">
+                  <Link2 className="h-3 w-3" />
+                  Landing Page URL
+                </p>
+                <p className="text-sm font-mono bg-white dark:bg-gray-900 p-2 rounded border break-all">
+                  {packetResult.landingPageUrl}
+                </p>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="overflow-hidden">
+                <CardContent className="p-2">
+                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
+                    <QrCode className="h-3 w-3" />
+                    QR Code
+                  </p>
+                  <div className="bg-white rounded p-1 flex items-center justify-center">
+                    <img
+                      src={packetResult.qrOnlyUrl}
+                      alt="QR Code"
+                      className="w-full max-w-[80px] h-auto"
+                      data-testid="img-packet-qr"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="overflow-hidden">
+                <CardContent className="p-2">
+                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
+                    <Image className="h-3 w-3" />
+                    Composite
+                  </p>
+                  <div 
+                    className="rounded p-1 flex items-center justify-center"
+                    style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
+                  >
+                    <img
+                      src={packetResult.compositeUrl}
+                      alt="Composite"
+                      className="w-full max-w-[80px] h-auto object-contain"
+                      data-testid="img-packet-composite"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {calculatedPricing && pricingSettings && (
+            {pricingSettings && (
               <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 border-green-200 dark:border-green-800">
                 <CardContent className="p-4 space-y-2">
                   <h4 className="text-sm font-semibold flex items-center gap-2 mb-3">
                     <DollarSign className="h-4 w-4" />
-                    Pricing Breakdown
+                    Itemized Pricing
                   </h4>
                   
                   <div className="flex justify-between text-sm">
                     <span>Base Product Cost</span>
-                    <span className="font-medium">${calculatedPricing.baseProductCost.toFixed(2)}</span>
+                    <span className="font-medium">${packetResult.pricing.baseProductCost.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>
-                      Extra Placements ({Math.max(0, (state.selectedPlacements?.length || 1) - 1)} x ${pricingSettings.additionalPlacementCost.toFixed(2)})
-                    </span>
+                    <span>Extra Placements</span>
                     <span className="font-medium">
-                      {calculatedPricing.placementCost > 0 ? `+$${calculatedPricing.placementCost.toFixed(2)}` : '$0.00'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>
-                      Text Lines ({(() => {
-                        let count = 0;
-                        if (state.content.headerStyle?.enabled && state.content.headerStyle.text) count++;
-                        if (state.content.footerStyle?.enabled && state.content.footerStyle.text) count++;
-                        return count;
-                      })()} x ${pricingSettings.textLineUpcharge.toFixed(2)})
-                    </span>
-                    <span className="font-medium">
-                      {calculatedPricing.textUpcharge > 0 ? `+$${calculatedPricing.textUpcharge.toFixed(2)}` : '$0.00'}
+                      {packetResult.pricing.placementCost > 0 ? `+$${packetResult.pricing.placementCost.toFixed(2)}` : '$0.00'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Hosting ({calculatedPricing.hostingTierCode || 'none'})</span>
+                    <span>Text Lines</span>
                     <span className="font-medium">
-                      {calculatedPricing.hostingCost > 0 ? `+$${calculatedPricing.hostingCost.toFixed(2)}` : '$0.00'}
+                      {packetResult.pricing.textUpcharge > 0 ? `+$${packetResult.pricing.textUpcharge.toFixed(2)}` : '$0.00'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Hosting ({packetResult.pricing.hostingTierCode})</span>
+                    <span className="font-medium">
+                      {packetResult.pricing.hostingCost > 0 ? `+$${packetResult.pricing.hostingCost.toFixed(2)}` : '$0.00'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between text-sm border-t pt-2">
                     <span>Subtotal</span>
-                    <span className="font-medium">${calculatedPricing.subtotal.toFixed(2)}</span>
+                    <span className="font-medium">${packetResult.pricing.subtotal.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between text-sm">
-                    <span>Markup ({pricingSettings.markupPercent}% + ${pricingSettings.markupFixed.toFixed(2)})</span>
-                    <span className="font-medium">+${calculatedPricing.markupAmount.toFixed(2)}</span>
+                    <span>Markup</span>
+                    <span className="font-medium">+${packetResult.pricing.markupAmount.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between text-lg font-bold border-t pt-2 text-green-700 dark:text-green-300">
                     <span>Customer Price</span>
-                    <span>${calculatedPricing.customerPrice.toFixed(2)}</span>
+                    <span>${packetResult.pricing.customerPrice.toFixed(2)}</span>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            <div className="border-t pt-4">
+            <div className="flex gap-2 pt-2">
               <Button
-                type="button"
-                size="lg"
-                className="w-full h-auto py-4 flex flex-col items-center gap-2 bg-blue-600 hover:bg-blue-700"
-                disabled={isSaving}
-                onClick={() => handleSave("store")}
-                data-testid="button-assign-store"
+                variant="outline"
+                onClick={handleReset}
+                className="flex-1"
+                data-testid="button-create-another"
               >
-                {isSaving && selectedPath === "store" ? (
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                ) : (
-                  <Store className="h-6 w-6" />
-                )}
-                <span className="font-semibold">Assign to Store</span>
-                <span className="text-xs opacity-80">Save and configure for a store channel</span>
+                Create Another
+              </Button>
+              <Button
+                onClick={handleNext}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                data-testid="button-next-store-builder"
+              >
+                Next
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
           </div>
         )}
-
       </div>
     </CollapsibleModule>
   );

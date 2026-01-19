@@ -8252,6 +8252,59 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Generate priority mockup - single immediate mockup for digital proof - NO AUTH REQUIRED
+  app.post("/api/test/mockup/priority", async (req: any, res) => {
+    try {
+      const { 
+        blueprintId, printProviderId, colorName, colorHex, 
+        placement, artworkUrl, qrSize = "medium" 
+      } = req.body;
+
+      if (!blueprintId || !colorName || !artworkUrl) {
+        return res.status(400).json({ 
+          error: "Missing required fields: blueprintId, colorName, artworkUrl" 
+        });
+      }
+
+      console.log(`[Priority Mockup] Generating for: ${colorName} @ ${placement}`);
+
+      // Import the mockup service
+      const { getMockupWithFallback } = await import("./lib/mockup-service");
+      const storage = (await import("./storage")).storage;
+      
+      // Generate the mockup immediately via Printful
+      const result = await getMockupWithFallback({
+        blueprintId: parseInt(blueprintId),
+        printProviderId: parseInt(printProviderId) || 99,
+        colorName,
+        colorHex,
+        canonicalPlacementId: placement || "front-center",
+        artworkUrl,
+        artworkVariant: "black",
+        qrSize: qrSize as 'small' | 'medium' | 'large',
+      }, storage);
+
+      console.log(`[Priority Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+
+      res.json({
+        success: true,
+        mockupUrl: result.mockupUrl,
+        lifestyleMockupUrl: result.lifestyleMockupUrl,
+        fromCache: result.fromCache,
+        generatedAt: result.generatedAt,
+      });
+    } catch (error: any) {
+      console.error("[Priority Mockup] Error:", error);
+      // Return a fallback message but don't fail the overall flow
+      res.json({
+        success: false,
+        error: error.message,
+        mockupUrl: null,
+        message: "Mockup generation in progress - check back shortly",
+      });
+    }
+  });
+
   // Test: Get pricing settings - NO AUTH REQUIRED
   app.get("/api/test/pricing-settings", async (req: any, res) => {
     try {
