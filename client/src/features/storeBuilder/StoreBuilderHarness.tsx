@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, Library, FolderOpen, Layers, RefreshCw } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, Library, FolderOpen, Layers, RefreshCw, Plus } from "lucide-react";
 import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
 import { TemplatePickerSkin } from "@/features/shared/components/skins";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -276,6 +276,14 @@ export function StoreBuilderHarness() {
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [originalConfiguration, setOriginalConfiguration] = useState<ProductConfiguration | null>(null);
+  const [showAddStore, setShowAddStore] = useState(false);
+  const [showAddChannel, setShowAddChannel] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newChannelName, setNewChannelName] = useState("");
+  const [isCreatingStore, setIsCreatingStore] = useState(false);
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  
+  const queryClient = useQueryClient();
 
   const fetchTemplates = useCallback(async () => {
     const res = await fetch(`${apiBase}/templates`);
@@ -549,6 +557,66 @@ export function StoreBuilderHarness() {
 
   const selectedStore = stores.find((s) => s.id === selectedStoreId);
   const channels = selectedStore?.availableSegments || [];
+
+  const handleCreateStore = async () => {
+    if (!newStoreName.trim() || !selectedStoreType) return;
+    
+    setIsCreatingStore(true);
+    try {
+      const res = await fetch(`${apiBase}/stores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          name: newStoreName.trim(), 
+          roleType: selectedStoreType,
+        }),
+      });
+      
+      if (!res.ok) throw new Error(`Failed to create store: ${res.status}`);
+      
+      const newStore = await res.json();
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
+      setNewStoreName("");
+      setShowAddStore(false);
+      
+      if (newStore?.id) {
+        setSelectedStoreId(newStore.id);
+        setSelectedChannel(null);
+      }
+    } catch (err: any) {
+      setSaveStatus({ type: "error", message: err.message || "Failed to create store" });
+    } finally {
+      setIsCreatingStore(false);
+    }
+  };
+
+  const handleCreateChannel = async () => {
+    if (!newChannelName.trim() || !selectedStoreId) return;
+    
+    setIsCreatingChannel(true);
+    try {
+      const res = await fetch(`${apiBase}/stores/${selectedStoreId}/channels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newChannelName.trim() }),
+      });
+      
+      if (!res.ok) throw new Error(`Failed to create channel: ${res.status}`);
+      
+      const newChannel = await res.json();
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
+      setNewChannelName("");
+      setShowAddChannel(false);
+      
+      if (newChannel?.name) {
+        setSelectedChannel(newChannel.name);
+      }
+    } catch (err: any) {
+      setSaveStatus({ type: "error", message: err.message || "Failed to create channel" });
+    } finally {
+      setIsCreatingChannel(false);
+    }
+  };
 
   // Check if configuration has changed from original (for fork-on-edit)
   const hasConfigurationChanges = (): boolean => {
@@ -1093,33 +1161,131 @@ export function StoreBuilderHarness() {
           </div>
 
           {selectedStoreType && (
-            <CustomDropdown
-              value={selectedStoreId || ""}
-              onChange={(val) => {
-                setSelectedStoreId(val);
-                setSelectedChannel(null);
-              }}
-              options={storeOptions}
-              placeholder="Select a store..."
-              data-testid="store-select"
-            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <CustomDropdown
+                  value={selectedStoreId || ""}
+                  onChange={(val) => {
+                    setSelectedStoreId(val);
+                    setSelectedChannel(null);
+                  }}
+                  options={storeOptions}
+                  placeholder="Select a store..."
+                  data-testid="store-select"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowAddStore(!showAddStore)}
+                data-testid="button-add-store"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           )}
 
-          {selectedStore && channels.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {channels.map((channel) => (
-                <Badge
-                  key={channel}
-                  variant={selectedChannel === channel ? "default" : "outline"}
-                  className={`cursor-pointer h-8 px-3 ${
-                    selectedChannel === channel ? "" : "hover-elevate"
-                  }`}
-                  onClick={() => setSelectedChannel(channel)}
-                  data-testid={`channel-${channel}`}
+          {showAddStore && selectedStoreType && (
+            <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Create new {selectedStoreType} store:
+              </p>
+              <input
+                type="text"
+                placeholder="Store name..."
+                value={newStoreName}
+                onChange={(e) => setNewStoreName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateStore()}
+                className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                data-testid="input-new-store"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleCreateStore}
+                  disabled={!newStoreName.trim() || isCreatingStore}
+                  className="flex-1"
+                  data-testid="button-save-store"
                 >
-                  {channel}
-                </Badge>
-              ))}
+                  {isCreatingStore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setShowAddStore(false); setNewStoreName(""); }}
+                  className="flex-1"
+                  data-testid="button-cancel-store"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {selectedStore && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {channels.map((channel) => (
+                  <Badge
+                    key={channel}
+                    variant={selectedChannel === channel ? "default" : "outline"}
+                    className={`cursor-pointer h-8 px-3 ${
+                      selectedChannel === channel ? "" : "hover-elevate"
+                    }`}
+                    onClick={() => setSelectedChannel(channel)}
+                    data-testid={`channel-${channel}`}
+                  >
+                    {channel}
+                  </Badge>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setShowAddChannel(!showAddChannel)}
+                  data-testid="button-add-channel"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Channel
+                </Button>
+              </div>
+
+              {showAddChannel && (
+                <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Add channel to {selectedStore.name}:
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Channel name..."
+                    value={newChannelName}
+                    onChange={(e) => setNewChannelName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateChannel()}
+                    className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                    data-testid="input-new-channel"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleCreateChannel}
+                      disabled={!newChannelName.trim() || isCreatingChannel}
+                      className="flex-1"
+                      data-testid="button-save-channel"
+                    >
+                      {isCreatingChannel ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setShowAddChannel(false); setNewChannelName(""); }}
+                      className="flex-1"
+                      data-testid="button-cancel-channel"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
