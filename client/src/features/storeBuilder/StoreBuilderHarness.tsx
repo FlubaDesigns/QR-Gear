@@ -315,11 +315,8 @@ function HeroImageLightbox({
         className="bg-background rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="p-4 border-b">
           <h3 className="font-semibold">Set Hero Image</h3>
-          <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-lightbox">
-            <X className="h-4 w-4" />
-          </Button>
         </div>
         
         <div className="p-4 space-y-4">
