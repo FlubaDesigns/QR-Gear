@@ -277,8 +277,6 @@ export function getPlacementsForCategory(category: string | null): PlacementOpti
     .filter((opt): opt is PlacementOption => opt !== undefined);
 }
 
-// Legacy export for backward compatibility
-export const PLACEMENT_OPTIONS = ALL_PLACEMENT_OPTIONS.slice(0, 5);
 
 export interface SelectedColor {
   name: string;
