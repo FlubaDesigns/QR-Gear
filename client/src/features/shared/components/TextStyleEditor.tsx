@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { FontPicker } from "@/components/ui/font-picker";
+import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 
 export interface TextStyleConfig {
   text: string;
@@ -60,6 +62,77 @@ interface TextStyleEditorProps {
   onChange: (updates: Partial<TextStyleConfig>) => void;
   testIdPrefix: string;
   showPositionControls?: boolean;
+  previewBackgroundColor?: string;
+  previewBackgroundImage?: string;
+}
+
+function TextPreviewViewer({ 
+  style, 
+  backgroundColor, 
+  backgroundImage 
+}: { 
+  style: TextStyleConfig; 
+  backgroundColor?: string; 
+  backgroundImage?: string;
+}) {
+  if (!style.enabled || !style.text) {
+    return (
+      <div 
+        className="w-full h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center"
+        style={{ 
+          backgroundColor: backgroundColor || '#1a1a2e',
+          backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <span className="text-muted-foreground text-sm">Enter text to preview</span>
+      </div>
+    );
+  }
+
+  const baseFontSize = parseInt(style.fontSize) || 144;
+  const scaleFactor = 0.15;
+  const fontSize = Math.max(12, Math.min(baseFontSize * scaleFactor, 36));
+  
+  const getWarpTransform = () => {
+    if (style.warpPreset === "arc-up") {
+      return "perspective(200px) rotateX(-5deg)";
+    } else if (style.warpPreset === "arc-down") {
+      return "perspective(200px) rotateX(5deg)";
+    }
+    return "none";
+  };
+
+  const textShadow = style.strokeWidth > 0 && style.strokeColor
+    ? `0 0 ${style.strokeWidth}px ${style.strokeColor}, 0 0 ${style.strokeWidth * 2}px ${style.strokeColor}`
+    : undefined;
+
+  return (
+    <div 
+      className="w-full h-24 rounded-lg overflow-hidden border-2 border-border flex items-center justify-center"
+      style={{ 
+        backgroundColor: backgroundColor || '#1a1a2e',
+        backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <span 
+        style={{ 
+          fontFamily: style.fontFamily, 
+          fontSize: `${fontSize}px`,
+          color: style.color,
+          letterSpacing: `${style.letterSpacing}px`,
+          textShadow,
+          transform: getWarpTransform(),
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {style.text}
+      </span>
+    </div>
+  );
 }
 
 export function TextStyleEditor({ 
@@ -70,7 +143,11 @@ export function TextStyleEditor({
   onChange, 
   testIdPrefix,
   showPositionControls = true,
+  previewBackgroundColor,
+  previewBackgroundImage,
 }: TextStyleEditorProps) {
+  const [controlsOpen, setControlsOpen] = useState(false);
+
   return (
     <div className="space-y-3 p-4 bg-background rounded-lg border">
       <div className="flex items-center justify-between min-h-[48px]">
@@ -95,6 +172,18 @@ export function TextStyleEditor({
       
       {style.enabled && (
         <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Eye className="h-4 w-4" />
+              <span>Live Preview</span>
+            </div>
+            <TextPreviewViewer 
+              style={style} 
+              backgroundColor={previewBackgroundColor}
+              backgroundImage={previewBackgroundImage}
+            />
+          </div>
+
           <Input
             type="text"
             placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars)`}
@@ -109,162 +198,179 @@ export function TextStyleEditor({
             className="text-base min-h-[48px]"
             data-testid={`input-${testIdPrefix}-text`}
           />
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
-              <FontPicker
-                value={style.fontFamily}
-                onChange={(font) => onChange({ fontFamily: font })}
-                fonts={FONT_FAMILIES}
-                previewText={style.text || "QR Gear"}
-                data-testid={`select-${testIdPrefix}-font`}
-              />
-            </div>
-            <div>
-              <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
-              <select
-                className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
-                value={style.fontSize}
-                onChange={(e) => onChange({ fontSize: e.target.value })}
-                data-testid={`select-${testIdPrefix}-size`}
-              >
-                {FONT_SIZES.map((size) => (
-                  <option key={size} value={size}>{size}pt</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm mb-1.5 block text-muted-foreground">Color</Label>
-              <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={style.color}
-                  onChange={(e) => onChange({ color: e.target.value })}
-                  className="w-12 min-h-[48px] border rounded-md cursor-pointer"
-                  data-testid={`input-${testIdPrefix}-color`}
-                />
-                <Input
-                  value={style.color}
-                  onChange={(e) => onChange({ color: e.target.value })}
-                  className="flex-1 min-h-[48px] font-mono text-sm"
-                  placeholder="#000000"
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm mb-1.5 block text-muted-foreground">Warp Style</Label>
-              <select
-                className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
-                value={style.warpPreset}
-                onChange={(e) => onChange({ warpPreset: e.target.value })}
-                data-testid={`select-${testIdPrefix}-warp`}
-              >
-                {WARP_PRESETS.map((preset) => (
-                  <option key={preset.value} value={preset.value}>{preset.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <Label className="text-sm mb-1.5 block text-muted-foreground">
-              Letter Spacing: {style.letterSpacing}px
-            </Label>
-            <div className="min-h-[48px] flex items-center py-2">
-              <input
-                type="range"
-                min="-10"
-                max="50"
-                value={style.letterSpacing}
-                onChange={(e) => onChange({ letterSpacing: Number(e.target.value) })}
-                className="w-full h-6 accent-primary cursor-pointer"
-                style={{ touchAction: 'none' }}
-                data-testid={`slider-${testIdPrefix}-spacing`}
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Color</Label>
-              <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={style.strokeColor || "#ffffff"}
-                  onChange={(e) => onChange({ strokeColor: e.target.value })}
-                  className="w-12 min-h-[48px] border rounded-md cursor-pointer"
-                  data-testid={`input-${testIdPrefix}-stroke-color`}
-                />
-                <Input
-                  value={style.strokeColor}
-                  onChange={(e) => onChange({ strokeColor: e.target.value })}
-                  className="flex-1 min-h-[48px] font-mono text-sm"
-                  placeholder="None"
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm mb-1.5 block text-muted-foreground">
-                Stroke Width: {style.strokeWidth}px
-              </Label>
-              <div className="min-h-[48px] flex items-center py-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="20"
-                  value={style.strokeWidth}
-                  onChange={(e) => onChange({ strokeWidth: Number(e.target.value) })}
-                  className="w-full h-6 accent-primary cursor-pointer"
-                  style={{ touchAction: 'none' }}
-                  data-testid={`slider-${testIdPrefix}-stroke`}
-                />
-              </div>
-            </div>
+
+          <div 
+            className="flex items-center gap-2 cursor-pointer select-none py-2 border-t border-border/50"
+            onClick={() => setControlsOpen(!controlsOpen)}
+            data-testid={`toggle-${testIdPrefix}-controls`}
+          >
+            {controlsOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span className="text-sm font-medium text-muted-foreground">Style Controls</span>
           </div>
 
-          {showPositionControls && (
-            <div className="pt-3 border-t border-border/50">
-              <p className="text-sm font-medium mb-3 text-muted-foreground">Position</p>
+          {controlsOpen && (
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
+                  <FontPicker
+                    value={style.fontFamily}
+                    onChange={(font) => onChange({ fontFamily: font })}
+                    fonts={FONT_FAMILIES}
+                    previewText={style.text || "QR Gear"}
+                    data-testid={`select-${testIdPrefix}-font`}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
+                  <select
+                    className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
+                    value={style.fontSize}
+                    onChange={(e) => onChange({ fontSize: e.target.value })}
+                    data-testid={`select-${testIdPrefix}-size`}
+                  >
+                    {FONT_SIZES.map((size) => (
+                      <option key={size} value={size}>{size}pt</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">Color</Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={style.color}
+                      onChange={(e) => onChange({ color: e.target.value })}
+                      className="w-12 min-h-[48px] border rounded-md cursor-pointer"
+                      data-testid={`input-${testIdPrefix}-color`}
+                    />
+                    <Input
+                      value={style.color}
+                      onChange={(e) => onChange({ color: e.target.value })}
+                      className="flex-1 min-h-[48px] font-mono text-sm"
+                      placeholder="#000000"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">Warp Style</Label>
+                  <select
+                    className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
+                    value={style.warpPreset}
+                    onChange={(e) => onChange({ warpPreset: e.target.value })}
+                    data-testid={`select-${testIdPrefix}-warp`}
+                  >
+                    {WARP_PRESETS.map((preset) => (
+                      <option key={preset.value} value={preset.value}>{preset.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-sm mb-1.5 block text-muted-foreground">
+                  Letter Spacing: {style.letterSpacing}px
+                </Label>
+                <div className="min-h-[48px] flex items-center py-2">
+                  <input
+                    type="range"
+                    min="-10"
+                    max="50"
+                    value={style.letterSpacing}
+                    onChange={(e) => onChange({ letterSpacing: Number(e.target.value) })}
+                    className="w-full h-6 accent-primary cursor-pointer"
+                    style={{ touchAction: 'none' }}
+                    data-testid={`slider-${testIdPrefix}-spacing`}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Color</Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={style.strokeColor || "#ffffff"}
+                      onChange={(e) => onChange({ strokeColor: e.target.value })}
+                      className="w-12 min-h-[48px] border rounded-md cursor-pointer"
+                      data-testid={`input-${testIdPrefix}-stroke-color`}
+                    />
+                    <Input
+                      value={style.strokeColor}
+                      onChange={(e) => onChange({ strokeColor: e.target.value })}
+                      className="flex-1 min-h-[48px] font-mono text-sm"
+                      placeholder="None"
+                    />
+                  </div>
+                </div>
+                <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">
-                    Distance from QR: {style.verticalOffset ?? 20}%
+                    Stroke Width: {style.strokeWidth}px
                   </Label>
                   <div className="min-h-[48px] flex items-center py-2">
                     <input
                       type="range"
                       min="0"
-                      max="100"
-                      value={style.verticalOffset ?? 20}
-                      onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
+                      max="20"
+                      value={style.strokeWidth}
+                      onChange={(e) => onChange({ strokeWidth: Number(e.target.value) })}
                       className="w-full h-6 accent-primary cursor-pointer"
                       style={{ touchAction: 'none' }}
-                      data-testid={`slider-${testIdPrefix}-vertical`}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm mb-1.5 block text-muted-foreground">
-                    Horizontal: {style.horizontalOffset ?? 0}
-                  </Label>
-                  <div className="min-h-[48px] flex items-center py-2">
-                    <input
-                      type="range"
-                      min="-50"
-                      max="50"
-                      value={style.horizontalOffset ?? 0}
-                      onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
-                      className="w-full h-6 accent-primary cursor-pointer"
-                      style={{ touchAction: 'none' }}
-                      data-testid={`slider-${testIdPrefix}-horizontal`}
+                      data-testid={`slider-${testIdPrefix}-stroke`}
                     />
                   </div>
                 </div>
               </div>
+
+              {showPositionControls && (
+                <div className="pt-3 border-t border-border/50">
+                  <p className="text-sm font-medium mb-3 text-muted-foreground">Position</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-sm mb-1.5 block text-muted-foreground">
+                        Distance from QR: {style.verticalOffset ?? 20}%
+                      </Label>
+                      <div className="min-h-[48px] flex items-center py-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={style.verticalOffset ?? 20}
+                          onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
+                          className="w-full h-6 accent-primary cursor-pointer"
+                          style={{ touchAction: 'none' }}
+                          data-testid={`slider-${testIdPrefix}-vertical`}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm mb-1.5 block text-muted-foreground">
+                        Horizontal: {style.horizontalOffset ?? 0}
+                      </Label>
+                      <div className="min-h-[48px] flex items-center py-2">
+                        <input
+                          type="range"
+                          min="-50"
+                          max="50"
+                          value={style.horizontalOffset ?? 0}
+                          onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
+                          className="w-full h-6 accent-primary cursor-pointer"
+                          style={{ touchAction: 'none' }}
+                          data-testid={`slider-${testIdPrefix}-horizontal`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

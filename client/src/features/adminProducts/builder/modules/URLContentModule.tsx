@@ -357,6 +357,7 @@ export function URLContentModule() {
             })}
             testIdPrefix="header"
             showPositionControls={true}
+            previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
           />
           
           <TextStyleEditor
@@ -372,6 +373,7 @@ export function URLContentModule() {
             })}
             testIdPrefix="footer"
             showPositionControls={true}
+            previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
           />
         </div>
 
