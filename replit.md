@@ -1,21 +1,5 @@
 # QR Gear - System Reference Guide
 
-## 🚨 CRITICAL RULE - DO NOT VIOLATE 🚨
-
-**WORK ON TEST PAGES ONLY - NOT ADMIN:**
-- ONLY modify files in: `test-*.tsx` pages, `adminLibrary/`, `shared/`
-- DO NOT touch: `admin-products.tsx`, `adminProducts/` folder, `creator.tsx`
-- Admin pages are separate and will be updated LATER to match test pages
-- If you mention "admin" or touch admin files, YOU ARE BREAKING THIS RULE
-
-**Test Pages We Are Working On:**
-- `/test-library` → `client/src/pages/test-library.tsx` → uses `adminLibrary/`
-- `/test-store-builder` → `client/src/pages/test-store-builder.tsx`
-- `/test-products` → `client/src/pages/test-products.tsx`
-- `/test-stores` → `client/src/pages/test-stores.tsx`
-
----
-
 ## ⚠️ READ THIS EVERY 5 MINUTES - MANDATORY ⚠️
 
 **PRODUCTION DEPLOYMENT IS NON-NEGOTIABLE:**
