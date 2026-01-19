@@ -113,8 +113,8 @@ export const defaultTextStyle: TextStyleConfig = {
   letterSpacing: 0,
   strokeColor: "",
   strokeWidth: 0,
-  verticalOffset: 100,   // 100% height from QR
-  horizontalOffset: 0,   // 0 = centered, 100% width
+  verticalOffset: 15,    // 15% from QR (top text default)
+  horizontalOffset: 0,   // 0 = centered
 };
 
 export interface ContentData {
