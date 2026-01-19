@@ -4634,7 +4634,7 @@ app.post('/test/templates/full-save', async (req, res) => {
 // PUBLIC TEST: Create product packet (master record) - NO AUTH REQUIRED
 app.post('/test/packets', async (req, res) => {
     try {
-        const { qrOnlyUrl, compositeUrl, qrContent, headerText, footerText, pricing, productId, productName, productDescription, productImageUrl, blueprintId, printProviderId, manufacturer, madeInUSA, category, defaultColor, defaultPlacement, qrProductState, placements, availablePlacements, sizes, colors, basePrice, customerPrice, mockupsByColor } = req.body;
+        const { qrOnlyUrl, compositeUrl, qrContent, headerText, footerText, pricing, productId, productName, productDescription, productImageUrl, blueprintId, printProviderId, manufacturer, madeInUSA, category, defaultColor, defaultColorHex, defaultPlacement, qrProductState, placements, availablePlacements, sizes, colors, basePrice, customerPrice, mockupsByColor, landingPageTitle, landingPageDescription, landingPageBackgroundUrl, landingPageSlug, headerStyle, footerStyle, } = req.body;
         if (!qrContent && !qrOnlyUrl) {
             res.status(400).json({ error: 'Either qrContent or qrOnlyUrl is required' });
             return;
@@ -4657,6 +4657,7 @@ app.post('/test/packets', async (req, res) => {
             madeInUSA: madeInUSA || false,
             category: category || null,
             defaultColor: defaultColor || null,
+            defaultColorHex: defaultColorHex || null,
             defaultPlacement: defaultPlacement || null,
             qrProductState: qrProductState || null,
             placements: placements || [],
@@ -4666,6 +4667,12 @@ app.post('/test/packets', async (req, res) => {
             basePrice: basePrice || null,
             customerPrice: customerPrice || null,
             mockupsByColor: mockupsByColor || null,
+            landingPageTitle: landingPageTitle || null,
+            landingPageDescription: landingPageDescription || null,
+            landingPageBackgroundUrl: landingPageBackgroundUrl || null,
+            landingPageSlug: landingPageSlug || null,
+            headerStyle: headerStyle || null,
+            footerStyle: footerStyle || null,
             createdAt: now,
             updatedAt: now,
         };
@@ -4804,6 +4811,50 @@ app.delete('/test/packets/:packetId', async (req, res) => {
     }
     catch (error) {
         console.error('[Packets DELETE] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// PUBLIC TEST: Get landing page by slug - NO AUTH REQUIRED
+app.get('/test/landing/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        if (!slug) {
+            res.status(400).json({ error: 'slug is required' });
+            return;
+        }
+        const snapshot = await db.collection('productPackets')
+            .where('landingPageSlug', '==', slug)
+            .limit(1)
+            .get();
+        if (snapshot.empty) {
+            res.status(404).json({ error: 'Landing page not found' });
+            return;
+        }
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+        const landingPage = {
+            packetId: doc.id,
+            title: data.landingPageTitle || data.productName || 'QR Product',
+            description: data.landingPageDescription || data.productDescription || '',
+            backgroundUrl: data.landingPageBackgroundUrl || data.compositeUrl || null,
+            compositeUrl: data.compositeUrl || null,
+            qrOnlyUrl: data.qrOnlyUrl || null,
+            qrContent: data.qrContent || null,
+            productName: data.productName || null,
+            productImageUrl: data.productImageUrl || null,
+            headerStyle: data.headerStyle || null,
+            footerStyle: data.footerStyle || null,
+            pricing: data.pricing || null,
+            createdAt: data.createdAt?.toDate?.() || null,
+        };
+        console.log(`[Landing Page] Found page for slug: ${slug}`);
+        res.json({
+            success: true,
+            landingPage,
+        });
+    }
+    catch (error) {
+        console.error('[Landing Page] Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

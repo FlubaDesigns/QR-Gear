@@ -151,7 +151,7 @@ export interface PricingBreakdown {
 
 export type PlacementId = 
   // Shirts/Hoodies
-  | "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder" | "left-sleeve" | "right-sleeve" | "pocket"
+  | "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder" | "pocket"
   // Mugs
   | "mug-wrap" | "mug-front" | "mug-back"
   // Hats
@@ -181,8 +181,6 @@ export const ALL_PLACEMENT_OPTIONS: PlacementOption[] = [
   { id: "back", label: "Back" },
   { id: "left-shoulder", label: "Left Shoulder (QR Only)" },
   { id: "right-shoulder", label: "Right Shoulder (QR Only)" },
-  { id: "left-sleeve", label: "Left Sleeve" },
-  { id: "right-sleeve", label: "Right Sleeve" },
   { id: "pocket", label: "Pocket" },
   // Mugs
   { id: "mug-wrap", label: "Wrap Around" },
@@ -201,9 +199,9 @@ export const ALL_PLACEMENT_OPTIONS: PlacementOption[] = [
 // Category to placement mapping
 export const CATEGORY_PLACEMENTS: Record<string, PlacementId[]> = {
   // Apparel - match exact API category names
-  "T-Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
-  "Sweatshirts & Hoodies": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve", "pocket"],
-  "Long Sleeve Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "left-sleeve", "right-sleeve"],
+  "T-Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder"],
+  "Sweatshirts & Hoodies": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "pocket"],
+  "Long Sleeve Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder"],
   "Tank Tops": ["front-chest", "front-center", "back"],
   // Drinkware
   "Drinkware": ["mug-wrap", "mug-front", "mug-back"],
@@ -250,6 +248,11 @@ export function getPlacementsForCategory(category: string | null): PlacementOpti
 // Legacy export for backward compatibility
 export const PLACEMENT_OPTIONS = ALL_PLACEMENT_OPTIONS.slice(0, 5);
 
+export interface SelectedColor {
+  name: string;
+  hex: string;
+}
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -260,6 +263,7 @@ export interface BuilderState {
   originFilter: OriginFilter;
   genderFilter: GenderFilter;
   selectedProduct: CatalogProduct | null;
+  selectedColor: SelectedColor | null;
   qrProductState: QRProductState;
   content: ContentData;
   selectedPlacements: PlacementId[];

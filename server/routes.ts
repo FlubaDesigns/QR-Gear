@@ -8339,6 +8339,7 @@ ${allPages.map(page => `  <url>
         madeInUSA,
         category,
         defaultColor,
+        defaultColorHex,
         defaultPlacement,
         qrProductState,
         placements,
@@ -8347,7 +8348,14 @@ ${allPages.map(page => `  <url>
         colors,
         basePrice,
         customerPrice,
-        mockupsByColor
+        mockupsByColor,
+        // Landing page fields
+        landingPageTitle,
+        landingPageDescription,
+        landingPageBackgroundUrl,
+        landingPageSlug,
+        headerStyle,
+        footerStyle,
       } = req.body;
 
       if (!qrContent && !qrOnlyUrl) {
@@ -8377,6 +8385,7 @@ ${allPages.map(page => `  <url>
         madeInUSA: madeInUSA || false,
         category: category || null,
         defaultColor: defaultColor || null,
+        defaultColorHex: defaultColorHex || null,
         defaultPlacement: defaultPlacement || null,
         qrProductState: qrProductState || null,
         placements: placements || [],
@@ -8386,6 +8395,13 @@ ${allPages.map(page => `  <url>
         basePrice: basePrice || null,
         customerPrice: customerPrice || null,
         mockupsByColor: mockupsByColor || null,
+        // Landing page fields
+        landingPageTitle: landingPageTitle || null,
+        landingPageDescription: landingPageDescription || null,
+        landingPageBackgroundUrl: landingPageBackgroundUrl || null,
+        landingPageSlug: landingPageSlug || null,
+        headerStyle: headerStyle || null,
+        footerStyle: footerStyle || null,
         createdAt: now,
         updatedAt: now,
       };
@@ -8554,6 +8570,59 @@ ${allPages.map(page => `  <url>
       });
     } catch (error: any) {
       console.error("[Packets DELETE] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Get landing page by slug - NO AUTH REQUIRED
+  app.get("/api/test/landing/:slug", async (req: any, res) => {
+    try {
+      const { slug } = req.params;
+      
+      if (!slug) {
+        return res.status(400).json({ error: "slug is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Find packet by landing page slug
+      const snapshot = await firestoreDb.collection("productPackets")
+        .where("landingPageSlug", "==", slug)
+        .limit(1)
+        .get();
+      
+      if (snapshot.empty) {
+        return res.status(404).json({ error: "Landing page not found" });
+      }
+      
+      const doc = snapshot.docs[0];
+      const data = doc.data();
+      
+      const landingPage = {
+        packetId: doc.id,
+        title: data.landingPageTitle || data.productName || "QR Product",
+        description: data.landingPageDescription || data.productDescription || "",
+        backgroundUrl: data.landingPageBackgroundUrl || data.compositeUrl || null,
+        compositeUrl: data.compositeUrl || null,
+        qrOnlyUrl: data.qrOnlyUrl || null,
+        qrContent: data.qrContent || null,
+        productName: data.productName || null,
+        productImageUrl: data.productImageUrl || null,
+        headerStyle: data.headerStyle || null,
+        footerStyle: data.footerStyle || null,
+        pricing: data.pricing || null,
+        createdAt: data.createdAt?.toDate?.() || null,
+      };
+      
+      console.log(`[Landing Page] Found page for slug: ${slug}`);
+      
+      res.json({
+        success: true,
+        landingPage,
+      });
+    } catch (error: any) {
+      console.error("[Landing Page] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

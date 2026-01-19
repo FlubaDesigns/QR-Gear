@@ -289,27 +289,16 @@ export function URLContentModule() {
           )}
         </div>
 
-        {/* Section 2: Destination URL (for Canvas/Play modes) */}
+        {/* URL is auto-generated - no manual input needed */}
         {needsDestinationUrl && (
-          <div className="space-y-2 pt-4 border-t">
-            <Label htmlFor="destination-url" className="flex items-center gap-2">
-              <Link2 className="h-3.5 w-3.5" />
-              Destination URL
-            </Label>
-            <Input
-              id="destination-url"
-              type="text"
-              inputMode="url"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder="https://example.com"
-              value={state.content.url || ""}
-              onChange={(e) => setContent({ url: e.target.value })}
-              className="min-h-[44px]"
-              data-testid="input-destination-url"
-            />
+          <div className="p-3 bg-primary/5 rounded-md border space-y-1 mt-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium">QR Landing Page</p>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Where users go when they scan the QR code
+              A unique URL will be auto-generated when you create the graphics. 
+              This becomes a searchable page on qrgear.com.
             </p>
           </div>
         )}
@@ -365,71 +354,7 @@ export function URLContentModule() {
                 {/* Dark overlay for text readability */}
                 <div className="absolute inset-0 bg-black/30" />
                 
-                {/* Header text - styled like graphic with position */}
-                {state.content.headerStyle?.enabled && state.content.headerStyle.text && (
-                  <div 
-                    className="absolute left-0 right-0 px-2 z-10"
-                    style={{
-                      top: `${Math.max(2, 40 - (state.content.headerStyle.verticalOffset ?? 20) * 0.38)}%`,
-                      transform: `translateX(${(state.content.headerStyle.horizontalOffset ?? 0) * 0.5}%)`,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span 
-                      style={{ 
-                        fontFamily: state.content.headerStyle.fontFamily, 
-                        fontSize: `${Math.max(8, Math.min(parseInt(state.content.headerStyle.fontSize) * 0.06, 14))}px`,
-                        color: state.content.headerStyle.color,
-                        letterSpacing: `${state.content.headerStyle.letterSpacing * 0.02}px`,
-                        textShadow: state.content.headerStyle.strokeColor && state.content.headerStyle.strokeWidth > 0 
-                          ? `0 0 ${Math.max(1, state.content.headerStyle.strokeWidth * 0.15)}px ${state.content.headerStyle.strokeColor}` 
-                          : "0 1px 3px rgba(0,0,0,0.7)",
-                        fontWeight: 'bold',
-                        whiteSpace: 'nowrap',
-                        display: 'inline-block',
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {state.content.headerStyle.text}
-                    </span>
-                  </div>
-                )}
-
-                {/* Footer text - styled like graphic with position */}
-                {state.content.footerStyle?.enabled && state.content.footerStyle.text && (
-                  <div 
-                    className="absolute left-0 right-0 px-2 z-10"
-                    style={{
-                      bottom: `${Math.max(2, 40 - (state.content.footerStyle.verticalOffset ?? 20) * 0.38)}%`,
-                      transform: `translateX(${(state.content.footerStyle.horizontalOffset ?? 0) * 0.5}%)`,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span 
-                      style={{ 
-                        fontFamily: state.content.footerStyle.fontFamily, 
-                        fontSize: `${Math.max(8, Math.min(parseInt(state.content.footerStyle.fontSize) * 0.06, 14))}px`,
-                        color: state.content.footerStyle.color,
-                        letterSpacing: `${state.content.footerStyle.letterSpacing * 0.02}px`,
-                        textShadow: state.content.footerStyle.strokeColor && state.content.footerStyle.strokeWidth > 0 
-                          ? `0 0 ${Math.max(1, state.content.footerStyle.strokeWidth * 0.15)}px ${state.content.footerStyle.strokeColor}` 
-                          : "0 1px 3px rgba(0,0,0,0.7)",
-                        fontWeight: 'bold',
-                        whiteSpace: 'nowrap',
-                        display: 'inline-block',
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {state.content.footerStyle.text}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Content overlay - Title & Description */}
+                {/* Content overlay - Title & Description (landing page only - no header/footer) */}
                 <div className="absolute inset-0 flex flex-col justify-end p-3">
                   {state.content.title && (
                     <h3 className="text-white text-sm font-bold mb-1 drop-shadow-lg">

@@ -42,8 +42,23 @@ interface CreateGraphicsModuleProps {
   onSaveComplete?: () => void;
 }
 
-function generateQRCodeUrl(content: string, size: number = 3000): string {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H`;
+function generateQRCodeUrl(content: string, size: number = 3000, qrColor: "black" | "white" = "black"): string {
+  const color = qrColor === "white" ? "ffffff" : "000000";
+  const bgColor = qrColor === "white" ? "00000000" : "ffffff"; // transparent bg for white QR
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${color}&bgcolor=${bgColor}`;
+}
+
+function getLuminance(hex: string): number {
+  const rgb = hex.replace("#", "").match(/.{2}/g);
+  if (!rgb) return 0;
+  const [r, g, b] = rgb.map((c) => parseInt(c, 16) / 255);
+  const toLinear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+function getContrastQRColor(productColorHex: string): "black" | "white" {
+  const luminance = getLuminance(productColorHex);
+  return luminance > 0.5 ? "black" : "white";
 }
 
 interface TextStyle {
@@ -59,12 +74,17 @@ interface TextStyle {
   horizontalOffset: number;
 }
 
-async function generateCompositeGraphic(
-  qrUrl: string,
-  backgroundUrl: string | null,
-  headerStyle: TextStyle | null,
-  footerStyle: TextStyle | null
-): Promise<string> {
+interface CompositeOptions {
+  qrUrl: string;
+  backgroundUrl: string | null;
+  productColorHex: string | null;
+  headerStyle: TextStyle | null;
+  footerStyle: TextStyle | null;
+  useTransparentBackground?: boolean;
+}
+
+async function generateCompositeGraphic(options: CompositeOptions): Promise<string> {
+  const { qrUrl, backgroundUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground } = options;
   const CANVAS_WIDTH = 1080;
   const CANVAS_HEIGHT = 1920;
   const QR_SIZE = 400;
@@ -75,9 +95,18 @@ async function generateCompositeGraphic(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas not supported');
 
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  // Background: transparent, product color, or white
+  if (useTransparentBackground) {
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  } else if (productColorHex) {
+    ctx.fillStyle = productColorHex;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  }
 
+  // Draw background image if provided (for landing page composite)
   if (backgroundUrl) {
     try {
       const bgImg = await loadImage(backgroundUrl);
@@ -92,11 +121,13 @@ async function generateCompositeGraphic(
     }
   }
 
+  // Draw QR code with white border for scanability
   try {
     const qrImg = await loadImage(qrUrl);
     const qrX = (CANVAS_WIDTH - QR_SIZE) / 2;
     const qrY = (CANVAS_HEIGHT - QR_SIZE) / 2;
     
+    // White border around QR for scanability on any background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(qrX - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
     ctx.drawImage(qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
@@ -270,7 +301,10 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         ? "PLACEHOLDER_PLAY_URL"
         : (state.content.url || state.content.title || "").trim();
       
-      const qrUrl = generateQRCodeUrl(qrContent);
+      // Auto-contrast QR color based on product color
+      const productColorHexTemp = state.selectedColor?.hex || "#ffffff";
+      const qrColor = getContrastQRColor(productColorHexTemp);
+      const qrUrl = generateQRCodeUrl(qrContent, 3000, qrColor);
       
       await new Promise((resolve, reject) => {
         const img = new window.Image();
@@ -282,10 +316,18 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       const backgroundUrl = state.loadedBackground?.url || null;
       const headerStyle = state.content.headerStyle as TextStyle | null;
       const footerStyle = state.content.footerStyle as TextStyle | null;
+      const productColorHex = state.selectedColor?.hex || null;
       
       let compositeDataUrl: string;
       try {
-        compositeDataUrl = await generateCompositeGraphic(qrUrl, backgroundUrl, headerStyle, footerStyle);
+        compositeDataUrl = await generateCompositeGraphic({
+          qrUrl,
+          backgroundUrl,
+          productColorHex,
+          headerStyle,
+          footerStyle,
+          useTransparentBackground: false,
+        });
       } catch (e) {
         console.warn('Composite generation failed, using product image as fallback:', e);
         compositeDataUrl = state.selectedProduct?.imageUrl || "";
@@ -327,6 +369,13 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
       const availableSizes = product?.availableSizes || [];
       const availablePlacements = product?.availablePlacements || [];
 
+      // Generate SEO-friendly slug from title
+      const generateSlug = (text: string): string => {
+        return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
+      };
+      
+      const landingPageSlug = generateSlug(state.content.title || 'product') + '-' + Date.now().toString(36);
+      
       const packetPayload: Record<string, any> = {
         qrOnlyUrl: "",
         compositeUrl: "",
@@ -346,7 +395,8 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         manufacturer: product?.manufacturer || null,
         madeInUSA: product?.madeInUSA || false,
         category: product?.category || null,
-        defaultColor: product?.defaultColor || null,
+        defaultColor: state.selectedColor?.name || product?.defaultColor || null,
+        defaultColorHex: state.selectedColor?.hex || null,
         defaultPlacement: product?.defaultPlacement || null,
         qrProductState: state.qrProductState,
         placements: state.selectedPlacements || [],
@@ -356,6 +406,11 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         basePrice: product?.basePrice || null,
         customerPrice: product?.customerPrice || null,
         mockupsByColor: product?.mockupsByColor || null,
+        // Landing page fields
+        landingPageTitle: state.content.title || null,
+        landingPageDescription: state.content.description || null,
+        landingPageBackgroundUrl: state.loadedBackground?.url || null,
+        landingPageSlug,
       };
 
       if (isPlayMode && state.content.playMediaSource === "url" && state.content.playMediaUrl) {
@@ -410,25 +465,42 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
         }
       }
 
+      // Generate final QR content URL
+      // For Canvas/Play/Dynamics: use landing page URL (qrgear.com/m/{slug})
+      // For Basics: use the text content directly
       const baseUrl = window.location.origin;
-      const finalQrContent = isPlayMode 
-        ? `${baseUrl}/play/${packetId}`
+      const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_dynamics";
+      const finalQrContent = isLandingPageMode
+        ? `${baseUrl}/m/${landingPageSlug}`
         : (state.content.url || state.content.title || "");
       
-      const finalQrUrl = isPlayMode 
-        ? generateQRCodeUrl(finalQrContent.trim())
+      // Auto-contrast QR color for final URL
+      const productColorForQr = state.selectedColor?.hex || "#ffffff";
+      const qrColorForFinal = getContrastQRColor(productColorForQr);
+      
+      const finalQrUrl = isLandingPageMode 
+        ? generateQRCodeUrl(finalQrContent.trim(), 3000, qrColorForFinal)
         : localGraphics.qrOnlyUrl;
 
       let finalCompositeUrl = localGraphics.compositeDataUrl;
       
-      if (isPlayMode) {
+      // Regenerate composite with final QR URL for landing page modes
+      if (isLandingPageMode) {
         const backgroundUrl = state.loadedBackground?.url || null;
         const headerStyle = state.content.headerStyle as TextStyle | null;
         const footerStyle = state.content.footerStyle as TextStyle | null;
+        const productColorHex = state.selectedColor?.hex || null;
         try {
-          finalCompositeUrl = await generateCompositeGraphic(finalQrUrl, backgroundUrl, headerStyle, footerStyle);
+          finalCompositeUrl = await generateCompositeGraphic({
+            qrUrl: finalQrUrl,
+            backgroundUrl,
+            productColorHex,
+            headerStyle,
+            footerStyle,
+            useTransparentBackground: false,
+          });
         } catch (e) {
-          console.warn('Play mode composite regeneration failed:', e);
+          console.warn('Composite regeneration failed:', e);
         }
       }
 

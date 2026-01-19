@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { FontPicker } from "@/components/ui/font-picker";
 import { useBuilderContext } from "../BuilderContext";
 import { FONT_FAMILIES, FONT_SIZES, WARP_PRESETS, type TextStyleConfig } from "../types";
+import { ColorSwatchPicker, getContrastQRColor } from "@/features/shared/components/ColorSwatchPicker";
 
 interface TextBlockProps {
   label: string;
@@ -235,7 +236,7 @@ function TextBlock({ label, maxLength, style, onChange, testIdPrefix }: TextBloc
 }
 
 export function TextConfigModule() {
-  const { state, setContent } = useBuilderContext();
+  const { state, setContent, setSelectedColor } = useBuilderContext();
   
   const needsTextConfig = state.qrProductState === "qr_plus" || 
                           state.qrProductState === "qr_canvas" || 
@@ -272,6 +273,24 @@ export function TextConfigModule() {
         <p className="text-sm text-muted-foreground">
           Add custom header and footer text with fancy styling options.
         </p>
+
+        {/* Product Color Selection */}
+        {(state.selectedProduct as any)?.availableColors?.length > 0 && (
+          <div className="p-4 bg-background rounded-lg border space-y-3">
+            <ColorSwatchPicker
+              label="Product Color (for preview)"
+              colors={(state.selectedProduct as any).availableColors}
+              selectedColor={state.selectedColor?.hex || null}
+              onChange={(color) => setSelectedColor(color)}
+              testIdPrefix="product-color"
+            />
+            {state.selectedColor && (
+              <p className="text-xs text-muted-foreground">
+                QR will use <strong>{getContrastQRColor(state.selectedColor.hex)}</strong> for best contrast
+              </p>
+            )}
+          </div>
+        )}
         
         <TextBlock
           label="Top Text (Header)"
