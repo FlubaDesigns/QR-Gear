@@ -44,7 +44,7 @@ const initialContent: ContentData = {
   headerStyle: { ...defaultTextStyle, verticalOffset: 15, horizontalOffset: 0 },
   footerStyle: { ...defaultTextStyle, verticalOffset: 16, horizontalOffset: 0 },
   titleStyle: { ...defaultTextStyle, text: "Hello", verticalOffset: 84, horizontalOffset: 8 },
-  descriptionStyle: { ...defaultTextStyle },
+  descriptionStyle: { ...defaultTextStyle, text: "World!", verticalOffset: 72, horizontalOffset: 10 },
   hostingTierCode: "1_year",
   // Play-specific fields
   playMediaSource: null,
