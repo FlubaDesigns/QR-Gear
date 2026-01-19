@@ -343,15 +343,8 @@
   width: auto !important;
 }
 
-/* ===== Square Button Grid (2x2) ===== */
-.qr-btn-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr) !important;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.qr-btn-grid > button {
+/* ===== Square Glass Buttons (for use with grid-2x2) ===== */
+.qr-btn--square {
   aspect-ratio: 1;
   display: flex;
   flex-direction: column;
@@ -370,21 +363,21 @@
   cursor: pointer;
 }
 
-.qr-btn-grid > button:hover {
+.qr-btn--square:hover {
   background: linear-gradient(180deg, rgba(0,160,255,0.25), rgba(0,120,255,0.15));
   border-color: var(--ice-1, #2ea9ff);
   transform: translateY(-2px);
 }
 
-.qr-btn-grid > button.active,
-.qr-btn-grid > button[data-active="true"] {
+.qr-btn--square.active,
+.qr-btn--square[data-active="true"] {
   background: linear-gradient(180deg, var(--ice-1) 0%, var(--ice-3) 100%);
   border-color: var(--ice-1);
   color: var(--bg-0);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
 }
 
-.qr-btn-grid > button svg {
+.qr-btn--square svg {
   width: 2rem;
   height: 2rem;
 }

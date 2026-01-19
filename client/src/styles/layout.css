@@ -330,6 +330,13 @@ small { color: var(--text-2); }
 }
 
 /* ===== Grid Utilities ===== */
+/* ===== 2x2 Grid (always 2 columns) ===== */
+.grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
 .grid-2 {
   display: grid;
   gap: 1rem;
