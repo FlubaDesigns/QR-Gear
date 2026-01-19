@@ -89,7 +89,7 @@ export function PreviewModule() {
               )}
               <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-700">
                 <p className="text-xs text-purple-500 dark:text-purple-400">
-                  URL will be auto-generated when you create graphics
+                  URL will be auto-generated when you click Create & Publish
                 </p>
               </div>
             </div>
