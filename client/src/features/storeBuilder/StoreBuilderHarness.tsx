@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
@@ -646,6 +646,38 @@ export function StoreBuilderHarness() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/test-products")}
+          data-testid="button-back-builder"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Products
+        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/test-library?tab=graphics")}
+            data-testid="link-graphics-library"
+          >
+            <QrCode className="h-4 w-4 mr-1" />
+            Graphics
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/test-library?tab=templates")}
+            data-testid="link-templates-library"
+          >
+            <Library className="h-4 w-4 mr-1" />
+            Templates
+          </Button>
+        </div>
+      </div>
+
       {isEditMode && (
         <div className="bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
           <p className="text-sm text-amber-800 dark:text-amber-200" data-testid="text-edit-mode-warning">
