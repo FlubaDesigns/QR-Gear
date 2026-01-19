@@ -7,7 +7,7 @@ export default function TestProductsPage() {
   return (
     <AdminAuthProvider apiBase="/api/test">
       <div className="page-wrap">
-        <div className="container py-8 space-y-8">
+        <div className="container px-2 py-2 sm:px-4 sm:py-6 space-y-4 sm:space-y-6">
           <div className="glass-card">
             <div className="flex items-start gap-4 flex-wrap">
               <div className="glass-icon">
