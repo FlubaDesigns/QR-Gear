@@ -43,20 +43,20 @@ export function BackgroundDetailSkin({
     : null;
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
+    <div className="space-y-4 w-full max-w-md">
+      <div className="space-y-2 text-center">
         <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
           {item.name}
         </h3>
         {formattedDate && (
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
+          <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
             <Calendar className="h-3 w-3" />
             {formattedDate}
           </p>
         )}
       </div>
 
-      <div className="grid-2x2">
+      <div className="grid-2x2 w-full">
         {actions?.onDelete && (
           <Button
             variant="destructive"

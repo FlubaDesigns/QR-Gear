@@ -59,12 +59,12 @@ export function GraphicsDetailSkin({
   isActionPending,
 }: DetailSkinProps) {
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
+    <div className="space-y-4 w-full max-w-md">
+      <div className="space-y-2 text-center">
         <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
           {item.name}
         </h3>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 justify-center">
           {item.qrMode && (
             <Badge variant="secondary">
               <QrCode className="h-3 w-3 mr-1" />
@@ -80,7 +80,7 @@ export function GraphicsDetailSkin({
         </div>
       </div>
 
-      <div className="grid-2x2">
+      <div className="grid-2x2 w-full">
         {actions?.onEdit && (
           <Button
             variant="outline"

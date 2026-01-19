@@ -73,15 +73,15 @@ export function SourceImageCardSkin({ item, onClick, actions }: CardSkinProps) {
 
 export function SourceImageDetailSkin({ item, actions, onClose }: DetailSkinProps) {
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
+    <div className="space-y-4 w-full max-w-md">
+      <div className="space-y-2 text-center">
         <h3 className="font-semibold text-lg" data-testid="text-source-detail-name">{item.name}</h3>
         {item.dimensions && (
           <p className="text-sm text-muted-foreground">Dimensions: {item.dimensions}</p>
         )}
       </div>
 
-      <div className="grid-2x2">
+      <div className="grid-2x2 w-full">
         {actions?.onCrop && (
           <Button
             variant="outline"

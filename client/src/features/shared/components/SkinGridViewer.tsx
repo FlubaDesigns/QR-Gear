@@ -183,7 +183,7 @@ export function SkinGridViewer({
               </div>
             </div>
 
-            <div className="p-4 border-t">
+            <div className="p-4 border-t flex flex-col items-center">
               {selectedItem && (
                 <DetailSkin
                   item={selectedItem}

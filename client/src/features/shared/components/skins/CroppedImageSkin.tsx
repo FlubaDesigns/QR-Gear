@@ -58,8 +58,8 @@ export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) 
 
 export function CroppedImageDetailSkin({ item, actions }: DetailSkinProps) {
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
+    <div className="space-y-4 w-full max-w-md">
+      <div className="space-y-2 text-center">
         <h3 className="font-semibold text-lg" data-testid="text-cropped-detail-name">{item.name}</h3>
         {item.isUsed && (
           <Badge variant="default">
@@ -69,7 +69,7 @@ export function CroppedImageDetailSkin({ item, actions }: DetailSkinProps) {
         )}
       </div>
 
-      <div className="grid-2x2">
+      <div className="grid-2x2 w-full">
         {actions?.onDelete && (
           <Button
             variant="destructive"

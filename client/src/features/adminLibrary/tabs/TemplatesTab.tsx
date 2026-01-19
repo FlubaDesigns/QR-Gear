@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Loader2, Image } from "lucide-react";
@@ -94,19 +93,7 @@ export default function TemplatesTab() {
     },
   });
 
-  const templatesWithPackets = templates.filter(t => t.packet?.compositeUrl || t.packet?.qrOnlyUrl);
-  const orphanTemplates = templates.filter(t => !t.packet);
-  const skinItems = templatesWithPackets.map(templateToSkinItem);
-  const cleanupRan = useRef(false);
-
-  useEffect(() => {
-    if (orphanTemplates.length > 0 && !cleanupRan.current && !isLoading) {
-      cleanupRan.current = true;
-      orphanTemplates.forEach(t => {
-        deleteMutation.mutate(t.id);
-      });
-    }
-  }, [orphanTemplates, isLoading]);
+  const skinItems = templates.map(templateToSkinItem);
 
   const handleEdit = (packetId: string) => {
     navigate(`/test-store-builder?packetId=${packetId}`);
@@ -124,7 +111,7 @@ export default function TemplatesTab() {
     );
   }
 
-  if (templatesWithPackets.length === 0) {
+  if (templates.length === 0) {
     return (
       <div className="text-center py-12 bg-muted/30 rounded-lg">
         <Image className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
