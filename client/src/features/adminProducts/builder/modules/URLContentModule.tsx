@@ -8,10 +8,11 @@ import { useBuilderContext } from "../BuilderContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { LandingPageViewer } from "@/features/shared/components/LandingPageViewer";
+import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 
 // Test defaults for Top/Bottom text
-const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "Hello", enabled: true };
-const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "World!", enabled: true };
+const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "HELLO", enabled: true };
+const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "WORLD", enabled: true };
 
 interface BackgroundAsset {
   id: string;
@@ -140,10 +141,10 @@ export function URLContentModule() {
       className="bg-muted/30"
       defaultOpen
     >
-      <div className="space-y-6">
+      <div className="space-y-3 sm:space-y-6">
         {/* Section 1: Product Graphic Text (in its own card - FIRST) */}
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="p-3 sm:p-6 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Type className="h-4 w-4" />
               Product Graphic Text
@@ -152,7 +153,7 @@ export function URLContentModule() {
               Add styled text to the top or bottom of your product graphic
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-3 sm:p-6 pt-0 space-y-4">
             <TextStyleEditor
               label="Top Text"
               sublabel="Appears at top of graphic"
@@ -185,61 +186,17 @@ export function URLContentModule() {
               previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
             />
             
-            {/* Combined Product Graphic Preview */}
+            {/* Combined Product Graphic Preview using shared component */}
             {((state.content.headerStyle as TextStyleConfig)?.enabled || (state.content.footerStyle as TextStyleConfig)?.enabled) && (
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-4 pt-4 border-t flex flex-col items-center">
                 <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
-                <div 
-                  className="relative aspect-square rounded-lg overflow-hidden"
-                  style={{ backgroundColor: state.selectedColor?.hex || '#1a1a2e' }}
-                >
-                  {/* Top Text */}
-                  {(state.content.headerStyle as TextStyleConfig)?.enabled && (state.content.headerStyle as TextStyleConfig)?.text && (
-                    <div 
-                      className="absolute left-0 right-0 text-center px-2"
-                      style={{
-                        top: `${(state.content.headerStyle as TextStyleConfig)?.verticalOffset || 0}%`,
-                        transform: 'translateY(-50%)',
-                        fontFamily: (state.content.headerStyle as TextStyleConfig)?.fontFamily || 'Arial',
-                        fontSize: `${Math.max(8, parseInt((state.content.headerStyle as TextStyleConfig)?.fontSize || '24') / 12)}px`,
-                        color: (state.content.headerStyle as TextStyleConfig)?.color || '#FFFFFF',
-                        letterSpacing: `${((state.content.headerStyle as TextStyleConfig)?.letterSpacing || 0) / 20}px`,
-                        WebkitTextStroke: (state.content.headerStyle as TextStyleConfig)?.strokeWidth 
-                          ? `${(state.content.headerStyle as TextStyleConfig)!.strokeWidth! / 10}px ${(state.content.headerStyle as TextStyleConfig)?.strokeColor || '#000000'}`
-                          : undefined,
-                      }}
-                    >
-                      {(state.content.headerStyle as TextStyleConfig)?.text}
-                    </div>
-                  )}
-                  
-                  {/* Center QR placeholder */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-1/3 h-1/3 border-2 border-dashed border-white/30 rounded flex items-center justify-center">
-                      <span className="text-white/30 text-xs">QR</span>
-                    </div>
-                  </div>
-                  
-                  {/* Bottom Text */}
-                  {(state.content.footerStyle as TextStyleConfig)?.enabled && (state.content.footerStyle as TextStyleConfig)?.text && (
-                    <div 
-                      className="absolute left-0 right-0 text-center px-2"
-                      style={{
-                        bottom: `${100 - ((state.content.footerStyle as TextStyleConfig)?.verticalOffset || 100)}%`,
-                        transform: 'translateY(50%)',
-                        fontFamily: (state.content.footerStyle as TextStyleConfig)?.fontFamily || 'Arial',
-                        fontSize: `${Math.max(8, parseInt((state.content.footerStyle as TextStyleConfig)?.fontSize || '24') / 12)}px`,
-                        color: (state.content.footerStyle as TextStyleConfig)?.color || '#FFFFFF',
-                        letterSpacing: `${((state.content.footerStyle as TextStyleConfig)?.letterSpacing || 0) / 20}px`,
-                        WebkitTextStroke: (state.content.footerStyle as TextStyleConfig)?.strokeWidth 
-                          ? `${(state.content.footerStyle as TextStyleConfig)!.strokeWidth! / 10}px ${(state.content.footerStyle as TextStyleConfig)?.strokeColor || '#000000'}`
-                          : undefined,
-                      }}
-                    >
-                      {(state.content.footerStyle as TextStyleConfig)?.text}
-                    </div>
-                  )}
-                </div>
+                <GraphicPreviewView
+                  backgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+                  headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
+                  footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
+                  showQRCode={true}
+                  aspectRatio="square"
+                />
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   This is how your product graphic will appear
                 </p>
@@ -249,7 +206,7 @@ export function URLContentModule() {
         </Card>
 
         {/* Section 2: URL Content (Background + Title + Description) */}
-        <div className="space-y-4 pt-4 border-t">
+        <div className="space-y-3 sm:space-y-4 pt-3 sm:pt-4 border-t">
           <p className="text-sm font-medium">URL Content</p>
           <p className="text-xs text-muted-foreground">
             Configure the landing page background and text

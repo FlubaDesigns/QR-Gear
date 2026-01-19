@@ -52,7 +52,7 @@ export const defaultTextStyle: TextStyleConfig = {
   strokeColor: "",
   strokeWidth: 0,
   verticalOffset: 100,
-  horizontalOffset: 0,
+  horizontalOffset: 100,
 };
 
 interface TextStyleEditorProps {
