@@ -30,6 +30,8 @@ interface PacketResult {
   landingPageSnapshotUrl: string;
   productGraphicUrl: string;
   qrOnlyUrl: string;
+  qrOnlyUrlBlack: string;
+  qrOnlyUrlWhite: string;
   pricing: PricingBreakdown;
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
@@ -372,6 +374,8 @@ export function CreateGraphicsModule() {
       
       const packetPayload: Record<string, any> = {
         qrOnlyUrl: "",
+        qrOnlyUrlBlack: "",
+        qrOnlyUrlWhite: "",
         compositeUrl: "",
         qrContent: isPlayMode ? "" : (state.content?.url || state.content?.title || "").trim(),
         headerText: state.content?.headerStyle?.enabled ? state.content.headerStyle.text : null,
@@ -465,9 +469,14 @@ export function CreateGraphicsModule() {
         ? `${baseUrl}/m/${landingPageSlug}`
         : (state.content?.url || state.content?.title || "");
       
+      // Generate BOTH black and white QR codes for the packet
+      const qrBlackUrl = generateQRCodeUrl(finalQrContent.trim(), 3000, "black");
+      const qrWhiteUrl = generateQRCodeUrl(finalQrContent.trim(), 3000, "white");
+      
+      // Determine which one to use for the composite graphic based on product color
       const productColorForQr = state.selectedColor?.hex || "#ffffff";
       const qrColorForFinal = getContrastQRColor(productColorForQr);
-      const finalQrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000, qrColorForFinal);
+      const finalQrUrl = qrColorForFinal === "white" ? qrWhiteUrl : qrBlackUrl;
 
       const backgroundUrl = state.loadedBackground?.url || null;
       const headerStyle = state.content?.headerStyle as TextStyle | null;
@@ -556,6 +565,8 @@ export function CreateGraphicsModule() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           qrOnlyUrl: finalQrUrl,
+          qrOnlyUrlBlack: qrBlackUrl,
+          qrOnlyUrlWhite: qrWhiteUrl,
           productGraphicUrl,
           landingPageSnapshotUrl: landingPageSnapshotUrl || null,
           compositeUrl: productGraphicUrl,
@@ -621,6 +632,8 @@ export function CreateGraphicsModule() {
         landingPageSnapshotUrl: landingPageSnapshotUrl || "",
         productGraphicUrl,
         qrOnlyUrl: finalQrUrl,
+        qrOnlyUrlBlack: qrBlackUrl,
+        qrOnlyUrlWhite: qrWhiteUrl,
         pricing,
         priorityMockupUrl: null,
         priorityMockupLoading: true,
@@ -635,11 +648,31 @@ export function CreateGraphicsModule() {
       const selectedPlacement = (state.selectedPlacements || ["front"])[0];
       const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
       
+      const placementToCanonical: Record<string, string> = {
+        "front": "FRONT_CENTER",
+        "front-center": "FRONT_CENTER",
+        "front-chest": "FRONT_CHEST",
+        "front-pocket": "FRONT_POCKET",
+        "back": "BACK_FULL",
+        "back-full": "BACK_FULL",
+        "back-upper": "BACK_UPPER",
+        "left-sleeve": "LEFT_SLEEVE",
+        "left-shoulder": "LEFT_SLEEVE",
+        "right-sleeve": "RIGHT_SLEEVE",
+        "right-shoulder": "RIGHT_SLEEVE",
+        "hood-front": "HOOD_FRONT",
+        "hood-back": "HOOD_BACK",
+        "hat-front": "HAT_FRONT",
+        "hat-back": "HAT_BACK",
+      };
+      const canonicalPlacement = placementToCanonical[selectedPlacement.toLowerCase()] || "FRONT_CENTER";
+      
       console.log('[CreatePacket] Requesting priority mockup:', {
         blueprintId: product?.blueprintId,
         printProviderId: product?.printProviderId,
         colorName: state.selectedColor?.name,
         placement: selectedPlacement,
+        canonicalPlacement,
         artworkUrl: productGraphicUrl?.substring(0, 100),
       });
       
@@ -651,7 +684,7 @@ export function CreateGraphicsModule() {
           printProviderId: product?.printProviderId || 99,
           colorName: state.selectedColor?.name || 'Black',
           colorHex: state.selectedColor?.hex || '#000000',
-          placement: selectedPlacement + "-center",
+          placement: canonicalPlacement,
           artworkUrl: productGraphicUrl,
           qrSize: selectedSize,
         }),
@@ -924,16 +957,41 @@ export function CreateGraphicsModule() {
                 <CardContent className="p-3">
                   <p className="text-xs font-medium mb-2 flex items-center gap-1">
                     <QrCode className="h-3 w-3" />
-                    QR Code (scan to test)
+                    QR Codes (Black & White)
                   </p>
-                  <div className="bg-white rounded p-4 flex items-center justify-center">
-                    <img
-                      src={packetResult.qrOnlyUrl}
-                      alt="QR Code"
-                      className="w-full max-w-[300px] h-auto"
-                      data-testid="img-packet-qr"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center">
+                      <div 
+                        className="rounded p-3 flex items-center justify-center"
+                        style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
+                      >
+                        <img
+                          src={packetResult.qrOnlyUrlBlack}
+                          alt="QR Code Black"
+                          className="w-full max-w-[140px] h-auto"
+                          data-testid="img-packet-qr-black"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Black QR</p>
+                    </div>
+                    <div className="text-center">
+                      <div 
+                        className="rounded p-3 flex items-center justify-center"
+                        style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
+                      >
+                        <img
+                          src={packetResult.qrOnlyUrlWhite}
+                          alt="QR Code White"
+                          className="w-full max-w-[140px] h-auto"
+                          data-testid="img-packet-qr-white"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">White QR</p>
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    Shown on {state.selectedColor?.name || 'product'} background (CSS layer, not embedded)
+                  </p>
                 </CardContent>
               </Card>
 
