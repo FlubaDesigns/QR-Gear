@@ -165,7 +165,7 @@ Generic image cropping dialog using react-image-crop.
 
 **Used by:**
 - Library: CropDialog wrapper for cropping source images
-- Products: BackgroundPickerModule for background cropping
+- Products: URLContentModule for background cropping
 
 **Props:**
 ```typescript
