@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library, Smartphone, FolderOpen, Layers } from "lucide-react";
-import { ARPreviewModal } from "@/features/shared/components/ARPreviewModal";
+import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library, FolderOpen, Layers, RefreshCw } from "lucide-react";
 import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -405,7 +404,6 @@ export function StoreBuilderHarness() {
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
-  const [arPreviewOpen, setArPreviewOpen] = useState(false);
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
@@ -869,6 +867,26 @@ export function StoreBuilderHarness() {
           Back to Products
         </Button>
         <div className="flex gap-2">
+          {productPackage?.packetId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Re-trigger packet load by navigating to same URL
+                const currentPacketId = productPackage.packetId;
+                if (currentPacketId) {
+                  setProductPackage(null);
+                  setTimeout(() => {
+                    navigate(`/test-store-builder?packetId=${currentPacketId}`);
+                  }, 50);
+                }
+              }}
+              data-testid="button-refresh-packet"
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Refresh
+            </Button>
+          )}
           <Button
             variant="default"
             size="sm"
@@ -949,19 +967,6 @@ export function StoreBuilderHarness() {
                   </button>
                 ))}
               </div>
-            )}
-            
-            {previewImageUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => setArPreviewOpen(true)}
-                data-testid="button-ar-preview"
-              >
-                <Smartphone className="h-4 w-4 mr-2" />
-                View in AR
-              </Button>
             )}
           </div>
 
@@ -1248,13 +1253,6 @@ export function StoreBuilderHarness() {
         mockups={mockups}
         onSelectColor={setDefaultColor}
         onSelectGraphicSize={setGraphicSize}
-      />
-
-      <ARPreviewModal
-        isOpen={arPreviewOpen}
-        onClose={() => setArPreviewOpen(false)}
-        imageUrl={previewImageUrl || ""}
-        productName={productPackage.productName}
       />
 
       <ImageLightbox
