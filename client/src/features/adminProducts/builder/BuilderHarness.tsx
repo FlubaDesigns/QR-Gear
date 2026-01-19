@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
-import { ContentModule } from "./modules/ContentModule";
 import { BackgroundPickerModule } from "./modules/BackgroundPickerModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { TextConfigModule } from "./modules/TextConfigModule";
@@ -173,12 +172,7 @@ function BuilderModules() {
         <PlacementModule />
       </InlineDebugBoundary>
       
-      {/* Step 3: Content (Title/Description for landing page) */}
-      <InlineDebugBoundary label="ContentModule">
-        <ContentModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 4: Text Overlays (Header/Footer on graphic) */}
+      {/* Step 3: Text Overlays (Header/Footer on graphic) */}
       <InlineDebugBoundary label="TextConfigModule">
         <TextConfigModule />
       </InlineDebugBoundary>
