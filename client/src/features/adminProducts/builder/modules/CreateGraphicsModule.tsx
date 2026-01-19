@@ -837,26 +837,25 @@ export function CreateGraphicsModule() {
               </div>
             )}
 
-            <Button
+            <button
               type="button"
-              size="lg"
-              className="w-full h-14 text-base bg-blue-600 hover:bg-blue-700"
               disabled={!canCreate || isCreating}
               onClick={handleCreatePacket}
+              className={`qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xl ${(!canCreate || isCreating) ? 'opacity-50 cursor-not-allowed' : ''}`}
               data-testid="button-create-packet"
             >
               {isCreating ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  <Loader2 className="h-6 w-6 animate-spin" />
                   Creating Packet...
                 </>
               ) : (
                 <>
-                  <Package className="h-5 w-5 mr-2" />
+                  <Package className="h-6 w-6" />
                   Create Packet
                 </>
               )}
-            </Button>
+            </button>
           </>
         )}
 
@@ -1158,13 +1157,30 @@ export function CreateGraphicsModule() {
               </Card>
             )}
 
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="destructive"
-                size="lg"
+            <div className="flex flex-col gap-4 pt-6">
+              <button
+                type="button"
+                onClick={handleNext}
+                className="qr-btn qr-btn--primary qr-btn--touch qr-btn--xl qr-btn--full"
+                data-testid="button-next-store-builder"
+              >
+                <ArrowRight className="h-6 w-6" />
+                Continue to Store Builder
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+                data-testid="button-create-another"
+              >
+                Create Another Product
+              </button>
+              <button
+                type="button"
                 onClick={handleDeletePacket}
                 disabled={isDeleting}
-                className="min-h-14 px-6"
+                className={`qr-btn qr-btn--ghost qr-btn--touch qr-btn--full ${isDeleting ? 'opacity-50' : ''}`}
+                style={{ color: '#ef4444' }}
                 data-testid="button-delete-packet"
               >
                 {isDeleting ? (
@@ -1172,25 +1188,8 @@ export function CreateGraphicsModule() {
                 ) : (
                   <Trash2 className="h-5 w-5" />
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleReset}
-                className="flex-1 min-h-14 text-base"
-                data-testid="button-create-another"
-              >
-                Create Another
-              </Button>
-              <Button
-                size="lg"
-                onClick={handleNext}
-                className="flex-1 min-h-14 text-base bg-green-600 hover:bg-green-700"
-                data-testid="button-next-store-builder"
-              >
-                Next
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
+                Delete This Packet
+              </button>
             </div>
           </div>
         )}

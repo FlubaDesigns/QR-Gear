@@ -121,6 +121,15 @@
   border-radius: var(--r-md);
 }
 
+/* ===== Extra Large Button (Accessibility) ===== */
+.qr-btn--xl {
+  min-height: 64px;
+  padding: 18px 28px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-radius: var(--r-md);
+}
+
 /* ===== Full Width ===== */
 .qr-btn--full {
   width: 100%;
