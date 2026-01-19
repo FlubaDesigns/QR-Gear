@@ -69,6 +69,12 @@ interface ProductPackage {
   defaultColorHex?: string;
   placementSizes?: Record<string, string>;
   priorityMockupUrl?: string | null;
+  // Destination info from Products Builder
+  destinationRoleType?: string | null;
+  destinationStoreId?: string | null;
+  destinationStoreName?: string | null;
+  destinationChannelId?: string | null;
+  destinationChannelName?: string | null;
   pricing?: {
     baseProductCost: number;
     placementCost: number;
@@ -406,8 +412,33 @@ export function StoreBuilderHarness() {
               defaultColorHex: packet.defaultColorHex,
               placementSizes: packet.placementSizes,
               priorityMockupUrl: packet.priorityMockupUrl || null,
+              // Destination from Products Builder
+              destinationRoleType: packet.roleType || null,
+              destinationStoreId: packet.storeId || null,
+              destinationStoreName: packet.storeName || null,
+              destinationChannelId: packet.channelId || null,
+              destinationChannelName: packet.channelName || null,
             };
             setProductPackage(loadedPackage);
+            
+            // Pre-select store/channel from packet's destination if not already set via URL
+            if (!urlStoreId && packet.storeId) {
+              setSelectedStoreId(packet.storeId);
+              // Set store type based on packet's roleType (internal/external/member)
+              if (packet.roleType === "internal" || packet.roleType === "external") {
+                setSelectedStoreType(packet.roleType as StoreType);
+              }
+            }
+            if (!urlChannel && packet.channelName) {
+              setSelectedChannel(packet.channelName);
+            }
+            
+            console.log("[StoreBuilder] Loaded destination from packet:", {
+              roleType: packet.roleType,
+              storeId: packet.storeId,
+              storeName: packet.storeName,
+              channelName: packet.channelName,
+            });
             
             // Priority mockup should already be in the packet from Create Packet flow
             // Only generate if missing (legacy packets)
@@ -790,6 +821,23 @@ export function StoreBuilderHarness() {
           </p>
         </div>
       )}
+
+      {productPackage.destinationStoreName && productPackage.destinationChannelName && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p className="text-sm text-blue-800 dark:text-blue-200" data-testid="text-built-for">
+            <Store className="h-4 w-4 inline mr-1" />
+            <strong>Built for:</strong> {productPackage.destinationStoreName} / {productPackage.destinationChannelName}
+            {selectedStoreId === productPackage.destinationStoreId && 
+             selectedChannel === productPackage.destinationChannelName && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                <Check className="h-3 w-3 mr-1" />
+                Ready to assign
+              </Badge>
+            )}
+          </p>
+        </div>
+      )}
+
       <Card className="overflow-hidden">
         <div className="grid grid-cols-2 gap-3 p-3">
           <div className="space-y-2">
