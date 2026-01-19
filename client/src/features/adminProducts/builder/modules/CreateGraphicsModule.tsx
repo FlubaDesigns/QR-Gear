@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2 } from "lucide-react";
+import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -936,6 +936,25 @@ export function CreateGraphicsModule() {
               </CardContent>
             </Card>
 
+            {selectedStore && selectedChannel && (
+              <Card className="bg-purple-50 dark:bg-purple-950/50 border-purple-300 dark:border-purple-700">
+                <CardContent className="p-4">
+                  <p className="text-base font-semibold mb-2 flex items-center gap-2 text-purple-800 dark:text-purple-200">
+                    <Store className="h-5 w-5" />
+                    Assigned to Store
+                  </p>
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border">
+                    <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
+                      {selectedStore.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Channel: {selectedChannel.name}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
               <CardContent className="p-3">
                 <p className="text-xs font-medium mb-2 flex items-center gap-1 text-blue-700 dark:text-blue-300">
@@ -1139,34 +1158,38 @@ export function CreateGraphicsModule() {
               </Card>
             )}
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-3 pt-4">
               <Button
                 variant="destructive"
+                size="lg"
                 onClick={handleDeletePacket}
                 disabled={isDeleting}
+                className="min-h-14 px-6"
                 data-testid="button-delete-packet"
               >
                 {isDeleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                 )}
               </Button>
               <Button
                 variant="outline"
+                size="lg"
                 onClick={handleReset}
-                className="flex-1"
+                className="flex-1 min-h-14 text-base"
                 data-testid="button-create-another"
               >
                 Create Another
               </Button>
               <Button
+                size="lg"
                 onClick={handleNext}
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1 min-h-14 text-base bg-green-600 hover:bg-green-700"
                 data-testid="button-next-store-builder"
               >
                 Next
-                <ArrowRight className="h-4 w-4 ml-2" />
+                <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </div>
           </div>
