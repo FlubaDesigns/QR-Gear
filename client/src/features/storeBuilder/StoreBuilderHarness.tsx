@@ -425,21 +425,8 @@ export function StoreBuilderHarness() {
       return;
     }
 
-    const savedPackage = sessionStorage.getItem("productPackage");
-    if (savedPackage) {
-      try {
-        const parsed = JSON.parse(savedPackage);
-        if (!parsed.templateId && !parsed.graphicsId && !parsed.packetId) {
-          sessionStorage.removeItem("productPackage");
-          setProductPackage(null);
-        } else {
-          setProductPackage(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to parse product package:", e);
-        sessionStorage.removeItem("productPackage");
-      }
-    }
+    // No packetId in URL - user should go to Products Builder first
+    setProductPackage(null);
   }, []);
 
   const currentMockup = mockups.find(
@@ -646,8 +633,6 @@ export function StoreBuilderHarness() {
         type: "success",
         message: successMsg,
       });
-      
-      sessionStorage.removeItem("productPackage");
       
       if (selectedStore?.id && selectedChannel) {
         setTimeout(() => {
