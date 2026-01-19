@@ -267,6 +267,7 @@ export function StoreBuilderHarness() {
   const [isLoadingPacket, setIsLoadingPacket] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
   const [arPreviewOpen, setArPreviewOpen] = useState(false);
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -749,17 +750,19 @@ export function StoreBuilderHarness() {
             {packetThumbnails.length > 0 && (
               <div className="flex gap-1">
                 {packetThumbnails.slice(0, 3).map((url, idx) => (
-                  <div 
+                  <button
+                    type="button" 
                     key={idx} 
-                    className="flex-1 aspect-square bg-muted rounded overflow-hidden border"
+                    className="flex-1 aspect-square bg-muted rounded overflow-hidden border hover-elevate cursor-pointer"
+                    onClick={() => setThumbnailLightbox(url)}
+                    data-testid={`thumb-${idx}`}
                   >
                     <img 
                       src={url} 
                       alt="" 
                       className="w-full h-full object-contain"
-                      data-testid={`thumb-${idx}`}
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -1069,6 +1072,28 @@ export function StoreBuilderHarness() {
         imageUrl={previewImageUrl || ""}
         productName={productPackage.productName}
       />
+
+      {thumbnailLightbox && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setThumbnailLightbox(null)}
+        >
+          <button
+            type="button"
+            className="absolute top-4 right-4 text-white/70 hover:text-white p-2"
+            onClick={() => setThumbnailLightbox(null)}
+            data-testid="button-close-thumbnail-lightbox"
+          >
+            <X className="h-8 w-8" />
+          </button>
+          <img 
+            src={thumbnailLightbox} 
+            alt="Full size preview" 
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
