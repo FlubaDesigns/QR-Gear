@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback } from "react";
-import { Play, Link2, Upload, CheckSquare, Square, AlertCircle, X, Video, Image as ImageIcon } from "lucide-react";
+import { Play, Link2, Upload, CheckSquare, Square, AlertCircle, Video, Image as ImageIcon } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
+import { MediaPreviewSkin } from "@/features/shared/components/skins/MediaPreviewSkin";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ACCEPTED_TYPES = "video/mp4,video/webm,video/quicktime,image/gif,image/webp";
@@ -197,35 +198,13 @@ export function PlayContentModule() {
                 )}
               </div>
             ) : (
-              <div className="relative rounded-lg overflow-hidden border">
-                {isVideo ? (
-                  <video
-                    src={state.content.playMediaPreview}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="w-full max-h-[200px] object-contain bg-black"
-                    data-testid="play-video-preview"
-                  />
-                ) : (
-                  <img
-                    src={state.content.playMediaPreview}
-                    alt="Media preview"
-                    className="w-full max-h-[200px] object-contain"
-                    data-testid="play-image-preview"
-                  />
-                )}
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2"
-                  onClick={handleClearMedia}
-                  data-testid="button-clear-play-media"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-1 rounded">
+              <div className="space-y-2">
+                <MediaPreviewSkin
+                  mediaUrl={state.content.playMediaPreview}
+                  mimeType={state.content.playMediaMimeType}
+                  onClear={handleClearMedia}
+                />
+                <div className="flex items-center gap-1 text-muted-foreground text-xs px-2">
                   {isVideo ? <Video className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}
                   <span>{state.content.playMediaFile?.name}</span>
                 </div>

@@ -7,6 +7,7 @@ import { FontPicker } from "@/components/ui/font-picker";
 import { useBuilderContext } from "../BuilderContext";
 import { FONT_FAMILIES, FONT_SIZES, WARP_PRESETS, type TextStyleConfig } from "../types";
 import { ColorSwatchPicker, getContrastQRColor } from "@/features/shared/components/ColorSwatchPicker";
+import { GraphicPreviewSkin } from "@/features/shared/components/skins/GraphicPreviewSkin";
 
 interface TextBlockProps {
   label: string;
@@ -313,82 +314,13 @@ export function TextConfigModule() {
           <div className="mt-4 pt-4 border-t">
             <p className="text-sm font-medium mb-3 text-muted-foreground">Graphic Preview</p>
             <div className="flex justify-center">
-              <div 
-                className="relative w-[160px] aspect-square rounded-lg overflow-hidden border-2 border-border shadow-lg bg-white dark:bg-black"
-              >
-                {/* Header text - positioned based on verticalOffset and horizontalOffset */}
-                {state.content.headerStyle.enabled && state.content.headerStyle.text && (
-                  <div 
-                    className="absolute left-0 right-0 px-1"
-                    style={{
-                      top: `${Math.max(2, 40 - (state.content.headerStyle.verticalOffset ?? 20) * 0.38)}%`,
-                      transform: `translateX(${(state.content.headerStyle.horizontalOffset ?? 0) * 0.5}%)`,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span 
-                      style={{ 
-                        fontFamily: state.content.headerStyle.fontFamily, 
-                        fontSize: `${Math.max(8, Math.min(parseInt(state.content.headerStyle.fontSize) * 0.08, 16))}px`,
-                        color: state.content.headerStyle.color,
-                        letterSpacing: `${state.content.headerStyle.letterSpacing * 0.03}px`,
-                        textShadow: state.content.headerStyle.strokeColor && state.content.headerStyle.strokeWidth > 0 
-                          ? `0 0 ${Math.max(1, state.content.headerStyle.strokeWidth * 0.2)}px ${state.content.headerStyle.strokeColor}` 
-                          : "0 1px 2px rgba(0,0,0,0.5)",
-                        fontWeight: 'bold',
-                        whiteSpace: 'nowrap',
-                        display: 'inline-block',
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {state.content.headerStyle.text}
-                    </span>
-                  </div>
-                )}
-
-                {/* QR Code placeholder */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-white p-1.5 rounded shadow-lg">
-                    <div className="w-10 h-10 bg-black/10 flex items-center justify-center rounded">
-                      <Type className="w-6 h-6 text-black/50" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer text - positioned based on verticalOffset and horizontalOffset */}
-                {state.content.footerStyle.enabled && state.content.footerStyle.text && (
-                  <div 
-                    className="absolute left-0 right-0 px-1"
-                    style={{
-                      bottom: `${Math.max(2, 40 - (state.content.footerStyle.verticalOffset ?? 20) * 0.38)}%`,
-                      transform: `translateX(${(state.content.footerStyle.horizontalOffset ?? 0) * 0.5}%)`,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span 
-                      style={{ 
-                        fontFamily: state.content.footerStyle.fontFamily, 
-                        fontSize: `${Math.max(8, Math.min(parseInt(state.content.footerStyle.fontSize) * 0.08, 16))}px`,
-                        color: state.content.footerStyle.color,
-                        letterSpacing: `${state.content.footerStyle.letterSpacing * 0.03}px`,
-                        textShadow: state.content.footerStyle.strokeColor && state.content.footerStyle.strokeWidth > 0 
-                          ? `0 0 ${Math.max(1, state.content.footerStyle.strokeWidth * 0.2)}px ${state.content.footerStyle.strokeColor}` 
-                          : "0 1px 2px rgba(0,0,0,0.5)",
-                        fontWeight: 'bold',
-                        whiteSpace: 'nowrap',
-                        display: 'inline-block',
-                        maxWidth: '100%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {state.content.footerStyle.text}
-                    </span>
-                  </div>
-                )}
-              </div>
+              <GraphicPreviewSkin
+                backgroundColor={state.selectedColor?.hex || '#ffffff'}
+                headerStyle={state.content.headerStyle.enabled ? state.content.headerStyle : undefined}
+                footerStyle={state.content.footerStyle.enabled ? state.content.footerStyle : undefined}
+                showQRCode={true}
+                aspectRatio="square"
+              />
             </div>
           </div>
         )}
