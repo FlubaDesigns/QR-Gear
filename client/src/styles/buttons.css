@@ -123,11 +123,22 @@
 
 /* ===== Extra Large Button (Accessibility) ===== */
 .qr-btn--xl {
-  min-height: 64px;
-  padding: 18px 28px;
-  font-size: 1.25rem;
+  min-height: 72px;
+  padding: 20px 32px;
+  font-size: 1.375rem;
   font-weight: 700;
   border-radius: var(--r-md);
+  letter-spacing: 0.01em;
+}
+
+/* ===== XXL Button (Maximum Accessibility) ===== */
+.qr-btn--xxl {
+  min-height: 80px;
+  padding: 24px 36px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-radius: var(--r-md);
+  letter-spacing: 0.01em;
 }
 
 /* ===== Full Width ===== */

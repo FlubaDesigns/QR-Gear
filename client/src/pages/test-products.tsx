@@ -41,12 +41,12 @@ function AuthModule() {
 
   return (
     <div className="glass-card mb-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <User className="h-5 w-5" />
           {firebaseUser ? (
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{firebaseUser.displayName || firebaseUser.email}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-sm">{firebaseUser.displayName || firebaseUser.email}</span>
               {isAdmin && <Badge variant="secondary">Admin</Badge>}
             </div>
           ) : (
@@ -56,19 +56,19 @@ function AuthModule() {
         {firebaseUser ? (
           <button
             onClick={handleLogout}
-            className="qr-btn qr-btn--outline qr-btn--touch"
+            className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
             data-testid="button-logout"
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <LogOut className="h-5 w-5" />
             Sign Out
           </button>
         ) : (
           <button
             onClick={handleLogin}
-            className="qr-btn qr-btn--primary qr-btn--touch"
+            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
             data-testid="button-login"
           >
-            <LogIn className="h-4 w-4 mr-2" />
+            <LogIn className="h-5 w-5" />
             Sign In with Google
           </button>
         )}
@@ -88,15 +88,15 @@ function PathwayModule({ apiBase, onApiBaseChange }: PathwayModuleProps) {
 
   return (
     <div className="glass-card mb-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <Server className="h-5 w-5" />
           <span className="font-medium">Server Pathway</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           <button
             onClick={() => onApiBaseChange("/api/test")}
-            className={`qr-btn qr-btn--touch ${isDev ? "qr-btn--primary" : "qr-btn--outline"}`}
+            className={`qr-btn qr-btn--touch qr-btn--full ${isDev ? "qr-btn--primary" : "qr-btn--outline"}`}
             data-testid="button-pathway-dev"
           >
             Development
@@ -104,7 +104,7 @@ function PathwayModule({ apiBase, onApiBaseChange }: PathwayModuleProps) {
           </button>
           <button
             onClick={() => onApiBaseChange("/api")}
-            className={`qr-btn qr-btn--touch ${isProd ? "qr-btn--primary" : "qr-btn--outline"}`}
+            className={`qr-btn qr-btn--touch qr-btn--full ${isProd ? "qr-btn--primary" : "qr-btn--outline"}`}
             data-testid="button-pathway-prod"
           >
             Production
@@ -112,10 +112,10 @@ function PathwayModule({ apiBase, onApiBaseChange }: PathwayModuleProps) {
           </button>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mt-2">
+      <p className="text-sm text-muted-foreground mt-3">
         {isDev 
-          ? "Using /api/test endpoints - No authentication required for API calls"
-          : "Using /api endpoints - Authentication required for API calls"
+          ? "Using /api/test endpoints - No authentication required"
+          : "Using /api endpoints - Authentication required"
         }
       </p>
     </div>
@@ -133,50 +133,41 @@ export default function TestProductsPage() {
           <PathwayModule apiBase={apiBase} onApiBaseChange={setApiBase} />
 
           <div className="glass-card">
-            <div className="flex items-start gap-4 flex-wrap">
-              <div className="glass-icon">
-                <AlertTriangle className="h-6 w-6 text-amber-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="glass-title text-xl mb-2" data-testid="text-page-title">
-                  Product Builder
-                </h1>
-                <p className="glass-body mb-4">
-                  Create and manage QR-enabled products. All changes are saved to the database.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Link href="/test-store-builder">
-                    <button className="qr-btn qr-btn--primary qr-btn--touch" data-testid="link-store-builder">
-                      <Store className="h-5 w-5 mr-2" />
-                      Store Builder
-                    </button>
-                  </Link>
-                  <Link href="/test-pricing">
-                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-pricing">
-                      <DollarSign className="h-5 w-5 mr-2" />
-                      Pricing Settings
-                    </button>
-                  </Link>
-                  <Link href="/admin/library?tab=graphics">
-                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-graphics-library">
-                      <QrCode className="h-5 w-5 mr-2" />
-                      Graphics Library
-                    </button>
-                  </Link>
-                  <Link href="/admin/library?tab=templates">
-                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-templates-library">
-                      <Layers className="h-5 w-5 mr-2" />
-                      Templates Library
-                    </button>
-                  </Link>
-                  <Link href="/admin/library">
-                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-full-library">
-                      <Image className="h-5 w-5 mr-2" />
-                      Full Library
-                    </button>
-                  </Link>
-                </div>
-              </div>
+            <h1 className="glass-title text-lg mb-4 flex items-center gap-2" data-testid="text-page-title">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              Product Builder
+            </h1>
+            <div className="flex flex-col gap-3">
+              <Link href="/test-store-builder" className="block">
+                <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-store-builder">
+                  <Store className="h-5 w-5" />
+                  Store Builder
+                </button>
+              </Link>
+              <Link href="/test-pricing" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-pricing">
+                  <DollarSign className="h-5 w-5" />
+                  Pricing Settings
+                </button>
+              </Link>
+              <Link href="/admin/library?tab=graphics" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-graphics-library">
+                  <QrCode className="h-5 w-5" />
+                  Graphics Library
+                </button>
+              </Link>
+              <Link href="/admin/library?tab=templates" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-templates-library">
+                  <Layers className="h-5 w-5" />
+                  Templates Library
+                </button>
+              </Link>
+              <Link href="/admin/library" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-full-library">
+                  <Image className="h-5 w-5" />
+                  Full Library
+                </button>
+              </Link>
             </div>
           </div>
 

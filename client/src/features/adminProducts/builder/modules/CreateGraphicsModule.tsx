@@ -818,9 +818,9 @@ export function CreateGraphicsModule() {
         {!packetResult && (
           <>
             {validationErrors.length > 0 && (
-              <div className="p-3 bg-amber-50 dark:bg-amber-950/50 rounded-md border border-amber-200 dark:border-amber-800">
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2">Complete these items first:</p>
-                <ul className="text-sm text-amber-600 dark:text-amber-400 list-disc list-inside space-y-1">
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/50 rounded-md border border-amber-200 dark:border-amber-800">
+                <p className="text-base font-semibold text-amber-700 dark:text-amber-300 mb-3">Complete these items first:</p>
+                <ul className="text-base text-amber-600 dark:text-amber-400 list-disc list-inside space-y-2">
                   {validationErrors.map((err, i) => (
                     <li key={i}>{err}</li>
                   ))}
@@ -829,9 +829,9 @@ export function CreateGraphicsModule() {
             )}
 
             {validationErrors.length === 0 && (
-              <div className="p-3 bg-green-50 dark:bg-green-950/50 rounded-md border border-green-200 dark:border-green-800">
-                <p className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
-                  <Check className="h-4 w-4" />
+              <div className="p-4 bg-green-50 dark:bg-green-950/50 rounded-md border border-green-200 dark:border-green-800">
+                <p className="text-base text-green-700 dark:text-green-300 flex items-center gap-3">
+                  <Check className="h-5 w-5" />
                   Ready to create your product packet
                 </p>
               </div>
@@ -841,17 +841,17 @@ export function CreateGraphicsModule() {
               type="button"
               disabled={!canCreate || isCreating}
               onClick={handleCreatePacket}
-              className={`qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xl ${(!canCreate || isCreating) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xxl ${(!canCreate || isCreating) ? 'opacity-50 cursor-not-allowed' : ''}`}
               data-testid="button-create-packet"
             >
               {isCreating ? (
                 <>
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <Loader2 className="h-7 w-7 animate-spin" />
                   Creating Packet...
                 </>
               ) : (
                 <>
-                  <Package className="h-6 w-6" />
+                  <Package className="h-7 w-7" />
                   Create Packet
                 </>
               )}
@@ -867,9 +867,9 @@ export function CreateGraphicsModule() {
 
         {packetResult && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-              <Check className="h-5 w-5" />
-              <span className="font-semibold">Packet Created Successfully</span>
+            <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
+              <Check className="h-6 w-6" />
+              <span className="font-bold text-lg">Packet Created Successfully</span>
             </div>
 
             <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-blue-300 dark:border-blue-700">
@@ -909,26 +909,26 @@ export function CreateGraphicsModule() {
             </Card>
 
             <Card className="bg-green-50 dark:bg-green-950/50 border-green-200 dark:border-green-800">
-              <CardContent className="p-3">
-                <p className="text-sm font-medium mb-2 flex items-center gap-2 text-green-700 dark:text-green-300">
-                  <ListChecks className="h-4 w-4" />
+              <CardContent className="p-4">
+                <p className="text-base font-semibold mb-3 flex items-center gap-2 text-green-700 dark:text-green-300">
+                  <ListChecks className="h-5 w-5" />
                   Completed Steps
                 </p>
-                <div className="space-y-1.5 text-sm">
+                <div className="space-y-2 text-base">
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" />
                     <span>Packet created with pricing data</span>
                   </div>
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" />
                     <span>QR code generated</span>
                   </div>
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" />
                     <span>Composite graphic saved</span>
                   </div>
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" />
                     <span>Mockup queue started for all colors</span>
                   </div>
                 </div>
@@ -966,12 +966,12 @@ export function CreateGraphicsModule() {
               </CardContent>
             </Card>
 
-            <p className="text-sm font-semibold mb-2">Generated Thumbnails</p>
+            <p className="text-base font-bold mb-3">Generated Thumbnails</p>
             <div className="grid grid-cols-2 gap-3">
               <Card className="overflow-hidden">
-                <CardContent className="p-2">
-                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
-                    <Image className="h-3 w-3" />
+                <CardContent className="p-3">
+                  <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <Image className="h-4 w-4" />
                     Landing Page
                   </p>
                   {packetResult.landingPageSnapshotUrl ? (
@@ -997,9 +997,9 @@ export function CreateGraphicsModule() {
               </Card>
 
               <Card className="overflow-hidden">
-                <CardContent className="p-2">
-                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
-                    <Image className="h-3 w-3" />
+                <CardContent className="p-3">
+                  <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <Image className="h-4 w-4" />
                     Product Graphic
                   </p>
                   <button 
@@ -1020,9 +1020,9 @@ export function CreateGraphicsModule() {
               </Card>
 
               <Card className="overflow-hidden col-span-2">
-                <CardContent className="p-3">
-                  <p className="text-xs font-medium mb-2 flex items-center gap-1">
-                    <QrCode className="h-3 w-3" />
+                <CardContent className="p-4">
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <QrCode className="h-4 w-4" />
                     QR Codes (Black & White)
                   </p>
                   <div className="grid grid-cols-2 gap-3">
@@ -1041,7 +1041,7 @@ export function CreateGraphicsModule() {
                           data-testid="img-packet-qr-black"
                         />
                       </button>
-                      <p className="text-xs text-muted-foreground mt-1">Black QR</p>
+                      <p className="text-sm text-muted-foreground mt-2">Black QR</p>
                     </div>
                     <div className="text-center">
                       <button 
@@ -1058,19 +1058,19 @@ export function CreateGraphicsModule() {
                           data-testid="img-packet-qr-white"
                         />
                       </button>
-                      <p className="text-xs text-muted-foreground mt-1">White QR</p>
+                      <p className="text-sm text-muted-foreground mt-2">White QR</p>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
-                    Shown on {state.selectedColor?.name || 'product'} background (CSS layer, not embedded)
+                  <p className="text-sm text-muted-foreground mt-3 text-center">
+                    Shown on {state.selectedColor?.name || 'product'} background
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="overflow-hidden col-span-2">
-                <CardContent className="p-2">
-                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
-                    <Shirt className="h-3 w-3" />
+                <CardContent className="p-4">
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Shirt className="h-4 w-4" />
                     Mockup Preview
                   </p>
                   {packetResult.priorityMockupLoading ? (
@@ -1157,20 +1157,20 @@ export function CreateGraphicsModule() {
               </Card>
             )}
 
-            <div className="flex flex-col gap-4 pt-6">
+            <div className="flex flex-col gap-5 pt-8">
               <button
                 type="button"
                 onClick={handleNext}
-                className="qr-btn qr-btn--primary qr-btn--touch qr-btn--xl qr-btn--full"
+                className="qr-btn qr-btn--primary qr-btn--touch qr-btn--xxl qr-btn--full"
                 data-testid="button-next-store-builder"
               >
-                <ArrowRight className="h-6 w-6" />
+                <ArrowRight className="h-7 w-7" />
                 Continue to Store Builder
               </button>
               <button
                 type="button"
                 onClick={handleReset}
-                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--xl qr-btn--full"
                 data-testid="button-create-another"
               >
                 Create Another Product
@@ -1179,14 +1179,14 @@ export function CreateGraphicsModule() {
                 type="button"
                 onClick={handleDeletePacket}
                 disabled={isDeleting}
-                className={`qr-btn qr-btn--ghost qr-btn--touch qr-btn--full ${isDeleting ? 'opacity-50' : ''}`}
+                className={`qr-btn qr-btn--ghost qr-btn--touch qr-btn--xl qr-btn--full ${isDeleting ? 'opacity-50' : ''}`}
                 style={{ color: '#ef4444' }}
                 data-testid="button-delete-packet"
               >
                 {isDeleting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 ) : (
-                  <Trash2 className="h-5 w-5" />
+                  <Trash2 className="h-6 w-6" />
                 )}
                 Delete This Packet
               </button>
