@@ -70,7 +70,7 @@ export default function TestLibraryPage() {
 
           <div className="glass-card">
             <h2 className="glass-title text-base mb-4">Select Tab</h2>
-            <div className="flex flex-col gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               {TABS.map((t) => {
                 const Icon = t.icon;
                 const isActive = tab === t.id;
@@ -78,11 +78,11 @@ export default function TestLibraryPage() {
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
-                    className={`qr-btn qr-btn--touch qr-btn--full ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
+                    className={`qr-btn qr-btn--touch aspect-square flex flex-col items-center justify-center text-center ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
                     data-testid={`tab-${t.id}`}
                   >
-                    <Icon className="h-5 w-5" />
-                    {t.label}
+                    <Icon className="h-6 w-6 mb-1" />
+                    <span className="text-sm">{t.label}</span>
                   </button>
                 );
               })}
