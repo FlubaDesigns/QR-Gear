@@ -3,8 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ImagePlus } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
-import { ImageUploader } from "../components/ImageUploader";
-import { CropDialog } from "../components/CropDialog";
+import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
+import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { SourceImageCardSkin, SourceImageDetailSkin } from "@/features/shared/components/skins";
 import type { SkinItem } from "@/features/shared/components/skins/types";
@@ -24,7 +24,7 @@ export default function SourceImagesTab() {
   const { api } = useLibraryContext();
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [assetToCrop, setAssetToCrop] = useState<LibraryAssetWithProxy | null>(null);
+  const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
   const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("source"),
@@ -47,13 +47,52 @@ export default function SourceImagesTab() {
   const handleCrop = (id: string) => {
     const asset = assets.find(a => a.id === id);
     if (asset) {
-      setAssetToCrop(asset);
+      setAssetToCrop({
+        id: asset.id,
+        name: asset.name,
+        imageUrl: getImageUrl(asset),
+      });
       setCropDialogOpen(true);
     }
   };
 
+  const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
+    if (!sourceAsset) return;
+    await api.uploadAsset({
+      name: `cropped_${sourceAsset.name}`,
+      assetType: "cropped",
+      imageData,
+      mimeType: "image/jpeg",
+      sourceAssetId: sourceAsset.id,
+    });
+    api.invalidateAssets("source");
+    api.invalidateAssets("cropped");
+    api.invalidateAssets("background");
+  };
+
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
+  };
+
+  const handleUploadSingle = async (params: { name: string; imageData: string; mimeType: string }) => {
+    await api.uploadAsset({
+      name: params.name,
+      assetType: "source",
+      imageData: params.imageData,
+      mimeType: params.mimeType,
+    });
+    api.invalidateAssets("source");
+  };
+
+  const handleUploadZip = async (params: { name: string; imageData: string; mimeType: string }) => {
+    const result = await api.uploadZip({
+      name: params.name,
+      assetType: "source",
+      imageData: params.imageData,
+      mimeType: params.mimeType,
+    });
+    api.invalidateAssets("source");
+    return result;
   };
 
   if (isLoading) {
@@ -66,7 +105,12 @@ export default function SourceImagesTab() {
 
   return (
     <>
-      <ImageUploader assetType="source" />
+      <ImageUploader
+        onUploadSingle={handleUploadSingle}
+        onUploadZip={handleUploadZip}
+        title="Upload Source Images"
+        description="ZIP files are extracted server-side. Original ZIP saved to archive."
+      />
 
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">{assets.length} Source Images</h3>
@@ -100,13 +144,17 @@ export default function SourceImagesTab() {
         />
       )}
 
-      <CropDialog
+      <CropUtility
         asset={assetToCrop}
         open={cropDialogOpen}
         onOpenChange={(open) => {
           setCropDialogOpen(open);
           if (!open) setAssetToCrop(null);
         }}
+        onSave={handleSaveCrop}
+        fetchImageBlob={api.fetchImageBlob}
+        aspectRatio={9 / 16}
+        title="Crop Image"
       />
     </>
   );
