@@ -1850,43 +1850,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test endpoint: partner-stores (no auth required) - mirrors admin endpoint
+  // Test endpoint: partner-stores (no auth required) - fetches from Firestore
   app.get("/api/test/partner-stores", async (req: any, res) => {
     try {
-      console.log('[TestPartnerStores] GET partner-stores');
-      const mockStores = [
-        {
-          id: "qrgear-main",
-          name: "QR Gear Main Store",
-          isInternal: true,
-          isActive: true,
-          availableSegments: ["QR Basics", "QR Plus", "QR Canvas", "QR Play", "QR Dynamics™"],
-          apiKey: "test-key-1",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "kingdom-connects",
-          name: "Kingdom Connects",
-          isInternal: false,
-          isActive: true,
-          availableSegments: ["Church Merch", "Ministry Items", "Youth Group"],
-          apiKey: "test-key-2",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "partner-demo",
-          name: "Partner Demo Store",
-          isInternal: false,
-          isActive: true,
-          availableSegments: ["Corporate", "Events", "Promotional"],
-          apiKey: "test-key-3",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-      res.json(mockStores);
+      console.log('[TestPartnerStores] GET partner-stores from Firestore');
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const snapshot = await firestoreDb.collection('partnerStores').get();
+      const stores = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          slug: data.slug,
+          isInternal: data.isInternal ?? true,
+          isActive: data.isActive ?? true,
+          availableSegments: data.availableSegments || [],
+          apiKey: data.apiKey || null,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        };
+      });
+      
+      console.log(`[TestPartnerStores] Found ${stores.length} stores`);
+      res.json(stores);
     } catch (error: any) {
       console.error('[TestPartnerStores] GET error:', error);
       res.status(500).json({ error: error.message });

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library, Smartphone } from "lucide-react";
+import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library, Smartphone, FolderOpen, Layers } from "lucide-react";
 import { ARPreviewModal } from "@/features/shared/components/ARPreviewModal";
 import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +10,143 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { PartnerStore } from "@shared/schema";
+
+interface LibraryItem {
+  id: string;
+  type: "packet" | "template";
+  name: string;
+  compositeUrl?: string;
+  qrOnlyUrl?: string;
+  productName?: string;
+  createdAt?: string;
+  packetId?: string;
+}
+
+function LibraryPickerModal({
+  isOpen,
+  onClose,
+  onSelect,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (item: LibraryItem) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"packets" | "templates">("packets");
+  const [isLoading, setIsLoading] = useState(false);
+  const [items, setItems] = useState<LibraryItem[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    setIsLoading(true);
+    const endpoint = activeTab === "packets" ? "/api/test/packets" : "/api/test/templates";
+    
+    fetch(endpoint)
+      .then(res => res.json())
+      .then(data => {
+        if (activeTab === "packets" && data.packets) {
+          setItems(data.packets.map((p: any) => ({
+            id: p.id,
+            type: "packet" as const,
+            name: p.productName || `Packet ${p.id.slice(0, 6)}`,
+            compositeUrl: p.compositeUrl,
+            qrOnlyUrl: p.qrOnlyUrl,
+            productName: p.productName,
+            createdAt: p.createdAt,
+          })));
+        } else if (activeTab === "templates" && data.templates) {
+          setItems(data.templates.map((t: any) => ({
+            id: t.id,
+            type: "template" as const,
+            name: t.name || `Template ${t.id.slice(0, 6)}`,
+            compositeUrl: t.thumbnailUrl || t.artworkUrl,
+            packetId: t.packetId,
+            productName: t.productName,
+            createdAt: t.createdAt,
+          })));
+        }
+      })
+      .catch(err => console.error("Failed to load library:", err))
+      .finally(() => setIsLoading(false));
+  }, [isOpen, activeTab]);
+
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Load from Library</DialogTitle>
+          <DialogDescription>
+            Select a packet (graphics only) or template (pre-configured) to load
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant={activeTab === "packets" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab("packets")}
+            data-testid="tab-packets"
+          >
+            <QrCode className="h-4 w-4 mr-2" />
+            Packets
+          </Button>
+          <Button
+            variant={activeTab === "templates" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab("templates")}
+            data-testid="tab-templates"
+          >
+            <Layers className="h-4 w-4 mr-2" />
+            Templates
+          </Button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No {activeTab} found. Create one in the Products Builder first.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onSelect(item)}
+                  className="border rounded-lg p-2 hover-elevate text-left"
+                  data-testid={`library-item-${item.id}`}
+                >
+                  {item.compositeUrl ? (
+                    <img 
+                      src={item.compositeUrl} 
+                      alt={item.name}
+                      className="w-full aspect-square object-contain bg-muted rounded mb-2"
+                    />
+                  ) : (
+                    <div className="w-full aspect-square bg-muted rounded mb-2 flex items-center justify-center">
+                      <Package className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <p className="text-xs font-medium truncate">{item.name}</p>
+                  <Badge variant="secondary" className="text-[10px] mt-1">
+                    {item.type === "packet" ? "Packet" : "Template"}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const COLOR_HEX_MAP: Record<string, string> = {
   "White": "#FFFFFF", "Black": "#000000", "Navy": "#1F2937", "Navy Blue": "#1F2937",
@@ -273,6 +409,7 @@ export function StoreBuilderHarness() {
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
 
   const [configuration, setConfiguration] = useState<ProductConfiguration>({
     enabledColors: new Set<string>(),
@@ -662,17 +799,107 @@ export function StoreBuilderHarness() {
     );
   }
 
+  const loadPacketById = async (packetId: string) => {
+    setIsLoadingPacket(true);
+    setOriginalPacketId(packetId);
+    setIsEditMode(true);
+    setSaveStatus(null);
+    
+    try {
+      const res = await fetch(`/api/test/packets/${packetId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      
+      if (data.success && data.packet) {
+        const packet = data.packet;
+        const loadedPackage: ProductPackage = {
+          packetId: packet.id,
+          templateId: packet.templateId || null,
+          qrContent: packet.qrContent,
+          productName: packet.productName,
+          productDescription: packet.productDescription,
+          productImageUrl: packet.productImageUrl,
+          compositeUrl: packet.compositeUrl,
+          qrOnlyUrl: packet.qrOnlyUrl,
+          headerText: packet.headerText,
+          footerText: packet.footerText,
+          colors: packet.colors || [],
+          sizes: packet.sizes || [],
+          qrSizes: packet.qrSizes || ["small", "medium", "large"],
+          availablePlacements: packet.availablePlacements || [],
+          placements: packet.placements || [],
+          basePrice: packet.basePrice,
+          customerPrice: packet.customerPrice,
+          qrProductState: packet.qrProductState,
+          blueprintId: packet.blueprintId,
+          printProviderId: packet.printProviderId,
+          pricing: packet.pricing,
+          manufacturer: packet.manufacturer || "Printify",
+          madeIn: packet.madeIn || "USA",
+          defaultColor: packet.defaultColor,
+          defaultColorHex: packet.defaultColorHex,
+          placementSizes: packet.placementSizes,
+          priorityMockupUrl: packet.priorityMockupUrl || null,
+        };
+        setProductPackage(loadedPackage);
+      }
+    } catch (err: any) {
+      console.error("Failed to load packet:", err);
+      setSaveStatus({ type: "error", message: `Failed to load packet: ${err.message}` });
+    } finally {
+      setIsLoadingPacket(false);
+    }
+  };
+
+  const handleLibrarySelect = (item: LibraryItem) => {
+    setLibraryPickerOpen(false);
+    const packetId = item.type === "template" ? item.packetId : item.id;
+    if (packetId) {
+      // Update URL without reload, then load packet directly
+      window.history.pushState({}, "", `/test-store-builder?packetId=${packetId}`);
+      loadPacketById(packetId);
+    } else {
+      setSaveStatus({ type: "error", message: "Selected item has no packet ID" });
+    }
+  };
+
   if (!productPackage) {
     return (
-      <Card className="p-6">
-        <div className="text-center py-8">
-          <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No Product Package Loaded</h3>
-          <p className="text-muted-foreground">
-            Save a product from the Products Builder first, then return here.
-          </p>
-        </div>
-      </Card>
+      <>
+        <Card className="p-6">
+          <div className="text-center py-8">
+            <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Product Package Loaded</h3>
+            <p className="text-muted-foreground mb-6">
+              Load from your library or create a new product in Products Builder.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                size="lg"
+                onClick={() => setLibraryPickerOpen(true)}
+                data-testid="button-load-library"
+              >
+                <FolderOpen className="h-5 w-5 mr-2" />
+                Load from Library
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => navigate("/test-products")}
+                data-testid="button-go-products"
+              >
+                <Package className="h-5 w-5 mr-2" />
+                Go to Products
+              </Button>
+            </div>
+          </div>
+        </Card>
+        <LibraryPickerModal
+          isOpen={libraryPickerOpen}
+          onClose={() => setLibraryPickerOpen(false)}
+          onSelect={handleLibrarySelect}
+        />
+      </>
     );
   }
 
@@ -696,9 +923,18 @@ export function StoreBuilderHarness() {
         </Button>
         <div className="flex gap-2">
           <Button
+            variant="default"
+            size="sm"
+            onClick={() => setLibraryPickerOpen(true)}
+            data-testid="button-load-library-header"
+          >
+            <FolderOpen className="h-4 w-4 mr-1" />
+            Load
+          </Button>
+          <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate("/test-library?tab=graphics")}
+            onClick={() => navigate("/admin/library?tab=graphics")}
             data-testid="link-graphics-library"
           >
             <QrCode className="h-4 w-4 mr-1" />
@@ -707,10 +943,10 @@ export function StoreBuilderHarness() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate("/test-library?tab=templates")}
+            onClick={() => navigate("/admin/library?tab=templates")}
             data-testid="link-templates-library"
           >
-            <Library className="h-4 w-4 mr-1" />
+            <Layers className="h-4 w-4 mr-1" />
             Templates
           </Button>
         </div>
@@ -1077,6 +1313,12 @@ export function StoreBuilderHarness() {
       <ImageLightbox
         imageUrl={thumbnailLightbox}
         onClose={() => setThumbnailLightbox(null)}
+      />
+
+      <LibraryPickerModal
+        isOpen={libraryPickerOpen}
+        onClose={() => setLibraryPickerOpen(false)}
+        onSelect={handleLibrarySelect}
       />
     </div>
   );
