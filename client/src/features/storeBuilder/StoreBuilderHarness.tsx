@@ -805,31 +805,30 @@ export function StoreBuilderHarness() {
   if (!productPackage) {
     return (
       <>
-        <Card className="p-6">
-          <div className="text-center py-8">
-            <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No Product Package Loaded</h3>
-            <p className="text-muted-foreground mb-6">
-              Load from your library or create a new product in Products Builder.
+        <Card className="p-4">
+          <div className="text-center py-6">
+            <Package className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+            <h3 className="text-base font-semibold mb-2">No Product Package Loaded</h3>
+            <p className="text-muted-foreground mb-4 text-sm">
+              Load from your library or create a new product.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button
-                size="lg"
+            <div className="flex flex-col gap-3">
+              <button
                 onClick={() => setTemplatePickerOpen(true)}
+                className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full"
                 data-testid="button-load-templates"
               >
-                <Layers className="h-5 w-5 mr-2" />
+                <Layers className="h-5 w-5" />
                 Load Template
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
+              </button>
+              <button
                 onClick={() => navigate("/test-products")}
+                className="qr-btn qr-btn--outline qr-btn--xl qr-btn--full"
                 data-testid="button-go-products"
               >
-                <Package className="h-5 w-5 mr-2" />
+                <Package className="h-5 w-5" />
                 Create New in Products
-              </Button>
+              </button>
             </div>
           </div>
         </Card>
@@ -851,11 +850,9 @@ export function StoreBuilderHarness() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-3 flex-wrap">
+      <div className="flex flex-col gap-3">
         {productPackage?.packetId && (
-          <Button
-            variant="outline"
-            className="min-h-10"
+          <button
             onClick={() => {
               const currentPacketId = productPackage.packetId;
               if (currentPacketId) {
@@ -865,21 +862,21 @@ export function StoreBuilderHarness() {
                 }, 50);
               }
             }}
+            className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
             data-testid="button-refresh-packet"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+            <RefreshCw className="h-5 w-5" />
+            Refresh Packet
+          </button>
         )}
-        <Button
-          variant="default"
-          className="min-h-10"
+        <button
           onClick={() => setTemplatePickerOpen(true)}
+          className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
           data-testid="button-load-templates"
         >
-          <Layers className="h-4 w-4 mr-2" />
+          <Layers className="h-5 w-5" />
           Load Template
-        </Button>
+        </button>
       </div>
 
       {isEditMode && (
@@ -1129,65 +1126,59 @@ export function StoreBuilderHarness() {
         defaultOpen={true}
       >
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant={selectedStoreType === "internal" ? "default" : "outline"}
-              size="sm"
-              className="h-auto py-3 flex-col gap-1"
+          <div className="flex flex-col gap-3">
+            <button
               onClick={() => {
                 setSelectedStoreType("internal");
                 setSelectedStoreId(null);
                 setSelectedChannel(null);
               }}
+              className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "internal" ? "qr-btn--primary" : "qr-btn--outline"}`}
               data-testid="store-type-internal"
             >
               <Building2 className="h-5 w-5" />
-              <span>Internal</span>
-            </Button>
-            <Button
-              variant={selectedStoreType === "external" ? "default" : "outline"}
-              size="sm"
-              className="h-auto py-3 flex-col gap-1"
+              Internal
+            </button>
+            <button
               onClick={() => {
                 setSelectedStoreType("external");
                 setSelectedStoreId(null);
                 setSelectedChannel(null);
               }}
+              className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "external" ? "qr-btn--primary" : "qr-btn--outline"}`}
               data-testid="store-type-external"
             >
               <Globe className="h-5 w-5" />
-              <span>External</span>
-            </Button>
+              External
+            </button>
           </div>
 
           {selectedStoreType && (
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <CustomDropdown
-                  value={selectedStoreId || ""}
-                  onChange={(val) => {
-                    setSelectedStoreId(val);
-                    setSelectedChannel(null);
-                  }}
-                  options={storeOptions}
-                  placeholder="Select a store..."
-                  data-testid="store-select"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
+            <div className="flex flex-col gap-3">
+              <CustomDropdown
+                value={selectedStoreId || ""}
+                onChange={(val) => {
+                  setSelectedStoreId(val);
+                  setSelectedChannel(null);
+                }}
+                options={storeOptions}
+                placeholder="Select a store..."
+                data-testid="store-select"
+              />
+              <button
                 onClick={() => setShowAddStore(!showAddStore)}
+                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
                 data-testid="button-add-store"
               >
-                <Plus className="h-4 w-4" />
-              </Button>
+                <Plus className="h-5 w-5" />
+                {showAddStore ? "Cancel" : "Add New Store"}
+              </button>
             </div>
           )}
 
           {showAddStore && selectedStoreType && (
-            <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
-              <p className="text-sm text-muted-foreground">
+            <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+              <p className="text-base text-muted-foreground">
                 Create new {selectedStoreType} store:
               </p>
               <input
@@ -1196,62 +1187,56 @@ export function StoreBuilderHarness() {
                 value={newStoreName}
                 onChange={(e) => setNewStoreName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreateStore()}
-                className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                className="w-full h-14 px-4 rounded-md border bg-background text-base"
                 data-testid="input-new-store"
               />
-              <div className="flex gap-3">
-                <Button
-                  size="lg"
+              <div className="flex flex-col gap-3">
+                <button
                   onClick={handleCreateStore}
                   disabled={!newStoreName.trim() || isCreatingStore}
-                  className="flex-1 min-h-12"
+                  className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full disabled:opacity-50"
                   data-testid="button-save-store"
                 >
                   {isCreatingStore ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Store"}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
+                </button>
+                <button
                   onClick={() => { setShowAddStore(false); setNewStoreName(""); }}
-                  className="flex-1 min-h-12"
+                  className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
                   data-testid="button-cancel-store"
                 >
                   Cancel
-                </Button>
+                </button>
               </div>
             </div>
           )}
 
           {selectedStore && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-3">
+            <div className="space-y-3">
+              <p className="text-base font-medium">Select Channel:</p>
+              <div className="flex flex-col gap-2">
                 {channels.map((channel) => (
-                  <Badge
+                  <button
                     key={channel}
-                    variant={selectedChannel === channel ? "default" : "outline"}
-                    className={`cursor-pointer min-h-10 px-4 text-sm ${
-                      selectedChannel === channel ? "" : "hover-elevate"
-                    }`}
                     onClick={() => setSelectedChannel(channel)}
+                    className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
                     data-testid={`channel-${channel}`}
                   >
                     {channel}
-                  </Badge>
+                  </button>
                 ))}
-                <Button
-                  variant="outline"
-                  className="min-h-10 px-4"
+                <button
                   onClick={() => setShowAddChannel(!showAddChannel)}
+                  className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
                   data-testid="button-add-channel"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Channel
-                </Button>
+                  <Plus className="h-5 w-5" />
+                  {showAddChannel ? "Cancel" : "Add New Channel"}
+                </button>
               </div>
 
               {showAddChannel && (
-                <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
-                  <p className="text-sm text-muted-foreground">
+                <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                  <p className="text-base text-muted-foreground">
                     Add channel to {selectedStore.name}:
                   </p>
                   <input
@@ -1260,28 +1245,25 @@ export function StoreBuilderHarness() {
                     value={newChannelName}
                     onChange={(e) => setNewChannelName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCreateChannel()}
-                    className="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                    className="w-full h-14 px-4 rounded-md border bg-background text-base"
                     data-testid="input-new-channel"
                   />
-                  <div className="flex gap-3">
-                    <Button
-                      size="lg"
+                  <div className="flex flex-col gap-3">
+                    <button
                       onClick={handleCreateChannel}
                       disabled={!newChannelName.trim() || isCreatingChannel}
-                      className="flex-1 min-h-12"
+                      className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full disabled:opacity-50"
                       data-testid="button-save-channel"
                     >
                       {isCreatingChannel ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Channel"}
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
+                    </button>
+                    <button
                       onClick={() => { setShowAddChannel(false); setNewChannelName(""); }}
-                      className="flex-1 min-h-12"
+                      className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
                       data-testid="button-cancel-channel"
                     >
                       Cancel
-                    </Button>
+                    </button>
                   </div>
                 </div>
               )}
@@ -1289,45 +1271,41 @@ export function StoreBuilderHarness() {
           )}
 
           {selectedStore && selectedChannel && (
-            <Button
-              size="lg"
-              className="w-full min-h-14 text-lg font-semibold"
+            <button
               onClick={handleAssign}
               disabled={isSaving}
+              className="qr-btn qr-btn--primary qr-btn--xxl qr-btn--full disabled:opacity-50"
               data-testid="button-assign"
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  <Loader2 className="h-6 w-6 animate-spin" />
                   Assigning...
                 </>
               ) : (
                 <>
-                  <ChevronRight className="h-5 w-5 mr-2" />
+                  <ChevronRight className="h-6 w-6" />
                   Assign to {selectedChannel}
                 </>
               )}
-            </Button>
+            </button>
           )}
         </div>
       </CollapsibleSection>
 
       {saveStatus && (
         <div
-          className={`p-3 rounded-md border ${
+          className={`p-4 rounded-md border ${
             saveStatus.type === "success"
               ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200"
               : "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200"
           }`}
           data-testid="store-save-status"
         >
-          <span className="text-sm font-medium block mb-2">{saveStatus.message}</span>
+          <span className="text-base font-medium block mb-3">{saveStatus.message}</span>
           {saveStatus.type === "success" && (
-            <div className="flex gap-3 mt-3">
-              <Button
-                size="lg"
-                variant="outline"
-                className="flex-1 min-h-12 text-base"
+            <div className="flex flex-col gap-3">
+              <button
                 onClick={() => {
                   setSaveStatus(null);
                   setProductPackage(null);
@@ -1344,22 +1322,22 @@ export function StoreBuilderHarness() {
                   });
                   navigate("/test-store-builder");
                 }}
+                className="qr-btn qr-btn--outline qr-btn--xl qr-btn--full"
                 data-testid="button-clear-after-assign"
               >
                 Clear & New
-              </Button>
-              <Button
-                size="lg"
-                className="flex-1 min-h-12 text-base"
+              </button>
+              <button
                 onClick={() => {
                   if (selectedStoreId && selectedChannel) {
                     navigate(`/test-stores?storeId=${selectedStoreId}&channel=${encodeURIComponent(selectedChannel)}`);
                   }
                 }}
+                className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full"
                 data-testid="button-view-store"
               >
                 View in Store
-              </Button>
+              </button>
             </div>
           )}
         </div>
