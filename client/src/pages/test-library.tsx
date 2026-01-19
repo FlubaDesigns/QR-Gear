@@ -6,7 +6,7 @@ import CroppedImagesTab from "@/features/adminLibrary/tabs/CroppedImagesTab";
 import TemplatesTab from "@/features/adminLibrary/tabs/TemplatesTab";
 import GraphicsTab from "@/features/adminLibrary/tabs/GraphicsTab";
 import BackgroundsTab from "@/features/adminLibrary/tabs/BackgroundsTab";
-import { Package, Store, QrCode, Layers, Image, Crop } from "lucide-react";
+import { Package, Store, QrCode, Layers, Image, Crop, DollarSign, Library } from "lucide-react";
 
 type TabType = "graphics" | "templates" | "backgrounds" | "source" | "cropped";
 
@@ -56,6 +56,18 @@ export default function TestLibraryPage() {
                 <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-store-builder">
                   <Store className="h-5 w-5" />
                   Builder
+                </button>
+              </Link>
+              <Link href="/test-pricing">
+                <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-pricing">
+                  <DollarSign className="h-5 w-5" />
+                  Pricing
+                </button>
+              </Link>
+              <Link href="/test-stores">
+                <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-stores">
+                  <Library className="h-5 w-5" />
+                  Stores
                 </button>
               </Link>
             </div>

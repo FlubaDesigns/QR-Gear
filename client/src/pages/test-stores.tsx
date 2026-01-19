@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Package, Library } from "lucide-react";
+import { Package, Library, Store, DollarSign, Layers } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { StoreLibraryHarness } from "@/features/adminProducts/storeLibrary/StoreLibraryHarness";
 
@@ -21,16 +21,28 @@ export default function TestStoresPage() {
               Browse and manage stores by type (internal, external, member). 
               Use the lightbox to move products between stores and channels.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Link href="/test-products">
                 <Button variant="outline" size="sm" data-testid="link-test-products">
                   <Package className="h-4 w-4 mr-2" />
                   Products
                 </Button>
               </Link>
+              <Link href="/test-store-builder">
+                <Button variant="outline" size="sm" data-testid="link-test-store-builder">
+                  <Store className="h-4 w-4 mr-2" />
+                  Store Builder
+                </Button>
+              </Link>
+              <Link href="/test-pricing">
+                <Button variant="outline" size="sm" data-testid="link-test-pricing">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Pricing
+                </Button>
+              </Link>
               <Link href="/test-library">
                 <Button variant="outline" size="sm" data-testid="link-test-library">
-                  <Library className="h-4 w-4 mr-2" />
+                  <Layers className="h-4 w-4 mr-2" />
                   Library
                 </Button>
               </Link>
