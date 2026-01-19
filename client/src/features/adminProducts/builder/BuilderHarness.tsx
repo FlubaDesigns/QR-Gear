@@ -161,7 +161,7 @@ function BuilderModules() {
   };
 
   return (
-    <div className="space-y-2 sm:space-y-4">
+    <div className="mobile-compact-stack">
       {/* Step 1: Product Type & QR State Selection */}
       <InlineDebugBoundary label="StateModule">
         <StateModule />

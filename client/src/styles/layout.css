@@ -67,6 +67,55 @@ body {
   overflow-x: hidden;
 }
 
+/* ===== Mobile-Compact Spacing ===== */
+.mobile-compact {
+  padding: 2px;
+  gap: 4px;
+}
+
+.mobile-compact-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-compact-module {
+  padding: 4px;
+}
+
+.mobile-compact-module-header {
+  padding: 4px 6px;
+  gap: 4px;
+}
+
+.mobile-compact-module-content {
+  padding: 4px 6px 6px;
+}
+
+@media (min-width: 640px) {
+  .mobile-compact {
+    padding: 24px;
+    gap: 24px;
+  }
+  
+  .mobile-compact-stack {
+    gap: 16px;
+  }
+  
+  .mobile-compact-module {
+    padding: 0;
+  }
+  
+  .mobile-compact-module-header {
+    padding: 12px 16px;
+    gap: 8px;
+  }
+  
+  .mobile-compact-module-content {
+    padding: 0 16px 16px;
+  }
+}
+
 /* ===== Header ===== */
 .site-header {
   position: sticky;
