@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { AlertTriangle, Image } from "lucide-react";
+import { AlertTriangle, Image, Layers, QrCode } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
 
@@ -8,7 +8,6 @@ export default function TestProductsPage() {
     <AdminAuthProvider apiBase="/api/test">
       <div className="page-wrap">
         <div className="container py-8 space-y-8">
-          {/* Header Card */}
           <div className="glass-card">
             <div className="flex items-start gap-4 flex-wrap">
               <div className="glass-icon">
@@ -22,17 +21,30 @@ export default function TestProductsPage() {
                   This is a public test version of the products page for debugging. 
                   Uses /api/test endpoints. All changes are saved to the real database.
                 </p>
-                <Link href="/test-library">
-                  <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-library">
-                    <Image className="h-5 w-5 mr-2" />
-                    Go to Library
-                  </button>
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/admin/library?tab=graphics">
+                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-graphics-library">
+                      <QrCode className="h-5 w-5 mr-2" />
+                      Graphics Library
+                    </button>
+                  </Link>
+                  <Link href="/admin/library?tab=templates">
+                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-templates-library">
+                      <Layers className="h-5 w-5 mr-2" />
+                      Templates Library
+                    </button>
+                  </Link>
+                  <Link href="/admin/library">
+                    <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-full-library">
+                      <Image className="h-5 w-5 mr-2" />
+                      Full Library
+                    </button>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Products Harness */}
           <ProductsHarness />
         </div>
       </div>

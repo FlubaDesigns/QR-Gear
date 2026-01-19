@@ -7728,6 +7728,58 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Get all templates - NO AUTH REQUIRED
+  app.get("/api/test/templates", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const snapshot = await firestoreDb.collection("productTemplates")
+        .orderBy("createdAt", "desc")
+        .limit(100)
+        .get();
+      
+      const templates = await Promise.all(snapshot.docs.map(async doc => {
+        const data = doc.data();
+        
+        // Fetch linked packet data if packetId exists
+        let packetData = null;
+        if (data.packetId) {
+          const packetDoc = await firestoreDb.collection("productPackets").doc(data.packetId).get();
+          if (packetDoc.exists) {
+            const pData = packetDoc.data();
+            packetData = {
+              productName: pData?.productName,
+              compositeUrl: pData?.compositeUrl,
+              qrOnlyUrl: pData?.qrOnlyUrl,
+              qrContent: pData?.qrContent,
+              qrProductState: pData?.qrProductState,
+            };
+          }
+        }
+        
+        return {
+          id: doc.id,
+          ...data,
+          packet: packetData,
+          createdAt: data?.createdAt?.toDate?.() || null,
+          updatedAt: data?.updatedAt?.toDate?.() || null,
+        };
+      }));
+      
+      console.log(`[Templates TEST] Retrieved ${templates.length} templates`);
+      
+      res.json({
+        success: true,
+        templates,
+        count: templates.length,
+      });
+    } catch (error: any) {
+      console.error("[Templates TEST] Error getting templates:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test: Create template linked to packet - NO AUTH REQUIRED
   app.post("/api/test/templates", async (req: any, res) => {
     try {
@@ -8349,6 +8401,40 @@ ${allPages.map(page => `  <url>
       });
     } catch (error: any) {
       console.error("[Packets TEST] Error creating packet:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Get all product packets - NO AUTH REQUIRED
+  app.get("/api/test/packets", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const snapshot = await firestoreDb.collection("productPackets")
+        .orderBy("createdAt", "desc")
+        .limit(100)
+        .get();
+      
+      const packets = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data?.createdAt?.toDate?.() || null,
+          updatedAt: data?.updatedAt?.toDate?.() || null,
+        };
+      });
+      
+      console.log(`[Packets TEST] Retrieved ${packets.length} packets`);
+      
+      res.json({
+        success: true,
+        packets,
+        count: packets.length,
+      });
+    } catch (error: any) {
+      console.error("[Packets TEST] Error getting packets:", error);
       res.status(500).json({ error: error.message });
     }
   });

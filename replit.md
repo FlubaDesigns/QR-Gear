@@ -109,13 +109,32 @@ STORE BUILDER
 **Flow:** One save creates the packet → Graphics and Templates link to it → Store Builder queries DB by ID.
 
 **API Endpoints (Test):**
+- GET `/api/test/packets` - Get all packets (most recent 100)
 - POST `/api/test/packets` - Create packet with qrOnlyUrl, compositeUrl, qrContent, pricing, productId, etc.
 - GET `/api/test/packets/:packetId` - Retrieve packet by ID from Firestore
+- GET `/api/test/templates` - Get all templates with linked packet data
+- POST `/api/test/templates` - Create template linked to packet
 
 **Navigation Flow:**
 - BuilderHarness creates packet via API when "Create Graphics" is clicked
 - Navigates to Store Builder with `?packetId=xxx` in URL
 - Store Builder fetches packet from database and displays pricing breakdown
+
+**Fork-on-Edit Pattern (January 2026):**
+When loading an existing packet from the library and saving:
+1. Store Builder detects "edit mode" when loaded via `?packetId=xxx`
+2. On save, creates a NEW packet (fork) instead of modifying original
+3. New template links to the new packet
+4. Original packet remains unchanged in library
+5. UI shows "Edit Mode" warning: "Saving will create a new version"
+
+**Admin Library Tabs:**
+- **Graphics Tab**: Queries `productPackets` collection, displays compositeUrl/qrOnlyUrl
+- **Templates Tab**: Queries `productTemplates` collection with linked packet data
+- **Backgrounds Tab**: File-based uploads to Firebase Storage (unchanged)
+- **Source Images/Cropped Tab**: File-based asset management (unchanged)
+
+Route: `/admin/library` with URL param support: `?tab=graphics|templates|library|source|cropped`
 
 ### Store Library Architecture (January 2026)
 The Store Library is an admin interface for viewing and managing products by store/channel.

@@ -43,6 +43,7 @@ interface ProductPackage {
   packetId?: string;
   templateId?: string;
   graphicsId?: string;
+  productId?: string;
   qrContent?: string;
   productName?: string;
   productDescription?: string;
@@ -253,6 +254,8 @@ export function StoreBuilderHarness() {
   const { apiBase } = useAdminAuth();
   const [, navigate] = useLocation();
   const [productPackage, setProductPackage] = useState<ProductPackage | null>(null);
+  const [originalPacketId, setOriginalPacketId] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPacket, setIsLoadingPacket] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -327,6 +330,8 @@ export function StoreBuilderHarness() {
     
     if (packetId) {
       setIsLoadingPacket(true);
+      setOriginalPacketId(packetId);
+      setIsEditMode(true);
       fetch(`/api/test/packets/${packetId}`)
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -465,14 +470,72 @@ export function StoreBuilderHarness() {
     setSaveStatus(null);
 
     try {
+      let currentPacketId = productPackage.packetId;
       let templateId = productPackage.templateId;
+      let wasForked = false; // Track if we forked for success message
       
-      if (productPackage.packetId && !templateId) {
+      // Fork-on-edit: When editing an existing packet from library, create a NEW packet
+      // This preserves the original and creates a new version
+      if (isEditMode && originalPacketId) {
+        console.log("[StoreBuilder] Edit mode - creating new packet (fork from:", originalPacketId, ")");
+        
+        const packetResponse = await fetch("/api/test/packets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            qrOnlyUrl: productPackage.qrOnlyUrl,
+            compositeUrl: productPackage.compositeUrl,
+            qrContent: productPackage.qrContent,
+            headerText: productPackage.headerText,
+            footerText: productPackage.footerText,
+            pricing: productPackage.pricing,
+            productName: productPackage.productName,
+            productDescription: productPackage.productDescription,
+            productImageUrl: productPackage.productImageUrl,
+            blueprintId: productPackage.blueprintId,
+            printProviderId: productPackage.printProviderId,
+            manufacturer: productPackage.manufacturer,
+            qrProductState: productPackage.qrProductState,
+            placements: productPackage.placements,
+            availablePlacements: productPackage.availablePlacements,
+            sizes: productPackage.sizes,
+            colors: productPackage.colors,
+            basePrice: productPackage.basePrice,
+            customerPrice: productPackage.customerPrice,
+            forkedFrom: originalPacketId,
+          }),
+        });
+
+        if (packetResponse.ok) {
+          const packetData = await packetResponse.json();
+          currentPacketId = packetData.packetId;
+          templateId = undefined; // New packet needs new template
+          console.log("[StoreBuilder] Created forked packet:", currentPacketId);
+          
+          // Update local state to use new packet ID and clear old template reference
+          setProductPackage(prev => prev ? { 
+            ...prev, 
+            packetId: currentPacketId,
+            templateId: undefined, // Clear old template - new one will be created below
+          } : null);
+          // Clear edit mode since we now have a fresh packet
+          setIsEditMode(false);
+          setOriginalPacketId(null);
+          wasForked = true;
+        } else {
+          // Fork is mandatory - do NOT fall back to original packet
+          const errorData = await packetResponse.json().catch(() => ({}));
+          throw new Error(`Failed to create new version: ${errorData.error || 'Unknown error'}`);
+        }
+      }
+      
+      // Create template if needed
+      if (currentPacketId && !templateId) {
         const templateResponse = await fetch("/api/test/templates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            packetId: productPackage.packetId,
+            packetId: currentPacketId,
             name: productPackage.productName || `Template - ${new Date().toLocaleDateString()}`,
             productId: productPackage.productId,
             blueprintId: productPackage.blueprintId,
@@ -493,6 +556,8 @@ export function StoreBuilderHarness() {
           const templateData = await templateResponse.json();
           templateId = templateData.templateId;
           console.log("[StoreBuilder] Created template:", templateId);
+          // Update state with new templateId for mockup polling
+          setProductPackage(prev => prev ? { ...prev, templateId } : null);
         } else {
           console.warn("[StoreBuilder] Template creation failed, continuing with store link");
         }
@@ -505,7 +570,7 @@ export function StoreBuilderHarness() {
           storeId: selectedStore.id,
           storeName: selectedStore.name,
           channel: selectedChannel,
-          packetId: productPackage.packetId,
+          packetId: currentPacketId,
           templateId: templateId,
           graphicsId: productPackage.graphicsId,
           qrContent: productPackage.qrContent,
@@ -524,9 +589,13 @@ export function StoreBuilderHarness() {
         throw new Error("Failed to assign to store");
       }
 
+      const successMsg = wasForked 
+        ? `New version created and linked to ${selectedStore.name} / ${selectedChannel}`
+        : `Linked to ${selectedStore.name} / ${selectedChannel}`;
+      
       setSaveStatus({
         type: "success",
-        message: `Linked to ${selectedStore.name} / ${selectedChannel}`,
+        message: successMsg,
       });
       
       sessionStorage.removeItem("productPackage");
@@ -577,6 +646,13 @@ export function StoreBuilderHarness() {
 
   return (
     <div className="space-y-4">
+      {isEditMode && (
+        <div className="bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+          <p className="text-sm text-amber-800 dark:text-amber-200" data-testid="text-edit-mode-warning">
+            <strong>Edit Mode:</strong> Saving will create a new version. Original will remain unchanged.
+          </p>
+        </div>
+      )}
       <Card className="overflow-hidden">
         <div className="grid grid-cols-2 gap-3 p-3">
           <div className="space-y-2">
