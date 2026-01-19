@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Crop as CropIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
+import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function CroppedImagesTab() {
@@ -34,16 +35,18 @@ export default function CroppedImagesTab() {
         </div>
       </div>
 
-      <AssetGrid
-        assets={assets}
-        isLoading={isLoading}
-        emptyIcon={<CropIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />}
-        emptyMessage="No cropped images yet."
-        emptySubMessage="Cropped images appear here after you crop source images."
-        aspectRatio="portrait"
-        actions={["delete"]}
-        onDelete={(asset) => deleteMutation.mutate(asset.id)}
-      />
+      <SharedViewer mode="grid">
+        <AssetGrid
+          assets={assets}
+          isLoading={isLoading}
+          emptyIcon={<CropIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />}
+          emptyMessage="No cropped images yet."
+          emptySubMessage="Cropped images appear here after you crop source images."
+          aspectRatio="portrait"
+          actions={["delete"]}
+          onDelete={(asset) => deleteMutation.mutate(asset.id)}
+        />
+      </SharedViewer>
     </>
   );
 }

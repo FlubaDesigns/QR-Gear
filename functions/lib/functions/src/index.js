@@ -4780,6 +4780,60 @@ app.patch('/test/packets/:packetId', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// PUBLIC TEST: Delete packet - NO AUTH REQUIRED
+app.delete('/test/packets/:packetId', async (req, res) => {
+    try {
+        const { packetId } = req.params;
+        if (!packetId) {
+            res.status(400).json({ error: 'packetId is required' });
+            return;
+        }
+        const docRef = db.collection('productPackets').doc(packetId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Packet not found' });
+            return;
+        }
+        await docRef.delete();
+        console.log(`[Packets DELETE] Deleted packet ${packetId}`);
+        res.json({
+            success: true,
+            packetId,
+            message: 'Packet deleted',
+        });
+    }
+    catch (error) {
+        console.error('[Packets DELETE] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// PUBLIC TEST: Delete template - NO AUTH REQUIRED
+app.delete('/test/templates/:templateId', async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        if (!templateId) {
+            res.status(400).json({ error: 'templateId is required' });
+            return;
+        }
+        const docRef = db.collection('productTemplates').doc(templateId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Template not found' });
+            return;
+        }
+        await docRef.delete();
+        console.log(`[Templates DELETE] Deleted template ${templateId}`);
+        res.json({
+            success: true,
+            templateId,
+            message: 'Template deleted',
+        });
+    }
+    catch (error) {
+        console.error('[Templates DELETE] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // PUBLIC TEST: Upload content (composite or media) to Firebase Storage - NO AUTH REQUIRED
 app.post('/test/content/upload', async (req, res) => {
     try {

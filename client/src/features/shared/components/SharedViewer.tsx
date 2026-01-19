@@ -1,7 +1,8 @@
 import { ScrollView, type ScrollViewProps } from "./views/ScrollView";
 import { ContentView, type ContentViewProps } from "./views/ContentView";
+import { GalleryView, type GalleryViewProps } from "./views/GalleryView";
 
-export type ViewMode = "scroll" | "content" | "grid";
+export type ViewMode = "scroll" | "content" | "grid" | "gallery";
 
 interface SharedViewerBaseProps {
   className?: string;
@@ -22,7 +23,12 @@ interface GridModeProps extends SharedViewerBaseProps {
   children?: React.ReactNode;
 }
 
-export type SharedViewerProps = ScrollModeProps | ContentModeProps | GridModeProps;
+interface GalleryModeProps extends SharedViewerBaseProps {
+  mode: "gallery";
+  galleryProps: GalleryViewProps;
+}
+
+export type SharedViewerProps = ScrollModeProps | ContentModeProps | GridModeProps | GalleryModeProps;
 
 export function SharedViewer(props: SharedViewerProps) {
   const { mode, className = "" } = props;
@@ -49,7 +55,14 @@ export function SharedViewer(props: SharedViewerProps) {
         </div>
       );
 
+    case "gallery":
+      return (
+        <GalleryView {...(props as GalleryModeProps).galleryProps} />
+      );
+
     default:
       return null;
   }
 }
+
+export { GalleryView, type GalleryViewProps, type GalleryViewItem } from "./views/GalleryView";

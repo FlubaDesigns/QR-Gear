@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Image as ImageIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
+import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function BackgroundsTab() {
@@ -34,16 +35,18 @@ export default function BackgroundsTab() {
         </div>
       </div>
 
-      <AssetGrid
-        assets={assets}
-        isLoading={isLoading}
-        emptyIcon={<ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />}
-        emptyMessage="No background images yet."
-        emptySubMessage="Original images move here after cropping."
-        aspectRatio="square"
-        actions={["delete"]}
-        onDelete={(asset) => deleteMutation.mutate(asset.id)}
-      />
+      <SharedViewer mode="grid">
+        <AssetGrid
+          assets={assets}
+          isLoading={isLoading}
+          emptyIcon={<ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />}
+          emptyMessage="No background images yet."
+          emptySubMessage="Original images move here after cropping."
+          aspectRatio="square"
+          actions={["delete"]}
+          onDelete={(asset) => deleteMutation.mutate(asset.id)}
+        />
+      </SharedViewer>
     </>
   );
 }

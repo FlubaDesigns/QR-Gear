@@ -6,6 +6,7 @@ import { useLibraryContext } from "../LibraryContext";
 import { AssetGrid } from "../components/AssetGrid";
 import { ImageUploader } from "../components/ImageUploader";
 import { CropDialog } from "../components/CropDialog";
+import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import type { LibraryAssetWithProxy } from "../shared/types";
 
 export default function SourceImagesTab() {
@@ -38,17 +39,19 @@ export default function SourceImagesTab() {
         <h3 className="text-lg font-semibold">{assets.length} Source Images</h3>
       </div>
 
-      <AssetGrid
-        assets={assets}
-        isLoading={isLoading}
-        emptyIcon={<ImagePlus className="h-12 w-12 mx-auto mb-4 opacity-50" />}
-        emptyMessage="No source images uploaded yet."
-        emptySubMessage="Upload a ZIP file or select images above."
-        aspectRatio="square"
-        actions={["crop", "delete"]}
-        onCrop={(asset) => { setImageToCrop(asset); setCropDialogOpen(true); }}
-        onDelete={(asset) => deleteMutation.mutate(asset.id)}
-      />
+      <SharedViewer mode="grid">
+        <AssetGrid
+          assets={assets}
+          isLoading={isLoading}
+          emptyIcon={<ImagePlus className="h-12 w-12 mx-auto mb-4 opacity-50" />}
+          emptyMessage="No source images uploaded yet."
+          emptySubMessage="Upload a ZIP file or select images above."
+          aspectRatio="square"
+          actions={["crop", "delete"]}
+          onCrop={(asset) => { setImageToCrop(asset); setCropDialogOpen(true); }}
+          onDelete={(asset) => deleteMutation.mutate(asset.id)}
+        />
+      </SharedViewer>
 
       <CropDialog
         asset={imageToCrop}

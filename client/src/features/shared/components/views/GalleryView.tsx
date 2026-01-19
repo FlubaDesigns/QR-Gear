@@ -14,46 +14,49 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export interface ViewerItem {
+export interface GalleryViewItem {
   id: string;
   packetId?: string;
-  productName?: string;
-  name?: string;
+  name: string;
   primaryImage?: string;
   secondaryImage?: string;
   qrContent?: string;
   headerText?: string;
   footerText?: string;
-  qrProductState?: string;
+  qrMode?: string;
   selectedSize?: string;
-  enabledColors?: string[];
-  enabledSizes?: string[];
-  customerPrice?: number;
+  colorCount?: number;
+  sizeCount?: number;
+  price?: number;
 }
 
-interface LibraryViewerProps {
-  items: ViewerItem[];
+export interface GalleryViewProps {
+  items: GalleryViewItem[];
   currentIndex: number;
   onClose: () => void;
   onNavigate: (index: number) => void;
-  onEdit: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onArchive?: (id: string) => void;
-  isDeleting?: boolean;
-  mode: "graphics" | "templates";
+  onEdit?: (id: string) => void;
+  onAction?: (id: string) => void;
+  isActionPending?: boolean;
+  actionType?: "archive" | "delete";
+  actionLabel?: string;
+  actionConfirmTitle?: string;
+  actionConfirmDescription?: string;
 }
 
-export function LibraryViewer({
+export function GalleryView({
   items,
   currentIndex,
   onClose,
   onNavigate,
   onEdit,
-  onDelete,
-  onArchive,
-  isDeleting,
-  mode,
-}: LibraryViewerProps) {
+  onAction,
+  isActionPending = false,
+  actionType = "archive",
+  actionLabel,
+  actionConfirmTitle,
+  actionConfirmDescription,
+}: GalleryViewProps) {
   const [showImageIndex, setShowImageIndex] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   
@@ -68,8 +71,14 @@ export function LibraryViewer({
   const canGoPrev = currentIndex > 0;
   const canGoNext = currentIndex < items.length - 1;
 
-  const displayName = item.productName || item.name || "Untitled";
-  const qrMode = item.qrProductState?.replace('qr_', '').toUpperCase();
+  const resolvedActionLabel = actionLabel || (actionType === "delete" ? "Delete" : "Archive");
+  const ActionIcon = actionType === "delete" ? Trash2 : Archive;
+  const resolvedConfirmTitle = actionConfirmTitle || (actionType === "delete" 
+    ? "Delete this item?" 
+    : "Archive this item?");
+  const resolvedConfirmDescription = actionConfirmDescription || (actionType === "delete"
+    ? "This will permanently delete this item. This action cannot be undone."
+    : "This will hide the item from your library. You can restore it later if needed.");
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowLeft" && canGoPrev) onNavigate(currentIndex - 1);
@@ -78,22 +87,11 @@ export function LibraryViewer({
   };
 
   const handleAction = () => {
-    if (mode === "graphics" && onArchive) {
-      onArchive(item.id);
-    } else if (mode === "templates" && onDelete) {
-      onDelete(item.id);
+    if (onAction) {
+      onAction(item.id);
     }
     setShowConfirm(false);
   };
-
-  const actionLabel = mode === "graphics" ? "Archive" : "Delete";
-  const ActionIcon = mode === "graphics" ? Archive : Trash2;
-  const confirmTitle = mode === "graphics" 
-    ? "Archive this graphic?" 
-    : "Delete this template and its packet?";
-  const confirmDescription = mode === "graphics"
-    ? "This will hide the graphic from your library. You can restore it later if needed."
-    : "This will permanently delete the template and the underlying graphics packet. This action cannot be undone.";
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
@@ -107,7 +105,7 @@ export function LibraryViewer({
             size="icon"
             className="absolute top-2 right-2 z-10 bg-background/80"
             onClick={onClose}
-            data-testid="button-close-viewer"
+            data-testid="button-close-gallery"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -116,9 +114,9 @@ export function LibraryViewer({
             {currentImage ? (
               <img
                 src={currentImage}
-                alt={displayName}
+                alt={item.name}
                 className="max-w-full max-h-full object-contain"
-                data-testid="img-viewer"
+                data-testid="img-gallery-main"
               />
             ) : (
               <div className="text-muted-foreground">
@@ -135,7 +133,7 @@ export function LibraryViewer({
                   onNavigate(currentIndex - 1);
                   setShowImageIndex(0);
                 }}
-                data-testid="button-prev-item"
+                data-testid="button-gallery-prev"
               >
                 <ChevronLeft className="h-6 w-6" />
               </Button>
@@ -150,7 +148,7 @@ export function LibraryViewer({
                   onNavigate(currentIndex + 1);
                   setShowImageIndex(0);
                 }}
-                data-testid="button-next-item"
+                data-testid="button-gallery-next"
               >
                 <ChevronRight className="h-6 w-6" />
               </Button>
@@ -167,7 +165,7 @@ export function LibraryViewer({
                         : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
                     }`}
                     onClick={() => setShowImageIndex(idx)}
-                    data-testid={`dot-image-${idx}`}
+                    data-testid={`dot-gallery-${idx}`}
                   />
                 ))}
               </div>
@@ -185,7 +183,7 @@ export function LibraryViewer({
 
             {item.selectedSize && (
               <Badge variant="outline" className="absolute top-4 right-14 bg-background/80">
-                Size: {item.selectedSize}
+                {item.selectedSize}
               </Badge>
             )}
           </div>
@@ -193,55 +191,59 @@ export function LibraryViewer({
           <div className="p-4 border-t space-y-3">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-lg truncate" data-testid="text-viewer-name">
-                  {displayName}
+                <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
+                  {item.name}
                 </h3>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {qrMode && (
+                  {item.qrMode && (
                     <Badge variant="secondary">
                       <QrCode className="h-3 w-3 mr-1" />
-                      {qrMode}
+                      {item.qrMode}
                     </Badge>
                   )}
-                  {item.enabledColors && item.enabledColors.length > 0 && (
+                  {(item.colorCount ?? 0) > 0 && (
                     <Badge variant="outline">
-                      {item.enabledColors.length} colors
+                      {item.colorCount} colors
                     </Badge>
                   )}
-                  {item.enabledSizes && item.enabledSizes.length > 0 && (
+                  {(item.sizeCount ?? 0) > 0 && (
                     <Badge variant="outline">
-                      {item.enabledSizes.length} sizes
+                      {item.sizeCount} sizes
                     </Badge>
                   )}
                 </div>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onEdit(item.packetId || item.id)}
-                  data-testid="button-edit-item"
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  variant={mode === "templates" ? "destructive" : "outline"}
-                  size="sm"
-                  onClick={() => setShowConfirm(true)}
-                  disabled={isDeleting}
-                  data-testid="button-action-item"
-                >
-                  <ActionIcon className="h-4 w-4 mr-1" />
-                  {actionLabel}
-                </Button>
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(item.packetId || item.id)}
+                    data-testid="button-gallery-edit"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
+                {onAction && (
+                  <Button
+                    variant={actionType === "delete" ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={() => setShowConfirm(true)}
+                    disabled={isActionPending}
+                    data-testid="button-gallery-action"
+                  >
+                    <ActionIcon className="h-4 w-4 mr-1" />
+                    {resolvedActionLabel}
+                  </Button>
+                )}
               </div>
             </div>
 
             {item.qrContent && (
               <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                 <LinkIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm truncate flex-1" data-testid="text-viewer-url">
+                <span className="text-sm truncate flex-1" data-testid="text-gallery-url">
                   {item.qrContent}
                 </span>
                 {item.qrContent.startsWith("http") && (
@@ -262,21 +264,21 @@ export function LibraryViewer({
                 {item.headerText && (
                   <p className="text-sm">
                     <span className="text-muted-foreground">Header:</span>{" "}
-                    <span className="font-medium" data-testid="text-header">{item.headerText}</span>
+                    <span className="font-medium" data-testid="text-gallery-header">{item.headerText}</span>
                   </p>
                 )}
                 {item.footerText && (
                   <p className="text-sm">
                     <span className="text-muted-foreground">Footer:</span>{" "}
-                    <span className="font-medium" data-testid="text-footer">{item.footerText}</span>
+                    <span className="font-medium" data-testid="text-gallery-footer">{item.footerText}</span>
                   </p>
                 )}
               </div>
             )}
 
-            {item.customerPrice && (
+            {item.price !== undefined && item.price > 0 && (
               <p className="text-sm text-muted-foreground">
-                Price: <span className="font-medium text-foreground">${item.customerPrice.toFixed(2)}</span>
+                Price: <span className="font-medium text-foreground">${item.price.toFixed(2)}</span>
               </p>
             )}
           </div>
@@ -285,16 +287,16 @@ export function LibraryViewer({
         <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
-              <AlertDialogDescription>{confirmDescription}</AlertDialogDescription>
+              <AlertDialogTitle>{resolvedConfirmTitle}</AlertDialogTitle>
+              <AlertDialogDescription>{resolvedConfirmDescription}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction 
-                className={mode === "templates" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+                className={actionType === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
                 onClick={handleAction}
               >
-                {actionLabel}
+                {resolvedActionLabel}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
