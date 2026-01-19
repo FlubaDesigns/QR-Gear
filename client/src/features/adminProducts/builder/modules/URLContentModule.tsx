@@ -376,8 +376,6 @@ export function URLContentModule() {
             })}
             testIdPrefix="title"
             showPositionControls={true}
-            previewBackgroundImage={backgroundUrl}
-            previewBackgroundColor="#1a1a2e"
           />
           
           <TextStyleEditor
@@ -393,8 +391,6 @@ export function URLContentModule() {
             })}
             testIdPrefix="description"
             showPositionControls={true}
-            previewBackgroundImage={backgroundUrl}
-            previewBackgroundColor="#1a1a2e"
           />
         </div>
 
