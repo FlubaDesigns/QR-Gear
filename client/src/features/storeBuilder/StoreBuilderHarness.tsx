@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, X, Check, ArrowLeft, Library, Smartphone } from "lucide-react";
 import { ARPreviewModal } from "@/features/shared/components/ARPreviewModal";
+import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
@@ -1073,19 +1074,10 @@ export function StoreBuilderHarness() {
         productName={productPackage.productName}
       />
 
-      {thumbnailLightbox && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
-          onClick={() => setThumbnailLightbox(null)}
-          data-testid="lightbox-overlay"
-        >
-          <img 
-            src={thumbnailLightbox} 
-            alt="Full size preview" 
-            className="max-w-full max-h-full object-contain rounded-lg cursor-pointer"
-          />
-        </div>
-      )}
+      <ImageLightbox
+        imageUrl={thumbnailLightbox}
+        onClose={() => setThumbnailLightbox(null)}
+      />
     </div>
   );
 }

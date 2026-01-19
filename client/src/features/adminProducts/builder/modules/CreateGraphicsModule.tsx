@@ -3,6 +3,7 @@ import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, 
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
+import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
@@ -1137,19 +1138,10 @@ export function CreateGraphicsModule() {
           </div>
         )}
 
-        {thumbnailLightbox && (
-          <div 
-            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
-            onClick={() => setThumbnailLightbox(null)}
-            data-testid="lightbox-overlay"
-          >
-            <img 
-              src={thumbnailLightbox} 
-              alt="Full size preview" 
-              className="max-w-full max-h-full object-contain rounded-lg cursor-pointer"
-            />
-          </div>
-        )}
+        <ImageLightbox
+          imageUrl={thumbnailLightbox}
+          onClose={() => setThumbnailLightbox(null)}
+        />
       </div>
     </CollapsibleModule>
   );
