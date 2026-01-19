@@ -64,6 +64,10 @@ interface ProductPackage {
   printProviderId?: number;
   manufacturer?: string;
   madeIn?: string;
+  defaultColor?: string;
+  defaultColorHex?: string;
+  placementSizes?: Record<string, string>;
+  priorityMockupUrl?: string | null;
   pricing?: {
     baseProductCost: number;
     placementCost: number;
@@ -305,12 +309,16 @@ export function StoreBuilderHarness() {
     if (productPackage) {
       const colors = productPackage.colors?.map(c => c.name) || [];
       const sizes = productPackage.sizes || [];
+      const packetDefaultColor = (productPackage as any).defaultColor;
+      const resolvedDefaultColor = packetDefaultColor && colors.includes(packetDefaultColor) 
+        ? packetDefaultColor 
+        : colors[0] || "";
       
       setConfiguration({
         enabledColors: new Set(colors),
         enabledSizes: new Set(sizes),
-        selectedGraphicSize: "medium",
-        defaultColor: colors[0] || "",
+        selectedGraphicSize: (productPackage as any).placementSizes?.front || "medium",
+        defaultColor: resolvedDefaultColor,
       });
     }
   }, [productPackage]);
@@ -340,7 +348,7 @@ export function StoreBuilderHarness() {
         .then(data => {
           if (data.success && data.packet) {
             const packet = data.packet;
-            setProductPackage({
+            const loadedPackage: ProductPackage = {
               packetId: packet.id,
               templateId: packet.templateId || null,
               qrContent: packet.qrContent,
@@ -364,7 +372,45 @@ export function StoreBuilderHarness() {
               pricing: packet.pricing,
               manufacturer: packet.manufacturer || "Printify",
               madeIn: packet.madeIn || "USA",
-            });
+              defaultColor: packet.defaultColor,
+              defaultColorHex: packet.defaultColorHex,
+              placementSizes: packet.placementSizes,
+              priorityMockupUrl: packet.priorityMockupUrl || null,
+            };
+            setProductPackage(loadedPackage);
+            
+            // Priority mockup should already be in the packet from Create Packet flow
+            // Only generate if missing (legacy packets)
+            if (!packet.priorityMockupUrl && packet.blueprintId && packet.compositeUrl) {
+              console.log("[StoreBuilder] Priority mockup not in packet, generating...");
+              const placement = (packet.placements || ["front"])[0];
+              const colorName = packet.defaultColor || (packet.colors?.[0]?.name) || "Black";
+              const colorHex = packet.defaultColorHex || (packet.colors?.[0]?.hex) || "#000000";
+              const qrSize = packet.placementSizes?.[placement] || "medium";
+              
+              fetch("/api/test/mockup/priority", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  blueprintId: packet.blueprintId,
+                  printProviderId: packet.printProviderId || 99,
+                  colorName,
+                  colorHex,
+                  placement: placement + "-center",
+                  artworkUrl: packet.compositeUrl,
+                  qrSize,
+                }),
+              })
+                .then(res => res.json())
+                .then(mockupData => {
+                  if (mockupData.success && mockupData.mockupUrl) {
+                    setProductPackage(prev => prev ? { ...prev, priorityMockupUrl: mockupData.mockupUrl } : prev);
+                  }
+                })
+                .catch(() => {});
+            } else if (packet.priorityMockupUrl) {
+              console.log("[StoreBuilder] Priority mockup loaded from packet:", packet.priorityMockupUrl);
+            }
           }
         })
         .catch(err => {
@@ -400,7 +446,8 @@ export function StoreBuilderHarness() {
          m.color === configuration.defaultColor
   );
 
-  const previewImageUrl = currentMockup?.mockupUrl || productPackage?.productImageUrl || productPackage?.compositeUrl;
+  // Priority: priority mockup > template mockup > product image > composite
+  const previewImageUrl = productPackage?.priorityMockupUrl || currentMockup?.mockupUrl || productPackage?.productImageUrl || productPackage?.compositeUrl;
 
   const packetThumbnails = [
     productPackage?.compositeUrl,

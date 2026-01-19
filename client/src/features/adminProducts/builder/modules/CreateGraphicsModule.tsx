@@ -509,8 +509,15 @@ export function CreateGraphicsModule() {
         }),
       })
         .then(res => res.json())
-        .then(data => {
+        .then(async data => {
           if (data.success && data.mockupUrl) {
+            // Save the priority mockup URL to the packet so Store Builder can load it
+            await fetch(`/api/test/packets/${packetId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ priorityMockupUrl: data.mockupUrl }),
+            }).catch(() => {});
+            
             setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
             toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
           } else {
