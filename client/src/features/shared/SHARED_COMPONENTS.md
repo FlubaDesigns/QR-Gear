@@ -114,6 +114,83 @@ interface SkinActions {
 | SourceImageSkin | SourceImageCardSkin | SourceImageDetailSkin | crop, delete | SourceImagesTab |
 | CroppedImageSkin | CroppedImageCardSkin | CroppedImageDetailSkin | delete | CroppedImagesTab |
 | TemplatePickerSkin | - | Gallery lightbox | select | StoreBuilderHarness |
+| StoreProductSkin | ProductCard | - | select | ProductGridModule, test-stores |
+
+### StoreProductSkin
+
+Multi-layout product browser with view toggle (grid/list/swipe) and selection handling.
+
+**Props:**
+```typescript
+interface StoreProductSkinProps {
+  items: StoreProductItem[];
+  selectedIds?: Set<string>;
+  onSelect?: (item: StoreProductItem) => void;
+  onItemClick?: (item: StoreProductItem) => void;
+  layout?: StoreProductViewLayout;           // Controlled mode
+  onLayoutChange?: (layout) => void;         // Controlled mode callback
+  initialLayout?: StoreProductViewLayout;    // Uncontrolled mode default
+  showViewToggle?: boolean;                  // Show built-in toggle (default true)
+  gridHeight?: string;
+  emptyMessage?: string;
+}
+
+interface StoreProductItem {
+  id: string;
+  name: string;
+  imageUrl: string;
+  subtitle?: string;
+  colorCount?: number;
+  sizeCount?: number;
+  sizes?: string[];
+  price?: number;
+}
+
+type StoreProductViewLayout = "grid" | "list" | "swipe";
+```
+
+**Features:**
+- Three view layouts: grid (compact cards), list (full cards), swipe (horizontal carousel)
+- Built-in view toggle (StoreProductViewToggle) or controlled from parent
+- Selection state with visual indicators
+- Product count and selected count display
+- Empty state message
+
+**Exported Components:**
+- `StoreProductSkin` - Main component
+- `StoreProductViewToggle` - Standalone toggle buttons
+- `StoreProductItem` - Item interface
+- `StoreProductViewLayout` - Layout type
+
+**Usage (Controlled Mode - toggle in header):**
+```tsx
+const [layout, setLayout] = useState<StoreProductViewLayout>("grid");
+
+<CollapsibleModule
+  title="Products"
+  headerRight={<StoreProductViewToggle layout={layout} onChange={setLayout} />}
+>
+  <StoreProductSkin
+    items={products}
+    selectedIds={selectedIds}
+    onSelect={handleSelect}
+    layout={layout}
+    onLayoutChange={setLayout}
+    showViewToggle={false}
+  />
+</CollapsibleModule>
+```
+
+**Usage (Uncontrolled Mode - built-in toggle):**
+```tsx
+<StoreProductSkin
+  items={products}
+  selectedIds={selectedIds}
+  onSelect={handleSelect}
+  initialLayout="grid"
+  showViewToggle={true}
+/>
+```
 
 ### TemplatePickerSkin
 

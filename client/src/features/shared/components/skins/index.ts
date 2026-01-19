@@ -9,3 +9,4 @@ export * from "./LandingPageView";
 export * from "./GraphicPreviewView";
 export * from "./MediaPreviewView";
 export * from "./TemplatePickerSkin";
+export * from "./StoreProductSkin";
