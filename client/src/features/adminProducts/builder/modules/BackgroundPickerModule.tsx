@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Check, Crop, ImagePlus, ChevronLeft, ChevronRight, Video, Link2, Upload, Type, ChevronDown, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { Image, Loader2, Check, Crop, ImagePlus, ChevronLeft, ChevronRight, Video, Link2, Upload, Type } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
+import { CollapsibleTextInput } from "@/features/shared/components/CollapsibleTextInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useBuilderContext } from "../BuilderContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
 
