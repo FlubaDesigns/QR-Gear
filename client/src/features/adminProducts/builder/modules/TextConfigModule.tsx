@@ -248,8 +248,8 @@ export function TextConfigModule() {
     return null;
   }
 
-  const headerStyle = state.content.headerStyle || { text: "", enabled: false, fontFamily: "Arial", fontSize: "144", color: "#FFFFFF", warpPreset: "straight", letterSpacing: 0, strokeColor: "", strokeWidth: 0, verticalOffset: 20, horizontalOffset: 0 };
-  const footerStyle = state.content.footerStyle || { text: "", enabled: false, fontFamily: "Arial", fontSize: "144", color: "#FFFFFF", warpPreset: "straight", letterSpacing: 0, strokeColor: "", strokeWidth: 0, verticalOffset: 20, horizontalOffset: 0 };
+  const headerStyle = state.content.headerStyle || { text: "", enabled: false, fontFamily: "Courier New", fontSize: "280", color: "#FFFFFF", warpPreset: "straight", letterSpacing: 0, strokeColor: "", strokeWidth: 0, verticalOffset: 50, horizontalOffset: 50 };
+  const footerStyle = state.content.footerStyle || { text: "", enabled: false, fontFamily: "Courier New", fontSize: "280", color: "#FFFFFF", warpPreset: "straight", letterSpacing: 0, strokeColor: "", strokeWidth: 0, verticalOffset: 50, horizontalOffset: 50 };
 
   const updateHeaderStyle = (updates: Partial<TextStyleConfig>) => {
     setContent({
