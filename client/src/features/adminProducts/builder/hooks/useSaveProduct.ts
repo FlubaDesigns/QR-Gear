@@ -13,6 +13,20 @@ interface PricingData {
   hostingTierCode: string;
 }
 
+interface TextStyleConfig {
+  text: string;
+  enabled: boolean;
+  fontFamily: string;
+  fontSize: string;
+  color: string;
+  warpPreset: string;
+  letterSpacing: number;
+  strokeColor: string;
+  strokeWidth: number;
+  verticalOffset: number;
+  horizontalOffset: number;
+}
+
 interface BuilderState {
   selectedProduct: any;
   qrProductState: any;
@@ -20,6 +34,8 @@ interface BuilderState {
     url?: string;
     title?: string;
     description?: string;
+    titleStyle?: TextStyleConfig;
+    descriptionStyle?: TextStyleConfig;
   };
   colors?: Array<{ name: string; hex: string }>;
   placements?: string[];
@@ -115,9 +131,11 @@ export function useSaveProduct() {
 
     // Use full-save endpoint for batch mockup generation
     const pricing = (builderState as any).pricing;
+    const titleText = content.titleStyle?.text || content.title || "";
+    const descText = content.descriptionStyle?.text || content.description || "";
     const templateData = {
-      name: content.title || `Template - ${new Date().toLocaleDateString()}`,
-      description: content.description || "",
+      name: titleText || `Template - ${new Date().toLocaleDateString()}`,
+      description: descText,
       category: qrProductState?.line || "General",
       productId: selectedProduct.id,
       blueprintId: selectedProduct.blueprintId || 0,
@@ -173,9 +191,11 @@ export function useSaveProduct() {
     }
 
     const graphicsPricing = (builderState as any).pricing;
+    const gfxTitleText = content.titleStyle?.text || content.title || "";
+    const gfxDescText = content.descriptionStyle?.text || content.description || "";
     const graphicsData = {
-      name: content.title || `Graphic - ${new Date().toLocaleDateString()}`,
-      description: content.description || "",
+      name: gfxTitleText || `Graphic - ${new Date().toLocaleDateString()}`,
+      description: gfxDescText,
       category: qrProductState?.line || "General",
       qrOnlyUrl: qrOnlyUrl,
       compositeUrl: compositeUrl,

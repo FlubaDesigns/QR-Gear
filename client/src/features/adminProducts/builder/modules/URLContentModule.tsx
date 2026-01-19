@@ -132,7 +132,7 @@ export function URLContentModule() {
   };
 
   const backgroundUrl = state.loadedBackground?.url;
-  const hasContent = state.content.title || state.content.description || backgroundUrl;
+  const hasContent = (state.content.titleStyle as TextStyleConfig)?.text || (state.content.descriptionStyle as TextStyleConfig)?.text || backgroundUrl;
 
   return (
     <CollapsibleModule
