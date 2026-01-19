@@ -185,10 +185,7 @@ export function useSaveProduct() {
     const qrOnlyUrl = qrOnlyUrlFromState || "";
     const compositeUrl = artworkUrl || "";
     
-    // At least one URL is required
-    if (!qrOnlyUrl && !compositeUrl) {
-      throw new Error("No graphic to save - generate a QR code first");
-    }
+    // URLs are generated after packet creation, so no validation here
 
     const graphicsPricing = (builderState as any).pricing;
     const gfxTitleText = content.titleStyle?.text || content.title || "";

@@ -4407,11 +4407,7 @@ app.delete('/admin/library/:id', requireAdmin, async (req, res) => {
 app.post('/test/graphics/save', async (req, res) => {
     try {
         const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
-        // At least one URL is required
-        if (!qrOnlyUrl && !compositeUrl) {
-            res.status(400).json({ error: 'At least one of qrOnlyUrl or compositeUrl is required' });
-            return;
-        }
+        // URLs are generated after packet creation, so no validation here
         const now = admin.firestore.FieldValue.serverTimestamp();
         let qrAssetId = null;
         let compositeAssetId = null;
@@ -4635,10 +4631,8 @@ app.post('/test/templates/full-save', async (req, res) => {
 app.post('/test/packets', async (req, res) => {
     try {
         const { qrOnlyUrl, compositeUrl, qrContent, headerText, footerText, pricing, productId, productName, productDescription, productImageUrl, blueprintId, printProviderId, manufacturer, madeInUSA, category, defaultColor, defaultColorHex, defaultPlacement, qrProductState, placements, availablePlacements, sizes, colors, basePrice, customerPrice, mockupsByColor, landingPageTitle, landingPageDescription, landingPageBackgroundUrl, landingPageSlug, headerStyle, footerStyle, } = req.body;
-        if (!qrContent && !qrOnlyUrl) {
-            res.status(400).json({ error: 'Either qrContent or qrOnlyUrl is required' });
-            return;
-        }
+        // Note: qrContent and qrOnlyUrl are generated AFTER packet creation
+        // so we don't validate them here - they get populated via PATCH
         const now = admin.firestore.FieldValue.serverTimestamp();
         const packetData = {
             qrOnlyUrl: qrOnlyUrl || null,
@@ -5261,11 +5255,7 @@ app.delete('/test/store-product-links/:linkId', async (req, res) => {
 app.post('/admin/graphics/save', requireAdmin, async (req, res) => {
     try {
         const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
-        // At least one URL is required
-        if (!qrOnlyUrl && !compositeUrl) {
-            res.status(400).json({ error: 'At least one of qrOnlyUrl or compositeUrl is required' });
-            return;
-        }
+        // URLs are generated after packet creation, so no validation here
         const now = admin.firestore.FieldValue.serverTimestamp();
         let qrAssetId = null;
         let compositeAssetId = null;

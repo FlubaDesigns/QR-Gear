@@ -5027,11 +5027,7 @@ app.post('/test/graphics/save', async (req: Request, res: Response): Promise<voi
   try {
     const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
 
-    // At least one URL is required
-    if (!qrOnlyUrl && !compositeUrl) {
-      res.status(400).json({ error: 'At least one of qrOnlyUrl or compositeUrl is required' });
-      return;
-    }
+    // URLs are generated after packet creation, so no validation here
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     let qrAssetId: string | null = null;
@@ -5332,10 +5328,8 @@ app.post('/test/packets', async (req: Request, res: Response): Promise<void> => 
       footerStyle,
     } = req.body;
 
-    if (!qrContent && !qrOnlyUrl) {
-      res.status(400).json({ error: 'Either qrContent or qrOnlyUrl is required' });
-      return;
-    }
+    // Note: qrContent and qrOnlyUrl are generated AFTER packet creation
+    // so we don't validate them here - they get populated via PATCH
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     
@@ -6056,11 +6050,7 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
   try {
     const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
 
-    // At least one URL is required
-    if (!qrOnlyUrl && !compositeUrl) {
-      res.status(400).json({ error: 'At least one of qrOnlyUrl or compositeUrl is required' });
-      return;
-    }
+    // URLs are generated after packet creation, so no validation here
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     let qrAssetId: string | null = null;

@@ -7620,10 +7620,7 @@ ${allPages.map(page => `  <url>
     try {
       const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent, pricing } = req.body;
 
-      // At least one URL is required
-      if (!qrOnlyUrl && !compositeUrl) {
-        return res.status(400).json({ error: "At least one of qrOnlyUrl or compositeUrl is required" });
-      }
+      // URLs are generated after packet creation, so no validation here
 
       // Build metadata object without undefined values
       const baseMetadata: Record<string, any> = {};
@@ -8456,9 +8453,8 @@ ${allPages.map(page => `  <url>
         channelName,
       } = req.body;
 
-      if (!qrContent && !qrOnlyUrl) {
-        return res.status(400).json({ error: "Either qrContent or qrOnlyUrl is required" });
-      }
+      // Note: qrContent and qrOnlyUrl are generated AFTER packet creation
+      // so we don't validate them here - they get populated via PATCH
 
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const { FieldValue } = await import("firebase-admin/firestore");
@@ -8809,10 +8805,7 @@ ${allPages.map(page => `  <url>
     try {
       const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent, pricing } = req.body;
 
-      // At least one URL is required
-      if (!qrOnlyUrl && !compositeUrl) {
-        return res.status(400).json({ error: "At least one of qrOnlyUrl or compositeUrl is required" });
-      }
+      // URLs are generated after packet creation, so no validation here
 
       // Build metadata object without undefined values
       const baseMetadata: Record<string, any> = {};
