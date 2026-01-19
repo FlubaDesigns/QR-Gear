@@ -1232,6 +1232,15 @@ export function StoreBuilderHarness() {
                   setProductPackage(null);
                   setSelectedStoreId(null);
                   setSelectedChannel(null);
+                  setIsEditMode(false);
+                  setOriginalPacketId(null);
+                  setConfiguration({
+                    enabledColors: new Set<string>(),
+                    enabledSizes: new Set<string>(),
+                    selectedGraphicSize: "medium",
+                    defaultColor: null,
+                  });
+                  navigate("/test-store-builder");
                 }}
                 data-testid="button-clear-after-assign"
               >
