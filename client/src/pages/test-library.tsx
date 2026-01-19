@@ -9,6 +9,8 @@ import TemplatesTab from "@/features/adminLibrary/tabs/TemplatesTab";
 import GraphicsTab from "@/features/adminLibrary/tabs/GraphicsTab";
 import { Button } from "@/components/ui/button";
 import { Package, Store, Image, QrCode, Layers, Crop, Palette } from "lucide-react";
+import "@/styles/theme.css";
+import "@/styles/layout.css";
 
 export default function TestLibraryPage() {
   const searchString = useSearch();
@@ -25,80 +27,76 @@ export default function TestLibraryPage() {
 
   return (
     <LibraryProvider apiBase="/api/test">
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Layers className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-semibold">Asset Library</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Manage your graphics, templates, and assets
-                  </p>
-                </div>
+      <div className="qr-admin-page">
+        <header className="qr-admin-bar">
+          <div className="qr-admin-bar__inner">
+            <div className="qr-admin-bar__left">
+              <div className="vanity-header-icon" style={{ width: '3rem', height: '3rem' }}>
+                <Layers className="h-6 w-6" style={{ color: 'var(--ice-1)' }} />
               </div>
-              <div className="flex gap-2">
-                <Link href="/test-products">
-                  <Button variant="outline" size="sm" data-testid="link-test-products">
-                    <Package className="h-4 w-4 mr-2" />
-                    Products
-                  </Button>
-                </Link>
-                <Link href="/test-store-builder">
-                  <Button variant="outline" size="sm" data-testid="link-test-store-builder">
-                    <Store className="h-4 w-4 mr-2" />
-                    Store Builder
-                  </Button>
-                </Link>
+              <div>
+                <h1 className="qr-admin-bar__title" style={{ color: 'var(--ice-0)' }}>Asset Library</h1>
+                <p className="qr-admin-bar__subtitle">Graphics, Templates & Assets</p>
               </div>
+            </div>
+            <div className="qr-admin-bar__right">
+              <Link href="/test-products">
+                <Button variant="outline" size="sm" className="min-h-[48px] px-4" data-testid="link-test-products">
+                  <Package className="h-5 w-5 mr-2" style={{ color: 'var(--ice-1)' }} />
+                  Products
+                </Button>
+              </Link>
+              <Link href="/test-store-builder">
+                <Button variant="outline" size="sm" className="min-h-[48px] px-4" data-testid="link-test-store-builder">
+                  <Store className="h-5 w-5 mr-2" style={{ color: 'var(--ice-1)' }} />
+                  Builder
+                </Button>
+              </Link>
             </div>
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-6">
+        <main className="qr-admin-main">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="h-auto flex flex-wrap gap-1 p-1 bg-muted/50 rounded-lg mb-6">
+            <TabsList className="glass-card h-auto flex flex-col sm:flex-row flex-wrap gap-2 p-3 mb-6 w-full">
               <TabsTrigger 
                 value="graphics" 
-                className="flex items-center gap-2 px-4 py-2"
+                className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] w-full sm:w-auto sm:flex-1 rounded-xl data-[state=active]:bg-[var(--ice-2)] data-[state=active]:text-[var(--bg-0)]"
                 data-testid="tab-graphics"
               >
-                <QrCode className="h-4 w-4" />
+                <QrCode className="h-5 w-5" />
                 Graphics
               </TabsTrigger>
               <TabsTrigger 
                 value="templates" 
-                className="flex items-center gap-2 px-4 py-2"
+                className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] w-full sm:w-auto sm:flex-1 rounded-xl data-[state=active]:bg-[var(--ice-2)] data-[state=active]:text-[var(--bg-0)]"
                 data-testid="tab-templates"
               >
-                <Image className="h-4 w-4" />
+                <Image className="h-5 w-5" />
                 Templates
               </TabsTrigger>
               <TabsTrigger 
                 value="backgrounds" 
-                className="flex items-center gap-2 px-4 py-2"
+                className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] w-full sm:w-auto sm:flex-1 rounded-xl data-[state=active]:bg-[var(--ice-2)] data-[state=active]:text-[var(--bg-0)]"
                 data-testid="tab-backgrounds"
               >
-                <Palette className="h-4 w-4" />
+                <Palette className="h-5 w-5" />
                 Backgrounds
               </TabsTrigger>
               <TabsTrigger 
                 value="source" 
-                className="flex items-center gap-2 px-4 py-2"
+                className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] w-full sm:w-auto sm:flex-1 rounded-xl data-[state=active]:bg-[var(--ice-2)] data-[state=active]:text-[var(--bg-0)]"
                 data-testid="tab-source"
               >
-                <Layers className="h-4 w-4" />
+                <Layers className="h-5 w-5" />
                 Source
               </TabsTrigger>
               <TabsTrigger 
                 value="cropped" 
-                className="flex items-center gap-2 px-4 py-2"
+                className="flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] w-full sm:w-auto sm:flex-1 rounded-xl data-[state=active]:bg-[var(--ice-2)] data-[state=active]:text-[var(--bg-0)]"
                 data-testid="tab-cropped"
               >
-                <Crop className="h-4 w-4" />
+                <Crop className="h-5 w-5" />
                 Cropped
               </TabsTrigger>
             </TabsList>
