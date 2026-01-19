@@ -5,6 +5,7 @@ interface CollapsibleModuleProps {
   title: string;
   icon?: React.ReactNode;
   badge?: React.ReactNode;
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
   className?: string;
@@ -15,6 +16,7 @@ export function CollapsibleModule({
   title,
   icon,
   badge,
+  headerRight,
   children,
   defaultOpen = true,
   className = "",
@@ -41,6 +43,11 @@ export function CollapsibleModule({
         {icon && <span className="text-primary">{icon}</span>}
         <span className="flex-1 font-semibold text-base">{title}</span>
         {badge}
+        {headerRight && (
+          <div onClick={(e) => e.stopPropagation()}>
+            {headerRight}
+          </div>
+        )}
       </div>
       {isOpen && <div className="mobile-compact-module-content">{children}</div>}
     </div>

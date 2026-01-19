@@ -1,13 +1,27 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, Plus, Check } from "lucide-react";
+import { Loader2, LayoutGrid, List, GalleryHorizontal } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import { ScrollView, ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 import { useStoreLibraryContext, ProductInfo } from "../StoreLibraryContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
+type ViewLayout = "grid" | "vertical" | "horizontal";
+
+function productToScrollItem(product: ProductInfo): ScrollViewItem {
+  return {
+    id: product.id,
+    imageUrl: product.imageUrl || "",
+    title: product.name,
+    subtitle: product.baseProductId ? `Product: ${product.baseProductId}` : undefined,
+    colorCount: product.enabledColors?.length,
+    sizes: product.enabledSizes,
+  };
+}
+
 export function ProductGridModule() {
+  const [viewLayout, setViewLayout] = useState<ViewLayout>("grid");
   const { 
     selectedStore, 
     selectedChannel, 
@@ -30,7 +44,10 @@ export function ProductGridModule() {
     return selectedProducts.some(p => p.id === productId);
   };
 
-  const toggleProduct = (product: ProductInfo) => {
+  const handleSelect = (item: ScrollViewItem) => {
+    const product = products.find(p => p.id === item.id);
+    if (!product) return;
+    
     if (isSelected(product.id)) {
       removeFromSelection(product.id);
     } else {
@@ -38,11 +55,47 @@ export function ProductGridModule() {
     }
   };
 
+  const scrollItems = products.map(productToScrollItem);
+  const selectedId = selectedProducts.length > 0 ? selectedProducts[selectedProducts.length - 1].id : null;
+
+  const viewToggle = (
+    <div className="flex gap-1">
+      <Button
+        size="icon"
+        variant={viewLayout === "grid" ? "default" : "ghost"}
+        className="h-7 w-7"
+        onClick={() => setViewLayout("grid")}
+        data-testid="button-view-grid"
+      >
+        <LayoutGrid className="h-4 w-4" />
+      </Button>
+      <Button
+        size="icon"
+        variant={viewLayout === "vertical" ? "default" : "ghost"}
+        className="h-7 w-7"
+        onClick={() => setViewLayout("vertical")}
+        data-testid="button-view-list"
+      >
+        <List className="h-4 w-4" />
+      </Button>
+      <Button
+        size="icon"
+        variant={viewLayout === "horizontal" ? "default" : "ghost"}
+        className="h-7 w-7"
+        onClick={() => setViewLayout("horizontal")}
+        data-testid="button-view-swipe"
+      >
+        <GalleryHorizontal className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
   return (
     <CollapsibleModule
       title="Products"
       badge={products.length > 0 ? `${products.length} items` : undefined}
       defaultOpen={true}
+      headerRight={viewToggle}
     >
       {isLoading ? (
         <div className="flex items-center justify-center py-8" data-testid="loader-products">
@@ -57,58 +110,15 @@ export function ProductGridModule() {
           No products assigned to this channel yet
         </div>
       ) : (
-        <SharedViewer mode="grid" className="w-full">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" data-testid="grid-products">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className={`relative border rounded-lg p-2 cursor-pointer transition-all ${
-                  isSelected(product.id) 
-                    ? "border-primary bg-primary/10 ring-2 ring-primary" 
-                    : "border-border hover:border-primary/50"
-                }`}
-                onClick={() => toggleProduct(product)}
-                data-testid={`product-card-${product.id}`}
-              >
-                <div className="aspect-square bg-muted rounded overflow-hidden mb-2">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-                <div className="text-sm font-medium truncate">{product.name}</div>
-                {product.enabledColors && product.enabledColors.length > 0 && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {product.enabledColors.length} colors
-                  </div>
-                )}
-                <Button
-                  size="icon"
-                  variant={isSelected(product.id) ? "default" : "outline"}
-                  className="absolute top-1 right-1 h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleProduct(product);
-                  }}
-                  data-testid={`button-select-${product.id}`}
-                >
-                  {isSelected(product.id) ? (
-                    <Check className="h-3 w-3" />
-                  ) : (
-                    <Plus className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </SharedViewer>
+        <ScrollView
+          items={scrollItems}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+          layout={viewLayout}
+          aspectRatio="square"
+          gridHeight="400px"
+          emptyMessage="No products in this channel"
+        />
       )}
     </CollapsibleModule>
   );
