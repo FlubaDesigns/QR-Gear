@@ -44,15 +44,15 @@ export const WARP_PRESETS = [
 export const defaultTextStyle: TextStyleConfig = {
   text: "",
   enabled: false,
-  fontFamily: "Courier New",
-  fontSize: "280",
+  fontFamily: "Arial",
+  fontSize: "144",
   color: "#FFFFFF",
   warpPreset: "straight",
   letterSpacing: 0,
   strokeColor: "",
   strokeWidth: 0,
-  verticalOffset: 50,
-  horizontalOffset: 50,
+  verticalOffset: 100,
+  horizontalOffset: 0,
 };
 
 interface TextStyleEditorProps {
@@ -137,9 +137,8 @@ export function TextStyleEditor({
             backgroundImage={previewBackgroundImage}
           />
 
-          <Input
-            type="text"
-            placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars)`}
+          <textarea
+            placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
             value={style.text}
             onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
             maxLength={maxLength}
@@ -147,8 +146,8 @@ export function TextStyleEditor({
             autoComplete="off"
             autoCorrect="on"
             spellCheck={true}
-            enterKeyHint="done"
-            className="text-base min-h-[48px]"
+            rows={2}
+            className="w-full text-base min-h-[48px] px-3 py-2 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             data-testid={`input-${testIdPrefix}-text`}
           />
 
