@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { ArrowLeft, Zap, Image, Video, Type, QrCode, Palette, Layers, Wand2, LayoutGrid, Play, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const DYNAMICS_FEATURES = [
   {
@@ -59,124 +57,77 @@ export default function TestDynamicsPage() {
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/test-products">
-            <Button 
-              variant="outline" 
-              size="default"
-              className="min-h-[48px] min-w-[48px] bg-white/10 border-white/20 text-white hover:bg-white/20"
-              data-testid="button-back"
-            >
+    <div className="page-wrap" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+      <div className="container mobile-compact mobile-compact-stack">
+        <div className="glass-card">
+          <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
+            <Zap className="h-5 w-5 text-yellow-400" />
+            QR Dynamics
+          </h1>
+          <p className="text-base text-blue-200 mb-4">
+            The most powerful QR product configuration mode
+          </p>
+          <Link href="/test-products" className="block">
+            <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xl" data-testid="button-back">
               <ArrowLeft className="h-5 w-5" />
-            </Button>
+              Back to Products
+            </button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Zap className="h-8 w-8 text-yellow-400" />
-              QR Dynamics
-            </h1>
-            <p className="text-blue-200 mt-1">
-              The most powerful QR product configuration mode
-            </p>
+        </div>
+
+        <div className="glass-card">
+          <h2 className="glass-title text-base flex items-center gap-2 mb-3">
+            <Play className="h-5 w-5 text-green-400" />
+            What is QR Dynamics?
+          </h2>
+          <p className="text-base text-blue-200 mb-4">
+            Combines all features of QR Canvas and QR Play, plus advanced capabilities for fully customized, dynamic product experiences.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <span className="bg-blue-500/20 px-3 py-1.5 rounded-full text-base text-blue-200">Background Images</span>
+            <span className="bg-purple-500/20 px-3 py-1.5 rounded-full text-base text-purple-200">Video Support</span>
+            <span className="bg-green-500/20 px-3 py-1.5 rounded-full text-base text-green-200">Custom Text</span>
+            <span className="bg-orange-500/20 px-3 py-1.5 rounded-full text-base text-orange-200">Smart QR</span>
+            <span className="bg-pink-500/20 px-3 py-1.5 rounded-full text-base text-pink-200">Templates</span>
+            <span className="bg-cyan-500/20 px-3 py-1.5 rounded-full text-base text-cyan-200">Multi-Placement</span>
           </div>
         </div>
 
-        <Card className="bg-white/10 backdrop-blur-lg border-white/20 text-white mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Play className="h-5 w-5 text-green-400" />
-              What is QR Dynamics?
-            </CardTitle>
-            <CardDescription className="text-blue-200">
-              QR Dynamics combines all the features of QR Canvas and QR Play, plus advanced 
-              capabilities for creating fully customized, dynamic product experiences.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <div className="bg-blue-500/20 px-3 py-1.5 rounded-full text-sm">
-                Background Images
-              </div>
-              <div className="bg-purple-500/20 px-3 py-1.5 rounded-full text-sm">
-                Video Support
-              </div>
-              <div className="bg-green-500/20 px-3 py-1.5 rounded-full text-sm">
-                Custom Text
-              </div>
-              <div className="bg-orange-500/20 px-3 py-1.5 rounded-full text-sm">
-                Smart QR
-              </div>
-              <div className="bg-pink-500/20 px-3 py-1.5 rounded-full text-sm">
-                Templates
-              </div>
-              <div className="bg-cyan-500/20 px-3 py-1.5 rounded-full text-sm">
-                Multi-Placement
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {DYNAMICS_FEATURES.map((feature) => (
-            <Card 
-              key={feature.title}
-              className="bg-white/5 backdrop-blur-lg border-white/10 text-white hover:bg-white/10 transition-colors cursor-pointer"
-              onClick={() => setActiveDemo(feature.title)}
-              data-testid={`card-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}
-            >
-              <CardContent className="pt-6">
-                <feature.icon className={`h-10 w-10 ${feature.color} mb-3`} />
-                <h3 className="font-semibold text-lg mb-1">{feature.title}</h3>
-                <p className="text-sm text-blue-200">{feature.description}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="glass-card">
+          <h2 className="glass-title text-base mb-4">Features</h2>
+          <div className="flex flex-col gap-3">
+            {DYNAMICS_FEATURES.map((feature) => (
+              <button
+                key={feature.title}
+                className={`qr-btn qr-btn--touch qr-btn--full text-left ${activeDemo === feature.title ? 'qr-btn--primary' : 'qr-btn--outline'}`}
+                onClick={() => setActiveDemo(activeDemo === feature.title ? null : feature.title)}
+                data-testid={`card-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}
+              >
+                <feature.icon className={`h-5 w-5 ${feature.color}`} />
+                <span className="flex-1">{feature.title}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {activeDemo && (
-          <Card className="bg-white/10 backdrop-blur-lg border-white/20 text-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 animate-spin" />
-                {activeDemo} Configuration
-              </CardTitle>
-              <CardDescription className="text-blue-200">
-                This is where detailed configuration for {activeDemo} would appear.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="p-8 border border-dashed border-white/30 rounded-lg text-center">
-                <p className="text-white/60 text-sm">
-                  Configuration UI for "{activeDemo}" coming soon...
-                </p>
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="mt-4 min-h-[48px] bg-white/10 border-white/20 text-white hover:bg-white/20"
-                  onClick={() => setActiveDemo(null)}
-                  data-testid="button-close-demo"
-                >
-                  Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="mt-8 text-center">
-          <Link href="/test-products">
-            <Button 
-              size="lg"
-              className="min-h-[48px] bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0"
-              data-testid="button-back-to-builder"
+          <div className="glass-card">
+            <h2 className="glass-title text-base flex items-center gap-2 mb-3">
+              <Settings className="h-5 w-5 animate-spin" />
+              {activeDemo} Configuration
+            </h2>
+            <p className="text-base text-blue-200 mb-4">
+              Configuration UI for "{activeDemo}" coming soon...
+            </p>
+            <button
+              className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+              onClick={() => setActiveDemo(null)}
+              data-testid="button-close-demo"
             >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              Back to Products Builder
-            </Button>
-          </Link>
-        </div>
+              Close
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

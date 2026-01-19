@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
 
@@ -36,32 +34,40 @@ export default function TestImagesPage() {
   }, []);
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>Image Display Test (SmartImage + imageLoader)</CardTitle>
-          <Button onClick={fetchAssets} disabled={loading} variant="outline" data-testid="button-refresh">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+    <div className="page-wrap">
+      <div className="container mobile-compact mobile-compact-stack">
+        <div className="glass-card">
+          <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
+            Image Display Test
+          </h1>
+          <button 
+            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xl"
+            onClick={fetchAssets} 
+            disabled={loading} 
+            data-testid="button-refresh"
+          >
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
             Refresh
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {loading && <div className="text-center py-8"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>}
+          </button>
+        </div>
+
+        <div className="glass-card">
+          {loading && <div className="text-center py-8"><Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-400" /></div>}
           
-          {error && <div className="text-destructive p-4 rounded bg-destructive/10">{error}</div>}
+          {error && <div className="text-red-400 p-4 rounded bg-red-500/10 text-base">{error}</div>}
           
           {!loading && !error && assets.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">No images found in database</div>
+            <div className="text-center py-8 text-blue-200 text-base">No images found in database</div>
           )}
           
           {!loading && assets.length > 0 && (
-            <div className="space-y-6">
-              <p className="text-sm text-muted-foreground">Found {assets.length} images. Using SmartImage component:</p>
+            <div className="space-y-4">
+              <p className="text-base text-blue-200">Found {assets.length} images:</p>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {assets.slice(0, 8).map((asset) => (
                   <div key={asset.id} className="space-y-2">
-                    <div className="aspect-square bg-muted rounded overflow-hidden border">
+                    <div className="aspect-square bg-slate-800/50 rounded-lg overflow-hidden border border-blue-500/20">
                       <SmartImage 
                         asset={asset}
                         alt={asset.name}
@@ -70,15 +76,14 @@ export default function TestImagesPage() {
                         retryOnError={true}
                       />
                     </div>
-                    <p className="text-xs truncate font-medium">{asset.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{asset.publicUrl || asset.storageUrl}</p>
+                    <p className="text-base truncate text-blue-100">{asset.name}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

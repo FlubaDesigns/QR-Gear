@@ -33,64 +33,60 @@ export default function TestLibraryPage() {
 
   return (
     <LibraryProvider apiBase="/api/test">
-      <div className="qr-admin-page">
-        <header className="qr-admin-bar">
-          <div className="qr-admin-bar__inner">
-            <div className="qr-admin-bar__left">
-              <div className="vanity-header-icon">
-                <Layers className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="qr-admin-bar__title">Asset Library</h1>
-                <p className="qr-admin-bar__subtitle">Graphics, Templates & Assets</p>
-              </div>
-            </div>
-            <div className="qr-admin-bar__right">
-              <Link href="/test-products">
-                <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-products">
+      <div className="page-wrap">
+        <div className="container mobile-compact mobile-compact-stack">
+          <div className="glass-card">
+            <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
+              <Layers className="h-5 w-5 text-blue-400" />
+              Asset Library
+            </h1>
+            <div className="flex flex-col gap-3 mb-6">
+              <Link href="/test-products" className="block">
+                <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-test-products">
                   <Package className="h-5 w-5" />
                   Products
                 </button>
               </Link>
-              <Link href="/test-store-builder">
-                <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-store-builder">
+              <Link href="/test-store-builder" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-store-builder">
                   <Store className="h-5 w-5" />
-                  Builder
+                  Store Builder
                 </button>
               </Link>
-              <Link href="/test-pricing">
-                <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-pricing">
+              <Link href="/test-pricing" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-pricing">
                   <DollarSign className="h-5 w-5" />
                   Pricing
                 </button>
               </Link>
-              <Link href="/test-stores">
-                <button className="qr-btn qr-btn--outline qr-btn--touch" data-testid="link-test-stores">
+              <Link href="/test-stores" className="block">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-stores">
                   <Library className="h-5 w-5" />
-                  Stores
+                  Store Library
                 </button>
               </Link>
             </div>
           </div>
-        </header>
 
-        <main className="qr-admin-main">
-          <div className="grid-2x2 mb-6">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const isActive = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`qr-btn--square ${isActive ? "active" : ""}`}
-                  data-testid={`tab-${t.id}`}
-                >
-                  <Icon />
-                  {t.label}
-                </button>
-              );
-            })}
+          <div className="glass-card">
+            <h2 className="glass-title text-base mb-4">Select Tab</h2>
+            <div className="flex flex-col gap-3 mb-6">
+              {TABS.map((t) => {
+                const Icon = t.icon;
+                const isActive = tab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={`qr-btn qr-btn--touch qr-btn--full ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
+                    data-testid={`tab-${t.id}`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="glass-card">
@@ -100,7 +96,7 @@ export default function TestLibraryPage() {
             {tab === "source" && <SourceImagesTab />}
             {tab === "cropped" && <CroppedImagesTab />}
           </div>
-        </main>
+        </div>
       </div>
     </LibraryProvider>
   );

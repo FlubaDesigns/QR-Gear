@@ -1,6 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ArrowLeft, Smartphone, Box, Loader2, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import * as THREE from "three";
@@ -126,30 +124,32 @@ export default function TestARDemo() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
+    <div className="page-wrap">
+      <div className="container mobile-compact mobile-compact-stack">
+        <div className="glass-card">
+          <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
+            <Box className="h-5 w-5 text-blue-400" />
+            AR Demo
+          </h1>
+          <button
+            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xl"
             onClick={() => navigate("/test-store-builder")}
             data-testid="button-back"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <h1 className="text-xl font-bold">AR Demo - T-Shirt with Graphic</h1>
+            <ArrowLeft className="h-5 w-5" />
+            Back to Store Builder
+          </button>
         </div>
 
-        <Card className="p-4 space-y-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Box className="h-4 w-4" />
+        <div className="glass-card">
+          <div className="flex items-center gap-2 text-base text-blue-200 mb-4">
+            <Smartphone className="h-5 w-5" />
             <span>T-Shirt Mockup → 3D Model → AR Preview</span>
           </div>
 
           {!glbUrl ? (
             <div className="space-y-4">
-              <div className="aspect-square w-full max-w-md mx-auto bg-muted rounded-lg overflow-hidden">
+              <div className="aspect-square w-full bg-slate-800/50 rounded-lg overflow-hidden">
                 <img 
                   src={sampleMockupUrl} 
                   alt="T-shirt mockup" 
@@ -158,37 +158,37 @@ export default function TestARDemo() {
                 />
               </div>
               
-              <Button 
+              <button 
+                className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xxl"
                 onClick={handleGenerateModel} 
                 disabled={isGenerating}
-                className="w-full"
                 data-testid="button-generate-3d"
               >
                 {isGenerating ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                     Generating 3D Model...
                   </>
                 ) : (
                   <>
-                    <Box className="h-4 w-4 mr-2" />
+                    <Box className="h-5 w-5" />
                     Generate 3D Model for AR
                   </>
                 )}
-              </Button>
+              </button>
               
               {error && (
-                <p className="text-sm text-red-600 text-center">{error}</p>
+                <p className="text-base text-red-400 text-center">{error}</p>
               )}
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-green-600 text-sm">
-                <CheckCircle className="h-4 w-4" />
-                <span>3D model generated! Tap the AR button (cube icon) to view in your space.</span>
+              <div className="flex items-center gap-2 text-green-400 text-base">
+                <CheckCircle className="h-5 w-5" />
+                <span>3D model generated! Tap the AR button to view in your space.</span>
               </div>
               
-              <div className="aspect-square w-full max-w-md mx-auto bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden">
+              <div className="aspect-square w-full bg-gradient-to-b from-slate-700 to-slate-800 rounded-lg overflow-hidden">
                 <model-viewer
                   ref={modelViewerRef as any}
                   src={glbUrl}
@@ -207,47 +207,31 @@ export default function TestARDemo() {
                 />
               </div>
               
-              <Button 
-                variant="outline"
+              <button 
+                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full qr-btn--xl"
                 onClick={() => {
                   if (glbUrl) URL.revokeObjectURL(glbUrl);
                   setGlbUrl(null);
                 }}
-                className="w-full"
               >
                 Reset
-              </Button>
+              </button>
             </div>
           )}
-        </Card>
+        </div>
 
-        <Card className="p-4 space-y-4">
-          <div className="bg-blue-50 dark:bg-blue-950/50 rounded-lg p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Smartphone className="h-5 w-5 text-blue-600" />
-              <span className="font-medium text-blue-800 dark:text-blue-200">How AR Works</span>
-            </div>
-            <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2 list-disc list-inside">
-              <li>The mockup image is converted to a 3D plane (like a poster)</li>
-              <li>model-viewer displays it with spin/zoom controls</li>
-              <li><strong>On phone:</strong> Tap the AR button to place it in your room</li>
-              <li>The image appears at real-world scale (~40cm wide)</li>
-            </ul>
-          </div>
-        </Card>
-
-        <Card className="p-4 space-y-4">
-          <h2 className="font-semibold">Production Implementation</h2>
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p>For production, we would:</p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Generate GLB files server-side when packets are created</li>
-              <li>Store them in Firebase Storage alongside mockups</li>
-              <li>Also generate USDZ files for better iOS Quick Look support</li>
-              <li>Add AR button to product pages and Store Builder</li>
-            </ul>
-          </div>
-        </Card>
+        <div className="glass-card">
+          <h2 className="glass-title text-base flex items-center gap-2 mb-3">
+            <Smartphone className="h-5 w-5 text-blue-400" />
+            How AR Works
+          </h2>
+          <ul className="text-base text-blue-200 space-y-2 list-disc list-inside">
+            <li>The mockup image is converted to a 3D plane</li>
+            <li>model-viewer displays it with spin/zoom controls</li>
+            <li><strong>On phone:</strong> Tap AR button to place it in your room</li>
+            <li>The image appears at real-world scale (~40cm wide)</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
