@@ -494,6 +494,7 @@ export function StoreBuilderHarness() {
       setIsLoadingPacket(true);
       setOriginalPacketId(packetId);
       setIsEditMode(true);
+      setOriginalConfiguration(null); // Reset so new packet records its own baseline
       fetch(`${apiBase}/packets/${packetId}`)
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
