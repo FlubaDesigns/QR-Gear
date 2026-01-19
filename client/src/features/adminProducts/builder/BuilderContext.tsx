@@ -66,14 +66,20 @@ const initialState: BuilderState = {
     ...initialContent,
     headerStyle: {
       ...initialContent.headerStyle,
-      text: "hi",
+      text: "HELLO",
       enabled: true,
-      color: "#FFFFFF",  // White text
+      color: "#FFFFFF",
+    },
+    footerStyle: {
+      ...initialContent.footerStyle,
+      text: "WORLD",
+      enabled: true,
+      color: "#FFFFFF",
     },
   },
-  selectedPlacements: ["front-center"],  // Default to front center
-  placementConfig: { "front-center": "graphic" },  // Default to graphic type
-  placementSizes: { "front-center": "medium" },  // Default to medium size
+  selectedPlacements: ["left-shoulder"],  // Default to left shoulder for testing
+  placementConfig: { "left-shoulder": "qr" },  // Left shoulder is QR-only
+  placementSizes: { "left-shoulder": "medium" },
 };
 
 interface BuilderProviderProps {
