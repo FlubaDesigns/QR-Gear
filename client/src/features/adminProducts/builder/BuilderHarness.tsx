@@ -5,7 +5,6 @@ import { StateModule } from "./modules/StateModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
-import { PreviewModule } from "./modules/PreviewModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { PricingModule } from "./modules/PricingModule";
 import { SaveOptionsModule, type SaveTarget } from "./modules/SaveOptionsModule";
@@ -181,22 +180,17 @@ function BuilderModules() {
         <PlayContentModule />
       </InlineDebugBoundary>
       
-      {/* Step 6: Live Preview */}
-      <InlineDebugBoundary label="PreviewModule">
-        <PreviewModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 7: Create Graphics (generates QR, composite, calculates pricing) */}
+      {/* Step 5: Create Graphics (generates QR, composite, calculates pricing) */}
       <InlineDebugBoundary label="CreateGraphicsModule">
         <CreateGraphicsModule />
       </InlineDebugBoundary>
       
-      {/* Step 8: Pricing Breakdown */}
+      {/* Step 6: Pricing Breakdown */}
       <InlineDebugBoundary label="PricingModule">
         <PricingModule onPricingCalculated={handlePricingCalculated} />
       </InlineDebugBoundary>
       
-      {/* Step 9: Save Options */}
+      {/* Step 7: Save Options */}
       <InlineDebugBoundary label="SaveOptionsModule">
         <SaveOptionsModule onSaveTargetChange={handleSaveTargetChange} />
       </InlineDebugBoundary>
