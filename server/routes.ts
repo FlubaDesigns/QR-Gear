@@ -8448,6 +8448,12 @@ ${allPages.map(page => `  <url>
         landingPageSlug,
         headerStyle,
         footerStyle,
+        // Role/Store/Channel fields
+        roleType,
+        storeId,
+        storeName,
+        channelId,
+        channelName,
       } = req.body;
 
       if (!qrContent && !qrOnlyUrl) {
@@ -8494,6 +8500,12 @@ ${allPages.map(page => `  <url>
         landingPageSlug: landingPageSlug || null,
         headerStyle: headerStyle || null,
         footerStyle: footerStyle || null,
+        // Role/Store/Channel
+        roleType: roleType || null,
+        storeId: storeId || null,
+        storeName: storeName || null,
+        channelId: channelId || null,
+        channelName: channelName || null,
         createdAt: now,
         updatedAt: now,
       };
