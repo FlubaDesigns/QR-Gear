@@ -47,11 +47,11 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
 
   const selectedTier = useMemo(() => {
     if (!settings?.hostingTiers) return null;
-    return settings.hostingTiers.find(t => t.code === state.content.hostingTierCode) || settings.hostingTiers[0];
-  }, [settings, state.content.hostingTierCode]);
+    return settings.hostingTiers.find(t => t.code === state.content?.hostingTierCode) || settings.hostingTiers[0];
+  }, [settings, state.content?.hostingTierCode]);
 
   const pricing = useMemo((): PricingBreakdown | null => {
-    if (!settings || !state.selectedProduct) return null;
+    if (!settings || !state.selectedProduct || !state.content) return null;
 
     const product = state.selectedProduct as any;
     // Use maxPrice (highest variant cost) as base, fallback to basePrice, then minPrice
@@ -201,7 +201,7 @@ export function PricingModule({ onPricingCalculated }: PricingModuleProps) {
           <div className="space-y-2">
             <Label htmlFor="hosting-tier" className="text-sm font-medium">Hosting Duration</Label>
             <Select 
-              value={state.content.hostingTierCode || "1_year"} 
+              value={state.content?.hostingTierCode || "1_year"} 
               onValueChange={handleHostingTierChange}
             >
               <SelectTrigger 

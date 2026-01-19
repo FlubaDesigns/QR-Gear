@@ -20,7 +20,7 @@ export function ContentModule() {
   const needsOverlay = state.qrProductState === "qr_dynamics" || 
                        state.qrProductState === "qr_plus";
 
-  if (!state.qrProductState || !state.selectedProduct) {
+  if (!state.qrProductState || !state.selectedProduct || !state.content) {
     return null;
   }
 

@@ -244,24 +244,27 @@ export function TextConfigModule() {
                           state.qrProductState === "qr_play" || 
                           state.qrProductState === "qr_dynamics";
   
-  if (!needsTextConfig || !state.selectedProduct) {
+  if (!needsTextConfig || !state.selectedProduct || !state.content) {
     return null;
   }
 
+  const headerStyle = state.content.headerStyle || { text: "", enabled: false, fontFamily: "Arial", fontSize: "144", color: "#FFFFFF", warpPreset: "straight", letterSpacing: 0, strokeColor: "", strokeWidth: 0, verticalOffset: 20, horizontalOffset: 0 };
+  const footerStyle = state.content.footerStyle || { text: "", enabled: false, fontFamily: "Arial", fontSize: "144", color: "#FFFFFF", warpPreset: "straight", letterSpacing: 0, strokeColor: "", strokeWidth: 0, verticalOffset: 20, horizontalOffset: 0 };
+
   const updateHeaderStyle = (updates: Partial<TextStyleConfig>) => {
     setContent({
-      headerStyle: { ...state.content.headerStyle, ...updates }
+      headerStyle: { ...headerStyle, ...updates }
     });
   };
 
   const updateFooterStyle = (updates: Partial<TextStyleConfig>) => {
     setContent({
-      footerStyle: { ...state.content.footerStyle, ...updates }
+      footerStyle: { ...footerStyle, ...updates }
     });
   };
 
-  const hasAnyText = (state.content.headerStyle.enabled && state.content.headerStyle.text) || 
-                     (state.content.footerStyle.enabled && state.content.footerStyle.text);
+  const hasAnyText = (headerStyle.enabled && headerStyle.text) || 
+                     (footerStyle.enabled && footerStyle.text);
 
   return (
     <CollapsibleModule
@@ -296,7 +299,7 @@ export function TextConfigModule() {
         <TextBlock
           label="Top Text (Header)"
           maxLength={35}
-          style={state.content.headerStyle}
+          style={headerStyle}
           onChange={updateHeaderStyle}
           testIdPrefix="header"
         />
@@ -304,7 +307,7 @@ export function TextConfigModule() {
         <TextBlock
           label="Bottom Text (Footer)"
           maxLength={40}
-          style={state.content.footerStyle}
+          style={footerStyle}
           onChange={updateFooterStyle}
           testIdPrefix="footer"
         />
@@ -316,8 +319,8 @@ export function TextConfigModule() {
             <div className="flex justify-center">
               <GraphicPreviewView
                 backgroundColor={state.selectedColor?.hex || '#ffffff'}
-                headerStyle={state.content.headerStyle.enabled ? state.content.headerStyle : undefined}
-                footerStyle={state.content.footerStyle.enabled ? state.content.footerStyle : undefined}
+                headerStyle={headerStyle.enabled ? headerStyle : undefined}
+                footerStyle={footerStyle.enabled ? footerStyle : undefined}
                 showQRCode={true}
                 aspectRatio="square"
               />

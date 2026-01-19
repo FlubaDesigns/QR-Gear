@@ -57,7 +57,7 @@ export function URLContentModule() {
   });
 
   // Early return AFTER all hooks
-  if (!needsUrlContent || !state.selectedProduct) {
+  if (!needsUrlContent || !state.selectedProduct || !state.content) {
     return null;
   }
 

@@ -227,11 +227,11 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
 
   const isPlayMode = state.qrProductState === "qr_play";
   const hasPlayMedia = isPlayMode && (
-    (state.content.playMediaSource === "url" && state.content.playMediaUrl) ||
-    (state.content.playMediaSource === "upload" && state.content.playMediaFile)
+    (state.content?.playMediaSource === "url" && state.content?.playMediaUrl) ||
+    (state.content?.playMediaSource === "upload" && state.content?.playMediaFile)
   );
-  const playPermissionOk = !isPlayMode || state.content.playPermissionConfirmed;
-  const hasRequiredContent = isPlayMode ? hasPlayMedia : (state.content.url || state.content.title);
+  const playPermissionOk = !isPlayMode || state.content?.playPermissionConfirmed;
+  const hasRequiredContent = isPlayMode ? hasPlayMedia : (state.content?.url || state.content?.title);
 
   const canCreate = Boolean(
     state.selectedProduct &&
@@ -241,7 +241,7 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
   );
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
-    if (!pricingSettings || !state.selectedProduct) return null;
+    if (!pricingSettings || !state.selectedProduct || !state.content) return null;
 
     const product = state.selectedProduct as any;
     const baseProductCost = parseFloat(product.maxPrice || product.basePrice || product.minPrice || product.customerPrice || "0");
@@ -661,7 +661,7 @@ export function CreateGraphicsModule({ onGraphicsCreated, onSaveComplete }: Crea
     setError(null);
   };
 
-  if (!state.selectedProduct || !state.qrProductState) {
+  if (!state.selectedProduct || !state.qrProductState || !state.content) {
     return null;
   }
 

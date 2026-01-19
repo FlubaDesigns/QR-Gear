@@ -15,7 +15,9 @@ export function PlacementModule() {
   const category = state.category;
   const placementOptions = getPlacementsForCategory(category);
   
-  const selectedCount = (state.selectedPlacements || []).length;
+  const selectedPlacements = state.selectedPlacements || [];
+  const placementConfig = state.placementConfig || {};
+  const selectedCount = selectedPlacements.length;
   const isQrBasics = state.qrProductState === "qr_basics";
   const showPlacementTypeToggle = !isQrBasics;
 
@@ -36,8 +38,8 @@ export function PlacementModule() {
         
         <div className="space-y-3">
           {placementOptions.map((placement) => {
-            const isSelected = (state.selectedPlacements || []).includes(placement.id);
-            const placementType = state.placementConfig[placement.id] || "qr";
+            const isSelected = selectedPlacements.includes(placement.id);
+            const placementType = placementConfig[placement.id] || "qr";
             const isQrOnly = QR_ONLY_PLACEMENTS.includes(placement.id);
             
             return (
@@ -115,9 +117,9 @@ export function PlacementModule() {
             </p>
             {showPlacementTypeToggle && (
               <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                {(state.selectedPlacements || []).map(p => {
+                {selectedPlacements.map(p => {
                   const label = ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label;
-                  const type = state.placementConfig[p] || "qr";
+                  const type = placementConfig[p] || "qr";
                   return (
                     <p key={p}>
                       <span className="font-medium">{label}:</span>{" "}
@@ -129,7 +131,7 @@ export function PlacementModule() {
             )}
             {!showPlacementTypeToggle && (
               <p className="text-xs text-muted-foreground mt-1">
-                {(state.selectedPlacements || []).map(p => 
+                {selectedPlacements.map(p => 
                   ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label
                 ).join(", ")}
               </p>

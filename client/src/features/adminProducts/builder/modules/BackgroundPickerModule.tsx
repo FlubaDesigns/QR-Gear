@@ -307,7 +307,7 @@ function VideoPicker() {
     }
   };
 
-  const videoUrl = state.content.videoUrl;
+  const videoUrl = state.content?.videoUrl || "";
   const isValidUrl = videoUrl && (videoUrl.startsWith("http") || videoUrl.startsWith("/"));
 
   return (

@@ -39,7 +39,7 @@ export function PlayContentModule() {
     });
   }, [setContent]);
 
-  if (state.qrProductState !== "qr_play" || !state.selectedProduct) {
+  if (state.qrProductState !== "qr_play" || !state.selectedProduct || !state.content) {
     return null;
   }
 
