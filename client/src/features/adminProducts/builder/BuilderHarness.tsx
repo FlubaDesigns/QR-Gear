@@ -1,21 +1,12 @@
-import { useCallback, useState } from "react";
 import { BuilderProvider } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
 import { PlacementModule } from "./modules/PlacementModule";
 import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
-import { PricingModule } from "./modules/PricingModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
-import type { PricingBreakdown } from "./types";
 
 function BuilderModules() {
-  const [currentPricing, setCurrentPricing] = useState<PricingBreakdown | null>(null);
-
-  const handlePricingCalculated = useCallback((pricing: PricingBreakdown | null) => {
-    setCurrentPricing(pricing);
-  }, []);
-
   return (
     <div className="mobile-compact-stack">
       {/* Step 1: Product Type & QR State Selection */}
@@ -41,11 +32,6 @@ function BuilderModules() {
       {/* Step 5: Create Graphics (generates QR, composite, calculates pricing, queues mockups) */}
       <InlineDebugBoundary label="CreateGraphicsModule">
         <CreateGraphicsModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 6: Pricing Breakdown */}
-      <InlineDebugBoundary label="PricingModule">
-        <PricingModule onPricingCalculated={handlePricingCalculated} />
       </InlineDebugBoundary>
     </div>
   );
