@@ -77,7 +77,7 @@ const initialState: BuilderState = {
   loadedBackground: null,
   fulfillmentProvider: "printify",
   category: null,
-  originFilter: { showUSA: true, showOther: true },
+  originFilter: { showUSA: true, showOther: false },
   genderFilter: "all",
   selectedProduct: null,
   selectedColor: null,

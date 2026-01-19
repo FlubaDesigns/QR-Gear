@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, useCallback } from "react";
+import { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useAdminAuth } from "../shared/AdminAuthContext";
 import type { 
@@ -52,6 +52,46 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const setSelectedChannel = useCallback((channel: Channel | null) => {
     setSelectedChannelState(channel);
   }, []);
+
+  // Auto-load defaults for testing: Internal / QR Gear / Test
+  useEffect(() => {
+    const loadDefaults = async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const isTestEndpoint = apiBase.includes("/test");
+        const adminSegment = isTestEndpoint ? "" : "/admin";
+        
+        // Fetch internal stores
+        const storesRes = await fetch(`${apiBase}${adminSegment}/stores?roleType=internal`, { headers });
+        if (!storesRes.ok) return;
+        const stores: Store[] = await storesRes.json();
+        
+        // Find QR Gear store
+        const qrGearStore = stores.find(s => s.id === "qr-gear" || s.name.toLowerCase().includes("qr gear"));
+        if (!qrGearStore) return;
+        
+        // Fetch channels for QR Gear
+        const channelsRes = await fetch(`${apiBase}${adminSegment}/stores/${qrGearStore.id}/channels`, { headers });
+        if (!channelsRes.ok) return;
+        const channels: Channel[] = await channelsRes.json();
+        
+        // Find Test channel
+        const testChannel = channels.find(c => c.id === "test" || c.name.toLowerCase() === "test");
+        
+        // Set defaults
+        setSelectedRoleState("internal");
+        setSelectedStoreState(qrGearStore);
+        if (testChannel) {
+          setSelectedChannelState(testChannel);
+        }
+      } catch (err) {
+        // Silently fail - defaults are optional
+        console.log("[ProductsContext] Could not load defaults:", err);
+      }
+    };
+    
+    loadDefaults();
+  }, [apiBase, getAuthHeaders]);
 
   const api = useMemo<ProductsApi>(() => {
     const getQueryKey = (type: string = "all"): string[] => ["products", apiBase, type];
