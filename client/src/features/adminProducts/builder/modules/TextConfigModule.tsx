@@ -1,4 +1,5 @@
-import { Type } from "lucide-react";
+import { useState } from "react";
+import { Type, ChevronDown, ChevronRight } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,16 +16,29 @@ interface TextBlockProps {
   style: TextStyleConfig;
   onChange: (updates: Partial<TextStyleConfig>) => void;
   testIdPrefix: string;
+  defaultOpen?: boolean;
 }
 
-function TextBlock({ label, maxLength, style, onChange, testIdPrefix }: TextBlockProps) {
+function TextBlock({ label, maxLength, style, onChange, testIdPrefix, defaultOpen = false }: TextBlockProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
   return (
-    <div className="space-y-3 p-4 bg-background rounded-lg border">
-      <div className="flex items-center justify-between min-h-[48px]">
-        <Label htmlFor={`${testIdPrefix}-enabled`} className="font-semibold text-base">
-          {label}
-        </Label>
-        <div className="min-w-[48px] min-h-[48px] flex items-center justify-center">
+    <div className="bg-background rounded-lg border">
+      <div 
+        className="mobile-compact-module-header flex items-center cursor-pointer select-none"
+        onClick={() => setIsOpen(!isOpen)}
+        data-testid={`collapsible-${testIdPrefix}`}
+      >
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+        <Label className="font-semibold text-base flex-1 cursor-pointer">{label}</Label>
+        <div 
+          className="min-w-[48px] min-h-[48px] flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Switch
             id={`${testIdPrefix}-enabled`}
             checked={style.enabled}
@@ -35,8 +49,8 @@ function TextBlock({ label, maxLength, style, onChange, testIdPrefix }: TextBloc
         </div>
       </div>
       
-      {style.enabled && (
-        <div className="space-y-4">
+      {isOpen && style.enabled && (
+        <div className="mobile-compact-module-content space-y-4">
           <Input
             type="text"
             placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars)`}
