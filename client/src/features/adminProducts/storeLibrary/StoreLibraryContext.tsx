@@ -17,11 +17,18 @@ export interface ChannelInfo {
 
 export interface ProductInfo {
   id: string;
+  linkId?: string;
+  packetId?: string;
+  templateId?: string;
   name: string;
   imageUrl: string;
   baseProductId?: string;
   enabledColors?: string[];
   enabledSizes?: string[];
+  selectedGraphicSize?: string;
+  defaultColor?: string;
+  qrContent?: string;
+  pricing?: any;
 }
 
 interface StoreLibraryContextValue {

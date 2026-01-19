@@ -21,11 +21,11 @@ export function StoreTypeFilterModule() {
   } = useStoreLibraryContext();
 
   const { data: stores = [] } = useQuery<StoreInfo[]>({
-    queryKey: ["/api/test/stores", selectedType],
+    queryKey: [`/api/test/stores?roleType=${selectedType}`],
   });
 
   const { data: channels = [] } = useQuery<ChannelInfo[]>({
-    queryKey: ["/api/test/stores", selectedStore?.id, "channels"],
+    queryKey: [`/api/test/stores/${selectedStore?.id}/channels`],
     enabled: !!selectedStore,
   });
 
@@ -43,7 +43,17 @@ export function StoreTypeFilterModule() {
 
   const handleStoreChange = (storeId: string) => {
     const store = stores.find(s => s.id === storeId);
-    setSelectedStore(store || null);
+    if (store) {
+      const storeWithType: StoreInfo = {
+        id: store.id,
+        name: store.name,
+        type: (store as any).roleType || store.type || selectedType,
+        description: store.description,
+      };
+      setSelectedStore(storeWithType);
+    } else {
+      setSelectedStore(null);
+    }
   };
 
   const handleChannelChange = (channelId: string) => {

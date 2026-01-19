@@ -117,6 +117,47 @@ STORE BUILDER
 - Navigates to Store Builder with `?packetId=xxx` in URL
 - Store Builder fetches packet from database and displays pricing breakdown
 
+### Store Library Architecture (January 2026)
+The Store Library is an admin interface for viewing and managing products by store/channel.
+
+**UI Flow:**
+1. Role buttons (Internal/External/Member) filter store types
+2. Store dropdown (queries `/api/test/stores?roleType=xxx`)
+3. Channel dropdown (queries `/api/test/stores/{storeId}/channels`)
+4. Channel title displays when store+channel selected
+5. Product grid shows products linked to that channel
+
+**storeProductLinks Collection (Firestore):**
+```
+{
+  storeId: string,           // Store document ID
+  storeName: string,         // Store display name
+  channel: string,           // Channel name (e.g., "Test", "Church Merch")
+  packetId: string | null,   // Reference to product packet
+  templateId: string | null, // Reference to template
+  graphicsId: string | null, // Reference to graphics entry
+  productName: string,       // Display name for the product
+  compositeUrl: string,      // URL to composite graphic image
+  qrOnlyUrl: string,         // URL to QR-only image
+  qrContent: string,         // QR code content/URL
+  pricing: object,           // Pricing breakdown data
+  enabledColors: string[],   // Enabled product colors
+  enabledSizes: string[],    // Enabled product sizes
+  selectedGraphicSize: string, // "small" | "medium" | "large"
+  defaultColor: string,      // Default hero color
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+```
+
+**API Endpoints:**
+- GET `/api/test/stores/:storeId/channels/:channelId/products` - Get products for store/channel
+- POST `/api/test/store-product-links` - Create a new store product link
+- PATCH `/api/test/store-product-links/:linkId` - Update a store product link
+- DELETE `/api/test/store-product-links/:linkId` - Delete a store product link
+
+**Note:** The `:channelId` URL parameter is actually the channel name (not ID) for the GET endpoint.
+
 ### System Design Choices
 - **Printful-First Mockup Architecture**: Decouples mockup generation (Printful) from order fulfillment (Printify).
 - **Backend**: Node.js, Express, TypeScript.

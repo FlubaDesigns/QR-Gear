@@ -2,8 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Library } from "lucide-react";
 import { StoreLibraryProvider, useStoreLibraryContext, ProductInfo } from "./StoreLibraryContext";
 import { StoreTypeFilterModule } from "./modules/StoreTypeFilterModule";
-import { StoreListModule } from "./modules/StoreListModule";
-import { ChannelListModule } from "./modules/ChannelListModule";
 import { ProductGridModule } from "./modules/ProductGridModule";
 import { SharedLightbox, LightboxItem } from "@/features/shared/components/SharedLightbox";
 import { StoreLibrarySkin } from "./skins/StoreLibrarySkin";
@@ -21,7 +19,6 @@ function productToLightboxItem(product: ProductInfo): LightboxItem {
 
 function StoreLibraryInner() {
   const { 
-    selectedType, 
     selectedStore, 
     selectedChannel, 
     selectedProducts,
@@ -40,10 +37,20 @@ function StoreLibraryInner() {
             Store Library
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <StoreTypeFilterModule />
-          <StoreListModule />
-          <ChannelListModule />
+          
+          {selectedStore && selectedChannel && (
+            <div className="p-3 bg-muted/50 rounded-lg border">
+              <h3 className="font-semibold text-lg" data-testid="text-channel-title">
+                {selectedChannel.name}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {selectedStore.name} • {selectedStore.type}
+              </p>
+            </div>
+          )}
+          
           <ProductGridModule />
         </CardContent>
       </Card>

@@ -16,8 +16,8 @@ export function ProductGridModule() {
   } = useStoreLibraryContext();
 
   const { data: products = [], isLoading, error } = useQuery<ProductInfo[]>({
-    queryKey: ["/api/test/stores", selectedStore?.id, "channels", selectedChannel?.id, "products"],
-    enabled: !!selectedStore && !!selectedChannel,
+    queryKey: [`/api/test/stores/${selectedStore?.id}/channels/${selectedChannel?.name}/products`],
+    enabled: !!selectedStore && !!selectedChannel?.name,
   });
 
   if (!selectedStore || !selectedChannel) {

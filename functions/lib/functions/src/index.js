@@ -3340,41 +3340,38 @@ app.get('/test/printify/catalog/:blueprintId', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// Test endpoint: GET products for a store channel (for Store Library)
+// Test endpoint: GET products for a store channel (for Store Library) - uses storeProductLinks
 app.get('/test/stores/:storeId/channels/:channelId/products', async (req, res) => {
     try {
         const { storeId, channelId } = req.params;
         console.log(`[TestChannelProducts] GET products for ${storeId}/${channelId}`);
-        // Convert channelId back to kcPlacement format (e.g., "church-merch" -> "Church Merch")
-        const channelName = channelId.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        // Fetch partnerStoreProducts for this store that include this channel in kcPlacements
-        const snapshot = await db.collection('partnerStoreProducts')
-            .where('partnerStoreId', '==', storeId)
+        if (!storeId || !channelId) {
+            res.status(400).json({ error: 'storeId and channelId are required' });
+            return;
+        }
+        // Query storeProductLinks collection - channelId is actually the channel name
+        const linksSnapshot = await db.collection('storeProductLinks')
+            .where('storeId', '==', storeId)
+            .where('channel', '==', channelId)
             .get();
-        // Filter products that have this channel in their kcPlacements
-        const matchingProducts = snapshot.docs.filter(doc => {
+        const products = linksSnapshot.docs.map(doc => {
             const data = doc.data();
-            const placements = (data.kcPlacements || []).map((p) => p.toLowerCase());
-            return placements.includes(channelId) || placements.includes(channelName.toLowerCase());
-        });
-        // Fetch the actual product details for each matching partnerStoreProduct
-        const products = await Promise.all(matchingProducts.map(async (pspDoc) => {
-            const pspData = pspDoc.data();
-            const productId = pspData.productId;
-            // Try to get the actual product document
-            const productDoc = await db.collection('products').doc(productId).get();
-            const productData = productDoc.exists ? productDoc.data() : null;
             return {
-                id: pspDoc.id,
-                productId,
-                name: pspData.customName || productData?.name || `Product ${productId}`,
-                imageUrl: productData?.mockupUrl || productData?.imageUrl || '',
-                baseProductId: productData?.baseProductId || '',
-                enabledColors: pspData.enabledColors || productData?.enabledColors || [],
-                enabledSizes: pspData.enabledSizes || productData?.enabledSizes || [],
-                customPrice: pspData.customPrice,
+                id: doc.id,
+                linkId: doc.id,
+                packetId: data.packetId || null,
+                templateId: data.templateId || null,
+                name: data.productName || 'Untitled Product',
+                imageUrl: data.compositeUrl || data.qrOnlyUrl || null,
+                qrContent: data.qrContent || null,
+                pricing: data.pricing || null,
+                enabledColors: data.enabledColors || [],
+                enabledSizes: data.enabledSizes || [],
+                selectedGraphicSize: data.selectedGraphicSize || null,
+                defaultColor: data.defaultColor || null,
+                createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
             };
-        }));
+        });
         console.log(`[TestChannelProducts] Found ${products.length} products for ${storeId}/${channelId}`);
         res.json(products);
     }
@@ -5022,6 +5019,64 @@ app.post('/test/store-product-links', async (req, res) => {
     }
     catch (error) {
         console.error('[Store Links TEST] Error creating link:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// PUBLIC TEST: Update a store product link - NO AUTH REQUIRED
+app.patch('/test/store-product-links/:linkId', async (req, res) => {
+    try {
+        const { linkId } = req.params;
+        const updates = req.body;
+        if (!linkId) {
+            res.status(400).json({ error: 'linkId is required' });
+            return;
+        }
+        const docRef = db.collection('storeProductLinks').doc(linkId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Link not found' });
+            return;
+        }
+        await docRef.update({
+            ...updates,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`[Store Links PATCH] Updated link ${linkId}:`, Object.keys(updates));
+        res.json({
+            success: true,
+            linkId,
+            message: 'Link updated',
+        });
+    }
+    catch (error) {
+        console.error('[Store Links PATCH] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// PUBLIC TEST: Delete a store product link - NO AUTH REQUIRED
+app.delete('/test/store-product-links/:linkId', async (req, res) => {
+    try {
+        const { linkId } = req.params;
+        if (!linkId) {
+            res.status(400).json({ error: 'linkId is required' });
+            return;
+        }
+        const docRef = db.collection('storeProductLinks').doc(linkId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Link not found' });
+            return;
+        }
+        await docRef.delete();
+        console.log(`[Store Links DELETE] Deleted link ${linkId}`);
+        res.json({
+            success: true,
+            linkId,
+            message: 'Link deleted',
+        });
+    }
+    catch (error) {
+        console.error('[Store Links DELETE] Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

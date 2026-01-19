@@ -7991,6 +7991,123 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Test: Get products linked to a store/channel - NO AUTH REQUIRED
+  app.get("/api/test/stores/:storeId/channels/:channelId/products", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+
+      if (!storeId || !channelId) {
+        return res.status(400).json({ error: "storeId and channelId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+        .where("storeId", "==", storeId)
+        .where("channel", "==", channelId)
+        .get();
+
+      const products = linksSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          linkId: doc.id,
+          packetId: data.packetId || null,
+          templateId: data.templateId || null,
+          name: data.productName || "Untitled Product",
+          imageUrl: data.compositeUrl || data.qrOnlyUrl || null,
+          qrContent: data.qrContent || null,
+          pricing: data.pricing || null,
+          enabledColors: data.enabledColors || [],
+          enabledSizes: data.enabledSizes || [],
+          selectedGraphicSize: data.selectedGraphicSize || null,
+          defaultColor: data.defaultColor || null,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        };
+      });
+
+      console.log(`[Store Links TEST] Found ${products.length} products for ${storeId}/${channelId}`);
+
+      res.json(products);
+    } catch (error: any) {
+      console.error("[Store Links TEST] Error getting products:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Update a store product link - NO AUTH REQUIRED
+  app.patch("/api/test/store-product-links/:linkId", async (req: any, res) => {
+    try {
+      const { linkId } = req.params;
+      const updates = req.body;
+
+      if (!linkId) {
+        return res.status(400).json({ error: "linkId is required" });
+      }
+
+      const { getFirestoreDb, FieldValue } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const docRef = firestoreDb.collection("storeProductLinks").doc(linkId);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+
+      await docRef.update({
+        ...updates,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      
+      console.log(`[Store Links PATCH] Updated link ${linkId}:`, Object.keys(updates));
+
+      res.json({
+        success: true,
+        linkId,
+        message: "Link updated",
+      });
+    } catch (error: any) {
+      console.error("[Store Links PATCH] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test: Delete a store product link - NO AUTH REQUIRED
+  app.delete("/api/test/store-product-links/:linkId", async (req: any, res) => {
+    try {
+      const { linkId } = req.params;
+
+      if (!linkId) {
+        return res.status(400).json({ error: "linkId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const docRef = firestoreDb.collection("storeProductLinks").doc(linkId);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+
+      await docRef.delete();
+      
+      console.log(`[Store Links DELETE] Deleted link ${linkId}`);
+
+      res.json({
+        success: true,
+        linkId,
+        message: "Link deleted",
+      });
+    } catch (error: any) {
+      console.error("[Store Links DELETE] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test: Full template save with batch mockup generation - NO AUTH REQUIRED
   app.post("/api/test/templates/full-save", async (req: any, res) => {
     try {

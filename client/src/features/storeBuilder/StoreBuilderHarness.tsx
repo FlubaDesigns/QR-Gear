@@ -10,6 +10,30 @@ import { Switch } from "@/components/ui/switch";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import type { PartnerStore } from "@shared/schema";
 
+const COLOR_HEX_MAP: Record<string, string> = {
+  "White": "#FFFFFF", "Black": "#000000", "Navy": "#1F2937", "Navy Blue": "#1F2937",
+  "Red": "#DC2626", "Blue": "#2563EB", "Royal Blue": "#1D4ED8", "Light Blue": "#93C5FD",
+  "Green": "#16A34A", "Forest Green": "#166534", "Yellow": "#FBBF24", "Gold": "#F59E0B",
+  "Orange": "#EA580C", "Pink": "#EC4899", "Purple": "#9333EA", "Gray": "#6B7280",
+  "Grey": "#6B7280", "Charcoal": "#374151", "Brown": "#92400E", "Tan": "#D4A574",
+  "Maroon": "#7F1D1D", "Burgundy": "#881337", "Teal": "#0D9488", "Aqua": "#22D3D1",
+  "Heather Gray": "#9CA3AF", "Heather Grey": "#9CA3AF", "Sport Grey": "#9CA3AF",
+  "Dark Heather": "#4B5563", "Ash": "#D1D5DB", "Natural": "#F5F5DC", "Cream": "#FFFDD0",
+  "Sand": "#C2B280", "Olive": "#556B2F", "Kelly Green": "#22C55E", "Irish Green": "#22C55E",
+  "Cardinal": "#B91C1C", "Safety Orange": "#FF6600", "Safety Green": "#84CC16",
+};
+
+function getColorHex(color: { name: string; hex?: string }): string {
+  if (color.hex && color.hex.trim() !== "") return color.hex;
+  const normalized = color.name.trim();
+  if (COLOR_HEX_MAP[normalized]) return COLOR_HEX_MAP[normalized];
+  const lowerName = normalized.toLowerCase();
+  for (const [key, value] of Object.entries(COLOR_HEX_MAP)) {
+    if (key.toLowerCase() === lowerName) return value;
+  }
+  return "#CCCCCC";
+}
+
 interface ProductColor {
   hex: string;
   name: string;
@@ -182,13 +206,10 @@ function HeroImageLightbox({
                         ? "ring-2 ring-offset-2 ring-primary border-primary"
                         : "border-muted hover:border-primary/50"
                     }`}
-                    style={{ backgroundColor: color.hex || '#cccccc' }}
+                    style={{ backgroundColor: getColorHex(color) }}
                     title={color.name}
                     data-testid={`lightbox-color-${color.name}`}
                   >
-                    {!color.hex && (
-                      <span className="text-[8px] text-center leading-tight">{color.name.slice(0, 3)}</span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -743,13 +764,9 @@ export function StoreBuilderHarness() {
             >
               <div className="flex items-center gap-2">
                 <div 
-                  className="w-6 h-6 rounded-full border flex items-center justify-center"
-                  style={{ backgroundColor: color.hex || '#cccccc' }}
-                >
-                  {!color.hex && (
-                    <span className="text-[6px] text-center leading-tight">{color.name.slice(0, 2)}</span>
-                  )}
-                </div>
+                  className="w-6 h-6 rounded-full border"
+                  style={{ backgroundColor: getColorHex(color) }}
+                />
                 <span className="font-medium text-sm">{color.name}</span>
               </div>
               <Switch
