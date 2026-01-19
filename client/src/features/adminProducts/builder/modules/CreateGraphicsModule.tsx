@@ -844,16 +844,13 @@ export function CreateGraphicsModule() {
                     <QrCode className="h-3 w-3" />
                     QR Code (scan to test)
                   </p>
-                  <div className="bg-white rounded p-3 flex flex-col items-center justify-center gap-2">
+                  <div className="bg-white rounded p-4 flex items-center justify-center">
                     <img
                       src={packetResult.qrOnlyUrl}
                       alt="QR Code"
-                      className="w-full max-w-[250px] h-auto"
+                      className="w-full max-w-[300px] h-auto"
                       data-testid="img-packet-qr"
                     />
-                    <p className="text-xs text-gray-600 font-mono break-all text-center max-w-[250px]">
-                      {packetResult.landingPageUrl}
-                    </p>
                   </div>
                 </CardContent>
               </Card>
