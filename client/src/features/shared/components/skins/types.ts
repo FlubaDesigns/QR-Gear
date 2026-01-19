@@ -12,6 +12,8 @@ export interface SkinItem {
   colorCount?: number;
   sizeCount?: number;
   createdAt?: string | null;
+  dimensions?: string | null;
+  isUsed?: boolean;
 }
 
 export interface SkinActions {
@@ -19,11 +21,12 @@ export interface SkinActions {
   onArchive?: (id: string) => void;
   onDelete?: (id: string) => void;
   onSelect?: (id: string) => void;
+  onCrop?: (id: string) => void;
 }
 
 export interface SkinProps {
   item: SkinItem;
-  actions: SkinActions;
+  actions?: SkinActions;
   isActionPending?: boolean;
 }
 
@@ -32,7 +35,7 @@ export interface CardSkinProps extends SkinProps {
 }
 
 export interface DetailSkinProps extends SkinProps {
-  onClose: () => void;
+  onClose?: () => void;
   onPrev?: () => void;
   onNext?: () => void;
   hasPrev?: boolean;

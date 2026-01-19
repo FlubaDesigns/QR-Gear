@@ -57,11 +57,11 @@ export function BackgroundDetailSkin({
           )}
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          {actions.onDelete && (
+          {actions?.onDelete && (
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => actions.onDelete!(item.id)}
+              onClick={() => actions.onDelete?.(item.id)}
               disabled={isActionPending}
               data-testid="button-gallery-delete"
             >

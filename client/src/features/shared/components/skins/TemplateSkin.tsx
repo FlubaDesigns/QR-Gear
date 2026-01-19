@@ -75,22 +75,22 @@ export function TemplateDetailSkin({
           </div>
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          {actions.onEdit && (
+          {actions?.onEdit && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => actions.onEdit!(item.packetId || item.id)}
+              onClick={() => actions.onEdit?.(item.packetId || item.id)}
               data-testid="button-gallery-edit"
             >
               <Edit className="h-4 w-4 mr-1" />
               Edit
             </Button>
           )}
-          {actions.onDelete && (
+          {actions?.onDelete && (
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => actions.onDelete!(item.id)}
+              onClick={() => actions.onDelete?.(item.id)}
               disabled={isActionPending}
               data-testid="button-gallery-delete"
             >

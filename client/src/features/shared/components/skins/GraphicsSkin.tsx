@@ -86,22 +86,22 @@ export function GraphicsDetailSkin({
           </div>
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          {actions.onEdit && (
+          {actions?.onEdit && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => actions.onEdit!(item.packetId || item.id)}
+              onClick={() => actions.onEdit?.(item.packetId || item.id)}
               data-testid="button-gallery-edit"
             >
               <Edit className="h-4 w-4 mr-1" />
               Edit
             </Button>
           )}
-          {actions.onArchive && (
+          {actions?.onArchive && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => actions.onArchive!(item.id)}
+              onClick={() => actions.onArchive?.(item.id)}
               disabled={isActionPending}
               data-testid="button-gallery-archive"
             >
