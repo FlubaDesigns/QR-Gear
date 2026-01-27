@@ -5686,6 +5686,8 @@ app.post('/test/templates/full-save', async (req: Request, res: Response): Promi
       thumbnailUrl,
       qrContent,
       pricing,
+      defaultColor,
+      defaultColorHex,
     } = req.body;
 
     if (!name && !productId) {
@@ -5706,6 +5708,8 @@ app.post('/test/templates/full-save', async (req: Request, res: Response): Promi
       artworkUrl: artworkUrl || '',
       artworkVariant: artworkVariant || 'black',
       thumbnailUrl: thumbnailUrl || artworkUrl || '',
+      defaultColor: defaultColor || (colors[0]?.name || colors[0]) || null,
+      defaultColorHex: defaultColorHex || colors[0]?.hex || null,
       qrContent: qrContent || '',
       isActive: true,
       createdAt: now,

@@ -4964,7 +4964,7 @@ async function processQueueInBackground() {
 app.post('/test/templates/full-save', async (req, res) => {
     try {
         // Accept data directly (not wrapped in 'template' object) to match client format
-        const { name, description, category, productId, blueprintId, printProviderId, colors = [], placements = ['front'], qrSizes: customQrSizes, artworkUrl, artworkVariant, thumbnailUrl, qrContent, pricing, } = req.body;
+        const { name, description, category, productId, blueprintId, printProviderId, colors = [], placements = ['front'], qrSizes: customQrSizes, artworkUrl, artworkVariant, thumbnailUrl, qrContent, pricing, defaultColor, defaultColorHex, } = req.body;
         if (!name && !productId) {
             res.status(400).json({ error: 'Template name or productId is required' });
             return;
@@ -4981,6 +4981,8 @@ app.post('/test/templates/full-save', async (req, res) => {
             artworkUrl: artworkUrl || '',
             artworkVariant: artworkVariant || 'black',
             thumbnailUrl: thumbnailUrl || artworkUrl || '',
+            defaultColor: defaultColor || (colors[0]?.name || colors[0]) || null,
+            defaultColorHex: defaultColorHex || colors[0]?.hex || null,
             qrContent: qrContent || '',
             isActive: true,
             createdAt: now,
