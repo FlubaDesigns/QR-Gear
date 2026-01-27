@@ -112,15 +112,22 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   const CANVAS_HEIGHT = 1920;
   const QR_SIZE = 400;
   
-  console.log('[generateProductGraphic] Starting with QR URL:', qrUrl);
+  console.log('[generateProductGraphic] Starting with options:', { 
+    qrUrl: qrUrl.substring(0, 50) + '...', 
+    productColorHex, 
+    useTransparentBackground,
+    hasHeader: !!headerStyle?.enabled,
+    hasFooter: !!footerStyle?.enabled 
+  });
   
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_WIDTH;
   canvas.height = CANVAS_HEIGHT;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) throw new Error('Canvas not supported');
 
   if (useTransparentBackground) {
+    console.log('[generateProductGraphic] Using TRANSPARENT background');
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   } else if (productColorHex) {
     ctx.fillStyle = productColorHex;
@@ -359,7 +366,11 @@ export function CreateGraphicsModule() {
   }, [pricingSettings, state.selectedProduct, state.selectedPlacements, state.content, state.qrProductState]);
 
   const handleCreatePacket = async () => {
-    console.log('[CreateGraphics] handleCreatePacket called, canCreate:', canCreate, 'isCreating:', isCreating);
+    console.log('[CreateGraphics] handleCreatePacket called');
+    console.log('[CreateGraphics] canCreate:', canCreate, 'isCreating:', isCreating);
+    console.log('[CreateGraphics] state.selectedProduct:', state.selectedProduct?.id);
+    console.log('[CreateGraphics] state.selectedColor:', state.selectedColor);
+    console.log('[CreateGraphics] state.content:', state.content);
     if (!canCreate || isCreating) {
       console.log('[CreateGraphics] Blocked - canCreate:', canCreate, 'isCreating:', isCreating);
       return;
@@ -907,12 +918,17 @@ export function CreateGraphicsModule() {
                   ) : (
                     <div 
                       className="relative rounded-lg overflow-hidden"
-                      style={{ backgroundColor: state.selectedColor?.hex || '#333333' }}
                     >
+                      {/* Swatch background layer */}
+                      <div 
+                        className="absolute inset-0"
+                        style={{ backgroundColor: state.selectedColor?.hex || '#333333' }}
+                      />
+                      {/* Transparent graphic on top */}
                       <img
                         src={packetResult.productGraphicUrl}
                         alt="Product Graphic Preview"
-                        className="max-w-[200px] h-auto object-contain"
+                        className="relative z-10 max-w-[200px] h-auto object-contain"
                         data-testid="img-packet-product-graphic-fallback"
                       />
                     </div>
@@ -1017,18 +1033,22 @@ export function CreateGraphicsModule() {
                   </p>
                   <button 
                     type="button"
-                    className="w-full rounded p-1 flex items-center justify-center min-h-[100px] cursor-pointer hover-elevate"
+                    className="w-full rounded p-1 flex items-center justify-center min-h-[100px] cursor-pointer relative"
                     style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
                     onClick={() => setThumbnailLightbox(packetResult.productGraphicUrl)}
                     data-testid="btn-product-graphic"
                   >
+                    {/* Transparent graphic on swatch background */}
                     <img
                       src={packetResult.productGraphicUrl}
                       alt="Product Graphic"
-                      className="w-full max-w-[80px] h-auto object-contain"
+                      className="relative z-10 w-full max-w-[80px] h-auto object-contain"
                       data-testid="img-packet-product-graphic"
                     />
                   </button>
+                  <p className="text-xs text-muted-foreground mt-1 text-center" data-testid="text-swatch-color">
+                    On {state.selectedColor?.name || 'selected color'}
+                  </p>
                 </CardContent>
               </Card>
 
