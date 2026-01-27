@@ -135,8 +135,11 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
     const qrImg = await loadImage(qrDataUrl);
     const qrX = (CANVAS_WIDTH - QR_SIZE) / 2;
     const qrY = (CANVAS_HEIGHT - QR_SIZE) / 2;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(qrX - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
+    // Only add white background behind QR if NOT using transparent background
+    if (!useTransparentBackground) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(qrX - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
+    }
     ctx.drawImage(qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
     console.log('[generateProductGraphic] QR drawn successfully');
   } catch (e) {
@@ -355,15 +358,21 @@ export function CreateGraphicsModule() {
   }, [pricingSettings, state.selectedProduct, state.selectedPlacements, state.content, state.qrProductState]);
 
   const handleCreatePacket = async () => {
-    if (!canCreate || isCreating) return;
+    console.log('[CreateGraphics] handleCreatePacket called, canCreate:', canCreate, 'isCreating:', isCreating);
+    if (!canCreate || isCreating) {
+      console.log('[CreateGraphics] Blocked - canCreate:', canCreate, 'isCreating:', isCreating);
+      return;
+    }
 
     setIsCreating(true);
     setError(null);
     setPacketResult(null);
 
     try {
+      console.log('[CreateGraphics] Calculating pricing...');
       const pricing = calculatePricing();
       if (!pricing) throw new Error("Could not calculate pricing");
+      console.log('[CreateGraphics] Pricing calculated:', pricing);
 
       const product = state.selectedProduct as any;
       const availableColors = product?.availableColors || [];
@@ -496,7 +505,7 @@ export function CreateGraphicsModule() {
           productColorHex,
           headerStyle,
           footerStyle,
-          useTransparentBackground: false,
+          useTransparentBackground: true,  // Save with transparent background
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

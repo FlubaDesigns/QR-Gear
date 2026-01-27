@@ -1,8 +1,8 @@
-import { MapPin, Check, QrCode, Image } from "lucide-react";
+import { MapPin, Check, QrCode, Image, Palette } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType, type PlacementSize } from "../types";
+import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType, type PlacementSize, type ProductColor } from "../types";
 
 const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
   { value: "small", label: "S" },
@@ -11,7 +11,7 @@ const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
 ];
 
 export function PlacementModule() {
-  const { state, togglePlacement, setPlacementType, setPlacementSize } = useBuilderContext();
+  const { state, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor } = useBuilderContext();
   
   if (!state.qrProductState || !state.selectedProduct) {
     return null;
@@ -26,6 +26,9 @@ export function PlacementModule() {
   const selectedCount = selectedPlacements.length;
   const isQrBasics = state.qrProductState === "qr_basics";
   const showPlacementTypeToggle = !isQrBasics;
+  
+  const availableColors: ProductColor[] = state.selectedProduct?.availableColors || [];
+  const selectedColor = state.selectedColor;
 
   return (
     <CollapsibleModule
@@ -35,6 +38,47 @@ export function PlacementModule() {
       defaultOpen
     >
       <div className="space-y-4">
+        {availableColors.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Palette className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Shirt Background Color</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {availableColors.slice(0, 12).map((color) => {
+                const isSelected = selectedColor?.hex === color.hex;
+                return (
+                  <button
+                    key={color.hex}
+                    type="button"
+                    onClick={() => setSelectedColor(color)}
+                    className={`
+                      w-10 h-10 rounded-lg border-2 transition-all
+                      ${isSelected 
+                        ? "border-primary ring-2 ring-primary/30 scale-110" 
+                        : "border-border hover:border-primary/50 hover:scale-105"
+                      }
+                    `}
+                    style={{ backgroundColor: color.hex }}
+                    title={color.name}
+                    data-testid={`swatch-${color.name.toLowerCase().replace(/\s+/g, '-')}`}
+                  />
+                );
+              })}
+              {availableColors.length > 12 && (
+                <span className="text-xs text-muted-foreground self-center ml-1">
+                  +{availableColors.length - 12} more
+                </span>
+              )}
+            </div>
+            {selectedColor && (
+              <p className="text-xs text-muted-foreground">
+                Selected: <span className="font-medium">{selectedColor.name}</span>
+              </p>
+            )}
+          </div>
+        )}
+
         <p className="text-sm text-muted-foreground">
           {showPlacementTypeToggle 
             ? "Select placement locations, choose Graphic or QR, and pick the size for each spot."
