@@ -888,9 +888,12 @@ export function CreateGraphicsModule() {
                   <Shirt className="h-5 w-5" />
                   Digital Proof - Your Product Preview
                 </p>
-                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 flex items-center justify-center min-h-[200px]">
+                <div 
+                  className="rounded-lg p-4 flex items-center justify-center min-h-[200px]"
+                  style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
+                >
                   {packetResult.priorityMockupLoading ? (
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2 text-white/80">
                       <Loader2 className="h-8 w-8 animate-spin" />
                       <span className="text-sm">Generating preview...</span>
                     </div>
@@ -902,17 +905,12 @@ export function CreateGraphicsModule() {
                       data-testid="img-priority-mockup"
                     />
                   ) : (
-                    <div 
-                      className="rounded-lg p-4 flex items-center justify-center"
-                      style={{ backgroundColor: state.selectedColor?.hex || '#f9fafb' }}
-                    >
-                      <img
-                        src={packetResult.productGraphicUrl}
-                        alt="Product Graphic Preview"
-                        className="max-w-[200px] h-auto object-contain"
-                        data-testid="img-packet-product-graphic-fallback"
-                      />
-                    </div>
+                    <img
+                      src={packetResult.productGraphicUrl}
+                      alt="Product Graphic Preview"
+                      className="max-w-[200px] h-auto object-contain"
+                      data-testid="img-packet-product-graphic-fallback"
+                    />
                   )}
                 </div>
               </CardContent>
