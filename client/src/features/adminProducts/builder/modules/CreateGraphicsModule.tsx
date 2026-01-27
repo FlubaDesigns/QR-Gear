@@ -1070,15 +1070,20 @@ export function CreateGraphicsModule() {
                     <div className="text-center">
                       <button 
                         type="button"
-                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate"
-                        style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
+                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate relative overflow-hidden"
                         onClick={() => setThumbnailLightbox(packetResult.qrOnlyUrlBlack)}
                         data-testid="btn-qr-black"
                       >
+                        {/* Swatch background layer */}
+                        <div 
+                          className="absolute inset-0"
+                          style={{ backgroundColor: state.selectedColor?.hex || '#ffffff' }}
+                        />
+                        {/* Transparent QR on top */}
                         <img
                           src={packetResult.qrOnlyUrlBlack}
                           alt="QR Code Black"
-                          className="w-full max-w-[140px] h-auto"
+                          className="relative z-10 w-full max-w-[140px] h-auto"
                           data-testid="img-packet-qr-black"
                         />
                       </button>
@@ -1087,15 +1092,20 @@ export function CreateGraphicsModule() {
                     <div className="text-center">
                       <button 
                         type="button"
-                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate"
-                        style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
+                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate relative overflow-hidden"
                         onClick={() => setThumbnailLightbox(packetResult.qrOnlyUrlWhite)}
                         data-testid="btn-qr-white"
                       >
+                        {/* Swatch background layer */}
+                        <div 
+                          className="absolute inset-0"
+                          style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
+                        />
+                        {/* Transparent QR on top */}
                         <img
                           src={packetResult.qrOnlyUrlWhite}
                           alt="QR Code White"
-                          className="w-full max-w-[140px] h-auto"
+                          className="relative z-10 w-full max-w-[140px] h-auto"
                           data-testid="img-packet-qr-white"
                         />
                       </button>
