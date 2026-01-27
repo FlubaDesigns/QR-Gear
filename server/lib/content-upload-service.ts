@@ -40,6 +40,11 @@ function getStoragePath(mode: ContentMode, userId: string, packetId: string, fil
   const basePath = `content/members/${userId}/${mode}`;
   
   if (mode === 'canvas' || mode === 'basics') {
+    // Use fileName if provided to allow multiple files per packet (e.g., product-graphic vs landing-snapshot)
+    if (fileName) {
+      const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      return `${basePath}/${packetId}/${safeName}`;
+    }
     return `${basePath}/${packetId}.png`;
   } else if (mode === 'play' || mode === 'dynamics') {
     const uniqueId = crypto.randomBytes(4).toString('hex');
