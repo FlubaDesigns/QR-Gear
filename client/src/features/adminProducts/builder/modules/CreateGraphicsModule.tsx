@@ -510,7 +510,7 @@ export function CreateGraphicsModule() {
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);
-        productGraphicUrl = state.selectedProduct?.imageUrl || "";
+        productGraphicUrl = "";
       }
 
       let landingPageSnapshotUrl: string = "";
@@ -905,12 +905,17 @@ export function CreateGraphicsModule() {
                       data-testid="img-priority-mockup"
                     />
                   ) : (
-                    <img
-                      src={packetResult.productGraphicUrl}
-                      alt="Product Graphic Preview"
-                      className="max-w-[200px] h-auto object-contain"
-                      data-testid="img-packet-product-graphic-fallback"
-                    />
+                    <div 
+                      className="relative rounded-lg overflow-hidden"
+                      style={{ backgroundColor: state.selectedColor?.hex || '#333333' }}
+                    >
+                      <img
+                        src={packetResult.productGraphicUrl}
+                        alt="Product Graphic Preview"
+                        className="max-w-[200px] h-auto object-contain"
+                        data-testid="img-packet-product-graphic-fallback"
+                      />
+                    </div>
                   )}
                 </div>
               </CardContent>
