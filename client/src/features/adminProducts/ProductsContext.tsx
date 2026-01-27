@@ -42,13 +42,23 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const { data: apiProviders } = useQuery<FulfillmentProvider[]>({
     queryKey: ["fulfillment-providers", apiBase],
     queryFn: async () => {
+      const headers = await getAuthHeaders();
       const isTestEndpoint = apiBase.includes("/test");
+      // Both test and admin routes now exist
       const endpoint = isTestEndpoint 
         ? `${apiBase}/fulfillment-providers`
         : `${apiBase}/admin/fulfillment-providers`;
-      const res = await fetch(endpoint);
-      if (!res.ok) return FALLBACK_PROVIDERS;
-      return res.json();
+      try {
+        const res = await fetch(endpoint, { headers });
+        if (!res.ok) {
+          console.warn(`[ProductsContext] Failed to fetch providers (${res.status}), using fallback`);
+          return FALLBACK_PROVIDERS;
+        }
+        return res.json();
+      } catch (error) {
+        console.warn('[ProductsContext] Error fetching providers, using fallback:', error);
+        return FALLBACK_PROVIDERS;
+      }
     },
     staleTime: 60000, // Cache for 1 minute
   });
