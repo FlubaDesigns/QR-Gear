@@ -729,6 +729,7 @@ export function CreateGraphicsModule() {
           placement: canonicalPlacement,
           artworkUrl: productGraphicUrl,
           qrSize: selectedSize,
+          fulfillmentProvider: state.fulfillmentProvider || 'printify',
         }),
       })
         .then(res => res.json())

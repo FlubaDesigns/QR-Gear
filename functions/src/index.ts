@@ -917,6 +917,7 @@ interface MockupRequest {
   colorHex?: string;
   artworkUrl: string;
   artworkVariant?: 'black' | 'white';
+  fulfillmentProvider?: 'printify' | 'printful';
 }
 
 interface MockupResult {
@@ -987,7 +988,7 @@ async function getPrintfulProductId(blueprintId: number): Promise<number | null>
 }
 
 async function generateMockupFromPrintful(request: MockupRequest): Promise<MockupResult> {
-  const { blueprintId, colorName, colorHex, artworkUrl, artworkVariant = 'black' } = request;
+  const { blueprintId, colorName, colorHex, artworkUrl, artworkVariant = 'black', fulfillmentProvider = 'printify' } = request;
   
   // Check Firestore cache first
   const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}`;
@@ -1011,10 +1012,20 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
     throw new Error('Printful API key not configured');
   }
   
-  // Map Printify blueprint to Printful product (from Firestore or fallback)
-  const printfulProductId = await getPrintfulProductId(blueprintId);
-  if (!printfulProductId) {
-    throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printifyPrintfulMapping collection.`);
+  // For Printful native products, blueprintId IS the Printful product ID
+  // For Printify products, we need to map blueprint to Printful product
+  let printfulProductId: number;
+  if (fulfillmentProvider === 'printful') {
+    // Native Printful product - use ID directly
+    printfulProductId = blueprintId;
+    console.log(`[Mockup] Printful native product: ${printfulProductId}`);
+  } else {
+    // Map Printify blueprint to Printful product (from Firestore or fallback)
+    const mappedId = await getPrintfulProductId(blueprintId);
+    if (!mappedId) {
+      throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printifyPrintfulMapping collection.`);
+    }
+    printfulProductId = mappedId;
   }
   
   // Get variants for this color
@@ -2555,7 +2566,8 @@ app.post('/test/mockup/priority', async (req: Request, res: Response): Promise<v
       colorHex,
       placement,
       artworkUrl,
-      qrSize = 'medium'
+      qrSize = 'medium',
+      fulfillmentProvider = 'printify'
     } = req.body;
 
     if (!blueprintId || !colorName || !artworkUrl) {
@@ -2604,6 +2616,7 @@ app.post('/test/mockup/priority', async (req: Request, res: Response): Promise<v
         colorHex,
         artworkUrl,
         artworkVariant: 'black',
+        fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
       });
       
       console.log(`[Priority Mockup] Generated: ${mockupResult.mockupUrl}`);
@@ -3601,11 +3614,23 @@ app.get('/test/products', async (req: Request, res: Response): Promise<void> => 
       return;
     }
     
-    // Default: Printify products
+    // Default: Printify products - filter to only those with Printful mappings
     const snapshot = await db.collection('products').where('isEnabled', '==', true).get();
-    const products = snapshot.docs.map(doc => docToObject(doc));
-    console.log(`[TestProducts] GET returned ${products.length} Printify products`);
-    res.json(products);
+    const allProducts = snapshot.docs.map(doc => docToObject(doc));
+    
+    // Filter to only products with valid Printful mappings
+    const mappedProducts = allProducts.filter(p => {
+      const blueprintId = p.blueprintId || p.blueprint_id;
+      if (!blueprintId) return false;
+      const hasMapping = DEFAULT_BLUEPRINT_MAPPINGS[blueprintId] !== undefined;
+      if (!hasMapping) {
+        console.log(`[TestProducts] Filtering out unmapped product: ${p.name} (blueprint ${blueprintId})`);
+      }
+      return hasMapping;
+    });
+    
+    console.log(`[TestProducts] GET returned ${mappedProducts.length}/${allProducts.length} mapped Printify products`);
+    res.json(mappedProducts);
   } catch (error: any) {
     console.error('[TestProducts] GET error:', error);
     res.status(500).json({ error: error.message });
@@ -4149,6 +4174,124 @@ app.get('/test/catalog/printful-products', async (req: Request, res: Response): 
     res.json(products);
   } catch (error: any) {
     console.error('[TestCatalog] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Sync Printful catalog from their API (includes lifestyle images)
+app.post('/test/catalog/printful-sync', async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('[PrintfulSync] Starting catalog sync...');
+    const printful = new PrintfulClient();
+    
+    if (!printful.isConfigured) {
+      res.status(500).json({ error: 'Printful API not configured' });
+      return;
+    }
+    
+    // Fetch full catalog from Printful
+    const catalogUrl = `${PRINTFUL_API_BASE}/products`;
+    const response = await fetch(catalogUrl, {
+      headers: { 'Authorization': `Bearer ${getPrintfulApiKey()}` }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Printful catalog fetch failed: ${response.status}`);
+    }
+    
+    const catalogData = await response.json();
+    const products = catalogData.result || [];
+    console.log(`[PrintfulSync] Fetched ${products.length} products from Printful`);
+    
+    // Sync ALL products from Printful catalog
+    const targetProducts = products;
+    
+    console.log(`[PrintfulSync] Syncing ${targetProducts.length} apparel products`);
+    
+    let synced = 0;
+    const batch = db.batch();
+    
+    for (const product of targetProducts) {
+      try {
+        // Fetch detailed product info including variants and images
+        const detailUrl = `${PRINTFUL_API_BASE}/products/${product.id}`;
+        const detailRes = await fetch(detailUrl, {
+          headers: { 'Authorization': `Bearer ${getPrintfulApiKey()}` }
+        });
+        
+        if (!detailRes.ok) {
+          console.log(`[PrintfulSync] Failed to fetch details for product ${product.id}`);
+          continue;
+        }
+        
+        const detailData = await detailRes.json();
+        const productDetail = detailData.result?.product || {};
+        const variants = detailData.result?.variants || [];
+        
+        // Extract unique colors with their images
+        const colorMap = new Map<string, { hex: string; image: string; lifestyleImage?: string }>();
+        for (const v of variants) {
+          if (v.color && !colorMap.has(v.color)) {
+            colorMap.set(v.color, {
+              hex: v.color_code || '#000000',
+              image: v.image || product.image,
+              lifestyleImage: v.image // Printful includes model images in variant images
+            });
+          }
+        }
+        
+        // Extract unique sizes
+        const sizes = [...new Set(variants.map((v: any) => v.size).filter(Boolean))];
+        
+        const docRef = db.collection('printfulProducts').doc(String(product.id));
+        batch.set(docRef, {
+          id: product.id,
+          title: product.title,
+          type: product.type_name,
+          brand: productDetail.brand || product.brand,
+          model: productDetail.model || product.model,
+          image: product.image,
+          description: productDetail.description || '',
+          variantCount: variants.length,
+          colors: Object.fromEntries(colorMap),
+          sizes: sizes,
+          // Lifestyle/glamor images if available
+          lifestyleImages: variants
+            .filter((v: any) => v.image && v.image.includes('lifestyle'))
+            .map((v: any) => v.image)
+            .slice(0, 5),
+          modelImages: variants
+            .filter((v: any) => v.image)
+            .map((v: any) => v.image)
+            .slice(0, 10),
+          isEnabled: true,
+          fulfillmentProvider: 'printful',
+          syncedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        synced++;
+        
+        // Rate limit: Printful allows ~30 requests/minute
+        if (synced % 10 === 0) {
+          await new Promise(r => setTimeout(r, 2000));
+          console.log(`[PrintfulSync] Synced ${synced}/${targetProducts.length}...`);
+        }
+      } catch (err: any) {
+        console.error(`[PrintfulSync] Error syncing product ${product.id}:`, err.message);
+      }
+    }
+    
+    await batch.commit();
+    console.log(`[PrintfulSync] Completed! Synced ${synced} products`);
+    
+    res.json({ 
+      success: true, 
+      synced, 
+      total: targetProducts.length,
+      message: `Synced ${synced} Printful products with lifestyle images`
+    });
+  } catch (error: any) {
+    console.error('[PrintfulSync] Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
