@@ -2440,6 +2440,94 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
   }
 });
 
+// Test endpoint: Generate priority mockup for digital proof
+app.post('/test/mockup/priority', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { 
+      blueprintId, 
+      printProviderId, 
+      colorName, 
+      colorHex,
+      placement,
+      artworkUrl,
+      qrSize = 'medium'
+    } = req.body;
+
+    if (!blueprintId || !colorName || !artworkUrl) {
+      res.status(400).json({ 
+        error: 'Missing required fields: blueprintId, colorName, artworkUrl' 
+      });
+      return;
+    }
+
+    const canonicalPlacementId = placement || 'FRONT_CHEST';
+    console.log(`[Priority Mockup] Generating for: ${colorName} @ ${canonicalPlacementId}`);
+
+    const cacheKey = `${blueprintId}-${printProviderId || 99}-${colorName}-${canonicalPlacementId}-black`;
+    const cacheSnapshot = await db.collection('mockupCache')
+      .where('cacheKey', '==', cacheKey)
+      .limit(1)
+      .get();
+    
+    if (!cacheSnapshot.empty) {
+      const cached = cacheSnapshot.docs[0].data();
+      console.log(`[Priority Mockup] Cache HIT: ${cached.mockupUrl}`);
+      res.json({
+        success: true,
+        mockupUrl: cached.mockupUrl,
+        lifestyleMockupUrl: cached.lifestyleUrl || null,
+        fromCache: true,
+      });
+      return;
+    }
+    
+    if (!printfulClient.isConfigured) {
+      res.json({
+        success: false,
+        error: 'Mockup not in cache and Printful API key not configured.',
+        mockupUrl: null,
+        message: 'Mockup generation in progress - check back shortly',
+      });
+      return;
+    }
+    
+    try {
+      const mockupResult = await generateMockupFromPrintful({
+        blueprintId: parseInt(blueprintId),
+        printProviderId: parseInt(printProviderId) || 99,
+        colorName,
+        colorHex,
+        artworkUrl,
+        artworkVariant: 'black',
+      });
+      
+      console.log(`[Priority Mockup] Generated: ${mockupResult.mockupUrl}`);
+      res.json({
+        success: true,
+        mockupUrl: mockupResult.mockupUrl,
+        lifestyleMockupUrl: mockupResult.lifestyleMockupUrl || null,
+        fromCache: mockupResult.fromCache,
+      });
+    } catch (genError: any) {
+      console.error('[Priority Mockup] Generation failed:', genError.message);
+      res.json({
+        success: false,
+        error: genError.message,
+        mockupUrl: null,
+        message: 'Mockup generation in progress - check back shortly',
+      });
+    }
+  } catch (error: any) {
+    console.error('[Priority Mockup] Error:', error);
+    res.json({
+      success: false,
+      error: error.message,
+      mockupUrl: null,
+      message: 'Mockup generation in progress - check back shortly',
+    });
+  }
+});
+
 app.get('/mockups/cached/:blueprintId/:printProviderId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { blueprintId, printProviderId } = req.params;
