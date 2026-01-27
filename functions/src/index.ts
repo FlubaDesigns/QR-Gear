@@ -4169,9 +4169,43 @@ app.get('/test/catalog/printful-products', async (req: Request, res: Response): 
   try {
     console.log('[TestCatalog] GET Printful products');
     const snapshot = await db.collection('printfulProducts').get();
-    const products = snapshot.docs.map(doc => docToObject(doc));
-    console.log(`[TestCatalog] Returning ${products.length} Printful products`);
-    res.json(products);
+    const rawProducts = snapshot.docs.map(doc => docToObject(doc));
+    
+    // Transform to match expected catalog format with categories
+    const grouped: Record<string, any[]> = {};
+    for (const p of rawProducts) {
+      const category = p.type || 'Other';
+      if (!grouped[category]) grouped[category] = [];
+      
+      // Transform to match CatalogItemResponse format
+      grouped[category].push({
+        id: p.id,
+        blueprintId: p.id,
+        title: p.title || p.name,
+        brand: p.brand || 'Printful',
+        model: p.model,
+        description: p.description || p.type,
+        imageUrl: p.image,
+        minPrice: 0,
+        maxPrice: 0,
+        colorCount: Object.keys(p.colors || {}).length || p.variantCount || 0,
+        madeInUSA: false,
+        hasMockupMapping: true,
+        fulfillmentProvider: 'printful',
+        colors: p.colors,
+        sizes: p.sizes,
+        lifestyleImages: p.lifestyleImages,
+        modelImages: p.modelImages,
+      });
+    }
+    
+    // Return as array of categories with items
+    const result = Object.entries(grouped)
+      .filter(([_, items]) => items.length > 0)
+      .map(([name, items]) => ({ name, items, count: items.length }));
+    
+    console.log(`[TestCatalog] Returning ${result.length} categories with ${rawProducts.length} Printful products`);
+    res.json(result);
   } catch (error: any) {
     console.error('[TestCatalog] GET error:', error);
     res.status(500).json({ error: error.message });

@@ -774,7 +774,7 @@ async function getPrintfulProductId(blueprintId) {
     return DEFAULT_BLUEPRINT_MAPPINGS[blueprintId] || null;
 }
 async function generateMockupFromPrintful(request) {
-    const { blueprintId, colorName, colorHex, artworkUrl, artworkVariant = 'black' } = request;
+    const { blueprintId, colorName, colorHex, artworkUrl, artworkVariant = 'black', fulfillmentProvider = 'printify' } = request;
     // Check Firestore cache first
     const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}`;
     const cacheDoc = await db.collection('mockupCache').doc(cacheKey).get();
@@ -793,10 +793,21 @@ async function generateMockupFromPrintful(request) {
     if (!printfulClient.isConfigured) {
         throw new Error('Printful API key not configured');
     }
-    // Map Printify blueprint to Printful product (from Firestore or fallback)
-    const printfulProductId = await getPrintfulProductId(blueprintId);
-    if (!printfulProductId) {
-        throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printifyPrintfulMapping collection.`);
+    // For Printful native products, blueprintId IS the Printful product ID
+    // For Printify products, we need to map blueprint to Printful product
+    let printfulProductId;
+    if (fulfillmentProvider === 'printful') {
+        // Native Printful product - use ID directly
+        printfulProductId = blueprintId;
+        console.log(`[Mockup] Printful native product: ${printfulProductId}`);
+    }
+    else {
+        // Map Printify blueprint to Printful product (from Firestore or fallback)
+        const mappedId = await getPrintfulProductId(blueprintId);
+        if (!mappedId) {
+            throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printifyPrintfulMapping collection.`);
+        }
+        printfulProductId = mappedId;
     }
     // Get variants for this color
     const variants = await printfulClient.getVariantsByColor(printfulProductId, colorName);
@@ -2166,7 +2177,7 @@ app.post('/mockups/get-or-generate', async (req, res) => {
 // Test endpoint: Generate priority mockup for digital proof
 app.post('/test/mockup/priority', async (req, res) => {
     try {
-        const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = 'medium' } = req.body;
+        const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = 'medium', fulfillmentProvider = 'printify' } = req.body;
         if (!blueprintId || !colorName || !artworkUrl) {
             res.status(400).json({
                 error: 'Missing required fields: blueprintId, colorName, artworkUrl'
@@ -2208,6 +2219,7 @@ app.post('/test/mockup/priority', async (req, res) => {
                 colorHex,
                 artworkUrl,
                 artworkVariant: 'black',
+                fulfillmentProvider: fulfillmentProvider,
             });
             console.log(`[Priority Mockup] Generated: ${mockupResult.mockupUrl}`);
             res.json({
@@ -3627,9 +3639,40 @@ app.get('/test/catalog/printful-products', async (req, res) => {
     try {
         console.log('[TestCatalog] GET Printful products');
         const snapshot = await db.collection('printfulProducts').get();
-        const products = snapshot.docs.map(doc => docToObject(doc));
-        console.log(`[TestCatalog] Returning ${products.length} Printful products`);
-        res.json(products);
+        const rawProducts = snapshot.docs.map(doc => docToObject(doc));
+        // Transform to match expected catalog format with categories
+        const grouped = {};
+        for (const p of rawProducts) {
+            const category = p.type || 'Other';
+            if (!grouped[category])
+                grouped[category] = [];
+            // Transform to match CatalogItemResponse format
+            grouped[category].push({
+                id: p.id,
+                blueprintId: p.id,
+                title: p.title || p.name,
+                brand: p.brand || 'Printful',
+                model: p.model,
+                description: p.description || p.type,
+                imageUrl: p.image,
+                minPrice: 0,
+                maxPrice: 0,
+                colorCount: Object.keys(p.colors || {}).length || p.variantCount || 0,
+                madeInUSA: false,
+                hasMockupMapping: true,
+                fulfillmentProvider: 'printful',
+                colors: p.colors,
+                sizes: p.sizes,
+                lifestyleImages: p.lifestyleImages,
+                modelImages: p.modelImages,
+            });
+        }
+        // Return as array of categories with items
+        const result = Object.entries(grouped)
+            .filter(([_, items]) => items.length > 0)
+            .map(([name, items]) => ({ name, items, count: items.length }));
+        console.log(`[TestCatalog] Returning ${result.length} categories with ${rawProducts.length} Printful products`);
+        res.json(result);
     }
     catch (error) {
         console.error('[TestCatalog] GET error:', error);
