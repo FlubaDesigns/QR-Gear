@@ -81,16 +81,26 @@ function TextOverlayDisplay({
   );
 }
 
-function SampleQRCode() {
+function SampleQRCode({ bgColor }: { bgColor?: string }) {
+  // If dark background, use white QR. If light background, use black QR.
+  const isDark = bgColor ? getLuminance(bgColor) < 0.5 : true;
+  const qrColor = isDark ? "text-white" : "text-black";
+  
   return (
     <div className="absolute inset-0 flex items-center justify-center">
-      <div className="bg-white p-2 rounded-md shadow-lg">
-        <div className="w-12 h-12 bg-black/10 flex items-center justify-center rounded">
-          <QrCode className="w-10 h-10 text-black" />
-        </div>
+      <div className="w-14 h-14 flex items-center justify-center">
+        <QrCode className={`w-12 h-12 ${qrColor}`} />
       </div>
     </div>
   );
+}
+
+function getLuminance(hex: string): number {
+  const rgb = hex.replace("#", "").match(/.{2}/g);
+  if (!rgb) return 0;
+  const [r, g, b] = rgb.map((c) => parseInt(c, 16) / 255);
+  const toLinear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }
 
 export function GraphicPreviewView({
@@ -121,7 +131,7 @@ export function GraphicPreviewView({
         <TextOverlayDisplay style={headerStyle} position="top" />
       )}
       
-      {showQRCode && <SampleQRCode />}
+      {showQRCode && <SampleQRCode bgColor={backgroundColor} />}
       
       {footerStyle && (
         <TextOverlayDisplay style={footerStyle} position="bottom" />

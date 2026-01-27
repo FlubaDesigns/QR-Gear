@@ -40,7 +40,8 @@ interface PacketResult {
 
 function generateQRCodeUrl(content: string, size: number = 3000, qrColor: "black" | "white" = "black"): string {
   const color = qrColor === "white" ? "ffffff" : "000000";
-  const bgColor = qrColor === "white" ? "00000000" : "ffffff";
+  // Always use transparent background so QR sits cleanly on product color
+  const bgColor = "00000000";
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${color}&bgcolor=${bgColor}`;
 }
 
