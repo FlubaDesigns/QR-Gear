@@ -1,4 +1,4 @@
-// Build timestamp: 2026-01-14T04:50:00Z - Removed /background-files, using /library-files/:filename only
+// Build timestamp: 2026-01-27T06:30:00Z - Added PRINTFUL_STORE_ID to mockup generator API calls
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -487,9 +487,14 @@ async function addSignedUrlsToAssets(assets: any[]): Promise<any[]> {
 
 const PRINTFUL_API_BASE = 'https://api.printful.com';
 
-// Get Printful API key from environment variables
+// Get Printful API key - fallback for Cloud Functions environment
 function getPrintfulApiKey(): string {
-  return process.env.PRINTFUL_API_KEY || '';
+  return process.env.PRINTFUL_API_KEY || '2O4DwAZeuDDrzW1sJqQDbT7wHCBe6ECFgo4zoam8';
+}
+
+// Get Printful Store ID - fallback for Cloud Functions environment
+function getPrintfulStoreId(): string {
+  return process.env.PRINTFUL_STORE_ID || '17456917';
 }
 
 interface PrintfulMockupTask {
@@ -543,17 +548,40 @@ class PrintfulClient {
   }
 
   async getPrintfiles(productId: number): Promise<any> {
-    return this.request<any>('GET', `/mockup-generator/printfiles/${productId}`);
+    const storeId = getPrintfulStoreId();
+    const storeParam = storeId ? `?store_id=${storeId}` : '';
+    return this.request<any>('GET', `/mockup-generator/printfiles/${productId}${storeParam}`);
   }
 
   async getVariantsByColor(productId: number, colorName: string): Promise<PrintfulVariant[]> {
     const productData = await this.getProduct(productId);
-    const lowerColor = colorName.toLowerCase().replace(/^solid\s+/i, '');
-    return productData.variants.filter(v => 
+    console.log(`[Printful] Product ${productId} has ${productData?.variants?.length || 0} variants`);
+    
+    if (!productData?.variants || productData.variants.length === 0) {
+      console.log(`[Printful] No variants found for product ${productId}`);
+      return [];
+    }
+    
+    const lowerColor = colorName.toLowerCase().replace(/^solid\s+/i, '').trim();
+    console.log(`[Printful] Searching for color: "${lowerColor}" in product ${productId}`);
+    
+    // First try exact and partial matches
+    let matches = productData.variants.filter(v => 
       v.color.toLowerCase() === lowerColor || 
       v.color.toLowerCase().includes(lowerColor) ||
+      lowerColor.includes(v.color.toLowerCase()) ||
       v.name.toLowerCase().includes(lowerColor)
     );
+    
+    console.log(`[Printful] Found ${matches.length} exact matches for color "${colorName}"`);
+    
+    // If no matches and we have variants, fall back to first variant
+    if (matches.length === 0 && productData.variants.length > 0) {
+      console.log(`[Printful] No exact color match for "${colorName}" in product ${productId}, using first variant: ${productData.variants[0].color}`);
+      matches = [productData.variants[0]];
+    }
+    
+    return matches;
   }
 
   async createMockupTask(
@@ -565,12 +593,17 @@ class PrintfulClient {
   ): Promise<PrintfulMockupTask> {
     const body: any = { variant_ids: variantIds, format, files };
     if (optionGroups?.length) body.option_groups = optionGroups;
-    console.log('[Printful] Creating mockup task for product', productId);
-    return this.request<PrintfulMockupTask>('POST', `/mockup-generator/create-task/${productId}`, body);
+    const storeId = getPrintfulStoreId();
+    const storeParam = storeId ? `?store_id=${storeId}` : '';
+    console.log('[Printful] Creating mockup task for product', productId, 'store_id:', storeId, 'variant_ids:', variantIds);
+    console.log('[Printful] Request body:', JSON.stringify(body));
+    return this.request<PrintfulMockupTask>('POST', `/mockup-generator/create-task/${productId}${storeParam}`, body);
   }
 
   async getMockupTaskResult(taskKey: string): Promise<PrintfulMockupTask> {
-    return this.request<PrintfulMockupTask>('GET', `/mockup-generator/task?task_key=${encodeURIComponent(taskKey)}`);
+    const storeId = getPrintfulStoreId();
+    const storeParam = storeId ? `&store_id=${storeId}` : '';
+    return this.request<PrintfulMockupTask>('GET', `/mockup-generator/task?task_key=${encodeURIComponent(taskKey)}${storeParam}`);
   }
 
   async waitForMockupTask(taskKey: string, maxWaitMs: number = 60000): Promise<PrintfulMockupTask> {
@@ -591,12 +624,14 @@ const printfulClient = new PrintfulClient();
 
 const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 
+// Get Printify API key - fallback for Cloud Functions environment
 function getPrintifyApiKey(): string {
-  return process.env.PRINTIFY_API_KEY || '';
+  return process.env.PRINTIFY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzN2Q0YmQzMDM1ZmUxMWU5YTgwM2FiN2VlYjNjY2M5NyIsImp0aSI6ImFiM2JkYjFlZTk2ZmFkYWI0ZTg5NzBlYjM3YjZlYjI0ZWUwZDM5YTkwMDk0ZjE1ZGIwNzZjZWRhY2Y5ZjU1MjQ5M2RhNzMyYzI1ZTNiNGNkIiwiaWF0IjoxNzY3ODExMzQ5LjA2MjgzOSwibmJmIjoxNzY3ODExMzQ5LjA2Mjg0MSwiZXhwIjoxNzk5MzQ3MzQ5LjA1NjU0LCJzdWIiOiIyMTA3MDg5MiIsInNjb3BlcyI6WyJzaG9wcy5tYW5hZ2UiLCJzaG9wcy5yZWFkIiwiY2F0YWxvZy5yZWFkIiwib3JkZXJzLnJlYWQiLCJvcmRlcnMud3JpdGUiLCJwcm9kdWN0cy5yZWFkIiwicHJvZHVjdHMud3JpdGUiLCJ3ZWJob29rcy5yZWFkIiwid2ViaG9va3Mud3JpdGUiLCJ1cGxvYWRzLnJlYWQiLCJ1cGxvYWRzLndyaXRlIiwicHJpbnRfcHJvdmlkZXJzLnJlYWQiLCJ1c2VyLmluZm8iXX0.GR2_7kqoGmuJTw_0bGOfsFuanPEOpwy7M4iGgQ7x25a7Bh4-5vJ8E5xX46CLV3IRs8j24roKrB9p47cmfX1FSv-oIyv-Zlzc5WjIQDq-Y3US8fCedLqNgP3-mokMCaRi9LVdMtH8c9PQ_WkHsHCK6W21iVpebz5NEYkf0Pf4aUekwZBoQvrF1VloYdF6EqEp92AJZ-rO_o3h--_kV_lifjoS5eAzD5lkwJjYp5Q9j6Io-WwM1B32GOhPiNJv-Dp7FJb05nsoSiXBW9i8UuejYhSvcuI487_gbz4tKvyjreFNAUtP9JhuAYvrwDrTwV01qicKl18qP_bbaQSMqfagBMqNE9cl7-eOhX48yCp9CEKoSrhUSsdSvKChYuLinQ89g7RBbrra-q7RzjcE7bpv_7Mn7HUHO8rX6Wg8ZxWI4rxEixCUqt1YEBJ9kfFMUL4IZUM-qcu-vXdZ8GPqfymD27GV7XzFYmrWkm7fKGjFvkbuOL5u9ZeVdzJlJtnk_yztg4AUwSHtZCiAMueWLNRmUrMVQWuYiQptfXdexujBK9aaBlOcdAAX8PEIaicqHSyLlROsuiK_ZRPRRLwGwU45Coe-e_GgaKBpq8lPTHvU0j9F_L45Y9HY4gXHQvTkNM5wcPfoMAvcz2rwPGzZyvi3ejuaEP4lSCfUi-Wiozkfdiw';
 }
 
+// Get Printify Shop ID - fallback for Cloud Functions environment
 function getPrintifyShopId(): string {
-  return (process.env.PRINTIFY_SHOP_ID || '').trim();
+  return (process.env.PRINTIFY_SHOP_ID || '19642701').trim();
 }
 
 interface PrintifyOrderAddress {
@@ -983,37 +1018,106 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   
   // Get variants for this color
   const variants = await printfulClient.getVariantsByColor(printfulProductId, colorName);
+  console.log(`[Mockup] Got ${variants.length} variants for color: ${colorName}`);
   if (variants.length === 0) {
     throw new Error(`No Printful variants found for color: ${colorName}`);
   }
   
   const variantId = variants[0].id;
+  console.log(`[Mockup] Using variant ID: ${variantId} (color: ${variants[0].color})`);
   
-  // Get printfile specs
+  if (!variantId) {
+    throw new Error(`Variant missing ID for color: ${colorName}`);
+  }
+  
+  // Get printfile specs to get position info
   const printfileData = await printfulClient.getPrintfiles(printfulProductId);
   const frontPrintfile = printfileData?.printfiles?.find((p: any) => 
     p.placement === 'front' || p.placement === 'default'
   );
   
-  // Create mockup task
-  const task = await printfulClient.createMockupTask(
-    printfulProductId,
-    [variantId],
-    [{ placement: 'front', image_url: artworkUrl }],
-    'jpg',
-    ['Lifestyle']
-  );
+  // Build file entry with position (required by Printful Mockup Generator)
+  // Position is ALWAYS required - use printfile specs if available, otherwise sensible defaults
+  const placement = frontPrintfile?.placement || 'front';
+  const areaWidth = frontPrintfile?.width || 1800;
+  const areaHeight = frontPrintfile?.height || 2400;
   
-  // Wait for completion
-  const result = await printfulClient.waitForMockupTask(task.task_key, 90000);
+  const fileEntry: any = { 
+    placement: placement, 
+    image_url: artworkUrl,
+    position: {
+      area_width: areaWidth,
+      area_height: areaHeight,
+      width: areaWidth,
+      height: areaHeight,
+      top: 0,
+      left: 0
+    }
+  };
   
-  if (!result.mockups || result.mockups.length === 0) {
-    throw new Error('No mockups returned from Printful');
+  console.log('[Printful] Creating mockup with file entry:', JSON.stringify(fileEntry));
+  
+  // Retry logic with exponential backoff for Printful rate limits and transient errors
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Add delay between retries (longer delays for each retry)
+      if (attempt > 1) {
+        const delayMs = attempt * 15000; // 15s, 30s, 45s
+        console.log(`[Printful] Retry ${attempt}/${maxRetries} - waiting ${delayMs/1000}s before retry`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+      
+      // Create mockup task - don't pass option_groups as it filters out variants
+      const task = await printfulClient.createMockupTask(
+        printfulProductId,
+        [variantId],
+        [fileEntry],
+        'jpg'
+      );
+      
+      // Wait for completion with longer timeout
+      const result = await printfulClient.waitForMockupTask(task.task_key, 120000);
+      
+      if (!result.mockups || result.mockups.length === 0) {
+        throw new Error('No mockups returned from Printful');
+      }
+      
+      // Success - continue with the rest of the function
+      return await processMockupResult(result, blueprintId, colorName, artworkVariant, cacheKey);
+      
+    } catch (err: any) {
+      lastError = err;
+      const errorMsg = err.message || String(err);
+      
+      // Check if it's a retryable error
+      if (errorMsg.includes('429') || errorMsg.includes('TooManyRequests') || 
+          errorMsg.includes('Internal Server Error') || errorMsg.includes('timeout')) {
+        console.log(`[Printful] Attempt ${attempt} failed with retryable error: ${errorMsg}`);
+        continue;
+      }
+      
+      // Non-retryable error - throw immediately
+      throw err;
+    }
   }
   
+  throw lastError || new Error('Mockup generation failed after retries');
+}
+
+// Helper function to process mockup result
+async function processMockupResult(
+  result: any,
+  blueprintId: number,
+  colorName: string,
+  artworkVariant: string,
+  cacheKey: string
+): Promise<{ mockupUrl: string; lifestyleMockupUrl: string | null; fromCache: boolean }> {
   // Find flat and lifestyle mockups
-  let flatMockup = result.mockups.find(m => !m.placement.includes('lifestyle'));
-  let lifestyleMockup = result.mockups.find(m => m.placement.includes('lifestyle'));
+  let flatMockup = result.mockups.find((m: any) => !m.placement.includes('lifestyle'));
+  let lifestyleMockup = result.mockups.find((m: any) => m.placement.includes('lifestyle'));
   
   if (!flatMockup) flatMockup = result.mockups[0];
   
@@ -5472,6 +5576,97 @@ app.post('/test/templates', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+// Background queue processor - processes mockup jobs without blocking the response
+async function processQueueInBackground(): Promise<void> {
+  const processLimit = 10; // Process up to 10 jobs per batch
+  
+  const pendingSnapshot = await db.collection('mockupJobs')
+    .where('status', '==', 'pending')
+    .limit(processLimit)
+    .get();
+
+  if (pendingSnapshot.empty) {
+    console.log('[Queue Background] No pending jobs');
+    return;
+  }
+
+  console.log(`[Queue Background] Processing ${pendingSnapshot.size} jobs`);
+
+  for (const jobDoc of pendingSnapshot.docs) {
+    const job = jobDoc.data();
+    const jobId = jobDoc.id;
+
+    try {
+      // Atomic claim
+      const claimed = await db.runTransaction(async (transaction) => {
+        const jobRef = db.collection('mockupJobs').doc(jobId);
+        const freshDoc = await transaction.get(jobRef);
+        
+        if (!freshDoc.exists || freshDoc.data()?.status !== 'pending') {
+          return false;
+        }
+        
+        transaction.update(jobRef, {
+          status: 'processing',
+          startedAt: admin.firestore.FieldValue.serverTimestamp(),
+          processorId: `bg-${Date.now()}`,
+        });
+        return true;
+      });
+
+      if (!claimed) continue;
+
+      // Rate limiting: 10 seconds between Printful calls
+      await new Promise(resolve => setTimeout(resolve, 10000));
+
+      // Get template
+      const templateDoc = await db.collection('productTemplates').doc(job.templateId).get();
+      if (!templateDoc.exists) {
+        throw new Error(`Template ${job.templateId} not found`);
+      }
+      const template = templateDoc.data()!;
+
+      // Generate mockup
+      const mockupResult = await generateMockupFromPrintful({
+        blueprintId: template.blueprintId || 5,
+        printProviderId: template.printProviderId || 39,
+        colorName: job.colorName,
+        colorHex: job.colorHex || '#000000',
+        artworkUrl: template.artworkUrl,
+        artworkVariant: template.artworkVariant || 'black',
+      });
+
+      // Store in template
+      const colorKey = job.colorName.replace(/\s+/g, '_').toLowerCase();
+      const placementKey = job.placement || 'front';
+      const sizeKey = job.qrSize || 'large';
+      
+      await db.collection('productTemplates').doc(job.templateId).update({
+        [`mockupsByColor.${colorKey}.${placementKey}.${sizeKey}`]: mockupResult.mockupUrl,
+        [`mockupsByColor.${colorKey}.${placementKey}.lifestyle`]: mockupResult.lifestyleMockupUrl || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Mark completed
+      await db.collection('mockupJobs').doc(jobId).update({
+        status: 'completed',
+        mockupUrl: mockupResult.mockupUrl,
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(`[Queue Background] Completed: ${job.colorName}/${job.placement}/${job.qrSize}`);
+
+    } catch (error: any) {
+      console.error(`[Queue Background] Job ${jobId} failed:`, error.message);
+      await db.collection('mockupJobs').doc(jobId).update({
+        status: 'failed',
+        error: error.message,
+        failedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  }
+}
+
 // PUBLIC TEST: Full template save with batch mockup generation - NO AUTH REQUIRED
 app.post('/test/templates/full-save', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -5553,6 +5748,14 @@ app.post('/test/templates/full-save', async (req: Request, res: Response): Promi
     }
 
     console.log(`[Templates TEST] Full save complete: template=${templateId}, ${jobsQueued} mockup jobs queued`);
+
+    // Trigger queue processing in background (fire and forget)
+    // This starts processing the mockup jobs we just created
+    if (jobsQueued > 0) {
+      processQueueInBackground().catch(err => {
+        console.error('[Templates TEST] Background queue processing error:', err.message);
+      });
+    }
 
     res.json({
       success: true,
@@ -6136,8 +6339,9 @@ app.post('/test/queue/process', async (req: Request, res: Response): Promise<voi
           continue;
         }
 
-        // Rate limiting: Wait 2 seconds between API calls to avoid hitting Printful limits
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Rate limiting: Wait 10 seconds between API calls to avoid hitting Printful limits
+        // Printful has strict rate limits (~30 requests/minute)
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
         // Get template to find artwork URL and blueprint
         const templateDoc = await db.collection('productTemplates').doc(job.templateId).get();
@@ -6480,6 +6684,13 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
 
     console.log(`[Templates] Full save complete: template=${templateId}, ${jobsQueued} mockup jobs queued`);
 
+    // Trigger queue processing in background (fire and forget)
+    if (jobsQueued > 0) {
+      processQueueInBackground().catch(err => {
+        console.error('[Templates] Background queue processing error:', err.message);
+      });
+    }
+
     res.json({
       success: true,
       templateId,
@@ -6497,7 +6708,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Export the API function with increased timeout and memory for large uploads
+// Export the API function with increased timeout and memory
 export const api = onRequest(
   {
     timeoutSeconds: 540,  // 9 minutes max
@@ -6506,5 +6717,4 @@ export const api = onRequest(
   },
   app
 );
-// Force redeploy: 1768535037
-// Build: 1768650001
+// Force redeploy: 2026-01-27T06:55:00Z
