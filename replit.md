@@ -67,7 +67,11 @@ The storefront displays lifestyle mockups over flat product shots for a more eng
 - **Mockup System**: Utilizes Printful for generating high-quality mockups, including lifestyle images, for all product colors and three QR code sizes. Mockups are generated via a background job queue and stored in object storage.
 - **QR Artwork Selection**: Automatic selection of QR code color (black or white) based on background product color luminance to ensure scannability.
 - **COLOR_HEX_MAP**: A fallback color name → hex code lookup table in `StoreBuilderHarness.tsx` (~30 colors). Used when database doesn't provide hex values. Expandable for future color library needs.
-- **Printify Local Catalog**: Product colors and sizes are synced weekly from Printify into `printify_print_providers` table, serving as a local source of truth.
+- **Printify Local Catalog**: Product colors and sizes are synced weekly from Printify into `printify_print_providers` table, serving as a local source of truth. Only Printify products with valid Printful mappings are shown in the product builder.
+- **Printful Native Catalog**: Full Printful catalog synced to `printfulProducts` collection in Firestore. 159+ products with colors, sizes, and model images. No mapping needed - use Printful products directly for seamless mockup generation.
+  - Sync endpoint: `POST /test/catalog/printful-sync`
+  - Catalog endpoint: `GET /test/catalog/printful-products` (returns categorized products)
+  - Select "Printful" as fulfillment provider in the product builder to use native catalog
 - **Dual Storage System**: Supports `postgres-only`, `dual-write`, and `firestore-only` modes, controlled by `STORAGE_MODE`. `dual-write` facilitates migration to a Firebase-centric deployment with PostgreSQL as the primary source for reads.
 - **File Storage**: Uses Firebase Storage exclusively.
 - **Background Image Library**: Canonical storage structure at `libraries/backgrounds/{raw|cropped|zip}/`. The "Sync from Storage" button scans this folder and creates database records for existing files. ZIP uploads are extracted automatically (original saved to `zip/`, images to `raw/`).
