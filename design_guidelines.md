@@ -1,7 +1,7 @@
-# QRGear.com Design Guidelines
+# Q*RGear.com Design Guidelines
 
 ## Design Approach: Reference-Based E-Commerce
-
+zZe
 **Primary References:** Shopify (clean product displays), Custom.ink (customization workflow), Printful (print-on-demand aesthetic), Linear (modern dashboard)
 
 **Core Principle:** Professional e-commerce experience with intuitive product customization tools, emphasizing American manufacturing and seamless QR code integration.
