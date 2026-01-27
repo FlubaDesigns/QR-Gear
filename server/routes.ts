@@ -8463,7 +8463,7 @@ ${allPages.map(page => `  <url>
         printProviderId: parseInt(printProviderId) || 99,
         colorName,
         colorHex,
-        canonicalPlacementId: placement || "front-center",
+        canonicalPlacementId: placement || "FRONT_CHEST",
         artworkUrl,
         artworkVariant: "black",
         qrSize: qrSize as 'small' | 'medium' | 'large',
