@@ -4985,9 +4985,16 @@ app.post('/test/content/upload', async (req, res) => {
         const actualBase64 = base64Match?.[2] || base64Data;
         const buffer = Buffer.from(actualBase64, 'base64');
         // Determine storage path based on mode
+        // Use fileName if provided to allow multiple files per packet (e.g., product-graphic vs landing-snapshot)
         let storagePath;
         if (mode === 'canvas' || mode === 'basics') {
-            storagePath = `content/members/${userId}/${mode}/${packetId}.png`;
+            if (fileName) {
+                const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+                storagePath = `content/members/${userId}/${mode}/${packetId}/${safeName}`;
+            }
+            else {
+                storagePath = `content/members/${userId}/${mode}/${packetId}.png`;
+            }
         }
         else {
             const safeName = (fileName || 'upload').replace(/[^a-zA-Z0-9.-]/g, '_');
