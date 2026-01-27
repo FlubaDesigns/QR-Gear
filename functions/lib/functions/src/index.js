@@ -735,6 +735,7 @@ const DEFAULT_BLUEPRINT_MAPPINGS = {
     577: 71, // Bella Canvas 3001C -> Printful Bella Canvas 3001
     578: 71, // Alternative to Bella Canvas
     // Hoodies & Sweatshirts
+    45: 380, // Sweatshirt/Crewneck -> Printful Gildan 18000
     77: 380, // Gildan 18500 Hoodie -> Printful Gildan 18500
     80: 380, // Unisex Hoodie -> Printful Gildan 18500
     81: 380, // Pullover Hoodie -> Printful Gildan 18500
@@ -5836,4 +5837,5 @@ exports.api = (0, https_1.onRequest)({
     cors: true,
 }, app);
 // Force redeploy: 2026-01-27T06:55:00Z
+// Deploy trigger 1769499917
 //# sourceMappingURL=index.js.map

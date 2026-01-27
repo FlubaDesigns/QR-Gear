@@ -937,6 +937,7 @@ const DEFAULT_BLUEPRINT_MAPPINGS: Record<number, number> = {
   578: 71,    // Alternative to Bella Canvas
   
   // Hoodies & Sweatshirts
+  45: 380,    // Sweatshirt/Crewneck -> Printful Gildan 18000
   77: 380,    // Gildan 18500 Hoodie -> Printful Gildan 18500
   80: 380,    // Unisex Hoodie -> Printful Gildan 18500
   81: 380,    // Pullover Hoodie -> Printful Gildan 18500
