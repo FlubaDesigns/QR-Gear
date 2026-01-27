@@ -892,10 +892,44 @@ interface MockupResult {
 
 // Default Printify blueprint to Printful product mappings (fallback)
 const DEFAULT_BLUEPRINT_MAPPINGS: Record<number, number> = {
-  5: 71,      // Bella Canvas 3001 Unisex Jersey Tee
-  6: 71,      // Gildan alternative
-  145: 380,   // Heavyweight tee
-  474: 71,    // Cotton Crew
+  // T-Shirts
+  5: 71,      // Bella Canvas 3001 Unisex Jersey Tee -> Printful Bella Canvas 3001
+  6: 71,      // Gildan 5000 -> Printful Bella Canvas 3001
+  12: 71,     // Gildan 64000 -> Printful Bella Canvas 3001
+  145: 380,   // Heavyweight tee -> Printful Gildan 5000
+  474: 71,    // Cotton Crew -> Printful Bella Canvas 3001
+  577: 71,    // Bella Canvas 3001C -> Printful Bella Canvas 3001
+  578: 71,    // Alternative to Bella Canvas
+  
+  // Hoodies & Sweatshirts
+  77: 380,    // Gildan 18500 Hoodie -> Printful Gildan 18500
+  80: 380,    // Unisex Hoodie -> Printful Gildan 18500
+  81: 380,    // Pullover Hoodie -> Printful Gildan 18500
+  91: 380,    // Heavyweight Hoodie -> Printful Gildan 18500
+  
+  // Long Sleeve
+  26: 71,     // Long Sleeve Tee -> Printful equivalent
+  39: 71,     // Long Sleeve -> Printful equivalent
+  
+  // Tank Tops
+  14: 71,     // Tank Top -> Printful equivalent
+  15: 71,     // Women's Tank -> Printful equivalent
+  
+  // Mugs
+  66: 19,     // White Mug 11oz -> Printful White Mug 11oz
+  
+  // Hats/Caps  
+  88: 206,    // Dad Hat -> Printful Dad Hat
+  
+  // Posters/Canvas
+  33: 1,      // Poster -> Printful Poster
+  36: 1,      // Art Print -> Printful Poster
+  
+  // Bags
+  49: 84,     // Tote Bag -> Printful Tote Bag
+  
+  // Phone Cases
+  48: 226,    // iPhone Case -> Printful iPhone Case
 };
 
 // Look up Printful product ID from Firestore mapping or fallback
@@ -3306,12 +3340,78 @@ app.delete('/test/background-assets/:id', async (req: Request, res: Response): P
 
 // ============ TEST PRODUCTS ENDPOINTS (no auth) ============
 
-// Get all products (test endpoint)
-app.get('/test/products', async (_req: Request, res: Response): Promise<void> => {
+// Get fulfillment provider status (which providers are configured)
+app.get('/test/fulfillment-providers', async (_req: Request, res: Response): Promise<void> => {
   try {
+    const printifyKey = process.env.PRINTIFY_API_KEY;
+    const printfulKey = process.env.PRINTFUL_API_KEY;
+    const apliiqKey = process.env.APLIIQ_API_KEY;
+    
+    const providers = [
+      { 
+        id: "printify", 
+        name: "Printify", 
+        configured: !!printifyKey && printifyKey.length > 10,
+        role: "fulfillment",
+        description: "Print-on-demand fulfillment via Printify network"
+      },
+      { 
+        id: "printful", 
+        name: "Printful", 
+        configured: !!printfulKey && printfulKey.length > 10,
+        role: "fulfillment",
+        description: "Print-on-demand fulfillment via Printful"
+      },
+      { 
+        id: "apliiq", 
+        name: "Apliiq", 
+        configured: !!apliiqKey && apliiqKey.length > 10,
+        role: "fulfillment",
+        description: "Custom apparel via Apliiq"
+      },
+    ];
+    
+    console.log(`[FulfillmentProviders] Returning ${providers.filter(p => p.configured).length} configured providers`);
+    res.json(providers);
+  } catch (error: any) {
+    console.error('[FulfillmentProviders] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all products (test endpoint) - supports provider filter
+app.get('/test/products', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const provider = req.query.provider as string | undefined;
+    
+    if (provider === "printful") {
+      // Fetch from Printful products collection
+      const snapshot = await db.collection('printfulProducts').get();
+      const products = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: `printful-${data.id || doc.id}`,
+          name: data.title || `Printful Product ${doc.id}`,
+          printfulId: data.id || parseInt(doc.id),
+          blueprintId: data.id || parseInt(doc.id),
+          isEnabled: true,
+          fulfillmentProvider: "printful",
+          image: data.image,
+          variantCount: data.variantCount || 0,
+          brand: data.brand,
+          model: data.model,
+          description: data.type,
+        };
+      });
+      console.log(`[TestProducts] GET returned ${products.length} Printful products`);
+      res.json(products);
+      return;
+    }
+    
+    // Default: Printify products
     const snapshot = await db.collection('products').where('isEnabled', '==', true).get();
     const products = snapshot.docs.map(doc => docToObject(doc));
-    console.log(`[TestProducts] GET returned ${products.length} products`);
+    console.log(`[TestProducts] GET returned ${products.length} Printify products`);
     res.json(products);
   } catch (error: any) {
     console.error('[TestProducts] GET error:', error);

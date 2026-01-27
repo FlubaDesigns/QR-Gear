@@ -1496,12 +1496,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TEST PRODUCTS ENDPOINTS (no auth required)
   // ===========================================
   
-  // Get all products (test endpoint)
+  // Get fulfillment provider status (which providers are configured)
+  app.get("/api/test/fulfillment-providers", async (req: any, res) => {
+    try {
+      const printifyKey = process.env.PRINTIFY_API_KEY;
+      const printfulKey = process.env.PRINTFUL_API_KEY;
+      const apliiqKey = process.env.APLIIQ_API_KEY;
+      
+      const providers = [
+        { 
+          id: "printify", 
+          name: "Printify", 
+          configured: !!printifyKey && printifyKey.length > 10,
+          role: "fulfillment",
+          description: "Print-on-demand fulfillment via Printify network"
+        },
+        { 
+          id: "printful", 
+          name: "Printful", 
+          configured: !!printfulKey && printfulKey.length > 10,
+          role: "fulfillment",
+          description: "Print-on-demand fulfillment via Printful"
+        },
+        { 
+          id: "apliiq", 
+          name: "Apliiq", 
+          configured: !!apliiqKey && apliiqKey.length > 10,
+          role: "fulfillment",
+          description: "Custom apparel via Apliiq"
+        },
+      ];
+      
+      console.log(`[FulfillmentProviders] Returning ${providers.filter(p => p.configured).length} configured providers`);
+      res.json(providers);
+    } catch (error: any) {
+      console.error('[FulfillmentProviders] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Get all products (test endpoint) - supports provider filter
   app.get("/api/test/products", async (req: any, res) => {
     try {
-      const { products } = await import("@shared/schema");
+      const provider = req.query.provider as string | undefined;
+      const { products, printfulProducts } = await import("@shared/schema");
+      
+      if (provider === "printful") {
+        // Fetch from Printful catalog
+        const allProducts = await db.select().from(printfulProducts);
+        console.log(`[TestProducts] GET returned ${allProducts.length} Printful products`);
+        
+        // Transform to common format
+        const transformed = allProducts.map(p => ({
+          id: `printful-${p.id}`,
+          name: p.title || `Printful Product ${p.id}`,
+          printfulId: p.id,
+          blueprintId: p.id,
+          isEnabled: true,
+          fulfillmentProvider: "printful",
+          image: p.image,
+          variantCount: p.variantCount || 0,
+          brand: p.brand,
+          model: p.model,
+          description: p.type,
+        }));
+        
+        return res.json(transformed);
+      }
+      
+      // Default: Printify products
       const allProducts = await db.select().from(products).where(eq(products.isEnabled, true));
-      console.log(`[TestProducts] GET returned ${allProducts.length} products`);
+      console.log(`[TestProducts] GET returned ${allProducts.length} Printify products`);
       res.json(allProducts);
     } catch (error: any) {
       console.error('[TestProducts] GET error:', error);

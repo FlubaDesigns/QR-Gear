@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAdminAuth } from "../shared/AdminAuthContext";
 import type { 
@@ -14,7 +15,7 @@ import type {
 
 const ProductsContext = createContext<ProductsContextValue | null>(null);
 
-const DEFAULT_PROVIDERS: FulfillmentProvider[] = [
+const FALLBACK_PROVIDERS: FulfillmentProvider[] = [
   { id: "printify", name: "Printify", configured: true, role: "fulfillment" },
   { id: "printful", name: "Printful", configured: false, role: "fulfillment" },
   { id: "apliiq", name: "Apliiq", configured: false, role: "fulfillment" },
@@ -36,6 +37,23 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const [selectedRole, setSelectedRoleState] = useState<RoleType | null>(null);
   const [selectedStore, setSelectedStoreState] = useState<Store | null>(null);
   const [selectedChannel, setSelectedChannelState] = useState<Channel | null>(null);
+
+  // Fetch actual provider configuration from API
+  const { data: apiProviders } = useQuery<FulfillmentProvider[]>({
+    queryKey: ["fulfillment-providers", apiBase],
+    queryFn: async () => {
+      const isTestEndpoint = apiBase.includes("/test");
+      const endpoint = isTestEndpoint 
+        ? `${apiBase}/fulfillment-providers`
+        : `${apiBase}/admin/fulfillment-providers`;
+      const res = await fetch(endpoint);
+      if (!res.ok) return FALLBACK_PROVIDERS;
+      return res.json();
+    },
+    staleTime: 60000, // Cache for 1 minute
+  });
+
+  const providers = apiProviders || FALLBACK_PROVIDERS;
 
   const setSelectedProviders = useCallback((providers: string[]) => {
     setSelectedProvidersState(providers);
@@ -110,20 +128,24 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       getQueryKey,
       invalidateProducts,
 
-      fetchProducts: async (): Promise<Product[]> => {
+      fetchProducts: async (provider?: string): Promise<Product[]> => {
         const headers = await getAuthHeaders();
         const isTestEndpoint = apiBase.includes("/test");
         const adminSegment = isTestEndpoint ? "" : "/admin";
-        const res = await fetch(`${apiBase}${adminSegment}/products`, { headers });
+        const providerParam = provider ? `?provider=${provider}` : "";
+        const res = await fetch(`${apiBase}${adminSegment}/products${providerParam}`, { headers });
         if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
         return res.json();
       },
 
-      syncCatalog: async (): Promise<{ synced: number }> => {
+      syncCatalog: async (provider?: string): Promise<{ synced: number }> => {
         const headers = await getAuthHeaders();
         const isTestEndpoint = apiBase.includes("/test");
         const adminSegment = isTestEndpoint ? "" : "/admin";
-        const res = await fetch(`${apiBase}${adminSegment}/products/sync`, {
+        const syncEndpoint = provider === "printful" 
+          ? `${apiBase}${adminSegment}/catalog/sync-printful`
+          : `${apiBase}${adminSegment}/products/sync`;
+        const res = await fetch(syncEndpoint, {
           method: "POST",
           headers,
         });
@@ -173,7 +195,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     () => ({
       requiresAuth,
       api,
-      providers: DEFAULT_PROVIDERS,
+      providers,
       selectedProviders,
       setSelectedProviders,
       roles: DEFAULT_ROLES,
@@ -187,6 +209,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     [
       requiresAuth, 
       api, 
+      providers,
       selectedProviders, 
       setSelectedProviders,
       selectedRole,

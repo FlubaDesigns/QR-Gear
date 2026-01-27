@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { AlertTriangle, DollarSign, Image, Layers, QrCode, LogIn, LogOut, Server, User, Store } from "lucide-react";
+import { AlertTriangle, DollarSign, Image, Layers, QrCode, LogIn, LogOut, Server, User, Store, Truck } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
 import { Badge } from "@/components/ui/badge";
+
+export type FulfillmentProvider = "printify" | "printful";
 
 function AuthModule() {
   const { firebaseUser, isLoading, isAdmin } = useAuth();

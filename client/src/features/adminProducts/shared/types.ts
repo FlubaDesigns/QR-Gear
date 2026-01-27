@@ -63,8 +63,8 @@ export interface ProductsApi {
   getAuthHeaders: () => Promise<HeadersInit>;
   getQueryKey: (type: string) => string[];
   invalidateProducts: (type?: string) => void;
-  fetchProducts: () => Promise<Product[]>;
-  syncCatalog: () => Promise<{ synced: number }>;
+  fetchProducts: (provider?: string) => Promise<Product[]>;
+  syncCatalog: (provider?: string) => Promise<{ synced: number }>;
   fetchStores: (roleType: RoleType) => Promise<Store[]>;
   fetchChannels: (storeId: string) => Promise<Channel[]>;
   fetchLibraryAssets: (assetType: string) => Promise<LibraryAsset[]>;

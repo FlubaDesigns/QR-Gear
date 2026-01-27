@@ -18,13 +18,16 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
     setSelectedProviders,
   } = useProductsContext();
 
+  // Get the primary selected provider for fetching
+  const primaryProvider = selectedProviders.length === 1 ? selectedProviders[0] : undefined;
+
   const { data: products = [] } = useQuery<Product[]>({
-    queryKey: api.getQueryKey("all"),
-    queryFn: api.fetchProducts,
+    queryKey: [...api.getQueryKey("all"), primaryProvider],
+    queryFn: () => api.fetchProducts(primaryProvider),
   });
 
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    return products.filter((product: Product) => {
       const productProvider = product.printifyId
         ? "printify"
         : (product.metadata as Record<string, unknown>)?.fulfillmentProvider || "printify";

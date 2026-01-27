@@ -36,6 +36,7 @@ interface PacketResult {
   pricing: PricingBreakdown;
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
+  priorityMockupError?: string | null;
 }
 
 function generateQRCodeUrl(content: string, size: number = 3000, qrColor: "black" | "white" = "black"): string {
@@ -769,13 +770,25 @@ export function CreateGraphicsModule() {
             setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
             toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
           } else {
-            console.warn('[CreatePacket] Mockup failed or no URL:', data);
-            setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false } : prev);
+            const errorMsg = data.error || data.message || "Mockup generation failed";
+            console.warn('[CreatePacket] Mockup failed:', errorMsg);
+            setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+            toast({ 
+              title: "Mockup Generation Failed", 
+              description: errorMsg,
+              variant: "destructive" 
+            });
           }
         })
         .catch((err) => {
+          const errorMsg = err.message || "Failed to connect to mockup service";
           console.error('[CreatePacket] Mockup fetch error:', err);
-          setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false } : prev);
+          setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+          toast({ 
+            title: "Mockup Service Error", 
+            description: errorMsg,
+            variant: "destructive" 
+          });
         });
 
     } catch (err: any) {
@@ -1142,6 +1155,11 @@ export function CreateGraphicsModule() {
                         data-testid="img-packet-mockup"
                       />
                     </button>
+                  ) : packetResult.priorityMockupError ? (
+                    <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 min-h-[120px]">
+                      <p className="text-sm font-semibold text-red-700 dark:text-red-300 mb-1">Mockup Failed</p>
+                      <p className="text-xs text-red-600 dark:text-red-400">{packetResult.priorityMockupError}</p>
+                    </div>
                   ) : (
                     <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
                       <span className="text-xs text-gray-400">Generating...</span>
