@@ -31,32 +31,18 @@ interface PacketResult {
   landingPageSnapshotUrl: string;
   productGraphicUrl: string;
   qrOnlyUrl: string;
-  qrOnlyUrlBlack: string;
-  qrOnlyUrlWhite: string;
   pricing: PricingBreakdown;
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
 }
 
-function generateQRCodeUrl(content: string, size: number = 3000, qrColor: "black" | "white" = "black"): string {
-  const color = qrColor === "white" ? "ffffff" : "000000";
-  // Always use transparent background so QR sits cleanly on product color
-  const bgColor = "00000000";
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${color}&bgcolor=${bgColor}`;
-}
-
-function getLuminance(hex: string): number {
-  const rgb = hex.replace("#", "").match(/.{2}/g);
-  if (!rgb) return 0;
-  const [r, g, b] = rgb.map((c) => parseInt(c, 16) / 255);
-  const toLinear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-}
-
-function getContrastQRColor(productColorHex: string): "black" | "white" {
-  const luminance = getLuminance(productColorHex);
-  return luminance > 0.5 ? "black" : "white";
+// Always generates black QR code on white background for universal readability
+function generateQRCodeUrl(content: string, size: number = 3000): string {
+  // Black QR code on white background - always readable regardless of product color
+  const qrColor = "000000";
+  const bgColor = "ffffff";
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${qrColor}&bgcolor=${bgColor}`;
 }
 
 interface TextStyle {
@@ -408,8 +394,6 @@ export function CreateGraphicsModule() {
       
       const packetPayload: Record<string, any> = {
         qrOnlyUrl: "",
-        qrOnlyUrlBlack: "",
-        qrOnlyUrlWhite: "",
         compositeUrl: "",
         qrContent: isPlayMode ? "" : (state.content?.url || state.content?.title || "").trim(),
         headerText: state.content?.headerStyle?.enabled ? state.content.headerStyle.text : null,
@@ -503,14 +487,8 @@ export function CreateGraphicsModule() {
         ? `${baseUrl}/m/${landingPageSlug}`
         : (state.content?.url || state.content?.title || "");
       
-      // Generate BOTH black and white QR codes for the packet
-      const qrBlackUrl = generateQRCodeUrl(finalQrContent.trim(), 3000, "black");
-      const qrWhiteUrl = generateQRCodeUrl(finalQrContent.trim(), 3000, "white");
-      
-      // Determine which one to use for the composite graphic based on product color
-      const productColorForQr = state.selectedColor?.hex || "#ffffff";
-      const qrColorForFinal = getContrastQRColor(productColorForQr);
-      const finalQrUrl = qrColorForFinal === "white" ? qrWhiteUrl : qrBlackUrl;
+      // Generate single QR code - always black on white background for universal readability
+      const qrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000);
 
       const backgroundUrl = state.loadedBackground?.url || null;
       const headerStyle = state.content?.headerStyle as TextStyle | null;
@@ -522,7 +500,7 @@ export function CreateGraphicsModule() {
       let productGraphicUrl: string;
       try {
         productGraphicUrl = await generateProductGraphic({
-          qrUrl: finalQrUrl,
+          qrUrl,
           productColorHex,
           headerStyle,
           footerStyle,
@@ -598,9 +576,7 @@ export function CreateGraphicsModule() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          qrOnlyUrl: finalQrUrl,
-          qrOnlyUrlBlack: qrBlackUrl,
-          qrOnlyUrlWhite: qrWhiteUrl,
+          qrOnlyUrl: qrUrl,
           productGraphicUrl,
           landingPageSnapshotUrl: landingPageSnapshotUrl || null,
           compositeUrl: productGraphicUrl,
@@ -615,7 +591,7 @@ export function CreateGraphicsModule() {
           name: state.content?.title || `Graphic - ${new Date().toLocaleDateString()}`,
           description: state.content?.description || "",
           category: state.qrProductState || "General",
-          qrOnlyUrl: finalQrUrl,
+          qrOnlyUrl: qrUrl,
           compositeUrl: productGraphicUrl,
           qrContent: finalQrContent,
           pricing,
@@ -672,7 +648,7 @@ export function CreateGraphicsModule() {
               templateId: templateData.templateId || null,
               productName: state.selectedProduct?.title || product?.name || null,
               compositeUrl: productGraphicUrl,
-              qrOnlyUrl: finalQrUrl,
+              qrOnlyUrl: qrUrl,
               qrContent: finalQrContent,
               pricing,
               enabledColors: availableColors.map((c: any) => c.name || c),
@@ -692,16 +668,14 @@ export function CreateGraphicsModule() {
         }
       }
 
-      loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: finalQrUrl });
+      loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl });
 
       const initialResult: PacketResult = {
         packetId,
         landingPageUrl: finalQrContent,
         landingPageSnapshotUrl: landingPageSnapshotUrl || "",
         productGraphicUrl,
-        qrOnlyUrl: finalQrUrl,
-        qrOnlyUrlBlack: qrBlackUrl,
-        qrOnlyUrlWhite: qrWhiteUrl,
+        qrOnlyUrl: qrUrl,
         pricing,
         priorityMockupUrl: null,
         priorityMockupLoading: true,
@@ -1077,56 +1051,25 @@ export function CreateGraphicsModule() {
                 <CardContent className="p-4">
                   <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                     <QrCode className="h-4 w-4" />
-                    QR Codes (Black & White)
+                    QR Code
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center">
-                      <button 
-                        type="button"
-                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate relative overflow-hidden"
-                        onClick={() => setThumbnailLightbox(packetResult.qrOnlyUrlBlack)}
-                        data-testid="btn-qr-black"
-                      >
-                        {/* Swatch background layer */}
-                        <div 
-                          className="absolute inset-0"
-                          style={{ backgroundColor: state.selectedColor?.hex || '#ffffff' }}
-                        />
-                        {/* Transparent QR on top */}
-                        <img
-                          src={packetResult.qrOnlyUrlBlack}
-                          alt="QR Code Black"
-                          className="relative z-10 w-full max-w-[140px] h-auto"
-                          data-testid="img-packet-qr-black"
-                        />
-                      </button>
-                      <p className="text-sm text-muted-foreground mt-2">Black QR</p>
-                    </div>
-                    <div className="text-center">
-                      <button 
-                        type="button"
-                        className="w-full rounded p-3 flex items-center justify-center cursor-pointer hover-elevate relative overflow-hidden"
-                        onClick={() => setThumbnailLightbox(packetResult.qrOnlyUrlWhite)}
-                        data-testid="btn-qr-white"
-                      >
-                        {/* Swatch background layer */}
-                        <div 
-                          className="absolute inset-0"
-                          style={{ backgroundColor: state.selectedColor?.hex || '#000000' }}
-                        />
-                        {/* Transparent QR on top */}
-                        <img
-                          src={packetResult.qrOnlyUrlWhite}
-                          alt="QR Code White"
-                          className="relative z-10 w-full max-w-[140px] h-auto"
-                          data-testid="img-packet-qr-white"
-                        />
-                      </button>
-                      <p className="text-sm text-muted-foreground mt-2">White QR</p>
-                    </div>
+                  <div className="flex justify-center">
+                    <button 
+                      type="button"
+                      className="rounded p-3 flex items-center justify-center cursor-pointer hover-elevate bg-white border"
+                      onClick={() => setThumbnailLightbox(packetResult.qrOnlyUrl)}
+                      data-testid="btn-qr-code"
+                    >
+                      <img
+                        src={packetResult.qrOnlyUrl}
+                        alt="QR Code"
+                        className="w-full max-w-[200px] h-auto"
+                        data-testid="img-packet-qr"
+                      />
+                    </button>
                   </div>
                   <p className="text-sm text-muted-foreground mt-3 text-center">
-                    Shown on {state.selectedColor?.name || 'product'} background
+                    Black on white - readable on any product color
                   </p>
                 </CardContent>
               </Card>
