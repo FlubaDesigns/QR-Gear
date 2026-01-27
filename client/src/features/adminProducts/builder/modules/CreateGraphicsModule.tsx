@@ -107,18 +107,22 @@ async function fetchImageAsDataUrl(url: string): Promise<string> {
 }
 
 async function generateProductGraphic(options: ProductGraphicOptions): Promise<string> {
+  // NOTE: This function generates ONLY QR code + text on a TRANSPARENT background
+  // NO background image is used here - backgroundUrl is only for landing page snapshot
   const { qrUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground } = options;
   const CANVAS_WIDTH = 1080;
   const CANVAS_HEIGHT = 1920;
   const QR_SIZE = 400;
   
-  console.log('[generateProductGraphic] Starting with options:', { 
+  console.log('[generateProductGraphic] GENERATING TRANSPARENT PRODUCT GRAPHIC');
+  console.log('[generateProductGraphic] Options:', { 
     qrUrl: qrUrl.substring(0, 50) + '...', 
     productColorHex, 
     useTransparentBackground,
     hasHeader: !!headerStyle?.enabled,
     hasFooter: !!footerStyle?.enabled 
   });
+  console.log('[generateProductGraphic] NO BACKGROUND IMAGE WILL BE USED');
   
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_WIDTH;
@@ -126,13 +130,17 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) throw new Error('Canvas not supported');
 
-  if (useTransparentBackground) {
-    console.log('[generateProductGraphic] Using TRANSPARENT background');
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  } else if (productColorHex) {
+  // ALWAYS start with a transparent canvas - no background image, no solid fill
+  console.log('[generateProductGraphic] Clearing canvas to TRANSPARENT');
+  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  
+  // Only fill with color if NOT using transparent background (but we always use transparent now)
+  if (!useTransparentBackground && productColorHex) {
+    console.log('[generateProductGraphic] WARNING: Filling with product color (not transparent)');
     ctx.fillStyle = productColorHex;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  } else {
+  } else if (!useTransparentBackground) {
+    console.log('[generateProductGraphic] WARNING: Filling with white (not transparent)');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   }
