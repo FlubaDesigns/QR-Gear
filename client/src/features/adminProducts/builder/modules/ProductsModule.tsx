@@ -108,14 +108,10 @@ export function ProductsModule() {
           itemCount: cat.items?.length || 0,
         }));
       } else if (provider === "printful") {
-        const grouped: Record<string, number> = {};
-        for (const product of data) {
-          const category = product.type || "Other";
-          grouped[category] = (grouped[category] || 0) + 1;
-        }
-        return Object.entries(grouped).map(([name, count]) => ({
-          name,
-          itemCount: count,
+        // Backend returns pre-grouped categories: [{ name, items, count }]
+        return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
+          name: cat.name,
+          itemCount: cat.count || cat.items?.length || 0,
         }));
       }
       
