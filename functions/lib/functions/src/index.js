@@ -5557,7 +5557,23 @@ app.post('/test/content/upload', async (req, res) => {
         const base64Match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
         const actualMimeType = base64Match?.[1] || mimeType || 'image/png';
         const actualBase64 = base64Match?.[2] || base64Data;
+        console.log(`[Content Upload] Processing ${mode} upload: base64 length=${base64Data?.length || 0}, extracted length=${actualBase64?.length || 0}, mimeType=${actualMimeType}`);
+        if (!actualBase64 || actualBase64.length === 0) {
+            res.status(400).json({ error: 'No file data received - base64 content is empty' });
+            return;
+        }
         const buffer = Buffer.from(actualBase64, 'base64');
+        console.log(`[Content Upload] Decoded buffer size: ${buffer.length} bytes`);
+        if (buffer.length === 0) {
+            res.status(400).json({ error: 'File data is empty after decoding' });
+            return;
+        }
+        // Minimum size check - valid media files should be at least 1KB
+        const MIN_FILE_SIZE = 1024;
+        if (buffer.length < MIN_FILE_SIZE) {
+            res.status(400).json({ error: `File too small (${buffer.length} bytes). Minimum size is 1KB. The file may be corrupted.` });
+            return;
+        }
         // Determine storage path based on mode
         // Use fileName if provided to allow multiple files per packet (e.g., product-graphic vs landing-snapshot)
         let storagePath;
