@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Layers } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useBuilderContext } from "../BuilderContext";
+import { useProductsContext } from "../../ProductsContext";
 import { ProductViewerControls } from "../components/ProductViewerControls";
 import { ProductDetailModal } from "../components/ProductDetailModal";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
@@ -61,10 +62,23 @@ interface CatalogCategoryListResponse {
 
 export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
+  const { selectedProviders } = useProductsContext();
   const [previewProduct, setPreviewProduct] = useState<CatalogProduct | null>(null);
 
-  // Provider comes from state (set by FulfillmentPickerModule)
-  const provider = state.fulfillmentProvider || "printify";
+  // Provider comes from ProductsContext's selectedProviders (set by FulfillmentPickerModule)
+  // Use the first selected provider, or default to printify if none selected
+  const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+  
+  // Track previous provider to reset category when it changes
+  const prevProviderRef = useRef(provider);
+  useEffect(() => {
+    if (prevProviderRef.current !== provider) {
+      // Provider changed - reset category and product selection
+      setCategory(null);
+      selectProduct(null);
+      prevProviderRef.current = provider;
+    }
+  }, [provider, setCategory, selectProduct]);
 
   // Fetch categories for the dropdown
   const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
@@ -240,6 +254,17 @@ export function ProductsModule() {
 
   return (
     <div className="space-y-4">
+      {/* Active provider indicator */}
+      <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md" data-testid="active-provider-indicator">
+        <span className="text-xs text-muted-foreground">Browsing:</span>
+        <span className="text-sm font-medium capitalize">{provider}</span>
+        {selectedProviders.length > 1 && (
+          <span className="text-xs text-muted-foreground">
+            ({selectedProviders.length} providers enabled - showing first)
+          </span>
+        )}
+      </div>
+
       {/* Category selector */}
       <div data-testid="module-category">
         <div className="flex items-center gap-2 mb-2">
@@ -284,8 +309,8 @@ export function ProductsModule() {
                 {(() => {
                   const isTestEndpoint = api.baseUrl.includes("/test");
                   const adminSegment = isTestEndpoint ? "" : "/admin";
-                  if (state.fulfillmentProvider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
-                  if (state.fulfillmentProvider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
+                  if (provider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
+                  if (provider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
                   return "NO_PROVIDER";
                 })()}
               </p>

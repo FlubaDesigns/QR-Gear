@@ -3659,6 +3659,19 @@ app.get('/test/catalog/printful-products', async (req, res) => {
             const category = p.type || 'Other';
             if (!grouped[category])
                 grouped[category] = [];
+            // Detect if product is made in USA from description or brand
+            const description = (p.description || '').toLowerCase();
+            const brand = (p.brand || '').toLowerCase();
+            const isUSAMade = description.includes('made in usa') ||
+                description.includes('made in the usa') ||
+                description.includes('made in u.s.a') ||
+                description.includes('sourced from usa') ||
+                description.includes('sourced from the usa') ||
+                description.includes('manufactured in usa') ||
+                description.includes('printed in usa') ||
+                brand.includes('american apparel') ||
+                brand.includes('lane seven') ||
+                brand.includes('los angeles apparel');
             // Transform to match CatalogItemResponse format
             grouped[category].push({
                 id: p.id,
@@ -3671,7 +3684,7 @@ app.get('/test/catalog/printful-products', async (req, res) => {
                 minPrice: 0,
                 maxPrice: 0,
                 colorCount: Object.keys(p.colors || {}).length || p.variantCount || 0,
-                madeInUSA: false,
+                madeInUSA: isUSAMade,
                 hasMockupMapping: true,
                 fulfillmentProvider: 'printful',
                 colors: p.colors,
