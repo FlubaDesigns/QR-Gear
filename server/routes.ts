@@ -8946,6 +8946,14 @@ ${allPages.map(page => `  <url>
         footerStyle: data.footerStyle || null,
         pricing: data.pricing || null,
         createdAt: data.createdAt?.toDate?.() || null,
+        // Fields expected by product-landing.tsx
+        landingPageSnapshotUrl: data.landingPageSnapshotUrl || data.compositeUrl || null,
+        qrProductState: data.qrProductState || data.mode || "qr_canvas",
+        playMediaUrl: data.playMediaUrl || data.videoUrl || null,
+        playMediaType: data.playMediaType || data.mediaType || null,
+        landingPageTitle: data.landingPageTitle || data.productName || null,
+        landingPageDescription: data.landingPageDescription || null,
+        landingPageBackgroundUrl: data.landingPageBackgroundUrl || null,
       };
       
       console.log(`[Landing Page] Found page for slug: ${slug}`);

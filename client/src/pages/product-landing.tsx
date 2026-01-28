@@ -54,7 +54,8 @@ export default function ProductLanding() {
   const landingPage = data?.landingPage;
   const isPlayMode = landingPage?.qrProductState === "qr_play";
   const hasPlayMedia = isPlayMode && landingPage?.playMediaUrl;
-  const hasSnapshot = !!landingPage?.landingPageSnapshotUrl;
+  // For Play mode, no snapshot needed - just show video
+  const hasSnapshot = !isPlayMode && !!landingPage?.landingPageSnapshotUrl;
 
   if (error || !data?.success || (!hasSnapshot && !hasPlayMedia)) {
     return (

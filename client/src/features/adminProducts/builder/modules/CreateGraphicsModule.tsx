@@ -1012,33 +1012,36 @@ export function CreateGraphicsModule() {
 
             <p className="text-base font-bold mb-3">Generated Thumbnails</p>
             <div className="grid grid-cols-2 gap-3">
-              <Card className="overflow-hidden">
-                <CardContent className="p-3">
-                  <p className="text-sm font-semibold mb-2 flex items-center gap-2">
-                    <Image className="h-4 w-4" />
-                    Landing Page
-                  </p>
-                  {packetResult.landingPageSnapshotUrl ? (
-                    <button 
-                      type="button"
-                      className="w-full bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px] cursor-pointer hover-elevate"
-                      onClick={() => setThumbnailLightbox(packetResult.landingPageSnapshotUrl)}
-                      data-testid="btn-landing-snapshot"
-                    >
-                      <img
-                        src={packetResult.landingPageSnapshotUrl}
-                        alt="Landing Page Snapshot"
-                        className="w-full max-w-[80px] h-auto object-contain"
-                        data-testid="img-packet-landing-snapshot"
-                      />
-                    </button>
-                  ) : (
-                    <div className="bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px]">
-                      <span className="text-xs text-gray-400">N/A</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Hide Landing Page thumbnail for Play mode - video doesn't need a snapshot */}
+              {!isPlayMode && (
+                <Card className="overflow-hidden">
+                  <CardContent className="p-3">
+                    <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <Image className="h-4 w-4" />
+                      Landing Page
+                    </p>
+                    {packetResult.landingPageSnapshotUrl ? (
+                      <button 
+                        type="button"
+                        className="w-full bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px] cursor-pointer hover-elevate"
+                        onClick={() => setThumbnailLightbox(packetResult.landingPageSnapshotUrl)}
+                        data-testid="btn-landing-snapshot"
+                      >
+                        <img
+                          src={packetResult.landingPageSnapshotUrl}
+                          alt="Landing Page Snapshot"
+                          className="w-full max-w-[80px] h-auto object-contain"
+                          data-testid="img-packet-landing-snapshot"
+                        />
+                      </button>
+                    ) : (
+                      <div className="bg-gray-900 rounded p-1 flex items-center justify-center min-h-[100px]">
+                        <span className="text-xs text-gray-400">N/A</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="overflow-hidden">
                 <CardContent className="p-3">
