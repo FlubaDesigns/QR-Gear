@@ -133,9 +133,10 @@ export async function getFileFromFirebaseStorage(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATHS ONLY - library/backgrounds/{raw|cropped|zip}/
+    // Check provided folder first, then canonical library paths
     const possiblePaths = [
       fileName, // Direct path if already includes folder
+      `${folder}/${fileName}`, // Check the explicitly provided folder
       `library/backgrounds/raw/${fileName}`,
       `library/backgrounds/cropped/${fileName}`,
       `library/backgrounds/zip/${fileName}`,
@@ -178,9 +179,10 @@ export async function downloadAndStreamFile(
   try {
     const bucket = getStorageBucket();
     
-    // CANONICAL PATHS ONLY - library/backgrounds/{raw|cropped|zip}/
+    // Check provided folder first, then canonical library paths
     const possiblePaths = [
       fileName, // Direct path if already includes folder
+      `${folder}/${fileName}`, // Check the explicitly provided folder
       `library/backgrounds/raw/${fileName}`,
       `library/backgrounds/cropped/${fileName}`,
       `library/backgrounds/zip/${fileName}`,
