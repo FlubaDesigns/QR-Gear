@@ -2286,8 +2286,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { desc } = await import("drizzle-orm");
       
       const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
-      console.log(`[TestCatalog] Returning ${products.length} Printful products`);
-      res.json(products);
+      
+      // Group products by type (category) to match frontend expectations
+      const categoryMap = new Map<string, any[]>();
+      for (const product of products) {
+        const category = product.type || "Other";
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, []);
+        }
+        categoryMap.get(category)!.push(product);
+      }
+      
+      const grouped = Array.from(categoryMap.entries()).map(([name, items]) => ({
+        name,
+        items,
+        count: items.length,
+      }));
+      
+      console.log(`[TestCatalog] Returning ${products.length} Printful products in ${grouped.length} categories`);
+      res.json(grouped);
     } catch (error: any) {
       console.error('[TestCatalog] GET error:', error);
       res.status(500).json({ error: error.message });
