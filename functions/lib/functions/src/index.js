@@ -5225,7 +5225,7 @@ app.post('/test/templates/full-save', async (req, res) => {
 // PUBLIC TEST: Create product packet (master record) - NO AUTH REQUIRED
 app.post('/test/packets', async (req, res) => {
     try {
-        const { qrOnlyUrl, compositeUrl, qrContent, headerText, footerText, pricing, productId, productName, productDescription, productImageUrl, blueprintId, printProviderId, manufacturer, madeInUSA, category, defaultColor, defaultColorHex, defaultPlacement, qrProductState, placements, availablePlacements, sizes, colors, basePrice, customerPrice, mockupsByColor, landingPageTitle, landingPageDescription, landingPageBackgroundUrl, landingPageSlug, headerStyle, footerStyle, } = req.body;
+        const { qrOnlyUrl, compositeUrl, qrContent, headerText, footerText, pricing, productId, productName, productDescription, productImageUrl, blueprintId, printProviderId, manufacturer, madeInUSA, category, defaultColor, defaultColorHex, defaultPlacement, qrProductState, placements, availablePlacements, sizes, colors, basePrice, customerPrice, mockupsByColor, landingPageTitle, landingPageDescription, landingPageBackgroundUrl, landingPageSlug, headerStyle, footerStyle, playMediaUrl, } = req.body;
         // Note: qrContent and qrOnlyUrl are generated AFTER packet creation
         // so we don't validate them here - they get populated via PATCH
         const now = admin.firestore.FieldValue.serverTimestamp();
@@ -5262,6 +5262,7 @@ app.post('/test/packets', async (req, res) => {
             landingPageSlug: landingPageSlug || null,
             headerStyle: headerStyle || null,
             footerStyle: footerStyle || null,
+            playMediaUrl: playMediaUrl || null,
             createdAt: now,
             updatedAt: now,
         };
@@ -5425,6 +5426,12 @@ app.get('/test/landing/:slug', async (req, res) => {
             packetId: doc.id,
             landingPageSnapshotUrl: data.landingPageSnapshotUrl || null,
             qrOnlyUrl: data.qrOnlyUrl || null,
+            qrProductState: data.qrProductState || 'qr_canvas',
+            playMediaUrl: data.playMediaUrl || null,
+            playMediaType: data.playMediaType || null,
+            landingPageTitle: data.landingPageTitle || null,
+            landingPageDescription: data.landingPageDescription || null,
+            landingPageBackgroundUrl: data.landingPageBackgroundUrl || null,
         };
         console.log(`[Landing Page] Found page for slug: ${slug}`);
         res.json({

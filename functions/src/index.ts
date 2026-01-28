@@ -6018,6 +6018,7 @@ app.post('/test/packets', async (req: Request, res: Response): Promise<void> => 
       landingPageSlug,
       headerStyle,
       footerStyle,
+      playMediaUrl,
     } = req.body;
 
     // Note: qrContent and qrOnlyUrl are generated AFTER packet creation
@@ -6058,6 +6059,7 @@ app.post('/test/packets', async (req: Request, res: Response): Promise<void> => 
       landingPageSlug: landingPageSlug || null,
       headerStyle: headerStyle || null,
       footerStyle: footerStyle || null,
+      playMediaUrl: playMediaUrl || null,
       createdAt: now,
       updatedAt: now,
     };
@@ -6251,6 +6253,12 @@ app.get('/test/landing/:slug', async (req: Request, res: Response): Promise<void
       packetId: doc.id,
       landingPageSnapshotUrl: data.landingPageSnapshotUrl || null,
       qrOnlyUrl: data.qrOnlyUrl || null,
+      qrProductState: data.qrProductState || 'qr_canvas',
+      playMediaUrl: data.playMediaUrl || null,
+      playMediaType: data.playMediaType || null,
+      landingPageTitle: data.landingPageTitle || null,
+      landingPageDescription: data.landingPageDescription || null,
+      landingPageBackgroundUrl: data.landingPageBackgroundUrl || null,
     };
     
     console.log(`[Landing Page] Found page for slug: ${slug}`);
