@@ -8602,6 +8602,8 @@ ${allPages.map(page => `  <url>
         storeName,
         channelId,
         channelName,
+        // Fulfillment provider
+        fulfillmentProvider,
       } = req.body;
 
       // Note: qrContent and qrOnlyUrl are generated AFTER packet creation
@@ -8653,6 +8655,8 @@ ${allPages.map(page => `  <url>
         storeName: storeName || null,
         channelId: channelId || null,
         channelName: channelName || null,
+        // Fulfillment provider
+        fulfillmentProvider: fulfillmentProvider || 'printify',
         createdAt: now,
         updatedAt: now,
       };

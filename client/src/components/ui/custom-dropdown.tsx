@@ -30,6 +30,7 @@ export function CustomDropdown({
 }: CustomDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find(opt => opt.value === value);
 
@@ -42,6 +43,14 @@ export function CustomDropdown({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      setTimeout(() => {
+        dropdownRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }
+  }, [isOpen]);
 
   const handleSelect = (optValue: string) => {
     onChange(optValue);
@@ -78,7 +87,7 @@ export function CustomDropdown({
       </button>
 
       {isOpen && options.length > 0 && (
-        <div className="w-full max-h-64 overflow-y-auto rounded-b-lg border border-white/20 border-t-0 bg-slate-900">
+        <div ref={dropdownRef} className="w-full max-h-64 overflow-y-auto rounded-b-lg border border-white/20 border-t-0 bg-slate-900">
           {options.map((opt) => (
             <button
               key={opt.value}

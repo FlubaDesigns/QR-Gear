@@ -142,15 +142,20 @@ export function TextStyleEditor({
           )}
 
           <textarea
+            name={`${testIdPrefix}-text`}
+            id={`${testIdPrefix}-text-input`}
             placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
             value={style.text}
             onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
             maxLength={maxLength}
             inputMode="text"
-            autoComplete="off"
+            enterKeyHint="done"
+            autoComplete="on"
             autoCorrect="on"
+            autoCapitalize="sentences"
             spellCheck={true}
             rows={2}
+            style={{ touchAction: 'manipulation' }}
             className="w-full text-base min-h-[48px] px-3 py-2 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             data-testid={`input-${testIdPrefix}-text`}
           />

@@ -434,6 +434,8 @@ export function CreateGraphicsModule() {
         storeName: selectedStore?.name || null,
         channelId: selectedChannel?.id || null,
         channelName: selectedChannel?.name || null,
+        // Fulfillment provider
+        fulfillmentProvider: state.fulfillmentProvider || 'printify',
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {

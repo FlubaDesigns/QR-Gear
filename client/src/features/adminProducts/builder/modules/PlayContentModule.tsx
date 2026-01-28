@@ -188,7 +188,10 @@ export function PlayContentModule() {
                 </Label>
                 <Input
                   id="play-media-url"
-                  type="url"
+                  type="text"
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCapitalize="off"
                   placeholder="https://youtube.com/watch?v=..."
                   value={state.content.playMediaUrl || ""}
                   onChange={(e) => handleUrlChange(e.target.value)}
