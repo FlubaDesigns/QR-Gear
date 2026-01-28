@@ -3647,6 +3647,71 @@ app.get('/test/printify/catalog', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Helper to normalize Printful product types into proper categories
+function normalizePrintfulCategory(type, title) {
+    const text = `${type} ${title}`.toLowerCase();
+    // Check for specific product types (order matters - more specific first)
+    if (text.includes('hoodie') || text.includes('hood'))
+        return 'Hoodies';
+    if (text.includes('sweatshirt') || text.includes('crewneck') || text.includes('crew neck'))
+        return 'Sweatshirts';
+    if (text.includes('sweatpants') || text.includes('jogger'))
+        return 'Sweatpants';
+    if (text.includes('tank top') || text.includes('tank'))
+        return 'Tank Tops';
+    if (text.includes('long sleeve') || text.includes('longsleeve'))
+        return 'Long Sleeve Shirts';
+    if (text.includes('t-shirt') || text.includes('tee') || text.includes('tshirt'))
+        return 'T-Shirts';
+    if (text.includes('polo'))
+        return 'Polos';
+    if (text.includes('jacket') || text.includes('windbreaker'))
+        return 'Jackets';
+    if (text.includes('hat') || text.includes('cap') || text.includes('beanie') || text.includes('trucker'))
+        return 'Hats';
+    if (text.includes('bag') || text.includes('tote') || text.includes('backpack') || text.includes('duffel'))
+        return 'Bags';
+    if (text.includes('mug') || text.includes('tumbler') || text.includes('bottle'))
+        return 'Drinkware';
+    if (text.includes('poster') || text.includes('print') || text.includes('canvas') || text.includes('wall art'))
+        return 'Wall Art';
+    if (text.includes('sticker'))
+        return 'Stickers';
+    if (text.includes('phone case') || text.includes('iphone') || text.includes('samsung'))
+        return 'Phone Cases';
+    if (text.includes('mouse pad') || text.includes('mousepad'))
+        return 'Mouse Pads';
+    if (text.includes('pillow') || text.includes('cushion'))
+        return 'Pillows';
+    if (text.includes('blanket') || text.includes('throw'))
+        return 'Blankets';
+    if (text.includes('towel'))
+        return 'Towels';
+    if (text.includes('apron'))
+        return 'Aprons';
+    if (text.includes('shorts'))
+        return 'Shorts';
+    if (text.includes('dress'))
+        return 'Dresses';
+    if (text.includes('legging'))
+        return 'Leggings';
+    if (text.includes('socks'))
+        return 'Socks';
+    if (text.includes('jersey'))
+        return 'Jerseys';
+    if (text.includes('calendar'))
+        return 'Calendars';
+    if (text.includes('notebook') || text.includes('journal'))
+        return 'Notebooks';
+    if (text.includes('flag') || text.includes('banner'))
+        return 'Flags & Banners';
+    if (text.includes('patch'))
+        return 'Patches';
+    if (text.includes('embroidered') || text.includes('embroidery'))
+        return 'Embroidered Items';
+    // Default to the original type if no match, but clean it up
+    return type || 'Other';
+}
 // Test endpoint: Printful catalog (no auth required)
 app.get('/test/catalog/printful-products', async (req, res) => {
     try {
@@ -3656,7 +3721,7 @@ app.get('/test/catalog/printful-products', async (req, res) => {
         // Transform to match expected catalog format with categories
         const grouped = {};
         for (const p of rawProducts) {
-            const category = p.type || 'Other';
+            const category = normalizePrintfulCategory(p.type || '', p.title || p.name || '');
             if (!grouped[category])
                 grouped[category] = [];
             // Detect if product is made in USA from description or brand
@@ -6016,4 +6081,5 @@ exports.api = (0, https_1.onRequest)({
     cors: true,
 }, app);
 // Force redeploy: 2026-01-27T06:55:00Z
+// Force deploy Wed Jan 28 04:51:09 AM UTC 2026
 //# sourceMappingURL=index.js.map
