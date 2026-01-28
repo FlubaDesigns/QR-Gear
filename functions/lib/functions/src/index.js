@@ -5397,18 +5397,8 @@ app.get('/test/landing/:slug', async (req, res) => {
         const data = doc.data();
         const landingPage = {
             packetId: doc.id,
-            title: data.landingPageTitle || data.productName || 'QR Product',
-            description: data.landingPageDescription || data.productDescription || '',
-            backgroundUrl: data.landingPageBackgroundUrl || data.compositeUrl || null,
-            compositeUrl: data.compositeUrl || null,
+            landingPageSnapshotUrl: data.landingPageSnapshotUrl || null,
             qrOnlyUrl: data.qrOnlyUrl || null,
-            qrContent: data.qrContent || null,
-            productName: data.productName || null,
-            productImageUrl: data.productImageUrl || null,
-            headerStyle: data.headerStyle || null,
-            footerStyle: data.footerStyle || null,
-            pricing: data.pricing || null,
-            createdAt: data.createdAt?.toDate?.() || null,
         };
         console.log(`[Landing Page] Found page for slug: ${slug}`);
         res.json({

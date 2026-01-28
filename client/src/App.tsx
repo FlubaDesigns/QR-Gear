@@ -123,6 +123,8 @@ function Router() {
       <Route path="/customs/:id" component={Customs} />
       <Route path="/p/:id" component={Packet} />
       <Route path="/play/:packetId" component={PlayLanding} />
+      <Route path="/i/:slug" component={ProductLanding} />
+      <Route path="/e/:slug" component={ProductLanding} />
       <Route path="/m/:slug" component={ProductLanding} />
       <Route path="/gifts" component={GiftShop} />
       <Route path="/gift/redeem" component={GiftRedeem} />

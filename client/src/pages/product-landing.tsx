@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 
 interface LandingPageData {
-  qrContent: string | null;
+  landingPageSnapshotUrl: string | null;
+  qrOnlyUrl: string | null;
 }
 
 export default function ProductLanding() {
@@ -26,7 +27,7 @@ export default function ProductLanding() {
     );
   }
 
-  if (error || !data?.success) {
+  if (error || !data?.success || !data.landingPage?.landingPageSnapshotUrl) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
@@ -45,13 +46,14 @@ export default function ProductLanding() {
     );
   }
 
-  const landing = data.landingPage;
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <p className="text-lg break-all text-center max-w-lg" data-testid="text-url">
-        {landing.qrContent}
-      </p>
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <img
+        src={data.landingPage.landingPageSnapshotUrl}
+        alt="QR Landing"
+        className="max-w-full max-h-screen object-contain"
+        data-testid="img-landing-snapshot"
+      />
     </div>
   );
 }
