@@ -6384,13 +6384,6 @@ app.post('/test/content/upload', async (req: Request, res: Response): Promise<vo
       res.status(400).json({ error: 'File data is empty after decoding' });
       return;
     }
-    
-    // Minimum size check - valid media files should be at least 1KB
-    const MIN_FILE_SIZE = 1024;
-    if (buffer.length < MIN_FILE_SIZE) {
-      res.status(400).json({ error: `File too small (${buffer.length} bytes). Minimum size is 1KB. The file may be corrupted.` });
-      return;
-    }
 
     // Determine storage path based on mode
     // Use fileName if provided to allow multiple files per packet (e.g., product-graphic vs landing-snapshot)

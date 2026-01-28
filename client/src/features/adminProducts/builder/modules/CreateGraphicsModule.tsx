@@ -456,6 +456,9 @@ export function CreateGraphicsModule() {
       const packetData = await packetRes.json();
       const packetId = packetData.packetId;
 
+      let uploadedPlayMediaUrl: string | null = null;
+      let uploadedPlayMediaType: string | null = null;
+      
       if (isPlayMode && state.content?.playMediaSource === "upload" && state.content?.playMediaFile) {
         try {
           const file = state.content.playMediaFile;
@@ -504,6 +507,8 @@ export function CreateGraphicsModule() {
           
           const uploadData = await uploadRes.json();
           console.log('[CreatePacket] Play media uploaded successfully:', uploadData.publicUrl);
+          uploadedPlayMediaUrl = uploadData.publicUrl;
+          uploadedPlayMediaType = file.type || state.content.playMediaMimeType || "video/mp4";
         } catch (uploadErr: any) {
           console.error("Play media upload error:", uploadErr);
           toast({
@@ -512,6 +517,9 @@ export function CreateGraphicsModule() {
             variant: "destructive",
           });
         }
+      } else if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
+        uploadedPlayMediaUrl = state.content.playMediaUrl;
+        uploadedPlayMediaType = "video/url";
       }
 
       const baseUrl = window.location.origin;
@@ -614,6 +622,8 @@ export function CreateGraphicsModule() {
           landingPageSnapshotUrl: landingPageSnapshotUrl || null,
           compositeUrl: productGraphicUrl,
           qrContent: finalQrContent.trim(),
+          playMediaUrl: uploadedPlayMediaUrl || null,
+          playMediaType: uploadedPlayMediaType || null,
         }),
       });
 
