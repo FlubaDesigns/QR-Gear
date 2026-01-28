@@ -859,6 +859,7 @@ export async function generatePrintfulMockup(params: {
   artworkUrl: string;
   artworkVariant: "black" | "white";
   qrSize: "small" | "medium" | "large";
+  fulfillmentProvider?: "printify" | "printful";
 }): Promise<{ mockupUrl?: string; lifestyleUrl?: string; error?: string }> {
   try {
     const result = await generatePrintfulMockupInternal({
@@ -868,6 +869,7 @@ export async function generatePrintfulMockup(params: {
       artworkUrl: params.artworkUrl,
       canonicalPlacementId: "FRONT_CHEST",
       qrSize: params.qrSize,
+      fulfillmentProvider: params.fulfillmentProvider || "printify",
     });
 
     if (!result) {

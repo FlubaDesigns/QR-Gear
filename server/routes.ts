@@ -8081,6 +8081,7 @@ ${allPages.map(page => `  <url>
             artworkUrl: template.artworkUrl,
             artworkVariant: template.artworkVariant || "black",
             qrSize: job.qrSize || "large",
+            fulfillmentProvider: template.fulfillmentProvider || job.fulfillmentProvider || "printify",
           });
 
           // Check for errors

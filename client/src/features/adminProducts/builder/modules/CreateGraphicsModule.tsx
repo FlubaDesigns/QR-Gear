@@ -1012,8 +1012,8 @@ export function CreateGraphicsModule() {
 
             <p className="text-base font-bold mb-3">Generated Thumbnails</p>
             <div className="grid grid-cols-2 gap-3">
-              {/* Hide Landing Page thumbnail for Play mode - video doesn't need a snapshot */}
-              {!isPlayMode && (
+              {/* Hide Landing Page thumbnail for Play and Basics modes - they don't have landing pages */}
+              {!isPlayMode && !isBasicsOrPlusMode && (
                 <Card className="overflow-hidden">
                   <CardContent className="p-3">
                     <p className="text-sm font-semibold mb-2 flex items-center gap-2">
