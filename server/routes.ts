@@ -8605,6 +8605,9 @@ ${allPages.map(page => `  <url>
         channelName,
         // Fulfillment provider
         fulfillmentProvider,
+        // Play mode video
+        playMediaUrl,
+        playMediaType,
       } = req.body;
 
       // Note: qrContent and qrOnlyUrl are generated AFTER packet creation
@@ -8658,6 +8661,9 @@ ${allPages.map(page => `  <url>
         channelName: channelName || null,
         // Fulfillment provider
         fulfillmentProvider: fulfillmentProvider || 'printify',
+        // Play mode video
+        playMediaUrl: playMediaUrl || null,
+        playMediaType: playMediaType || null,
         createdAt: now,
         updatedAt: now,
       };
