@@ -25,6 +25,7 @@ interface MockupRequest {
   artworkVariant?: "black" | "white";
   productId?: string; // Optional - for placement availability validation
   qrSize?: 'small' | 'medium' | 'large'; // QR code size: small=25%, medium=45%, large=65%
+  fulfillmentProvider?: 'printify' | 'printful'; // Source catalog - skip mapping for native Printful products
 }
 
 interface MockupResult {
@@ -104,6 +105,7 @@ export async function getMockupWithFallback(
     artworkVariant = "black",
     productId,
     qrSize = "medium",
+    fulfillmentProvider = "printify",
   } = request;
 
   // Validate canonicalPlacementId is provided
@@ -179,6 +181,7 @@ export async function getMockupWithFallback(
     artworkUrl,
     canonicalPlacementId,
     qrSize,
+    fulfillmentProvider,
   });
 
   if (!mockupResult || !mockupResult.flat) {
@@ -247,51 +250,59 @@ async function generatePrintfulMockupInternal(params: {
   artworkUrl: string;
   canonicalPlacementId: string;
   qrSize?: 'small' | 'medium' | 'large';
+  fulfillmentProvider?: 'printify' | 'printful';
 }): Promise<{ flat?: string; lifestyle?: string; isFallback?: boolean } | null> {
-  const { blueprintId, printProviderId, colorName, colorHex, artworkUrl, canonicalPlacementId } = params;
+  const { blueprintId, printProviderId, colorName, colorHex, artworkUrl, canonicalPlacementId, fulfillmentProvider = 'printify' } = params;
 
-  console.log(`[MockupService/Printful] Generating mockup for blueprint ${blueprintId}, color ${colorName}`);
+  console.log(`[MockupService/Printful] Generating mockup for blueprint ${blueprintId}, color ${colorName}, provider: ${fulfillmentProvider}`);
 
-  // Step 1: Look up the Printify-to-Printful mapping
-  const mapping = await db
-    .select()
-    .from(printifyPrintfulMapping)
-    .where(
-      and(
-        eq(printifyPrintfulMapping.printifyBlueprintId, blueprintId),
-        eq(printifyPrintfulMapping.isActive, true)
-      )
-    )
-    .limit(1);
-
-  let isFallbackMapping = false;
-  
-  if (mapping.length === 0) {
-    console.warn(`[MockupService/Printful] No mapping found for blueprint ${blueprintId}. Creating auto-mapping...`);
-    
-    // Try to auto-create mapping for common products
-    const autoMapping = await createAutoMapping(blueprintId);
-    if (!autoMapping) {
-      console.error(`[MockupService/Printful] Could not create auto-mapping for blueprint ${blueprintId}`);
-      return null;
-    }
-    mapping.push(autoMapping);
-    
-    // Check if this was a fallback mapping (brand contains "fallback")
-    if (autoMapping.printfulBrand?.includes('fallback')) {
-      isFallbackMapping = true;
-      console.log(`[MockupService/Printful] Using FALLBACK mapping - will add indicator to mockup`);
-    }
-  }
-
-  const printfulProductId = mapping[0].printfulProductId;
-  const colorMappingData = mapping[0].colorMapping as Record<string, string> | null;
-  
-  // Map Printify color name to Printful color name if needed
+  let printfulProductId: number;
   let printfulColorName = colorName;
-  if (colorMappingData && colorMappingData[colorName]) {
-    printfulColorName = colorMappingData[colorName];
-    console.log(`[MockupService/Printful] Mapped color: ${colorName} → ${printfulColorName}`);
+  let isFallbackMapping = false;
+
+  // If the product is already from Printful catalog, use the blueprintId directly as the Printful product ID
+  if (fulfillmentProvider === 'printful') {
+    console.log(`[MockupService/Printful] Native Printful product - using blueprintId ${blueprintId} directly (no mapping needed)`);
+    printfulProductId = blueprintId;
+  } else {
+    // Step 1: Look up the Printify-to-Printful mapping for Printify products
+    const mapping = await db
+      .select()
+      .from(printifyPrintfulMapping)
+      .where(
+        and(
+          eq(printifyPrintfulMapping.printifyBlueprintId, blueprintId),
+          eq(printifyPrintfulMapping.isActive, true)
+        )
+      )
+      .limit(1);
+
+    if (mapping.length === 0) {
+      console.warn(`[MockupService/Printful] No mapping found for blueprint ${blueprintId}. Creating auto-mapping...`);
+      
+      // Try to auto-create mapping for common products
+      const autoMapping = await createAutoMapping(blueprintId);
+      if (!autoMapping) {
+        console.error(`[MockupService/Printful] Could not create auto-mapping for blueprint ${blueprintId}`);
+        return null;
+      }
+      mapping.push(autoMapping);
+      
+      // Check if this was a fallback mapping (brand contains "fallback")
+      if (autoMapping.printfulBrand?.includes('fallback')) {
+        isFallbackMapping = true;
+        console.log(`[MockupService/Printful] Using FALLBACK mapping - will add indicator to mockup`);
+      }
+    }
+
+    printfulProductId = mapping[0].printfulProductId;
+    const colorMappingData = mapping[0].colorMapping as Record<string, string> | null;
+    
+    // Map Printify color name to Printful color name if needed
+    if (colorMappingData && colorMappingData[colorName]) {
+      printfulColorName = colorMappingData[colorName];
+      console.log(`[MockupService/Printful] Mapped color: ${colorName} → ${printfulColorName}`);
+    }
   }
 
   // Make artwork URL absolute

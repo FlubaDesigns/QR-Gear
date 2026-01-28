@@ -8442,7 +8442,8 @@ ${allPages.map(page => `  <url>
     try {
       const { 
         blueprintId, printProviderId, colorName, colorHex, 
-        placement, artworkUrl, qrSize = "medium" 
+        placement, artworkUrl, qrSize = "medium",
+        fulfillmentProvider = "printify"
       } = req.body;
 
       if (!blueprintId || !colorName || !artworkUrl) {
@@ -8451,7 +8452,7 @@ ${allPages.map(page => `  <url>
         });
       }
 
-      console.log(`[Priority Mockup] Generating for: ${colorName} @ ${placement}`);
+      console.log(`[Priority Mockup] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
 
       // Import the mockup service
       const { getMockupWithFallback } = await import("./lib/mockup-service");
@@ -8467,6 +8468,7 @@ ${allPages.map(page => `  <url>
         artworkUrl,
         artworkVariant: "black",
         qrSize: qrSize as 'small' | 'medium' | 'large',
+        fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
       }, storage);
 
       console.log(`[Priority Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);

@@ -841,13 +841,9 @@ export function CreateGraphicsModule() {
     return null;
   }
 
-  const moduleTitle = isPlayMode ? "Create Video Packet" : "Create Packet";
-  const buttonLabel = isPlayMode ? "Create Video" : "Create Packet";
-  const creatingLabel = isPlayMode ? "Creating Video..." : "Creating Packet...";
-
   return (
     <CollapsibleModule
-      title={moduleTitle}
+      title="Create Packet"
       icon={<Package className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen
@@ -885,12 +881,12 @@ export function CreateGraphicsModule() {
               {isCreating ? (
                 <>
                   <Loader2 className="h-7 w-7 animate-spin" />
-                  {creatingLabel}
+                  Creating Packet...
                 </>
               ) : (
                 <>
                   <Package className="h-7 w-7" />
-                  {buttonLabel}
+                  Create Packet
                 </>
               )}
             </button>
