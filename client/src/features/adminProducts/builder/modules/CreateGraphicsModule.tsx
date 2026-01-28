@@ -458,13 +458,16 @@ export function CreateGraphicsModule() {
         try {
           const file = state.content.playMediaFile;
           const fileName = file.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
+          console.log('[CreatePacket] Uploading play media file:', fileName, 'size:', file.size);
+          
           const base64Data = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
             reader.onerror = () => reject(new Error("Failed to read file"));
             reader.readAsDataURL(file);
           });
-          await fetch(`${apiBase}/content/upload`, {
+          
+          const uploadRes = await fetch(`${apiBase}/content/upload`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -476,8 +479,22 @@ export function CreateGraphicsModule() {
               fileName,
             }),
           });
-        } catch (uploadErr) {
-          console.warn("Play media upload error:", uploadErr);
+          
+          if (!uploadRes.ok) {
+            const errData = await uploadRes.json().catch(() => ({}));
+            console.error('[CreatePacket] Play media upload failed:', errData);
+            throw new Error(errData.error || `Upload failed: ${uploadRes.status}`);
+          }
+          
+          const uploadData = await uploadRes.json();
+          console.log('[CreatePacket] Play media uploaded successfully:', uploadData.publicUrl);
+        } catch (uploadErr: any) {
+          console.error("Play media upload error:", uploadErr);
+          toast({
+            title: "Video Upload Failed",
+            description: uploadErr.message || "Could not upload video file",
+            variant: "destructive",
+          });
         }
       }
 
@@ -824,9 +841,13 @@ export function CreateGraphicsModule() {
     return null;
   }
 
+  const moduleTitle = isPlayMode ? "Create Video Packet" : "Create Packet";
+  const buttonLabel = isPlayMode ? "Create Video" : "Create Packet";
+  const creatingLabel = isPlayMode ? "Creating Video..." : "Creating Packet...";
+
   return (
     <CollapsibleModule
-      title="Create Packet"
+      title={moduleTitle}
       icon={<Package className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen
@@ -864,12 +885,12 @@ export function CreateGraphicsModule() {
               {isCreating ? (
                 <>
                   <Loader2 className="h-7 w-7 animate-spin" />
-                  Creating Packet...
+                  {creatingLabel}
                 </>
               ) : (
                 <>
                   <Package className="h-7 w-7" />
-                  Create Packet
+                  {buttonLabel}
                 </>
               )}
             </button>

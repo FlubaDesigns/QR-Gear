@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Check, Crop, Trash2, X, FileText, RefreshCw, Type } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Image, Loader2, Check, Crop, Trash2, X, FileText, RefreshCw } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
@@ -9,11 +8,6 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { ProductCropDialog } from "../components/ProductCropDialog";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { LandingPageViewer } from "@/features/shared/components/LandingPageViewer";
-import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
-
-// Test defaults for Top/Bottom text
-const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "HELLO", enabled: true };
-const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "WORLD", enabled: true };
 
 interface BackgroundAsset {
   id: string;
@@ -144,72 +138,9 @@ export function URLContentModule() {
       defaultOpen
     >
       <div className="space-y-3 sm:space-y-6">
-        {/* Section 1: Product Graphic Text (in its own card - FIRST) */}
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Type className="h-4 w-4" />
-              Product Graphic Text
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Add styled text to the top or bottom of your product graphic
-            </p>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0 space-y-4">
-            <TextStyleEditor
-              label="Top Text"
-              sublabel="Appears at top of graphic"
-              maxLength={30}
-              style={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
-              onChange={(updates) => setContent({ 
-                headerStyle: { 
-                  ...((state.content.headerStyle as TextStyleConfig) || headerDefaultStyle), 
-                  ...updates 
-                } 
-              })}
-              testIdPrefix="header"
-              showPositionControls={true}
-              previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-            />
-            
-            <TextStyleEditor
-              label="Bottom Text"
-              sublabel="Appears at bottom of graphic"
-              maxLength={30}
-              style={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
-              onChange={(updates) => setContent({ 
-                footerStyle: { 
-                  ...((state.content.footerStyle as TextStyleConfig) || footerDefaultStyle), 
-                  ...updates 
-                } 
-              })}
-              testIdPrefix="footer"
-              showPositionControls={true}
-              previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-            />
-            
-            {/* Combined Product Graphic Preview using shared component */}
-            {((state.content.headerStyle as TextStyleConfig)?.enabled || (state.content.footerStyle as TextStyleConfig)?.enabled) && (
-              <div className="mt-4 pt-4 border-t flex flex-col items-center">
-                <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
-                <GraphicPreviewView
-                  backgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-                  headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
-                  footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
-                  showQRCode={true}
-                  aspectRatio="square"
-                />
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  This is how your product graphic will appear
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Section 2: URL Content (Background + Title + Description) */}
-        <div className="space-y-3 sm:space-y-4 pt-3 sm:pt-4 border-t">
-          <p className="text-sm font-medium">URL Content</p>
+        {/* URL Content (Background + Title + Description) */}
+        <div className="space-y-3 sm:space-y-4">
+          <p className="text-sm font-medium">Landing Page Content</p>
           <p className="text-xs text-muted-foreground">
             Configure the landing page background and text
           </p>

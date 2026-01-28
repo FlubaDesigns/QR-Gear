@@ -1,6 +1,7 @@
 import { BuilderProvider } from "./BuilderContext";
 import { StateModule } from "./modules/StateModule";
 import { PlacementModule } from "./modules/PlacementModule";
+import { ProductGraphicTextModule } from "./modules/ProductGraphicTextModule";
 import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
@@ -19,7 +20,12 @@ function BuilderModules() {
         <PlacementModule />
       </InlineDebugBoundary>
       
-      {/* Step 3: URL Settings (Background, Title, Description, Top/Bottom Text) */}
+      {/* Step 3: Product Graphic Text (Header/Footer for Canvas, Play, Dynamics - NOT Basics) */}
+      <InlineDebugBoundary label="ProductGraphicTextModule">
+        <ProductGraphicTextModule />
+      </InlineDebugBoundary>
+      
+      {/* Step 4: URL Settings (Background, Title, Description for Canvas/Dynamics) */}
       <InlineDebugBoundary label="URLContentModule">
         <URLContentModule />
       </InlineDebugBoundary>
