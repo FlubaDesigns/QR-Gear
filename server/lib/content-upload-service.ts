@@ -65,6 +65,18 @@ export async function uploadContent(
 ): Promise<ContentUploadResult> {
   ensureFirebaseInitialized();
   
+  console.log(`[ContentUpload] Starting upload: mode=${mode}, userId=${userId}, packetId=${packetId}, mimeType=${mimeType}, fileName=${originalFileName}, bufferSize=${buffer.length}`);
+  
+  if (!buffer || buffer.length === 0) {
+    throw new Error('File is empty - no data received');
+  }
+  
+  // Minimum size check - valid media files should be at least 1KB
+  const MIN_FILE_SIZE = 1024; // 1KB minimum
+  if (buffer.length < MIN_FILE_SIZE) {
+    throw new Error(`File too small (${buffer.length} bytes). Minimum size is 1KB. The file may be corrupted.`);
+  }
+  
   if (!ALLOWED_CONTENT_TYPES.includes(mimeType)) {
     throw new Error(`Invalid file type: ${mimeType}. Allowed: ${ALLOWED_CONTENT_TYPES.join(', ')}`);
   }

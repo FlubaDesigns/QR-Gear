@@ -9003,7 +9003,19 @@ ${allPages.map(page => `  <url>
         const base64Match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
         const actualMimeType = base64Match?.[1] || mimeType || 'application/octet-stream';
         const actualBase64 = base64Match?.[2] || base64Data;
+        
+        console.log(`[Content Upload] Processing ${mode} upload: base64 length=${base64Data?.length || 0}, extracted length=${actualBase64?.length || 0}, mimeType=${actualMimeType}`);
+        
+        if (!actualBase64 || actualBase64.length === 0) {
+          return res.status(400).json({ error: 'No file data received - base64 content is empty' });
+        }
+        
         const buffer = Buffer.from(actualBase64, 'base64');
+        console.log(`[Content Upload] Decoded buffer size: ${buffer.length} bytes`);
+        
+        if (buffer.length === 0) {
+          return res.status(400).json({ error: 'File data is empty after decoding' });
+        }
         
         result = await uploadContent(
           buffer, 

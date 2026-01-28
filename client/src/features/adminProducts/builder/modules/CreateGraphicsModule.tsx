@@ -460,14 +460,28 @@ export function CreateGraphicsModule() {
         try {
           const file = state.content.playMediaFile;
           const fileName = file.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
-          console.log('[CreatePacket] Uploading play media file:', fileName, 'size:', file.size);
+          console.log('[CreatePacket] Uploading play media file:', fileName, 'size:', file.size, 'type:', file.type);
+          
+          if (!file.size || file.size === 0) {
+            throw new Error("File is empty (0 bytes). Please select a valid video file.");
+          }
           
           const base64Data = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.onload = () => {
+              const result = reader.result as string;
+              console.log('[CreatePacket] FileReader result length:', result?.length || 0);
+              if (!result || result.length < 100) {
+                reject(new Error("File could not be read - appears empty or corrupted"));
+                return;
+              }
+              resolve(result);
+            };
+            reader.onerror = () => reject(new Error("Failed to read file: " + reader.error?.message));
             reader.readAsDataURL(file);
           });
+          
+          console.log('[CreatePacket] Base64 data length:', base64Data.length);
           
           const uploadRes = await fetch(`${apiBase}/content/upload`, {
             method: "POST",
