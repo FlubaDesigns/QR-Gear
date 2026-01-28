@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
 import { useProductsContext } from "../ProductsContext";
 import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor } from "./types";
 import type { RoleType, Store, Channel } from "../shared/types";
@@ -94,6 +94,19 @@ interface BuilderProviderProps {
 export function BuilderProvider({ children }: BuilderProviderProps) {
   const { api, selectedProviders, selectedRole, selectedStore, selectedChannel } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
+
+  // Sync fulfillmentProvider with selectedProviders from ProductsContext
+  // This ensures the mockup service knows which provider (printify/printful) to use
+  useEffect(() => {
+    const activeProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+    setState(prev => {
+      if (prev.fulfillmentProvider !== activeProvider) {
+        console.log(`[BuilderContext] Syncing fulfillmentProvider: ${prev.fulfillmentProvider} -> ${activeProvider}`);
+        return { ...prev, fulfillmentProvider: activeProvider };
+      }
+      return prev;
+    });
+  }, [selectedProviders]);
 
   const setSourceType = useCallback((type: SourceType) => {
     setState(prev => ({

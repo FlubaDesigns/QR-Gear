@@ -759,6 +759,7 @@ export function CreateGraphicsModule() {
         placement: selectedPlacement,
         canonicalPlacement,
         artworkUrl: productGraphicUrl?.substring(0, 100),
+        fulfillmentProvider: state.fulfillmentProvider,
       });
       
       fetch(`${apiBase}/mockup/priority`, {
