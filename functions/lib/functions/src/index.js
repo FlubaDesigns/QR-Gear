@@ -3353,15 +3353,28 @@ app.post('/test/stores/:storeId/channels', async (req, res) => {
             res.status(400).json({ error: 'Channel name is required' });
             return;
         }
-        const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const channelName = name.trim();
+        const channelId = channelName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         const channelData = {
-            name: name.trim(),
+            name: channelName,
             storeId,
             isActive: true,
             productCount: 0,
             createdAt: new Date().toISOString(),
         };
         await db.collection('storeChannels').doc(channelId).set(channelData);
+        const storeRef = db.collection('partnerStores').doc(storeId);
+        const storeDoc = await storeRef.get();
+        if (storeDoc.exists) {
+            const storeData = storeDoc.data() || {};
+            const currentSegments = storeData.availableSegments || [];
+            if (!currentSegments.includes(channelName)) {
+                await storeRef.update({
+                    availableSegments: [...currentSegments, channelName],
+                });
+                console.log(`[TestChannels] Added channel "${channelName}" to store ${storeId} availableSegments`);
+            }
+        }
         console.log(`[TestChannels] Created channel: ${channelId} for store ${storeId}`);
         res.json({ id: channelId, ...channelData });
     }

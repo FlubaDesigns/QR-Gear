@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, Library, FolderOpen, Layers, RefreshCw, Plus } from "lucide-react";
 import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
@@ -283,6 +283,9 @@ export function StoreBuilderHarness() {
   const [isCreatingStore, setIsCreatingStore] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   
+  const storeSelectRef = useRef<HTMLDivElement>(null);
+  const channelSelectRef = useRef<HTMLDivElement>(null);
+  
   const queryClient = useQueryClient();
 
   const fetchTemplates = useCallback(async () => {
@@ -506,10 +509,14 @@ export function StoreBuilderHarness() {
   const previewImageUrl = productPackage?.priorityMockupUrl || currentMockup?.mockupUrl || productPackage?.productImageUrl || productPackage?.compositeUrl;
 
   const packetThumbnails = [
-    productPackage?.compositeUrl,
-    productPackage?.qrOnlyUrl,
-    productPackage?.productImageUrl,
-  ].filter(Boolean) as string[];
+    { url: productPackage?.compositeUrl, useColorBg: true },
+    { url: productPackage?.qrOnlyUrl, useColorBg: false },
+    { url: productPackage?.productImageUrl, useColorBg: false },
+  ].filter(t => t.url) as { url: string; useColorBg: boolean }[];
+  
+  const defaultColorHex = productPackage?.colors?.find(c => c.name === configuration.defaultColor)?.hex || 
+    (productPackage?.defaultColorHex) ||
+    getColorHex({ name: configuration.defaultColor || "White" });
 
   const toggleColor = (colorName: string) => {
     const newColors = new Set(configuration.enabledColors);
@@ -930,16 +937,17 @@ export function StoreBuilderHarness() {
             
             {packetThumbnails.length > 0 && (
               <div className="flex gap-1">
-                {packetThumbnails.slice(0, 3).map((url, idx) => (
+                {packetThumbnails.slice(0, 3).map((thumb, idx) => (
                   <button
                     type="button" 
                     key={idx} 
-                    className="flex-1 aspect-square bg-muted rounded overflow-hidden border hover-elevate cursor-pointer"
-                    onClick={() => setThumbnailLightbox(url)}
+                    className="flex-1 aspect-square rounded overflow-hidden border hover-elevate cursor-pointer"
+                    style={{ backgroundColor: thumb.useColorBg ? defaultColorHex : '#f5f5f5' }}
+                    onClick={() => setThumbnailLightbox(thumb.url)}
                     data-testid={`thumb-${idx}`}
                   >
                     <img 
-                      src={url} 
+                      src={thumb.url} 
                       alt="" 
                       className="w-full h-full object-contain"
                     />
@@ -1132,6 +1140,7 @@ export function StoreBuilderHarness() {
                 setSelectedStoreType("internal");
                 setSelectedStoreId(null);
                 setSelectedChannel(null);
+                setTimeout(() => storeSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
               }}
               className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "internal" ? "qr-btn--primary" : "qr-btn--outline"}`}
               data-testid="store-type-internal"
@@ -1144,6 +1153,7 @@ export function StoreBuilderHarness() {
                 setSelectedStoreType("external");
                 setSelectedStoreId(null);
                 setSelectedChannel(null);
+                setTimeout(() => storeSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
               }}
               className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "external" ? "qr-btn--primary" : "qr-btn--outline"}`}
               data-testid="store-type-external"
@@ -1154,12 +1164,13 @@ export function StoreBuilderHarness() {
           </div>
 
           {selectedStoreType && (
-            <div className="flex flex-col gap-3">
+            <div ref={storeSelectRef} className="flex flex-col gap-3">
               <CustomDropdown
                 value={selectedStoreId || ""}
                 onChange={(val) => {
                   setSelectedStoreId(val);
                   setSelectedChannel(null);
+                  setTimeout(() => channelSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
                 }}
                 options={storeOptions}
                 placeholder="Select a store..."
@@ -1211,7 +1222,7 @@ export function StoreBuilderHarness() {
           )}
 
           {selectedStore && (
-            <div className="space-y-3">
+            <div ref={channelSelectRef} className="space-y-3">
               <p className="text-base font-medium">Select Channel:</p>
               <div className="flex flex-col gap-2">
                 {channels.map((channel) => (

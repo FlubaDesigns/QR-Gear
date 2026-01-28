@@ -1,5 +1,4 @@
 import { ArrowRight, Copy, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { LightboxItem } from "@/features/shared/components/SharedLightbox";
 
@@ -36,37 +35,31 @@ export function StoreLibrarySkin({ items, onClearSelection }: StoreLibrarySkinPr
   };
 
   return (
-    <>
-      <Button
-        variant="default"
-        size="sm"
-        className="w-full justify-start gap-2"
+    <div className="flex flex-col gap-2">
+      <button
         onClick={handleMove}
+        className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
         data-testid="button-action-move"
       >
-        <ArrowRight className="w-4 h-4" />
-        Move to Target Store
-      </Button>
-      <Button
-        variant="secondary"
-        size="sm"
-        className="w-full justify-start gap-2"
+        <ArrowRight className="h-5 w-5" />
+        Move to Target
+      </button>
+      <button
         onClick={handleReplicate}
+        className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
         data-testid="button-action-replicate"
       >
-        <Copy className="w-4 h-4" />
-        Replicate to Target Store
-      </Button>
-      <Button
-        variant="destructive"
-        size="sm"
-        className="w-full justify-start gap-2"
+        <Copy className="h-5 w-5" />
+        Copy to Target
+      </button>
+      <button
         onClick={handleDelete}
+        className="qr-btn qr-btn--danger qr-btn--touch qr-btn--full"
         data-testid="button-action-delete"
       >
-        <Trash2 className="w-4 h-4" />
-        Delete Selected
-      </Button>
-    </>
+        <Trash2 className="h-5 w-5" />
+        Delete
+      </button>
+    </div>
   );
 }
