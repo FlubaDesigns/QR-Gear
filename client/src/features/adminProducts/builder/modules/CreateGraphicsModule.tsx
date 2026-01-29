@@ -525,7 +525,7 @@ export function CreateGraphicsModule() {
       }
 
       const baseUrl = window.location.origin;
-      const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_dynamics";
+      const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_dynamics" || state.qrProductState === "qr_plus";
       const finalQrContent = isLandingPageMode
         ? `${baseUrl}/m/${landingPageSlug}`
         : (state.content?.url || state.content?.title || "");
