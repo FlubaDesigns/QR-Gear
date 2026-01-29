@@ -10,6 +10,7 @@ import { useBuilderContext } from "../BuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
+import { PLACEMENT_BASE_DIMENSIONS } from "../types";
 
 interface HostingTier {
   code: string;
@@ -64,6 +65,7 @@ interface ProductGraphicOptions {
   headerStyle: TextStyle | null;
   footerStyle: TextStyle | null;
   useTransparentBackground?: boolean;
+  placement?: string;  // e.g., "front-center", "pocket", "left-shoulder"
 }
 
 async function fetchImageAsDataUrl(url: string): Promise<string> {
@@ -96,10 +98,15 @@ async function fetchImageAsDataUrl(url: string): Promise<string> {
 async function generateProductGraphic(options: ProductGraphicOptions): Promise<string> {
   // NOTE: This function generates ONLY QR code + text on a TRANSPARENT background
   // NO background image is used here - backgroundUrl is only for landing page snapshot
-  const { qrUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground } = options;
-  const CANVAS_WIDTH = 1080;
-  const CANVAS_HEIGHT = 1920;
-  const QR_SIZE = 400;
+  const { qrUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground, placement } = options;
+  
+  // Get placement-specific dimensions or use default (front-center)
+  const placementDims = PLACEMENT_BASE_DIMENSIONS[placement || "front-center"] || PLACEMENT_BASE_DIMENSIONS["front-center"];
+  const CANVAS_WIDTH = placementDims.width;
+  const CANVAS_HEIGHT = placementDims.height;
+  
+  // Scale QR size proportionally to canvas (about 40% of smaller dimension)
+  const QR_SIZE = Math.round(Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.4);
   
   console.log('[generateProductGraphic] GENERATING TRANSPARENT PRODUCT GRAPHIC');
   console.log('[generateProductGraphic] Options:', { 
@@ -151,7 +158,7 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
 
   if (headerStyle?.enabled && headerStyle.text) {
     const fontSize = parseInt(headerStyle.fontSize) || 144;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
     ctx.font = `bold ${scaledFontSize}px ${headerStyle.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -172,7 +179,7 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
 
   if (footerStyle?.enabled && footerStyle.text) {
     const fontSize = parseInt(footerStyle.fontSize) || 144;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
     ctx.font = `bold ${scaledFontSize}px ${footerStyle.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -218,8 +225,9 @@ interface LandingPageSnapshotOptions {
 
 async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions): Promise<string> {
   const { backgroundUrl, titleStyle, descriptionStyle } = options;
-  const CANVAS_WIDTH = 1080;
-  const CANVAS_HEIGHT = 1920;
+  // Match product graphic dimensions for consistency
+  const CANVAS_WIDTH = 2700;
+  const CANVAS_HEIGHT = 4800;
   
   console.log('[generateLandingPageSnapshot] Starting with:', { backgroundUrl, titleStyle, descriptionStyle });
   
@@ -252,7 +260,7 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
 
   if (titleStyle?.text) {
     const fontSize = parseInt(titleStyle.fontSize) || 72;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
     ctx.font = `bold ${scaledFontSize}px ${titleStyle.fontFamily || 'Arial'}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -271,7 +279,7 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
 
   if (descriptionStyle?.text) {
     const fontSize = parseInt(descriptionStyle.fontSize) || 48;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200));
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
     ctx.font = `${scaledFontSize}px ${descriptionStyle.fontFamily || 'Arial'}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -540,6 +548,9 @@ export function CreateGraphicsModule() {
       const descriptionStyle = state.content?.descriptionStyle as TextStyle | null;
       const productColorHex = state.selectedColor?.hex || null;
       
+      // Get the primary placement for dimension sizing
+      const primaryPlacement = (state.selectedPlacements || ["front-center"])[0];
+      
       let productGraphicUrl: string;
       try {
         productGraphicUrl = await generateProductGraphic({
@@ -548,6 +559,7 @@ export function CreateGraphicsModule() {
           headerStyle,
           footerStyle,
           useTransparentBackground: true,  // Save with transparent background
+          placement: primaryPlacement,      // Use placement-specific dimensions
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

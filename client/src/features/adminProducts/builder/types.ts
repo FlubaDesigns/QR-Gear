@@ -200,6 +200,33 @@ export const PLACEMENT_SIZE_SCALES: Record<string, Record<PlacementSize, number>
   "mug-back": { small: 0.65, medium: 0.8, large: 1.0 },
 };
 
+// Base dimensions per placement at 300 DPI (width × height in pixels)
+// These are the LARGE sizes - small/medium use the scale factors above
+export const PLACEMENT_BASE_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  // Full front/back: 12" × 16" at 300 DPI
+  "front-center": { width: 3600, height: 4800 },
+  "back": { width: 3600, height: 4200 },
+  // Center chest: 10" × 6" at 300 DPI
+  "front-chest": { width: 3000, height: 1800 },
+  // Left chest/pocket: 4" × 4" at 300 DPI
+  "pocket": { width: 1200, height: 1200 },
+  // Sleeve: 4" × 3.5" at 300 DPI
+  "left-shoulder": { width: 1200, height: 1050 },
+  "right-shoulder": { width: 1200, height: 1050 },
+  // Hat: 4" × 2.5" at 300 DPI
+  "hat-front": { width: 1200, height: 750 },
+  "hat-side": { width: 900, height: 600 },
+  "hat-back": { width: 1200, height: 750 },
+  // Bag front/back: 10" × 10" at 300 DPI
+  "bag-front": { width: 3000, height: 3000 },
+  "bag-back": { width: 3000, height: 3000 },
+  "bag-pocket": { width: 1200, height: 1200 },
+  // Mug: 9.5" × 3.5" at 300 DPI (wrap)
+  "mug-wrap": { width: 2850, height: 1050 },
+  "mug-front": { width: 1200, height: 1050 },
+  "mug-back": { width: 1200, height: 1050 },
+};
+
 export interface PlacementOption {
   id: PlacementId;
   label: string;
