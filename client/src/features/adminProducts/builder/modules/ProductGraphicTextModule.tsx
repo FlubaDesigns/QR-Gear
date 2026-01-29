@@ -11,7 +11,8 @@ const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", ena
 export function ProductGraphicTextModule() {
   const { state, setContent } = useBuilderContext();
 
-  const showGraphicText = state.qrProductState === "qr_canvas" || 
+  const showGraphicText = state.qrProductState === "qr_plus" ||
+                          state.qrProductState === "qr_canvas" || 
                           state.qrProductState === "qr_play" || 
                           state.qrProductState === "qr_dynamics";
 
