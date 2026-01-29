@@ -1933,6 +1933,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get allowed blank products for a store
+  app.get("/api/test/stores/:storeId/allowed-products", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      console.log(`[AllowedProducts] GET allowed products for store: ${storeId}`);
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      
+      const doc = await db.collection('storeAllowedProducts').doc(storeId).get();
+      
+      if (!doc.exists) {
+        return res.json({ storeId, products: [] });
+      }
+      
+      const data = doc.data();
+      res.json({ 
+        storeId, 
+        products: data?.products || [],
+        updatedAt: data?.updatedAt 
+      });
+    } catch (error: any) {
+      console.error('[AllowedProducts] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Set allowed blank products for a store
+  app.post("/api/test/stores/:storeId/allowed-products", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { products } = req.body;
+      
+      if (!Array.isArray(products)) {
+        return res.status(400).json({ error: 'products must be an array' });
+      }
+      
+      console.log(`[AllowedProducts] POST ${products.length} products for store: ${storeId}`);
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      
+      await db.collection('storeAllowedProducts').doc(storeId).set({
+        storeId,
+        products,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      res.json({ 
+        success: true, 
+        storeId, 
+        productCount: products.length 
+      });
+    } catch (error: any) {
+      console.error('[AllowedProducts] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test endpoint: partner-stores (no auth required) - fetches from Firestore
   app.get("/api/test/partner-stores", async (req: any, res) => {
     try {
