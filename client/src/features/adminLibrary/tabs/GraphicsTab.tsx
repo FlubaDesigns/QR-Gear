@@ -23,12 +23,26 @@ interface ProductPacket {
 }
 
 function packetToSkinItem(packet: ProductPacket): SkinItem {
+  // Build images array for gallery view - Graphics show the artwork
+  const images: { url: string; label: string }[] = [];
+  
+  // 1. Composite graphic (primary for graphics)
+  if (packet.compositeUrl) {
+    images.push({ url: packet.compositeUrl, label: "Graphic" });
+  }
+  
+  // 2. QR only version
+  if (packet.qrOnlyUrl) {
+    images.push({ url: packet.qrOnlyUrl, label: "QR Only" });
+  }
+
   return {
     id: packet.id,
     packetId: packet.id,
     name: packet.productName || "Untitled",
     primaryImage: packet.compositeUrl,
     secondaryImage: packet.qrOnlyUrl,
+    images: images.length > 0 ? images : undefined,
     qrContent: packet.qrContent,
     headerText: packet.headerText,
     footerText: packet.footerText,
