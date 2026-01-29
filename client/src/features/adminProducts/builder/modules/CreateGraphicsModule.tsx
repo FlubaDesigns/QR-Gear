@@ -405,7 +405,7 @@ export function CreateGraphicsModule() {
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
         productDescription: product?.description || null,
-        productImageUrl: null,
+        productImageUrl: product?.imageUrl || null,
         blueprintId: product?.blueprintId || null,
         printProviderId: product?.printProviderId || null,
         manufacturer: product?.manufacturer || null,
