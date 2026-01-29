@@ -462,6 +462,7 @@ export function CreateGraphicsModule() {
       if (isPlayMode && state.content?.playMediaSource === "upload" && state.content?.playMediaFile) {
         try {
           const file = state.content.playMediaFile;
+          console.log('[CreatePacket] playMediaFile object:', file, 'instanceof File:', file instanceof File, 'instanceof Blob:', file instanceof Blob);
           const fileName = file.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
           console.log('[CreatePacket] Uploading play media file:', fileName, 'size:', file.size, 'type:', file.type);
           
