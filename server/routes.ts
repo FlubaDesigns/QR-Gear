@@ -1254,7 +1254,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PUBLIC test endpoint for background-assets (mirrors /api/admin/background-assets but no auth)
   app.get("/api/test/background-assets", async (req: any, res) => {
     try {
-      const { libraryAssets } = await import("@shared/schema");
       const typeFilter = (req.query.type as string) || 'source';
       const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
       
@@ -1262,18 +1261,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
       }
       
-      const assets = await db.select().from(libraryAssets)
-        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, typeFilter)))
-        .orderBy(libraryAssets.createdAt);
+      // Use storage adapter for Firestore consistency between dev/prod
+      const assets = await storage.getAdminLibraryAssets({ assetType: typeFilter });
       
-      const assetsWithProxy = assets.map(asset => {
-        const filename = (asset.storageUrl || '').split('/').pop() || '';
-        return {
-          ...asset,
-          proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
-          publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
-        };
-      });
+      // Filter only active assets and add proxy URLs
+      const assetsWithProxy = assets
+        .filter(asset => asset.isActive !== false)
+        .map(asset => {
+          const filename = (asset.storageUrl || '').split('/').pop() || '';
+          return {
+            ...asset,
+            proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+            publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
+          };
+        });
       
       res.json(assetsWithProxy);
     } catch (error: any) {
