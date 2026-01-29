@@ -185,6 +185,7 @@ export async function downloadAndStreamFile(
       `${folder}/${fileName}`, // Check the explicitly provided folder
       `library/backgrounds/raw/${fileName}`,
       `library/backgrounds/cropped/${fileName}`,
+      `library/backgrounds/archive/${fileName}`,
       `library/backgrounds/zip/${fileName}`,
     ];
 
