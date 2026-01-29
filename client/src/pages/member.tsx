@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,7 @@ interface StoreProductLink {
 
 export default function MemberPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
 
@@ -163,6 +164,12 @@ export default function MemberPage() {
                 <Button size="sm" data-testid="link-create-product">
                   <Plus className="h-4 w-4 mr-1" />
                   Create Product
+                </Button>
+              </Link>
+              <Link href="/test-store-builder">
+                <Button variant="outline" size="sm" data-testid="link-store-builder-quick">
+                  <Eye className="h-4 w-4 mr-1" />
+                  Store Builder
                 </Button>
               </Link>
               <Link href="/test-dynamics">
@@ -291,7 +298,7 @@ export default function MemberPage() {
                         onEdit: (id) => {
                           const product = products.find(p => p.id === id);
                           if (product?.packetId) {
-                            window.location.href = `/test-store-builder?packetId=${product.packetId}`;
+                            setLocation(`/test-store-builder?packetId=${product.packetId}`);
                           }
                         },
                       }}
