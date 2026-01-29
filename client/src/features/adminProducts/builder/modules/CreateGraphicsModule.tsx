@@ -510,10 +510,11 @@ export function CreateGraphicsModule() {
           uploadedPlayMediaUrl = uploadData.publicUrl;
           uploadedPlayMediaType = file.type || state.content.playMediaMimeType || "video/mp4";
         } catch (uploadErr: any) {
-          console.error("Play media upload error:", uploadErr);
+          const errMsg = uploadErr?.message || uploadErr?.toString?.() || JSON.stringify(uploadErr) || "Unknown error";
+          console.error("Play media upload error:", errMsg, uploadErr);
           toast({
             title: "Video Upload Failed",
-            description: uploadErr.message || "Could not upload video file",
+            description: errMsg.slice(0, 200),
             variant: "destructive",
           });
         }
