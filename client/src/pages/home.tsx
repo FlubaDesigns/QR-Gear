@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Shield } from "lucide-react";
+import { Shield, FlaskConical } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Hero from "@/components/Hero";
@@ -21,6 +21,10 @@ function AdminQuickAccess() {
       <Link href="/admin" className="admin-quick-link" data-testid="link-admin-quick">
         <Shield className="w-4 h-4" />
         Admin Panel
+      </Link>
+      <Link href="/test-products" className="admin-quick-link" data-testid="link-test-products">
+        <FlaskConical className="w-4 h-4" />
+        Test Products
       </Link>
     </div>
   );
