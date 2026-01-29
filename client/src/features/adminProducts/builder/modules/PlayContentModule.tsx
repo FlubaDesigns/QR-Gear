@@ -16,7 +16,7 @@ export function PlayContentModule() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback((file: File) => {
+  const handleFileSelect = useCallback(async (file: File) => {
     setUploadError(null);
     
     if (file.size > MAX_FILE_SIZE) {
@@ -29,12 +29,23 @@ export function PlayContentModule() {
       return;
     }
 
-    const objectUrl = URL.createObjectURL(file);
-    setContent({
-      playMediaFile: file,
-      playMediaPreview: objectUrl,
-      playMediaMimeType: file.type,
-    });
+    // Read the file into memory immediately to prevent "file no longer accessible" errors
+    // This happens when the browser loses the file reference before upload
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: file.type });
+      const persistedFile = new File([blob], file.name, { type: file.type, lastModified: file.lastModified });
+      
+      const objectUrl = URL.createObjectURL(persistedFile);
+      setContent({
+        playMediaFile: persistedFile,
+        playMediaPreview: objectUrl,
+        playMediaMimeType: file.type,
+      });
+    } catch (err: any) {
+      console.error("Failed to read file into memory:", err);
+      setUploadError("Failed to read file. Please try selecting it again.");
+    }
   }, [setContent]);
 
   if (state.qrProductState !== "qr_play" || !state.selectedProduct || !state.content) {
