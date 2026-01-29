@@ -29,6 +29,15 @@ export interface ProductColor {
   hex: string;
 }
 
+// Print placement from Printful/Printify API
+export interface ProductPlacement {
+  id: string;          // e.g., "front", "back", "front_large", "left_chest"
+  type: string;        // Same as id, normalized
+  title: string;       // Human-readable: "Front", "Back", "Front Large"
+  additionalPrice?: number;  // Extra cost for this placement (Printful)
+  options?: any;       // Provider-specific options
+}
+
 export interface CatalogProduct {
   id: number;
   title: string;
@@ -44,6 +53,9 @@ export interface CatalogProduct {
   blueprintId: number;
   printProviderId: number | null;
   hasMockupMapping?: boolean;
+  // Dynamic placements from print provider API
+  placements?: ProductPlacement[];
+  fulfillmentProvider?: 'printful' | 'printify';
 }
 
 export interface OriginFilter {

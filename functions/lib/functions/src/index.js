@@ -3600,6 +3600,8 @@ app.get('/test/printify/catalog', async (req, res) => {
             const minPrice = provider?.minCost ? (provider.minCost / 100).toFixed(2) : (bp.minPrice || null);
             const maxPrice = provider?.maxCost ? (provider.maxCost / 100).toFixed(2) : (bp.maxPrice || null);
             const sizes = provider?.availableSizes || ["S", "M", "L", "XL", "2XL"];
+            // Get placements from provider data
+            const providerPlacements = provider?.placements || [];
             const blueprintIdNum = typeof bp.id === 'string' ? parseInt(bp.id) : bp.id;
             const item = {
                 id: bp.id,
@@ -3616,6 +3618,9 @@ app.get('/test/printify/catalog', async (req, res) => {
                 blueprintId: bp.id,
                 printProviderId: provider?.printProviderId || null,
                 hasMockupMapping: KNOWN_MOCKUP_BLUEPRINT_IDS.has(blueprintIdNum),
+                fulfillmentProvider: 'printify',
+                // Dynamic placements from Printify API
+                placements: providerPlacements.length > 0 ? providerPlacements : undefined,
             };
             if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
                 categories["T-Shirts"].push(item);
@@ -3738,6 +3743,13 @@ app.get('/test/catalog/printful-products', async (req, res) => {
                 brand.includes('lane seven') ||
                 brand.includes('los angeles apparel');
             // Transform to match CatalogItemResponse format
+            // Include placements from the synced product data
+            const placements = (p.placements || []).map((pl) => ({
+                id: pl.id || pl.type,
+                type: pl.type,
+                title: pl.title || pl.type?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                additionalPrice: pl.additionalPrice || 0
+            }));
             grouped[category].push({
                 id: p.id,
                 blueprintId: p.id,
@@ -3756,6 +3768,8 @@ app.get('/test/catalog/printful-products', async (req, res) => {
                 sizes: p.sizes,
                 lifestyleImages: p.lifestyleImages,
                 modelImages: p.modelImages,
+                // Dynamic placements from Printful API
+                placements: placements.length > 0 ? placements : undefined,
             });
         }
         // Return as array of categories with items
@@ -3809,6 +3823,23 @@ app.post('/test/catalog/printful-sync', async (req, res) => {
                 const detailData = await detailRes.json();
                 const productDetail = detailData.result?.product || {};
                 const variants = detailData.result?.variants || [];
+                // Extract print placements from the files array
+                // Printful returns placement types in the product's techniques/files structure
+                const files = productDetail.files || [];
+                const placements = files.map((file) => ({
+                    id: file.type || file.id,
+                    type: file.type || file.id,
+                    title: file.title || file.type?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Unknown',
+                    additionalPrice: file.additional_price ? parseFloat(file.additional_price) : 0,
+                    options: file.options || null
+                }));
+                // Also check techniques for additional placement info
+                const techniques = productDetail.techniques || [];
+                const techniqueInfo = techniques.map((tech) => ({
+                    key: tech.key,
+                    displayName: tech.display_name,
+                    isDefault: tech.is_default
+                }));
                 // Extract unique colors with their images
                 const colorMap = new Map();
                 for (const v of variants) {
@@ -3834,6 +3865,9 @@ app.post('/test/catalog/printful-sync', async (req, res) => {
                     variantCount: variants.length,
                     colors: Object.fromEntries(colorMap),
                     sizes: sizes,
+                    // Print placements available for this product
+                    placements: placements,
+                    techniques: techniqueInfo,
                     // Lifestyle/glamor images if available
                     lifestyleImages: variants
                         .filter((v) => v.image && v.image.includes('lifestyle'))
@@ -3869,6 +3903,159 @@ app.post('/test/catalog/printful-sync', async (req, res) => {
     }
     catch (error) {
         console.error('[PrintfulSync] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Sync Printify catalog from their API (blueprints, providers, and print areas)
+app.post('/test/catalog/printify-sync', async (req, res) => {
+    try {
+        console.log('[PrintifySync] Starting catalog sync...');
+        if (!printifyClient.isConfigured) {
+            res.status(500).json({ error: 'Printify API not configured' });
+            return;
+        }
+        const shopId = getPrintifyShopId();
+        // Step 1: Fetch all blueprints from Printify
+        console.log('[PrintifySync] Fetching blueprints...');
+        const blueprintsRes = await fetch(`${PRINTIFY_API_BASE}/catalog/blueprints.json`, {
+            headers: { 'Authorization': `Bearer ${getPrintifyApiKey()}` }
+        });
+        if (!blueprintsRes.ok) {
+            throw new Error(`Printify blueprints fetch failed: ${blueprintsRes.status}`);
+        }
+        const blueprints = await blueprintsRes.json();
+        console.log(`[PrintifySync] Fetched ${blueprints.length} blueprints`);
+        let syncedBlueprints = 0;
+        let syncedProviders = 0;
+        // Step 2: Process each blueprint and fetch its print providers
+        for (const blueprint of blueprints) {
+            try {
+                // Save blueprint to Firestore
+                const blueprintRef = db.collection('printifyBlueprints').doc(String(blueprint.id));
+                await blueprintRef.set({
+                    id: blueprint.id,
+                    title: blueprint.title,
+                    description: blueprint.description || '',
+                    brand: blueprint.brand || '',
+                    model: blueprint.model || '',
+                    images: blueprint.images || [],
+                    syncedAt: new Date().toISOString()
+                }, { merge: true });
+                syncedBlueprints++;
+                // Fetch print providers for this blueprint
+                const providersRes = await fetch(`${PRINTIFY_API_BASE}/catalog/blueprints/${blueprint.id}/print_providers.json`, { headers: { 'Authorization': `Bearer ${getPrintifyApiKey()}` } });
+                if (!providersRes.ok) {
+                    console.log(`[PrintifySync] Failed to fetch providers for blueprint ${blueprint.id}`);
+                    continue;
+                }
+                const providers = await providersRes.json();
+                // Process each provider - fetch variants which contain print area info
+                for (const provider of providers.slice(0, 5)) { // Limit to top 5 providers per blueprint
+                    try {
+                        // Fetch variants for this provider to get print areas
+                        const variantsRes = await fetch(`${PRINTIFY_API_BASE}/catalog/blueprints/${blueprint.id}/print_providers/${provider.id}/variants.json`, { headers: { 'Authorization': `Bearer ${getPrintifyApiKey()}` } });
+                        if (!variantsRes.ok)
+                            continue;
+                        const variantsData = await variantsRes.json();
+                        const variants = variantsData.variants || variantsData || [];
+                        // Extract unique print areas/placements from variants
+                        const printAreasSet = new Set();
+                        const colorMap = new Map();
+                        const sizesSet = new Set();
+                        for (const v of variants) {
+                            // Extract print areas from placeholders if available
+                            if (v.placeholders) {
+                                for (const ph of v.placeholders) {
+                                    if (ph.position)
+                                        printAreasSet.add(ph.position);
+                                }
+                            }
+                            // Also check for print_areas at variant level
+                            if (v.print_areas) {
+                                for (const area of v.print_areas) {
+                                    if (area.position)
+                                        printAreasSet.add(area.position);
+                                }
+                            }
+                            // Extract colors
+                            if (v.options?.color) {
+                                colorMap.set(v.options.color, {
+                                    hex: v.options.color_code || '#000000',
+                                    id: v.id
+                                });
+                            }
+                            // Extract sizes
+                            if (v.options?.size)
+                                sizesSet.add(v.options.size);
+                        }
+                        // Convert print areas to structured placements
+                        const placements = Array.from(printAreasSet).map(position => ({
+                            id: position,
+                            type: position,
+                            title: position.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                        }));
+                        // If no placements found, try to infer from blueprint title
+                        if (placements.length === 0) {
+                            const title = blueprint.title.toLowerCase();
+                            if (title.includes('t-shirt') || title.includes('hoodie') || title.includes('sweatshirt')) {
+                                placements.push({ id: 'front', type: 'front', title: 'Front' }, { id: 'back', type: 'back', title: 'Back' });
+                            }
+                            else if (title.includes('mug')) {
+                                placements.push({ id: 'front', type: 'front', title: 'Front' });
+                            }
+                            else if (title.includes('hat') || title.includes('cap')) {
+                                placements.push({ id: 'front', type: 'front', title: 'Front' });
+                            }
+                            else {
+                                placements.push({ id: 'front', type: 'front', title: 'Front' });
+                            }
+                        }
+                        // Save provider with placements to Firestore
+                        const providerRef = db.collection('printifyPrintProviders').doc(`${blueprint.id}_${provider.id}`);
+                        await providerRef.set({
+                            id: provider.id,
+                            blueprintId: blueprint.id,
+                            blueprintTitle: blueprint.title,
+                            title: provider.title,
+                            location: provider.location || {},
+                            placements: placements,
+                            availableColors: Array.from(colorMap.entries()).map(([name, data]) => ({
+                                name,
+                                hex: data.hex,
+                                variantId: data.id
+                            })),
+                            availableSizes: Array.from(sizesSet),
+                            variantCount: variants.length,
+                            fulfillmentProvider: 'printify',
+                            syncedAt: new Date().toISOString()
+                        }, { merge: true });
+                        syncedProviders++;
+                    }
+                    catch (providerErr) {
+                        console.error(`[PrintifySync] Error syncing provider ${provider.id}:`, providerErr.message);
+                    }
+                }
+                // Rate limit: Be gentle with Printify API
+                if (syncedBlueprints % 20 === 0) {
+                    await new Promise(r => setTimeout(r, 3000));
+                    console.log(`[PrintifySync] Progress: ${syncedBlueprints}/${blueprints.length} blueprints, ${syncedProviders} providers`);
+                }
+            }
+            catch (bpErr) {
+                console.error(`[PrintifySync] Error syncing blueprint ${blueprint.id}:`, bpErr.message);
+            }
+        }
+        console.log(`[PrintifySync] Complete! Synced ${syncedBlueprints} blueprints, ${syncedProviders} providers`);
+        res.json({
+            success: true,
+            syncedBlueprints,
+            syncedProviders,
+            total: blueprints.length,
+            message: `Synced ${syncedBlueprints} blueprints and ${syncedProviders} providers with placements`
+        });
+    }
+    catch (error) {
+        console.error('[PrintifySync] Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

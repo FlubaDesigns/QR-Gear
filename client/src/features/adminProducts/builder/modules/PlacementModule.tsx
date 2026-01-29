@@ -1,14 +1,54 @@
-import { MapPin, Check, QrCode, Image, Palette } from "lucide-react";
+import { MapPin, Check, QrCode, Image, Palette, AlertCircle } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType, type PlacementSize, type ProductColor } from "../types";
+import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType, type PlacementSize, type ProductColor, type ProductPlacement } from "../types";
 
 const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
   { value: "small", label: "S" },
   { value: "medium", label: "M" },
   { value: "large", label: "L" },
 ];
+
+// Map provider placement IDs to our internal placement system
+function mapProviderPlacement(providerPlacement: ProductPlacement): { id: PlacementId; label: string } {
+  const type = (providerPlacement.type || providerPlacement.id || '').toLowerCase().replace(/-/g, '_');
+  
+  // Map common Printful/Printify placement types to our system
+  const mappings: Record<string, { id: PlacementId; label: string }> = {
+    'front': { id: 'front-center', label: 'Front Center' },
+    'front_large': { id: 'front-center', label: 'Front (Large)' },
+    'front_small': { id: 'front-chest', label: 'Front Chest' },
+    'back': { id: 'back', label: 'Back' },
+    'back_large': { id: 'back', label: 'Back (Large)' },
+    'left_chest': { id: 'front-chest', label: 'Left Chest' },
+    'right_chest': { id: 'front-chest', label: 'Right Chest' },
+    'left_sleeve': { id: 'left-shoulder', label: 'Left Sleeve' },
+    'right_sleeve': { id: 'right-shoulder', label: 'Right Sleeve' },
+    'pocket': { id: 'pocket', label: 'Pocket' },
+    'sleeve_left': { id: 'left-shoulder', label: 'Left Sleeve' },
+    'sleeve_right': { id: 'right-shoulder', label: 'Right Sleeve' },
+    // Mugs
+    'mug_wrap': { id: 'mug-wrap', label: 'Wrap Around' },
+    'mug_front': { id: 'mug-front', label: 'Front' },
+    'mug_back': { id: 'mug-back', label: 'Back' },
+    // Hats
+    'embroidery_front': { id: 'hat-front', label: 'Front' },
+    'embroidery_back': { id: 'hat-back', label: 'Back' },
+    'embroidery_left': { id: 'hat-side', label: 'Left Side' },
+    'embroidery_right': { id: 'hat-side', label: 'Right Side' },
+  };
+  
+  if (mappings[type]) {
+    return mappings[type];
+  }
+  
+  // If no mapping found, create a reasonable default
+  return {
+    id: type as PlacementId,
+    label: providerPlacement.title || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  };
+}
 
 export function PlacementModule() {
   const { state, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor } = useBuilderContext();
@@ -18,7 +58,17 @@ export function PlacementModule() {
   }
 
   const category = state.category;
-  const placementOptions = getPlacementsForCategory(category);
+  
+  // Use actual product placements from API if available, otherwise fall back to category-based
+  const productPlacements = state.selectedProduct.placements;
+  const hasApiPlacements = productPlacements && productPlacements.length > 0;
+  
+  const placementOptions = hasApiPlacements
+    ? productPlacements.map(p => {
+        const mapped = mapProviderPlacement(p);
+        return { id: mapped.id, label: mapped.label, additionalPrice: p.additionalPrice };
+      })
+    : getPlacementsForCategory(category);
   
   const selectedPlacements = state.selectedPlacements || [];
   const placementConfig = state.placementConfig || {};
@@ -85,6 +135,20 @@ export function PlacementModule() {
             : "Select where to place your design and pick the size. You can select multiple locations."
           }
         </p>
+        
+        {hasApiPlacements && (
+          <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+            <Check className="h-3 w-3" />
+            <span>Placements from {state.selectedProduct.fulfillmentProvider || 'provider'} catalog</span>
+          </div>
+        )}
+        
+        {!hasApiPlacements && (
+          <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+            <AlertCircle className="h-3 w-3" />
+            <span>Using default placements for {category || 'this category'}</span>
+          </div>
+        )}
         
         <div className="space-y-3">
           {placementOptions.map((placement) => {

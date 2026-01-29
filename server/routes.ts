@@ -2450,9 +2450,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
       
+      // Transform products to include placements in expected format
+      const transformedProducts = products.map(product => {
+        // Convert availablePlacements array of strings to placements array of objects
+        const placements = (product.availablePlacements || []).map((placementId: string) => ({
+          id: placementId,
+          type: placementId,
+          title: placementId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          additionalPrice: 0,
+        }));
+        
+        return {
+          ...product,
+          placements: placements.length > 0 ? placements : null,
+        };
+      });
+      
       // Group products by type (category) to match frontend expectations
       const categoryMap = new Map<string, any[]>();
-      for (const product of products) {
+      for (const product of transformedProducts) {
         const category = product.type || "Other";
         if (!categoryMap.has(category)) {
           categoryMap.set(category, []);
