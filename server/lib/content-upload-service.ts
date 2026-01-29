@@ -119,14 +119,15 @@ export async function uploadContent(
 export async function uploadCanvasComposite(
   base64Data: string,
   userId: string,
-  packetId: string
+  packetId: string,
+  fileName?: string
 ): Promise<ContentUploadResult> {
   const base64Match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
   const mimeType = base64Match?.[1] || 'image/png';
   const actualBase64 = base64Match?.[2] || base64Data;
   const buffer = Buffer.from(actualBase64, 'base64');
   
-  return uploadContent(buffer, 'canvas', userId, packetId, mimeType);
+  return uploadContent(buffer, 'canvas', userId, packetId, mimeType, fileName);
 }
 
 export async function uploadPlayMedia(

@@ -9051,7 +9051,7 @@ ${allPages.map(page => `  <url>
       let result;
       
       if (mode === 'canvas' || mode === 'basics') {
-        result = await uploadCanvasComposite(base64Data, userId, packetId);
+        result = await uploadCanvasComposite(base64Data, userId, packetId, fileName);
       } else {
         const base64Match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
         const actualMimeType = base64Match?.[1] || mimeType || 'application/octet-stream';
