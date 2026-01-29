@@ -206,7 +206,7 @@ export function URLContentModule() {
                           data-testid={`button-select-cropped-${bg.id}`}
                         >
                           <img
-                            src={bg.thumbnailUrl || bg.proxyUrl || bg.storageUrl}
+                            src={bg.thumbnailUrl || (bg.proxyUrl && bg.proxyUrl !== "/api/library-files/" ? bg.proxyUrl : null) || bg.storageUrl}
                             alt={bg.name}
                             className="w-full h-full object-cover"
                           />
