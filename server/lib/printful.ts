@@ -538,7 +538,7 @@ export async function syncPrintfulCatalog(db: any, options?: { productIds?: numb
           avgFulfillmentTime: product.avg_fulfillment_time || null,
           originCountry: product.origin_country || null,
           isDiscontinued: product.is_discontinued || false,
-          availablePlacements: printfileInfo?.available_placements?.map((p: any) => p.placement) || null,
+          availablePlacements: printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : null,
           lastSyncedAt: new Date(),
         };
 

@@ -2278,7 +2278,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test endpoint: Printful catalog (with admin auth)
+  // Test endpoint: Trigger Printful catalog sync (no auth for dev testing)
+  app.post("/api/test/catalog/sync-printful", async (req: any, res) => {
+    try {
+      console.log('[TEST SYNC] ========================================');
+      console.log('[TEST SYNC] STARTING PRINTFUL CATALOG SYNC');
+      console.log('[TEST SYNC] ========================================');
+      
+      const { syncPrintfulCatalog, printfulClient } = await import("./lib/printful");
+      
+      if (!printfulClient.isConfigured) {
+        console.error('[TEST SYNC] ERROR: Printful API key not configured!');
+        return res.status(500).json({ error: 'Printful API key not configured' });
+      }
+      
+      // Start sync in background
+      res.json({ message: 'Printful catalog sync started - check logs for progress' });
+      
+      const result = await syncPrintfulCatalog(db);
+      
+      console.log('[TEST SYNC] ========================================');
+      console.log('[TEST SYNC] PRINTFUL SYNC COMPLETE');
+      console.log(`[TEST SYNC] Products: ${result.productsAdded} added, ${result.productsUpdated} updated`);
+      console.log(`[TEST SYNC] Variants: ${result.variantsAdded} added, ${result.variantsUpdated} updated`);
+      if (result.errors.length > 0) {
+        console.error('[TEST SYNC] ERRORS:', result.errors.length);
+        result.errors.forEach(e => console.error('[TEST SYNC]   -', e));
+      }
+      console.log('[TEST SYNC] ========================================');
+      
+    } catch (error: any) {
+      console.error('[TEST SYNC] ========================================');
+      console.error('[TEST SYNC] FATAL ERROR:', error.message);
+      console.error('[TEST SYNC] ========================================');
+    }
+  });
+
+  // Test endpoint: Printful catalog (grouped by category)
   app.get("/api/test/catalog/printful-products", async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET Printful products');
