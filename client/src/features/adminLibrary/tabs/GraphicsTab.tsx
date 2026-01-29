@@ -31,9 +31,9 @@ function packetToSkinItem(packet: ProductPacket): SkinItem {
     images.push({ url: packet.compositeUrl, label: "Graphic" });
   }
   
-  // 2. QR only version
+  // 2. QR code
   if (packet.qrOnlyUrl) {
-    images.push({ url: packet.qrOnlyUrl, label: "QR Only" });
+    images.push({ url: packet.qrOnlyUrl, label: "QR Code" });
   }
 
   return {
