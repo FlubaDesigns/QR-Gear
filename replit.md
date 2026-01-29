@@ -40,6 +40,7 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 4. Automate everything - no manual testing requests
 5. "Let's talk" = discussion only, no code changes
 6. Always read the page code before making new code
+7. **NEVER REMOVE FEATURES** - Do NOT remove any feature, toggle, module, or functionality unless the user EXPLICITLY tells you to remove it. Adding features is fine. Removing features without explicit permission is FORBIDDEN.
 
 ## Deployment Process (MANDATORY)
 After every code fix, the agent MUST:
