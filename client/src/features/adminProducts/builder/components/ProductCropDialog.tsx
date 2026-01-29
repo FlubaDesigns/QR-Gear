@@ -128,6 +128,7 @@ export function ProductCropDialog({ asset, open, onOpenChange, onCropComplete }:
 
       toast({ title: "Cropped image saved", description: "Image is now ready to use" });
       onCropComplete?.();
+      onOpenChange(false);
     } catch (error: unknown) {
       const err = error as Error;
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
