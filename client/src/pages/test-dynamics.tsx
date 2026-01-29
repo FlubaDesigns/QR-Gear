@@ -64,6 +64,7 @@ export default function TestDynamicsPage() {
 
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(null);
+  const [channels, setChannels] = useState<string[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [collections, setCollections] = useState<string[]>([]);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
@@ -84,19 +85,36 @@ export default function TestDynamicsPage() {
     fetchSurfaces();
   }, []);
 
+  // Fetch channels when store is selected
+  useEffect(() => {
+    if (selectedStore) {
+      fetchChannels();
+    } else {
+      setChannels([]);
+      setSelectedChannel(null);
+    }
+  }, [selectedStore]);
+
   // Auto-select store/channel from URL params after stores are loaded
   useEffect(() => {
     if (stores.length > 0 && urlStoreId && !urlParamsApplied) {
       const matchingStore = stores.find(s => s.id === urlStoreId);
       if (matchingStore) {
         setSelectedStore(matchingStore);
-        if (urlChannel) {
-          setSelectedChannel(urlChannel);
-        }
+        // Channel will be set after channels are fetched
         setUrlParamsApplied(true);
       }
     }
-  }, [stores, urlStoreId, urlChannel, urlParamsApplied]);
+  }, [stores, urlStoreId, urlParamsApplied]);
+
+  // Auto-select channel from URL params after channels are loaded
+  useEffect(() => {
+    if (channels.length > 0 && urlChannel && urlParamsApplied && !selectedChannel) {
+      if (channels.includes(urlChannel)) {
+        setSelectedChannel(urlChannel);
+      }
+    }
+  }, [channels, urlChannel, urlParamsApplied, selectedChannel]);
 
   useEffect(() => {
     if (selectedStore && selectedChannel) {
@@ -120,7 +138,26 @@ export default function TestDynamicsPage() {
       setLoading("stores");
       const res = await fetch("/api/test/stores");
       const data = await res.json();
-      setStores(data.stores || []);
+      // API returns array directly, not { stores: [] }
+      setStores(Array.isArray(data) ? data : (data.stores || []));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const fetchChannels = async () => {
+    if (!selectedStore) return;
+    try {
+      setLoading("channels");
+      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels`);
+      const data = await res.json();
+      // Extract channel names from the response
+      const channelNames = Array.isArray(data) 
+        ? data.map((c: any) => c.name || c.id) 
+        : [];
+      setChannels(channelNames);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -258,50 +295,85 @@ export default function TestDynamicsPage() {
           </h2>
 
           <div className="space-y-4">
-            <div>
-              <label className="text-sm text-blue-200 mb-2 block">Store</label>
-              <div className="relative">
-                <select
-                  value={selectedStore?.id || ""}
-                  onChange={(e) => {
-                    const store = stores.find(s => s.id === e.target.value);
-                    setSelectedStore(store || null);
+            {/* Show summary if store/channel came from URL params */}
+            {urlStoreId && urlChannel && selectedStore && selectedChannel ? (
+              <div className="p-3 bg-blue-500/20 rounded-lg border border-blue-500/30">
+                <p className="text-blue-200 text-sm">
+                  <span className="font-medium">Store:</span> {selectedStore.name}
+                </p>
+                <p className="text-blue-200 text-sm mt-1">
+                  <span className="font-medium">Channel:</span> {selectedChannel}
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedStore(null);
                     setSelectedChannel(null);
+                    setChannels([]);
+                    setCollections([]);
                     setSelectedCollection(null);
                   }}
-                  className="w-full h-14 px-4 rounded-md border bg-slate-800 text-white text-base appearance-none cursor-pointer"
-                  data-testid="select-store"
+                  className="text-xs text-blue-300 underline mt-2"
                 >
-                  <option value="">Select a store...</option>
-                  {stores.map(store => (
-                    <option key={store.id} value={store.id}>
-                      {store.name} ({store.roleType})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300 pointer-events-none" />
+                  Change selection
+                </button>
               </div>
-            </div>
-
-            {selectedStore && selectedStore.availableSegments?.length > 0 && (
-              <div>
-                <label className="text-sm text-blue-200 mb-2 block">Channel</label>
-                <div className="flex flex-col gap-2">
-                  {selectedStore.availableSegments.map(channel => (
-                    <button
-                      key={channel}
-                      onClick={() => {
-                        setSelectedChannel(channel);
+            ) : (
+              <>
+                <div>
+                  <label className="text-sm text-blue-200 mb-2 block">Store</label>
+                  <div className="relative">
+                    <select
+                      value={selectedStore?.id || ""}
+                      onChange={(e) => {
+                        const store = stores.find(s => s.id === e.target.value);
+                        setSelectedStore(store || null);
+                        setSelectedChannel(null);
                         setSelectedCollection(null);
                       }}
-                      className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
-                      data-testid={`channel-${channel}`}
+                      className="w-full h-14 px-4 rounded-md border bg-slate-800 text-white text-base appearance-none cursor-pointer"
+                      data-testid="select-store"
                     >
-                      {channel}
-                    </button>
-                  ))}
+                      <option value="">Select a store...</option>
+                      {stores.map(store => (
+                        <option key={store.id} value={store.id}>
+                          {store.name} ({store.roleType})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300 pointer-events-none" />
+                  </div>
                 </div>
+
+                {selectedStore && (
+              <div>
+                <label className="text-sm text-blue-200 mb-2 block">
+                  Channel
+                  {loading === "channels" && <Loader2 className="inline h-4 w-4 ml-2 animate-spin" />}
+                </label>
+                {channels.length === 0 && loading !== "channels" ? (
+                  <p className="text-blue-300/70 text-sm">
+                    No channels found for this store. Create a channel first.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {channels.map(channel => (
+                      <button
+                        key={channel}
+                        onClick={() => {
+                          setSelectedChannel(channel);
+                          setSelectedCollection(null);
+                        }}
+                        className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
+                        data-testid={`channel-${channel}`}
+                      >
+                        {channel}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+                )}
+              </>
             )}
 
             {selectedChannel && (
