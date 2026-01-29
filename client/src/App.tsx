@@ -85,7 +85,6 @@ import TestSettings from "@/pages/test-settings";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
-import TestStoreProducts from "@/pages/test-store-products";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -144,7 +143,6 @@ function Router() {
       <Route path="/test-store-builder" component={TestStoreBuilder} />
       <Route path="/test-ar-demo" component={TestARDemo} />
       <Route path="/test-settings" component={TestSettings} />
-      <Route path="/test-store-products" component={TestStoreProducts} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />
