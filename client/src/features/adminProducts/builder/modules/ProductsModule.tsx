@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Layers } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
@@ -7,7 +7,6 @@ import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 import { ProductViewerControls } from "../components/ProductViewerControls";
-import { ProductDetailModal } from "../components/ProductDetailModal";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
@@ -63,7 +62,6 @@ interface CatalogCategoryListResponse {
 export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const { selectedProviders } = useProductsContext();
-  const [previewProduct, setPreviewProduct] = useState<CatalogProduct | null>(null);
 
   // Provider comes from ProductsContext's selectedProviders (set by FulfillmentPickerModule)
   // Use the first selected provider, or default to printify if none selected
@@ -237,15 +235,11 @@ export function ProductsModule() {
   }));
 
   const handleItemTap = (item: ScrollViewItem) => {
+    // Direct select - no popup/lightbox
     const product = filteredProducts.find(p => String(p.id) === item.id);
     if (product) {
-      setPreviewProduct(product);
+      selectProduct(product);
     }
-  };
-
-  const handleProductSelect = (product: CatalogProduct) => {
-    selectProduct(product);
-    setPreviewProduct(null);
   };
 
   return (
@@ -348,12 +342,6 @@ export function ProductsModule() {
         </>
       )}
 
-      <ProductDetailModal
-        product={previewProduct}
-        open={!!previewProduct}
-        onClose={() => setPreviewProduct(null)}
-        onSelect={handleProductSelect}
-      />
     </div>
   );
 }
