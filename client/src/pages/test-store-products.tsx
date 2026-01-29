@@ -44,7 +44,7 @@ interface AllowedProduct {
   addedAt: string;
 }
 
-export default function AdminStoreProducts() {
+export default function TestStoreProducts() {
   const { toast } = useToast();
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
@@ -157,7 +157,7 @@ export default function AdminStoreProducts() {
 
   return (
     <>
-      <SEO title="Store Product Assignment | Admin" />
+      <SEO title="Store Product Assignment | Test" />
       <div className="page-wrap">
         <div className="container mobile-compact mobile-compact-stack">
           <div className="glass-card">
