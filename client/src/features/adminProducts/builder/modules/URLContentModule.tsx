@@ -29,10 +29,11 @@ export function URLContentModule() {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [cropAsset, setCropAsset] = useState<BackgroundAsset | null>(null);
 
-  // Play mode uses PlayContentModule for media selection, not background picker
-  // QR Plus does NOT get URL content - it's just QR + text lines
-  const needsUrlContent = state.qrProductState === "qr_canvas" || 
-                          state.qrProductState === "qr_dynamics";
+  // URL content is ONLY for QR Canvas
+  // QR Play uses PlayContentModule for video/media
+  // QR Dynamics is just a control/dynamic QR - no landing page
+  // QR Plus is just QR + text lines
+  const needsUrlContent = state.qrProductState === "qr_canvas";
 
   // Hooks must be called unconditionally (Rules of Hooks)
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
@@ -68,14 +69,7 @@ export function URLContentModule() {
       name: bg.name,
       url: bgUrl,
     });
-    if (state.qrProductState === "qr_dynamics") {
-      setContent({ 
-        backgroundType: "image", 
-        url: bgUrl 
-      });
-    } else {
-      setContent({ backgroundType: "image" });
-    }
+    setContent({ backgroundType: "image" });
   };
 
   const handleOpenLightbox = (bg: BackgroundAsset) => {
@@ -120,11 +114,7 @@ export function URLContentModule() {
   const handleClearBackground = () => {
     setSelectedId(null);
     loadBackground(null);
-    if (state.qrProductState === "qr_dynamics") {
-      setContent({ backgroundType: undefined, url: "" });
-    } else {
-      setContent({ backgroundType: undefined });
-    }
+    setContent({ backgroundType: undefined });
   };
 
   const backgroundUrl = state.loadedBackground?.url;
