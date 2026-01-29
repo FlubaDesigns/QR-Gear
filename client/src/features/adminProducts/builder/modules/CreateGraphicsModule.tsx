@@ -236,7 +236,7 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
     try {
       console.log('[generateLandingPageSnapshot] Loading background...');
       const bgImg = await loadImage(backgroundUrl);
-      const scale = Math.max(CANVAS_WIDTH / bgImg.width, CANVAS_HEIGHT / bgImg.height);
+      const scale = Math.min(CANVAS_WIDTH / bgImg.width, CANVAS_HEIGHT / bgImg.height);
       const scaledWidth = bgImg.width * scale;
       const scaledHeight = bgImg.height * scale;
       const x = (CANVAS_WIDTH - scaledWidth) / 2;
