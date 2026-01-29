@@ -31,6 +31,7 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Accessibility**: User has CIDP (limited hand mobility) - agent must be fully autonomous
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
 - **Deployment**: ALL fixes must be deployed to Firebase production after making changes in dev. Never just fix in dev without deploying.
+- **CRITICAL WORKFLOW**: After ANY code change, immediately call suggest_deploy. User tests in production only - they cannot see dev changes. Do NOT wait to be asked. Do NOT just restart dev workflow. ALWAYS trigger production publish.
 
 ## Session Rules (Hard and Fast)
 1. Handle voice-to-text transcription errors
