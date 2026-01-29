@@ -294,7 +294,7 @@ export function TextStyleEditor({
               {showPositionControls && (
                 <div className="pt-3 border-t border-border/50">
                   <p className="text-sm font-medium mb-3 text-muted-foreground">Position</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-4">
                     <div>
                       <Label className="text-sm mb-1.5 block text-muted-foreground">
                         Y Position: {style.verticalOffset ?? 50}% <span className="text-xs">(0=bottom, 100=top)</span>

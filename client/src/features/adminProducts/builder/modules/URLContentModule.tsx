@@ -150,26 +150,26 @@ export function URLContentModule() {
             <p className="text-xs font-medium text-muted-foreground">Background Image</p>
             
             {/* Tabs */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant={activeTab === "cropped" ? "default" : "outline"}
                 size="default"
                 onClick={() => setActiveTab("cropped")}
-                className="flex-1 min-h-[44px]"
+                className="flex-1 min-w-[140px] min-h-[44px]"
                 data-testid="tab-cropped-backgrounds"
               >
-                Cropped Backgrounds
+                Cropped
               </Button>
               <Button
                 type="button"
                 variant={activeTab === "backgrounds" ? "default" : "outline"}
                 size="default"
                 onClick={() => setActiveTab("backgrounds")}
-                className="flex-1 min-h-[44px]"
+                className="flex-1 min-w-[140px] min-h-[44px]"
                 data-testid="tab-background-images"
               >
-                Background Images
+                Backgrounds
               </Button>
             </div>
 
