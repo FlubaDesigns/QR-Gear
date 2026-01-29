@@ -791,13 +791,16 @@ export class DualWriteAdapter implements IStorage {
     return this.primary.getLibraryAssetByUrl(url);
   }
   async getLibraryAssets(filters?: { ownerType?: string; assetType?: string; mediaType?: string; userId?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
-    return this.primary.getLibraryAssets(filters);
+    // Read from Firestore (secondary) for consistency with production
+    return this.secondary.getLibraryAssets(filters);
   }
   async getAdminLibraryAssets(filters?: { assetType?: string; mediaType?: string; category?: string; season?: string; event?: string }): Promise<LibraryAsset[]> {
-    return this.primary.getAdminLibraryAssets(filters);
+    // Read from Firestore (secondary) for consistency with production
+    return this.secondary.getAdminLibraryAssets(filters);
   }
   async getUserLibraryAssets(userId: string, filters?: { assetType?: string; mediaType?: string }): Promise<LibraryAsset[]> {
-    return this.primary.getUserLibraryAssets(userId, filters);
+    // Read from Firestore (secondary) for consistency with production
+    return this.secondary.getUserLibraryAssets(userId, filters);
   }
   async createLibraryAsset(asset: InsertLibraryAsset): Promise<LibraryAsset> {
     return this.primary.createLibraryAsset(asset);
