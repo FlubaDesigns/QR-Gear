@@ -217,6 +217,118 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+// Helper: Draw text with auto-shrink and wrap fallback
+// 1. Use user's chosen font size
+// 2. If too wide, shrink down to minScale (65%)
+// 3. If still too wide, wrap to multiple lines
+function drawAutoFitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  baseFontSize: number,
+  fontFamily: string,
+  color: string,
+  strokeColor?: string,
+  strokeWidth?: number,
+  lineHeight: number = 1.2
+) {
+  const minScale = 0.65; // Shrink down to 65% before wrapping
+  let currentFontSize = baseFontSize;
+  
+  // Set initial font
+  ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  let textWidth = ctx.measureText(text).width;
+  
+  // Step 1: Try to shrink the font if text is too wide
+  if (textWidth > maxWidth) {
+    const scale = maxWidth / textWidth;
+    if (scale >= minScale) {
+      // Can fit with shrinking - use scaled font
+      currentFontSize = Math.floor(baseFontSize * scale);
+      ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
+      textWidth = ctx.measureText(text).width;
+    } else {
+      // Need to wrap - first shrink to min scale
+      currentFontSize = Math.floor(baseFontSize * minScale);
+      ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
+    }
+  }
+  
+  // Check if we still need to wrap
+  textWidth = ctx.measureText(text).width;
+  
+  if (textWidth <= maxWidth) {
+    // Fits on one line - draw it
+    if (strokeColor && strokeWidth && strokeWidth > 0) {
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = strokeWidth * 2;
+      ctx.strokeText(text, x, y);
+    }
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+  } else {
+    // Need to wrap - split text into lines
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = ctx.measureText(testLine).width;
+      
+      if (testWidth <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        // If single word is too long, just add it (will overflow)
+        currentLine = word;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    // If no spaces to split on, force character wrap
+    if (lines.length === 1 && ctx.measureText(lines[0]).width > maxWidth) {
+      const chars = text.split('');
+      lines.length = 0;
+      currentLine = '';
+      for (const char of chars) {
+        const testLine = currentLine + char;
+        if (ctx.measureText(testLine).width <= maxWidth) {
+          currentLine = testLine;
+        } else {
+          if (currentLine) lines.push(currentLine);
+          currentLine = char;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+    }
+    
+    // Draw each line, centered vertically around the original Y
+    const totalHeight = lines.length * currentFontSize * lineHeight;
+    const startY = y - (totalHeight / 2) + (currentFontSize * lineHeight / 2);
+    
+    lines.forEach((line, index) => {
+      const lineY = startY + (index * currentFontSize * lineHeight);
+      if (strokeColor && strokeWidth && strokeWidth > 0) {
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = strokeWidth * 2;
+        ctx.strokeText(line, x, lineY);
+      }
+      ctx.fillStyle = color;
+      ctx.fillText(line, x, lineY);
+    });
+  }
+}
+
 interface LandingPageSnapshotOptions {
   backgroundUrl: string | null;
   titleStyle: TextStyle | null;
