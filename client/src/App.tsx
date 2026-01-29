@@ -84,6 +84,7 @@ import TestPricing from "@/pages/test-pricing";
 import TestSettings from "@/pages/test-settings";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
+import Member from "@/pages/member";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -96,6 +97,7 @@ function Router() {
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
+      <Route path="/member" component={Member} />
       <Route path="/admin">{() => <ProtectedRoute><Admin /></ProtectedRoute>}</Route>
       <Route path="/admin/products">{() => <ProtectedRoute><AdminProducts /></ProtectedRoute>}</Route>
       <Route path="/admin/pricing">{() => <ProtectedRoute><AdminPricing /></ProtectedRoute>}</Route>
