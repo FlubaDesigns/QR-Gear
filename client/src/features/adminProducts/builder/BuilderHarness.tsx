@@ -4,6 +4,7 @@ import { PlacementModule } from "./modules/PlacementModule";
 import { ProductGraphicTextModule } from "./modules/ProductGraphicTextModule";
 import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
+import { BasicsContentModule } from "./modules/BasicsContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
@@ -25,12 +26,17 @@ function BuilderModules() {
         <ProductGraphicTextModule />
       </InlineDebugBoundary>
       
-      {/* Step 4: URL Settings (Background, Title, Description for Canvas/Dynamics) */}
+      {/* Step 4a: QR Basics Content (Text or URL for Basics mode) */}
+      <InlineDebugBoundary label="BasicsContentModule">
+        <BasicsContentModule />
+      </InlineDebugBoundary>
+      
+      {/* Step 4b: URL Settings (Background, Title, Description for Canvas/Dynamics/Plus) */}
       <InlineDebugBoundary label="URLContentModule">
         <URLContentModule />
       </InlineDebugBoundary>
       
-      {/* Step 4: Play Media (for QR Play mode) */}
+      {/* Step 4c: Play Media (for QR Play mode) */}
       <InlineDebugBoundary label="PlayContentModule">
         <PlayContentModule />
       </InlineDebugBoundary>
