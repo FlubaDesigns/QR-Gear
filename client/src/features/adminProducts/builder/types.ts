@@ -202,26 +202,44 @@ export const PLACEMENT_SIZE_SCALES: Record<string, Record<PlacementSize, number>
 
 // Base dimensions per placement at 300 DPI (width × height in pixels)
 // These are the LARGE sizes - small/medium use the scale factors above
+// Compatible with both Printful and Printify print areas
 export const PLACEMENT_BASE_DIMENSIONS: Record<string, { width: number; height: number }> = {
-  // Full front/back: 12" × 16" at 300 DPI
+  // Full front: Printful 12"×16" (standard) or 15"×18" (large_front)
+  //             Printify 12"×16" standard, up to 14"×18" oversized
+  // Using 12"×16" as safe universal maximum = 3600×4800 pixels
   "front-center": { width: 3600, height: 4800 },
+  
+  // Full back: Printful 12"×14", Printify 10"×14" to 14"×15"
+  // Using 12"×14" = 3600×4200 pixels
   "back": { width: 3600, height: 4200 },
-  // Center chest: 10" × 6" at 300 DPI
-  "front-chest": { width: 3000, height: 1800 },
-  // Left chest/pocket: 4" × 4" at 300 DPI
+  
+  // Center chest: Printful 10"×6", Printify 8"×8" average
+  // Using 10"×8" as compromise = 3000×2400 pixels
+  "front-chest": { width: 3000, height: 2400 },
+  
+  // Left chest/pocket: Printful 4"×4", Printify 3.5"×3.5" to 5"×5"
+  // Using 4"×4" = 1200×1200 pixels
   "pocket": { width: 1200, height: 1200 },
-  // Sleeve: 4" × 3.5" at 300 DPI
-  "left-shoulder": { width: 1200, height: 1050 },
-  "right-shoulder": { width: 1200, height: 1050 },
-  // Hat: 4" × 2.5" at 300 DPI
+  
+  // Sleeve: Printful 4"×3.5" (standard DTG), Printify 3"×4" to 4"×5"
+  // Using 4"×4" = 1200×1200 pixels (square works for both orientations)
+  "left-shoulder": { width: 1200, height: 1200 },
+  "right-shoulder": { width: 1200, height: 1200 },
+  
+  // Hat front: Printful 4"×4" embroidery, Printify varies by product
+  // Using 4"×2.5" = 1200×750 pixels (typical hat panel)
   "hat-front": { width: 1200, height: 750 },
   "hat-side": { width: 900, height: 600 },
   "hat-back": { width: 1200, height: 750 },
-  // Bag front/back: 10" × 10" at 300 DPI
+  
+  // Bag front/back: Typically 10"×10" to 12"×12"
+  // Using 10"×10" = 3000×3000 pixels
   "bag-front": { width: 3000, height: 3000 },
   "bag-back": { width: 3000, height: 3000 },
   "bag-pocket": { width: 1200, height: 1200 },
-  // Mug: 9.5" × 3.5" at 300 DPI (wrap)
+  
+  // Mug wrap: Printful 9.5"×3.5", varies by mug size
+  // Using 9.5"×3.5" = 2850×1050 pixels
   "mug-wrap": { width: 2850, height: 1050 },
   "mug-front": { width: 1200, height: 1050 },
   "mug-back": { width: 1200, height: 1050 },
