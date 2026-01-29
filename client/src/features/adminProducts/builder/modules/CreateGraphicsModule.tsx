@@ -300,7 +300,7 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
 }
 
 export function CreateGraphicsModule() {
-  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel } = useBuilderContext();
+  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder } = useBuilderContext();
   const { apiBase } = useAdminAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -842,6 +842,7 @@ export function CreateGraphicsModule() {
   const handleReset = () => {
     setPacketResult(null);
     setError(null);
+    resetBuilder();
   };
 
   const [isDeleting, setIsDeleting] = useState(false);
