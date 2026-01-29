@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { QrCode, Type, ExternalLink, Sparkles, Package, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -17,7 +18,16 @@ const STATE_ICONS: Record<string, typeof QrCode> = {
 };
 
 export function StateModule() {
-  const { state, setQRProductState } = useBuilderContext();
+  const { state, setQRProductState, selectedStore, selectedChannel } = useBuilderContext();
+
+  // Build dynamics URL with store/channel params if available
+  const dynamicsUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (selectedStore?.id) params.set("storeId", selectedStore.id);
+    if (selectedChannel?.name) params.set("channel", selectedChannel.name);
+    const queryString = params.toString();
+    return queryString ? `/test-dynamics?${queryString}` : "/test-dynamics";
+  }, [selectedStore, selectedChannel]);
 
   return (
     <CollapsibleModule
@@ -79,7 +89,7 @@ export function StateModule() {
             )}
 
             {state.qrProductState === "qr_dynamics" && (
-              <Link href="/test-dynamics">
+              <Link href={dynamicsUrl}>
                 <Button 
                   variant="default" 
                   size="lg" 

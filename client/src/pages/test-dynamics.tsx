@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { ArrowLeft, Zap, Store, Layers, LayoutGrid, RefreshCw, Clock, Play, Check, ChevronDown, Loader2 } from "lucide-react";
 
 interface StoreOption {
@@ -57,6 +57,11 @@ const ROTATION_OPTIONS = [
 ];
 
 export default function TestDynamicsPage() {
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const urlStoreId = urlParams.get("storeId");
+  const urlChannel = urlParams.get("channel");
+
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
@@ -72,11 +77,26 @@ export default function TestDynamicsPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [urlParamsApplied, setUrlParamsApplied] = useState(false);
 
   useEffect(() => {
     fetchStores();
     fetchSurfaces();
   }, []);
+
+  // Auto-select store/channel from URL params after stores are loaded
+  useEffect(() => {
+    if (stores.length > 0 && urlStoreId && !urlParamsApplied) {
+      const matchingStore = stores.find(s => s.id === urlStoreId);
+      if (matchingStore) {
+        setSelectedStore(matchingStore);
+        if (urlChannel) {
+          setSelectedChannel(urlChannel);
+        }
+        setUrlParamsApplied(true);
+      }
+    }
+  }, [stores, urlStoreId, urlChannel, urlParamsApplied]);
 
   useEffect(() => {
     if (selectedStore && selectedChannel) {
