@@ -35,7 +35,7 @@ export function ProductGraphicTextModule() {
         <TextStyleEditor
           label="Top Text"
           sublabel="Appears at top of graphic"
-          maxLength={30}
+          maxLength={40}
           style={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
           onChange={(updates) => setContent({ 
             headerStyle: { 
@@ -51,7 +51,7 @@ export function ProductGraphicTextModule() {
         <TextStyleEditor
           label="Bottom Text"
           sublabel="Appears at bottom of graphic"
-          maxLength={30}
+          maxLength={40}
           style={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
           onChange={(updates) => setContent({ 
             footerStyle: { 
