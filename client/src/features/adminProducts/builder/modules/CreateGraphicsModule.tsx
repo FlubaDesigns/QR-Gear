@@ -156,17 +156,40 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
     console.warn('[generateProductGraphic] Failed to load QR image:', e);
   }
 
+  // Calculate QR code boundaries once for both header and footer
+  const qrCenterY = CANVAS_HEIGHT / 2;
+  const qrTopEdge = qrCenterY - (QR_SIZE / 2);
+  const qrBottomEdge = qrCenterY + (QR_SIZE / 2);
+  const QR_MARGIN = 40; // Minimum gap between text and QR code
+
   if (headerStyle?.enabled && headerStyle.text) {
     const fontSize = parseInt(headerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const qrCenterY = CANVAS_HEIGHT / 2;
-    const qrTopEdge = qrCenterY - (QR_SIZE / 2) - 20;
     const verticalOffset = headerStyle.verticalOffset ?? 20;
-    const textY = qrTopEdge - (verticalOffset * 4);
     const horizontalOffset = headerStyle.horizontalOffset ?? 0;
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    // Use 90% of canvas width as max text width
     const maxWidth = CANVAS_WIDTH * 0.9;
+    
+    // Calculate requested Y position (moving up from QR top edge)
+    let textY = qrTopEdge - QR_MARGIN - (verticalOffset * 4);
+    
+    // Estimate text height (for wrapped text, assume up to 2 lines)
+    const estimatedLineHeight = scaledFontSize * 1.2;
+    const maxLines = 2;
+    const textBlockHeight = estimatedLineHeight * maxLines;
+    
+    // Ensure text bottom edge stays above QR top edge with margin
+    const textBottomEdge = textY + (textBlockHeight / 2);
+    if (textBottomEdge > qrTopEdge - QR_MARGIN) {
+      textY = qrTopEdge - QR_MARGIN - (textBlockHeight / 2);
+    }
+    
+    // Also ensure text doesn't go off the top of the canvas
+    const textTopEdge = textY - (textBlockHeight / 2);
+    if (textTopEdge < 20) {
+      textY = 20 + (textBlockHeight / 2);
+    }
+    
     drawAutoFitText(
       ctx,
       headerStyle.text,
@@ -184,14 +207,31 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   if (footerStyle?.enabled && footerStyle.text) {
     const fontSize = parseInt(footerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const qrCenterY = CANVAS_HEIGHT / 2;
-    const qrBottomEdge = qrCenterY + (QR_SIZE / 2) + 20;
     const verticalOffset = footerStyle.verticalOffset ?? 20;
-    const textY = qrBottomEdge + (verticalOffset * 4);
     const horizontalOffset = footerStyle.horizontalOffset ?? 0;
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    // Use 90% of canvas width as max text width
     const maxWidth = CANVAS_WIDTH * 0.9;
+    
+    // Calculate requested Y position (moving down from QR bottom edge)
+    let textY = qrBottomEdge + QR_MARGIN + (verticalOffset * 4);
+    
+    // Estimate text height (for wrapped text, assume up to 2 lines)
+    const estimatedLineHeight = scaledFontSize * 1.2;
+    const maxLines = 2;
+    const textBlockHeight = estimatedLineHeight * maxLines;
+    
+    // Ensure text top edge stays below QR bottom edge with margin
+    const textTopEdge = textY - (textBlockHeight / 2);
+    if (textTopEdge < qrBottomEdge + QR_MARGIN) {
+      textY = qrBottomEdge + QR_MARGIN + (textBlockHeight / 2);
+    }
+    
+    // Also ensure text doesn't go off the bottom of the canvas
+    const textBottomEdge = textY + (textBlockHeight / 2);
+    if (textBottomEdge > CANVAS_HEIGHT - 20) {
+      textY = CANVAS_HEIGHT - 20 - (textBlockHeight / 2);
+    }
+    
     drawAutoFitText(
       ctx,
       footerStyle.text,
