@@ -1584,6 +1584,14 @@ export class FirestoreAdapter implements IStorage {
     await docRef.set(data);
     return this.docToLibraryAsset(await docRef.get());
   }
+
+  async createLibraryAssetWithId(id: string, asset: InsertLibraryAsset): Promise<LibraryAsset> {
+    const docRef = this.db.collection('libraryAssets').doc(id);
+    const now = new Date();
+    const data = this.prepareForFirestore({ ...asset, id, createdAt: now, usageCount: 0 });
+    await docRef.set(data);
+    return this.docToLibraryAsset(await docRef.get());
+  }
   
   async updateLibraryAsset(id: string, asset: Partial<InsertLibraryAsset>): Promise<LibraryAsset | undefined> {
     const docRef = this.db.collection('libraryAssets').doc(id);

@@ -2278,6 +2278,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync library assets from Postgres to Firestore
+  app.post("/api/test/sync-library-assets-to-firestore", async (req: any, res) => {
+    try {
+      console.log('[Sync] Starting library assets sync to Firestore...');
+      const { libraryAssets } = await import("@shared/schema");
+      const { FirestoreAdapter } = await import("./lib/firestore-adapter");
+      
+      const allAssets = await db.select().from(libraryAssets);
+      console.log(`[Sync] Found ${allAssets.length} library assets to sync`);
+      
+      const firestoreAdapter = new FirestoreAdapter();
+      let synced = 0;
+      let errors = 0;
+      
+      for (const asset of allAssets) {
+        try {
+          // Use upsert pattern - check if exists then create/update
+          const existing = await firestoreAdapter.getLibraryAsset(asset.id);
+          if (existing) {
+            await firestoreAdapter.updateLibraryAsset(asset.id, {
+              name: asset.name,
+              url: asset.url,
+              thumbnailUrl: asset.thumbnailUrl,
+              assetType: asset.assetType,
+              mediaType: asset.mediaType,
+              ownerType: asset.ownerType,
+              userId: asset.userId,
+              category: asset.category,
+              tags: asset.tags,
+              metadata: asset.metadata as any,
+              season: asset.season,
+              event: asset.event,
+            });
+          } else {
+            await firestoreAdapter.createLibraryAssetWithId(asset.id, {
+              name: asset.name,
+              url: asset.url,
+              thumbnailUrl: asset.thumbnailUrl,
+              assetType: asset.assetType,
+              mediaType: asset.mediaType,
+              ownerType: asset.ownerType,
+              userId: asset.userId,
+              category: asset.category,
+              tags: asset.tags,
+              metadata: asset.metadata as any,
+              season: asset.season,
+              event: asset.event,
+            });
+          }
+          synced++;
+          if (synced % 10 === 0) {
+            console.log(`[Sync] Progress: ${synced}/${allAssets.length}`);
+          }
+        } catch (e: any) {
+          console.error(`[Sync] Error syncing asset ${asset.id}:`, e.message);
+          errors++;
+        }
+      }
+      
+      console.log(`[Sync] Complete: ${synced} synced, ${errors} errors`);
+      res.json({ success: true, synced, errors, total: allAssets.length });
+    } catch (error: any) {
+      console.error('[Sync] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test endpoint: Trigger Printful catalog sync (no auth for dev testing)
   app.post("/api/test/catalog/sync-printful", async (req: any, res) => {
     try {
