@@ -159,43 +159,51 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   if (headerStyle?.enabled && headerStyle.text) {
     const fontSize = parseInt(headerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    ctx.font = `bold ${scaledFontSize}px ${headerStyle.fontFamily}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     const qrCenterY = CANVAS_HEIGHT / 2;
     const qrTopEdge = qrCenterY - (QR_SIZE / 2) - 20;
     const verticalOffset = headerStyle.verticalOffset ?? 20;
     const textY = qrTopEdge - (verticalOffset * 4);
     const horizontalOffset = headerStyle.horizontalOffset ?? 0;
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    if (headerStyle.strokeColor && headerStyle.strokeWidth > 0) {
-      ctx.strokeStyle = headerStyle.strokeColor;
-      ctx.lineWidth = headerStyle.strokeWidth * 2;
-      ctx.strokeText(headerStyle.text, textX, textY);
-    }
-    ctx.fillStyle = headerStyle.color;
-    ctx.fillText(headerStyle.text, textX, textY);
+    // Use 90% of canvas width as max text width
+    const maxWidth = CANVAS_WIDTH * 0.9;
+    drawAutoFitText(
+      ctx,
+      headerStyle.text,
+      textX,
+      textY,
+      maxWidth,
+      scaledFontSize,
+      headerStyle.fontFamily,
+      headerStyle.color,
+      headerStyle.strokeColor,
+      headerStyle.strokeWidth
+    );
   }
 
   if (footerStyle?.enabled && footerStyle.text) {
     const fontSize = parseInt(footerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    ctx.font = `bold ${scaledFontSize}px ${footerStyle.fontFamily}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     const qrCenterY = CANVAS_HEIGHT / 2;
     const qrBottomEdge = qrCenterY + (QR_SIZE / 2) + 20;
     const verticalOffset = footerStyle.verticalOffset ?? 20;
     const textY = qrBottomEdge + (verticalOffset * 4);
     const horizontalOffset = footerStyle.horizontalOffset ?? 0;
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    if (footerStyle.strokeColor && footerStyle.strokeWidth > 0) {
-      ctx.strokeStyle = footerStyle.strokeColor;
-      ctx.lineWidth = footerStyle.strokeWidth * 2;
-      ctx.strokeText(footerStyle.text, textX, textY);
-    }
-    ctx.fillStyle = footerStyle.color;
-    ctx.fillText(footerStyle.text, textX, textY);
+    // Use 90% of canvas width as max text width
+    const maxWidth = CANVAS_WIDTH * 0.9;
+    drawAutoFitText(
+      ctx,
+      footerStyle.text,
+      textX,
+      textY,
+      maxWidth,
+      scaledFontSize,
+      footerStyle.fontFamily,
+      footerStyle.color,
+      footerStyle.strokeColor,
+      footerStyle.strokeWidth
+    );
   }
 
   return canvas.toDataURL('image/png');
@@ -373,39 +381,47 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
   if (titleStyle?.text) {
     const fontSize = parseInt(titleStyle.fontSize) || 72;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    ctx.font = `bold ${scaledFontSize}px ${titleStyle.fontFamily || 'Arial'}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     const verticalOffset = titleStyle.verticalOffset ?? 84;
     const horizontalOffset = titleStyle.horizontalOffset ?? 8;
     const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    if (titleStyle.strokeColor && titleStyle.strokeWidth > 0) {
-      ctx.strokeStyle = titleStyle.strokeColor;
-      ctx.lineWidth = titleStyle.strokeWidth * 2;
-      ctx.strokeText(titleStyle.text, textX, textY);
-    }
-    ctx.fillStyle = titleStyle.color || '#ffffff';
-    ctx.fillText(titleStyle.text, textX, textY);
+    // Use 90% of canvas width as max text width
+    const maxWidth = CANVAS_WIDTH * 0.9;
+    drawAutoFitText(
+      ctx,
+      titleStyle.text,
+      textX,
+      textY,
+      maxWidth,
+      scaledFontSize,
+      titleStyle.fontFamily || 'Arial',
+      titleStyle.color || '#ffffff',
+      titleStyle.strokeColor,
+      titleStyle.strokeWidth
+    );
   }
 
   if (descriptionStyle?.text) {
     const fontSize = parseInt(descriptionStyle.fontSize) || 48;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    ctx.font = `${scaledFontSize}px ${descriptionStyle.fontFamily || 'Arial'}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     const verticalOffset = descriptionStyle.verticalOffset ?? 72;
     const horizontalOffset = descriptionStyle.horizontalOffset ?? 10;
     const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
     const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    if (descriptionStyle.strokeColor && descriptionStyle.strokeWidth > 0) {
-      ctx.strokeStyle = descriptionStyle.strokeColor;
-      ctx.lineWidth = descriptionStyle.strokeWidth * 2;
-      ctx.strokeText(descriptionStyle.text, textX, textY);
-    }
-    ctx.fillStyle = descriptionStyle.color || '#cccccc';
-    ctx.fillText(descriptionStyle.text, textX, textY);
+    // Use 90% of canvas width as max text width
+    const maxWidth = CANVAS_WIDTH * 0.9;
+    drawAutoFitText(
+      ctx,
+      descriptionStyle.text,
+      textX,
+      textY,
+      maxWidth,
+      scaledFontSize,
+      descriptionStyle.fontFamily || 'Arial',
+      descriptionStyle.color || '#cccccc',
+      descriptionStyle.strokeColor,
+      descriptionStyle.strokeWidth
+    );
   }
 
   return canvas.toDataURL('image/png');
