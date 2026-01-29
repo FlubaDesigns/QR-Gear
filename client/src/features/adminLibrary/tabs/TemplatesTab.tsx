@@ -25,6 +25,7 @@ interface ProductTemplate {
     footerText?: string;
     qrProductState?: string;
     productName?: string;
+    priorityMockupUrl?: string | null;
   } | null;
 }
 
@@ -36,12 +37,13 @@ function templateToSkinItem(template: ProductTemplate): SkinItem {
       ? parseFloat(template.customerPrice)
       : template.pricing?.customerPrice;
 
+  // Templates show the product mockup as primary, graphic as secondary
   return {
     id: template.id,
     packetId: template.packetId,
     name: packet?.productName || template.name || "Untitled Template",
-    primaryImage: packet?.compositeUrl,
-    secondaryImage: packet?.qrOnlyUrl,
+    primaryImage: packet?.priorityMockupUrl || packet?.compositeUrl,
+    secondaryImage: packet?.compositeUrl,
     qrContent: packet?.qrContent || template.qrContent,
     headerText: packet?.headerText,
     footerText: packet?.footerText,

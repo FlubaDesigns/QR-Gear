@@ -1,9 +1,15 @@
+export interface SkinImage {
+  url: string;
+  label: string;  // e.g., "Mockup", "Graphic", "Landing Page"
+}
+
 export interface SkinItem {
   id: string;
   packetId?: string;
   name: string;
   primaryImage?: string | null;
   secondaryImage?: string | null;
+  images?: SkinImage[];  // For swipeable galleries
   qrContent?: string | null;
   headerText?: string | null;
   footerText?: string | null;

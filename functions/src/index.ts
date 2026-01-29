@@ -5741,11 +5741,16 @@ app.get('/test/templates', async (req: Request, res: Response): Promise<void> =>
         if (packetDoc.exists) {
           const pData = packetDoc.data();
           packetData = {
+            id: packetDoc.id,
             productName: pData?.productName,
             compositeUrl: pData?.compositeUrl,
             qrOnlyUrl: pData?.qrOnlyUrl,
             qrContent: pData?.qrContent,
             qrProductState: pData?.qrProductState,
+            priorityMockupUrl: pData?.priorityMockupUrl || null,
+            landingPageSnapshotUrl: pData?.landingPageSnapshotUrl || null,
+            headerText: pData?.headerText || null,
+            footerText: pData?.footerText || null,
           };
         }
       }
