@@ -221,10 +221,11 @@ export const PLACEMENT_BASE_DIMENSIONS: Record<string, { width: number; height: 
   // Using 4"×4" = 1200×1200 pixels
   "pocket": { width: 1200, height: 1200 },
   
-  // Sleeve: Printful 4"×3.5" (standard DTG), Printify 3"×4" to 4"×5"
-  // Using 4"×4" = 1200×1200 pixels (square works for both orientations)
-  "left-shoulder": { width: 1200, height: 1200 },
-  "right-shoulder": { width: 1200, height: 1200 },
+  // Sleeve (QR ONLY): Printful 4"×3.5", Printify 3"×4"
+  // QR codes need less space - using 3"×3" = 900×900 pixels
+  // Square format optimal for QR scanning
+  "left-shoulder": { width: 900, height: 900 },
+  "right-shoulder": { width: 900, height: 900 },
   
   // Hat front: Printful 4"×4" embroidery, Printify varies by product
   // Using 4"×2.5" = 1200×750 pixels (typical hat panel)
