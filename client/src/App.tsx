@@ -85,6 +85,7 @@ import TestSettings from "@/pages/test-settings";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
+import AdminStoreProducts from "@/pages/admin-store-products";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -116,6 +117,7 @@ function Router() {
       <Route path="/admin/email-templates">{() => <ProtectedRoute><AdminEmailTemplates /></ProtectedRoute>}</Route>
       <Route path="/admin/email-health">{() => <ProtectedRoute><AdminEmailHealth /></ProtectedRoute>}</Route>
       <Route path="/admin/manual">{() => <ProtectedRoute><AdminManual /></ProtectedRoute>}</Route>
+      <Route path="/admin/store-products">{() => <ProtectedRoute><AdminStoreProducts /></ProtectedRoute>}</Route>
       <Route path="/admin/test-images">{() => <ProtectedRoute><AdminTestImages /></ProtectedRoute>}</Route>
       <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
       <Route path="/checkout" component={Checkout} />
