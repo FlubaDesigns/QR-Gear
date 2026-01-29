@@ -1602,6 +1602,8 @@ export const mockupCache = pgTable("mockup_cache", {
   colorHex: text("color_hex"),
   // Placement
   canonicalPlacementId: varchar("canonical_placement_id").references(() => canonicalPlacements.id),
+  // QR Size - determines how big the QR appears in the mockup
+  qrSize: text("qr_size").notNull().default("medium"), // 'small' (25%), 'medium' (45%), 'large' (65%)
   // Artwork used (for matching)
   artworkUrl: text("artwork_url"), // The artwork that was applied
   artworkVariant: text("artwork_variant").default("black"), // 'black' or 'white' QR
@@ -1618,12 +1620,13 @@ export const mockupCache = pgTable("mockup_cache", {
   expiresAt: timestamp("expires_at"), // Optional expiry for refresh
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
-  unique("mockup_cache_unique").on(
+  unique("mockup_cache_unique_v2").on(
     table.blueprintId, 
     table.printProviderId, 
     table.colorName, 
     table.canonicalPlacementId, 
-    table.artworkVariant
+    table.artworkVariant,
+    table.qrSize
   ),
 ]);
 

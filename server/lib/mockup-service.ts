@@ -144,7 +144,7 @@ export async function getMockupWithFallback(
     }
   }
 
-  // Step 1: Check cache
+  // Step 1: Check cache (includes qrSize to get size-specific mockup)
   const cached = await db
     .select()
     .from(mockupCache)
@@ -154,13 +154,14 @@ export async function getMockupWithFallback(
         eq(mockupCache.printProviderId, printProviderId),
         eq(mockupCache.colorName, colorName),
         eq(mockupCache.canonicalPlacementId, canonicalPlacementId),
-        eq(mockupCache.artworkVariant, artworkVariant)
+        eq(mockupCache.artworkVariant, artworkVariant),
+        eq(mockupCache.qrSize, qrSize)
       )
     )
     .limit(1);
 
   if (cached.length > 0 && cached[0].status === "active") {
-    console.log(`[MockupService] Cache HIT: ${colorName} ${canonicalPlacementId}`);
+    console.log(`[MockupService] Cache HIT: ${colorName} ${canonicalPlacementId} ${qrSize}`);
     return {
       mockupUrl: cached[0].mockupUrl,
       lifestyleMockupUrl: cached[0].lifestyleMockupUrl,
@@ -169,7 +170,7 @@ export async function getMockupWithFallback(
     };
   }
 
-  console.log(`[MockupService] Cache MISS: ${colorName} ${canonicalPlacementId} - generating via Printful`);
+  console.log(`[MockupService] Cache MISS: ${colorName} ${canonicalPlacementId} ${qrSize} - generating via Printful`);
 
   // Step 2: Generate via Printful's Mockup Generator API
   // Printful has a dedicated mockup generator that works without publishing products
@@ -191,7 +192,7 @@ export async function getMockupWithFallback(
   const mockupUrl = mockupResult.flat;
   const lifestyleMockupUrl = mockupResult.lifestyle || null;
 
-  // Step 3: Cache the result
+  // Step 3: Cache the result (includes qrSize for size-specific caching)
   const now = new Date();
   await db
     .insert(mockupCache)
@@ -201,6 +202,7 @@ export async function getMockupWithFallback(
       colorName,
       colorHex,
       canonicalPlacementId,
+      qrSize,
       artworkUrl,
       artworkVariant,
       mockupUrl,
@@ -216,6 +218,7 @@ export async function getMockupWithFallback(
         mockupCache.colorName,
         mockupCache.canonicalPlacementId,
         mockupCache.artworkVariant,
+        mockupCache.qrSize,
       ],
       set: {
         mockupUrl,
@@ -227,7 +230,7 @@ export async function getMockupWithFallback(
       },
     });
 
-  console.log(`[MockupService] Generated and cached mockup for ${colorName} (lifestyle: ${!!lifestyleMockupUrl})`);
+  console.log(`[MockupService] Generated and cached mockup for ${colorName} ${qrSize} (lifestyle: ${!!lifestyleMockupUrl})`);
 
   return {
     mockupUrl,
