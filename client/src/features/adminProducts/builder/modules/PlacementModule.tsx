@@ -2,53 +2,13 @@ import { MapPin, Check, QrCode, Image, Palette, AlertCircle } from "lucide-react
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { getPlacementsForCategory, ALL_PLACEMENT_OPTIONS, QR_ONLY_PLACEMENTS, type PlacementId, type PlacementType, type PlacementSize, type ProductColor, type ProductPlacement } from "../types";
+import { getPlacementsForCategory, QR_ONLY_PLACEMENTS, type PlacementSize, type ProductColor } from "../types";
 
 const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
   { value: "small", label: "S" },
   { value: "medium", label: "M" },
   { value: "large", label: "L" },
 ];
-
-// Map provider placement IDs to our internal placement system
-function mapProviderPlacement(providerPlacement: ProductPlacement): { id: PlacementId; label: string } {
-  const type = (providerPlacement.type || providerPlacement.id || '').toLowerCase().replace(/-/g, '_');
-  
-  // Map common Printful/Printify placement types to our system
-  const mappings: Record<string, { id: PlacementId; label: string }> = {
-    'front': { id: 'front-center', label: 'Front Center' },
-    'front_large': { id: 'front-center', label: 'Front (Large)' },
-    'front_small': { id: 'front-chest', label: 'Front Chest' },
-    'back': { id: 'back', label: 'Back' },
-    'back_large': { id: 'back', label: 'Back (Large)' },
-    'left_chest': { id: 'front-chest', label: 'Left Chest' },
-    'right_chest': { id: 'front-chest', label: 'Right Chest' },
-    'left_sleeve': { id: 'left-shoulder', label: 'Left Sleeve' },
-    'right_sleeve': { id: 'right-shoulder', label: 'Right Sleeve' },
-    'pocket': { id: 'pocket', label: 'Pocket' },
-    'sleeve_left': { id: 'left-shoulder', label: 'Left Sleeve' },
-    'sleeve_right': { id: 'right-shoulder', label: 'Right Sleeve' },
-    // Mugs
-    'mug_wrap': { id: 'mug-wrap', label: 'Wrap Around' },
-    'mug_front': { id: 'mug-front', label: 'Front' },
-    'mug_back': { id: 'mug-back', label: 'Back' },
-    // Hats
-    'embroidery_front': { id: 'hat-front', label: 'Front' },
-    'embroidery_back': { id: 'hat-back', label: 'Back' },
-    'embroidery_left': { id: 'hat-side', label: 'Left Side' },
-    'embroidery_right': { id: 'hat-side', label: 'Right Side' },
-  };
-  
-  if (mappings[type]) {
-    return mappings[type];
-  }
-  
-  // If no mapping found, create a reasonable default
-  return {
-    id: type as PlacementId,
-    label: providerPlacement.title || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-  };
-}
 
 export function PlacementModule() {
   const { state, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor } = useBuilderContext();
@@ -264,7 +224,9 @@ export function PlacementModule() {
             </p>
             <div className="text-xs text-muted-foreground mt-2 space-y-1">
               {selectedPlacements.map(p => {
-                const label = ALL_PLACEMENT_OPTIONS.find(opt => opt.id === p)?.label;
+                // Use placementOptions (from API or fallback) for label lookup
+                const placement = placementOptions.find(opt => opt.id === p);
+                const label = placement?.label || p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 const type = placementConfig[p] || "qr";
                 const size = placementSizes[p] || "medium";
                 return (

@@ -82,9 +82,9 @@ const initialState: BuilderState = {
       color: "#FFFFFF",
     },
   },
-  selectedPlacements: ["left-shoulder"],  // Default to left shoulder for testing
-  placementConfig: { "left-shoulder": "qr" },  // Left shoulder is QR-only
-  placementSizes: { "left-shoulder": "medium" },
+  selectedPlacements: [],  // No default - placements selected after product is chosen
+  placementConfig: {},
+  placementSizes: {},
 };
 
 interface BuilderProviderProps {
