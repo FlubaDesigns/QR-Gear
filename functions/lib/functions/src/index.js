@@ -5070,6 +5070,7 @@ app.get('/test/templates', async (req, res) => {
                         qrContent: pData?.qrContent,
                         qrProductState: pData?.qrProductState,
                         priorityMockupUrl: pData?.priorityMockupUrl || null,
+                        landingPageSnapshotUrl: pData?.landingPageSnapshotUrl || null,
                         headerText: pData?.headerText || null,
                         footerText: pData?.footerText || null,
                     };

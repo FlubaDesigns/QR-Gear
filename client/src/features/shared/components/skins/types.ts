@@ -1,7 +1,4 @@
-export interface SkinImage {
-  url: string;
-  label: string;  // e.g., "Mockup", "Graphic", "Landing Page"
-}
+import type { GalleryImage } from "../views/GalleryView";
 
 export interface SkinItem {
   id: string;
@@ -9,7 +6,7 @@ export interface SkinItem {
   name: string;
   primaryImage?: string | null;
   secondaryImage?: string | null;
-  images?: SkinImage[];  // For swipeable galleries
+  images?: GalleryImage[];  // For swipeable galleries (uses shared GalleryImage type)
   qrContent?: string | null;
   headerText?: string | null;
   footerText?: string | null;
@@ -17,6 +14,7 @@ export interface SkinItem {
   price?: number | null;
   colorCount?: number;
   sizeCount?: number;
+  selectedSize?: string | null;
   createdAt?: string | null;
   dimensions?: string | null;
   isUsed?: boolean;

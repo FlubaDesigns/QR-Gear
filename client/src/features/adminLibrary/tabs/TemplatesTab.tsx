@@ -26,6 +26,7 @@ interface ProductTemplate {
     qrProductState?: string;
     productName?: string;
     priorityMockupUrl?: string | null;
+    landingPageSnapshotUrl?: string | null;
   } | null;
 }
 
@@ -37,6 +38,24 @@ function templateToSkinItem(template: ProductTemplate): SkinItem {
       ? parseFloat(template.customerPrice)
       : template.pricing?.customerPrice;
 
+  // Build images array for swipeable viewer
+  const images: { url: string; label: string }[] = [];
+  
+  // 1. Product mockup (priority)
+  if (packet?.priorityMockupUrl) {
+    images.push({ url: packet.priorityMockupUrl, label: "Mockup" });
+  }
+  
+  // 2. Graphic (composite)
+  if (packet?.compositeUrl) {
+    images.push({ url: packet.compositeUrl, label: "Graphic" });
+  }
+  
+  // 3. Landing page snapshot (for QR Plus/Canvas)
+  if (packet?.landingPageSnapshotUrl) {
+    images.push({ url: packet.landingPageSnapshotUrl, label: "Landing Page" });
+  }
+
   // Templates show the product mockup as primary, graphic as secondary
   return {
     id: template.id,
@@ -44,6 +63,7 @@ function templateToSkinItem(template: ProductTemplate): SkinItem {
     name: packet?.productName || template.name || "Untitled Template",
     primaryImage: packet?.priorityMockupUrl || packet?.compositeUrl,
     secondaryImage: packet?.compositeUrl,
+    images: images.length > 0 ? images : undefined,
     qrContent: packet?.qrContent || template.qrContent,
     headerText: packet?.headerText,
     footerText: packet?.footerText,

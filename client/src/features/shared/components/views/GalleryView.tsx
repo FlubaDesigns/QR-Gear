@@ -14,12 +14,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+export interface GalleryImage {
+  url: string;
+  label: string;
+}
+
 export interface GalleryViewItem {
   id: string;
   packetId?: string;
   name: string;
   primaryImage?: string;
   secondaryImage?: string;
+  images?: GalleryImage[];  // For labeled swipeable images
   qrContent?: string;
   headerText?: string;
   footerText?: string;
@@ -63,10 +69,17 @@ export function GalleryView({
   const item = items[currentIndex];
   if (!item) return null;
 
-  const images = [item.primaryImage, item.secondaryImage].filter(Boolean) as string[];
-  const hasMultipleImages = images.length > 1;
-  const currentImage = images[showImageIndex] || null;
-  const imageLabels = ["Composite", "QR Only"];
+  // Use labeled images array if provided, otherwise fall back to primary/secondary
+  const galleryImages: GalleryImage[] = item.images && item.images.length > 0
+    ? item.images
+    : [
+        item.primaryImage ? { url: item.primaryImage, label: "Composite" } : null,
+        item.secondaryImage ? { url: item.secondaryImage, label: "QR Only" } : null,
+      ].filter((img): img is GalleryImage => img !== null);
+
+  const hasMultipleImages = galleryImages.length > 1;
+  const currentImage = galleryImages[showImageIndex]?.url || null;
+  const currentLabel = galleryImages[showImageIndex]?.label || "";
 
   const canGoPrev = currentIndex > 0;
   const canGoNext = currentIndex < items.length - 1;
@@ -156,7 +169,7 @@ export function GalleryView({
 
             {hasMultipleImages && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background/80 rounded-full px-3 py-1.5">
-                {images.map((_, idx) => (
+                {galleryImages.map((img, idx) => (
                   <button
                     key={idx}
                     className={`h-2.5 w-2.5 rounded-full transition-colors ${
@@ -165,6 +178,7 @@ export function GalleryView({
                         : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
                     }`}
                     onClick={() => setShowImageIndex(idx)}
+                    title={img.label}
                     data-testid={`dot-gallery-${idx}`}
                   />
                 ))}
@@ -175,9 +189,9 @@ export function GalleryView({
               {currentIndex + 1} / {items.length}
             </Badge>
 
-            {hasMultipleImages && (
+            {hasMultipleImages && currentLabel && (
               <Badge variant="outline" className="absolute top-4 left-20 bg-background/80">
-                {imageLabels[showImageIndex]}
+                {currentLabel}
               </Badge>
             )}
 
