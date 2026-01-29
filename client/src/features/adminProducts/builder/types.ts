@@ -357,7 +357,7 @@ export interface BuilderState {
   selectedColor: SelectedColor | null;
   qrProductState: QRProductState;
   content: ContentData;
-  selectedPlacements: PlacementId[];
+  selectedPlacements: string[];  // Now supports dynamic API placements
   placementConfig: PlacementConfig;
   placementSizes: PlacementSizeConfig;
 }

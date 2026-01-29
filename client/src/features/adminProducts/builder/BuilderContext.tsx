@@ -22,9 +22,9 @@ interface BuilderContextValue {
   selectProduct: (product: CatalogProduct | null) => void;
   setQRProductState: (state: QRProductState) => void;
   setContent: (content: Partial<ContentData>) => void;
-  togglePlacement: (placementId: PlacementId) => void;
-  setPlacementType: (placementId: PlacementId, type: PlacementType) => void;
-  setPlacementSize: (placementId: PlacementId, size: PlacementSize) => void;
+  togglePlacement: (placementId: string) => void;
+  setPlacementType: (placementId: string, type: PlacementType) => void;
+  setPlacementSize: (placementId: string, size: PlacementSize) => void;
   setSelectedColor: (color: SelectedColor | null) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
@@ -202,7 +202,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
-  const togglePlacement = useCallback((placementId: PlacementId) => {
+  const togglePlacement = useCallback((placementId: string) => {
     setState(prev => {
       const isSelected = prev.selectedPlacements.includes(placementId);
       const newPlacements = isSelected
@@ -229,7 +229,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     });
   }, []);
 
-  const setPlacementType = useCallback((placementId: PlacementId, type: PlacementType) => {
+  const setPlacementType = useCallback((placementId: string, type: PlacementType) => {
     setState(prev => ({
       ...prev,
       placementConfig: {
@@ -239,7 +239,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
-  const setPlacementSize = useCallback((placementId: PlacementId, size: PlacementSize) => {
+  const setPlacementSize = useCallback((placementId: string, size: PlacementSize) => {
     setState(prev => ({
       ...prev,
       placementSizes: {

@@ -63,11 +63,14 @@ export function PlacementModule() {
   const productPlacements = state.selectedProduct.placements;
   const hasApiPlacements = productPlacements && productPlacements.length > 0;
   
+  // When we have API placements, use them directly (no mapping needed)
+  // The API already provides: id, type, title, additionalPrice
   const placementOptions = hasApiPlacements
-    ? productPlacements.map(p => {
-        const mapped = mapProviderPlacement(p);
-        return { id: mapped.id, label: mapped.label, additionalPrice: p.additionalPrice };
-      })
+    ? productPlacements.map(p => ({
+        id: p.id || p.type,
+        label: p.title || p.id?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        additionalPrice: p.additionalPrice || 0,
+      }))
     : getPlacementsForCategory(category);
   
   const selectedPlacements = state.selectedPlacements || [];
@@ -155,7 +158,7 @@ export function PlacementModule() {
             const isSelected = selectedPlacements.includes(placement.id);
             const placementType = placementConfig[placement.id] || "qr";
             const placementSize = placementSizes[placement.id] || "medium";
-            const isQrOnly = QR_ONLY_PLACEMENTS.includes(placement.id);
+            const isQrOnly = (QR_ONLY_PLACEMENTS as string[]).includes(placement.id);
             
             return (
               <div key={placement.id} className="space-y-2">
