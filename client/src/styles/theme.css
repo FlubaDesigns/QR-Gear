@@ -505,10 +505,9 @@ h1, h2, h3 {
   color: var(--text-0);
 }
 
-/* Subtle uppercase on smaller headings */
+/* Letter spacing on smaller headings */
 h3, h4, h5, h6 {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
 }
 
 p, li {

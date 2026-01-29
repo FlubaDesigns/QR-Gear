@@ -94,20 +94,20 @@ export function TextStyleEditor({
         onClick={() => setIsCollapsed(!isCollapsed)}
         data-testid={`toggle-${testIdPrefix}-collapse`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {isCollapsed ? (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           )}
-          <div>
+          <div className="min-w-0 flex-1">
             <span className="font-semibold text-base">{label}</span>
             {sublabel && (
-              <span className="text-xs text-muted-foreground ml-2">{sublabel}</span>
+              <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">{sublabel}</span>
             )}
           </div>
           {hasContent && (
-            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full ml-2">
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full flex-shrink-0 max-w-[80px] truncate">
               {style.text.substring(0, 15)}{style.text.length > 15 ? "..." : ""}
             </span>
           )}
