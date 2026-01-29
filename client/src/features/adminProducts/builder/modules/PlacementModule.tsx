@@ -38,9 +38,8 @@ export function PlacementModule() {
   const placementSizes = state.placementSizes || {};
   const selectedCount = selectedPlacements.length;
   const isQrBasics = state.qrProductState === "qr_basics";
-  const isQrPlus = state.qrProductState === "qr_plus";
-  // Graphic toggle only for Canvas/Play/Dynamics - NOT for Basics or Plus
-  const showPlacementTypeToggle = !isQrBasics && !isQrPlus;
+  // Graphic toggle for Plus/Canvas/Play/Dynamics - NOT for Basics
+  const showPlacementTypeToggle = !isQrBasics;
   
   const availableColors: ProductColor[] = state.selectedProduct?.availableColors || [];
   const selectedColor = state.selectedColor;
