@@ -274,6 +274,8 @@ export function StoreBuilderHarness() {
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<string>("");
+  const [existingCollections, setExistingCollections] = useState<string[]>([]);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [originalConfiguration, setOriginalConfiguration] = useState<ProductConfiguration | null>(null);
   const [showAddStore, setShowAddStore] = useState(false);
@@ -761,6 +763,7 @@ export function StoreBuilderHarness() {
           storeId: selectedStore.id,
           storeName: selectedStore.name,
           channel: selectedChannel,
+          collection: selectedCollection.trim() || null,
           packetId: currentPacketId,
           templateId: templateId,
           qrContent: productPackage.qrContent,
@@ -772,6 +775,8 @@ export function StoreBuilderHarness() {
           enabledSizes: Array.from(configuration.enabledSizes),
           selectedGraphicSize: configuration.selectedGraphicSize,
           defaultColor: configuration.defaultColor,
+          qrProductState: productPackage.qrProductState || null,
+          mockupUrl: productPackage.priorityMockupUrl || null,
         }),
       });
 
@@ -779,9 +784,10 @@ export function StoreBuilderHarness() {
         throw new Error("Failed to assign to store");
       }
 
+      const collectionSuffix = selectedCollection.trim() ? ` [${selectedCollection.trim()}]` : "";
       const successMsg = wasForked 
-        ? `New version created and linked to ${selectedStore.name} / ${selectedChannel}`
-        : `Linked to ${selectedStore.name} / ${selectedChannel}`;
+        ? `New version created and linked to ${selectedStore.name} / ${selectedChannel}${collectionSuffix}`
+        : `Linked to ${selectedStore.name} / ${selectedChannel}${collectionSuffix}`;
       
       setSaveStatus({
         type: "success",
@@ -1229,8 +1235,16 @@ export function StoreBuilderHarness() {
                 {channels.map((channel) => (
                   <button
                     key={channel}
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedChannel(channel);
+                      setSelectedCollection("");
+                      try {
+                        const res = await fetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`);
+                        const data = await res.json();
+                        setExistingCollections(data.collections || []);
+                      } catch (e) {
+                        setExistingCollections([]);
+                      }
                       setTimeout(() => assignButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
                     }}
                     className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
@@ -1282,6 +1296,41 @@ export function StoreBuilderHarness() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {selectedStore && selectedChannel && (
+            <div className="space-y-3">
+              <p className="text-base font-medium">Collection (optional):</p>
+              <p className="text-sm text-muted-foreground">
+                Group products together for QR Dynamics rotation
+              </p>
+              {existingCollections.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {existingCollections.map((coll) => (
+                    <button
+                      key={coll}
+                      onClick={() => setSelectedCollection(coll)}
+                      className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                        selectedCollection === coll 
+                          ? "bg-primary text-primary-foreground border-primary" 
+                          : "bg-muted/50 border-muted-foreground/20 hover:bg-muted"
+                      }`}
+                      data-testid={`collection-tag-${coll}`}
+                    >
+                      {coll}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input
+                type="text"
+                placeholder="Enter collection name or create new..."
+                value={selectedCollection}
+                onChange={(e) => setSelectedCollection(e.target.value)}
+                className="w-full h-14 px-4 rounded-md border bg-background text-base"
+                data-testid="input-collection"
+              />
             </div>
           )}
 
