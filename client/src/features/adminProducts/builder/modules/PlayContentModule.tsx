@@ -16,7 +16,7 @@ export function PlayContentModule() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback(async (file: File) => {
+  const handleFileSelect = useCallback((file: File) => {
     setUploadError(null);
     
     if (file.size > MAX_FILE_SIZE) {
@@ -29,23 +29,35 @@ export function PlayContentModule() {
       return;
     }
 
-    // Read the file into memory immediately to prevent "file no longer accessible" errors
-    // This happens when the browser loses the file reference before upload
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const blob = new Blob([arrayBuffer], { type: file.type });
-      const persistedFile = new File([blob], file.name, { type: file.type, lastModified: file.lastModified });
-      
-      const objectUrl = URL.createObjectURL(persistedFile);
-      setContent({
-        playMediaFile: persistedFile,
-        playMediaPreview: objectUrl,
-        playMediaMimeType: file.type,
-      });
-    } catch (err: any) {
-      console.error("Failed to read file into memory:", err);
+    // Use FileReader which is more reliable on mobile browsers
+    // The arrayBuffer() method can fail when the file reference becomes stale
+    const reader = new FileReader();
+    
+    reader.onload = () => {
+      try {
+        const arrayBuffer = reader.result as ArrayBuffer;
+        const blob = new Blob([arrayBuffer], { type: file.type });
+        const persistedFile = new File([blob], file.name, { type: file.type, lastModified: file.lastModified });
+        
+        const objectUrl = URL.createObjectURL(persistedFile);
+        setContent({
+          playMediaFile: persistedFile,
+          playMediaPreview: objectUrl,
+          playMediaMimeType: file.type,
+        });
+      } catch (err: any) {
+        console.error("Failed to create persisted file:", err);
+        setUploadError("Failed to read file. Please try selecting it again.");
+      }
+    };
+    
+    reader.onerror = () => {
+      console.error("FileReader error:", reader.error);
       setUploadError("Failed to read file. Please try selecting it again.");
-    }
+    };
+    
+    // Start reading immediately to capture the file before it becomes stale
+    reader.readAsArrayBuffer(file);
   }, [setContent]);
 
   if (state.qrProductState !== "qr_play" || !state.selectedProduct || !state.content) {
