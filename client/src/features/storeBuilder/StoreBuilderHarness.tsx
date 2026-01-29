@@ -285,6 +285,7 @@ export function StoreBuilderHarness() {
   
   const storeSelectRef = useRef<HTMLDivElement>(null);
   const channelSelectRef = useRef<HTMLDivElement>(null);
+  const assignButtonRef = useRef<HTMLButtonElement>(null);
   
   const queryClient = useQueryClient();
 
@@ -1228,7 +1229,10 @@ export function StoreBuilderHarness() {
                 {channels.map((channel) => (
                   <button
                     key={channel}
-                    onClick={() => setSelectedChannel(channel)}
+                    onClick={() => {
+                      setSelectedChannel(channel);
+                      setTimeout(() => assignButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+                    }}
                     className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
                     data-testid={`channel-${channel}`}
                   >
@@ -1283,6 +1287,7 @@ export function StoreBuilderHarness() {
 
           {selectedStore && selectedChannel && (
             <button
+              ref={assignButtonRef}
               onClick={handleAssign}
               disabled={isSaving}
               className="qr-btn qr-btn--primary qr-btn--xxl qr-btn--full disabled:opacity-50"
