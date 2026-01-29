@@ -145,9 +145,9 @@ export function useSaveProduct() {
       colors: colors || [],
       placements: placements || ["front"],
       qrSizes: ["small", "medium", "large"] as const,
-      artworkUrl: artworkUrl || selectedProduct?.imageUrl || "",
+      artworkUrl: artworkUrl || "",
       artworkVariant: artworkVariant || "black",
-      thumbnailUrl: selectedProduct?.imageUrl || "",
+      thumbnailUrl: artworkUrl || "",
       qrContent: content.url || "",
       pricing: pricing || null,
     };

@@ -123,10 +123,10 @@ describe('Builder Null Guards', () => {
         loadedBackground: null,
       };
       
-      const artworkUrl = state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "";
+      const artworkUrl = state.loadedGraphic?.compositeUrl || "";
       const qrOnlyUrl = state.loadedGraphic?.qrOnlyUrl || "";
       
-      expect(artworkUrl).toBe('fallback.jpg');
+      expect(artworkUrl).toBe('');
       expect(qrOnlyUrl).toBe('');
     });
     
@@ -140,7 +140,7 @@ describe('Builder Null Guards', () => {
         loadedBackground: null,
       };
       
-      const artworkUrl = state.loadedGraphic?.compositeUrl || state.selectedProduct?.imageUrl || "";
+      const artworkUrl = state.loadedGraphic?.compositeUrl || "";
       const qrOnlyUrl = state.loadedGraphic?.qrOnlyUrl || "";
       
       expect(artworkUrl).toBe('composite.jpg');
