@@ -284,6 +284,7 @@ export function StoreBuilderHarness() {
   const [newChannelName, setNewChannelName] = useState("");
   const [isCreatingStore, setIsCreatingStore] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [wantsToChangeDestination, setWantsToChangeDestination] = useState(false);
   
   const storeSelectRef = useRef<HTMLDivElement>(null);
   const channelSelectRef = useRef<HTMLDivElement>(null);
@@ -445,6 +446,14 @@ export function StoreBuilderHarness() {
             }
             if (!urlChannel && packet.channelName) {
               setSelectedChannel(packet.channelName);
+            }
+            
+            // Auto-fetch collections when destination is pre-set
+            if (packet.storeId && packet.channelName) {
+              fetch(`${apiBase}/stores/${packet.storeId}/channels/${packet.channelName}/collections`)
+                .then(res => res.json())
+                .then(data => setExistingCollections(data.collections || []))
+                .catch(() => setExistingCollections([]));
             }
             
             console.log("[StoreBuilder] Loaded destination from packet:", {
@@ -1140,220 +1149,251 @@ export function StoreBuilderHarness() {
         icon={<Store className="h-4 w-4" />}
         defaultOpen={true}
       >
-        <div className="space-y-3">
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => {
-                setSelectedStoreType("internal");
-                setSelectedStoreId(null);
-                setSelectedChannel(null);
-                setTimeout(() => storeSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-              }}
-              className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "internal" ? "qr-btn--primary" : "qr-btn--outline"}`}
-              data-testid="store-type-internal"
-            >
-              <Building2 className="h-5 w-5" />
-              Internal
-            </button>
-            <button
-              onClick={() => {
-                setSelectedStoreType("external");
-                setSelectedStoreId(null);
-                setSelectedChannel(null);
-                setTimeout(() => storeSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-              }}
-              className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "external" ? "qr-btn--primary" : "qr-btn--outline"}`}
-              data-testid="store-type-external"
-            >
-              <Globe className="h-5 w-5" />
-              External
-            </button>
-          </div>
+        <div className="space-y-4">
+          {/* Show pre-set destination from Products page */}
+          {selectedStore && selectedChannel && !wantsToChangeDestination ? (
+            <>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">Destination</p>
+                <p className="text-lg font-medium" data-testid="text-destination">
+                  {selectedStore.name} / {selectedChannel}
+                </p>
+                <button
+                  onClick={() => setWantsToChangeDestination(true)}
+                  className="text-sm text-primary hover:underline mt-2"
+                  data-testid="button-change-destination"
+                >
+                  Change destination
+                </button>
+              </div>
 
-          {selectedStoreType && (
-            <div ref={storeSelectRef} className="flex flex-col gap-3">
-              <CustomDropdown
-                value={selectedStoreId || ""}
-                onChange={(val) => {
-                  setSelectedStoreId(val);
-                  setSelectedChannel(null);
-                  setTimeout(() => channelSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-                }}
-                options={storeOptions}
-                placeholder="Select a store..."
-                data-testid="store-select"
-              />
+              {/* Collection picker - the main focus */}
+              <div className="space-y-3">
+                <p className="text-base font-medium">Collection (optional):</p>
+                <p className="text-sm text-muted-foreground">
+                  Group products together for QR Dynamics rotation
+                </p>
+                {existingCollections.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {existingCollections.map((coll) => (
+                      <button
+                        key={coll}
+                        onClick={() => setSelectedCollection(coll)}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                          selectedCollection === coll 
+                            ? "bg-primary text-primary-foreground border-primary" 
+                            : "bg-muted/50 border-muted-foreground/20 hover:bg-muted"
+                        }`}
+                        data-testid={`collection-tag-${coll}`}
+                      >
+                        {coll}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  placeholder="Enter collection name or create new..."
+                  value={selectedCollection}
+                  onChange={(e) => setSelectedCollection(e.target.value)}
+                  className="w-full h-14 px-4 rounded-md border bg-background text-base"
+                  data-testid="input-collection"
+                />
+              </div>
+
               <button
-                onClick={() => setShowAddStore(!showAddStore)}
-                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-                data-testid="button-add-store"
+                ref={assignButtonRef}
+                onClick={handleAssign}
+                disabled={isSaving}
+                className="qr-btn qr-btn--primary qr-btn--xxl qr-btn--full disabled:opacity-50"
+                data-testid="button-assign"
               >
-                <Plus className="h-5 w-5" />
-                {showAddStore ? "Cancel" : "Add New Store"}
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <ChevronRight className="h-6 w-6" />
+                    Assign to {selectedChannel}
+                    {selectedCollection.trim() && ` [${selectedCollection.trim()}]`}
+                  </>
+                )}
               </button>
-            </div>
-          )}
+            </>
+          ) : (
+            <>
+              {/* Full store/channel selection - shown when no destination or user wants to change */}
+              {wantsToChangeDestination && (
+                <button
+                  onClick={() => setWantsToChangeDestination(false)}
+                  className="text-sm text-primary hover:underline"
+                  data-testid="button-cancel-change"
+                >
+                  Cancel change
+                </button>
+              )}
 
-          {showAddStore && selectedStoreType && (
-            <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
-              <p className="text-base text-muted-foreground">
-                Create new {selectedStoreType} store:
-              </p>
-              <input
-                type="text"
-                placeholder="Store name..."
-                value={newStoreName}
-                onChange={(e) => setNewStoreName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateStore()}
-                className="w-full h-14 px-4 rounded-md border bg-background text-base"
-                data-testid="input-new-store"
-              />
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={handleCreateStore}
-                  disabled={!newStoreName.trim() || isCreatingStore}
-                  className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full disabled:opacity-50"
-                  data-testid="button-save-store"
+                  onClick={() => {
+                    setSelectedStoreType("internal");
+                    setSelectedStoreId(null);
+                    setSelectedChannel(null);
+                    setTimeout(() => storeSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+                  }}
+                  className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "internal" ? "qr-btn--primary" : "qr-btn--outline"}`}
+                  data-testid="store-type-internal"
                 >
-                  {isCreatingStore ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Store"}
+                  <Building2 className="h-5 w-5" />
+                  Internal
                 </button>
                 <button
-                  onClick={() => { setShowAddStore(false); setNewStoreName(""); }}
-                  className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-                  data-testid="button-cancel-store"
+                  onClick={() => {
+                    setSelectedStoreType("external");
+                    setSelectedStoreId(null);
+                    setSelectedChannel(null);
+                    setTimeout(() => storeSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+                  }}
+                  className={`qr-btn qr-btn--touch qr-btn--full ${selectedStoreType === "external" ? "qr-btn--primary" : "qr-btn--outline"}`}
+                  data-testid="store-type-external"
                 >
-                  Cancel
+                  <Globe className="h-5 w-5" />
+                  External
                 </button>
               </div>
-            </div>
-          )}
 
-          {selectedStore && (
-            <div ref={channelSelectRef} className="space-y-3">
-              <p className="text-base font-medium">Select Channel:</p>
-              <div className="flex flex-col gap-2">
-                {channels.map((channel) => (
-                  <button
-                    key={channel}
-                    onClick={async () => {
-                      setSelectedChannel(channel);
-                      setSelectedCollection("");
-                      try {
-                        const res = await fetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`);
-                        const data = await res.json();
-                        setExistingCollections(data.collections || []);
-                      } catch (e) {
-                        setExistingCollections([]);
-                      }
-                      setTimeout(() => assignButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+              {selectedStoreType && (
+                <div ref={storeSelectRef} className="flex flex-col gap-3">
+                  <CustomDropdown
+                    value={selectedStoreId || ""}
+                    onChange={(val) => {
+                      setSelectedStoreId(val);
+                      setSelectedChannel(null);
+                      setTimeout(() => channelSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
                     }}
-                    className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
-                    data-testid={`channel-${channel}`}
+                    options={storeOptions}
+                    placeholder="Select a store..."
+                    data-testid="store-select"
+                  />
+                  <button
+                    onClick={() => setShowAddStore(!showAddStore)}
+                    className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+                    data-testid="button-add-store"
                   >
-                    {channel}
+                    <Plus className="h-5 w-5" />
+                    {showAddStore ? "Cancel" : "Add New Store"}
                   </button>
-                ))}
-                <button
-                  onClick={() => setShowAddChannel(!showAddChannel)}
-                  className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-                  data-testid="button-add-channel"
-                >
-                  <Plus className="h-5 w-5" />
-                  {showAddChannel ? "Cancel" : "Add New Channel"}
-                </button>
-              </div>
+                </div>
+              )}
 
-              {showAddChannel && (
+              {showAddStore && selectedStoreType && (
                 <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
                   <p className="text-base text-muted-foreground">
-                    Add channel to {selectedStore.name}:
+                    Create new {selectedStoreType} store:
                   </p>
                   <input
                     type="text"
-                    placeholder="Channel name..."
-                    value={newChannelName}
-                    onChange={(e) => setNewChannelName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCreateChannel()}
+                    placeholder="Store name..."
+                    value={newStoreName}
+                    onChange={(e) => setNewStoreName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateStore()}
                     className="w-full h-14 px-4 rounded-md border bg-background text-base"
-                    data-testid="input-new-channel"
+                    data-testid="input-new-store"
                   />
                   <div className="flex flex-col gap-3">
                     <button
-                      onClick={handleCreateChannel}
-                      disabled={!newChannelName.trim() || isCreatingChannel}
+                      onClick={handleCreateStore}
+                      disabled={!newStoreName.trim() || isCreatingStore}
                       className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full disabled:opacity-50"
-                      data-testid="button-save-channel"
+                      data-testid="button-save-store"
                     >
-                      {isCreatingChannel ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Channel"}
+                      {isCreatingStore ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Store"}
                     </button>
                     <button
-                      onClick={() => { setShowAddChannel(false); setNewChannelName(""); }}
+                      onClick={() => { setShowAddStore(false); setNewStoreName(""); }}
                       className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-                      data-testid="button-cancel-channel"
+                      data-testid="button-cancel-store"
                     >
                       Cancel
                     </button>
                   </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {selectedStore && selectedChannel && (
-            <div className="space-y-3">
-              <p className="text-base font-medium">Collection (optional):</p>
-              <p className="text-sm text-muted-foreground">
-                Group products together for QR Dynamics rotation
-              </p>
-              {existingCollections.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {existingCollections.map((coll) => (
+              {selectedStore && (
+                <div ref={channelSelectRef} className="space-y-3">
+                  <p className="text-base font-medium">Select Channel:</p>
+                  <div className="flex flex-col gap-2">
+                    {channels.map((channel) => (
+                      <button
+                        key={channel}
+                        onClick={async () => {
+                          setSelectedChannel(channel);
+                          setSelectedCollection("");
+                          setWantsToChangeDestination(false);
+                          try {
+                            const res = await fetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`);
+                            const data = await res.json();
+                            setExistingCollections(data.collections || []);
+                          } catch (e) {
+                            setExistingCollections([]);
+                          }
+                          setTimeout(() => assignButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+                        }}
+                        className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
+                        data-testid={`channel-${channel}`}
+                      >
+                        {channel}
+                      </button>
+                    ))}
                     <button
-                      key={coll}
-                      onClick={() => setSelectedCollection(coll)}
-                      className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                        selectedCollection === coll 
-                          ? "bg-primary text-primary-foreground border-primary" 
-                          : "bg-muted/50 border-muted-foreground/20 hover:bg-muted"
-                      }`}
-                      data-testid={`collection-tag-${coll}`}
+                      onClick={() => setShowAddChannel(!showAddChannel)}
+                      className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+                      data-testid="button-add-channel"
                     >
-                      {coll}
+                      <Plus className="h-5 w-5" />
+                      {showAddChannel ? "Cancel" : "Add New Channel"}
                     </button>
-                  ))}
+                  </div>
+
+                  {showAddChannel && (
+                    <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                      <p className="text-base text-muted-foreground">
+                        Add channel to {selectedStore.name}:
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="Channel name..."
+                        value={newChannelName}
+                        onChange={(e) => setNewChannelName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleCreateChannel()}
+                        className="w-full h-14 px-4 rounded-md border bg-background text-base"
+                        data-testid="input-new-channel"
+                      />
+                      <div className="flex flex-col gap-3">
+                        <button
+                          onClick={handleCreateChannel}
+                          disabled={!newChannelName.trim() || isCreatingChannel}
+                          className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full disabled:opacity-50"
+                          data-testid="button-save-channel"
+                        >
+                          {isCreatingChannel ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Channel"}
+                        </button>
+                        <button
+                          onClick={() => { setShowAddChannel(false); setNewChannelName(""); }}
+                          className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+                          data-testid="button-cancel-channel"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-              <input
-                type="text"
-                placeholder="Enter collection name or create new..."
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                className="w-full h-14 px-4 rounded-md border bg-background text-base"
-                data-testid="input-collection"
-              />
-            </div>
-          )}
-
-          {selectedStore && selectedChannel && (
-            <button
-              ref={assignButtonRef}
-              onClick={handleAssign}
-              disabled={isSaving}
-              className="qr-btn qr-btn--primary qr-btn--xxl qr-btn--full disabled:opacity-50"
-              data-testid="button-assign"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  Assigning...
-                </>
-              ) : (
-                <>
-                  <ChevronRight className="h-6 w-6" />
-                  Assign to {selectedChannel}
-                </>
-              )}
-            </button>
+            </>
           )}
         </div>
       </CollapsibleSection>
