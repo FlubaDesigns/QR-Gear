@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers, Loader2 } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
@@ -18,10 +18,23 @@ export interface CatalogProduct {
   hasMockupMapping?: boolean;
 }
 
+export type GenderFilter = "all" | "mens" | "womens" | "unisex";
+
+export interface OriginFilter {
+  showUSA: boolean;
+  showOther: boolean;
+}
+
 export interface ProductCatalogPickerProps {
   provider: "printify" | "printful";
-  onProductSelect: (product: CatalogProduct) => void;
+  category: string | null;
+  onCategoryChange: (category: string | null) => void;
+  genderFilter: GenderFilter;
+  onGenderFilterChange: (filter: GenderFilter) => void;
+  originFilter: OriginFilter;
+  onOriginFilterChange: (filter: Partial<OriginFilter>) => void;
   selectedProductId?: number | null;
+  onProductSelect: (product: CatalogProduct) => void;
   apiBase?: string;
   showProviderIndicator?: boolean;
   showFilters?: boolean;
@@ -38,22 +51,19 @@ function detectGender(title: string): "mens" | "womens" | "unisex" {
 
 export function ProductCatalogPicker({
   provider,
-  onProductSelect,
+  category,
+  onCategoryChange,
+  genderFilter,
+  onGenderFilterChange,
+  originFilter,
+  onOriginFilterChange,
   selectedProductId,
+  onProductSelect,
   apiBase = "/api/test",
   showProviderIndicator = true,
   showFilters = true,
   gridHeight = "min(60vh, 500px)",
 }: ProductCatalogPickerProps) {
-  const [category, setCategory] = useState<string | null>(null);
-  const [genderFilter, setGenderFilter] = useState<"all" | "mens" | "womens" | "unisex">("all");
-  const [showUSA, setShowUSA] = useState(true);
-  const [showOther, setShowOther] = useState(true);
-
-  useEffect(() => {
-    setCategory(null);
-  }, [provider]);
-
   const { data: categories = [], isLoading: loadingCategories } = useQuery<{ name: string; itemCount: number }[]>({
     queryKey: ["shared-catalog-categories", provider, apiBase],
     queryFn: async () => {
@@ -118,11 +128,11 @@ export function ProductCatalogPicker({
 
   const filteredProducts = useMemo(() => {
     return productsWithGender.filter(p => {
-      const passesOrigin = (showUSA && p.madeInUSA) || (showOther && !p.madeInUSA);
+      const passesOrigin = (originFilter.showUSA && p.madeInUSA) || (originFilter.showOther && !p.madeInUSA);
       const passesGender = genderFilter === "all" || p.gender === genderFilter;
       return passesOrigin && passesGender;
     });
-  }, [productsWithGender, showUSA, showOther, genderFilter]);
+  }, [productsWithGender, originFilter, genderFilter]);
 
   const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
     id: String(p.id),
@@ -145,7 +155,7 @@ export function ProductCatalogPicker({
 
   const genderCounts = useMemo(() => {
     const originFiltered = productsWithGender.filter(p => 
-      (showUSA && p.madeInUSA) || (showOther && !p.madeInUSA)
+      (originFilter.showUSA && p.madeInUSA) || (originFilter.showOther && !p.madeInUSA)
     );
     return {
       all: originFiltered.length,
@@ -153,7 +163,7 @@ export function ProductCatalogPicker({
       womens: originFiltered.filter(p => p.gender === "womens").length,
       unisex: originFiltered.filter(p => p.gender === "unisex").length,
     };
-  }, [productsWithGender, showUSA, showOther]);
+  }, [productsWithGender, originFilter]);
 
   return (
     <div className="space-y-4">
@@ -171,7 +181,7 @@ export function ProductCatalogPicker({
         </div>
         <CustomDropdown
           value={category || ""}
-          onChange={setCategory}
+          onChange={onCategoryChange}
           options={categoryOptions}
           placeholder="Select a category..."
           loading={loadingCategories}
@@ -181,25 +191,25 @@ export function ProductCatalogPicker({
       {category && showFilters && (
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => setGenderFilter("all")}
+            onClick={() => onGenderFilterChange("all")}
             className={`px-3 py-1 text-sm rounded ${genderFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           >
             All ({genderCounts.all})
           </button>
           <button
-            onClick={() => setGenderFilter("mens")}
+            onClick={() => onGenderFilterChange("mens")}
             className={`px-3 py-1 text-sm rounded ${genderFilter === "mens" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           >
             Men ({genderCounts.mens})
           </button>
           <button
-            onClick={() => setGenderFilter("womens")}
+            onClick={() => onGenderFilterChange("womens")}
             className={`px-3 py-1 text-sm rounded ${genderFilter === "womens" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           >
             Women ({genderCounts.womens})
           </button>
           <button
-            onClick={() => setGenderFilter("unisex")}
+            onClick={() => onGenderFilterChange("unisex")}
             className={`px-3 py-1 text-sm rounded ${genderFilter === "unisex" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           >
             Unisex ({genderCounts.unisex})
