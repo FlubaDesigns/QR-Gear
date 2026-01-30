@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { 
   ArrowLeft, Zap, Store, Layers, Film, 
-  Check, Loader2, Plus
+  Check, Loader2, Plus, X, Calendar, Clock, CalendarDays
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GridScrollView } from "@/features/shared/components/views";
+import { GridScrollView, QRDynamicsScanLightbox } from "@/features/shared/components/views";
 import { ChannelItemSkin, type ChannelItem, CollectionItemSkinV2, type CollectionItem } from "@/features/shared/components/skins";
 
 interface StoreOption {
@@ -70,6 +70,7 @@ export default function TestDynamicsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
+  const [selectedItem, setSelectedItem] = useState<CollectionItemData | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -378,7 +379,41 @@ export default function TestDynamicsPage() {
   };
 
   const handleCollectionItemAction = (item: CollectionItem) => {
-    console.log("Collection item selected:", item.id);
+    const fullItem = collectionItems.find(ci => ci.id === item.id);
+    if (fullItem) {
+      setSelectedItem(fullItem);
+    }
+  };
+
+  const updateRotationInterval = async (itemId: string, interval: 'daily' | 'weekly' | 'monthly') => {
+    if (!selectedCollection) return;
+    
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/test/collections/${selectedCollection.id}/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rotationInterval: interval }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to update interval');
+      
+      setCollectionItems(prev => prev.map(item => 
+        item.id === itemId ? { ...item, rotationInterval: interval } : item
+      ));
+      
+      if (selectedItem?.id === itemId) {
+        setSelectedItem(prev => prev ? { ...prev, rotationInterval: interval } : null);
+      }
+      
+      setSuccessMessage(`Rotation set to ${interval}`);
+      setTimeout(() => setSuccessMessage(null), 2000);
+    } catch (err) {
+      setError('Failed to update rotation interval');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleCollectionItemRemove = (item: CollectionItem) => {
@@ -589,6 +624,20 @@ export default function TestDynamicsPage() {
             </div>
           </>
         )}
+
+        <QRDynamicsScanLightbox
+          item={selectedItem ? {
+            id: selectedItem.id,
+            name: selectedItem.name,
+            thumbnailUrl: selectedItem.thumbnailUrl,
+            contentType: selectedItem.contentType,
+            rotationInterval: selectedItem.rotationInterval,
+            order: selectedItem.order,
+          } : null}
+          onClose={() => setSelectedItem(null)}
+          onIntervalChange={updateRotationInterval}
+          isUpdating={isUpdating}
+        />
       </div>
     </div>
   );
