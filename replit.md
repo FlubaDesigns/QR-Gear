@@ -54,6 +54,13 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
 - **Product Packet Architecture**: A `Product Packet` serves as the single source of truth for product configurations, linking to `Graphics` and `Template` entries. The system supports a "fork-on-edit" pattern where modifying an existing product creates a new packet.
 - **Store Library Architecture**: An admin interface (`/admin/library`) for managing products linked to specific stores and channels via `storeProductLinks`.
 - **QR Dynamics Architecture**: Enables creation of rotating product experiences structured as **Store → Channel → Collection**. Collections are curated playlists of items that cycle over time, scoped to the user's ID.
+- **Members Sandbox** (`/test-members`): A simplified product builder where authenticated members can create and sell products using admin-unlocked templates. Key features:
+  - **Wizard Mode**: 5-step guided flow (Product → Graphics → QR Setup → Preview → Publish)
+  - **Power Mode**: Compact single-view interface with dropdowns for experienced users
+  - **My Channels**: Member-scoped channels to organize products
+  - **My Collections**: Member-scoped QR Dynamics collections
+  - **Earnings Dashboard**: Tracks profit share (25% of sales)
+  - **API Endpoints**: `/api/members/:memberId/graphics|channels|products|earnings`
 
 ## CRITICAL: QR Dynamics Implementation (INCOMPLETE - MUST FIX)
 
