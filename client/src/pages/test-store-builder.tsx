@@ -13,85 +13,185 @@ import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness
 
 interface StoreData { id: string; name: string; roleType: string; isActive?: boolean; }
 interface ProductBlueprint { id: number; title: string; }
-interface AllowedProduct { blueprintId: number; title: string; }
+interface BlueprintDetails { id: string; colors: Array<{ name: string; hex?: string }>; sizes: string[]; }
+interface BareProduct { blueprintId: number; title: string; colors: string[]; sizes: string[]; addedAt: string; }
 
-function StoreProductPicker({ store, onClose }: { store: StoreData; onClose: () => void }) {
+function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () => void }) {
   const { toast } = useToast();
-  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
-  const [hasChanges, setHasChanges] = useState(false);
+  const [selectedBlueprint, setSelectedBlueprint] = useState<number | null>(null);
+  const [selectedColors, setSelectedColors] = useState<Set<string>>(new Set());
+  const [selectedSizes, setSelectedSizes] = useState<Set<string>>(new Set());
+  const [addedProducts, setAddedProducts] = useState<BareProduct[]>([]);
 
   const { data: blueprints = [] } = useQuery<ProductBlueprint[]>({
     queryKey: ["/api/test/printify/local-blueprints"],
     queryFn: async () => { const res = await fetch("/api/test/printify/local-blueprints"); const d = await res.json(); return d.blueprints || []; },
   });
 
-  const { data: allowedData, isLoading } = useQuery({
+  const { data: details, isLoading: loadingDetails } = useQuery<BlueprintDetails>({
+    queryKey: ["/api/test/printify/catalog", selectedBlueprint],
+    queryFn: async () => { const res = await fetch(`/api/test/printify/catalog/${selectedBlueprint}`); return res.json(); },
+    enabled: !!selectedBlueprint,
+  });
+
+  const { data: existingData } = useQuery({
     queryKey: ["/api/test/stores", store.id, "allowed-products"],
     queryFn: async () => { const res = await fetch(`/api/test/stores/${store.id}/allowed-products`); return res.json(); },
   });
 
   useEffect(() => {
-    if (allowedData?.products) {
-      setSelectedProducts(new Set<number>(allowedData.products.map((p: AllowedProduct) => p.blueprintId)));
-      setHasChanges(false);
+    if (existingData?.products) setAddedProducts(existingData.products);
+  }, [existingData]);
+
+  useEffect(() => {
+    if (details) {
+      setSelectedColors(new Set(details.colors.map(c => c.name)));
+      setSelectedSizes(new Set(details.sizes));
     }
-  }, [allowedData]);
+  }, [details]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const products = Array.from(selectedProducts).map(blueprintId => {
-        const bp = blueprints.find(b => b.id === blueprintId);
-        return { blueprintId, title: bp?.title || `Product ${blueprintId}`, addedAt: new Date().toISOString() };
+    mutationFn: async (products: BareProduct[]) => {
+      const res = await fetch(`/api/test/stores/${store.id}/allowed-products`, { 
+        method: "POST", 
+        body: JSON.stringify({ products }), 
+        headers: { "Content-Type": "application/json" } 
       });
-      const res = await fetch(`/api/test/stores/${store.id}/allowed-products`, { method: "POST", body: JSON.stringify({ products }), headers: { "Content-Type": "application/json" } });
       if (!res.ok) throw new Error("Failed to save");
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Saved", description: `${selectedProducts.size} products assigned to ${store.name}` });
-      setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ["/api/test/stores", store.id, "allowed-products"] });
     },
   });
 
-  const toggleProduct = (id: number) => {
-    setSelectedProducts(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
-    setHasChanges(true);
+  const handleAdd = () => {
+    if (!selectedBlueprint || selectedColors.size === 0 || selectedSizes.size === 0) return;
+    const bp = blueprints.find(b => b.id === selectedBlueprint);
+    const newProduct: BareProduct = {
+      blueprintId: selectedBlueprint,
+      title: bp?.title || `Product ${selectedBlueprint}`,
+      colors: Array.from(selectedColors),
+      sizes: Array.from(selectedSizes),
+      addedAt: new Date().toISOString(),
+    };
+    const updated = [...addedProducts.filter(p => p.blueprintId !== selectedBlueprint), newProduct];
+    setAddedProducts(updated);
+    saveMutation.mutate(updated);
+    toast({ title: "Added", description: `${bp?.title} added to ${store.name}` });
+    setSelectedBlueprint(null);
+    setSelectedColors(new Set());
+    setSelectedSizes(new Set());
+  };
+
+  const handleRemove = (blueprintId: number) => {
+    const updated = addedProducts.filter(p => p.blueprintId !== blueprintId);
+    setAddedProducts(updated);
+    saveMutation.mutate(updated);
+    toast({ title: "Removed", description: "Product removed from store" });
+  };
+
+  const toggleColor = (name: string) => setSelectedColors(prev => { const next = new Set(prev); next.has(name) ? next.delete(name) : next.add(name); return next; });
+  const toggleSize = (size: string) => setSelectedSizes(prev => { const next = new Set(prev); next.has(size) ? next.delete(size) : next.add(size); return next; });
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && selectedBlueprint && selectedColors.size > 0 && selectedSizes.size > 0) {
+      e.preventDefault();
+      handleAdd();
+    }
   };
 
   return (
-    <div className="p-4 border rounded-lg bg-accent/5 space-y-4">
+    <div className="p-4 border rounded-lg bg-accent/5 space-y-4" onKeyDown={handleKeyDown}>
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Add Products to: {store.name}</h3>
-        <button className="text-sm text-muted-foreground hover:text-foreground" onClick={onClose}>Close</button>
+        <button className="text-sm text-muted-foreground hover:text-foreground" onClick={onClose} data-testid="btn-close-picker">Close</button>
       </div>
-      
-      {isLoading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
+
+      <Select value={selectedBlueprint?.toString() || ""} onValueChange={v => setSelectedBlueprint(parseInt(v))}>
+        <SelectTrigger data-testid="select-blueprint"><SelectValue placeholder="Select a product..." /></SelectTrigger>
+        <SelectContent>
+          {blueprints.map(bp => (
+            <SelectItem key={bp.id} value={bp.id.toString()}>{bp.title}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {selectedBlueprint && loadingDetails && <p className="text-sm text-muted-foreground">Loading options...</p>}
+
+      {selectedBlueprint && details && (
         <>
-          <div className="flex gap-2 flex-wrap">
-            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set(blueprints.map(b => b.id))); setHasChanges(true); }}>Select All</Button>
-            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set()); setHasChanges(true); }}>Clear All</Button>
-            <span className="text-sm text-muted-foreground self-center">{selectedProducts.size} selected</span>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Colors ({selectedColors.size})</p>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set(details.colors.map(c => c.name)))}>All</Button>
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set())}>None</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {details.colors.map(c => (
+                <button
+                  key={c.name}
+                  onClick={() => toggleColor(c.name)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColors.has(c.name) ? "ring-2 ring-primary ring-offset-2" : "opacity-50"}`}
+                  style={{ backgroundColor: c.hex || "#ccc" }}
+                  title={c.name}
+                  data-testid={`color-${c.name}`}
+                />
+              ))}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-            {blueprints.map(bp => (
-              <label key={bp.id} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-accent/10">
-                <Checkbox checked={selectedProducts.has(bp.id)} onCheckedChange={() => toggleProduct(bp.id)} />
-                <span className="text-sm truncate">{bp.title}</span>
-              </label>
-            ))}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Sizes ({selectedSizes.size})</p>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set(details.sizes))}>All</Button>
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set())}>None</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {details.sizes.map(size => (
+                <button
+                  key={size}
+                  onClick={() => toggleSize(size)}
+                  className={`px-3 py-1 rounded border text-sm transition-all ${selectedSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted/50"}`}
+                  data-testid={`size-${size}`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
-          
+
           <button 
-            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" 
-            onClick={() => saveMutation.mutate()} 
-            disabled={!hasChanges || saveMutation.isPending}
+            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
+            onClick={handleAdd}
+            disabled={selectedColors.size === 0 || selectedSizes.size === 0 || saveMutation.isPending}
+            data-testid="btn-add-product"
           >
-            {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-            Save Products ({selectedProducts.size})
+            {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+            Add to Store
           </button>
         </>
+      )}
+
+      {addedProducts.length > 0 && (
+        <div className="border-t pt-4 space-y-2">
+          <p className="text-sm font-medium">In Store ({addedProducts.length})</p>
+          {addedProducts.map(p => (
+            <div key={p.blueprintId} className="flex items-center justify-between p-2 rounded bg-green-500/10 border">
+              <div className="text-sm">
+                <p className="font-medium">{p.title}</p>
+                <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
+              </div>
+              <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)} data-testid={`btn-remove-${p.blueprintId}`}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -201,7 +301,7 @@ function StoreManager() {
           )}
 
           {editingStore && (
-            <StoreProductPicker store={editingStore} onClose={() => setEditingStore(null)} />
+            <BareProductPicker store={editingStore} onClose={() => setEditingStore(null)} />
           )}
 
           {isLoading ? <p className="text-sm text-muted-foreground">Loading stores...</p> : (
@@ -283,7 +383,7 @@ function MemberProductLibrary() {
 
   useEffect(() => {
     if (allowedData?.products) {
-      setSelectedProducts(new Set<number>(allowedData.products.map((p: AllowedProduct) => p.blueprintId)));
+      setSelectedProducts(new Set<number>(allowedData.products.map((p: BareProduct) => p.blueprintId)));
       setHasChanges(false);
     }
   }, [allowedData]);
