@@ -1,7 +1,28 @@
 import { useState, useEffect } from "react";
-import { Link, useSearch } from "wouter";
-import { ArrowLeft, Zap, Store, Layers, LayoutGrid, RefreshCw, Clock, Play, Check, ChevronDown, Loader2, Plus } from "lucide-react";
+import { Link } from "wouter";
+import { 
+  ArrowLeft, Zap, Store, Layers, LayoutGrid, RefreshCw, Clock, 
+  Play, Check, ChevronDown, Loader2, Plus, Image, Video, FileText,
+  Trash2, ArrowUp, ArrowDown, Upload, X
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface StoreOption {
   id: string;
@@ -10,45 +31,36 @@ interface StoreOption {
   availableSegments: string[];
 }
 
-interface CollectionItem {
+interface ChannelContentItem {
   id: string;
-  linkId: string;
-  packetId: string | null;
-  name: string;
-  imageUrl: string | null;
-  mockupUrl: string | null;
-  qrProductState: string | null;
-  landingPageUrl: string | null;
-}
-
-interface Surface {
-  id: string;
-  name: string;
   storeId: string;
   channelId: string;
-  collectionName: string;
-  rotationInterval: string;
-  isEnabled: boolean;
+  name: string;
+  contentType: 'image' | 'video' | 'document';
+  url: string;
+  thumbnailUrl?: string;
+  metadata?: {
+    text?: string;
+    duration?: number;
+    pageCount?: number;
+  };
 }
 
-interface ResolverResult {
-  success: boolean;
-  surfaceId: string;
-  isEnabled: boolean;
-  rotationInterval: string;
-  totalItems: number;
-  activeIndex: number;
-  activeItem: {
-    id: string;
-    packetId: string;
-    name: string;
-    imageUrl: string;
-    mockupUrl: string;
-    landingPageUrl: string;
-    qrProductState: string;
-  } | null;
-  nextSwitch: string;
-  serverNowIso: string;
+interface CollectionItemData {
+  id: string;
+  collectionId: string;
+  contentId: string;
+  contentType: 'image' | 'video' | 'document';
+  name: string;
+  url: string;
+  thumbnailUrl?: string;
+  order: number;
+  rotationInterval: 'daily' | 'weekly' | 'monthly';
+}
+
+interface Collection {
+  id: string;
+  name: string;
 }
 
 const ROTATION_OPTIONS = [
@@ -57,43 +69,66 @@ const ROTATION_OPTIONS = [
   { value: "monthly", label: "Monthly", description: "Rotates on the 1st" },
 ];
 
-export default function TestDynamicsPage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  
-  const searchString = useSearch();
-  const urlParams = new URLSearchParams(searchString);
-  const urlStoreId = urlParams.get("storeId");
-  const urlChannel = urlParams.get("channel");
+const ContentTypeIcon = ({ type }: { type: 'image' | 'video' | 'document' }) => {
+  switch (type) {
+    case 'video': return <Video className="h-4 w-4" />;
+    case 'document': return <FileText className="h-4 w-4" />;
+    default: return <Image className="h-4 w-4" />;
+  }
+};
 
+export default function TestDynamicsPage() {
+  const { isLoading: authLoading, isAuthenticated } = useAuth();
+
+  // Store/Channel state
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(null);
   const [channels, setChannels] = useState<string[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
-  const [collections, setCollections] = useState<string[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
-  const [collectionItems, setCollectionItems] = useState<CollectionItem[]>([]);
-  const [rotationInterval, setRotationInterval] = useState<string>("daily");
   
-  const [surfaces, setSurfaces] = useState<Surface[]>([]);
-  const [selectedSurface, setSelectedSurface] = useState<Surface | null>(null);
-  const [resolverResult, setResolverResult] = useState<ResolverResult | null>(null);
+  // Collections state
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   
+  // Channel content state
+  const [channelContent, setChannelContent] = useState<ChannelContentItem[]>([]);
+  
+  // Collection items state
+  const [collectionItems, setCollectionItems] = useState<CollectionItemData[]>([]);
+  
+  // UI state
+  const [activeTab, setActiveTab] = useState<string>("channel");
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [urlParamsApplied, setUrlParamsApplied] = useState(false);
   
-  const [showCreateCollection, setShowCreateCollection] = useState(false);
+  // Add to collection modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedContentForAdd, setSelectedContentForAdd] = useState<ChannelContentItem | null>(null);
   const [newCollectionName, setNewCollectionName] = useState("");
+  const [addToCollectionId, setAddToCollectionId] = useState<string>("");
+  
+  // Add content modal
+  const [showAddContentModal, setShowAddContentModal] = useState(false);
+  const [newContentName, setNewContentName] = useState("");
+  const [newContentType, setNewContentType] = useState<'image' | 'video' | 'document'>('image');
+  const [newContentUrl, setNewContentUrl] = useState("");
 
+  // Fetch stores on mount
   useEffect(() => {
     if (isAuthenticated) {
       fetchStores();
-      fetchSurfaces();
     }
   }, [isAuthenticated]);
 
-  // Fetch channels when store is selected
+  // Auto-select first store/channel when loaded
+  useEffect(() => {
+    if (stores.length > 0 && !selectedStore) {
+      setSelectedStore(stores[0]);
+    }
+  }, [stores, selectedStore]);
+
+  // Fetch channels when store selected
   useEffect(() => {
     if (selectedStore) {
       fetchChannels();
@@ -103,44 +138,34 @@ export default function TestDynamicsPage() {
     }
   }, [selectedStore]);
 
-  // Auto-select store/channel from URL params after stores are loaded
+  // Auto-select first channel
   useEffect(() => {
-    if (stores.length > 0 && urlStoreId && !urlParamsApplied) {
-      const matchingStore = stores.find(s => s.id === urlStoreId);
-      if (matchingStore) {
-        setSelectedStore(matchingStore);
-        // Channel will be set after channels are fetched
-        setUrlParamsApplied(true);
-      }
+    if (channels.length > 0 && !selectedChannel) {
+      setSelectedChannel(channels[0]);
     }
-  }, [stores, urlStoreId, urlParamsApplied]);
+  }, [channels, selectedChannel]);
 
-  // Auto-select channel from URL params after channels are loaded
-  useEffect(() => {
-    if (channels.length > 0 && urlChannel && urlParamsApplied && !selectedChannel) {
-      if (channels.includes(urlChannel)) {
-        setSelectedChannel(urlChannel);
-      }
-    }
-  }, [channels, urlChannel, urlParamsApplied, selectedChannel]);
-
+  // Fetch content and collections when channel selected
   useEffect(() => {
     if (selectedStore && selectedChannel) {
+      fetchChannelContent();
       fetchCollections();
     } else {
+      setChannelContent([]);
       setCollections([]);
       setSelectedCollection(null);
     }
   }, [selectedStore, selectedChannel]);
 
+  // Fetch collection items when collection selected
   useEffect(() => {
-    if (selectedStore && selectedChannel && selectedCollection) {
+    if (selectedCollection) {
       fetchCollectionItems();
     } else {
       setCollectionItems([]);
     }
-  }, [selectedStore, selectedChannel, selectedCollection]);
-  
+  }, [selectedCollection]);
+
   // Auth check - must be AFTER all hooks
   if (authLoading) {
     return (
@@ -169,7 +194,6 @@ export default function TestDynamicsPage() {
       setLoading("stores");
       const res = await fetch("/api/test/stores");
       const data = await res.json();
-      // API returns array directly, not { stores: [] }
       setStores(Array.isArray(data) ? data : (data.stores || []));
     } catch (err: any) {
       setError(err.message);
@@ -184,7 +208,6 @@ export default function TestDynamicsPage() {
       setLoading("channels");
       const res = await fetch(`/api/test/stores/${selectedStore.id}/channels`);
       const data = await res.json();
-      // Extract channel names from the response
       const channelNames = Array.isArray(data) 
         ? data.map((c: any) => c.name || c.id) 
         : [];
@@ -196,47 +219,85 @@ export default function TestDynamicsPage() {
     }
   };
 
-  const fetchCollections = async () => {
+  const fetchChannelContent = async () => {
     if (!selectedStore || !selectedChannel) return;
     try {
-      setLoading("collections");
-      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/collections`);
+      setLoading("content");
+      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/content`);
       const data = await res.json();
-      setCollections(data.collections || []);
+      setChannelContent(data.content || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(null);
+    }
+  };
+
+  const fetchCollections = async () => {
+    if (!selectedStore || !selectedChannel) return;
+    try {
+      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/collections`);
+      const data = await res.json();
+      const collNames = data.collections || [];
+      setCollections(collNames.map((name: string, idx: number) => ({ id: `coll-${idx}`, name })));
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
   const fetchCollectionItems = async () => {
-    if (!selectedStore || !selectedChannel || !selectedCollection) return;
+    if (!selectedCollection) return;
     try {
       setLoading("items");
-      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/collections/${encodeURIComponent(selectedCollection)}/items`);
+      const res = await fetch(`/api/test/collections/${encodeURIComponent(selectedCollection.name)}/items`);
       const data = await res.json();
       setCollectionItems(data.items || []);
     } catch (err: any) {
-      setError(err.message);
+      // Collection might not have items yet
+      setCollectionItems([]);
     } finally {
       setLoading(null);
     }
   };
 
-  const fetchSurfaces = async () => {
+  const addContent = async () => {
+    if (!selectedStore || !selectedChannel || !newContentName || !newContentUrl) {
+      setError("Please fill in all fields");
+      return;
+    }
     try {
-      const res = await fetch("/api/test/dynamics/surfaces");
+      setLoading("adding");
+      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newContentName,
+          contentType: newContentType,
+          url: newContentUrl,
+          thumbnailUrl: newContentUrl,
+        }),
+      });
       const data = await res.json();
-      setSurfaces(data.surfaces || []);
+      if (data.success) {
+        setSuccessMessage("Content added!");
+        setShowAddContentModal(false);
+        setNewContentName("");
+        setNewContentUrl("");
+        fetchChannelContent();
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(data.error || "Failed to add content");
+      }
     } catch (err: any) {
-      console.error("Error fetching surfaces:", err);
+      setError(err.message);
+    } finally {
+      setLoading(null);
     }
   };
 
   const createCollection = async () => {
     if (!selectedStore || !selectedChannel || !newCollectionName.trim()) {
-      setError("Please select store, channel, and enter a collection name");
+      setError("Please enter a collection name");
       return;
     }
     try {
@@ -244,17 +305,15 @@ export default function TestDynamicsPage() {
       const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/collections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newCollectionName.trim(),
-        }),
+        body: JSON.stringify({ name: newCollectionName.trim() }),
       });
       const data = await res.json();
       if (data.success) {
-        setSuccessMessage(`Collection "${newCollectionName}" created`);
-        setCollections(prev => [...prev, newCollectionName.trim()].sort());
-        setSelectedCollection(newCollectionName.trim());
+        const newColl = { id: data.collectionId, name: newCollectionName.trim() };
+        setCollections(prev => [...prev, newColl]);
+        setSelectedCollection(newColl);
         setNewCollectionName("");
-        setShowCreateCollection(false);
+        setSuccessMessage("Collection created!");
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         setError(data.error || "Failed to create collection");
@@ -266,32 +325,50 @@ export default function TestDynamicsPage() {
     }
   };
 
-  const createSurface = async () => {
-    if (!selectedStore || !selectedChannel || !selectedCollection) {
-      setError("Please select store, channel, and collection first");
+  const addToCollection = async () => {
+    if (!selectedContentForAdd || (!addToCollectionId && !newCollectionName.trim())) {
+      setError("Please select or create a collection");
       return;
     }
+    
+    // If creating new collection first
+    if (newCollectionName.trim() && !addToCollectionId) {
+      await createCollection();
+      // After creating, add to it
+    }
+    
+    const collectionName = addToCollectionId || newCollectionName.trim();
+    
     try {
-      setLoading("creating");
-      const res = await fetch("/api/test/dynamics/surfaces", {
+      setLoading("adding");
+      const res = await fetch(`/api/test/collections/${encodeURIComponent(collectionName)}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: `${selectedStore.name} / ${selectedChannel} / ${selectedCollection}`,
-          storeId: selectedStore.id,
-          channelId: selectedChannel,
-          collectionName: selectedCollection,
-          rotationInterval,
-          isEnabled: true,
+          contentId: selectedContentForAdd.id,
+          contentType: selectedContentForAdd.contentType,
+          name: selectedContentForAdd.name,
+          url: selectedContentForAdd.url,
+          thumbnailUrl: selectedContentForAdd.thumbnailUrl,
+          rotationInterval: "daily",
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setSuccessMessage(`Surface created: ${data.surfaceId}`);
-        fetchSurfaces();
+        setSuccessMessage(`Added to collection!`);
+        setShowAddModal(false);
+        setSelectedContentForAdd(null);
+        setAddToCollectionId("");
+        setNewCollectionName("");
+        // Switch to collection view
+        const coll = collections.find(c => c.name === collectionName);
+        if (coll) {
+          setSelectedCollection(coll);
+          setActiveTab("collection");
+        }
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
-        setError(data.error || "Failed to create surface");
+        setError(data.error || "Failed to add to collection");
       }
     } catch (err: any) {
       setError(err.message);
@@ -300,13 +377,19 @@ export default function TestDynamicsPage() {
     }
   };
 
-  const resolveSurface = async (surface: Surface) => {
+  const removeFromCollection = async (itemId: string) => {
+    if (!selectedCollection) return;
     try {
-      setLoading("resolving");
-      setSelectedSurface(surface);
-      const res = await fetch(`/api/test/dynamics/resolve/${surface.id}`);
+      setLoading("removing");
+      const res = await fetch(`/api/test/collections/${encodeURIComponent(selectedCollection.name)}/items/${itemId}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
-      setResolverResult(data);
+      if (data.success) {
+        setCollectionItems(prev => prev.filter(i => i.id !== itemId));
+        setSuccessMessage("Item removed");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -314,25 +397,83 @@ export default function TestDynamicsPage() {
     }
   };
 
+  const updateItemInterval = async (itemId: string, interval: 'daily' | 'weekly' | 'monthly') => {
+    if (!selectedCollection) return;
+    try {
+      const res = await fetch(`/api/test/collections/${encodeURIComponent(selectedCollection.name)}/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rotationInterval: interval }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCollectionItems(prev => prev.map(i => 
+          i.id === itemId ? { ...i, rotationInterval: interval } : i
+        ));
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const moveItem = async (itemId: string, direction: 'up' | 'down') => {
+    const idx = collectionItems.findIndex(i => i.id === itemId);
+    if (idx === -1) return;
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === collectionItems.length - 1) return;
+    
+    const newItems = [...collectionItems];
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    [newItems[idx], newItems[swapIdx]] = [newItems[swapIdx], newItems[idx]];
+    
+    // Update orders
+    const reordered = newItems.map((item, i) => ({ ...item, order: i + 1 }));
+    setCollectionItems(reordered);
+    
+    // Persist
+    if (selectedCollection) {
+      try {
+        await fetch(`/api/test/collections/${encodeURIComponent(selectedCollection.name)}/items/reorder`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemOrders: reordered.map(i => ({ itemId: i.id, order: i.order })),
+          }),
+        });
+      } catch (err: any) {
+        console.error("Failed to persist order:", err);
+      }
+    }
+  };
+
+  const openAddModal = (content: ChannelContentItem) => {
+    setSelectedContentForAdd(content);
+    setAddToCollectionId("");
+    setNewCollectionName("");
+    setShowAddModal(true);
+  };
+
   return (
     <div className="page-wrap" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <div className="container mobile-compact mobile-compact-stack">
+        {/* Header */}
         <div className="glass-card">
-          <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
+          <h1 className="glass-title text-lg flex items-center gap-2 mb-2" data-testid="text-page-title">
             <Zap className="h-5 w-5 text-yellow-400" />
             QR Dynamics Builder
           </h1>
-          <p className="text-base text-blue-200 mb-4">
+          <p className="text-sm text-blue-200 mb-4">
             Create rotating content that changes on a schedule
           </p>
-          <Link href="/test-products" className="block">
-            <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xl" data-testid="button-back">
-              <ArrowLeft className="h-5 w-5" />
+          <Link href="/test-products">
+            <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="button-back">
+              <ArrowLeft className="h-4 w-4" />
               Back to Products
             </button>
           </Link>
         </div>
 
+        {/* Error/Success messages */}
         {error && (
           <div className="glass-card bg-red-500/20 border-red-500/50">
             <p className="text-red-200">{error}</p>
@@ -351,333 +492,431 @@ export default function TestDynamicsPage() {
           </div>
         )}
 
+        {/* Store/Channel Selector - Auto-populated */}
         <div className="glass-card">
-          <h2 className="glass-title text-base flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-3">
             <Store className="h-5 w-5 text-blue-400" />
-            1. Select Source
-          </h2>
+            <span className="text-white font-medium">
+              {selectedStore?.name || "Loading..."} / {selectedChannel || "..."}
+            </span>
+            {loading === "stores" || loading === "channels" ? (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+            ) : null}
+          </div>
+          
+          <div className="flex gap-2">
+            <Select
+              value={selectedStore?.id || ""}
+              onValueChange={(val) => {
+                const store = stores.find(s => s.id === val);
+                setSelectedStore(store || null);
+                setSelectedChannel(null);
+                setSelectedCollection(null);
+              }}
+            >
+              <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-store">
+                <SelectValue placeholder="Store" />
+              </SelectTrigger>
+              <SelectContent>
+                {stores.map(store => (
+                  <SelectItem key={store.id} value={store.id}>
+                    {store.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <div className="space-y-4">
-            {/* Show summary if store/channel came from URL params */}
-            {urlStoreId && urlChannel && selectedStore && selectedChannel ? (
-              <div className="p-3 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                <p className="text-blue-200 text-sm">
-                  <span className="font-medium">Store:</span> {selectedStore.name}
-                </p>
-                <p className="text-blue-200 text-sm mt-1">
-                  <span className="font-medium">Channel:</span> {selectedChannel}
-                </p>
-                <button
-                  onClick={() => {
-                    setSelectedStore(null);
-                    setSelectedChannel(null);
-                    setChannels([]);
-                    setCollections([]);
-                    setSelectedCollection(null);
-                  }}
-                  className="text-xs text-blue-300 underline mt-2"
-                >
-                  Change selection
-                </button>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className="text-sm text-blue-200 mb-2 block">Store</label>
-                  <div className="relative">
-                    <select
-                      value={selectedStore?.id || ""}
-                      onChange={(e) => {
-                        const store = stores.find(s => s.id === e.target.value);
-                        setSelectedStore(store || null);
-                        setSelectedChannel(null);
-                        setSelectedCollection(null);
-                      }}
-                      className="w-full h-14 px-4 rounded-md border bg-slate-800 text-white text-base appearance-none cursor-pointer"
-                      data-testid="select-store"
-                    >
-                      <option value="">Select a store...</option>
-                      {stores.map(store => (
-                        <option key={store.id} value={store.id}>
-                          {store.name} ({store.roleType})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300 pointer-events-none" />
-                  </div>
-                </div>
-
-                {selectedStore && (
-              <div>
-                <label className="text-sm text-blue-200 mb-2 block">
-                  Channel
-                  {loading === "channels" && <Loader2 className="inline h-4 w-4 ml-2 animate-spin" />}
-                </label>
-                {channels.length === 0 && loading !== "channels" ? (
-                  <p className="text-blue-300/70 text-sm">
-                    No channels found for this store. Create a channel first.
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {channels.map(channel => (
-                      <button
-                        key={channel}
-                        onClick={() => {
-                          setSelectedChannel(channel);
-                          setSelectedCollection(null);
-                        }}
-                        className={`qr-btn qr-btn--touch qr-btn--full ${selectedChannel === channel ? "qr-btn--primary" : "qr-btn--outline"}`}
-                        data-testid={`channel-${channel}`}
-                      >
-                        {channel}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-                )}
-              </>
-            )}
-
-            {selectedChannel && (
-              <div>
-                <label className="text-sm text-blue-200 mb-2 block">
-                  Collection
-                  {loading === "collections" && <Loader2 className="inline h-4 w-4 ml-2 animate-spin" />}
-                </label>
-                
-                {collections.length > 0 && (
-                  <div className="flex flex-col gap-2 mb-3">
-                    {collections.map(coll => (
-                      <button
-                        key={coll}
-                        onClick={() => setSelectedCollection(coll)}
-                        className={`qr-btn qr-btn--touch qr-btn--full ${selectedCollection === coll ? "qr-btn--primary" : "qr-btn--outline"}`}
-                        data-testid={`collection-${coll}`}
-                      >
-                        <Layers className="h-4 w-4" />
-                        {coll}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                
-                {showCreateCollection ? (
-                  <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-                    <label className="text-sm text-blue-200 mb-2 block">New Collection Name</label>
-                    <input
-                      type="text"
-                      value={newCollectionName}
-                      onChange={(e) => setNewCollectionName(e.target.value)}
-                      placeholder="e.g., Summer 2026, Holiday Special"
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-white placeholder-slate-400 mb-3"
-                      data-testid="input-collection-name"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={createCollection}
-                        disabled={!newCollectionName.trim() || loading === "creating"}
-                        className="qr-btn qr-btn--primary qr-btn--touch flex-1"
-                        data-testid="button-create-collection"
-                      >
-                        {loading === "creating" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        Create
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowCreateCollection(false);
-                          setNewCollectionName("");
-                        }}
-                        className="qr-btn qr-btn--outline qr-btn--touch"
-                        data-testid="button-cancel-collection"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowCreateCollection(true)}
-                    className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-                    data-testid="button-add-collection"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add New Collection
-                  </button>
-                )}
-              </div>
-            )}
+            <Select
+              value={selectedChannel || ""}
+              onValueChange={(val) => {
+                setSelectedChannel(val);
+                setSelectedCollection(null);
+              }}
+            >
+              <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-channel">
+                <SelectValue placeholder="Channel" />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.map(channel => (
+                  <SelectItem key={channel} value={channel}>
+                    {channel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        {selectedCollection && collectionItems.length > 0 && (
-          <div className="glass-card">
-            <h2 className="glass-title text-base flex items-center gap-2 mb-4">
-              <LayoutGrid className="h-5 w-5 text-purple-400" />
-              Items in "{selectedCollection}" ({collectionItems.length})
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {collectionItems.map((item, idx) => (
-                <div 
-                  key={item.id} 
-                  className="bg-slate-800/50 rounded-lg p-3 border border-slate-700"
-                  data-testid={`item-${item.id}`}
+        {/* Main Content Area with Tabs */}
+        {selectedStore && selectedChannel && (
+          <div className="glass-card p-0 overflow-hidden">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full rounded-none border-b border-slate-700 bg-slate-800/50 p-0 h-auto">
+                <TabsTrigger 
+                  value="channel" 
+                  className="flex-1 py-3 rounded-none data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-200"
+                  data-testid="tab-channel"
                 >
-                  {(item.mockupUrl || item.imageUrl) && (
-                    <img 
-                      src={item.mockupUrl || item.imageUrl || ""} 
-                      alt={item.name}
-                      className="w-full aspect-square object-contain rounded mb-2 bg-slate-900"
-                    />
-                  )}
-                  <p className="text-sm text-white truncate">{item.name}</p>
-                  <p className="text-xs text-blue-300">#{idx + 1} - {item.qrProductState || "basic"}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {selectedCollection && (
-          <div className="glass-card">
-            <h2 className="glass-title text-base flex items-center gap-2 mb-4">
-              <Clock className="h-5 w-5 text-green-400" />
-              2. Rotation Schedule
-            </h2>
-            <div className="flex flex-col gap-2">
-              {ROTATION_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setRotationInterval(opt.value)}
-                  className={`qr-btn qr-btn--touch qr-btn--full text-left ${rotationInterval === opt.value ? "qr-btn--primary" : "qr-btn--outline"}`}
-                  data-testid={`rotation-${opt.value}`}
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Channel Content
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="collection" 
+                  className="flex-1 py-3 rounded-none data-[state=active]:bg-purple-600 data-[state=active]:text-white text-purple-200"
+                  data-testid="tab-collection"
                 >
-                  <RefreshCw className="h-4 w-4" />
-                  <span className="flex-1">
-                    <span className="font-medium">{opt.label}</span>
-                    <span className="text-sm opacity-70 ml-2">{opt.description}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                  <Layers className="h-4 w-4 mr-2" />
+                  Collection
+                  {selectedCollection && ` (${collectionItems.length})`}
+                </TabsTrigger>
+              </TabsList>
 
-        {selectedCollection && (
-          <div className="glass-card">
-            <h2 className="glass-title text-base flex items-center gap-2 mb-4">
-              <Zap className="h-5 w-5 text-yellow-400" />
-              3. Create Dynamics Surface
-            </h2>
-            <p className="text-sm text-blue-200 mb-4">
-              This will create a rotating surface that cycles through {collectionItems.length} items on a {rotationInterval} basis.
-            </p>
-            <button
-              onClick={createSurface}
-              disabled={loading === "creating" || collectionItems.length === 0}
-              className="qr-btn qr-btn--primary qr-btn--xxl qr-btn--full disabled:opacity-50"
-              data-testid="button-create-surface"
-            >
-              {loading === "creating" ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Zap className="h-5 w-5" />
-              )}
-              Create Dynamics Surface
-            </button>
-          </div>
-        )}
-
-        {surfaces.length > 0 && (
-          <div className="glass-card">
-            <h2 className="glass-title text-base flex items-center gap-2 mb-4">
-              <Play className="h-5 w-5 text-cyan-400" />
-              Existing Surfaces ({surfaces.length})
-            </h2>
-            <div className="flex flex-col gap-3">
-              {surfaces.map(surface => (
-                <div 
-                  key={surface.id}
-                  className="bg-slate-800/50 rounded-lg p-4 border border-slate-700"
-                  data-testid={`surface-${surface.id}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-white font-medium truncate flex-1">{surface.name}</p>
-                    <span className={`px-2 py-1 rounded text-xs ${surface.isEnabled ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"}`}>
-                      {surface.isEnabled ? "Active" : "Disabled"}
-                    </span>
-                  </div>
-                  <p className="text-sm text-blue-300 mb-3">
-                    {surface.rotationInterval} rotation
-                  </p>
-                  <button
-                    onClick={() => resolveSurface(surface)}
-                    disabled={loading === "resolving"}
-                    className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-                    data-testid={`resolve-${surface.id}`}
+              {/* Channel View */}
+              <TabsContent value="channel" className="p-4 m-0">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-white font-medium">
+                    Available Content ({channelContent.length})
+                  </h3>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowAddContentModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    data-testid="button-add-content"
                   >
-                    {loading === "resolving" && selectedSurface?.id === surface.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                    Test Resolver
-                  </button>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Content
+                  </Button>
                 </div>
-              ))}
-            </div>
+
+                {loading === "content" ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                  </div>
+                ) : channelContent.length === 0 ? (
+                  <div className="text-center py-8 text-blue-300">
+                    <LayoutGrid className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No content in this channel yet.</p>
+                    <p className="text-sm mt-2">Add images, videos, or documents to get started.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {channelContent.map(content => (
+                      <div 
+                        key={content.id}
+                        className="bg-slate-800/50 rounded-lg overflow-hidden border border-slate-700 group"
+                        data-testid={`content-${content.id}`}
+                      >
+                        <div className="aspect-square bg-slate-900 flex items-center justify-center overflow-hidden">
+                          {content.thumbnailUrl || content.url ? (
+                            <img 
+                              src={content.thumbnailUrl || content.url} 
+                              alt={content.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <ContentTypeIcon type={content.contentType} />
+                          )}
+                        </div>
+                        <div className="p-2">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Badge variant="secondary" className="text-xs">
+                              <ContentTypeIcon type={content.contentType} />
+                              <span className="ml-1 capitalize">{content.contentType}</span>
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-white truncate">{content.name}</p>
+                          <Button 
+                            size="sm" 
+                            className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => openAddModal(content)}
+                            data-testid={`button-add-${content.id}`}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add to Collection
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Collection View */}
+              <TabsContent value="collection" className="p-4 m-0">
+                {/* Collection selector */}
+                <div className="flex items-center gap-2 mb-4">
+                  <Select
+                    value={selectedCollection?.name || ""}
+                    onValueChange={(val) => {
+                      const coll = collections.find(c => c.name === val);
+                      setSelectedCollection(coll || null);
+                    }}
+                  >
+                    <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-collection">
+                      <SelectValue placeholder="Select a collection..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {collections.map(coll => (
+                        <SelectItem key={coll.id} value={coll.name}>
+                          {coll.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button 
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const name = prompt("New collection name:");
+                      if (name) {
+                        setNewCollectionName(name);
+                        createCollection();
+                      }
+                    }}
+                    className="border-purple-500 text-purple-300 hover:bg-purple-500/20"
+                    data-testid="button-new-collection"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {!selectedCollection ? (
+                  <div className="text-center py-8 text-purple-300">
+                    <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Select or create a collection to manage items.</p>
+                  </div>
+                ) : loading === "items" ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                  </div>
+                ) : collectionItems.length === 0 ? (
+                  <div className="text-center py-8 text-purple-300">
+                    <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No items in "{selectedCollection.name}" yet.</p>
+                    <p className="text-sm mt-2">Switch to Channel Content tab to add items.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {collectionItems.map((item, idx) => (
+                      <div 
+                        key={item.id}
+                        className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 flex gap-3"
+                        data-testid={`collection-item-${item.id}`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-20 h-20 bg-slate-900 rounded overflow-hidden flex-shrink-0">
+                          {item.thumbnailUrl || item.url ? (
+                            <img 
+                              src={item.thumbnailUrl || item.url} 
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ContentTypeIcon type={item.contentType} />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge className="bg-purple-600 text-white">#{item.order}</Badge>
+                            <span className="text-white font-medium truncate">{item.name}</span>
+                          </div>
+                          
+                          {/* Interval selector */}
+                          <Select
+                            value={item.rotationInterval}
+                            onValueChange={(val: 'daily' | 'weekly' | 'monthly') => updateItemInterval(item.id, val)}
+                          >
+                            <SelectTrigger className="h-8 text-xs bg-slate-700 border-slate-600 text-white w-32" data-testid={`select-interval-${item.id}`}>
+                              <Clock className="h-3 w-3 mr-1" />
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="daily">Daily</SelectItem>
+                              <SelectItem value="weekly">Weekly</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            disabled={idx === 0}
+                            onClick={() => moveItem(item.id, 'up')}
+                            data-testid={`button-up-${item.id}`}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            disabled={idx === collectionItems.length - 1}
+                            onClick={() => moveItem(item.id, 'down')}
+                            data-testid={`button-down-${item.id}`}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            className="h-7 w-7"
+                            onClick={() => removeFromCollection(item.id)}
+                            data-testid={`button-remove-${item.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
-        {resolverResult && (
-          <div className="glass-card bg-cyan-500/10 border-cyan-500/30">
-            <h2 className="glass-title text-base flex items-center gap-2 mb-4">
-              <Play className="h-5 w-5 text-cyan-400" />
-              Resolver Result
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-300">Server Time:</span>
-                <span className="text-white">{resolverResult.serverNowIso}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-300">Rotation:</span>
-                <span className="text-white">{resolverResult.rotationInterval}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-300">Active Item:</span>
-                <span className="text-white">{resolverResult.activeIndex + 1} of {resolverResult.totalItems}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-300">Next Switch:</span>
-                <span className="text-white">{resolverResult.nextSwitch}</span>
+        {/* Add to Collection Modal */}
+        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+          <DialogContent className="bg-slate-900 border-slate-700 text-white">
+            <DialogHeader>
+              <DialogTitle>Add to Collection</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {selectedContentForAdd && (
+                <div className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg">
+                  <div className="w-12 h-12 bg-slate-700 rounded overflow-hidden">
+                    {selectedContentForAdd.thumbnailUrl && (
+                      <img src={selectedContentForAdd.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">{selectedContentForAdd.name}</p>
+                    <p className="text-sm text-slate-400 capitalize">{selectedContentForAdd.contentType}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <label className="text-sm text-slate-300 mb-2 block">Select existing collection:</label>
+                <Select value={addToCollectionId} onValueChange={setAddToCollectionId}>
+                  <SelectTrigger className="bg-slate-800 border-slate-600" data-testid="select-add-collection">
+                    <SelectValue placeholder="Choose collection..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {collections.map(coll => (
+                      <SelectItem key={coll.id} value={coll.name}>
+                        {coll.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
-              {resolverResult.activeItem && (
-                <div className="mt-4 p-4 bg-slate-800/50 rounded-lg">
-                  <p className="text-white font-medium mb-2">{resolverResult.activeItem.name}</p>
-                  {resolverResult.activeItem.mockupUrl && (
-                    <img 
-                      src={resolverResult.activeItem.mockupUrl} 
-                      alt={resolverResult.activeItem.name}
-                      className="w-full max-w-xs mx-auto rounded"
-                    />
-                  )}
-                  {resolverResult.activeItem.landingPageUrl && (
-                    <a 
-                      href={resolverResult.activeItem.landingPageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full mt-3"
-                    >
-                      View Landing Page
-                    </a>
-                  )}
-                </div>
-              )}
+              <div className="text-center text-slate-500">- or -</div>
+              
+              <div>
+                <label className="text-sm text-slate-300 mb-2 block">Create new collection:</label>
+                <input
+                  type="text"
+                  value={newCollectionName}
+                  onChange={(e) => setNewCollectionName(e.target.value)}
+                  placeholder="New collection name..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white"
+                  data-testid="input-new-collection"
+                />
+              </div>
             </div>
-          </div>
-        )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={addToCollection}
+                disabled={loading === "adding" || (!addToCollectionId && !newCollectionName.trim())}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                data-testid="button-confirm-add"
+              >
+                {loading === "adding" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Add
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Content Modal */}
+        <Dialog open={showAddContentModal} onOpenChange={setShowAddContentModal}>
+          <DialogContent className="bg-slate-900 border-slate-700 text-white">
+            <DialogHeader>
+              <DialogTitle>Add Content to Channel</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-slate-300 mb-2 block">Content Name</label>
+                <input
+                  type="text"
+                  value={newContentName}
+                  onChange={(e) => setNewContentName(e.target.value)}
+                  placeholder="My Landing Page"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white"
+                  data-testid="input-content-name"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm text-slate-300 mb-2 block">Content Type</label>
+                <Select value={newContentType} onValueChange={(val: any) => setNewContentType(val)}>
+                  <SelectTrigger className="bg-slate-800 border-slate-600" data-testid="select-content-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="image">Image</SelectItem>
+                    <SelectItem value="video">Video</SelectItem>
+                    <SelectItem value="document">Document</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm text-slate-300 mb-2 block">URL</label>
+                <input
+                  type="text"
+                  value={newContentUrl}
+                  onChange={(e) => setNewContentUrl(e.target.value)}
+                  placeholder="https://example.com/my-image.png"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white"
+                  data-testid="input-content-url"
+                />
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddContentModal(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={addContent}
+                disabled={loading === "adding" || !newContentName || !newContentUrl}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                data-testid="button-confirm-content"
+              >
+                {loading === "adding" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Add Content
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

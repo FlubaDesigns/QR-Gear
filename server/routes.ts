@@ -8776,6 +8776,274 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============== QR DYNAMICS - Channel Content API ==============
+
+  // Get all content (images, videos, documents) for a channel
+  app.get("/api/test/stores/:storeId/channels/:channelId/content", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+
+      if (!storeId || !channelId) {
+        return res.status(400).json({ error: "storeId and channelId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Query dynamicsChannelContent for this channel's content
+      const contentSnapshot = await firestoreDb.collection("dynamicsChannelContent")
+        .where("storeId", "==", storeId)
+        .where("channelId", "==", channelId)
+        .orderBy("createdAt", "desc")
+        .get();
+
+      const content = contentSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      console.log(`[ChannelContent] Found ${content.length} items for ${storeId}/${channelId}`);
+
+      res.json({ 
+        success: true, 
+        content,
+        count: content.length 
+      });
+    } catch (error: any) {
+      console.error("[ChannelContent] Error getting content:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add content to a channel
+  app.post("/api/test/stores/:storeId/channels/:channelId/content", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const { name, contentType, url, thumbnailUrl, metadata } = req.body;
+
+      if (!storeId || !channelId || !name || !contentType || !url) {
+        return res.status(400).json({ error: "storeId, channelId, name, contentType, and url are required" });
+      }
+
+      if (!['image', 'video', 'document'].includes(contentType)) {
+        return res.status(400).json({ error: "contentType must be 'image', 'video', or 'document'" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const docRef = await firestoreDb.collection("dynamicsChannelContent").add({
+        storeId,
+        channelId,
+        name,
+        contentType,
+        url,
+        thumbnailUrl: thumbnailUrl || url,
+        metadata: metadata || {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      console.log(`[ChannelContent] Created content "${name}" for ${storeId}/${channelId}`);
+
+      res.json({ 
+        success: true, 
+        contentId: docRef.id,
+        name,
+      });
+    } catch (error: any) {
+      console.error("[ChannelContent] Error creating content:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete content from a channel
+  app.delete("/api/test/stores/:storeId/channels/:channelId/content/:contentId", async (req: any, res) => {
+    try {
+      const { storeId, channelId, contentId } = req.params;
+
+      if (!contentId) {
+        return res.status(400).json({ error: "contentId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      await firestoreDb.collection("dynamicsChannelContent").doc(contentId).delete();
+
+      console.log(`[ChannelContent] Deleted content ${contentId}`);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[ChannelContent] Error deleting content:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============== QR DYNAMICS - Collection Items API ==============
+
+  // Add item to collection
+  app.post("/api/test/collections/:collectionId/items", async (req: any, res) => {
+    try {
+      const { collectionId } = req.params;
+      const { contentId, contentType, name, url, thumbnailUrl, rotationInterval } = req.body;
+
+      if (!collectionId || !contentId || !contentType || !name || !url) {
+        return res.status(400).json({ error: "collectionId, contentId, contentType, name, and url are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get current max order
+      const existingItems = await firestoreDb.collection("dynamicsCollectionItems")
+        .where("collectionId", "==", collectionId)
+        .orderBy("order", "desc")
+        .limit(1)
+        .get();
+
+      const maxOrder = existingItems.empty ? 0 : (existingItems.docs[0].data().order || 0);
+
+      const docRef = await firestoreDb.collection("dynamicsCollectionItems").add({
+        collectionId,
+        contentId,
+        contentType,
+        name,
+        url,
+        thumbnailUrl: thumbnailUrl || url,
+        order: maxOrder + 1,
+        rotationInterval: rotationInterval || 'daily',
+        addedAt: new Date(),
+      });
+
+      console.log(`[CollectionItems] Added item to collection ${collectionId}`);
+
+      res.json({ 
+        success: true, 
+        itemId: docRef.id,
+        order: maxOrder + 1,
+      });
+    } catch (error: any) {
+      console.error("[CollectionItems] Error adding item:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get items in a collection (by collection ID)
+  app.get("/api/test/collections/:collectionId/items", async (req: any, res) => {
+    try {
+      const { collectionId } = req.params;
+
+      if (!collectionId) {
+        return res.status(400).json({ error: "collectionId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const itemsSnapshot = await firestoreDb.collection("dynamicsCollectionItems")
+        .where("collectionId", "==", collectionId)
+        .orderBy("order", "asc")
+        .get();
+
+      const items = itemsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      res.json({ 
+        success: true, 
+        items,
+        count: items.length 
+      });
+    } catch (error: any) {
+      console.error("[CollectionItems] Error getting items:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update collection item (order or interval)
+  app.patch("/api/test/collections/:collectionId/items/:itemId", async (req: any, res) => {
+    try {
+      const { collectionId, itemId } = req.params;
+      const { order, rotationInterval } = req.body;
+
+      if (!itemId) {
+        return res.status(400).json({ error: "itemId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const updateData: any = { updatedAt: new Date() };
+      if (order !== undefined) updateData.order = order;
+      if (rotationInterval) updateData.rotationInterval = rotationInterval;
+
+      await firestoreDb.collection("dynamicsCollectionItems").doc(itemId).update(updateData);
+
+      console.log(`[CollectionItems] Updated item ${itemId}`);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[CollectionItems] Error updating item:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Remove item from collection
+  app.delete("/api/test/collections/:collectionId/items/:itemId", async (req: any, res) => {
+    try {
+      const { collectionId, itemId } = req.params;
+
+      if (!itemId) {
+        return res.status(400).json({ error: "itemId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      await firestoreDb.collection("dynamicsCollectionItems").doc(itemId).delete();
+
+      console.log(`[CollectionItems] Removed item ${itemId} from collection ${collectionId}`);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[CollectionItems] Error removing item:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Reorder items in collection
+  app.put("/api/test/collections/:collectionId/items/reorder", async (req: any, res) => {
+    try {
+      const { collectionId } = req.params;
+      const { itemOrders } = req.body; // Array of { itemId, order }
+
+      if (!collectionId || !itemOrders || !Array.isArray(itemOrders)) {
+        return res.status(400).json({ error: "collectionId and itemOrders array are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const batch = firestoreDb.batch();
+      
+      for (const { itemId, order } of itemOrders) {
+        const docRef = firestoreDb.collection("dynamicsCollectionItems").doc(itemId);
+        batch.update(docRef, { order, updatedAt: new Date() });
+      }
+
+      await batch.commit();
+
+      console.log(`[CollectionItems] Reordered ${itemOrders.length} items in collection ${collectionId}`);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[CollectionItems] Error reordering items:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============== QR DYNAMICS - Collections API ==============
 
   // Get all unique collections for a store/channel
