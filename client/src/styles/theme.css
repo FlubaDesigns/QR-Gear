@@ -2621,7 +2621,7 @@ html[data-theme="light"] .vanity-highlight-icon {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--bg-0);
+  color: #ffffff;
   font-size: 0.875rem;
   font-weight: 600;
   min-height: 48px;

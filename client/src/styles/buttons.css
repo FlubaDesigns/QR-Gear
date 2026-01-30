@@ -60,8 +60,8 @@
 /* ===== Accent Button (Orange) ===== */
 .qr-btn--accent {
   border: none;
-  background: linear-gradient(180deg, var(--accent-2) 0%, var(--accent) 100%);
-  color: var(--bg-0);
+  background: #ff7a1a !important;
+  color: #ffffff !important;
   box-shadow:
     0 12px 24px rgba(0, 0, 0, 0.35),
     inset 0 -2px 0 rgba(0, 0, 0, 0.20),
@@ -269,8 +269,8 @@
 
 /* Track Badge Variants */
 .track-badge--admin {
-  background: linear-gradient(135deg, var(--ice-1) 0%, var(--ice-3) 100%);
-  color: var(--bg-0);
+  background: #2ea9ff !important;
+  color: #ffffff !important;
   border: none;
   box-shadow: 0 4px 12px rgba(46, 169, 255, 0.3);
 }
@@ -280,8 +280,8 @@
 }
 
 .track-badge--store {
-  background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
-  color: var(--bg-0);
+  background: #ff7a1a !important;
+  color: #ffffff !important;
   border: none;
   box-shadow: 0 4px 12px rgba(255, 140, 50, 0.3);
 }
@@ -391,9 +391,9 @@
 
 .qr-btn--square.active,
 .qr-btn--square[data-active="true"] {
-  background: linear-gradient(180deg, var(--ice-1) 0%, var(--ice-3) 100%);
-  border-color: var(--ice-1);
-  color: var(--bg-0);
+  background: #2ea9ff !important;
+  border-color: #2ea9ff !important;
+  color: #ffffff !important;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
 }
 
