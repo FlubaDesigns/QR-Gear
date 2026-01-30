@@ -24,7 +24,13 @@ import {
   ExternalLink
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { auth } from "@/lib/firebase";
 import SEO from "@/components/SEO";
+
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const token = await auth.currentUser?.getIdToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 interface ProductCategory {
   name: string;
@@ -34,12 +40,12 @@ interface ProductCategory {
 
 interface ProductItem {
   id: number;
-  productId: number;
+  productId?: number;
   name: string;
-  type: string;
-  description: string | null;
+  type?: string;
+  description?: string | null;
   thumbnailUrl: string | null;
-  placements: { id: string; title: string }[] | null;
+  placements?: { id: string; title: string }[] | null;
 }
 
 interface GraphicSet {
@@ -219,7 +225,8 @@ function GraphicsStep({
     queryKey: ['/api/members', user?.id, 'graphics'],
     queryFn: async () => {
       if (!user?.id) return [];
-      const res = await fetch(`/api/members/${user.id}/graphics`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${user.id}/graphics`, { headers });
       if (!res.ok) throw new Error('Failed to fetch graphics');
       return res.json();
     },
@@ -507,7 +514,8 @@ function ChannelsView({ memberId }: { memberId: string }) {
     queryKey: ['/api/members', memberId, 'channels'],
     queryFn: async () => {
       if (!memberId) return [];
-      const res = await fetch(`/api/members/${memberId}/channels`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/channels`, { headers });
       if (!res.ok) throw new Error('Failed to fetch channels');
       return res.json();
     },
@@ -518,7 +526,8 @@ function ChannelsView({ memberId }: { memberId: string }) {
     queryKey: ['/api/members', memberId, 'products'],
     queryFn: async () => {
       if (!memberId) return [];
-      const res = await fetch(`/api/members/${memberId}/products`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/products`, { headers });
       if (!res.ok) throw new Error('Failed to fetch products');
       return res.json();
     },
@@ -658,7 +667,8 @@ function EarningsView({ memberId }: { memberId: string }) {
     queryKey: ['/api/members', memberId, 'earnings'],
     queryFn: async () => {
       if (!memberId) return { earnings: [], summary: { total: 0, pending: 0, paid: 0, profitShare: 0.25 } };
-      const res = await fetch(`/api/members/${memberId}/earnings`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/earnings`, { headers });
       if (!res.ok) throw new Error('Failed to fetch earnings');
       return res.json();
     },
@@ -778,9 +788,11 @@ export default function TestMembersSandbox() {
     
     setIsPublishing(true);
     try {
+      const authHeaders = await getAuthHeaders();
+      
       // First, ensure channel exists or create it
       let channelId = '';
-      const channelRes = await fetch(`/api/members/${user.id}/channels`);
+      const channelRes = await fetch(`/api/members/${user.id}/channels`, { headers: authHeaders });
       const channels = await channelRes.json();
       const existingChannel = channels.find((c: any) => c.name === channelName);
       
@@ -790,7 +802,7 @@ export default function TestMembersSandbox() {
         // Create new channel
         const createRes = await fetch(`/api/members/${user.id}/channels`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({ name: channelName })
         });
         const newChannel = await createRes.json();
@@ -800,7 +812,7 @@ export default function TestMembersSandbox() {
       // Create the member product
       const productRes = await fetch(`/api/members/${user.id}/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           printfulProductId: selectedProduct.productId,
           variantId: selectedProduct.id,

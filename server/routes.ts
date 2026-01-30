@@ -8778,6 +8778,33 @@ ${allPages.map(page => `  <url>
 
   // ============== MEMBER SANDBOX API ==============
 
+  // Helper: verify Firebase auth for member endpoints
+  async function verifyMemberAuth(req: any, memberId: string): Promise<{ authorized: boolean; userId?: string; error?: string }> {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return { authorized: false, error: "Authorization required" };
+    }
+    
+    const idToken = authHeader.slice(7);
+    try {
+      const decodedToken = await verifyFirebaseToken(idToken);
+      if (!decodedToken) {
+        return { authorized: false, error: "Invalid token" };
+      }
+      // Allow if user is accessing their own data OR is admin
+      const isOwnData = decodedToken.uid === memberId;
+      const isAdmin = decodedToken.email === "perceys@gmail.com"; // TODO: check proper admin list
+      
+      if (!isOwnData && !isAdmin) {
+        return { authorized: false, error: "Access denied" };
+      }
+      
+      return { authorized: true, userId: decodedToken.uid };
+    } catch (error: any) {
+      return { authorized: false, error: "Invalid token" };
+    }
+  }
+
   // Get member's uploaded graphics organized by sets
   app.get("/api/members/:memberId/graphics", async (req: any, res) => {
     try {
@@ -8785,6 +8812,11 @@ ${allPages.map(page => `  <url>
 
       if (!memberId) {
         return res.status(400).json({ error: "memberId is required" });
+      }
+      
+      const auth = await verifyMemberAuth(req, memberId);
+      if (!auth.authorized) {
+        return res.status(401).json({ error: auth.error });
       }
 
       // Get member's uploaded images from hostedImages
@@ -8799,7 +8831,7 @@ ${allPages.map(page => `  <url>
         images: images.map(img => ({
           id: img.id,
           url: img.storageUrl,
-          name: img.filename,
+          name: img.fileName,
           createdAt: img.createdAt
         }))
       }];
@@ -8818,6 +8850,11 @@ ${allPages.map(page => `  <url>
 
       if (!memberId) {
         return res.status(400).json({ error: "memberId is required" });
+      }
+      
+      const auth = await verifyMemberAuth(req, memberId);
+      if (!auth.authorized) {
+        return res.status(401).json({ error: auth.error });
       }
 
       const { getFirestoreDb } = await import("./lib/firebase-admin");
@@ -8848,6 +8885,11 @@ ${allPages.map(page => `  <url>
 
       if (!memberId || !name) {
         return res.status(400).json({ error: "memberId and name are required" });
+      }
+      
+      const auth = await verifyMemberAuth(req, memberId);
+      if (!auth.authorized) {
+        return res.status(401).json({ error: auth.error });
       }
 
       const { getFirestoreDb } = await import("./lib/firebase-admin");
@@ -8881,6 +8923,11 @@ ${allPages.map(page => `  <url>
 
       if (!memberId) {
         return res.status(400).json({ error: "memberId is required" });
+      }
+      
+      const auth = await verifyMemberAuth(req, memberId);
+      if (!auth.authorized) {
+        return res.status(401).json({ error: auth.error });
       }
 
       const { getFirestoreDb } = await import("./lib/firebase-admin");
@@ -8922,6 +8969,11 @@ ${allPages.map(page => `  <url>
       if (!memberId || !printfulProductId) {
         return res.status(400).json({ error: "memberId and printfulProductId are required" });
       }
+      
+      const auth = await verifyMemberAuth(req, memberId);
+      if (!auth.authorized) {
+        return res.status(401).json({ error: auth.error });
+      }
 
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -8960,6 +9012,11 @@ ${allPages.map(page => `  <url>
 
       if (!memberId) {
         return res.status(400).json({ error: "memberId is required" });
+      }
+      
+      const auth = await verifyMemberAuth(req, memberId);
+      if (!auth.authorized) {
+        return res.status(401).json({ error: auth.error });
       }
 
       const { getFirestoreDb } = await import("./lib/firebase-admin");
