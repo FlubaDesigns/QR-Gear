@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useSearch } from "wouter";
-import { ArrowLeft, Zap, Store, Layers, LayoutGrid, RefreshCw, Clock, Play, Check, ChevronDown, Loader2 } from "lucide-react";
+import { ArrowLeft, Zap, Store, Layers, LayoutGrid, RefreshCw, Clock, Play, Check, ChevronDown, Loader2, Plus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface StoreOption {
   id: string;
@@ -57,6 +58,8 @@ const ROTATION_OPTIONS = [
 ];
 
 export default function TestDynamicsPage() {
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  
   const searchString = useSearch();
   const urlParams = new URLSearchParams(searchString);
   const urlStoreId = urlParams.get("storeId");
@@ -79,6 +82,31 @@ export default function TestDynamicsPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [urlParamsApplied, setUrlParamsApplied] = useState(false);
+  
+  const [showCreateCollection, setShowCreateCollection] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="glass-card max-w-md text-center">
+          <h1 className="text-xl font-bold text-white mb-4">Authentication Required</h1>
+          <p className="text-blue-200 mb-4">Please sign in to access QR Dynamics.</p>
+          <Link href="/">
+            <a className="qr-btn qr-btn--primary qr-btn--touch">Go to Home</a>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchStores();
@@ -200,6 +228,38 @@ export default function TestDynamicsPage() {
       setSurfaces(data.surfaces || []);
     } catch (err: any) {
       console.error("Error fetching surfaces:", err);
+    }
+  };
+
+  const createCollection = async () => {
+    if (!selectedStore || !selectedChannel || !newCollectionName.trim()) {
+      setError("Please select store, channel, and enter a collection name");
+      return;
+    }
+    try {
+      setLoading("creating");
+      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/collections`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCollectionName.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMessage(`Collection "${newCollectionName}" created`);
+        setCollections(prev => [...prev, newCollectionName.trim()].sort());
+        setSelectedCollection(newCollectionName.trim());
+        setNewCollectionName("");
+        setShowCreateCollection(false);
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(data.error || "Failed to create collection");
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -382,12 +442,9 @@ export default function TestDynamicsPage() {
                   Collection
                   {loading === "collections" && <Loader2 className="inline h-4 w-4 ml-2 animate-spin" />}
                 </label>
-                {collections.length === 0 ? (
-                  <p className="text-blue-300/70 text-sm">
-                    No collections found. Add products with a collection name to this channel first.
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
+                
+                {collections.length > 0 && (
+                  <div className="flex flex-col gap-2 mb-3">
                     {collections.map(coll => (
                       <button
                         key={coll}
@@ -400,6 +457,50 @@ export default function TestDynamicsPage() {
                       </button>
                     ))}
                   </div>
+                )}
+                
+                {showCreateCollection ? (
+                  <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                    <label className="text-sm text-blue-200 mb-2 block">New Collection Name</label>
+                    <input
+                      type="text"
+                      value={newCollectionName}
+                      onChange={(e) => setNewCollectionName(e.target.value)}
+                      placeholder="e.g., Summer 2026, Holiday Special"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded text-white placeholder-slate-400 mb-3"
+                      data-testid="input-collection-name"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={createCollection}
+                        disabled={!newCollectionName.trim() || loading === "creating"}
+                        className="qr-btn qr-btn--primary qr-btn--touch flex-1"
+                        data-testid="button-create-collection"
+                      >
+                        {loading === "creating" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        Create
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCreateCollection(false);
+                          setNewCollectionName("");
+                        }}
+                        className="qr-btn qr-btn--outline qr-btn--touch"
+                        data-testid="button-cancel-collection"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowCreateCollection(true)}
+                    className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
+                    data-testid="button-add-collection"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add New Collection
+                  </button>
                 )}
               </div>
             )}

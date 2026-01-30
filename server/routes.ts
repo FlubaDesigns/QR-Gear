@@ -8796,10 +8796,25 @@ ${allPages.map(page => `  <url>
         .get();
 
       const collectionsSet = new Set<string>();
+      
+      // Get collections from product links
       linksSnapshot.docs.forEach(doc => {
         const collection = doc.data().collection;
         if (collection) {
           collectionsSet.add(collection);
+        }
+      });
+
+      // Also get explicit collections from dynamicsCollections
+      const explicitSnapshot = await firestoreDb.collection("dynamicsCollections")
+        .where("storeId", "==", storeId)
+        .where("channelId", "==", channelId)
+        .get();
+
+      explicitSnapshot.docs.forEach(doc => {
+        const name = doc.data().name;
+        if (name) {
+          collectionsSet.add(name);
         }
       });
 
@@ -8814,6 +8829,60 @@ ${allPages.map(page => `  <url>
       });
     } catch (error: any) {
       console.error("[Collections] Error getting collections:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new collection
+  app.post("/api/test/stores/:storeId/channels/:channelId/collections", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const { name } = req.body;
+
+      if (!storeId || !channelId || !name) {
+        return res.status(400).json({ error: "storeId, channelId, and name are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Check if collection already exists (either as explicit or from links)
+      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+        .where("storeId", "==", storeId)
+        .where("channel", "==", channelId)
+        .where("collection", "==", name)
+        .limit(1)
+        .get();
+
+      const explicitDoc = await firestoreDb.collection("dynamicsCollections")
+        .where("storeId", "==", storeId)
+        .where("channelId", "==", channelId)
+        .where("name", "==", name)
+        .limit(1)
+        .get();
+
+      if (!linksSnapshot.empty || !explicitDoc.empty) {
+        return res.status(400).json({ error: "Collection already exists" });
+      }
+
+      // Create explicit collection record
+      const docRef = await firestoreDb.collection("dynamicsCollections").add({
+        storeId,
+        channelId,
+        name,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      console.log(`[Collections] Created collection "${name}" for ${storeId}/${channelId}`);
+
+      res.json({ 
+        success: true, 
+        collectionId: docRef.id,
+        name,
+      });
+    } catch (error: any) {
+      console.error("[Collections] Error creating collection:", error);
       res.status(500).json({ error: error.message });
     }
   });
