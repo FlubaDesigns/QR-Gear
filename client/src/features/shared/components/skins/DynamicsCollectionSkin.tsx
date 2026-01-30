@@ -73,12 +73,12 @@ export function DynamicsCollectionCardSkin({
         </Badge>
       </div>
 
-      <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+      <div className="aspect-[3/4] bg-muted flex items-center justify-center overflow-hidden">
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
             alt={item.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             data-testid={`img-collection-${item.id}`}
           />
         ) : (
