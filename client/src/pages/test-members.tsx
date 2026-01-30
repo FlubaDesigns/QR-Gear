@@ -21,7 +21,9 @@ import {
   BarChart3,
   Upload,
   Plus,
-  ExternalLink
+  ExternalLink,
+  Wand2,
+  Zap
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
@@ -154,15 +156,8 @@ function ProductPickerStep({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-bold text-white mb-2">Choose Your Product</h2>
-        <p className="text-slate-400">
-          {hasAllowedProducts 
-            ? `${allowedProducts.length} products available` 
-            : "Select a product template to start building"}
-        </p>
-      </div>
+    <div>
+      <p className="text-lg text-white mb-4">Pick an item</p>
 
       {!hasAllowedProducts ? (
         <div className="text-center py-8">
@@ -173,38 +168,41 @@ function ProductPickerStep({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {allowedProducts.map((product) => {
-            const productItem: ProductItem = {
-              id: product.blueprintId,
-              name: product.title,
-              thumbnailUrl: null
-            };
-            return (
-              <button
-                key={product.blueprintId}
-                onClick={() => onSelect(productItem)}
-                className={`relative rounded-lg overflow-hidden border-2 transition-all ${
-                  selectedProduct?.id === product.blueprintId
-                    ? 'border-blue-500 ring-2 ring-blue-500/30'
-                    : 'border-slate-600 hover:border-slate-500'
-                }`}
-                data-testid={`product-${product.blueprintId}`}
-              >
-                <div className="aspect-square bg-slate-700 flex items-center justify-center">
-                  <Package className="w-8 h-8 text-slate-500" />
-                </div>
-                <div className="p-2 bg-slate-800">
-                  <p className="text-xs text-white truncate">{product.title}</p>
-                </div>
-                {selectedProduct?.id === product.blueprintId && (
-                  <div className="absolute top-2 right-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                    <Check className="w-4 h-4 text-white" />
+        <div className="max-h-[60vh] overflow-y-auto pr-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {allowedProducts.map((product) => {
+              const productItem: ProductItem = {
+                id: product.blueprintId,
+                name: product.title,
+                thumbnailUrl: null
+              };
+              const isSelected = selectedProduct?.id === product.blueprintId;
+              return (
+                <button
+                  key={product.blueprintId}
+                  onClick={() => onSelect(productItem)}
+                  className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                    isSelected
+                      ? 'border-blue-500 ring-2 ring-blue-500/30'
+                      : 'border-slate-600 hover:border-slate-500'
+                  }`}
+                  data-testid={`product-${product.blueprintId}`}
+                >
+                  <div className="aspect-square bg-slate-700 flex items-center justify-center">
+                    <Package className="w-10 h-10 text-slate-500" />
                   </div>
-                )}
-              </button>
-            );
-          })}
+                  <div className="p-3 bg-slate-800">
+                    <p className="text-sm text-white truncate">{product.title}</p>
+                  </div>
+                  {isSelected && (
+                    <div className="absolute top-2 right-2 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -752,6 +750,24 @@ export default function TestMembersSandbox() {
   const [currentStep, setCurrentStep] = useState<WizardStep>('product');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
   const [powerMode, setPowerMode] = useState(false);
+  const [hasCompletedWizard, setHasCompletedWizard] = useState(false);
+  const [showSpeedBuildPrompt, setShowSpeedBuildPrompt] = useState(false);
+  
+  // Check if user has completed wizard before
+  useEffect(() => {
+    if (user?.id) {
+      const completed = localStorage.getItem(`wizard_completed_${user.id}`);
+      setHasCompletedWizard(completed === 'true');
+    }
+  }, [user?.id]);
+  
+  // Mark wizard as completed when they publish
+  const markWizardCompleted = () => {
+    if (user?.id) {
+      localStorage.setItem(`wizard_completed_${user.id}`, 'true');
+      setHasCompletedWizard(true);
+    }
+  };
   
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [selectedGraphic, setSelectedGraphic] = useState<GraphicSet | null>(null);
@@ -828,6 +844,8 @@ export default function TestMembersSandbox() {
       if (!productRes.ok) throw new Error('Failed to create product');
       
       setCompletedSteps(prev => new Set<WizardStep>([...Array.from(prev), 'publish']));
+      markWizardCompleted(); // Unlock Speed Build for next time
+      setShowSpeedBuildPrompt(true); // Show prompt about Speed Build
       setViewMode('channels'); // Switch to channels view to see the new item
     } catch (error) {
       console.error('Publish error:', error);
@@ -887,48 +905,53 @@ export default function TestMembersSandbox() {
             
             <div className="flex gap-2 flex-wrap">
               <Button
-                variant={viewMode === 'wizard' ? 'default' : 'outline'}
+                variant={viewMode === 'wizard' && !powerMode ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setViewMode('wizard')}
+                onClick={() => { setViewMode('wizard'); setPowerMode(false); }}
                 data-testid="tab-wizard"
+                className={viewMode === 'wizard' && !powerMode ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
               >
-                <Package className="w-4 h-4 mr-1" />
-                Builder
+                <Wand2 className="w-4 h-4 mr-1" />
+                Wizard
               </Button>
-              {viewMode === 'wizard' && (
+              {hasCompletedWizard && (
                 <Button
-                  variant={powerMode ? 'default' : 'outline'}
+                  variant={viewMode === 'wizard' && powerMode ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setPowerMode(!powerMode)}
-                  data-testid="toggle-power-mode"
-                  className={powerMode ? 'bg-amber-600 hover:bg-amber-500' : ''}
+                  onClick={() => { setViewMode('wizard'); setPowerMode(true); }}
+                  data-testid="tab-power"
+                  className={viewMode === 'wizard' && powerMode ? 'bg-amber-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
                 >
-                  {powerMode ? 'Wizard' : 'Power'}
+                  <Zap className="w-4 h-4 mr-1" />
+                  Speed Build
                 </Button>
               )}
               <Button
-                variant={viewMode === 'channels' ? 'default' : 'outline'}
+                variant={viewMode === 'channels' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('channels')}
                 data-testid="tab-channels"
+                className={viewMode === 'channels' ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
               >
                 <Layers className="w-4 h-4 mr-1" />
                 Channels
               </Button>
               <Button
-                variant={viewMode === 'collections' ? 'default' : 'outline'}
+                variant={viewMode === 'collections' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('collections')}
                 data-testid="tab-collections"
+                className={viewMode === 'collections' ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
               >
                 <QrCode className="w-4 h-4 mr-1" />
                 Dynamics
               </Button>
               <Button
-                variant={viewMode === 'earnings' ? 'default' : 'outline'}
+                variant={viewMode === 'earnings' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('earnings')}
                 data-testid="tab-earnings"
+                className={viewMode === 'earnings' ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
               >
                 <DollarSign className="w-4 h-4 mr-1" />
                 Earnings
@@ -936,6 +959,27 @@ export default function TestMembersSandbox() {
             </div>
           </div>
         </div>
+
+        {showSpeedBuildPrompt && (
+          <div className="glass-card p-4 mb-6 flex items-center justify-between gap-4 border-amber-500/50 bg-amber-900/20">
+            <div className="flex items-center gap-3">
+              <Zap className="w-6 h-6 text-amber-400" />
+              <div>
+                <p className="text-white font-medium">Speed Build Unlocked!</p>
+                <p className="text-white/70 text-sm">You've mastered the basics. Use Speed Build next time for faster product creation.</p>
+              </div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => setShowSpeedBuildPrompt(false)}
+              className="text-white/70 hover:text-white"
+              data-testid="dismiss-speed-build-prompt"
+            >
+              Got it
+            </Button>
+          </div>
+        )}
 
         {viewMode === 'wizard' && !powerMode && (
           <Card className="bg-slate-800/50 border-slate-700">
