@@ -67,20 +67,25 @@ function StoreManager() {
       </button>
       {expanded && (
         <div className="mt-4 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input placeholder="Store name..." value={newStoreName} onChange={e => setNewStoreName(e.target.value)} className="flex-1" data-testid="input-store-name" />
+          <div className="space-y-3">
+            <Input placeholder="Enter store name..." value={newStoreName} onChange={e => setNewStoreName(e.target.value)} data-testid="input-store-name" />
             <Select value={newStoreType} onValueChange={setNewStoreType}>
-              <SelectTrigger className="w-full sm:w-32" data-testid="select-store-type"><SelectValue /></SelectTrigger>
+              <SelectTrigger data-testid="select-store-type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="member">Member</SelectItem>
                 <SelectItem value="internal">Internal</SelectItem>
                 <SelectItem value="external">External</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" onClick={() => createMutation.mutate()} disabled={!newStoreName.trim() || createMutation.isPending} data-testid="btn-create-store">
-              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Create
-            </Button>
+            <button 
+              className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" 
+              onClick={() => createMutation.mutate()} 
+              disabled={!newStoreName.trim() || createMutation.isPending} 
+              data-testid="btn-create-store"
+            >
+              {createMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+              Create Store
+            </button>
           </div>
 
           {isLoading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
