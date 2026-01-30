@@ -23,11 +23,18 @@ import {
   Plus,
   ExternalLink,
   Wand2,
-  Zap
+  Zap,
+  Link2,
+  Type,
+  ImagePlus,
+  Play,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
 import SEO from "@/components/SEO";
+import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
+import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const token = await auth.currentUser?.getIdToken();
@@ -57,14 +64,46 @@ interface GraphicSet {
   imageCount: number;
 }
 
-type WizardStep = 'product' | 'graphics' | 'qr-setup' | 'preview' | 'publish';
+type WizardStep = 'product' | 'qr-type' | 'customize' | 'preview' | 'publish';
+type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
-  { id: 'product', label: 'Product', icon: Package },
-  { id: 'graphics', label: 'Graphics', icon: Image },
-  { id: 'qr-setup', label: 'QR Setup', icon: QrCode },
+  { id: 'product', label: 'Pick Item', icon: Package },
+  { id: 'qr-type', label: 'QR Type', icon: QrCode },
+  { id: 'customize', label: 'Customize', icon: Sparkles },
   { id: 'preview', label: 'Preview', icon: Eye },
   { id: 'publish', label: 'Publish', icon: Send },
+];
+
+const QR_TYPES = [
+  { 
+    id: 'qr-basic' as QRType, 
+    label: 'QR Basic', 
+    description: 'Static URL - no hosting needed',
+    icon: Link2,
+    color: 'slate'
+  },
+  { 
+    id: 'qr-plus' as QRType, 
+    label: 'QR Plus', 
+    description: 'Dynamic URL + header/footer text',
+    icon: Type,
+    color: 'blue'
+  },
+  { 
+    id: 'qr-canvas' as QRType, 
+    label: 'QR Canvas', 
+    description: 'Background image with text overlay',
+    icon: ImagePlus,
+    color: 'purple'
+  },
+  { 
+    id: 'qr-play' as QRType, 
+    label: 'QR Play', 
+    description: 'Video content landing page',
+    icon: Play,
+    color: 'rose'
+  },
 ];
 
 function WizardProgressBar({ 
