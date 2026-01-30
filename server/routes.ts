@@ -8790,19 +8790,48 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      // Query dynamicsChannelContent for this channel's content
-      // Note: Removed orderBy to avoid requiring composite index
+      // Query dynamicsChannelContent for this channel's explicit content
       const contentSnapshot = await firestoreDb.collection("dynamicsChannelContent")
         .where("storeId", "==", storeId)
         .where("channelId", "==", channelId)
         .get();
 
-      const content = contentSnapshot.docs.map(doc => ({
+      const explicitContent = contentSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       }));
 
-      console.log(`[ChannelContent] Found ${content.length} items for ${storeId}/${channelId}`);
+      // Also fetch packets for this store/channel as landing page content
+      const packetsSnapshot = await firestoreDb.collection("productPackets")
+        .where("storeId", "==", storeId)
+        .where("channelId", "==", channelId)
+        .get();
+
+      const packetContent = packetsSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          // Only include packets that have a landing page snapshot
+          if (data.landingPageSnapshotUrl) {
+            return {
+              id: `packet-${doc.id}`,
+              storeId,
+              channelId,
+              name: data.productName || data.landingPageTitle || 'Landing Page',
+              contentType: 'image' as const,
+              url: data.landingPageSnapshotUrl,
+              thumbnailUrl: data.landingPageSnapshotUrl,
+              sourceType: 'packet',
+              packetId: doc.id,
+              landingPageSlug: data.landingPageSlug,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      const content = [...explicitContent, ...packetContent];
+
+      console.log(`[ChannelContent] Found ${explicitContent.length} explicit + ${packetContent.length} packets = ${content.length} total for ${storeId}/${channelId}`);
 
       res.json({ 
         success: true, 
