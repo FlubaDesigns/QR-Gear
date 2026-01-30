@@ -27,14 +27,14 @@ class FileService {
 
   async uploadMedia(
     file: File,
-    folder: string = "play-media",
+    storeType: "internal" | "external" | "member" = "internal",
     onProgress?: UploadProgressCallback
   ): Promise<UploadResult> {
     const token = await this.getAuthToken();
     
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("folder", folder);
+    formData.append("storeType", storeType);
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();

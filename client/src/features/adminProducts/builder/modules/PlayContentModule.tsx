@@ -32,9 +32,10 @@ export function PlayContentModule() {
     setIsUploading(true);
     
     try {
+      // Default to internal store type - can be updated based on context
       const result = await fileService.uploadMedia(
         file,
-        "play-media",
+        "internal",
         (progress) => setUploadProgress(progress.percent)
       );
       

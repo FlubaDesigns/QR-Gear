@@ -1071,7 +1071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fileBuffer: Buffer | null = null;
       let fileName = `media-${Date.now()}`;
       let mimeType = "video/mp4";
-      let folder = "play-media";
+      let storeType = "internal";
       
       for (const part of parts) {
         const headerEnd = part.indexOf("\r\n\r\n");
@@ -1080,9 +1080,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const headers = part.slice(0, headerEnd).toString();
         const body = part.slice(headerEnd + 4);
         
-        // Check if this is the folder field
-        if (headers.includes('name="folder"')) {
-          folder = body.toString().trim();
+        // Check if this is the storeType field
+        if (headers.includes('name="storeType"')) {
+          storeType = body.toString().trim();
           continue;
         }
         
@@ -1102,20 +1102,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No file uploaded" });
       }
       
+      // Validate store type
+      const validStoreTypes = ["internal", "external", "member"];
+      if (!validStoreTypes.includes(storeType)) {
+        storeType = "internal";
+      }
+      
       // Validate mime type for media
       const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "image/gif", "image/webp"];
       if (!allowedTypes.includes(mimeType)) {
         return res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: ${allowedTypes.join(", ")}` });
       }
       
-      console.log(`[MediaUpload] Uploading ${fileName} (${mimeType}, ${fileBuffer.length} bytes) for user ${userId}`);
+      // Build storage path: library/{storeType}/video/{timestamp}-{filename}
+      const uniqueFilename = `${Date.now()}-${fileName}`;
+      const storagePath = `library/${storeType}/video/${uniqueFilename}`;
       
-      // Upload to Firebase Storage - uses 'uploads' folder by default
-      const uploadResult = await uploadToFirebaseStorage(fileBuffer, fileName, mimeType);
+      console.log(`[MediaUpload] Uploading ${fileName} (${mimeType}, ${fileBuffer.length} bytes) to ${storagePath}`);
       
-      // Extract just the filename from the storage URL for the media-files endpoint
-      const storedFilename = uploadResult.storageUrl.split('/').pop() || uploadResult.storageUrl;
-      const mediaUrl = `/api/media-files/${storedFilename}`;
+      // Upload directly to Firebase Storage with custom path
+      const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
+      const file = bucket.file(storagePath);
+      
+      await file.save(fileBuffer, {
+        metadata: { contentType: mimeType },
+      });
+      
+      // Return URL that uses the library-files endpoint
+      const mediaUrl = `/api/library-files/${storeType}/video/${uniqueFilename}`;
       
       console.log(`[MediaUpload] Upload complete: ${mediaUrl}`);
       
@@ -1150,7 +1164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve library files from Firebase Storage
+  // Serve library files from Firebase Storage (simple filename)
   app.get("/api/library-files/:filename", async (req, res) => {
     try {
       const { filename } = req.params;
@@ -1161,6 +1175,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       return res.status(404).json({ error: "Library file not found" });
+    } catch (error: any) {
+      console.error("Library file serve error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve library files with full path: /api/library-files/{storeType}/video/{filename}
+  app.get("/api/library-files/:storeType/:mediaType/:filename", async (req, res) => {
+    try {
+      const { storeType, mediaType, filename } = req.params;
+      const storagePath = `library/${storeType}/${mediaType}/${filename}`;
+      
+      const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
+      const file = bucket.file(storagePath);
+      
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      const [metadata] = await file.getMetadata();
+      res.setHeader("Content-Type", metadata.contentType || "application/octet-stream");
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      
+      file.createReadStream().pipe(res);
     } catch (error: any) {
       console.error("Library file serve error:", error);
       res.status(500).json({ error: error.message });
