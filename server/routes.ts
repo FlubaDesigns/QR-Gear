@@ -1072,6 +1072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fileName = `media-${Date.now()}`;
       let mimeType = "video/mp4";
       let storeType = "internal";
+      let clientUserId = "";
       
       for (const part of parts) {
         const headerEnd = part.indexOf("\r\n\r\n");
@@ -1083,6 +1084,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if this is the storeType field
         if (headers.includes('name="storeType"')) {
           storeType = body.toString().trim();
+          continue;
+        }
+        
+        // Check if this is the userId field
+        if (headers.includes('name="userId"')) {
+          clientUserId = body.toString().trim();
           continue;
         }
         
@@ -1109,14 +1116,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validate mime type for media
-      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "image/gif", "image/webp"];
+      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "image/gif", "image/webp", "image/png", "image/jpeg"];
       if (!allowedTypes.includes(mimeType)) {
         return res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: ${allowedTypes.join(", ")}` });
       }
       
-      // Build storage path: library/{storeType}/video/{timestamp}-{filename}
+      // Determine media type from mime
+      const mediaType = mimeType.startsWith("video/") ? "video" : "image";
+      
+      // Build storage path based on store type
+      // - internal/external: library/{storeType}/{mediaType}/{filename}
+      // - member: library/member/{userId}/{mediaType}/{filename}
       const uniqueFilename = `${Date.now()}-${fileName}`;
-      const storagePath = `library/${storeType}/video/${uniqueFilename}`;
+      let storagePath: string;
+      let mediaUrl: string;
+      
+      if (storeType === "member") {
+        // For member uploads, use the authenticated userId (not client-provided for security)
+        storagePath = `library/member/${userId}/${mediaType}/${uniqueFilename}`;
+        mediaUrl = `/api/library-files/member/${userId}/${mediaType}/${uniqueFilename}`;
+      } else {
+        storagePath = `library/${storeType}/${mediaType}/${uniqueFilename}`;
+        mediaUrl = `/api/library-files/${storeType}/${mediaType}/${uniqueFilename}`;
+      }
       
       console.log(`[MediaUpload] Uploading ${fileName} (${mimeType}, ${fileBuffer.length} bytes) to ${storagePath}`);
       
@@ -1128,9 +1150,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { contentType: mimeType },
       });
       
-      // Return URL that uses the library-files endpoint
-      const mediaUrl = `/api/library-files/${storeType}/video/${uniqueFilename}`;
-      
       console.log(`[MediaUpload] Upload complete: ${mediaUrl}`);
       
       res.json({
@@ -1138,7 +1157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: mimeType,
         fileName: fileName,
         size: fileBuffer.length,
-        storagePath: uploadResult.storageUrl
+        storagePath: storagePath
       });
       
     } catch (error: any) {
@@ -1181,11 +1200,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve library files with full path: /api/library-files/{storeType}/video/{filename}
+  // Serve library files for internal/external: /api/library-files/{storeType}/{mediaType}/{filename}
   app.get("/api/library-files/:storeType/:mediaType/:filename", async (req, res) => {
     try {
       const { storeType, mediaType, filename } = req.params;
+      
+      // Skip if this looks like a member path (has 4 segments)
+      if (storeType === "member") {
+        return res.status(400).json({ error: "Use /api/library-files/member/:userId/:mediaType/:filename for member files" });
+      }
+      
       const storagePath = `library/${storeType}/${mediaType}/${filename}`;
+      
+      const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
+      const file = bucket.file(storagePath);
+      
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      const [metadata] = await file.getMetadata();
+      res.setHeader("Content-Type", metadata.contentType || "application/octet-stream");
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      
+      file.createReadStream().pipe(res);
+    } catch (error: any) {
+      console.error("Library file serve error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve member library files: /api/library-files/member/{userId}/{mediaType}/{filename}
+  app.get("/api/library-files/member/:userId/:mediaType/:filename", async (req, res) => {
+    try {
+      const { userId, mediaType, filename } = req.params;
+      const storagePath = `library/member/${userId}/${mediaType}/${filename}`;
       
       const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
       const file = bucket.file(storagePath);

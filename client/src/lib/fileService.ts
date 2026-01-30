@@ -16,6 +16,9 @@ export interface UploadProgress {
 
 export type UploadProgressCallback = (progress: UploadProgress) => void;
 
+export type LibraryStoreType = "internal" | "external" | "member";
+export type LibraryMediaType = "video" | "image";
+
 class FileService {
   private async getAuthToken(): Promise<string> {
     const user = auth.currentUser;
@@ -25,16 +28,24 @@ class FileService {
     return user.getIdToken();
   }
 
+  private getCurrentUserId(): string | null {
+    return auth.currentUser?.uid || null;
+  }
+
   async uploadMedia(
     file: File,
-    storeType: "internal" | "external" | "member" = "internal",
+    storeType: LibraryStoreType = "internal",
     onProgress?: UploadProgressCallback
   ): Promise<UploadResult> {
     const token = await this.getAuthToken();
+    const userId = this.getCurrentUserId();
     
     const formData = new FormData();
     formData.append("file", file);
     formData.append("storeType", storeType);
+    if (userId) {
+      formData.append("userId", userId);
+    }
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -86,16 +97,44 @@ class FileService {
       return `File too large. Maximum size is ${maxSizeMB}MB`;
     }
 
-    const allowedTypes = [
+    const allowedVideoTypes = [
       "video/mp4",
       "video/webm",
       "video/quicktime",
+    ];
+
+    const allowedImageTypes = [
       "image/gif",
       "image/webp",
+      "image/png",
+      "image/jpeg",
+    ];
+
+    const allowedTypes = [...allowedVideoTypes, ...allowedImageTypes];
+
+    if (!allowedTypes.includes(file.type)) {
+      return `Invalid file type. Allowed: MP4, WebM, MOV, GIF, WebP, PNG, JPEG`;
+    }
+
+    return null;
+  }
+
+  validateImageFile(file: File, maxSizeMB: number = 10): string | null {
+    const maxSize = maxSizeMB * 1024 * 1024;
+    
+    if (file.size > maxSize) {
+      return `File too large. Maximum size is ${maxSizeMB}MB`;
+    }
+
+    const allowedTypes = [
+      "image/gif",
+      "image/webp",
+      "image/png",
+      "image/jpeg",
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      return `Invalid file type. Allowed: MP4, WebM, MOV, GIF, WebP`;
+      return `Invalid file type. Allowed: GIF, WebP, PNG, JPEG`;
     }
 
     return null;

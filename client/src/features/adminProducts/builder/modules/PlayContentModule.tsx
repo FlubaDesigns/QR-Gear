@@ -32,10 +32,10 @@ export function PlayContentModule() {
     setIsUploading(true);
     
     try {
-      // Default to internal store type - can be updated based on context
+      // Use member store type for user uploads - stores at library/member/{userId}/video/
       const result = await fileService.uploadMedia(
         file,
-        "internal",
+        "member",
         (progress) => setUploadProgress(progress.percent)
       );
       
