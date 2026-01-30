@@ -8776,6 +8776,230 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============== MEMBER SANDBOX API ==============
+
+  // Get member's uploaded graphics organized by sets
+  app.get("/api/members/:memberId/graphics", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+
+      // Get member's uploaded images from hostedImages
+      const images = await storage.getHostedImagesByUser(memberId);
+      
+      // Group images by date or folder (for now, return as single set)
+      const graphicSets = [{
+        id: 'my-uploads',
+        name: 'My Uploads',
+        thumbnailUrl: images[0]?.storageUrl || '',
+        imageCount: images.length,
+        images: images.map(img => ({
+          id: img.id,
+          url: img.storageUrl,
+          name: img.filename,
+          createdAt: img.createdAt
+        }))
+      }];
+
+      res.json(graphicSets);
+    } catch (error: any) {
+      console.error("[Member Graphics] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get member's channels
+  app.get("/api/members/:memberId/channels", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get channels owned by this member
+      const snapshot = await firestoreDb.collection("channels")
+        .where("ownerId", "==", memberId)
+        .get();
+
+      const channels = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      res.json(channels);
+    } catch (error: any) {
+      console.error("[Member Channels] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new channel for member
+  app.post("/api/members/:memberId/channels", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { name, storeId } = req.body;
+
+      if (!memberId || !name) {
+        return res.status(400).json({ error: "memberId and name are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const channelData = {
+        name,
+        storeId: storeId || 'qr-gear',
+        ownerId: memberId,
+        type: 'member',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const docRef = await firestoreDb.collection("channels").add(channelData);
+
+      res.json({
+        id: docRef.id,
+        ...channelData
+      });
+    } catch (error: any) {
+      console.error("[Member Channels POST] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get member's products (published to their channels)
+  app.get("/api/members/:memberId/products", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get products created by this member
+      const snapshot = await firestoreDb.collection("memberProducts")
+        .where("memberId", "==", memberId)
+        .orderBy("createdAt", "desc")
+        .get();
+
+      const products = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      res.json(products);
+    } catch (error: any) {
+      console.error("[Member Products] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new member product
+  app.post("/api/members/:memberId/products", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { 
+        printfulProductId, 
+        variantId,
+        graphicUrl, 
+        qrType, 
+        qrDestination, 
+        channelId,
+        name,
+        price
+      } = req.body;
+
+      if (!memberId || !printfulProductId) {
+        return res.status(400).json({ error: "memberId and printfulProductId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const productData = {
+        memberId,
+        printfulProductId,
+        variantId,
+        graphicUrl,
+        qrType: qrType || 'play',
+        qrDestination,
+        channelId,
+        name: name || 'My Product',
+        price: price || 0,
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const docRef = await firestoreDb.collection("memberProducts").add(productData);
+
+      res.json({
+        id: docRef.id,
+        ...productData
+      });
+    } catch (error: any) {
+      console.error("[Member Products POST] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get member's earnings
+  app.get("/api/members/:memberId/earnings", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get earnings records for this member
+      const snapshot = await firestoreDb.collection("memberEarnings")
+        .where("memberId", "==", memberId)
+        .orderBy("createdAt", "desc")
+        .get();
+
+      const earnings = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Calculate totals
+      const totalEarnings = earnings.reduce((sum, e: any) => sum + (e.amount || 0), 0);
+      const pendingEarnings = earnings
+        .filter((e: any) => e.status === 'pending')
+        .reduce((sum, e: any) => sum + (e.amount || 0), 0);
+      const paidEarnings = earnings
+        .filter((e: any) => e.status === 'paid')
+        .reduce((sum, e: any) => sum + (e.amount || 0), 0);
+
+      res.json({
+        earnings,
+        summary: {
+          total: totalEarnings,
+          pending: pendingEarnings,
+          paid: paidEarnings,
+          profitShare: 0.25 // 25%
+        }
+      });
+    } catch (error: any) {
+      console.error("[Member Earnings] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============== QR DYNAMICS - Channel Content API ==============
 
   // Get all content (images, videos, documents) for a channel

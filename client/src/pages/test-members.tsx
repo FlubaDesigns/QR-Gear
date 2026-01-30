@@ -18,7 +18,8 @@ import {
   Layers,
   DollarSign,
   Share2,
-  BarChart3
+  BarChart3,
+  Upload
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import SEO from "@/components/SEO";
@@ -226,11 +227,19 @@ function GraphicsStep({
 }) {
   const { user } = useAuth();
   
-  const mockGraphics: GraphicSet[] = [
-    { id: 'g1', name: 'My Logo Set', thumbnailUrl: '', imageCount: 3 },
-    { id: 'g2', name: 'Product Photos', thumbnailUrl: '', imageCount: 5 },
-    { id: 'g3', name: 'Event Graphics', thumbnailUrl: '', imageCount: 2 },
-  ];
+  // Fetch member's graphics from API
+  const { data: graphicSets, isLoading } = useQuery<GraphicSet[]>({
+    queryKey: ['/api/members', user?.uid, 'graphics'],
+    queryFn: async () => {
+      if (!user?.uid) return [];
+      const res = await fetch(`/api/members/${user.uid}/graphics`);
+      if (!res.ok) throw new Error('Failed to fetch graphics');
+      return res.json();
+    },
+    enabled: !!user?.uid
+  });
+
+  const graphics = graphicSets || [];
 
   return (
     <div className="space-y-4">
@@ -239,38 +248,64 @@ function GraphicsStep({
         <p className="text-slate-400">Choose a graphic set from your library</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {mockGraphics.map((graphic) => (
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+        </div>
+      ) : graphics.length === 0 ? (
+        <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
+          <Image className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <p className="text-slate-400 mb-4">No graphics uploaded yet</p>
           <button
-            key={graphic.id}
-            onClick={() => onSelect(graphic)}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              selectedGraphic?.id === graphic.id
-                ? 'border-blue-500 bg-blue-600/20'
-                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-            }`}
-            data-testid={`graphic-${graphic.id}`}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+            data-testid="button-upload-first-graphic"
           >
-            <div className="aspect-square bg-slate-700 rounded-lg mb-3 flex items-center justify-center">
-              <Image className="w-12 h-12 text-slate-500" />
-            </div>
-            <p className="text-sm font-medium text-white truncate">{graphic.name}</p>
-            <p className="text-xs text-slate-400">{graphic.imageCount} images</p>
+            <Upload className="w-4 h-4 inline mr-2" />
+            Upload Your First Graphic
           </button>
-        ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {graphics.map((graphic) => (
+            <button
+              key={graphic.id}
+              onClick={() => onSelect(graphic)}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                selectedGraphic?.id === graphic.id
+                  ? 'border-blue-500 bg-blue-600/20'
+                  : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+              }`}
+              data-testid={`graphic-${graphic.id}`}
+            >
+              {graphic.thumbnailUrl ? (
+                <img 
+                  src={graphic.thumbnailUrl} 
+                  alt={graphic.name}
+                  className="aspect-square object-cover rounded-lg mb-3"
+                />
+              ) : (
+                <div className="aspect-square bg-slate-700 rounded-lg mb-3 flex items-center justify-center">
+                  <Image className="w-12 h-12 text-slate-500" />
+                </div>
+              )}
+              <p className="text-sm font-medium text-white truncate">{graphic.name}</p>
+              <p className="text-xs text-slate-400">{graphic.imageCount} images</p>
+            </button>
+          ))}
         
-        <button
-          className="p-4 rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/30 hover:border-blue-500 hover:bg-blue-600/10 transition-all"
-          data-testid="button-upload-graphics"
-        >
-          <div className="aspect-square rounded-lg mb-3 flex items-center justify-center">
-            <div className="text-center">
-              <Image className="w-12 h-12 text-slate-500 mx-auto mb-2" />
-              <span className="text-xs text-slate-400">Upload New</span>
+          <button
+            className="p-4 rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/30 hover:border-blue-500 hover:bg-blue-600/10 transition-all"
+            data-testid="button-upload-graphics"
+          >
+            <div className="aspect-square rounded-lg mb-3 flex items-center justify-center">
+              <div className="text-center">
+                <Upload className="w-12 h-12 text-slate-500 mx-auto mb-2" />
+                <span className="text-xs text-slate-400">Upload New</span>
+              </div>
             </div>
-          </div>
-        </button>
-      </div>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
