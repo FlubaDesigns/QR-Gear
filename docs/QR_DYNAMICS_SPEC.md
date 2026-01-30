@@ -145,6 +145,26 @@ interface CollectionItem {
 
 ## Firestore Collections
 
+### dynamicsChannelContent
+```
+{
+  id: string,
+  storeId: string,
+  channelId: string,
+  name: string,
+  contentType: 'image' | 'video' | 'document',
+  url: string,
+  thumbnailUrl: string,
+  metadata: {
+    text?: string,
+    duration?: number,
+    pageCount?: number
+  },
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
 ### dynamicsCollections
 ```
 {
