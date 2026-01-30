@@ -472,6 +472,7 @@ interface MemberChannel {
   storeId: string;
   type: string;
   productCount?: number;
+  mediaCount?: number;
   createdAt: string;
 }
 
@@ -482,6 +483,16 @@ interface MemberProduct {
   price: number;
   status: string;
   channelId?: string;
+}
+
+interface ChannelMedia {
+  id: string;
+  channelId: string;
+  type: 'image' | 'video' | 'document';
+  url: string;
+  name: string;
+  thumbnailUrl?: string;
+  createdAt: string;
 }
 
 interface EarningsSummary {
