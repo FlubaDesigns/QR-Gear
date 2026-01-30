@@ -14,17 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
-import { 
-  DynamicsChannelCardSkin, 
-  DynamicsChannelDetailSkin,
-  type DynamicsChannelItem 
-} from "@/features/shared/components/skins/DynamicsChannelSkin";
-import { 
-  DynamicsCollectionCardSkin, 
-  DynamicsCollectionDetailSkin,
-  type DynamicsCollectionItem 
-} from "@/features/shared/components/skins/DynamicsCollectionSkin";
+import { ScrollView, type ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
 interface StoreOption {
   id: string;
@@ -131,30 +121,23 @@ export default function TestDynamicsPage() {
     return channelContent.filter(c => c.contentType === 'image' || c.contentType === 'video');
   }, [channelContent]);
 
-  const channelSkinItems: DynamicsChannelItem[] = useMemo(() => {
+  const channelScrollItems: ScrollViewItem[] = useMemo(() => {
     return filteredChannelContent.map(c => ({
       id: c.id,
-      name: c.name,
-      contentType: c.contentType as 'image' | 'video',
-      url: c.url,
-      thumbnailUrl: c.thumbnailUrl,
-      primaryImage: c.thumbnailUrl || c.url,
+      imageUrl: c.thumbnailUrl || c.url,
+      title: c.name,
+      subtitle: c.contentType === 'video' ? 'Video' : 'Landing Page',
     }));
   }, [filteredChannelContent]);
 
-  const collectionSkinItems: DynamicsCollectionItem[] = useMemo(() => {
+  const collectionScrollItems: ScrollViewItem[] = useMemo(() => {
     return collectionItems
       .filter(c => c.contentType === 'image' || c.contentType === 'video')
       .map(c => ({
         id: c.id,
-        name: c.name,
-        contentType: c.contentType as 'image' | 'video',
-        url: c.url,
-        thumbnailUrl: c.thumbnailUrl,
-        primaryImage: c.thumbnailUrl || c.url,
-        order: c.order,
-        rotationInterval: c.rotationInterval,
-        contentId: c.contentId,
+        imageUrl: c.thumbnailUrl || c.url,
+        title: c.name,
+        subtitle: `#${c.order} - ${c.rotationInterval}`,
       }));
   }, [collectionItems]);
 
@@ -361,8 +344,8 @@ export default function TestDynamicsPage() {
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const handleChannelItemClick = async (itemId: string) => {
-    const contentItem = channelContent.find(c => c.id === itemId);
+  const handleChannelItemSelect = async (item: ScrollViewItem) => {
+    const contentItem = channelContent.find(c => c.id === item.id);
     if (!contentItem) return;
 
     if (collections.length === 0) {
@@ -393,29 +376,10 @@ export default function TestDynamicsPage() {
     }
   };
 
-  const ChannelCardSkin = (props: any) => (
-    <DynamicsChannelCardSkin {...props} />
-  );
-
-  const ChannelDetailSkin = (props: any) => (
-    <DynamicsChannelDetailSkin {...props} />
-  );
-
-  const CollectionCardSkin = (props: any) => (
-    <DynamicsCollectionCardSkin 
-      {...props} 
-      onRemove={removeFromCollection}
-    />
-  );
-
-  const CollectionDetailSkin = (props: any) => (
-    <DynamicsCollectionDetailSkin 
-      {...props} 
-      onRemove={removeFromCollection}
-      onUpdateInterval={updateItemInterval}
-      isUpdating={isUpdating}
-    />
-  );
+  const handleCollectionItemSelect = (item: ScrollViewItem) => {
+    // For collection items, clicking opens detail - could add modal here later
+    console.log("Collection item selected:", item.id);
+  };
 
   return (
     <div className="page-wrap" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
@@ -518,7 +482,7 @@ export default function TestDynamicsPage() {
                   data-testid="tab-channel"
                 >
                   <LayoutGrid className="h-4 w-4 mr-2" />
-                  Channel ({channelSkinItems.length})
+                  Channel ({channelScrollItems.length})
                 </TabsTrigger>
                 <TabsTrigger 
                   value="collection" 
@@ -526,7 +490,7 @@ export default function TestDynamicsPage() {
                   data-testid="tab-collection"
                 >
                   <Layers className="h-4 w-4 mr-2" />
-                  Collection ({collectionSkinItems.length})
+                  Collection ({collectionScrollItems.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -542,20 +506,19 @@ export default function TestDynamicsPage() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
                   </div>
-                ) : channelSkinItems.length === 0 ? (
+                ) : channelScrollItems.length === 0 ? (
                   <div className="text-center py-8 text-blue-300">
                     <LayoutGrid className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No landing pages or videos in this channel yet.</p>
                   </div>
                 ) : (
-                  <SkinGridViewer
-                    items={channelSkinItems}
-                    CardSkin={ChannelCardSkin}
-                    DetailSkin={ChannelDetailSkin}
-                    actions={{
-                      onSelect: handleChannelItemClick,
-                    }}
-                    gridColumns="grid-cols-2 sm:grid-cols-3"
+                  <ScrollView
+                    items={channelScrollItems}
+                    onSelect={handleChannelItemSelect}
+                    aspectRatio="portrait"
+                    layout="grid"
+                    gridHeight="500px"
+                    emptyMessage="No content available"
                   />
                 )}
               </TabsContent>
@@ -606,19 +569,20 @@ export default function TestDynamicsPage() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
                   </div>
-                ) : collectionSkinItems.length === 0 ? (
+                ) : collectionScrollItems.length === 0 ? (
                   <div className="text-center py-8 text-purple-300">
                     <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No items in "{selectedCollection.name}" yet.</p>
                     <p className="text-sm mt-2">Switch to Channel tab and click items to add them.</p>
                   </div>
                 ) : (
-                  <SkinGridViewer
-                    items={collectionSkinItems}
-                    CardSkin={CollectionCardSkin}
-                    DetailSkin={CollectionDetailSkin}
-                    actions={{}}
-                    gridColumns="grid-cols-2 sm:grid-cols-3"
+                  <ScrollView
+                    items={collectionScrollItems}
+                    onSelect={handleCollectionItemSelect}
+                    aspectRatio="portrait"
+                    layout="grid"
+                    gridHeight="500px"
+                    emptyMessage="No items in collection"
                   />
                 )}
               </TabsContent>
