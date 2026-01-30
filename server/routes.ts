@@ -1108,20 +1108,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: ${allowedTypes.join(", ")}` });
       }
       
-      console.log(`[MediaUpload] Uploading ${fileName} (${mimeType}, ${fileBuffer.length} bytes) to ${folder}/ for user ${userId}`);
+      console.log(`[MediaUpload] Uploading ${fileName} (${mimeType}, ${fileBuffer.length} bytes) for user ${userId}`);
       
-      // Upload to Firebase Storage with user-specific path
-      const storagePath = `${folder}/${userId}/${Date.now()}-${fileName}`;
-      const uploadResult = await uploadToFirebaseStorage(fileBuffer, storagePath, mimeType);
+      // Upload to Firebase Storage - uses 'uploads' folder by default
+      const uploadResult = await uploadToFirebaseStorage(fileBuffer, fileName, mimeType);
       
-      console.log(`[MediaUpload] Upload complete: ${uploadResult.publicUrl}`);
+      // Extract just the filename from the storage URL for the media-files endpoint
+      const storedFilename = uploadResult.storageUrl.split('/').pop() || uploadResult.storageUrl;
+      const mediaUrl = `/api/media-files/${storedFilename}`;
+      
+      console.log(`[MediaUpload] Upload complete: ${mediaUrl}`);
       
       res.json({
-        url: uploadResult.publicUrl,
+        url: mediaUrl,
         mimeType: mimeType,
         fileName: fileName,
         size: fileBuffer.length,
-        storagePath: storagePath
+        storagePath: uploadResult.storageUrl
       });
       
     } catch (error: any) {
@@ -1160,6 +1163,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ error: "Library file not found" });
     } catch (error: any) {
       console.error("Library file serve error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve media files from uploads folder in Firebase Storage
+  app.get("/api/media-files/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      
+      const served = await downloadAndStreamFile(filename, res, 'uploads', 31536000);
+      if (served) {
+        return;
+      }
+      
+      return res.status(404).json({ error: "Media file not found" });
+    } catch (error: any) {
+      console.error("Media file serve error:", error);
       res.status(500).json({ error: error.message });
     }
   });
