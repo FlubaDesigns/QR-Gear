@@ -8934,16 +8934,14 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      // Get current max order - query without orderBy to avoid needing composite index
+      // Get current max order
       const existingItems = await firestoreDb.collection("dynamicsCollectionItems")
         .where("collectionId", "==", collectionId)
+        .orderBy("order", "desc")
+        .limit(1)
         .get();
 
-      let maxOrder = 0;
-      existingItems.docs.forEach(doc => {
-        const order = doc.data().order || 0;
-        if (order > maxOrder) maxOrder = order;
-      });
+      const maxOrder = existingItems.empty ? 0 : (existingItems.docs[0].data().order || 0);
 
       const docRef = await firestoreDb.collection("dynamicsCollectionItems").add({
         collectionId,
@@ -8982,16 +8980,15 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      // Query without orderBy to avoid needing composite index, sort in memory
       const itemsSnapshot = await firestoreDb.collection("dynamicsCollectionItems")
         .where("collectionId", "==", collectionId)
+        .orderBy("order", "asc")
         .get();
 
       const items = itemsSnapshot.docs.map(doc => ({
         id: doc.id,
-        order: doc.data().order || 0,
         ...doc.data(),
-      })).sort((a, b) => a.order - b.order);
+      }));
 
       res.json({ 
         success: true, 
