@@ -9433,6 +9433,390 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============================================================
+  // QR DYNAMICS V2 - TIME-BASED URL STITCHER
+  // ============================================================
+
+  // Get packets filtered to qr-canvas/qr-play only (for QR Dynamics admin UI)
+  app.get("/api/dynamics/packets", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.query;
+
+      if (!storeId) {
+        return res.status(400).json({ error: "storeId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      // Query productPackets for this store (optionally filtered by channel)
+      let query = firestoreDb.collection("productPackets")
+        .where("storeId", "==", storeId);
+
+      if (channelId) {
+        query = query.where("channelId", "==", channelId);
+      }
+
+      const packetsSnapshot = await query.get();
+
+      // Filter to only qr-canvas and qr-play types with landing page snapshots
+      const packets = packetsSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          const qrType = data.qrProductType || '';
+          
+          // Only include qr-canvas (image pages) and qr-play (video pages)
+          if ((qrType === 'qr-canvas' || qrType === 'qr-play') && data.landingPageSnapshotUrl) {
+            return {
+              id: doc.id,
+              packetId: doc.id,
+              name: data.productName || data.landingPageTitle || 'Untitled',
+              qrProductType: qrType,
+              thumbnailUrl: data.landingPageSnapshotUrl,
+              landingPageSlug: data.landingPageSlug,
+              landingPageUrl: data.landingPageSlug ? `/p/${data.landingPageSlug}` : null,
+              storeId: data.storeId,
+              channelId: data.channelId,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      console.log(`[Dynamics Packets] Found ${packets.length} eligible packets for ${storeId}/${channelId || 'all'}`);
+
+      res.json({
+        success: true,
+        packets,
+        count: packets.length,
+      });
+    } catch (error: any) {
+      console.error("[Dynamics Packets] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create QR Dynamics instance (typically at sale/checkout)
+  app.post("/api/dynamics/instances", async (req: any, res) => {
+    try {
+      const { orderId, collectionId, slots, fallbackUrl } = req.body;
+
+      if (!slots || !Array.isArray(slots) || slots.length === 0) {
+        return res.status(400).json({ error: "slots array is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      
+      const instanceData = {
+        orderId: orderId || null,
+        collectionId: collectionId || null,
+        createdAt: nowEpoch,
+        startTimestamp: nowEpoch,
+        mode: 'loop',
+        fallbackUrl: fallbackUrl || null,
+        slots: slots.map((slot: any, index: number) => ({
+          slotId: slot.slotId || `slot-${Date.now()}-${index}`,
+          packetId: slot.packetId,
+          durationSeconds: slot.durationSeconds || 86400,
+          order: slot.order ?? index + 1,
+        })),
+      };
+
+      const docRef = await firestoreDb.collection("qr_dynamics_instances").add(instanceData);
+
+      console.log(`[Dynamics Instance] Created instance ${docRef.id} with ${slots.length} slots`);
+
+      res.json({
+        success: true,
+        instanceId: docRef.id,
+        resolverUrl: `/qr/d/${docRef.id}`,
+      });
+    } catch (error: any) {
+      console.error("[Dynamics Instance] Error creating:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get instance details
+  app.get("/api/dynamics/instances/:instanceId", async (req: any, res) => {
+    try {
+      const { instanceId } = req.params;
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      const doc = await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).get();
+
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Instance not found" });
+      }
+
+      res.json({
+        success: true,
+        instance: {
+          id: doc.id,
+          ...doc.data(),
+        },
+      });
+    } catch (error: any) {
+      console.error("[Dynamics Instance] Error fetching:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Preview current active slot using math
+  app.get("/api/dynamics/instances/:instanceId/preview", async (req: any, res) => {
+    try {
+      const { instanceId } = req.params;
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      const doc = await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).get();
+
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Instance not found" });
+      }
+
+      const instance = doc.data() as any;
+      const slots = instance.slots || [];
+
+      if (slots.length === 0) {
+        return res.json({
+          success: true,
+          activeSlot: null,
+          message: "No slots configured",
+        });
+      }
+
+      // Sort by order
+      const sortedSlots = [...slots].sort((a: any, b: any) => a.order - b.order);
+
+      // Time math
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      const elapsed = nowEpoch - instance.startTimestamp;
+
+      let cycleLength = 0;
+      for (const slot of sortedSlots) {
+        cycleLength += slot.durationSeconds;
+      }
+
+      if (cycleLength <= 0) {
+        return res.status(500).json({ error: "Invalid cycle length" });
+      }
+
+      const position = elapsed % cycleLength;
+
+      // Resolve active slot
+      let running = 0;
+      let activeSlot = null;
+      let activeIndex = 0;
+
+      for (let i = 0; i < sortedSlots.length; i++) {
+        running += sortedSlots[i].durationSeconds;
+        if (position < running) {
+          activeSlot = sortedSlots[i];
+          activeIndex = i;
+          break;
+        }
+      }
+
+      // Fetch packet details for thumbnail
+      let packetDetails = null;
+      if (activeSlot) {
+        const packetDoc = await firestoreDb.collection("productPackets").doc(activeSlot.packetId).get();
+        if (packetDoc.exists) {
+          const packetData = packetDoc.data() as any;
+          packetDetails = {
+            name: packetData.productName || packetData.landingPageTitle || 'Untitled',
+            thumbnailUrl: packetData.landingPageSnapshotUrl,
+            landingPageSlug: packetData.landingPageSlug,
+            qrProductType: packetData.qrProductType,
+          };
+        }
+      }
+
+      // Calculate time remaining in current slot
+      let timeRemainingSeconds = 0;
+      if (activeSlot) {
+        const slotStart = running - activeSlot.durationSeconds;
+        timeRemainingSeconds = activeSlot.durationSeconds - (position - slotStart);
+      }
+
+      res.json({
+        success: true,
+        nowEpoch,
+        elapsed,
+        cycleLength,
+        position,
+        activeIndex,
+        totalSlots: sortedSlots.length,
+        activeSlot: activeSlot ? {
+          ...activeSlot,
+          packet: packetDetails,
+        } : null,
+        timeRemainingSeconds,
+        nextSlotIndex: (activeIndex + 1) % sortedSlots.length,
+      });
+    } catch (error: any) {
+      console.error("[Dynamics Preview] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update instance slots (resets startTimestamp)
+  app.put("/api/dynamics/instances/:instanceId/slots", async (req: any, res) => {
+    try {
+      const { instanceId } = req.params;
+      const { slots } = req.body;
+
+      if (!slots || !Array.isArray(slots)) {
+        return res.status(400).json({ error: "slots array is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      const nowEpoch = Math.floor(Date.now() / 1000);
+
+      await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).update({
+        slots: slots.map((slot: any, index: number) => ({
+          slotId: slot.slotId || `slot-${Date.now()}-${index}`,
+          packetId: slot.packetId,
+          durationSeconds: slot.durationSeconds || 86400,
+          order: slot.order ?? index + 1,
+        })),
+        startTimestamp: nowEpoch, // Reset anchor on edit
+      });
+
+      console.log(`[Dynamics Instance] Updated slots for ${instanceId}, reset startTimestamp`);
+
+      res.json({
+        success: true,
+        instanceId,
+        newStartTimestamp: nowEpoch,
+      });
+    } catch (error: any) {
+      console.error("[Dynamics Instance] Error updating slots:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // QR RESOLVER: The actual redirect endpoint
+  app.get("/qr/d/:instanceId", async (req: any, res) => {
+    try {
+      const { instanceId } = req.params;
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      const doc = await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).get();
+
+      if (!doc.exists) {
+        return res.status(404).send("QR Dynamics instance not found");
+      }
+
+      const instance = doc.data() as any;
+      const slots = instance.slots || [];
+
+      if (slots.length === 0) {
+        if (instance.fallbackUrl) {
+          return res.redirect(302, instance.fallbackUrl);
+        }
+        return res.status(404).send("No content configured");
+      }
+
+      // Sort by order
+      const sortedSlots = [...slots].sort((a: any, b: any) => a.order - b.order);
+
+      // Time math
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      const elapsed = nowEpoch - instance.startTimestamp;
+
+      let cycleLength = 0;
+      for (const slot of sortedSlots) {
+        cycleLength += slot.durationSeconds;
+      }
+
+      if (cycleLength <= 0) {
+        if (instance.fallbackUrl) {
+          return res.redirect(302, instance.fallbackUrl);
+        }
+        return res.status(500).send("Invalid QR Dynamics configuration");
+      }
+
+      const position = elapsed % cycleLength;
+
+      // Resolve active slot
+      let running = 0;
+      let activeSlot = null;
+
+      for (const slot of sortedSlots) {
+        running += slot.durationSeconds;
+        if (position < running) {
+          activeSlot = slot;
+          break;
+        }
+      }
+
+      if (!activeSlot) {
+        if (instance.fallbackUrl) {
+          return res.redirect(302, instance.fallbackUrl);
+        }
+        return res.status(500).send("Unable to resolve slot");
+      }
+
+      // Fetch packet for redirect URL
+      const packetDoc = await firestoreDb.collection("productPackets").doc(activeSlot.packetId).get();
+
+      if (!packetDoc.exists) {
+        // Slot's packet missing - skip to next slot
+        console.log(`[QR Dynamics] Packet ${activeSlot.packetId} not found, trying next slot`);
+        
+        const nextSlotIndex = (sortedSlots.indexOf(activeSlot) + 1) % sortedSlots.length;
+        const nextSlot = sortedSlots[nextSlotIndex];
+        
+        if (nextSlot && nextSlot.packetId !== activeSlot.packetId) {
+          const nextPacketDoc = await firestoreDb.collection("productPackets").doc(nextSlot.packetId).get();
+          if (nextPacketDoc.exists) {
+            const nextPacketData = nextPacketDoc.data() as any;
+            if (nextPacketData.landingPageSlug) {
+              return res.redirect(302, `/p/${nextPacketData.landingPageSlug}`);
+            }
+          }
+        }
+
+        if (instance.fallbackUrl) {
+          return res.redirect(302, instance.fallbackUrl);
+        }
+        return res.status(404).send("Content not available");
+      }
+
+      const packetData = packetDoc.data() as any;
+
+      if (!packetData.landingPageSlug) {
+        if (instance.fallbackUrl) {
+          return res.redirect(302, instance.fallbackUrl);
+        }
+        return res.status(404).send("Landing page not configured");
+      }
+
+      console.log(`[QR Dynamics] Instance ${instanceId} → Slot ${activeSlot.order} → /p/${packetData.landingPageSlug}`);
+
+      res.redirect(302, `/p/${packetData.landingPageSlug}`);
+    } catch (error: any) {
+      console.error("[QR Dynamics Resolver] Error:", error);
+      res.status(500).send("QR Dynamics error");
+    }
+  });
+
+  // ============================================================
+  // END QR DYNAMICS V2
+  // ============================================================
+
   // Test: Full template save with batch mockup generation - NO AUTH REQUIRED
   app.post("/api/test/templates/full-save", async (req: any, res) => {
     try {
