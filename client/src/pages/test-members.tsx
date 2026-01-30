@@ -172,7 +172,7 @@ function ProductPickerStep({
             const productItem: ProductItem = {
               id: product.blueprintId,
               name: product.title,
-              thumbnailUrl: undefined
+              thumbnailUrl: null
             };
             return (
               <button
@@ -216,14 +216,14 @@ function GraphicsStep({
   
   // Fetch member's graphics from API
   const { data: graphicSets, isLoading } = useQuery<GraphicSet[]>({
-    queryKey: ['/api/members', user?.uid, 'graphics'],
+    queryKey: ['/api/members', user?.id, 'graphics'],
     queryFn: async () => {
-      if (!user?.uid) return [];
-      const res = await fetch(`/api/members/${user.uid}/graphics`);
+      if (!user?.id) return [];
+      const res = await fetch(`/api/members/${user.id}/graphics`);
       if (!res.ok) throw new Error('Failed to fetch graphics');
       return res.json();
     },
-    enabled: !!user?.uid
+    enabled: !!user?.id
   });
 
   const graphics = graphicSets || [];
@@ -774,13 +774,13 @@ export default function TestMembersSandbox() {
   };
 
   const handlePublish = async () => {
-    if (!user?.uid || !selectedProduct) return;
+    if (!user?.id || !selectedProduct) return;
     
     setIsPublishing(true);
     try {
       // First, ensure channel exists or create it
       let channelId = '';
-      const channelRes = await fetch(`/api/members/${user.uid}/channels`);
+      const channelRes = await fetch(`/api/members/${user.id}/channels`);
       const channels = await channelRes.json();
       const existingChannel = channels.find((c: any) => c.name === channelName);
       
@@ -788,7 +788,7 @@ export default function TestMembersSandbox() {
         channelId = existingChannel.id;
       } else {
         // Create new channel
-        const createRes = await fetch(`/api/members/${user.uid}/channels`, {
+        const createRes = await fetch(`/api/members/${user.id}/channels`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: channelName })
@@ -798,7 +798,7 @@ export default function TestMembersSandbox() {
       }
       
       // Create the member product
-      const productRes = await fetch(`/api/members/${user.uid}/products`, {
+      const productRes = await fetch(`/api/members/${user.id}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1115,15 +1115,15 @@ export default function TestMembersSandbox() {
         )}
 
         {viewMode === 'channels' && (
-          <ChannelsView memberId={user?.uid || ''} />
+          <ChannelsView memberId={user?.id || ''} />
         )}
 
         {viewMode === 'collections' && (
-          <CollectionsView memberId={user?.uid || ''} />
+          <CollectionsView memberId={user?.id || ''} />
         )}
 
         {viewMode === 'earnings' && (
-          <EarningsView memberId={user?.uid || ''} />
+          <EarningsView memberId={user?.id || ''} />
         )}
 
         <div className="mt-6 text-center text-white/50 text-sm">
