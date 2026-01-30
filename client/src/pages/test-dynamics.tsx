@@ -169,6 +169,19 @@ export default function TestDynamicsPage() {
     }
   }, [selectedStore, selectedChannel]);
 
+  const packetItems: ChannelItem[] = useMemo(() => {
+    return packets.map(p => ({
+      id: p.packetId,
+      name: p.name,
+      contentType: p.qrProductType === 'qr-play' ? 'video' as const : 'image' as const,
+      imageUrl: p.thumbnailUrl,
+    }));
+  }, [packets]);
+
+  const totalCycleSeconds = useMemo(() => {
+    return slots.reduce((acc, s) => acc + s.durationSeconds, 0);
+  }, [slots]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
@@ -344,25 +357,12 @@ export default function TestDynamicsPage() {
     setTimeout(() => setError(null), 5000);
   };
 
-  const packetItems: ChannelItem[] = useMemo(() => {
-    return packets.map(p => ({
-      id: p.packetId,
-      name: p.name,
-      contentType: p.qrProductType === 'qr-play' ? 'video' as const : 'image' as const,
-      imageUrl: p.thumbnailUrl,
-    }));
-  }, [packets]);
-
   const handlePacketAction = (item: ChannelItem) => {
     const packet = packets.find(p => p.packetId === item.id);
     if (packet) {
       addSlot(packet, 86400);
     }
   };
-
-  const totalCycleSeconds = useMemo(() => {
-    return slots.reduce((acc, s) => acc + s.durationSeconds, 0);
-  }, [slots]);
 
   const ChannelSkin = (props: { item: ChannelItem; onAction?: (item: ChannelItem) => void }) => (
     <ChannelItemSkin {...props} />
