@@ -2614,7 +2614,16 @@ html[data-theme="light"] .vanity-highlight-icon {
   background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
   padding: 0.5rem 1rem;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@media (min-width: 768px) {
+  .admin-quick-bar {
+    justify-content: center;
+  }
 }
 
 .admin-quick-link {
@@ -2626,6 +2635,8 @@ html[data-theme="light"] .vanity-highlight-icon {
   font-weight: 600;
   min-height: 48px;
   padding: 0 1rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .admin-quick-link:hover {
