@@ -85,33 +85,13 @@ export default function TestDynamicsPage() {
   
   const [showCreateCollection, setShowCreateCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
-  
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-      </div>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="glass-card max-w-md text-center">
-          <h1 className="text-xl font-bold text-white mb-4">Authentication Required</h1>
-          <p className="text-blue-200 mb-4">Please sign in to access QR Dynamics.</p>
-          <Link href="/">
-            <a className="qr-btn qr-btn--primary qr-btn--touch">Go to Home</a>
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   useEffect(() => {
-    fetchStores();
-    fetchSurfaces();
-  }, []);
+    if (isAuthenticated) {
+      fetchStores();
+      fetchSurfaces();
+    }
+  }, [isAuthenticated]);
 
   // Fetch channels when store is selected
   useEffect(() => {
@@ -160,6 +140,29 @@ export default function TestDynamicsPage() {
       setCollectionItems([]);
     }
   }, [selectedStore, selectedChannel, selectedCollection]);
+  
+  // Auth check - must be AFTER all hooks
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="glass-card max-w-md text-center">
+          <h1 className="text-xl font-bold text-white mb-4">Authentication Required</h1>
+          <p className="text-blue-200 mb-4">Please sign in to access QR Dynamics.</p>
+          <Link href="/">
+            <a className="qr-btn qr-btn--primary qr-btn--touch">Go to Home</a>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const fetchStores = async () => {
     try {
