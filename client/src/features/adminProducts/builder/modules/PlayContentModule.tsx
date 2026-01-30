@@ -1,63 +1,58 @@
 import { useState, useRef, useCallback } from "react";
-import { Play, Link2, Upload, CheckSquare, Square, AlertCircle, Video, Image as ImageIcon } from "lucide-react";
+import { Play, Link2, Upload, CheckSquare, Square, AlertCircle, Video, Image as ImageIcon, Loader2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
 import { MediaPreviewView } from "@/features/shared/components/skins/MediaPreviewView";
+import { fileService } from "@/lib/fileService";
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ACCEPTED_TYPES = "video/mp4,video/webm,video/quicktime,image/gif,image/webp";
 
 export function PlayContentModule() {
   const { state, setContent } = useBuilderContext();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback((file: File) => {
+  const handleFileSelect = useCallback(async (file: File) => {
     setUploadError(null);
+    setUploadProgress(0);
     
-    if (file.size > MAX_FILE_SIZE) {
-      setUploadError(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+    console.log(`[PlayContent] Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
+    
+    const validationError = fileService.validateMediaFile(file);
+    if (validationError) {
+      setUploadError(validationError);
       return;
     }
 
-    if (!file.type.startsWith("video/") && !file.type.startsWith("image/")) {
-      setUploadError("Please select a video or animated image file");
-      return;
+    setIsUploading(true);
+    
+    try {
+      const result = await fileService.uploadMedia(
+        file,
+        "play-media",
+        (progress) => setUploadProgress(progress.percent)
+      );
+      
+      console.log(`[PlayContent] Upload complete:`, result.url);
+      
+      setContent({
+        playMediaFile: null,
+        playMediaPreview: result.url,
+        playMediaMimeType: result.mimeType || file.type,
+      });
+      
+    } catch (err: any) {
+      console.error("[PlayContent] Upload failed:", err?.message || err);
+      setUploadError(err?.message || "Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
-
-    // Use FileReader which is more reliable on mobile browsers
-    // The arrayBuffer() method can fail when the file reference becomes stale
-    const reader = new FileReader();
-    
-    reader.onload = () => {
-      try {
-        const arrayBuffer = reader.result as ArrayBuffer;
-        const blob = new Blob([arrayBuffer], { type: file.type });
-        const persistedFile = new File([blob], file.name, { type: file.type, lastModified: file.lastModified });
-        
-        const objectUrl = URL.createObjectURL(persistedFile);
-        setContent({
-          playMediaFile: persistedFile,
-          playMediaPreview: objectUrl,
-          playMediaMimeType: file.type,
-        });
-      } catch (err: any) {
-        console.error("Failed to create persisted file:", err);
-        setUploadError("Failed to read file. Please try selecting it again.");
-      }
-    };
-    
-    reader.onerror = () => {
-      console.error("FileReader error:", reader.error);
-      setUploadError("Failed to read file. Please try selecting it again.");
-    };
-    
-    // Start reading immediately to capture the file before it becomes stale
-    reader.readAsArrayBuffer(file);
   }, [setContent]);
 
   if (state.qrProductState !== "qr_play" || !state.selectedProduct || !state.content) {
@@ -241,19 +236,38 @@ export function PlayContentModule() {
                 
                 {!state.content.playMediaPreview ? (
                   <div
-                    className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isUploading 
+                        ? "border-primary/50 bg-primary/5" 
+                        : "border-muted-foreground/30 cursor-pointer hover:border-primary/50"
+                    }`}
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     data-testid="play-upload-dropzone"
                   >
-                    <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-sm font-medium">Drop your file here or click to browse</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      MP4, WebM, MOV, GIF, or WebP (max 100MB)
-                    </p>
-                    {isUploading && (
-                      <p className="text-xs text-primary mt-2">Loading...</p>
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="h-10 w-10 mx-auto text-primary mb-3 animate-spin" />
+                        <p className="text-sm font-medium">Uploading to cloud...</p>
+                        <div className="w-full max-w-xs mx-auto mt-3 bg-muted rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-300" 
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {uploadProgress}% complete
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                        <p className="text-sm font-medium">Drop your file here or click to browse</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          MP4, WebM, MOV, GIF, or WebP (max 100MB)
+                        </p>
+                      </>
                     )}
                   </div>
                 ) : (

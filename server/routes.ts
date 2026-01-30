@@ -1014,6 +1014,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Media upload API for Play content (videos/animated images)
+  // Uploads directly to Firebase Storage with progress support
+  // Requires Firebase authentication
+  app.post("/api/upload-media", async (req, res) => {
+    try {
+      // Verify Firebase authentication
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const idToken = authHeader.substring(7);
+      const decodedToken = await verifyFirebaseToken(idToken);
+      if (!decodedToken) {
+        return res.status(401).json({ error: "Invalid authentication token" });
+      }
+      
+      const userId = decodedToken.uid;
+      console.log(`[MediaUpload] Starting media upload for user: ${userId}`);
+      
+      const contentType = req.headers["content-type"] || "";
+      const boundaryMatch = contentType.match(/boundary=(.+)/);
+      
+      if (!boundaryMatch) {
+        return res.status(400).json({ error: "Invalid content type - expected multipart/form-data" });
+      }
+      
+      const boundary = boundaryMatch[1];
+      
+      // Collect raw body data
+      const rawBody = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+        req.on("error", reject);
+      });
+      
+      console.log(`[MediaUpload] Received ${rawBody.length} bytes`);
+      
+      // Parse multipart form data manually
+      const boundaryBuffer = Buffer.from(`--${boundary}`);
+      const parts: Buffer[] = [];
+      let start = 0;
+      
+      while (true) {
+        const boundaryIndex = rawBody.indexOf(boundaryBuffer, start);
+        if (boundaryIndex === -1) break;
+        
+        if (start > 0) {
+          parts.push(rawBody.slice(start, boundaryIndex - 2));
+        }
+        start = boundaryIndex + boundaryBuffer.length + 2;
+      }
+      
+      let fileBuffer: Buffer | null = null;
+      let fileName = `media-${Date.now()}`;
+      let mimeType = "video/mp4";
+      let folder = "play-media";
+      
+      for (const part of parts) {
+        const headerEnd = part.indexOf("\r\n\r\n");
+        if (headerEnd === -1) continue;
+        
+        const headers = part.slice(0, headerEnd).toString();
+        const body = part.slice(headerEnd + 4);
+        
+        // Check if this is the folder field
+        if (headers.includes('name="folder"')) {
+          folder = body.toString().trim();
+          continue;
+        }
+        
+        const filenameMatch = headers.match(/filename="([^"]+)"/);
+        const contentTypeMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+        
+        if (filenameMatch) {
+          fileName = filenameMatch[1];
+          if (contentTypeMatch) {
+            mimeType = contentTypeMatch[1].trim();
+          }
+          fileBuffer = body;
+        }
+      }
+      
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      // Validate mime type for media
+      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "image/gif", "image/webp"];
+      if (!allowedTypes.includes(mimeType)) {
+        return res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: ${allowedTypes.join(", ")}` });
+      }
+      
+      console.log(`[MediaUpload] Uploading ${fileName} (${mimeType}, ${fileBuffer.length} bytes) to ${folder}/ for user ${userId}`);
+      
+      // Upload to Firebase Storage with user-specific path
+      const storagePath = `${folder}/${userId}/${Date.now()}-${fileName}`;
+      const uploadResult = await uploadToFirebaseStorage(fileBuffer, storagePath, mimeType);
+      
+      console.log(`[MediaUpload] Upload complete: ${uploadResult.publicUrl}`);
+      
+      res.json({
+        url: uploadResult.publicUrl,
+        mimeType: mimeType,
+        fileName: fileName,
+        size: fileBuffer.length,
+        storagePath: storagePath
+      });
+      
+    } catch (error: any) {
+      console.error("[MediaUpload] Error:", error);
+      res.status(500).json({ error: error.message || "Upload failed" });
+    }
+  });
+
   // Serve uploaded files from Firebase Storage
   app.get("/api/files/:filename", async (req, res) => {
     try {
