@@ -82,6 +82,7 @@ import TestARDemo from "@/pages/test-ar-demo";
 import TestDynamics from "@/pages/test-dynamics";
 import TestPricing from "@/pages/test-pricing";
 import TestSettings from "@/pages/test-settings";
+import TestMembers from "@/pages/test-members";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
@@ -143,6 +144,7 @@ function Router() {
       <Route path="/test-store-builder" component={TestStoreBuilder} />
       <Route path="/test-ar-demo" component={TestARDemo} />
       <Route path="/test-settings" component={TestSettings} />
+      <Route path="/test-members">{() => <ProtectedRoute><TestMembers /></ProtectedRoute>}</Route>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />
