@@ -15,12 +15,95 @@ interface StoreData { id: string; name: string; roleType: string; isActive?: boo
 interface ProductBlueprint { id: number; title: string; }
 interface AllowedProduct { blueprintId: number; title: string; }
 
+function StoreProductPicker({ store, onClose }: { store: StoreData; onClose: () => void }) {
+  const { toast } = useToast();
+  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const { data: blueprints = [] } = useQuery<ProductBlueprint[]>({
+    queryKey: ["/api/test/printify/local-blueprints"],
+    queryFn: async () => { const res = await fetch("/api/test/printify/local-blueprints"); const d = await res.json(); return d.blueprints || []; },
+  });
+
+  const { data: allowedData, isLoading } = useQuery({
+    queryKey: ["/api/test/stores", store.id, "allowed-products"],
+    queryFn: async () => { const res = await fetch(`/api/test/stores/${store.id}/allowed-products`); return res.json(); },
+  });
+
+  useEffect(() => {
+    if (allowedData?.products) {
+      setSelectedProducts(new Set<number>(allowedData.products.map((p: AllowedProduct) => p.blueprintId)));
+      setHasChanges(false);
+    }
+  }, [allowedData]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const products = Array.from(selectedProducts).map(blueprintId => {
+        const bp = blueprints.find(b => b.id === blueprintId);
+        return { blueprintId, title: bp?.title || `Product ${blueprintId}`, addedAt: new Date().toISOString() };
+      });
+      const res = await fetch(`/api/test/stores/${store.id}/allowed-products`, { method: "POST", body: JSON.stringify({ products }), headers: { "Content-Type": "application/json" } });
+      if (!res.ok) throw new Error("Failed to save");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Saved", description: `${selectedProducts.size} products assigned to ${store.name}` });
+      setHasChanges(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/test/stores", store.id, "allowed-products"] });
+    },
+  });
+
+  const toggleProduct = (id: number) => {
+    setSelectedProducts(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+    setHasChanges(true);
+  };
+
+  return (
+    <div className="p-4 border rounded-lg bg-accent/5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">Add Products to: {store.name}</h3>
+        <button className="text-sm text-muted-foreground hover:text-foreground" onClick={onClose}>Close</button>
+      </div>
+      
+      {isLoading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
+        <>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set(blueprints.map(b => b.id))); setHasChanges(true); }}>Select All</Button>
+            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set()); setHasChanges(true); }}>Clear All</Button>
+            <span className="text-sm text-muted-foreground self-center">{selectedProducts.size} selected</span>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+            {blueprints.map(bp => (
+              <label key={bp.id} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-accent/10">
+                <Checkbox checked={selectedProducts.has(bp.id)} onCheckedChange={() => toggleProduct(bp.id)} />
+                <span className="text-sm truncate">{bp.title}</span>
+              </label>
+            ))}
+          </div>
+          
+          <button 
+            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" 
+            onClick={() => saveMutation.mutate()} 
+            disabled={!hasChanges || saveMutation.isPending}
+          >
+            {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+            Save Products ({selectedProducts.size})
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function StoreManager() {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreType, setNewStoreType] = useState<string>("member");
+  const [editingStore, setEditingStore] = useState<StoreData | null>(null);
 
   const { data: stores = [], isLoading } = useQuery<StoreData[]>({
     queryKey: ["/api/test/stores"],
@@ -117,18 +200,32 @@ function StoreManager() {
             </div>
           )}
 
+          {editingStore && (
+            <StoreProductPicker store={editingStore} onClose={() => setEditingStore(null)} />
+          )}
+
           {isLoading ? <p className="text-sm text-muted-foreground">Loading stores...</p> : (
             <div className="space-y-3">
               {memberStores.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Member Stores ({memberStores.length})</p>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {memberStores.map(s => (
-                      <div key={s.id} className="flex items-center justify-between p-3 rounded border bg-green-500/10">
-                        <span className="text-sm font-medium">{s.name}</span>
-                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                      <div key={s.id} className="p-3 rounded border bg-green-500/10 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{s.name}</span>
+                          <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <button 
+                          className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
+                          onClick={() => setEditingStore(s)}
+                          data-testid={`btn-add-products-${s.id}`}
+                        >
+                          <Package className="h-4 w-4" />
+                          Add Products
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -137,13 +234,23 @@ function StoreManager() {
               {otherStores.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Other Stores ({otherStores.length})</p>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {otherStores.map(s => (
-                      <div key={s.id} className="flex items-center justify-between p-3 rounded border">
-                        <span className="text-sm">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
-                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                      <div key={s.id} className="p-3 rounded border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
+                          <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <button 
+                          className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
+                          onClick={() => setEditingStore(s)}
+                          data-testid={`btn-add-products-${s.id}`}
+                        >
+                          <Package className="h-4 w-4" />
+                          Add Products
+                        </button>
                       </div>
                     ))}
                   </div>
