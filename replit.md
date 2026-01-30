@@ -8,7 +8,15 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Accessibility**: User has CIDP (limited hand mobility) - agent must be fully autonomous
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
 - **Deployment**: ALL fixes must be deployed to Firebase production after making changes in dev. Never just fix in dev without deploying.
-- **CRITICAL WORKFLOW**: After ANY code change, immediately call suggest_deploy. User tests in production only - they cannot see dev changes. Do NOT wait to be asked. Do NOT just restart dev workflow. ALWAYS trigger production publish.
+- **CRITICAL WORKFLOW**: After ANY code change, deploy directly to Firebase using the service account. User tests in production only - they cannot see dev changes.
+- **Firebase Deploy Method**: Use `FIREBASE_SERVICE_ACCOUNT_KEY` env var to deploy directly:
+  ```bash
+  npm run build
+  echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
+  export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
+  firebase deploy --only hosting
+  rm /tmp/firebase-sa.json
+  ```
 - **Session Rules**:
     - Handle voice-to-text transcription errors
     - Verify/confirm before acting
