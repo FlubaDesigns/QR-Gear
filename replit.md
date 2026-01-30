@@ -47,6 +47,38 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
 - **Store Library Architecture**: An admin interface (`/admin/library`) for managing products linked to specific stores and channels via `storeProductLinks`.
 - **QR Dynamics Architecture**: Enables creation of rotating product experiences structured as **Store → Channel → Collection**. Collections are curated playlists of items that cycle over time, scoped to the user's ID.
 
+## CRITICAL: QR Dynamics Implementation (INCOMPLETE - MUST FIX)
+
+### What Was Supposed To Be Done
+The test-dynamics.tsx page MUST use the **Viewer → View → Skin** architecture from `client/src/features/shared/`. See full spec at `docs/QR_DYNAMICS_SPEC.md`.
+
+### What Went Wrong
+Agent built custom inline grids instead of using **SkinGridViewer**. This is WRONG. The user explicitly requested the shared architecture pattern.
+
+### MANDATORY Requirements for Next Session
+1. **USE SkinGridViewer** from `client/src/features/shared/components/SkinGridViewer.tsx` - NOT custom grids
+2. **Channel View**: Use SkinGridViewer with ChannelContentSkin for browsing content
+3. **Collection View**: Use SkinGridViewer with CollectionItemSkin for managing playlists  
+4. **SkinActions pattern**: Use `actions.onSelect` for "Add to Collection" (NOT custom props like `onAddToCollection`)
+5. **Auto-select**: Default to "QR Gear" store (id: 'qr-gear'), NOT first alphabetically
+6. **Read the spec**: `docs/QR_DYNAMICS_SPEC.md` has all the details
+
+### Files to Fix
+- `client/src/pages/test-dynamics.tsx` - REWRITE to use SkinGridViewer
+- `client/src/features/shared/components/skins/ChannelContentSkin.tsx` - Use standard CardSkinProps/DetailSkinProps with actions.onSelect
+- `client/src/features/shared/components/skins/CollectionItemSkin.tsx` - Use standard CardSkinProps/DetailSkinProps
+
+### Reference Files
+- `client/src/features/shared/components/SkinGridViewer.tsx` - The grid component to USE
+- `client/src/features/shared/components/skins/types.ts` - CardSkinProps, DetailSkinProps, SkinActions interfaces
+- `client/src/features/shared/README.md` - Documentation on the Viewer/View/Skin pattern
+
+### DO NOT
+- Build custom inline grids
+- Create custom props that don't match SkinActions interface
+- Ignore the spec document
+- Auto-select wrong store
+
 ### System Design Choices
 - **Printful-First Mockup Architecture**: Decouples mockup generation from order fulfillment.
 - **Backend**: Node.js, Express, TypeScript.
