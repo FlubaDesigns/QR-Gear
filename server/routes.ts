@@ -9006,21 +9006,21 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      // Read from single global member product library
-      const doc = await firestoreDb.collection("config").doc("memberProductLibrary").get();
+      // Read from the "member-products" store's allowed products collection
+      const doc = await firestoreDb.collection("storeAllowedProducts").doc("member-products").get();
       
       if (!doc.exists) {
-        return res.json({ products: [], message: "No products configured yet" });
+        return res.json({ products: [], message: "No products added to member-products store yet" });
       }
       
       const data = doc.data();
       const products = data?.products || [];
       
-      console.log(`[Member Product Library] Found ${products.length} products`);
+      console.log(`[Member Sandbox] Found ${products.length} products from member-products store`);
       
-      res.json({ products });
+      res.json({ products, storeId: "member-products" });
     } catch (error: any) {
-      console.error("[Member Product Library] Error:", error);
+      console.error("[Member Sandbox] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
