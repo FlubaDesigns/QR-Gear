@@ -72,7 +72,7 @@ class FileService {
       xhr.onerror = () => reject(new Error("Network error during upload"));
       xhr.ontimeout = () => reject(new Error("Upload timed out. Try a smaller file."));
 
-      xhr.open("POST", "/api/upload-media");
+      xhr.open("POST", "/api/test/upload-media");
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.timeout = 300000; // 5 minute timeout for large videos
       xhr.send(formData);

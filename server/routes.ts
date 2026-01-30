@@ -1016,8 +1016,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Media upload API for Play content (videos/animated images)
   // Uploads directly to Firebase Storage with progress support
-  // Requires Firebase authentication
-  app.post("/api/upload-media", async (req, res) => {
+  // Part of test API umbrella - requires Firebase authentication
+  app.post("/api/test/upload-media", async (req, res) => {
     try {
       // Verify Firebase authentication
       const authHeader = req.headers.authorization;
