@@ -9450,36 +9450,50 @@ ${allPages.map(page => `  <url>
       const firestoreDb = getFirestoreDb();
 
       // Query productPackets for this store (optionally filtered by channel)
-      let query = firestoreDb.collection("productPackets")
-        .where("storeId", "==", storeId);
+      // Try both exact match and lowercase for channelId
+      const channelIdLower = channelId ? (channelId as string).toLowerCase() : null;
+      
+      let packetsSnapshot = await firestoreDb.collection("productPackets")
+        .where("storeId", "==", storeId)
+        .get();
 
+      // Filter by channel if provided
+      let docs = packetsSnapshot.docs;
       if (channelId) {
-        query = query.where("channelId", "==", channelId);
+        docs = docs.filter(doc => {
+          const data = doc.data();
+          return data.channelId === channelId || data.channelId === channelIdLower;
+        });
       }
 
-      const packetsSnapshot = await query.get();
-
-      // Filter to only qr-canvas and qr-play types with landing page snapshots
-      const packets = packetsSnapshot.docs
+      // Filter to packets with landing page snapshots and derive type from URL
+      const packets = docs
         .map(doc => {
           const data = doc.data();
-          const qrType = data.qrProductType || '';
           
-          // Only include qr-canvas (image pages) and qr-play (video pages)
-          if ((qrType === 'qr-canvas' || qrType === 'qr-play') && data.landingPageSnapshotUrl) {
-            return {
-              id: doc.id,
-              packetId: doc.id,
-              name: data.productName || data.landingPageTitle || 'Untitled',
-              qrProductType: qrType,
-              thumbnailUrl: data.landingPageSnapshotUrl,
-              landingPageSlug: data.landingPageSlug,
-              landingPageUrl: data.landingPageSlug ? `/p/${data.landingPageSlug}` : null,
-              storeId: data.storeId,
-              channelId: data.channelId,
-            };
+          // Only include packets that have a landing page snapshot URL
+          if (!data.landingPageSnapshotUrl) return null;
+          
+          // Derive type from URL path: /canvas/ = qr-canvas, /play/ = qr-play
+          const url = data.landingPageSnapshotUrl || '';
+          let qrType: 'qr-canvas' | 'qr-play' = 'qr-canvas';
+          if (url.includes('/play/')) {
+            qrType = 'qr-play';
+          } else if (url.includes('/canvas/')) {
+            qrType = 'qr-canvas';
           }
-          return null;
+          
+          return {
+            id: doc.id,
+            packetId: doc.id,
+            name: data.productName || data.landingPageTitle || 'Untitled',
+            qrProductType: qrType,
+            thumbnailUrl: data.landingPageSnapshotUrl,
+            landingPageSlug: data.landingPageSlug,
+            landingPageUrl: data.landingPageSlug ? `/p/${data.landingPageSlug}` : null,
+            storeId: data.storeId,
+            channelId: data.channelId,
+          };
         })
         .filter(Boolean);
 
