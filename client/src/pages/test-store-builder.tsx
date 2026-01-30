@@ -14,18 +14,11 @@ interface StoreData { id: string; name: string; roleType: string; }
 interface ProductBlueprint { id: number; title: string; }
 interface AllowedProduct { blueprintId: number; title: string; }
 
-function StoreProductAssignment() {
+function MemberProductLibrary() {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
-  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [hasChanges, setHasChanges] = useState(false);
-
-  const { data: stores = [] } = useQuery<StoreData[]>({
-    queryKey: ["/api/test/stores"],
-    queryFn: async () => { const res = await fetch("/api/test/stores"); return res.json(); },
-  });
-  const memberStores = stores.filter(s => s.roleType === "member");
 
   const { data: blueprints = [] } = useQuery<ProductBlueprint[]>({
     queryKey: ["/api/test/printify/local-blueprints"],
@@ -33,9 +26,8 @@ function StoreProductAssignment() {
   });
 
   const { data: allowedData } = useQuery({
-    queryKey: ["/api/test/stores", selectedStoreId, "allowed-products"],
-    queryFn: async () => { if (!selectedStoreId) return { products: [] }; const res = await fetch(`/api/test/stores/${selectedStoreId}/allowed-products`); return res.json(); },
-    enabled: !!selectedStoreId,
+    queryKey: ["/api/members/allowed-products"],
+    queryFn: async () => { const res = await fetch("/api/members/allowed-products"); return res.json(); },
   });
 
   useEffect(() => {
@@ -51,14 +43,14 @@ function StoreProductAssignment() {
         const bp = blueprints.find(b => b.id === blueprintId);
         return { blueprintId, title: bp?.title || `Product ${blueprintId}`, addedAt: new Date().toISOString() };
       });
-      const res = await fetch(`/api/test/stores/${selectedStoreId}/allowed-products`, { method: "POST", body: JSON.stringify({ products }), headers: { "Content-Type": "application/json" } });
+      const res = await fetch("/api/members/allowed-products", { method: "POST", body: JSON.stringify({ products }), headers: { "Content-Type": "application/json" } });
       if (!res.ok) throw new Error("Failed to save");
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Saved", description: `${selectedProducts.size} products assigned` });
+      toast({ title: "Saved", description: `${selectedProducts.size} products in member library` });
       setHasChanges(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/test/stores", selectedStoreId, "allowed-products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/members/allowed-products"] });
     },
   });
 
@@ -69,36 +61,29 @@ function StoreProductAssignment() {
 
   return (
     <div className="glass-card mt-4">
-      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between text-left" data-testid="btn-toggle-assign">
-        <span className="glass-title text-base flex items-center gap-2"><Package className="h-4 w-4 text-blue-400" /> Assign Products to Store</span>
+      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between text-left" data-testid="btn-toggle-member-library">
+        <span className="glass-title text-base flex items-center gap-2"><Package className="h-4 w-4 text-green-400" /> Member Product Library</span>
         {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       {expanded && (
         <div className="mt-4 space-y-3">
-          <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-            <SelectTrigger data-testid="select-store"><SelectValue placeholder="Select member store..." /></SelectTrigger>
-            <SelectContent>{memberStores.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-          </Select>
-          {selectedStoreId && (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                {blueprints.map(bp => (
-                  <label key={bp.id} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-accent/10">
-                    <Checkbox checked={selectedProducts.has(bp.id)} onCheckedChange={() => toggleProduct(bp.id)} />
-                    <span className="text-xs truncate">{bp.title}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => saveMutation.mutate()} disabled={!hasChanges || saveMutation.isPending} data-testid="btn-save-products">
-                  {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save ({selectedProducts.size})
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setSelectedProducts(new Set(blueprints.map(b => b.id)))} data-testid="btn-select-all">Select All</Button>
-                <Button size="sm" variant="outline" onClick={() => setSelectedProducts(new Set())} data-testid="btn-clear-all">Clear</Button>
-              </div>
-            </>
-          )}
+          <p className="text-sm text-muted-foreground">Select products all members can use in their sandboxes:</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+            {blueprints.map(bp => (
+              <label key={bp.id} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-accent/10">
+                <Checkbox checked={selectedProducts.has(bp.id)} onCheckedChange={() => toggleProduct(bp.id)} />
+                <span className="text-xs truncate">{bp.title}</span>
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => saveMutation.mutate()} disabled={!hasChanges || saveMutation.isPending} data-testid="btn-save-member-library">
+              {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save ({selectedProducts.size})
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set(blueprints.map(b => b.id))); setHasChanges(true); }} data-testid="btn-select-all">Select All</Button>
+            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set()); setHasChanges(true); }} data-testid="btn-clear-all">Clear</Button>
+          </div>
         </div>
       )}
     </div>
@@ -150,7 +135,7 @@ export default function TestStoreBuilderPage() {
             </div>
           </div>
 
-          <StoreProductAssignment />
+          <MemberProductLibrary />
           <StoreBuilderHarness />
         </div>
       </div>

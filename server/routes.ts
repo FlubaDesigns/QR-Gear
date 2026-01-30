@@ -9000,50 +9000,53 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Get allowed products for members (aggregates from all member stores)
+  // Get allowed products for members (single global library)
   app.get("/api/members/allowed-products", async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      // Get all stores with roleType "member"
-      const storesSnapshot = await firestoreDb.collection("stores")
-        .where("roleType", "==", "member")
-        .get();
+      // Read from single global member product library
+      const doc = await firestoreDb.collection("config").doc("memberProductLibrary").get();
       
-      const memberStoreIds = storesSnapshot.docs.map(doc => doc.id);
-      
-      if (memberStoreIds.length === 0) {
-        // No member stores configured yet - return empty
-        return res.json({ products: [], message: "No member stores configured" });
+      if (!doc.exists) {
+        return res.json({ products: [], message: "No products configured yet" });
       }
       
-      // Aggregate allowed products from all member stores
-      const allProducts = new Map();
+      const data = doc.data();
+      const products = data?.products || [];
       
-      for (const storeId of memberStoreIds) {
-        const allowedDoc = await firestoreDb.collection("storeAllowedProducts").doc(storeId).get();
-        if (allowedDoc.exists) {
-          const data = allowedDoc.data();
-          const products = data?.products || [];
-          for (const product of products) {
-            // Use blueprintId as key to dedupe
-            if (!allProducts.has(product.blueprintId)) {
-              allProducts.set(product.blueprintId, product);
-            }
-          }
-        }
-      }
+      console.log(`[Member Product Library] Found ${products.length} products`);
       
-      const products = Array.from(allProducts.values());
-      console.log(`[Member Allowed Products] Found ${products.length} products from ${memberStoreIds.length} member stores`);
-      
-      res.json({ 
-        products,
-        storeCount: memberStoreIds.length
-      });
+      res.json({ products });
     } catch (error: any) {
-      console.error("[Member Allowed Products] Error:", error);
+      console.error("[Member Product Library] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Save allowed products for members (single global library)
+  app.post("/api/members/allowed-products", async (req: any, res) => {
+    try {
+      const { products } = req.body;
+      
+      if (!Array.isArray(products)) {
+        return res.status(400).json({ error: "products must be an array" });
+      }
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      await firestoreDb.collection("config").doc("memberProductLibrary").set({
+        products,
+        updatedAt: new Date().toISOString()
+      });
+      
+      console.log(`[Member Product Library] Saved ${products.length} products`);
+      
+      res.json({ success: true, count: products.length });
+    } catch (error: any) {
+      console.error("[Member Product Library] Save error:", error);
       res.status(500).json({ error: error.message });
     }
   });
