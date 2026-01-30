@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { 
   ArrowLeft, Zap, Store, Layers, Film, 
-  Check, Loader2, Plus, X, Calendar, Clock, CalendarDays
+  Check, Loader2, Plus, X, Calendar, Clock, 
+  Play, Eye, RefreshCw, ExternalLink
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridScrollView, QRDynamicsScanLightbox } from "@/features/shared/components/views";
 import { ChannelItemSkin, type ChannelItem, CollectionItemSkinV2, type CollectionItem } from "@/features/shared/components/skins";
 
@@ -24,31 +27,92 @@ interface StoreOption {
   availableSegments: string[];
 }
 
-interface ChannelContentItem {
+interface DynamicsPacket {
   id: string;
+  packetId: string;
+  name: string;
+  qrProductType: 'qr-canvas' | 'qr-play';
+  thumbnailUrl: string;
+  landingPageSlug: string;
+  landingPageUrl: string | null;
   storeId: string;
   channelId: string;
-  name: string;
-  contentType: 'image' | 'video' | 'document';
-  url: string;
-  thumbnailUrl?: string;
 }
 
-interface CollectionItemData {
-  id: string;
-  collectionId: string;
-  contentId: string;
-  contentType: 'image' | 'video' | 'document';
-  name: string;
-  url: string;
-  thumbnailUrl?: string;
+interface DynamicsSlot {
+  slotId: string;
+  packetId: string;
+  durationSeconds: number;
   order: number;
-  rotationInterval: 'daily' | 'weekly' | 'monthly';
+  packet?: DynamicsPacket;
 }
 
-interface Collection {
+interface DynamicsInstance {
   id: string;
-  name: string;
+  createdAt: number;
+  startTimestamp: number;
+  mode: string;
+  fallbackUrl?: string;
+  slots: DynamicsSlot[];
+}
+
+interface PreviewData {
+  nowEpoch: number;
+  elapsed: number;
+  cycleLength: number;
+  position: number;
+  activeIndex: number;
+  totalSlots: number;
+  activeSlot: {
+    slotId: string;
+    packetId: string;
+    durationSeconds: number;
+    order: number;
+    packet?: {
+      name: string;
+      thumbnailUrl: string;
+      landingPageSlug: string;
+      qrProductType: string;
+    };
+  } | null;
+  timeRemainingSeconds: number;
+  nextSlotIndex: number;
+}
+
+const DURATION_PRESETS = [
+  { label: '1 minute', seconds: 60 },
+  { label: '5 minutes', seconds: 300 },
+  { label: '15 minutes', seconds: 900 },
+  { label: '30 minutes', seconds: 1800 },
+  { label: '1 hour', seconds: 3600 },
+  { label: '6 hours', seconds: 21600 },
+  { label: '12 hours', seconds: 43200 },
+  { label: '1 day', seconds: 86400 },
+  { label: '1 week', seconds: 604800 },
+  { label: '1 month', seconds: 2592000 },
+];
+
+function formatDuration(seconds: number): string {
+  const preset = DURATION_PRESETS.find(p => p.seconds === seconds);
+  if (preset) return preset.label;
+  
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+}
+
+function formatTimeRemaining(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  if (seconds < 86400) {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${mins}m`;
+  }
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  return `${days}d ${hours}h`;
 }
 
 export default function TestDynamicsPage() {
@@ -59,18 +123,15 @@ export default function TestDynamicsPage() {
   const [channels, setChannels] = useState<string[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
-  
-  const [channelContent, setChannelContent] = useState<ChannelContentItem[]>([]);
-  const [collectionItems, setCollectionItems] = useState<CollectionItemData[]>([]);
+  const [packets, setPackets] = useState<DynamicsPacket[]>([]);
+  const [slots, setSlots] = useState<DynamicsSlot[]>([]);
+  const [instanceId, setInstanceId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PreviewData | null>(null);
   
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [newCollectionName, setNewCollectionName] = useState("");
-  const [selectedItem, setSelectedItem] = useState<CollectionItemData | null>(null);
+  const [selectedPacketForDuration, setSelectedPacketForDuration] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -102,47 +163,11 @@ export default function TestDynamicsPage() {
 
   useEffect(() => {
     if (selectedStore && selectedChannel) {
-      fetchChannelContent();
-      fetchCollections();
+      fetchPackets();
     } else {
-      setChannelContent([]);
-      setCollections([]);
-      setSelectedCollection(null);
+      setPackets([]);
     }
   }, [selectedStore, selectedChannel]);
-
-  useEffect(() => {
-    if (selectedCollection) {
-      fetchCollectionItems();
-    } else {
-      setCollectionItems([]);
-    }
-  }, [selectedCollection]);
-
-  const filteredChannelContent = useMemo(() => {
-    return channelContent.filter(c => c.contentType === 'image' || c.contentType === 'video');
-  }, [channelContent]);
-
-  const channelItems: ChannelItem[] = useMemo(() => {
-    return filteredChannelContent.map(c => ({
-      id: c.id,
-      name: c.name,
-      contentType: c.contentType as 'image' | 'video',
-      imageUrl: c.thumbnailUrl || c.url,
-    }));
-  }, [filteredChannelContent]);
-
-  const collectionItemsForView: CollectionItem[] = useMemo(() => {
-    return collectionItems
-      .filter(c => c.contentType === 'image' || c.contentType === 'video')
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        imageUrl: c.thumbnailUrl || c.url,
-        order: c.order,
-        rotationInterval: c.rotationInterval,
-      }));
-  }, [collectionItems]);
 
   if (authLoading) {
     return (
@@ -196,13 +221,13 @@ export default function TestDynamicsPage() {
     }
   };
 
-  const fetchChannelContent = async () => {
+  const fetchPackets = async () => {
     if (!selectedStore || !selectedChannel) return;
     try {
-      setLoading("content");
-      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/content`);
+      setLoading("packets");
+      const res = await fetch(`/api/dynamics/packets?storeId=${selectedStore.id}&channelId=${selectedChannel}`);
       const data = await res.json();
-      setChannelContent(data.content || []);
+      setPackets(data.packets || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -210,134 +235,102 @@ export default function TestDynamicsPage() {
     }
   };
 
-  const fetchCollections = async () => {
-    if (!selectedStore || !selectedChannel) return;
-    try {
-      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/collections`);
-      const data = await res.json();
-      const collNames = data.collections || [];
-      setCollections(collNames.map((name: string, idx: number) => ({ id: `coll-${idx}`, name })));
-    } catch (err: any) {
-      setError(err.message);
+  const addSlot = (packet: DynamicsPacket, durationSeconds: number = 86400) => {
+    const existingSlot = slots.find(s => s.packetId === packet.packetId);
+    if (existingSlot) {
+      showError("This content is already in the rotation");
+      return;
     }
+
+    const newSlot: DynamicsSlot = {
+      slotId: `slot-${Date.now()}`,
+      packetId: packet.packetId,
+      durationSeconds,
+      order: slots.length + 1,
+      packet,
+    };
+    setSlots(prev => [...prev, newSlot]);
+    showSuccess(`Added "${packet.name}" to rotation`);
   };
 
-  const fetchCollectionItems = async () => {
-    if (!selectedCollection) return;
-    try {
-      setLoading("items");
-      const res = await fetch(`/api/test/collections/${encodeURIComponent(selectedCollection.name)}/items`);
-      const data = await res.json();
-      setCollectionItems(data.items || []);
-    } catch (err: any) {
-      setCollectionItems([]);
-    } finally {
-      setLoading(null);
-    }
+  const removeSlot = (slotId: string) => {
+    setSlots(prev => {
+      const filtered = prev.filter(s => s.slotId !== slotId);
+      return filtered.map((s, idx) => ({ ...s, order: idx + 1 }));
+    });
   };
 
-  const createCollection = async (name: string) => {
-    if (!selectedStore || !selectedChannel || !name.trim()) {
-      setError("Please enter a collection name");
-      return null;
+  const updateSlotDuration = (slotId: string, durationSeconds: number) => {
+    setSlots(prev => prev.map(s => 
+      s.slotId === slotId ? { ...s, durationSeconds } : s
+    ));
+    setSelectedPacketForDuration(null);
+  };
+
+  const moveSlot = (slotId: string, direction: 'up' | 'down') => {
+    setSlots(prev => {
+      const idx = prev.findIndex(s => s.slotId === slotId);
+      if (idx === -1) return prev;
+      if (direction === 'up' && idx === 0) return prev;
+      if (direction === 'down' && idx === prev.length - 1) return prev;
+
+      const newSlots = [...prev];
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      [newSlots[idx], newSlots[targetIdx]] = [newSlots[targetIdx], newSlots[idx]];
+      return newSlots.map((s, i) => ({ ...s, order: i + 1 }));
+    });
+  };
+
+  const createInstance = async () => {
+    if (slots.length === 0) {
+      showError("Add at least one slot to create an instance");
+      return;
     }
+
     try {
       setLoading("creating");
-      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels/${selectedChannel}/collections`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const newColl = { id: data.collectionId, name: name.trim() };
-        setCollections(prev => [...prev, newColl]);
-        setSelectedCollection(newColl);
-        showSuccess("Collection created!");
-        return newColl;
-      } else {
-        setError(data.error || "Failed to create collection");
-        return null;
-      }
-    } catch (err: any) {
-      setError(err.message);
-      return null;
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const addToCollection = async (contentItem: ChannelContentItem, collectionName: string) => {
-    try {
-      setLoading("adding");
-      const res = await fetch(`/api/test/collections/${encodeURIComponent(collectionName)}/items`, {
+      const res = await fetch("/api/dynamics/instances", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contentId: contentItem.id,
-          contentType: contentItem.contentType,
-          name: contentItem.name,
-          url: contentItem.url,
-          thumbnailUrl: contentItem.thumbnailUrl,
-          rotationInterval: "daily",
+          slots: slots.map(s => ({
+            slotId: s.slotId,
+            packetId: s.packetId,
+            durationSeconds: s.durationSeconds,
+            order: s.order,
+          })),
         }),
       });
       const data = await res.json();
       if (data.success) {
-        showSuccess("Added to collection!");
-        const coll = collections.find(c => c.name === collectionName);
-        if (coll) {
-          setSelectedCollection(coll);
-          fetchCollectionItems();
-        }
+        setInstanceId(data.instanceId);
+        showSuccess(`Instance created! Resolver URL: ${data.resolverUrl}`);
+        fetchPreview(data.instanceId);
       } else {
-        setError(data.error || "Failed to add to collection");
+        showError(data.error || "Failed to create instance");
       }
     } catch (err: any) {
-      setError(err.message);
+      showError(err.message);
     } finally {
       setLoading(null);
     }
   };
 
-  const removeFromCollection = async (itemId: string) => {
-    if (!selectedCollection) return;
+  const fetchPreview = async (id?: string) => {
+    const targetId = id || instanceId;
+    if (!targetId) return;
+
     try {
-      setLoading("removing");
-      const res = await fetch(`/api/test/collections/${encodeURIComponent(selectedCollection.name)}/items/${itemId}`, {
-        method: "DELETE",
-      });
+      setLoading("preview");
+      const res = await fetch(`/api/dynamics/instances/${targetId}/preview`);
       const data = await res.json();
       if (data.success) {
-        setCollectionItems(prev => prev.filter(i => i.id !== itemId));
-        showSuccess("Item removed");
+        setPreview(data);
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error("Preview error:", err);
     } finally {
       setLoading(null);
-    }
-  };
-
-  const updateItemInterval = async (itemId: string, interval: 'daily' | 'weekly' | 'monthly') => {
-    if (!selectedCollection) return;
-    try {
-      setIsUpdating(true);
-      const res = await fetch(`/api/test/collections/${encodeURIComponent(selectedCollection.name)}/items/${itemId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rotationInterval: interval }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCollectionItems(prev => prev.map(i => 
-          i.id === itemId ? { ...i, rotationInterval: interval } : i
-        ));
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -346,86 +339,33 @@ export default function TestDynamicsPage() {
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const handleChannelItemAction = async (item: ChannelItem) => {
-    const contentItem = channelContent.find(c => c.id === item.id);
-    if (!contentItem) return;
+  const showError = (msg: string) => {
+    setError(msg);
+    setTimeout(() => setError(null), 5000);
+  };
 
-    if (collections.length === 0) {
-      const name = prompt("Create a new collection. Enter name:");
-      if (name) {
-        const newColl = await createCollection(name);
-        if (newColl) {
-          await addToCollection(contentItem, newColl.name);
-        }
-      }
-    } else if (selectedCollection) {
-      await addToCollection(contentItem, selectedCollection.name);
-    } else {
-      const collName = prompt(`Select collection:\n${collections.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\nEnter collection name or number:`);
-      if (collName) {
-        const idx = parseInt(collName) - 1;
-        const targetColl = collections[idx]?.name || collName;
-        const existing = collections.find(c => c.name === targetColl);
-        if (existing) {
-          await addToCollection(contentItem, existing.name);
-        } else {
-          const newColl = await createCollection(targetColl);
-          if (newColl) {
-            await addToCollection(contentItem, newColl.name);
-          }
-        }
-      }
+  const packetItems: ChannelItem[] = useMemo(() => {
+    return packets.map(p => ({
+      id: p.packetId,
+      name: p.name,
+      contentType: p.qrProductType === 'qr-play' ? 'video' as const : 'image' as const,
+      imageUrl: p.thumbnailUrl,
+    }));
+  }, [packets]);
+
+  const handlePacketAction = (item: ChannelItem) => {
+    const packet = packets.find(p => p.packetId === item.id);
+    if (packet) {
+      addSlot(packet, 86400);
     }
   };
 
-  const handleCollectionItemAction = (item: CollectionItem) => {
-    const fullItem = collectionItems.find(ci => ci.id === item.id);
-    if (fullItem) {
-      setSelectedItem(fullItem);
-    }
-  };
-
-  const updateRotationInterval = async (itemId: string, interval: 'daily' | 'weekly' | 'monthly') => {
-    if (!selectedCollection) return;
-    
-    setIsUpdating(true);
-    try {
-      const response = await fetch(`/api/test/collections/${selectedCollection.id}/items/${itemId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rotationInterval: interval }),
-      });
-      
-      if (!response.ok) throw new Error('Failed to update interval');
-      
-      setCollectionItems(prev => prev.map(item => 
-        item.id === itemId ? { ...item, rotationInterval: interval } : item
-      ));
-      
-      if (selectedItem?.id === itemId) {
-        setSelectedItem(prev => prev ? { ...prev, rotationInterval: interval } : null);
-      }
-      
-      setSuccessMessage(`Rotation set to ${interval}`);
-      setTimeout(() => setSuccessMessage(null), 2000);
-    } catch (err) {
-      setError('Failed to update rotation interval');
-      setTimeout(() => setError(null), 3000);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleCollectionItemRemove = (item: CollectionItem) => {
-    removeFromCollection(item.id);
-  };
+  const totalCycleSeconds = useMemo(() => {
+    return slots.reduce((acc, s) => acc + s.durationSeconds, 0);
+  }, [slots]);
 
   const ChannelSkin = (props: { item: ChannelItem; onAction?: (item: ChannelItem) => void }) => (
     <ChannelItemSkin {...props} />
-  );
-
-  const CollectionSkin = (props: { item: CollectionItem; onAction?: (item: CollectionItem) => void }) => (
-    <CollectionItemSkinV2 {...props} onRemove={handleCollectionItemRemove} />
   );
 
   return (
@@ -434,10 +374,10 @@ export default function TestDynamicsPage() {
         <div className="glass-card">
           <h1 className="glass-title text-lg flex items-center gap-2 mb-2" data-testid="text-page-title">
             <Zap className="h-5 w-5 text-yellow-400" />
-            QR Dynamics Builder
+            QR Dynamics V2
           </h1>
           <p className="text-sm text-blue-200 mb-4">
-            Create rotating content that changes on a schedule
+            Build time-based rotating QR content with precise duration control
           </p>
           <Link href="/test-products">
             <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="button-back">
@@ -483,7 +423,6 @@ export default function TestDynamicsPage() {
                 const store = stores.find(s => s.id === val);
                 setSelectedStore(store || null);
                 setSelectedChannel(null);
-                setSelectedCollection(null);
               }}
             >
               <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-store">
@@ -502,7 +441,6 @@ export default function TestDynamicsPage() {
               value={selectedChannel || ""}
               onValueChange={(val) => {
                 setSelectedChannel(val);
-                setSelectedCollection(null);
               }}
             >
               <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-channel">
@@ -525,24 +463,25 @@ export default function TestDynamicsPage() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-white font-medium flex items-center gap-2">
                   <Film className="h-5 w-5 text-blue-400" />
-                  Media ({channelItems.length})
+                  Available Content ({packets.length})
+                  <Badge variant="outline" className="text-xs">QR Canvas + QR Play only</Badge>
                 </h3>
-                {loading === "content" && <Loader2 className="h-4 w-4 animate-spin text-blue-400" />}
+                {loading === "packets" && <Loader2 className="h-4 w-4 animate-spin text-blue-400" />}
               </div>
 
-              {channelItems.length === 0 ? (
+              {packets.length === 0 ? (
                 <div className="text-center py-6 text-blue-300 bg-slate-800/50 rounded-lg">
                   <Film className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No media in this channel yet.</p>
+                  <p className="text-sm">No QR Canvas or QR Play content in this channel.</p>
                 </div>
               ) : (
                 <GridScrollView
-                  items={channelItems}
+                  items={packetItems}
                   Skin={ChannelSkin}
-                  onAction={handleChannelItemAction}
+                  onAction={handlePacketAction}
                   columns={4}
                   height="280px"
-                  emptyMessage="No media available"
+                  emptyMessage="No content available"
                 />
               )}
             </div>
@@ -551,93 +490,214 @@ export default function TestDynamicsPage() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-white font-medium flex items-center gap-2">
                   <Layers className="h-5 w-5 text-purple-400" />
-                  Collection ({collectionItemsForView.length})
+                  Rotation Slots ({slots.length})
                 </h3>
-                {loading === "items" && <Loader2 className="h-4 w-4 animate-spin text-purple-400" />}
+                {slots.length > 0 && (
+                  <Badge className="bg-purple-600">
+                    Total: {formatDuration(totalCycleSeconds)}
+                  </Badge>
+                )}
               </div>
 
-              <div className="flex gap-2 mb-3">
-                <Select
-                  value={selectedCollection?.name || ""}
-                  onValueChange={(val) => {
-                    const coll = collections.find(c => c.name === val);
-                    setSelectedCollection(coll || null);
-                  }}
-                >
-                  <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-collection">
-                    <SelectValue placeholder="Select collection..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {collections.map(coll => (
-                      <SelectItem key={coll.id} value={coll.name}>
-                        {coll.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex gap-2 mb-3">
-                <Input
-                  placeholder="New collection name..."
-                  value={newCollectionName}
-                  onChange={(e) => setNewCollectionName(e.target.value)}
-                  className="flex-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-400"
-                  data-testid="input-new-collection"
-                />
-                <Button 
-                  onClick={async () => {
-                    if (newCollectionName.trim()) {
-                      await createCollection(newCollectionName.trim());
-                      setNewCollectionName("");
-                    }
-                  }}
-                  disabled={!newCollectionName.trim() || loading === "creating"}
-                  className="bg-purple-600 hover:bg-purple-700"
-                  data-testid="button-create-collection"
-                >
-                  {loading === "creating" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Create
-                </Button>
-              </div>
-
-              {!selectedCollection ? (
+              {slots.length === 0 ? (
                 <div className="text-center py-6 text-purple-300 bg-slate-800/50 rounded-lg">
                   <Layers className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Select or create a collection above.</p>
-                </div>
-              ) : collectionItemsForView.length === 0 ? (
-                <div className="text-center py-6 text-purple-300 bg-slate-800/50 rounded-lg">
-                  <Layers className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Tap media above to add to "{selectedCollection.name}"</p>
+                  <p className="text-sm">Tap content above to add slots</p>
                 </div>
               ) : (
-                <GridScrollView
-                  items={collectionItemsForView}
-                  Skin={CollectionSkin}
-                  onAction={handleCollectionItemAction}
-                  columns={4}
-                  height="280px"
-                  emptyMessage="No items in collection"
-                />
+                <div className="space-y-2">
+                  {slots.map((slot, idx) => (
+                    <div 
+                      key={slot.slotId} 
+                      className="flex items-center gap-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700"
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center bg-purple-600 rounded text-white text-sm font-bold">
+                        {slot.order}
+                      </div>
+                      
+                      {slot.packet?.thumbnailUrl && (
+                        <img 
+                          src={slot.packet.thumbnailUrl} 
+                          alt={slot.packet?.name || 'Slot'} 
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm truncate">
+                          {slot.packet?.name || slot.packetId}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Select
+                            value={String(slot.durationSeconds)}
+                            onValueChange={(val) => updateSlotDuration(slot.slotId, parseInt(val))}
+                          >
+                            <SelectTrigger className="h-7 w-28 bg-slate-700 border-slate-600 text-white text-xs">
+                              <Clock className="h-3 w-3 mr-1" />
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DURATION_PRESETS.map(p => (
+                                <SelectItem key={p.seconds} value={String(p.seconds)}>
+                                  {p.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Badge variant="outline" className="text-xs">
+                            {slot.packet?.qrProductType === 'qr-play' ? 'Video' : 'Image'}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-1">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-6 w-6"
+                          onClick={() => moveSlot(slot.slotId, 'up')}
+                          disabled={idx === 0}
+                        >
+                          <ArrowLeft className="h-3 w-3 rotate-90" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-6 w-6"
+                          onClick={() => moveSlot(slot.slotId, 'down')}
+                          disabled={idx === slots.length - 1}
+                        >
+                          <ArrowLeft className="h-3 w-3 -rotate-90" />
+                        </Button>
+                      </div>
+                      
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                        onClick={() => removeSlot(slot.slotId)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {slots.length > 0 && (
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    onClick={createInstance}
+                    disabled={loading === "creating"}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700"
+                    data-testid="button-create-instance"
+                  >
+                    {loading === "creating" ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    Create Instance
+                  </Button>
+                </div>
               )}
             </div>
+
+            {instanceId && (
+              <Card className="bg-slate-800/80 border-slate-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-green-400" />
+                    Live Preview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 text-sm">Instance ID</span>
+                    <code className="text-green-400 text-xs bg-slate-900 px-2 py-1 rounded">
+                      {instanceId}
+                    </code>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 text-sm">Resolver URL</span>
+                    <a 
+                      href={`/qr/d/${instanceId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 text-xs flex items-center gap-1 hover:underline"
+                    >
+                      /qr/d/{instanceId.slice(0, 8)}...
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+
+                  {preview && (
+                    <>
+                      <div className="border-t border-slate-700 pt-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white font-medium">Currently Active</span>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => fetchPreview()}
+                            disabled={loading === "preview"}
+                          >
+                            {loading === "preview" ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                            Refresh
+                          </Button>
+                        </div>
+                        
+                        {preview.activeSlot && (
+                          <div className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg">
+                            {preview.activeSlot.packet?.thumbnailUrl && (
+                              <img 
+                                src={preview.activeSlot.packet.thumbnailUrl}
+                                alt={preview.activeSlot.packet?.name || 'Active'}
+                                className="w-16 h-16 object-cover rounded"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-white font-medium">
+                                {preview.activeSlot.packet?.name || 'Unknown'}
+                              </p>
+                              <p className="text-slate-400 text-xs mt-1">
+                                Slot {preview.activeIndex + 1} of {preview.totalSlots}
+                              </p>
+                              <p className="text-green-400 text-sm mt-1">
+                                {formatTimeRemaining(preview.timeRemainingSeconds)} remaining
+                              </p>
+                            </div>
+                            <Badge className="bg-green-600">
+                              <Play className="h-3 w-3 mr-1" />
+                              Live
+                            </Badge>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                          <div className="bg-slate-900/30 p-2 rounded">
+                            <span className="text-slate-400">Cycle Length</span>
+                            <p className="text-white">{formatDuration(preview.cycleLength)}</p>
+                          </div>
+                          <div className="bg-slate-900/30 p-2 rounded">
+                            <span className="text-slate-400">Next Slot</span>
+                            <p className="text-white">#{preview.nextSlotIndex + 1}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
-
-        <QRDynamicsScanLightbox
-          item={selectedItem ? {
-            id: selectedItem.id,
-            name: selectedItem.name,
-            thumbnailUrl: selectedItem.thumbnailUrl,
-            contentType: selectedItem.contentType,
-            rotationInterval: selectedItem.rotationInterval,
-            order: selectedItem.order,
-          } : null}
-          onClose={() => setSelectedItem(null)}
-          onIntervalChange={updateRotationInterval}
-          isUpdating={isUpdating}
-        />
       </div>
     </div>
   );
