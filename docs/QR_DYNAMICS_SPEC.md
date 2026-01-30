@@ -1,205 +1,246 @@
-# QR Dynamics Page Specification
+# QR Dynamics Specification
 
-## Overview
-The QR Dynamics page allows users to create rotating product experiences. Content rotates on a schedule (daily, weekly, monthly) when a QR code is scanned.
+## Canonical Definition
 
-## Architecture
-Uses the **Viewer → View → Skin** pattern from `client/src/features/shared/`.
-
-## Page Flow
-
-### Auto-Population
-- When page loads, auto-populate with first available store/channel from test products
-- Example default: "QR Gear / test channel"
-- User can change store/channel via dropdowns but defaults should work immediately
-- Page should be ready to work on collections without manual selection
+**QR Dynamics is a stateless, time-based URL resolver that loops through hosted page URLs using fixed-duration slots and epoch math.**
 
 ---
 
-## Two Main Views
+## Purpose
 
-### 1. Channel View (Content Picker)
+QR Dynamics does NOT create content.
+It selects and rotates EXISTING PAGE URLs over time.
 
-**Purpose:** Browse all content in a channel and add items to collections.
+The QR code always points to ONE resolver URL.
+That resolver decides WHICH page URL is active at request time using deterministic interval math.
 
-**Data Source:** Fetch from selected channel
+### Supported Page Types (external to this system)
+- **Image page** (landing page hosted by you - qr-canvas type)
+- **Video page** (thumbnail page → click → external video URL - qr-play type)
 
-**Content Types (3 only):**
-1. **Images** - URL backgrounds with text overlay (landing page style)
-2. **Video** - Video content
-3. **Documents** - PDF or document files
-
-**Display:**
-- Grid layout using SkinGridViewer
-- Each item shows thumbnail/preview
-- Each item has "Add to Collection" button
-
-**Add to Collection Flow:**
-- Click "Add to Collection" on any item
-- Modal/picker appears with two options:
-  - Select existing collection from dropdown
-  - Create new collection (input field + create button)
-- Confirm adds item to selected collection
-
-**Skin:** `ChannelContentSkin`
-- Card view: thumbnail, content type badge (image/video/doc), title
-- Shows preview appropriate to content type
+QR Basics / QR Plus are excluded because they do not produce hosted pages.
 
 ---
 
-### 2. Collection View (Playlist Manager)
+## Data Model
 
-**Purpose:** Manage items within a selected collection.
+### Collection: qr_dynamics_instances
+Document ID: instanceId (bound to sold item)
 
-**Display:**
-- Grid layout using SkinGridViewer
-- Shows all items added to this collection
-- Items displayed in rotation order
-
-**Actions per Item:**
-- **Reorder** - Move item up/down in rotation order (drag-drop or arrows)
-- **Delete** - Remove item from collection
-- **Set Interval** - Click item to open settings for rotation timing
-
-**Rotation Interval Options:**
-- Daily - rotates every day
-- Weekly - rotates every Sunday
-- Monthly - rotates on the 1st
-
-**Skin:** `CollectionItemSkin`
-- Card view: thumbnail, order number, content type
-- Detail view: rotation interval selector
-
----
-
-## Data Structure
-
-### Channel Content Item
 ```typescript
-interface ChannelContentItem {
-  id: string;
-  channelId: string;
-  type: 'image' | 'video' | 'document';
-  url: string;           // URL for image/video/doc
-  title: string;
-  thumbnailUrl?: string; // Preview image
-  metadata?: {
-    text?: string;       // Text overlay for URL backgrounds
-    duration?: number;   // Video duration
-    pageCount?: number;  // Document pages
-  };
+interface QRDynamicsInstance {
+  instanceId: string;                    // bound to sold item/order
+  createdAt: number;                     // epoch seconds
+  startTimestamp: number;                // epoch seconds (rotation anchor)
+  mode: 'loop';                          // future-proof, only "loop" for now
+  fallbackUrl?: string;                  // redirect here if all slots fail
+  
+  slots: Array<{
+    slotId: string;                      // uuid
+    packetId: string;                    // reference to productPackets
+    durationSeconds: number;             // display interval
+    order: number;                       // explicit ordering
+  }>;
 }
 ```
 
-### Collection Item
+### Packet Reference
+Slots reference `packetId` from the `productPackets` collection. The packet contains:
+- `landingPageSnapshotUrl` - thumbnail for admin UI
+- `landingPageSlug` - URL to redirect to
+- `qrProductType` - must be 'qr-canvas' or 'qr-play'
+
+### Duration Presets
+| Interval | Seconds |
+|----------|---------|
+| 1 minute | 60 |
+| 5 minutes | 300 |
+| 15 minutes | 900 |
+| 30 minutes | 1800 |
+| 1 hour | 3600 |
+| 6 hours | 21600 |
+| 12 hours | 43200 |
+| 1 day | 86400 |
+| 1 week | 604800 |
+| 1 month | 2592000 |
+
+---
+
+## Resolution Algorithm
+
+```
+Given:
+- nowEpoch = current epoch seconds
+- startTimestamp
+- slots[] sorted by order, with durationSeconds
+
+Steps:
+
+elapsed = nowEpoch - startTimestamp
+cycleLength = SUM(slots[i].durationSeconds)
+position = elapsed % cycleLength
+
+running = 0
+FOR each slot IN slots (sorted by order):
+  running += slot.durationSeconds
+  IF position < running:
+    activeSlot = slot
+    BREAK
+
+Fetch packet by activeSlot.packetId
+REDIRECT → packet.landingPageUrl or fallbackUrl on error
+```
+
+---
+
+## Error Handling
+
+If active slot's URL returns 404 or error:
+1. Skip to next slot in order
+2. If all slots fail, redirect to `fallbackUrl`
+3. If no fallbackUrl, return generic error page
+
+---
+
+## Handler (Node/Edge Safe)
+
 ```typescript
-interface CollectionItem {
-  id: string;
-  collectionId: string;
-  contentId: string;     // References ChannelContentItem
-  order: number;         // Position in rotation
-  rotationInterval: 'daily' | 'weekly' | 'monthly';
-  addedAt: Date;
+export async function qrDynamicsHandler(req, res) {
+  try {
+    const instanceId = req.params.instanceId;
+
+    // 1. Load instance
+    const instance = await loadQRDynamicsInstance(instanceId);
+
+    if (!instance || !instance.slots || instance.slots.length === 0) {
+      res.status(404).send("QR Dynamics instance not configured");
+      return;
+    }
+
+    // 2. Sort slots by order
+    const sortedSlots = [...instance.slots].sort((a, b) => a.order - b.order);
+
+    // 3. Time math
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const elapsed = nowEpoch - instance.startTimestamp;
+
+    let cycleLength = 0;
+    for (const slot of sortedSlots) {
+      cycleLength += slot.durationSeconds;
+    }
+
+    if (cycleLength <= 0) {
+      res.status(500).send("Invalid QR Dynamics cycle");
+      return;
+    }
+
+    const position = elapsed % cycleLength;
+
+    // 4. Resolve slot
+    let running = 0;
+    let activeSlot = null;
+
+    for (const slot of sortedSlots) {
+      running += slot.durationSeconds;
+      if (position < running) {
+        activeSlot = slot;
+        break;
+      }
+    }
+
+    if (!activeSlot) {
+      res.status(500).send("Unable to resolve QR Dynamics slot");
+      return;
+    }
+
+    // 5. Fetch packet and redirect
+    const packet = await loadPacket(activeSlot.packetId);
+    
+    if (!packet || !packet.landingPageSlug) {
+      // Skip to next slot or use fallback
+      return handleSlotError(res, instance, sortedSlots, activeSlot);
+    }
+
+    const targetUrl = `/p/${packet.landingPageSlug}`;
+    res.writeHead(302, { Location: targetUrl });
+    res.end();
+
+  } catch (err) {
+    res.status(500).send("QR Dynamics resolver error");
+  }
 }
 ```
 
 ---
 
-## API Endpoints Needed
+## Editing Behavior
 
-### Channel Content
-- `GET /api/test/stores/:storeId/channels/:channelId/content`
-  - Returns all images, videos, documents in channel
+When user edits slots:
+- Do NOT rewrite history
+- Reset `startTimestamp = nowEpoch`
+- Rotation restarts cleanly
 
-### Collection Management
-- `GET /api/test/stores/:storeId/channels/:channelId/collections`
-  - Returns all collections (existing)
-- `POST /api/test/stores/:storeId/channels/:channelId/collections`
-  - Create new collection (existing)
-- `GET /api/test/collections/:collectionId/items`
-  - Get items in a collection
-- `POST /api/test/collections/:collectionId/items`
-  - Add item to collection
-- `DELETE /api/test/collections/:collectionId/items/:itemId`
-  - Remove item from collection
-- `PATCH /api/test/collections/:collectionId/items/:itemId`
-  - Update item order or rotation interval
-- `PUT /api/test/collections/:collectionId/items/reorder`
-  - Bulk reorder items
+Why:
+- Deterministic
+- Predictable
+- Avoids partial-cycle ambiguity
 
 ---
 
-## UI Components to Create
+## Two-Phase Architecture
 
-### Using Shared Architecture
-1. `ChannelContentSkin.tsx` - Card/detail styling for channel content
-2. `CollectionItemSkin.tsx` - Card/detail styling for collection items
+### Phase 1: Collection (Admin Template)
+- Admin builds slots, durations, order
+- Preview shows "if scanned right now, would show Slot X" using `now` as temporary startTimestamp
+- This is for testing/approval
 
-### Page Layout
-- Top: Store/Channel selector (auto-populated)
-- Left/Main: Channel View (content grid)
-- Right/Tab: Collection View (playlist manager)
-- Or: Tab-based switching between Channel View and Collection View
-
----
-
-## Firestore Collections
-
-### dynamicsChannelContent
-```
-{
-  id: string,
-  storeId: string,
-  channelId: string,
-  name: string,
-  contentType: 'image' | 'video' | 'document',
-  url: string,
-  thumbnailUrl: string,
-  metadata: {
-    text?: string,
-    duration?: number,
-    pageCount?: number
-  },
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### dynamicsCollections
-```
-{
-  id: string,
-  storeId: string,
-  channelId: string,
-  name: string,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### dynamicsCollectionItems
-```
-{
-  id: string,
-  collectionId: string,
-  contentType: 'image' | 'video' | 'document',
-  contentUrl: string,
-  title: string,
-  thumbnailUrl: string,
-  order: number,
-  rotationInterval: 'daily' | 'weekly' | 'monthly',
-  addedAt: Date
-}
-```
+### Phase 2: Instance (Created at Sale)
+- Copies slots from Collection template
+- Sets `startTimestamp = sale timestamp`
+- Bound to specific order/item
+- This is what the real QR code resolves against
 
 ---
 
-## User Flow Summary
+## API Endpoints
 
-1. Land on page → Store/Channel auto-selected
-2. See Channel View with all content (images, videos, docs)
-3. Click "Add to Collection" on any item
-4. Pick existing collection or create new one
-5. Switch to Collection View to manage playlist
-6. Reorder items, delete items, set rotation intervals
-7. QR code will rotate through collection items on schedule
+### Resolver
+- `GET /qr/d/:instanceId` - Resolves and redirects to active slot
+
+### Admin (Collection Management)
+- `GET /api/test/stores/:storeId/channels/:channelId/dynamics-content` - Get packets filtered to qr-canvas/qr-play only
+- `GET /api/dynamics/collections/:collectionId` - Get collection with slots
+- `POST /api/dynamics/collections` - Create collection
+- `PUT /api/dynamics/collections/:collectionId/slots` - Update slots (resets startTimestamp)
+
+### Instance Management
+- `POST /api/dynamics/instances` - Create instance from collection (at sale)
+- `GET /api/dynamics/instances/:instanceId` - Get instance details
+- `GET /api/dynamics/instances/:instanceId/preview` - Preview current active slot
+
+---
+
+## System Properties
+
+- Stateless
+- Deterministic
+- Scales infinitely
+- Survives downtime
+- No race conditions
+- No background workers
+- Matches ad-rotator math
+
+---
+
+## Integration Notes
+
+### Admin UI
+- Filter packets to `qrProductType = 'qr-canvas'` OR `qrProductType = 'qr-play'`
+- Display `landingPageSnapshotUrl` as thumbnail
+- Slot duration selector with presets (minutes, hours, days, weeks, months)
+- Preview panel showing current active slot using math
+
+### Instance Creation
+- Triggered at checkout/sale
+- Links instanceId to order item
+- QR code on product points to `/qr/d/{instanceId}`
