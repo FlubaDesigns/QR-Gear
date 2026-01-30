@@ -18,6 +18,7 @@ interface AllowedProduct { blueprintId: number; title: string; }
 function StoreManager() {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreType, setNewStoreType] = useState<string>("member");
 
@@ -39,6 +40,7 @@ function StoreManager() {
     onSuccess: (data) => {
       toast({ title: "Store Created", description: `${data.name} (${data.roleType})` });
       setNewStoreName("");
+      setShowCreateForm(false);
       queryClient.invalidateQueries({ queryKey: ["/api/test/stores"] });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -67,36 +69,63 @@ function StoreManager() {
       </button>
       {expanded && (
         <div className="mt-4 space-y-4">
-          <div className="space-y-3">
-            <Input placeholder="Enter store name..." value={newStoreName} onChange={e => setNewStoreName(e.target.value)} data-testid="input-store-name" />
-            <Select value={newStoreType} onValueChange={setNewStoreType}>
-              <SelectTrigger data-testid="select-store-type"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Member</SelectItem>
-                <SelectItem value="internal">Internal</SelectItem>
-                <SelectItem value="external">External</SelectItem>
-              </SelectContent>
-            </Select>
+          {!showCreateForm ? (
             <button 
               className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" 
-              onClick={() => createMutation.mutate()} 
-              disabled={!newStoreName.trim() || createMutation.isPending} 
-              data-testid="btn-create-store"
+              onClick={() => setShowCreateForm(true)}
+              data-testid="btn-show-create-form"
             >
-              {createMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-              Create Store
+              <Plus className="h-5 w-5" />
+              Add New Store
             </button>
-          </div>
+          ) : (
+            <div className="p-4 border rounded-lg bg-accent/5 space-y-3">
+              <h3 className="font-medium text-sm">Create New Store</h3>
+              <Input 
+                placeholder="Store name" 
+                value={newStoreName} 
+                onChange={e => setNewStoreName(e.target.value)} 
+                autoFocus
+                data-testid="input-store-name" 
+              />
+              <Select value={newStoreType} onValueChange={setNewStoreType}>
+                <SelectTrigger data-testid="select-store-type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member Store</SelectItem>
+                  <SelectItem value="internal">Internal Store</SelectItem>
+                  <SelectItem value="external">External Store</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <button 
+                  className="qr-btn qr-btn--primary qr-btn--touch flex-1" 
+                  onClick={() => createMutation.mutate()} 
+                  disabled={!newStoreName.trim() || createMutation.isPending} 
+                  data-testid="btn-create-store"
+                >
+                  {createMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
+                  Save Store
+                </button>
+                <button 
+                  className="qr-btn qr-btn--outline qr-btn--touch" 
+                  onClick={() => { setShowCreateForm(false); setNewStoreName(""); }}
+                  data-testid="btn-cancel-create"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
-          {isLoading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
+          {isLoading ? <p className="text-sm text-muted-foreground">Loading stores...</p> : (
             <div className="space-y-3">
               {memberStores.length > 0 && (
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Member Stores ({memberStores.length})</p>
+                  <p className="text-xs text-muted-foreground mb-2">Member Stores ({memberStores.length})</p>
                   <div className="space-y-1">
                     {memberStores.map(s => (
-                      <div key={s.id} className="flex items-center justify-between p-2 rounded border bg-green-500/10">
-                        <span className="text-sm">{s.name}</span>
+                      <div key={s.id} className="flex items-center justify-between p-3 rounded border bg-green-500/10">
+                        <span className="text-sm font-medium">{s.name}</span>
                         <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -107,10 +136,10 @@ function StoreManager() {
               )}
               {otherStores.length > 0 && (
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Other Stores ({otherStores.length})</p>
+                  <p className="text-xs text-muted-foreground mb-2">Other Stores ({otherStores.length})</p>
                   <div className="space-y-1">
                     {otherStores.map(s => (
-                      <div key={s.id} className="flex items-center justify-between p-2 rounded border">
+                      <div key={s.id} className="flex items-center justify-between p-3 rounded border">
                         <span className="text-sm">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
                         <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -120,7 +149,7 @@ function StoreManager() {
                   </div>
                 </div>
               )}
-              {stores.length === 0 && <p className="text-sm text-muted-foreground">No stores yet</p>}
+              {stores.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No stores created yet</p>}
             </div>
           )}
         </div>
