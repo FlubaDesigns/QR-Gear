@@ -135,12 +135,10 @@ interface AllowedProduct {
 
 function ProductPickerStep({ 
   selectedProduct, 
-  onSelect,
-  onCustomize
+  onSelect
 }: { 
   selectedProduct: ProductItem | null;
   onSelect: (product: ProductItem) => void;
-  onCustomize: () => void;
 }) {
   const { data: allowedData, isLoading: loadingAllowed } = useQuery<{ products: AllowedProduct[], storeCount?: number, message?: string }>({
     queryKey: ["/api/members/allowed-products"],
