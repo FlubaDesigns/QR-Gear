@@ -121,10 +121,12 @@ export default function TestDynamicsPage() {
     }
   }, [isAuthenticated]);
 
-  // Auto-select first store/channel when loaded
+  // Auto-select QR Gear store (or first available)
   useEffect(() => {
     if (stores.length > 0 && !selectedStore) {
-      setSelectedStore(stores[0]);
+      // Prefer QR Gear store
+      const qrGear = stores.find(s => s.id === 'qr-gear' || s.name.toLowerCase().includes('qr gear'));
+      setSelectedStore(qrGear || stores[0]);
     }
   }, [stores, selectedStore]);
 

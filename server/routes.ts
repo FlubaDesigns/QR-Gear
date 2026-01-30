@@ -8791,10 +8791,10 @@ ${allPages.map(page => `  <url>
       const firestoreDb = getFirestoreDb();
       
       // Query dynamicsChannelContent for this channel's content
+      // Note: Removed orderBy to avoid requiring composite index
       const contentSnapshot = await firestoreDb.collection("dynamicsChannelContent")
         .where("storeId", "==", storeId)
         .where("channelId", "==", channelId)
-        .orderBy("createdAt", "desc")
         .get();
 
       const content = contentSnapshot.docs.map(doc => ({
