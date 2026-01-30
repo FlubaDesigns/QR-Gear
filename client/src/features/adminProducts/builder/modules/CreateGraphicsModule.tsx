@@ -912,7 +912,9 @@ export function CreateGraphicsModule() {
         description: "Generating digital proof...",
       });
 
-      const selectedPlacement = (state.selectedPlacements || ["front"])[0];
+      const selectedPlacement = (state.selectedPlacements && state.selectedPlacements.length > 0) 
+        ? state.selectedPlacements[0] 
+        : "front";
       const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
       
       const placementToCanonical: Record<string, string> = {
@@ -932,7 +934,7 @@ export function CreateGraphicsModule() {
         "hat-front": "HAT_FRONT",
         "hat-back": "HAT_BACK",
       };
-      const canonicalPlacement = placementToCanonical[selectedPlacement.toLowerCase()] || "FRONT_CHEST";
+      const canonicalPlacement = placementToCanonical[(selectedPlacement || "front").toLowerCase()] || "FRONT_CHEST";
       
       console.log('[CreatePacket] Requesting priority mockup:', {
         blueprintId: product?.blueprintId,
