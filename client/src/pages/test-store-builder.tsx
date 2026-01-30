@@ -1,18 +1,128 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Store, Package, DollarSign, QrCode, Layers, Image, ChevronDown, ChevronUp, Check, Save, Loader2 } from "lucide-react";
+import { Store, Package, DollarSign, QrCode, Layers, Image, ChevronDown, ChevronUp, Check, Save, Loader2, Plus, Trash2, Users } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness";
 
-interface StoreData { id: string; name: string; roleType: string; }
+interface StoreData { id: string; name: string; roleType: string; isActive?: boolean; }
 interface ProductBlueprint { id: number; title: string; }
 interface AllowedProduct { blueprintId: number; title: string; }
+
+function StoreManager() {
+  const { toast } = useToast();
+  const [expanded, setExpanded] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newStoreType, setNewStoreType] = useState<string>("member");
+
+  const { data: stores = [], isLoading } = useQuery<StoreData[]>({
+    queryKey: ["/api/test/stores"],
+    queryFn: async () => { const res = await fetch("/api/test/stores"); return res.json(); },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/test/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newStoreName.trim(), roleType: newStoreType }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to create");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Store Created", description: `${data.name} (${data.roleType})` });
+      setNewStoreName("");
+      queryClient.invalidateQueries({ queryKey: ["/api/test/stores"] });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (storeId: string) => {
+      const res = await fetch(`/api/test/stores/${storeId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/test/stores"] });
+    },
+  });
+
+  const memberStores = stores.filter(s => s.roleType === "member");
+  const otherStores = stores.filter(s => s.roleType !== "member");
+
+  return (
+    <div className="glass-card mt-4">
+      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between text-left" data-testid="btn-toggle-stores">
+        <span className="glass-title text-base flex items-center gap-2"><Users className="h-4 w-4 text-purple-400" /> Manage Stores</span>
+        {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {expanded && (
+        <div className="mt-4 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input placeholder="Store name..." value={newStoreName} onChange={e => setNewStoreName(e.target.value)} className="flex-1" data-testid="input-store-name" />
+            <Select value={newStoreType} onValueChange={setNewStoreType}>
+              <SelectTrigger className="w-full sm:w-32" data-testid="select-store-type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="internal">Internal</SelectItem>
+                <SelectItem value="external">External</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" onClick={() => createMutation.mutate()} disabled={!newStoreName.trim() || createMutation.isPending} data-testid="btn-create-store">
+              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Create
+            </Button>
+          </div>
+
+          {isLoading ? <p className="text-sm text-muted-foreground">Loading...</p> : (
+            <div className="space-y-3">
+              {memberStores.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Member Stores ({memberStores.length})</p>
+                  <div className="space-y-1">
+                    {memberStores.map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-2 rounded border bg-green-500/10">
+                        <span className="text-sm">{s.name}</span>
+                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {otherStores.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Other Stores ({otherStores.length})</p>
+                  <div className="space-y-1">
+                    {otherStores.map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-2 rounded border">
+                        <span className="text-sm">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
+                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {stores.length === 0 && <p className="text-sm text-muted-foreground">No stores yet</p>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MemberProductLibrary() {
   const { toast } = useToast();
@@ -135,6 +245,7 @@ export default function TestStoreBuilderPage() {
             </div>
           </div>
 
+          <StoreManager />
           <MemberProductLibrary />
           <StoreBuilderHarness />
         </div>
