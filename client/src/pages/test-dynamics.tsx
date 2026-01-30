@@ -127,6 +127,37 @@ export default function TestDynamicsPage() {
     }
   }, [selectedCollection]);
 
+  const filteredChannelContent = useMemo(() => {
+    return channelContent.filter(c => c.contentType === 'image' || c.contentType === 'video');
+  }, [channelContent]);
+
+  const channelSkinItems: DynamicsChannelItem[] = useMemo(() => {
+    return filteredChannelContent.map(c => ({
+      id: c.id,
+      name: c.name,
+      contentType: c.contentType as 'image' | 'video',
+      url: c.url,
+      thumbnailUrl: c.thumbnailUrl,
+      primaryImage: c.thumbnailUrl || c.url,
+    }));
+  }, [filteredChannelContent]);
+
+  const collectionSkinItems: DynamicsCollectionItem[] = useMemo(() => {
+    return collectionItems
+      .filter(c => c.contentType === 'image' || c.contentType === 'video')
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        contentType: c.contentType as 'image' | 'video',
+        url: c.url,
+        thumbnailUrl: c.thumbnailUrl,
+        primaryImage: c.thumbnailUrl || c.url,
+        order: c.order,
+        rotationInterval: c.rotationInterval,
+        contentId: c.contentId,
+      }));
+  }, [collectionItems]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
@@ -361,37 +392,6 @@ export default function TestDynamicsPage() {
       }
     }
   };
-
-  const filteredChannelContent = useMemo(() => {
-    return channelContent.filter(c => c.contentType === 'image' || c.contentType === 'video');
-  }, [channelContent]);
-
-  const channelSkinItems: DynamicsChannelItem[] = useMemo(() => {
-    return filteredChannelContent.map(c => ({
-      id: c.id,
-      name: c.name,
-      contentType: c.contentType as 'image' | 'video',
-      url: c.url,
-      thumbnailUrl: c.thumbnailUrl,
-      primaryImage: c.thumbnailUrl || c.url,
-    }));
-  }, [filteredChannelContent]);
-
-  const collectionSkinItems: DynamicsCollectionItem[] = useMemo(() => {
-    return collectionItems
-      .filter(c => c.contentType === 'image' || c.contentType === 'video')
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        contentType: c.contentType as 'image' | 'video',
-        url: c.url,
-        thumbnailUrl: c.thumbnailUrl,
-        primaryImage: c.thumbnailUrl || c.url,
-        order: c.order,
-        rotationInterval: c.rotationInterval,
-        contentId: c.contentId,
-      }));
-  }, [collectionItems]);
 
   const ChannelCardSkin = (props: any) => (
     <DynamicsChannelCardSkin {...props} />
