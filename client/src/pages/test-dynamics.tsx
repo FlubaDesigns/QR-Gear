@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { 
-  ArrowLeft, Zap, Store, Layers, LayoutGrid, 
-  Check, Loader2, Plus, Image, Video
+  ArrowLeft, Zap, Store, Layers, Film, 
+  Check, Loader2, Plus
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GridScrollView } from "@/features/shared/components/views";
 import { ChannelItemSkin, type ChannelItem, CollectionItemSkinV2, type CollectionItem } from "@/features/shared/components/skins";
 
@@ -65,11 +65,11 @@ export default function TestDynamicsPage() {
   const [channelContent, setChannelContent] = useState<ChannelContentItem[]>([]);
   const [collectionItems, setCollectionItems] = useState<CollectionItemData[]>([]);
   
-  const [activeTab, setActiveTab] = useState<string>("channel");
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -287,7 +287,6 @@ export default function TestDynamicsPage() {
         const coll = collections.find(c => c.name === collectionName);
         if (coll) {
           setSelectedCollection(coll);
-          setActiveTab("collection");
           fetchCollectionItems();
         }
       } else {
@@ -486,121 +485,109 @@ export default function TestDynamicsPage() {
         </div>
 
         {selectedStore && selectedChannel && (
-          <div className="glass-card p-0 overflow-hidden">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full rounded-none border-b border-slate-700 bg-slate-800/50 p-0 h-auto">
-                <TabsTrigger 
-                  value="channel" 
-                  className="flex-1 py-3 rounded-none data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-200"
-                  data-testid="tab-channel"
-                >
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Channel ({channelItems.length})
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="collection" 
-                  className="flex-1 py-3 rounded-none data-[state=active]:bg-purple-600 data-[state=active]:text-white text-purple-200"
-                  data-testid="tab-collection"
-                >
-                  <Layers className="h-4 w-4 mr-2" />
+          <>
+            <div className="glass-card">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-medium flex items-center gap-2">
+                  <Film className="h-5 w-5 text-blue-400" />
+                  Media ({channelItems.length})
+                </h3>
+                {loading === "content" && <Loader2 className="h-4 w-4 animate-spin text-blue-400" />}
+              </div>
+
+              {channelItems.length === 0 ? (
+                <div className="text-center py-6 text-blue-300 bg-slate-800/50 rounded-lg">
+                  <Film className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No media in this channel yet.</p>
+                </div>
+              ) : (
+                <GridScrollView
+                  items={channelItems}
+                  Skin={ChannelSkin}
+                  onAction={handleChannelItemAction}
+                  columns={4}
+                  height="280px"
+                  emptyMessage="No media available"
+                />
+              )}
+            </div>
+
+            <div className="glass-card">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-medium flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-purple-400" />
                   Collection ({collectionItemsForView.length})
-                </TabsTrigger>
-              </TabsList>
+                </h3>
+                {loading === "items" && <Loader2 className="h-4 w-4 animate-spin text-purple-400" />}
+              </div>
 
-              <TabsContent value="channel" className="p-4 m-0">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-white font-medium flex items-center gap-2">
-                    <Image className="h-4 w-4" />
-                    Landing Pages & Videos
-                  </h3>
+              <div className="flex gap-2 mb-3">
+                <Select
+                  value={selectedCollection?.name || ""}
+                  onValueChange={(val) => {
+                    const coll = collections.find(c => c.name === val);
+                    setSelectedCollection(coll || null);
+                  }}
+                >
+                  <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-collection">
+                    <SelectValue placeholder="Select collection..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {collections.map(coll => (
+                      <SelectItem key={coll.id} value={coll.name}>
+                        {coll.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 mb-3">
+                <Input
+                  placeholder="New collection name..."
+                  value={newCollectionName}
+                  onChange={(e) => setNewCollectionName(e.target.value)}
+                  className="flex-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-400"
+                  data-testid="input-new-collection"
+                />
+                <Button 
+                  onClick={async () => {
+                    if (newCollectionName.trim()) {
+                      await createCollection(newCollectionName.trim());
+                      setNewCollectionName("");
+                    }
+                  }}
+                  disabled={!newCollectionName.trim() || loading === "creating"}
+                  className="bg-purple-600 hover:bg-purple-700"
+                  data-testid="button-create-collection"
+                >
+                  {loading === "creating" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Create
+                </Button>
+              </div>
+
+              {!selectedCollection ? (
+                <div className="text-center py-6 text-purple-300 bg-slate-800/50 rounded-lg">
+                  <Layers className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Select or create a collection above.</p>
                 </div>
-
-                {loading === "content" ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-                  </div>
-                ) : channelItems.length === 0 ? (
-                  <div className="text-center py-8 text-blue-300">
-                    <LayoutGrid className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No landing pages or videos in this channel yet.</p>
-                  </div>
-                ) : (
-                  <GridScrollView
-                    items={channelItems}
-                    Skin={ChannelSkin}
-                    onAction={handleChannelItemAction}
-                    columns={4}
-                    height="500px"
-                    emptyMessage="No content available"
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="collection" className="p-4 m-0">
-                <div className="flex items-center gap-2 mb-4">
-                  <Select
-                    value={selectedCollection?.name || ""}
-                    onValueChange={(val) => {
-                      const coll = collections.find(c => c.name === val);
-                      setSelectedCollection(coll || null);
-                    }}
-                  >
-                    <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-collection">
-                      <SelectValue placeholder="Select a collection..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {collections.map(coll => (
-                        <SelectItem key={coll.id} value={coll.name}>
-                          {coll.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <Button 
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      const name = prompt("New collection name:");
-                      if (name) {
-                        await createCollection(name);
-                      }
-                    }}
-                    className="border-purple-500 text-purple-300 hover:bg-purple-500/20"
-                    data-testid="button-new-collection"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+              ) : collectionItemsForView.length === 0 ? (
+                <div className="text-center py-6 text-purple-300 bg-slate-800/50 rounded-lg">
+                  <Layers className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Tap media above to add to "{selectedCollection.name}"</p>
                 </div>
-
-                {!selectedCollection ? (
-                  <div className="text-center py-8 text-purple-300">
-                    <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Select or create a collection to manage items.</p>
-                  </div>
-                ) : loading === "items" ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
-                  </div>
-                ) : collectionItemsForView.length === 0 ? (
-                  <div className="text-center py-8 text-purple-300">
-                    <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No items in "{selectedCollection.name}" yet.</p>
-                    <p className="text-sm mt-2">Switch to Channel tab and click items to add them.</p>
-                  </div>
-                ) : (
-                  <GridScrollView
-                    items={collectionItemsForView}
-                    Skin={CollectionSkin}
-                    onAction={handleCollectionItemAction}
-                    columns={4}
-                    height="500px"
-                    emptyMessage="No items in collection"
-                  />
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
+              ) : (
+                <GridScrollView
+                  items={collectionItemsForView}
+                  Skin={CollectionSkin}
+                  onAction={handleCollectionItemAction}
+                  columns={4}
+                  height="280px"
+                  emptyMessage="No items in collection"
+                />
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Image, Video, Plus } from "lucide-react";
 
 export interface ChannelItem {
@@ -18,8 +19,7 @@ export function ChannelItemSkin({ item, onAction }: ChannelItemSkinProps) {
   
   return (
     <div
-      className="group relative rounded-lg border-2 border-border overflow-hidden cursor-pointer hover-elevate transition-all"
-      onClick={() => onAction?.(item)}
+      className="relative rounded-lg border-2 border-border overflow-hidden bg-card"
       data-testid={`channel-item-${item.id}`}
     >
       <div className="aspect-[9/16] relative bg-muted">
@@ -37,20 +37,21 @@ export function ChannelItemSkin({ item, onAction }: ChannelItemSkinProps) {
           <ContentIcon className="h-3 w-3" />
           {item.contentType === 'video' ? 'Video' : 'Page'}
         </Badge>
-
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="bg-primary text-primary-foreground rounded-full p-3">
-              <Plus className="h-6 w-6" />
-            </div>
-          </div>
-        </div>
       </div>
       
-      <div className="p-2 bg-card">
+      <div className="p-2 space-y-2">
         <p className="text-xs font-medium truncate text-center">
           {item.name}
         </p>
+        <Button 
+          size="sm"
+          className="w-full bg-blue-600 hover:bg-blue-700"
+          onClick={() => onAction?.(item)}
+          data-testid={`button-add-${item.id}`}
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add
+        </Button>
       </div>
     </div>
   );
