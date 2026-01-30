@@ -119,6 +119,12 @@ function WizardProgressBar({
   );
 }
 
+interface AllowedProduct {
+  blueprintId: number;
+  title: string;
+  addedAt?: string;
+}
+
 function ProductPickerStep({ 
   selectedProduct, 
   onSelect 
@@ -126,13 +132,14 @@ function ProductPickerStep({
   selectedProduct: ProductItem | null;
   onSelect: (product: ProductItem) => void;
 }) {
-  const { data: categories, isLoading } = useQuery<ProductCategory[]>({
-    queryKey: ["/api/test/catalog/printful-products"],
+  const { data: allowedData, isLoading: loadingAllowed } = useQuery<{ products: AllowedProduct[], storeCount?: number, message?: string }>({
+    queryKey: ["/api/members/allowed-products"],
   });
 
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const allowedProducts = allowedData?.products || [];
+  const hasAllowedProducts = allowedProducts.length > 0;
 
-  if (isLoading) {
+  if (loadingAllowed) {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
@@ -140,80 +147,58 @@ function ProductPickerStep({
     );
   }
 
-  const allCategories = categories || [];
-
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
         <h2 className="text-xl font-bold text-white mb-2">Choose Your Product</h2>
-        <p className="text-slate-400">Select a product template to start building</p>
+        <p className="text-slate-400">
+          {hasAllowedProducts 
+            ? `${allowedProducts.length} products available` 
+            : "Select a product template to start building"}
+        </p>
       </div>
 
-      {allCategories.length === 0 ? (
-        <div className="text-center py-8 text-slate-400">
-          No products available. Contact admin to sync catalog.
+      {!hasAllowedProducts ? (
+        <div className="text-center py-8">
+          <Package className="w-12 h-12 mx-auto mb-4 text-slate-500" />
+          <p className="text-slate-400 mb-2">No products available yet</p>
+          <p className="text-sm text-slate-500">
+            Admin needs to configure allowed products in Store Builder
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {allCategories.map((category) => (
-            <div key={category.name} className="bg-slate-800/50 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {allowedProducts.map((product) => {
+            const productItem: ProductItem = {
+              id: product.blueprintId,
+              name: product.title,
+              thumbnailUrl: undefined
+            };
+            return (
               <button
-                onClick={() => setExpandedCategory(
-                  expandedCategory === category.name ? null : category.name
-                )}
-                className="w-full p-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors"
-                data-testid={`category-${category.name}`}
+                key={product.blueprintId}
+                onClick={() => onSelect(productItem)}
+                className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedProduct?.id === product.blueprintId
+                    ? 'border-blue-500 ring-2 ring-blue-500/30'
+                    : 'border-slate-600 hover:border-slate-500'
+                }`}
+                data-testid={`product-${product.blueprintId}`}
               >
-                <div className="flex items-center gap-3">
-                  <Package className="w-5 h-5 text-blue-400" />
-                  <span className="text-white font-medium">{category.name}</span>
-                  <Badge variant="secondary">{category.count}</Badge>
+                <div className="aspect-square bg-slate-700 flex items-center justify-center">
+                  <Package className="w-8 h-8 text-slate-500" />
                 </div>
-                <ChevronRight className={`w-5 h-5 text-slate-400 transition-transform ${
-                  expandedCategory === category.name ? 'rotate-90' : ''
-                }`} />
+                <div className="p-2 bg-slate-800">
+                  <p className="text-xs text-white truncate">{product.title}</p>
+                </div>
+                {selectedProduct?.id === product.blueprintId && (
+                  <div className="absolute top-2 right-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                )}
               </button>
-              
-              {expandedCategory === category.name && (
-                <div className="p-4 pt-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {category.items.map((product) => (
-                    <button
-                      key={product.id}
-                      onClick={() => onSelect(product)}
-                      className={`relative rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedProduct?.id === product.id
-                          ? 'border-blue-500 ring-2 ring-blue-500/30'
-                          : 'border-slate-600 hover:border-slate-500'
-                      }`}
-                      data-testid={`product-${product.id}`}
-                    >
-                      <div className="aspect-square bg-slate-700">
-                        {product.thumbnailUrl ? (
-                          <img 
-                            src={product.thumbnailUrl} 
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-8 h-8 text-slate-500" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-2 bg-slate-800">
-                        <p className="text-xs text-white truncate">{product.name}</p>
-                      </div>
-                      {selectedProduct?.id === product.id && (
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                          <Check className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

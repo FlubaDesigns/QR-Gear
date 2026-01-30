@@ -9000,6 +9000,54 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Get allowed products for members (aggregates from all member stores)
+  app.get("/api/members/allowed-products", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get all stores with roleType "member"
+      const storesSnapshot = await firestoreDb.collection("stores")
+        .where("roleType", "==", "member")
+        .get();
+      
+      const memberStoreIds = storesSnapshot.docs.map(doc => doc.id);
+      
+      if (memberStoreIds.length === 0) {
+        // No member stores configured yet - return empty
+        return res.json({ products: [], message: "No member stores configured" });
+      }
+      
+      // Aggregate allowed products from all member stores
+      const allProducts = new Map();
+      
+      for (const storeId of memberStoreIds) {
+        const allowedDoc = await firestoreDb.collection("storeAllowedProducts").doc(storeId).get();
+        if (allowedDoc.exists) {
+          const data = allowedDoc.data();
+          const products = data?.products || [];
+          for (const product of products) {
+            // Use blueprintId as key to dedupe
+            if (!allProducts.has(product.blueprintId)) {
+              allProducts.set(product.blueprintId, product);
+            }
+          }
+        }
+      }
+      
+      const products = Array.from(allProducts.values());
+      console.log(`[Member Allowed Products] Found ${products.length} products from ${memberStoreIds.length} member stores`);
+      
+      res.json({ 
+        products,
+        storeCount: memberStoreIds.length
+      });
+    } catch (error: any) {
+      console.error("[Member Allowed Products] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============== QR DYNAMICS - Channel Content API ==============
 
   // Get all content (images, videos, documents) for a channel
