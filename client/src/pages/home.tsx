@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Shield, FlaskConical, Users, Sparkles } from "lucide-react";
+import { Shield, FlaskConical, Users, Sparkles, Store } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Hero from "@/components/Hero";
@@ -33,6 +33,10 @@ function AdminQuickAccess() {
       <Link href="/test-members" className="admin-quick-link" data-testid="link-members-sandbox">
         <Sparkles className="w-4 h-4" />
         Members Sandbox
+      </Link>
+      <Link href="/test-store-builder" className="admin-quick-link" data-testid="link-store-builder">
+        <Store className="w-4 h-4" />
+        Store Builder
       </Link>
     </div>
   );
