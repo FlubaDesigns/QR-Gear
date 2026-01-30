@@ -8802,10 +8802,20 @@ ${allPages.map(page => `  <url>
       }));
 
       // Also fetch packets for this store/channel as landing page content
-      const packetsSnapshot = await firestoreDb.collection("productPackets")
+      // Try both exact match and lowercase match for channel ID
+      const channelIdLower = channelId.toLowerCase();
+      let packetsSnapshot = await firestoreDb.collection("productPackets")
         .where("storeId", "==", storeId)
         .where("channelId", "==", channelId)
         .get();
+      
+      // If no results, try lowercase version
+      if (packetsSnapshot.empty && channelId !== channelIdLower) {
+        packetsSnapshot = await firestoreDb.collection("productPackets")
+          .where("storeId", "==", storeId)
+          .where("channelId", "==", channelIdLower)
+          .get();
+      }
 
       const packetContent = packetsSnapshot.docs
         .map(doc => {
