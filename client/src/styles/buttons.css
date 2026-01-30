@@ -34,8 +34,8 @@
 /* ===== Primary Button (Ice Blue) ===== */
 .qr-btn--primary {
   border: none;
-  background: linear-gradient(180deg, var(--ice-1) 0%, var(--ice-3) 100%);
-  color: var(--bg-0);
+  background: #2ea9ff !important;
+  color: #ffffff !important;
   box-shadow:
     0 12px 24px rgba(0, 0, 0, 0.35),
     inset 0 -2px 0 rgba(0, 0, 0, 0.20),
