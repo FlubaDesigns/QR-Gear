@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollView, type ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+import { GridScrollView } from "@/features/shared/components/views";
+import { ChannelItemSkin, type ChannelItem, CollectionItemSkinV2, type CollectionItem } from "@/features/shared/components/skins";
 
 interface StoreOption {
   id: string;
@@ -121,23 +122,24 @@ export default function TestDynamicsPage() {
     return channelContent.filter(c => c.contentType === 'image' || c.contentType === 'video');
   }, [channelContent]);
 
-  const channelScrollItems: ScrollViewItem[] = useMemo(() => {
+  const channelItems: ChannelItem[] = useMemo(() => {
     return filteredChannelContent.map(c => ({
       id: c.id,
+      name: c.name,
+      contentType: c.contentType as 'image' | 'video',
       imageUrl: c.thumbnailUrl || c.url,
-      title: c.name,
-      subtitle: c.contentType === 'video' ? 'Video' : 'Landing Page',
     }));
   }, [filteredChannelContent]);
 
-  const collectionScrollItems: ScrollViewItem[] = useMemo(() => {
+  const collectionItemsForView: CollectionItem[] = useMemo(() => {
     return collectionItems
       .filter(c => c.contentType === 'image' || c.contentType === 'video')
       .map(c => ({
         id: c.id,
+        name: c.name,
         imageUrl: c.thumbnailUrl || c.url,
-        title: c.name,
-        subtitle: `#${c.order} - ${c.rotationInterval}`,
+        order: c.order,
+        rotationInterval: c.rotationInterval,
       }));
   }, [collectionItems]);
 
@@ -344,7 +346,7 @@ export default function TestDynamicsPage() {
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const handleChannelItemSelect = async (item: ScrollViewItem) => {
+  const handleChannelItemAction = async (item: ChannelItem) => {
     const contentItem = channelContent.find(c => c.id === item.id);
     if (!contentItem) return;
 
@@ -376,10 +378,21 @@ export default function TestDynamicsPage() {
     }
   };
 
-  const handleCollectionItemSelect = (item: ScrollViewItem) => {
-    // For collection items, clicking opens detail - could add modal here later
+  const handleCollectionItemAction = (item: CollectionItem) => {
     console.log("Collection item selected:", item.id);
   };
+
+  const handleCollectionItemRemove = (item: CollectionItem) => {
+    removeFromCollection(item.id);
+  };
+
+  const ChannelSkin = (props: { item: ChannelItem; onAction?: (item: ChannelItem) => void }) => (
+    <ChannelItemSkin {...props} />
+  );
+
+  const CollectionSkin = (props: { item: CollectionItem; onAction?: (item: CollectionItem) => void }) => (
+    <CollectionItemSkinV2 {...props} onRemove={handleCollectionItemRemove} />
+  );
 
   return (
     <div className="page-wrap" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
@@ -482,7 +495,7 @@ export default function TestDynamicsPage() {
                   data-testid="tab-channel"
                 >
                   <LayoutGrid className="h-4 w-4 mr-2" />
-                  Channel ({channelScrollItems.length})
+                  Channel ({channelItems.length})
                 </TabsTrigger>
                 <TabsTrigger 
                   value="collection" 
@@ -490,7 +503,7 @@ export default function TestDynamicsPage() {
                   data-testid="tab-collection"
                 >
                   <Layers className="h-4 w-4 mr-2" />
-                  Collection ({collectionScrollItems.length})
+                  Collection ({collectionItemsForView.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -506,18 +519,18 @@ export default function TestDynamicsPage() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
                   </div>
-                ) : channelScrollItems.length === 0 ? (
+                ) : channelItems.length === 0 ? (
                   <div className="text-center py-8 text-blue-300">
                     <LayoutGrid className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No landing pages or videos in this channel yet.</p>
                   </div>
                 ) : (
-                  <ScrollView
-                    items={channelScrollItems}
-                    onSelect={handleChannelItemSelect}
-                    aspectRatio="portrait"
-                    layout="grid"
-                    gridHeight="500px"
+                  <GridScrollView
+                    items={channelItems}
+                    Skin={ChannelSkin}
+                    onAction={handleChannelItemAction}
+                    columns={4}
+                    height="500px"
                     emptyMessage="No content available"
                   />
                 )}
@@ -569,19 +582,19 @@ export default function TestDynamicsPage() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
                   </div>
-                ) : collectionScrollItems.length === 0 ? (
+                ) : collectionItemsForView.length === 0 ? (
                   <div className="text-center py-8 text-purple-300">
                     <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No items in "{selectedCollection.name}" yet.</p>
                     <p className="text-sm mt-2">Switch to Channel tab and click items to add them.</p>
                   </div>
                 ) : (
-                  <ScrollView
-                    items={collectionScrollItems}
-                    onSelect={handleCollectionItemSelect}
-                    aspectRatio="portrait"
-                    layout="grid"
-                    gridHeight="500px"
+                  <GridScrollView
+                    items={collectionItemsForView}
+                    Skin={CollectionSkin}
+                    onAction={handleCollectionItemAction}
+                    columns={4}
+                    height="500px"
                     emptyMessage="No items in collection"
                   />
                 )}

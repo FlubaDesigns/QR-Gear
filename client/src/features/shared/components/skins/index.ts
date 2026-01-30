@@ -12,3 +12,5 @@ export * from "./TemplatePickerSkin";
 export * from "./StoreProductSkin";
 export * from "./DynamicsChannelSkin";
 export * from "./DynamicsCollectionSkin";
+export * from "./ChannelItemSkin";
+export * from "./CollectionItemSkinV2";
