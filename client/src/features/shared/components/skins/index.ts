@@ -10,3 +10,5 @@ export * from "./GraphicPreviewView";
 export * from "./MediaPreviewView";
 export * from "./TemplatePickerSkin";
 export * from "./StoreProductSkin";
+export * from "./DynamicsChannelSkin";
+export * from "./DynamicsCollectionSkin";
