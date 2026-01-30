@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Store, Package, DollarSign, QrCode, Layers, Image, ChevronDown, ChevronUp, Check, Save, Loader2, Plus, Trash2, Users } from "lucide-react";
+import { Store, Package, DollarSign, QrCode, Layers, Image, ChevronDown, ChevronUp, Check, Save, Loader2, Plus, Trash2, Users, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,222 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness";
+import { ProductsProvider } from "@/features/adminProducts/ProductsContext";
+import { BuilderProvider, useBuilderContext } from "@/features/adminProducts/builder/BuilderContext";
+import { ProductsModule } from "@/features/adminProducts/builder/modules/ProductsModule";
+import { useProductsContext } from "@/features/adminProducts/ProductsContext";
 
 interface StoreData { id: string; name: string; roleType: string; isActive?: boolean; }
 interface ProductBlueprint { id: number; title: string; }
 interface BlueprintDetails { id: string; colors: Array<{ name: string; hex?: string }>; sizes: string[]; }
-interface BareProduct { blueprintId: number; title: string; colors: string[]; sizes: string[]; addedAt: string; }
+interface BareProduct { blueprintId: number; title: string; colors: string[]; sizes: string[]; addedAt: string; imageUrl?: string; }
+
+function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { store: StoreData; onClose: () => void; onProductAdded: (product: BareProduct) => void }) {
+  const { toast } = useToast();
+  const { providers, selectedProviders, setSelectedProviders } = useProductsContext();
+  const { state } = useBuilderContext();
+  const [selectedColors, setSelectedColors] = useState<Set<string>>(new Set());
+  const [selectedSizes, setSelectedSizes] = useState<Set<string>>(new Set());
+
+  const { data: details } = useQuery<BlueprintDetails>({
+    queryKey: ["/api/test/printify/catalog", state.selectedProduct?.id],
+    queryFn: async () => { 
+      const res = await fetch(`/api/test/printify/catalog/${state.selectedProduct?.id}`); 
+      return res.json(); 
+    },
+    enabled: !!state.selectedProduct?.id,
+  });
+
+  useEffect(() => {
+    if (details) {
+      setSelectedColors(new Set(details.colors.map(c => c.name)));
+      setSelectedSizes(new Set(details.sizes));
+    }
+  }, [details]);
+
+  const toggleColor = (name: string) => setSelectedColors(prev => { const next = new Set(prev); next.has(name) ? next.delete(name) : next.add(name); return next; });
+  const toggleSize = (size: string) => setSelectedSizes(prev => { const next = new Set(prev); next.has(size) ? next.delete(size) : next.add(size); return next; });
+
+  const handleAdd = () => {
+    if (!state.selectedProduct || selectedColors.size === 0 || selectedSizes.size === 0) return;
+    const product: BareProduct = {
+      blueprintId: state.selectedProduct.id,
+      title: state.selectedProduct.title,
+      colors: Array.from(selectedColors),
+      sizes: Array.from(selectedSizes),
+      imageUrl: state.selectedProduct.imageUrl || undefined,
+      addedAt: new Date().toISOString(),
+    };
+    onProductAdded(product);
+    toast({ title: "Added", description: `${state.selectedProduct.title} added to ${store.name}` });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium text-lg">Add Products to: {store.name}</h3>
+        <Button size="icon" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
+      </div>
+
+{/* Simple provider toggle */}
+      <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
+        <span className="text-sm text-muted-foreground">Provider:</span>
+        <div className="flex gap-2">
+          {providers.filter(p => p.role === "fulfillment").map(p => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedProviders([p.id])}
+              className={`px-3 py-1.5 rounded text-sm transition-all ${
+                selectedProviders.includes(p.id) 
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-muted hover:bg-muted/80"
+              }`}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ProductsModule />
+
+      {state.selectedProduct && details && (
+        <div className="p-4 border rounded-lg bg-accent/5 space-y-4">
+          <div className="flex items-center gap-3">
+            {state.selectedProduct.imageUrl && (
+              <img src={state.selectedProduct.imageUrl} alt="" className="w-16 h-16 object-cover rounded" />
+            )}
+            <div>
+              <p className="font-medium">{state.selectedProduct.title}</p>
+              <p className="text-sm text-muted-foreground">{state.selectedProduct.brand}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Colors ({selectedColors.size})</p>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set(details.colors.map(c => c.name)))}>All</Button>
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set())}>None</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {details.colors.map(c => (
+                <button
+                  key={c.name}
+                  onClick={() => toggleColor(c.name)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColors.has(c.name) ? "ring-2 ring-primary ring-offset-2" : "opacity-50"}`}
+                  style={{ backgroundColor: c.hex || "#ccc" }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Sizes ({selectedSizes.size})</p>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set(details.sizes))}>All</Button>
+                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set())}>None</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {details.sizes.map(size => (
+                <button
+                  key={size}
+                  onClick={() => toggleSize(size)}
+                  className={`px-3 py-1 rounded border text-sm transition-all ${selectedSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted/50"}`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button 
+            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
+            onClick={handleAdd}
+            disabled={selectedColors.size === 0 || selectedSizes.size === 0}
+          >
+            <Plus className="h-5 w-5" />
+            Add to Store
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose: () => void }) {
+  const [addedProducts, setAddedProducts] = useState<BareProduct[]>([]);
+
+  const { data: existingData } = useQuery({
+    queryKey: ["/api/test/stores", store.id, "allowed-products"],
+    queryFn: async () => { const res = await fetch(`/api/test/stores/${store.id}/allowed-products`); return res.json(); },
+  });
+
+  useEffect(() => {
+    if (existingData?.products) setAddedProducts(existingData.products);
+  }, [existingData]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (products: BareProduct[]) => {
+      const res = await fetch(`/api/test/stores/${store.id}/allowed-products`, { 
+        method: "POST", 
+        body: JSON.stringify({ products }), 
+        headers: { "Content-Type": "application/json" } 
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/test/stores", store.id, "allowed-products"] });
+    },
+  });
+
+  const handleProductAdded = (product: BareProduct) => {
+    const updated = [...addedProducts.filter(p => p.blueprintId !== product.blueprintId), product];
+    setAddedProducts(updated);
+    saveMutation.mutate(updated);
+  };
+
+  const handleRemove = (blueprintId: number) => {
+    const updated = addedProducts.filter(p => p.blueprintId !== blueprintId);
+    setAddedProducts(updated);
+    saveMutation.mutate(updated);
+  };
+
+  return (
+    <ProductsProvider>
+      <BuilderProvider>
+        <div className="glass-card space-y-4">
+          <BareProductsFulfillmentInner store={store} onClose={onClose} onProductAdded={handleProductAdded} />
+          
+          {addedProducts.length > 0 && (
+            <div className="border-t pt-4 space-y-2">
+              <p className="text-sm font-medium">In Store ({addedProducts.length})</p>
+              {addedProducts.map(p => (
+                <div key={p.blueprintId} className="flex items-center justify-between p-2 rounded bg-green-500/10 border">
+                  <div className="flex items-center gap-2">
+                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 object-cover rounded" />}
+                    <div className="text-sm">
+                      <p className="font-medium">{p.title}</p>
+                      <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
+                    </div>
+                  </div>
+                  <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </BuilderProvider>
+    </ProductsProvider>
+  );
+}
 
 function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () => void }) {
   const { toast } = useToast();
@@ -301,7 +512,7 @@ function StoreManager() {
           )}
 
           {editingStore && (
-            <BareProductPicker store={editingStore} onClose={() => setEditingStore(null)} />
+            <BareProductsFulfillment store={editingStore} onClose={() => setEditingStore(null)} />
           )}
 
           {isLoading ? <p className="text-sm text-muted-foreground">Loading stores...</p> : (
