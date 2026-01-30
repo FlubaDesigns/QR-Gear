@@ -777,11 +777,55 @@ export default function TestMembersSandbox() {
   };
 
   const handlePublish = async () => {
+    if (!user?.uid || !selectedProduct) return;
+    
     setIsPublishing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setCompletedSteps(prev => new Set<WizardStep>([...Array.from(prev), 'publish']));
-    setIsPublishing(false);
-    alert('Item published successfully!');
+    try {
+      // First, ensure channel exists or create it
+      let channelId = '';
+      const channelRes = await fetch(`/api/members/${user.uid}/channels`);
+      const channels = await channelRes.json();
+      const existingChannel = channels.find((c: any) => c.name === channelName);
+      
+      if (existingChannel) {
+        channelId = existingChannel.id;
+      } else {
+        // Create new channel
+        const createRes = await fetch(`/api/members/${user.uid}/channels`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: channelName })
+        });
+        const newChannel = await createRes.json();
+        channelId = newChannel.id;
+      }
+      
+      // Create the member product
+      const productRes = await fetch(`/api/members/${user.uid}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          printfulProductId: selectedProduct.productId,
+          variantId: selectedProduct.id,
+          graphicUrl: selectedGraphic?.thumbnailUrl || null,
+          qrType,
+          qrDestination,
+          channelId,
+          name: selectedProduct.name,
+          price: 0 // Will be calculated later
+        })
+      });
+      
+      if (!productRes.ok) throw new Error('Failed to create product');
+      
+      setCompletedSteps(prev => new Set<WizardStep>([...Array.from(prev), 'publish']));
+      setViewMode('channels'); // Switch to channels view to see the new item
+    } catch (error) {
+      console.error('Publish error:', error);
+      alert('Failed to publish. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const canProceed = () => {
