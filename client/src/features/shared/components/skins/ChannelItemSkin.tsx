@@ -22,7 +22,7 @@ export function ChannelItemSkin({ item, onAction }: ChannelItemSkinProps) {
       className="relative rounded-lg border-2 border-border overflow-hidden bg-card"
       data-testid={`channel-item-${item.id}`}
     >
-      <div className="aspect-[9/16] relative bg-muted">
+      <div className="aspect-[3/4] relative bg-muted">
         <img
           src={item.imageUrl}
           alt={item.name}
@@ -39,10 +39,7 @@ export function ChannelItemSkin({ item, onAction }: ChannelItemSkinProps) {
         </Badge>
       </div>
       
-      <div className="p-2 space-y-2">
-        <p className="text-xs font-medium truncate text-center">
-          {item.name}
-        </p>
+      <div className="p-2">
         <Button 
           size="sm"
           className="w-full bg-blue-600 hover:bg-blue-700"
