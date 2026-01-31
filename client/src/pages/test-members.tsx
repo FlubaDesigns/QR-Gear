@@ -79,8 +79,20 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
+type SimpleWizardStep = 'channel' | 'type' | 'background' | 'details' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
+type WizardTier = 'simple' | 'advanced' | 'studio';
 
+// Simple Wizard - 5 essential steps for first-time users
+const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'channel', label: 'Channel', icon: Layers },
+  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'background', label: 'Background', icon: ImagePlus },
+  { id: 'details', label: 'Details', icon: Type },
+  { id: 'publish', label: 'Publish', icon: Send },
+];
+
+// Advanced Wizard - full 8 steps (unlocks after 1st publish)
 const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Pick Item', icon: Package },
@@ -123,6 +135,32 @@ const QR_TYPES = [
   },
 ];
 
+function SimpleWizardProgressBar({ 
+  currentStep 
+}: { 
+  currentStep: SimpleWizardStep; 
+}) {
+  const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === currentStep);
+  const progress = (currentIndex / SIMPLE_WIZARD_STEPS.length) * 100;
+  
+  return (
+    <div className="w-full mb-6">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-medium text-white">
+          Step {currentIndex + 1} of {SIMPLE_WIZARD_STEPS.length}: {SIMPLE_WIZARD_STEPS[currentIndex]?.label}
+        </span>
+        <span className="text-sm text-slate-400">{Math.round(progress)}%</span>
+      </div>
+      <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-300 rounded-full"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function WizardProgressBar({ 
   currentStep, 
   completedSteps 
@@ -132,7 +170,6 @@ function WizardProgressBar({
   completedSteps: Set<WizardStep>;
 }) {
   const currentIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
-  // Progress based on completed steps (starts at 0, fills as you proceed)
   const progress = (currentIndex / WIZARD_STEPS.length) * 100;
   
   return (
@@ -450,6 +487,190 @@ function ProductPickerStep({
             renderItem: renderProductSkin,
           }}
         />
+      )}
+    </div>
+  );
+}
+
+// Simple Wizard Step: Type Selection (beginner-friendly)
+function TypePickerStep({ 
+  selectedType, 
+  onSelect 
+}: { 
+  selectedType: QRType;
+  onSelect: (type: QRType) => void;
+}) {
+  const simpleTypes = [
+    { 
+      id: 'qr-canvas' as QRType, 
+      label: 'Image Post', 
+      description: 'A beautiful image with your QR code',
+      icon: ImagePlus,
+      color: 'bg-purple-600'
+    },
+    { 
+      id: 'qr-play' as QRType, 
+      label: 'Video Post', 
+      description: 'A video that plays when scanned',
+      icon: Play,
+      color: 'bg-rose-600'
+    },
+  ];
+
+  return (
+    <div>
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">What do you want to create?</h2>
+        <p className="text-slate-400">Pick the type of content for your QR code</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-lg mx-auto">
+        {simpleTypes.map((type) => (
+          <button
+            key={type.id}
+            onClick={() => onSelect(type.id)}
+            className={`p-6 rounded-xl border-2 transition-all text-center ${
+              selectedType === type.id
+                ? 'border-white bg-white/10 scale-105'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500 hover:scale-102'
+            }`}
+            data-testid={`button-type-${type.id}`}
+          >
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${type.color} flex items-center justify-center`}>
+              <type.icon className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="font-bold text-white text-lg mb-1">{type.label}</h3>
+            <p className="text-slate-400 text-sm">{type.description}</p>
+            {selectedType === type.id && (
+              <div className="mt-3">
+                <Check className="w-6 h-6 text-green-400 mx-auto" />
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Simple Wizard Step: Details (title + description only)
+function DetailsStep({ 
+  title, 
+  description,
+  onTitleChange,
+  onDescriptionChange
+}: { 
+  title: string;
+  description: string;
+  onTitleChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">Add Your Details</h2>
+        <p className="text-slate-400">Give your creation a title and description</p>
+      </div>
+
+      <div className="max-w-md mx-auto space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="simple-title" className="text-white text-lg">Title</Label>
+          <Input
+            id="simple-title"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder="My Awesome Creation"
+            className="bg-slate-700 border-slate-600 text-white text-lg h-14"
+            data-testid="input-simple-title"
+          />
+          <p className="text-slate-500 text-sm">This appears when people scan your QR code</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="simple-description" className="text-white text-lg">Description (optional)</Label>
+          <textarea
+            id="simple-description"
+            value={description}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            placeholder="Tell people what this is about..."
+            rows={4}
+            className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 resize-none focus:border-blue-500 outline-none"
+            data-testid="input-simple-description"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Simple Wizard Step: Publish (simplified confirmation)
+function SimplePublishStep({ 
+  isPublishing,
+  onPublish,
+  title,
+  qrType,
+  backgroundUrl
+}: { 
+  isPublishing: boolean;
+  onPublish: () => void;
+  title: string;
+  qrType: QRType;
+  backgroundUrl: string;
+}) {
+  const typeLabel = qrType === 'qr-canvas' ? 'Image Post' : qrType === 'qr-play' ? 'Video Post' : 'Creation';
+  
+  return (
+    <div className="text-center">
+      <div className="mb-8">
+        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-green-600/20 flex items-center justify-center">
+          <Sparkles className="w-10 h-10 text-green-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Ready to Publish!</h2>
+        <p className="text-slate-400">Your {typeLabel.toLowerCase()} is ready to share with the world</p>
+      </div>
+
+      <Card className="bg-slate-800/50 border-slate-700 max-w-sm mx-auto mb-8">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            {backgroundUrl ? (
+              <div className="w-12 h-12 rounded-lg overflow-hidden">
+                <img src={backgroundUrl} alt="" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center">
+                {qrType === 'qr-play' ? <Play className="w-6 h-6 text-slate-400" /> : <ImagePlus className="w-6 h-6 text-slate-400" />}
+              </div>
+            )}
+            <div className="text-left">
+              <p className="text-white font-medium">{title || 'Untitled'}</p>
+              <p className="text-slate-400 text-sm">{typeLabel}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button
+        size="lg"
+        onClick={onPublish}
+        disabled={isPublishing || !title.trim()}
+        className="bg-green-600 hover:bg-green-700 text-white px-12 py-6 text-lg"
+        data-testid="button-simple-publish"
+      >
+        {isPublishing ? (
+          <>
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Publishing...
+          </>
+        ) : (
+          <>
+            <Send className="w-5 h-5 mr-2" />
+            Publish Now
+          </>
+        )}
+      </Button>
+
+      {!title.trim() && (
+        <p className="text-amber-400 text-sm mt-4">Please add a title before publishing</p>
       )}
     </div>
   );
@@ -870,28 +1091,52 @@ export default function TestMembersSandbox() {
   
   const [viewMode, setViewMode] = useState<ViewMode>('wizard');
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
+  const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('channel');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
-  const [powerMode, setPowerMode] = useState(false);
-  const [hasCompletedWizard, setHasCompletedWizard] = useState(false);
-  const [showSpeedBuildPrompt, setShowSpeedBuildPrompt] = useState(false);
+  const [wizardTier, setWizardTier] = useState<WizardTier>('simple');
+  const [publishCount, setPublishCount] = useState(0);
+  const [showUnlockPrompt, setShowUnlockPrompt] = useState<'advanced' | 'studio' | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<{ id: string; name: string } | null>(null);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   
-  // Check if user has completed wizard before
+  // Simple wizard state
+  const [simpleTitle, setSimpleTitle] = useState('');
+  const [simpleDescription, setSimpleDescription] = useState('');
+  
+  // Load publish count from localStorage
   useEffect(() => {
     if (user?.id) {
-      const completed = localStorage.getItem(`wizard_completed_${user.id}`);
-      setHasCompletedWizard(completed === 'true');
+      const count = parseInt(localStorage.getItem(`publish_count_${user.id}`) || '0', 10);
+      setPublishCount(count);
+      // Auto-select appropriate tier based on count
+      if (count === 0) {
+        setWizardTier('simple');
+      }
     }
   }, [user?.id]);
   
-  // Mark wizard as completed when they publish
-  const markWizardCompleted = () => {
+  // Increment publish count and show unlock prompts
+  const incrementPublishCount = () => {
     if (user?.id) {
-      localStorage.setItem(`wizard_completed_${user.id}`, 'true');
-      setHasCompletedWizard(true);
+      const newCount = publishCount + 1;
+      localStorage.setItem(`publish_count_${user.id}`, String(newCount));
+      setPublishCount(newCount);
+      
+      // Show unlock prompts at milestones
+      if (newCount === 1) {
+        setShowUnlockPrompt('advanced');
+      } else if (newCount === 2) {
+        setShowUnlockPrompt('studio');
+      }
     }
+  };
+  
+  // Determine what tiers are unlocked
+  const unlockedTiers = {
+    simple: true, // Always available
+    advanced: publishCount >= 1,
+    studio: publishCount >= 2
   };
   
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
@@ -910,6 +1155,76 @@ export default function TestMembersSandbox() {
   const [landingPage, setLandingPage] = useState<LandingPageConfig>({ ...defaultLandingPage });
   const [videoUrl, setVideoUrl] = useState<string>('');
 
+  // === SIMPLE WIZARD HANDLERS ===
+  const handleSimpleNext = () => {
+    const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
+    if (currentIndex < SIMPLE_WIZARD_STEPS.length - 1) {
+      setSimpleStep(SIMPLE_WIZARD_STEPS[currentIndex + 1].id);
+    }
+  };
+
+  const handleSimpleBack = () => {
+    const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
+    if (currentIndex > 0) {
+      setSimpleStep(SIMPLE_WIZARD_STEPS[currentIndex - 1].id);
+    }
+  };
+
+  const canSimpleProceed = () => {
+    switch (simpleStep) {
+      case 'channel': return selectedChannel !== null;
+      case 'type': return qrType !== '';
+      case 'background': return true; // Background is optional
+      case 'details': return simpleTitle.trim() !== '';
+      case 'publish': return true;
+      default: return false;
+    }
+  };
+
+  const handleSimplePublish = async () => {
+    if (!user?.id || !selectedChannel) return;
+    
+    setIsPublishing(true);
+    try {
+      const authHeaders = await getAuthHeaders();
+      
+      // Create packet for simple wizard (canvas or play)
+      const packetData = {
+        packetType: qrType,
+        title: simpleTitle,
+        description: simpleDescription,
+        channelId: selectedChannel.id,
+        storeId: user.id, // Member store = memberId
+        backgroundUrl: backgroundUrl || null,
+        status: 'published'
+      };
+      
+      const res = await fetch(`/api/members/${user.id}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify(packetData)
+      });
+      
+      if (!res.ok) throw new Error('Failed to publish');
+      
+      incrementPublishCount();
+      setViewMode('channels');
+      
+      // Reset simple wizard state for next use
+      setSimpleStep('channel');
+      setSimpleTitle('');
+      setSimpleDescription('');
+      setQrType('');
+      setBackgroundUrl('');
+    } catch (error) {
+      console.error('Simple publish error:', error);
+      alert('Failed to publish. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // === ADVANCED WIZARD HANDLERS ===
   const handleStepClick = (step: WizardStep) => {
     const stepIndex = WIZARD_STEPS.findIndex(s => s.id === step);
     const currentIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
@@ -940,7 +1255,6 @@ export default function TestMembersSandbox() {
     try {
       const authHeaders = await getAuthHeaders();
       
-      // Create the member product using the pre-selected channel
       const productRes = await fetch(`/api/members/${user.id}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -956,16 +1270,15 @@ export default function TestMembersSandbox() {
           videoUrl: videoUrl || null,
           channelId: selectedChannel.id,
           name: selectedProduct.name,
-          price: 0 // Will be calculated later
+          price: 0
         })
       });
       
       if (!productRes.ok) throw new Error('Failed to create product');
       
       setCompletedSteps(prev => new Set<WizardStep>([...Array.from(prev), 'publish']));
-      markWizardCompleted(); // Unlock Speed Build for next time
-      setShowSpeedBuildPrompt(true); // Show prompt about Speed Build
-      setViewMode('channels'); // Switch to channels view to see the new item
+      incrementPublishCount();
+      setViewMode('channels');
     } catch (error) {
       console.error('Publish error:', error);
       alert('Failed to publish. Please try again.');
@@ -1027,25 +1340,37 @@ export default function TestMembersSandbox() {
             
             <div className="flex gap-2 flex-wrap">
               <Button
-                variant={viewMode === 'wizard' && !powerMode ? 'default' : 'ghost'}
+                variant={viewMode === 'wizard' && wizardTier === 'simple' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => { setViewMode('wizard'); setPowerMode(false); }}
-                data-testid="tab-wizard"
-                className={viewMode === 'wizard' && !powerMode ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                onClick={() => { setViewMode('wizard'); setWizardTier('simple'); }}
+                data-testid="tab-simple"
+                className={viewMode === 'wizard' && wizardTier === 'simple' ? 'bg-green-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
               >
                 <Wand2 className="w-4 h-4 mr-1" />
-                Wizard
+                Quick Create
               </Button>
-              {hasCompletedWizard && (
+              {unlockedTiers.advanced && (
                 <Button
-                  variant={viewMode === 'wizard' && powerMode ? 'default' : 'ghost'}
+                  variant={viewMode === 'wizard' && wizardTier === 'advanced' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => { setViewMode('wizard'); setPowerMode(true); }}
-                  data-testid="tab-power"
-                  className={viewMode === 'wizard' && powerMode ? 'bg-amber-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                  onClick={() => { setViewMode('wizard'); setWizardTier('advanced'); }}
+                  data-testid="tab-advanced"
+                  className={viewMode === 'wizard' && wizardTier === 'advanced' ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                >
+                  <Layers className="w-4 h-4 mr-1" />
+                  Advanced
+                </Button>
+              )}
+              {unlockedTiers.studio && (
+                <Button
+                  variant={viewMode === 'wizard' && wizardTier === 'studio' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => { setViewMode('wizard'); setWizardTier('studio'); }}
+                  data-testid="tab-studio"
+                  className={viewMode === 'wizard' && wizardTier === 'studio' ? 'bg-amber-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
                 >
                   <Zap className="w-4 h-4 mr-1" />
-                  Speed Build
+                  Studio
                 </Button>
               )}
               <Button
@@ -1082,28 +1407,178 @@ export default function TestMembersSandbox() {
           </div>
         </div>
 
-        {showSpeedBuildPrompt && (
-          <div className="glass-card p-4 mb-6 flex items-center justify-between gap-4 border-amber-500/50 bg-amber-900/20">
+        {showUnlockPrompt === 'advanced' && (
+          <div className="glass-card p-4 mb-6 flex items-center justify-between gap-4 border-blue-500/50 bg-blue-900/20">
             <div className="flex items-center gap-3">
-              <Zap className="w-6 h-6 text-amber-400" />
+              <Layers className="w-6 h-6 text-blue-400" />
               <div>
-                <p className="text-white font-medium">Speed Build Unlocked!</p>
-                <p className="text-white/70 text-sm">You've mastered the basics. Use Speed Build next time for faster product creation.</p>
+                <p className="text-white font-medium">Advanced Mode Unlocked!</p>
+                <p className="text-white/70 text-sm">Great job on your first creation! You now have access to Advanced mode with more options.</p>
               </div>
             </div>
             <Button 
               size="sm" 
               variant="ghost" 
-              onClick={() => setShowSpeedBuildPrompt(false)}
+              onClick={() => setShowUnlockPrompt(null)}
               className="text-white/70 hover:text-white"
-              data-testid="dismiss-speed-build-prompt"
+              data-testid="dismiss-unlock-prompt"
             >
               Got it
             </Button>
           </div>
         )}
 
-        {viewMode === 'wizard' && !powerMode && (
+        {showUnlockPrompt === 'studio' && (
+          <div className="glass-card p-4 mb-6 flex items-center justify-between gap-4 border-amber-500/50 bg-amber-900/20">
+            <div className="flex items-center gap-3">
+              <Zap className="w-6 h-6 text-amber-400" />
+              <div>
+                <p className="text-white font-medium">Studio Mode Unlocked!</p>
+                <p className="text-white/70 text-sm">You're a pro now! Studio mode gives you full control with quick publishing.</p>
+              </div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => setShowUnlockPrompt(null)}
+              className="text-white/70 hover:text-white"
+              data-testid="dismiss-unlock-prompt"
+            >
+              Got it
+            </Button>
+          </div>
+        )}
+
+        {/* SIMPLE WIZARD - First-time user experience */}
+        {viewMode === 'wizard' && wizardTier === 'simple' && (
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <SimpleWizardProgressBar currentStep={simpleStep} />
+
+              <div className="min-h-[400px]">
+                {simpleStep === 'channel' && (
+                  <ChannelStep 
+                    selectedChannel={selectedChannel}
+                    onSelect={setSelectedChannel}
+                    memberId={user?.id || ''}
+                    isCreatingChannel={isCreatingChannel}
+                    setIsCreatingChannel={setIsCreatingChannel}
+                    newChannelName={newChannelName}
+                    setNewChannelName={setNewChannelName}
+                  />
+                )}
+                {simpleStep === 'type' && (
+                  <TypePickerStep 
+                    selectedType={qrType}
+                    onSelect={setQrType}
+                  />
+                )}
+                {simpleStep === 'background' && (
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold text-white mb-2">Pick a Background</h2>
+                      <p className="text-slate-400">Choose an image for your creation (optional)</p>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full h-16 text-lg"
+                      onClick={() => setShowBackgroundLibrary(true)}
+                      data-testid="button-simple-background-library"
+                    >
+                      <Library className="w-5 h-5 mr-2" />
+                      Browse Backgrounds
+                    </Button>
+                    
+                    {backgroundUrl && (
+                      <div className="relative max-w-[200px] mx-auto">
+                        <div className="aspect-[9/16] rounded-lg overflow-hidden border-2 border-green-500">
+                          <img src={backgroundUrl} alt="Selected" className="w-full h-full object-cover" />
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="absolute top-2 right-2"
+                          onClick={() => setBackgroundUrl('')}
+                          data-testid="button-simple-clear-background"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {!backgroundUrl && (
+                      <p className="text-center text-slate-500 text-sm">You can skip this step if you prefer</p>
+                    )}
+                    
+                    {showBackgroundLibrary && user?.id && (
+                      <BackgroundLibraryPicker
+                        memberId={user.id}
+                        selectedUrl={backgroundUrl}
+                        onSelect={(url) => {
+                          setBackgroundUrl(url);
+                          setShowBackgroundLibrary(false);
+                        }}
+                        onClose={() => setShowBackgroundLibrary(false)}
+                        assetType="background"
+                      />
+                    )}
+                  </div>
+                )}
+                {simpleStep === 'details' && (
+                  <DetailsStep
+                    title={simpleTitle}
+                    description={simpleDescription}
+                    onTitleChange={setSimpleTitle}
+                    onDescriptionChange={setSimpleDescription}
+                  />
+                )}
+                {simpleStep === 'publish' && (
+                  <SimplePublishStep
+                    isPublishing={isPublishing}
+                    onPublish={handleSimplePublish}
+                    title={simpleTitle}
+                    qrType={qrType}
+                    backgroundUrl={backgroundUrl}
+                  />
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-3 justify-between mt-8 pt-6 border-t border-slate-700">
+                <Button
+                  variant="outline"
+                  onClick={handleSimpleBack}
+                  disabled={simpleStep === 'channel'}
+                  className="flex-1 min-w-[100px] sm:flex-none"
+                  data-testid="button-simple-back"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Back
+                </Button>
+                
+                {simpleStep !== 'publish' && (
+                  <Button
+                    onClick={handleSimpleNext}
+                    disabled={!canSimpleProceed()}
+                    className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
+                      canSimpleProceed() 
+                        ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
+                        : "bg-slate-600"
+                    }`}
+                    data-testid="button-simple-next"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ADVANCED WIZARD - Full 8-step experience (unlocked after 1st publish) */}
+        {viewMode === 'wizard' && wizardTier === 'advanced' && (
           <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="p-6">
               <WizardProgressBar 
@@ -1272,14 +1747,15 @@ export default function TestMembersSandbox() {
           </Card>
         )}
 
-        {viewMode === 'wizard' && powerMode && (
+        {/* STUDIO MODE - Full control quick publish (unlocked after 2nd publish) */}
+        {viewMode === 'wizard' && wizardTier === 'studio' && (
           <div className="space-y-4">
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader className="pb-2">
                 <CardTitle className="text-white text-lg flex items-center gap-2">
-                  <Package className="w-5 h-5 text-blue-400" />
-                  Quick Builder
-                  <Badge className="bg-amber-600 text-white">Power Mode</Badge>
+                  <Zap className="w-5 h-5 text-amber-400" />
+                  Studio Mode
+                  <Badge className="bg-amber-600 text-white">Pro</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1288,8 +1764,8 @@ export default function TestMembersSandbox() {
                     <label className="text-sm font-medium text-slate-300">Product</label>
                     <div 
                       className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:border-blue-500 transition-colors"
-                      onClick={() => { setCurrentStep('product'); setPowerMode(false); }}
-                      data-testid="power-select-product"
+                      onClick={() => { setCurrentStep('product'); setWizardTier('advanced'); }}
+                      data-testid="studio-select-product"
                     >
                       {selectedProduct ? (
                         <div className="flex items-center gap-3">
@@ -1305,19 +1781,19 @@ export default function TestMembersSandbox() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">QR Type</label>
+                    <label className="text-sm font-medium text-slate-300">Channel</label>
                     <div 
                       className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:border-blue-500 transition-colors"
-                      onClick={() => { setPowerMode(false); }}
-                      data-testid="power-select-qr-type"
+                      onClick={() => { setCurrentStep('channel'); setWizardTier('advanced'); }}
+                      data-testid="studio-select-channel"
                     >
-                      {qrType ? (
+                      {selectedChannel ? (
                         <div className="flex items-center gap-3">
-                          <QrCode className="w-5 h-5 text-blue-400" />
-                          <span className="text-white text-sm">{QR_TYPES.find(t => t.id === qrType)?.label || qrType}</span>
+                          <Layers className="w-5 h-5 text-blue-400" />
+                          <span className="text-white text-sm">{selectedChannel.name}</span>
                         </div>
                       ) : (
-                        <span className="text-slate-400 text-sm">Click to select QR type...</span>
+                        <span className="text-slate-400 text-sm">Click to select channel...</span>
                       )}
                     </div>
                   </div>
