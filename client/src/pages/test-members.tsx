@@ -38,7 +38,11 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
 import SEO from "@/components/SEO";
-import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
+import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
+import { PlacementPicker, type PlacementSize } from "@/features/shared/components/PlacementPicker";
+import { HeaderFooterEditor } from "@/features/shared/components/HeaderFooterEditor";
+import { BackgroundPicker } from "@/features/shared/components/BackgroundPicker";
+import { LandingPageEditor, type LandingPageConfig, defaultLandingPage } from "@/features/shared/components/LandingPageEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 import { SkinGridViewer, type SkinItem, type SkinActions } from "@/features/shared/components/SkinGridViewer";
 import { AllowedProductCardSkin, AllowedProductDetailSkin } from "@/features/shared/components/skins/AllowedProductSkin";
@@ -74,15 +78,16 @@ interface GraphicSet {
   imageCount: number;
 }
 
-type WizardStep = 'channel' | 'product' | 'placement' | 'qr-type' | 'customize' | 'preview' | 'publish';
+type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Pick Item', icon: Package },
   { id: 'placement', label: 'Location', icon: MapPin },
-  { id: 'qr-type', label: 'QR Type', icon: QrCode },
-  { id: 'customize', label: 'Customize', icon: Sparkles },
+  { id: 'header-footer', label: 'Header & Footer', icon: Type },
+  { id: 'background', label: 'Background', icon: ImagePlus },
+  { id: 'landing-page', label: 'Landing Page', icon: Link2 },
   { id: 'preview', label: 'Preview', icon: Eye },
   { id: 'publish', label: 'Publish', icon: Send },
 ];
@@ -449,200 +454,10 @@ function ProductPickerStep({
   );
 }
 
-type PlacementSize = 'small' | 'medium' | 'large';
+// QRTypeStep and CustomizeStep removed - replaced by shared components:
+// HeaderFooterEditor, BackgroundPicker, LandingPageEditor
 
-const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
-  { value: "small", label: "S" },
-  { value: "medium", label: "M" },
-  { value: "large", label: "L" },
-];
-
-function PlacementStep({
-  product,
-  selectedPlacement,
-  onSelect,
-  placementSize,
-  onSizeChange
-}: {
-  product: ProductItem | null;
-  selectedPlacement: string;
-  onSelect: (placementId: string) => void;
-  placementSize: PlacementSize;
-  onSizeChange: (size: PlacementSize) => void;
-}) {
-  const placements = product?.placements || [];
-  
-  if (!product) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-slate-400">Please select a product first</p>
-      </div>
-    );
-  }
-  
-  if (placements.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">Pick Location</h2>
-          <p className="text-slate-400">Where do you want your design?</p>
-        </div>
-        <div className="text-center py-8 text-amber-400">
-          <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No placement options available for this product</p>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Pick Location</h2>
-        <p className="text-slate-400">Where do you want your design on the {product.title}?</p>
-      </div>
-      
-      <div className="space-y-3">
-        {placements.map((placement) => {
-          const isSelected = selectedPlacement === placement.id;
-          return (
-            <div key={placement.id} className="space-y-2">
-              <button
-                type="button"
-                onClick={() => onSelect(placement.id)}
-                className={`
-                  w-full relative flex items-center justify-between gap-2 
-                  min-h-[48px] px-4 py-3 rounded-lg border-2 
-                  text-sm font-medium transition-all
-                  ${isSelected 
-                    ? "border-primary bg-primary/10 text-primary" 
-                    : "border-slate-600 bg-slate-800/50 hover:border-primary/50 hover:bg-slate-700/50 text-white"
-                  }
-                `}
-                data-testid={`button-placement-${placement.id}`}
-              >
-                <div className="flex items-center gap-2">
-                  {isSelected && <Check className="h-4 w-4 flex-shrink-0" />}
-                  <span>{placement.title}</span>
-                </div>
-                {isSelected && (
-                  <span className="text-xs px-2 py-1 rounded bg-primary/20 font-bold">
-                    {placementSize.toUpperCase()}
-                  </span>
-                )}
-              </button>
-              
-              {isSelected && (
-                <div className="ml-4 flex items-center gap-2">
-                  <span className="text-xs text-slate-400">Size:</span>
-                  <div className="flex gap-1">
-                    {SIZE_OPTIONS.map((size) => (
-                      <Button
-                        key={size.value}
-                        type="button"
-                        variant={placementSize === size.value ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => onSizeChange(size.value)}
-                        className="w-10 h-8 px-0"
-                        data-testid={`placement-size-${size.value}`}
-                      >
-                        {size.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      
-      {selectedPlacement && (
-        <div className="p-3 bg-primary/5 rounded-md border border-slate-600">
-          <p className="text-sm font-medium text-white">
-            Selected: {placements.find(p => p.id === selectedPlacement)?.title || selectedPlacement}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            Size: {placementSize.charAt(0).toUpperCase() + placementSize.slice(1)}
-          </p>
-        </div>
-      )}
-      
-      {!selectedPlacement && (
-        <p className="text-sm text-amber-400 text-center">
-          Please select a placement location to continue.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function QRTypeStep({ 
-  qrType, 
-  onSelect 
-}: { 
-  qrType: QRType;
-  onSelect: (type: QRType) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Pick Your Poison</h2>
-        <p className="text-slate-400">What kind of QR experience do you want?</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {QR_TYPES.map((type) => {
-          const Icon = type.icon;
-          const isSelected = qrType === type.id;
-          const colorClasses = {
-            slate: 'border-slate-500 bg-slate-600/20',
-            blue: 'border-blue-500 bg-blue-600/20',
-            purple: 'border-purple-500 bg-purple-600/20',
-            rose: 'border-rose-500 bg-rose-600/20',
-          };
-          const iconColors = {
-            slate: 'text-slate-400',
-            blue: 'text-blue-400',
-            purple: 'text-purple-400',
-            rose: 'text-rose-400',
-          };
-          
-          return (
-            <button
-              key={type.id}
-              onClick={() => onSelect(type.id)}
-              className={`p-6 rounded-xl border-2 text-left transition-all ${
-                isSelected
-                  ? colorClasses[type.color as keyof typeof colorClasses]
-                  : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-              }`}
-              data-testid={`qr-type-${type.id}`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg ${isSelected ? 'bg-white/10' : 'bg-slate-700'}`}>
-                  <Icon className={`w-6 h-6 ${isSelected ? iconColors[type.color as keyof typeof iconColors] : 'text-slate-400'}`} />
-                </div>
-                <span className="text-lg font-semibold text-white">{type.label}</span>
-              </div>
-              <p className="text-sm text-slate-400 ml-12">{type.description}</p>
-              {isSelected && (
-                <div className="mt-3 ml-12">
-                  <Badge className="bg-green-600/20 text-green-400 border-green-500/30">
-                    <Check className="w-3 h-3 mr-1" />
-                    Selected
-                  </Badge>
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function CustomizeStep({ 
+function LegacyCustomizeStep({ 
   qrType,
   qrDestination,
   onDestinationChange,
@@ -1342,15 +1157,14 @@ export default function TestMembersSandbox() {
   const [selectedPlacement, setSelectedPlacement] = useState<string>('');
   const [placementSize, setPlacementSize] = useState<PlacementSize>('medium');
   const [qrType, setQrType] = useState<QRType>('');
-  const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
   const [isPublishing, setIsPublishing] = useState(false);
   
-  // Customize step state
+  // Step state - shared components
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [backgroundUrl, setBackgroundUrl] = useState<string>('');
-  const [backgroundText, setBackgroundText] = useState<TextStyleConfig>({ ...defaultTextStyle });
+  const [landingPage, setLandingPage] = useState<LandingPageConfig>({ ...defaultLandingPage });
   const [videoUrl, setVideoUrl] = useState<string>('');
 
   const handleStepClick = (step: WizardStep) => {
@@ -1422,10 +1236,11 @@ export default function TestMembersSandbox() {
       case 'channel': return selectedChannel !== null;
       case 'product': return selectedProduct !== null;
       case 'placement': return selectedPlacement !== '';
-      case 'qr-type': return qrType !== '';
-      case 'customize': return true; // Will add validation per type
+      case 'header-footer': return true;
+      case 'background': return true;
+      case 'landing-page': return true;
       case 'preview': return true;
-      case 'publish': return true; // Channel already selected
+      case 'publish': return true;
       default: return false;
     }
   };
@@ -1572,37 +1387,35 @@ export default function TestMembersSandbox() {
                     onSelect={setSelectedProduct}
                   />
                 )}
-                {currentStep === 'placement' && (
-                  <PlacementStep
-                    product={selectedProduct}
+                {currentStep === 'placement' && selectedProduct && (
+                  <PlacementPicker
+                    placements={selectedProduct.placements || []}
                     selectedPlacement={selectedPlacement}
                     onSelect={setSelectedPlacement}
                     placementSize={placementSize}
                     onSizeChange={setPlacementSize}
+                    productTitle={selectedProduct.name}
                   />
                 )}
-                {currentStep === 'qr-type' && (
-                  <QRTypeStep 
-                    qrType={qrType}
-                    onSelect={setQrType}
-                  />
-                )}
-                {currentStep === 'customize' && (
-                  <CustomizeStep 
-                    qrType={qrType}
-                    qrDestination={qrDestination}
-                    onDestinationChange={setQrDestination}
+                {currentStep === 'header-footer' && (
+                  <HeaderFooterEditor
                     headerStyle={headerStyle}
-                    onHeaderStyleChange={setHeaderStyle}
+                    onHeaderChange={(updates) => setHeaderStyle(prev => ({ ...prev, ...updates }))}
                     footerStyle={footerStyle}
-                    onFooterStyleChange={setFooterStyle}
+                    onFooterChange={(updates) => setFooterStyle(prev => ({ ...prev, ...updates }))}
+                  />
+                )}
+                {currentStep === 'background' && (
+                  <BackgroundPicker
                     backgroundUrl={backgroundUrl}
                     onBackgroundChange={setBackgroundUrl}
-                    backgroundText={backgroundText}
-                    onBackgroundTextChange={setBackgroundText}
-                    videoUrl={videoUrl}
-                    onVideoUrlChange={setVideoUrl}
-                    memberId={user?.id || ''}
+                    memberId={user?.id}
+                  />
+                )}
+                {currentStep === 'landing-page' && (
+                  <LandingPageEditor
+                    value={landingPage}
+                    onChange={setLandingPage}
                   />
                 )}
                 {currentStep === 'preview' && (
