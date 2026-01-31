@@ -73,7 +73,7 @@ interface GraphicSet {
   imageCount: number;
 }
 
-type WizardStep = 'channel' | 'product' | 'qr-type' | 'customize' | 'background' | 'preview' | 'publish';
+type WizardStep = 'channel' | 'product' | 'qr-type' | 'customize' | 'preview' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
@@ -81,7 +81,6 @@ const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
   { id: 'product', label: 'Pick Item', icon: Package },
   { id: 'qr-type', label: 'QR Type', icon: QrCode },
   { id: 'customize', label: 'Customize', icon: Sparkles },
-  { id: 'background', label: 'Background', icon: ImagePlus },
   { id: 'preview', label: 'Preview', icon: Eye },
   { id: 'publish', label: 'Publish', icon: Send },
 ];
@@ -392,7 +391,7 @@ function ProductPickerStep({
     id: String(p.blueprintId),
     imageUrl: p.imageUrl || "",
     title: p.title,
-    subtitle: p.brand,
+    subtitle: p.brand || undefined,
     minPrice: p.retailPrice ? String(p.retailPrice) : null,
     maxPrice: p.retailPrice ? String(p.retailPrice) : null,
     colorCount: 0,
@@ -583,33 +582,11 @@ function CustomizeStep({
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white mb-2">Customize Your QR</h2>
         <p className="text-slate-400">
-          {qrType === 'qr-basic' && 'Enter your destination URL'}
+          {qrType === 'qr-basic' && 'Set up your landing page destination'}
           {qrType === 'qr-plus' && 'Add text styling to your landing page'}
           {qrType === 'qr-canvas' && 'Design your image landing page'}
           {qrType === 'qr-play' && 'Set up your video landing page'}
         </p>
-      </div>
-
-      {/* URL Module - All types need a destination */}
-      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-        <div className="flex items-center gap-2 mb-3">
-          <Link2 className="w-5 h-5 text-blue-400" />
-          <span className="font-medium text-white">Destination URL</span>
-        </div>
-        <input
-          type="url"
-          value={qrDestination}
-          onChange={(e) => onDestinationChange(e.target.value)}
-          placeholder="https://example.com"
-          className="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-          data-testid="input-qr-destination"
-        />
-        {qrType !== 'qr-basic' && (
-          <p className="text-xs text-slate-500 mt-2">
-            For {qrType === 'qr-canvas' ? 'Canvas' : qrType === 'qr-play' ? 'Play' : 'Plus'}, 
-            this will be generated after you design your content
-          </p>
-        )}
       </div>
 
       {/* Header/Footer Module - Plus, Canvas, Play */}
@@ -665,7 +642,7 @@ function CustomizeStep({
         <div className="bg-slate-800/50 rounded-xl p-4 border border-purple-500/30">
           <div className="flex items-center gap-2 mb-4">
             <ImagePlus className="w-5 h-5 text-purple-400" />
-            <span className="font-medium text-white">Background Image</span>
+            <span className="font-medium text-white">Background</span>
           </div>
           
           <div className="grid grid-cols-2 gap-3 mb-4">
@@ -674,7 +651,7 @@ function CustomizeStep({
               onClick={() => setShowBackgroundLibrary(true)}
               data-testid="button-upload-background"
             >
-              <Upload className="w-8 h-8 text-slate-400" />
+              <Upload className="w-8 h-8 text-purple-400" />
               <span className="text-sm text-slate-400">Upload Image</span>
             </button>
             <button
@@ -682,13 +659,13 @@ function CustomizeStep({
               onClick={() => setShowBackgroundLibrary(true)}
               data-testid="button-library-background"
             >
-              <Layers className="w-8 h-8 text-slate-400" />
+              <Layers className="w-8 h-8 text-purple-400" />
               <span className="text-sm text-slate-400">From Library</span>
             </button>
           </div>
           
           {backgroundUrl && (
-            <div className="relative aspect-[9/16] bg-slate-900 rounded-lg overflow-hidden">
+            <div className="relative aspect-[9/16] max-w-xs mx-auto bg-slate-900 rounded-lg overflow-hidden mb-4">
               <img src={backgroundUrl} alt="Background" className="w-full h-full object-cover" />
               <button 
                 className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80"
@@ -700,32 +677,63 @@ function CustomizeStep({
             </div>
           )}
           
-          <div className="mt-4">
-            <TextStyleEditor
-              label="Background Text"
-              sublabel="Text overlay on your background"
-              maxLength={100}
-              style={backgroundText}
-              onChange={(updates) => onBackgroundTextChange({ ...backgroundText, ...updates })}
-              testIdPrefix="bg-text"
-              showPositionControls={true}
-              previewBackgroundColor="#1a1a2e"
-            />
-          </div>
+          <TextStyleEditor
+            label="Title & Description"
+            sublabel="Text overlay on your background"
+            maxLength={100}
+            style={backgroundText}
+            onChange={(updates) => onBackgroundTextChange({ ...backgroundText, ...updates })}
+            testIdPrefix="bg-text"
+            showPositionControls={true}
+            previewBackgroundColor="#1a1a2e"
+          />
         </div>
       )}
-
+      
       {showBackgroundLibrary && memberId && (
         <BackgroundLibraryPicker
           memberId={memberId}
           selectedUrl={backgroundUrl}
           onSelect={(url) => {
             onBackgroundChange(url);
+            setShowBackgroundLibrary(false);
           }}
           onClose={() => setShowBackgroundLibrary(false)}
           assetType="background"
         />
       )}
+
+      {/* Landing Page Module */}
+      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+        <div className="flex items-center gap-2 mb-3">
+          <Link2 className="w-5 h-5 text-blue-400" />
+          <span className="font-medium text-white">Landing Page</span>
+        </div>
+        
+        {/* URL input - only for Basic type */}
+        {qrType === 'qr-basic' && (
+          <>
+            <input
+              type="url"
+              value={qrDestination}
+              onChange={(e) => onDestinationChange(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+              data-testid="input-qr-destination"
+            />
+            <p className="text-xs text-slate-500 mt-2">
+              Where your QR code will take people when scanned
+            </p>
+          </>
+        )}
+        
+        {/* Info text for non-basic types */}
+        {qrType !== 'qr-basic' && (
+          <p className="text-xs text-slate-500">
+            Your landing page will be generated automatically when you publish
+          </p>
+        )}
+      </div>
 
       {/* Video Module - Play only */}
       {showVideo && (
