@@ -20,7 +20,7 @@ export function AllowedProductCardSkin({
       }`}
       data-testid={`product-card-${item.id}`}
     >
-      <div className="aspect-square bg-slate-700 flex items-center justify-center overflow-hidden">
+      <div className="relative aspect-square bg-slate-700 flex items-center justify-center overflow-hidden">
         {item.primaryImage ? (
           <img 
             src={item.primaryImage} 
@@ -30,17 +30,20 @@ export function AllowedProductCardSkin({
         ) : (
           <Package className="w-12 h-12 text-slate-500" />
         )}
+        {/* Earnings badge at bottom of image */}
+        {earnings > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
+            <div className="flex items-center gap-1">
+              <DollarSign className="w-4 h-4 text-green-400" />
+              <span className="text-sm text-green-400 font-bold">
+                You earn ${earnings.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
       <div className="p-3 bg-slate-800">
         <p className="text-sm text-white truncate">{item.name}</p>
-        {earnings > 0 && (
-          <div className="flex items-center gap-1 mt-1">
-            <DollarSign className="w-3 h-3 text-green-400" />
-            <span className="text-xs text-green-400 font-medium">
-              You earn ${earnings.toFixed(2)}
-            </span>
-          </div>
-        )}
       </div>
       {isSelected && (
         <div className="absolute top-2 right-2 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">

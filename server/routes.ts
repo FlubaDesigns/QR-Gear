@@ -9109,7 +9109,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Get allowed products for members (single global library)
-  // Products are pre-enriched with pricing packets at save time - no Printify calls needed
+  // Fetches baseCost from provider data if missing, then calculates earnings dynamically
   app.get("/api/members/allowed-products", async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("./lib/firebase-admin");
@@ -9132,9 +9132,24 @@ ${allPages.map(page => `  <url>
       const markupPercent = pricingSettings?.markupPercent ?? 25;
       const markupFixed = pricingSettings?.markupFixed ?? 0;
       
-      // Enrich products with current earnings calculation
-      const products = storedProducts.map((p: any) => {
-        const baseCost = p.baseCost || 0;
+      // Enrich products with current earnings calculation - fetch baseCost if missing
+      const products = await Promise.all(storedProducts.map(async (p: any) => {
+        let baseCost = p.baseCost || 0;
+        
+        // If baseCost is 0, look it up from provider data
+        if (baseCost === 0 && p.blueprintId) {
+          try {
+            const providers = await storage.getPrintifyPrintProviders(p.blueprintId);
+            const usaProviders = providers.filter((prov: any) => prov.isUSA);
+            const selectedProvider = usaProviders[0] || providers[0];
+            if (selectedProvider?.minCost) {
+              baseCost = selectedProvider.minCost / 100; // Convert cents to dollars
+            }
+          } catch (e) {
+            // Fallback: keep baseCost as 0
+          }
+        }
+        
         // Recalculate retail price and earnings based on current settings
         const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
         const profit = retailPrice - baseCost;
@@ -9142,11 +9157,12 @@ ${allPages.map(page => `  <url>
         
         return {
           ...p,
+          baseCost,
           retailPrice,
           profit,
           memberEarnings,
         };
-      });
+      }));
       
       console.log(`[Member Sandbox] Found ${products.length} products, earnings @ ${memberProfitShare * 100}% share`);
       
