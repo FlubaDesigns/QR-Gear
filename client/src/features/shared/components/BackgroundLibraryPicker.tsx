@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Upload, Library, User, Check, X, Image as ImageIcon } from "lucide-react";
+import { Loader2, Upload, Library, User, Check, X, Image as ImageIcon, Crop } from "lucide-react";
 import { auth } from "@/lib/firebase";
+import { CropUtility } from "./utilities/CropUtility";
 
 interface LibraryAsset {
   id: number;
@@ -44,6 +44,7 @@ export function BackgroundLibraryPicker({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'common' | 'personal'>('common');
   const [uploading, setUploading] = useState(false);
+  const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
 
   const { data: commonAssets, isLoading: loadingCommon } = useQuery({
     queryKey: ['/api/members/common-library', assetType],
@@ -121,7 +122,12 @@ export function BackgroundLibraryPicker({
   };
 
   const handleSelect = (asset: LibraryAsset) => {
-    onSelect(asset.publicUrl);
+    setCropImageUrl(asset.publicUrl);
+  };
+
+  const handleCropComplete = (croppedUrl: string) => {
+    onSelect(croppedUrl);
+    setCropImageUrl(null);
   };
 
   const renderAssetGrid = (assets: LibraryAsset[] | undefined, loading: boolean, emptyMessage: string) => {
@@ -240,11 +246,14 @@ export function BackgroundLibraryPicker({
             <X className="w-4 h-4 mr-2" />
             Cancel
           </Button>
-          <Button onClick={onClose} data-testid="button-confirm-library">
-            <Check className="w-4 h-4 mr-2" />
-            Done
-          </Button>
         </div>
+
+        <CropUtility
+          asset={cropImageUrl ? { id: 'crop', name: 'Background', imageUrl: cropImageUrl } : null}
+          open={!!cropImageUrl}
+          onOpenChange={(open) => !open && setCropImageUrl(null)}
+          onCropComplete={handleCropComplete}
+        />
       </DialogContent>
     </Dialog>
   );
