@@ -9167,12 +9167,13 @@ ${allPages.map(page => `  <url>
         }
         
         // If no placements stored, use common defaults for apparel products
+        // Match naming from adminProducts/builder/types.ts
         if (placements.length === 0) {
           placements = [
-            { id: 'front', title: 'Front' },
+            { id: 'front-chest', title: 'Front Chest' },
             { id: 'back', title: 'Back' },
-            { id: 'left_sleeve', title: 'Left Sleeve' },
-            { id: 'right_sleeve', title: 'Right Sleeve' },
+            { id: 'left-shoulder', title: 'Left Shoulder (QR Only)' },
+            { id: 'right-shoulder', title: 'Right Shoulder (QR Only)' },
           ];
         }
         

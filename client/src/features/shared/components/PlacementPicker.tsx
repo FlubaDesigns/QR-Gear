@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 export type PlacementSize = 'small' | 'medium' | 'large';
 export type PlacementType = 'qr' | 'graphic';
 
+// Match exactly with adminProducts/builder/types.ts
+export const QR_ONLY_PLACEMENTS = ["left-shoulder", "right-shoulder"];
+
 export interface Placement {
   id: string;
   title: string;
@@ -39,7 +42,7 @@ export function PlacementPicker({
   placementType = 'qr',
   onTypeChange,
   showTypeToggle = true,
-  qrOnlyPlacements = ['left-shoulder', 'right-shoulder', 'left_sleeve', 'right_sleeve', 'sleeve_left', 'sleeve_right'],
+  qrOnlyPlacements = QR_ONLY_PLACEMENTS,
   productTitle,
   title = "Pick Location",
   subtitle,
