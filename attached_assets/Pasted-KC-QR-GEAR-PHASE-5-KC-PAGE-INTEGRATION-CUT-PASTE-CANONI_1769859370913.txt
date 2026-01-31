@@ -1,0 +1,126 @@
+KC ↔ QR GEAR — PHASE 5: KC PAGE INTEGRATION (CUT & PASTE CANONICAL)
+=================================================================
+PURPOSE:
+Make QR Gear items appear automatically on KC-generated pages
+(business, church, member) using the widget + token minting.
+This is the first FULL VISIBLE PAYOFF.
+
+-----------------------------------------------------------------
+PREREQUISITES (ALREADY DONE)
+-----------------------------------------------------------------
+- POST /api/widget/token exists in QR Gear
+- Widget accepts ?token=... and calls /api/widget/session
+- /api/widget/session returns channel items
+- Widget UI renders Top-3 items cleanly
+
+-----------------------------------------------------------------
+TARGET PAGES (KC)
+-----------------------------------------------------------------
+1) Business profile page
+2) Church profile page
+3) Member profile page
+
+(Implement ONE first — business — then copy the pattern.)
+
+-----------------------------------------------------------------
+STEP 1 — ADD WIDGET CONTAINER TO KC TEMPLATE
+-----------------------------------------------------------------
+In the KC profile HTML template:
+
+<div id="qrgear-widget-container"></div>
+
+PLACEMENT RULE:
+- Below hero/contact section
+- Above reviews/events/announcements
+This is the engagement zone.
+
+-----------------------------------------------------------------
+STEP 2 — KC REQUESTS WIDGET TOKEN (SERVER-SIDE)
+-----------------------------------------------------------------
+On page render, KC already knows:
+- entityType ("business" | "church" | "member")
+- entityId   (KC document id)
+
+KC calls QR Gear:
+
+POST https://QRGEAR_DOMAIN.com/api/widget/token
+
+Headers:
+- KC service auth (API key / service token you already use)
+
+Body:
+{
+  "entityType": "business" | "church" | "member",
+  "entityId":   "<KC_ENTITY_ID>",
+  "placement": "profile",
+  "mode":       "public"
+}
+
+Response:
+{
+  "ok": true,
+  "token": "<WIDGET_JWT>",
+  "storeId": "kingdom_connects",
+  "channelId": "business_abc123"
+}
+
+-----------------------------------------------------------------
+STEP 3 — INJECT IFRAME INTO THE PAGE
+-----------------------------------------------------------------
+KC injects the widget iframe into the container:
+
+<iframe
+  src="https://QRGEAR_DOMAIN.com/widget?token=WIDGET_JWT"
+  width="100%"
+  height="720"
+  frameborder="0"
+  scrolling="no"
+  loading="lazy"
+  allow="clipboard-read; clipboard-write"
+></iframe>
+
+IMPORTANT:
+- KC NEVER signs JWTs
+- KC NEVER passes channelId manually
+- JWT is the single source of truth
+
+-----------------------------------------------------------------
+STEP 4 — EMPTY STATE HANDLING
+-----------------------------------------------------------------
+OPTION A (simplest):
+- Widget self-hides if items.length === 0
+
+OPTION B (later optimization):
+- /api/widget/token or /api/widget/session returns hasItems flag
+- KC hides container if hasItems === false
+
+DO NOT block page render.
+
+-----------------------------------------------------------------
+SECURITY RULES (NON-NEGOTIABLE)
+-----------------------------------------------------------------
+- Widget token TTL is short-lived (≈10 min)
+- storeId/channelId come ONLY from verified JWT
+- Public mode is read-only
+- No KC page hardcodes product data
+
+-----------------------------------------------------------------
+DONE CHECK (PHASE 5 COMPLETE)
+-----------------------------------------------------------------
+You are DONE when:
+1) A KC business page loads
+2) Widget appears automatically
+3) It shows ONLY that entity’s channel items
+4) Another business page shows DIFFERENT items
+5) No KC code knows anything about products
+
+-----------------------------------------------------------------
+WHAT THIS UNLOCKS NEXT
+-----------------------------------------------------------------
+PHASE 6:
+- Embed the SAME widget (mode="admin") into KC ADMIN pages
+- Lock wizard context to that entity’s channel
+- Entity admins create items → instantly visible publicly
+
+THIS IS THE MOMENT THE PLATFORM BECOMES REAL.
+=================================================================
