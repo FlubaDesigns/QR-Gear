@@ -28,7 +28,8 @@ import {
   Type,
   ImagePlus,
   Play,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
@@ -37,6 +38,7 @@ import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/featu
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 import { SkinGridViewer, type SkinItem, type SkinActions } from "@/features/shared/components/SkinGridViewer";
 import { AllowedProductCardSkin, AllowedProductDetailSkin } from "@/features/shared/components/skins/AllowedProductSkin";
+import { BackgroundLibraryPicker } from "@/features/shared/components/BackgroundLibraryPicker";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const token = await auth.currentUser?.getIdToken();
@@ -326,7 +328,8 @@ function CustomizeStep({
   backgroundText,
   onBackgroundTextChange,
   videoUrl,
-  onVideoUrlChange
+  onVideoUrlChange,
+  memberId
 }: { 
   qrType: QRType;
   qrDestination: string;
@@ -341,7 +344,10 @@ function CustomizeStep({
   onBackgroundTextChange: (style: TextStyleConfig) => void;
   videoUrl: string;
   onVideoUrlChange: (url: string) => void;
+  memberId: string;
 }) {
+  const [showBackgroundLibrary, setShowBackgroundLibrary] = useState(false);
+  const [showVideoLibrary, setShowVideoLibrary] = useState(false);
   const showHeaderFooter = qrType === 'qr-plus' || qrType === 'qr-canvas' || qrType === 'qr-play';
   const showBackground = qrType === 'qr-canvas';
   const showVideo = qrType === 'qr-play';
@@ -439,6 +445,7 @@ function CustomizeStep({
           <div className="grid grid-cols-2 gap-3 mb-4">
             <button
               className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-purple-500 transition-colors flex flex-col items-center justify-center gap-2"
+              onClick={() => setShowBackgroundLibrary(true)}
               data-testid="button-upload-background"
             >
               <Upload className="w-8 h-8 text-slate-400" />
@@ -446,6 +453,7 @@ function CustomizeStep({
             </button>
             <button
               className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-purple-500 transition-colors flex flex-col items-center justify-center gap-2"
+              onClick={() => setShowBackgroundLibrary(true)}
               data-testid="button-library-background"
             >
               <Layers className="w-8 h-8 text-slate-400" />
@@ -456,6 +464,13 @@ function CustomizeStep({
           {backgroundUrl && (
             <div className="relative aspect-[9/16] bg-slate-900 rounded-lg overflow-hidden">
               <img src={backgroundUrl} alt="Background" className="w-full h-full object-cover" />
+              <button 
+                className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80"
+                onClick={() => onBackgroundChange('')}
+                data-testid="button-clear-background"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
             </div>
           )}
           
@@ -472,6 +487,18 @@ function CustomizeStep({
             />
           </div>
         </div>
+      )}
+
+      {showBackgroundLibrary && memberId && (
+        <BackgroundLibraryPicker
+          memberId={memberId}
+          selectedUrl={backgroundUrl}
+          onSelect={(url) => {
+            onBackgroundChange(url);
+          }}
+          onClose={() => setShowBackgroundLibrary(false)}
+          assetType="background"
+        />
       )}
 
       {/* Video Module - Play only */}
@@ -1215,6 +1242,7 @@ export default function TestMembersSandbox() {
                     onBackgroundTextChange={setBackgroundText}
                     videoUrl={videoUrl}
                     onVideoUrlChange={setVideoUrl}
+                    memberId={user?.id || ''}
                   />
                 )}
                 {currentStep === 'preview' && (

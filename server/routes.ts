@@ -9057,93 +9057,89 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // ============== MEMBER LIBRARY SYSTEM ==============
+  // ============== MEMBER LIBRARY SYSTEM (Firestore-based) ==============
   
-  // Get Common Library (admin-curated assets available to all members)
+  // Get Common Library (admin-curated assets available to all members) - from Firestore
   app.get("/api/members/common-library", async (req: any, res) => {
     try {
       const { assetType = 'background' } = req.query;
-      const { libraryAssets } = await import("@shared/schema");
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
       
-      const assets = await db.select()
-        .from(libraryAssets)
-        .where(and(
-          eq(libraryAssets.ownerType, 'admin'),
-          eq(libraryAssets.isActive, true),
-          assetType ? eq(libraryAssets.assetType, assetType as string) : undefined
-        ))
-        .orderBy(desc(libraryAssets.createdAt));
+      let query = firestoreDb.collection('commonLibrary')
+        .where('isActive', '==', true);
       
-      // Add proxy URLs for serving
-      const assetsWithUrls = assets.map(a => {
-        const filename = (a.storageUrl || '').split('/').pop() || '';
+      if (assetType) {
+        query = query.where('assetType', '==', assetType);
+      }
+      
+      const snapshot = await query.orderBy('createdAt', 'desc').get();
+      
+      const assets = snapshot.docs.map(doc => {
+        const data = doc.data();
         return {
-          id: a.id,
-          name: a.name,
-          assetType: a.assetType,
-          mediaType: a.mediaType,
-          thumbnailUrl: a.thumbnailUrl || a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
-          publicUrl: a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
-          width: a.width,
-          height: a.height,
-          category: a.category,
+          id: doc.id,
+          name: data.name,
+          assetType: data.assetType,
+          mediaType: data.mediaType || 'image',
+          thumbnailUrl: data.thumbnailUrl || data.publicUrl,
+          publicUrl: data.publicUrl,
+          width: data.width,
+          height: data.height,
+          category: data.category,
         };
       });
       
-      console.log(`[Member Common Library] Found ${assetsWithUrls.length} ${assetType} assets`);
-      res.json({ assets: assetsWithUrls });
+      console.log(`[Member Common Library] Found ${assets.length} ${assetType} assets`);
+      res.json({ assets });
     } catch (error: any) {
       console.error("[Member Common Library] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Get Member's Personal Library
+  // Get Member's Personal Library - from Firestore
   app.get("/api/members/:memberId/library", async (req: any, res) => {
     try {
       const { memberId } = req.params;
       const { assetType } = req.query;
-      const { libraryAssets } = await import("@shared/schema");
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
       
-      const conditions = [
-        eq(libraryAssets.ownerType, 'user'),
-        eq(libraryAssets.userId, memberId),
-        eq(libraryAssets.isActive, true),
-      ];
+      let query = firestoreDb.collection('memberLibrary')
+        .where('memberId', '==', memberId)
+        .where('isActive', '==', true);
       
       if (assetType) {
-        conditions.push(eq(libraryAssets.assetType, assetType as string));
+        query = query.where('assetType', '==', assetType);
       }
       
-      const assets = await db.select()
-        .from(libraryAssets)
-        .where(and(...conditions))
-        .orderBy(desc(libraryAssets.createdAt));
+      const snapshot = await query.orderBy('createdAt', 'desc').get();
       
-      const assetsWithUrls = assets.map(a => {
-        const filename = (a.storageUrl || '').split('/').pop() || '';
+      const assets = snapshot.docs.map(doc => {
+        const data = doc.data();
         return {
-          id: a.id,
-          name: a.name,
-          assetType: a.assetType,
-          mediaType: a.mediaType,
-          thumbnailUrl: a.thumbnailUrl || a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
-          publicUrl: a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
-          width: a.width,
-          height: a.height,
-          sourceAssetId: a.sourceAssetId,
+          id: doc.id,
+          name: data.name,
+          assetType: data.assetType,
+          mediaType: data.mediaType || 'image',
+          thumbnailUrl: data.thumbnailUrl || data.publicUrl,
+          publicUrl: data.publicUrl,
+          width: data.width,
+          height: data.height,
+          sourceAssetId: data.sourceAssetId,
         };
       });
       
-      console.log(`[Member Personal Library] Found ${assetsWithUrls.length} assets for member ${memberId}`);
-      res.json({ assets: assetsWithUrls });
+      console.log(`[Member Personal Library] Found ${assets.length} assets for member ${memberId}`);
+      res.json({ assets });
     } catch (error: any) {
       console.error("[Member Personal Library] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Upload to Member's Personal Library
+  // Upload to Member's Personal Library - saves to Firestore
   app.post("/api/members/:memberId/library/upload", async (req: any, res) => {
     try {
       const { memberId } = req.params;
@@ -9176,32 +9172,35 @@ ${allPages.map(page => `  <url>
       
       const proxyUrl = `/api/member-files/${memberId}/${encodeURIComponent(sanitizedName)}`;
       
-      const { libraryAssets } = await import("@shared/schema");
-      const [asset] = await db.insert(libraryAssets).values({
-        userId: memberId,
-        ownerType: 'user',
-        assetType: assetType,
-        mediaType: mediaType,
+      // Save metadata to Firestore
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const assetDoc = await firestoreDb.collection('memberLibrary').add({
+        memberId,
+        assetType,
+        mediaType,
         name: displayName,
         fileName: sanitizedName,
-        originalName: originalName,
+        originalName,
         storageUrl: uploadResult.storageUrl,
         publicUrl: proxyUrl,
-        mimeType: mimeType,
+        mimeType,
         sizeBytes: buffer.length,
         isActive: true,
-      }).returning();
+        createdAt: new Date().toISOString(),
+      });
       
-      console.log(`[Member Upload] Created ${assetType} asset ${asset.id} for member ${memberId}`);
+      console.log(`[Member Upload] Created ${assetType} asset ${assetDoc.id} for member ${memberId}`);
       
       res.json({ 
         success: true, 
         asset: {
-          id: asset.id,
-          name: asset.name,
+          id: assetDoc.id,
+          name: displayName,
           publicUrl: proxyUrl,
-          assetType: asset.assetType,
-          mediaType: asset.mediaType,
+          assetType,
+          mediaType,
         }
       });
     } catch (error: any) {
@@ -9210,7 +9209,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Save cropped version from Common Library to Personal Library
+  // Save cropped version from Common Library to Personal Library - saves to Firestore
   app.post("/api/members/:memberId/library/crop", async (req: any, res) => {
     try {
       const { memberId } = req.params;
@@ -9237,10 +9236,12 @@ ${allPages.map(page => `  <url>
       
       const proxyUrl = `/api/member-files/${memberId}/${encodeURIComponent(sanitizedName)}`;
       
-      const { libraryAssets } = await import("@shared/schema");
-      const [asset] = await db.insert(libraryAssets).values({
-        userId: memberId,
-        ownerType: 'user',
+      // Save metadata to Firestore
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const assetDoc = await firestoreDb.collection('memberLibrary').add({
+        memberId,
         assetType: 'cropped',
         mediaType: 'image',
         name: name || 'Cropped Image',
@@ -9248,22 +9249,23 @@ ${allPages.map(page => `  <url>
         originalName: `cropped-${sourceAssetId}`,
         storageUrl: uploadResult.storageUrl,
         publicUrl: proxyUrl,
-        mimeType: mimeType,
+        mimeType,
         sizeBytes: buffer.length,
-        sourceAssetId: sourceAssetId,
+        sourceAssetId,
         cropData: cropData ? JSON.parse(cropData) : null,
         isActive: true,
-      }).returning();
+        createdAt: new Date().toISOString(),
+      });
       
-      console.log(`[Member Crop] Created cropped asset ${asset.id} from ${sourceAssetId} for member ${memberId}`);
+      console.log(`[Member Crop] Created cropped asset ${assetDoc.id} from ${sourceAssetId} for member ${memberId}`);
       
       res.json({ 
         success: true, 
         asset: {
-          id: asset.id,
-          name: asset.name,
+          id: assetDoc.id,
+          name: name || 'Cropped Image',
           publicUrl: proxyUrl,
-          sourceAssetId: sourceAssetId,
+          sourceAssetId,
         }
       });
     } catch (error: any) {
