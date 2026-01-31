@@ -166,27 +166,21 @@ export interface PricingBreakdown {
   hostingTierCode: string;
 }
 
-export type PlacementId = 
-  // Shirts/Hoodies
-  | "front-chest" | "front-center" | "back" | "left-shoulder" | "right-shoulder" | "pocket"
-  // Mugs
-  | "mug-wrap" | "mug-front" | "mug-back"
-  // Hats
-  | "hat-front" | "hat-side" | "hat-back"
-  // Bags
-  | "bag-front" | "bag-back" | "bag-pocket";
-
-export type PlacementType = "graphic" | "qr";
-
-export type PlacementSize = "small" | "medium" | "large";
-
-export interface PlacementConfig {
-  [key: string]: PlacementType;
-}
-
-export interface PlacementSizeConfig {
-  [key: string]: PlacementSize;
-}
+// Re-export placement types from shared location (single source of truth)
+export {
+  type PlacementId,
+  type PlacementType,
+  type PlacementSize,
+  type PlacementConfig,
+  type PlacementSizeConfig,
+  type PlacementOption,
+  QR_ONLY_PLACEMENTS,
+  ALL_PLACEMENT_OPTIONS,
+  CATEGORY_PLACEMENTS,
+  DEFAULT_PLACEMENTS,
+  getPlacementsForCategory,
+  isQrOnlyPlacement,
+} from "@/features/shared/placementTypes";
 
 // Size scaling for different placement areas
 // Front/Back have more dramatic size differences
@@ -257,87 +251,6 @@ export const PLACEMENT_BASE_DIMENSIONS: Record<string, { width: number; height: 
   "mug-front": { width: 1200, height: 1050 },
   "mug-back": { width: 1200, height: 1050 },
 };
-
-export interface PlacementOption {
-  id: PlacementId;
-  label: string;
-}
-
-// Placements that can ONLY have QR codes (no graphics option)
-export const QR_ONLY_PLACEMENTS: PlacementId[] = ["left-shoulder", "right-shoulder"];
-
-// All available placements
-export const ALL_PLACEMENT_OPTIONS: PlacementOption[] = [
-  // Shirts/Hoodies
-  { id: "front-chest", label: "Front Chest" },
-  { id: "front-center", label: "Front Center" },
-  { id: "back", label: "Back" },
-  { id: "left-shoulder", label: "Left Shoulder (QR Only)" },
-  { id: "right-shoulder", label: "Right Shoulder (QR Only)" },
-  { id: "pocket", label: "Pocket" },
-  // Mugs
-  { id: "mug-wrap", label: "Wrap Around" },
-  { id: "mug-front", label: "Front" },
-  { id: "mug-back", label: "Back" },
-  // Hats
-  { id: "hat-front", label: "Front" },
-  { id: "hat-side", label: "Side" },
-  { id: "hat-back", label: "Back" },
-  // Bags
-  { id: "bag-front", label: "Front Panel" },
-  { id: "bag-back", label: "Back Panel" },
-  { id: "bag-pocket", label: "Pocket" },
-];
-
-// Category to placement mapping
-export const CATEGORY_PLACEMENTS: Record<string, PlacementId[]> = {
-  // Apparel - match exact API category names
-  "T-Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder"],
-  "Sweatshirts & Hoodies": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder", "pocket"],
-  "Long Sleeve Shirts": ["front-chest", "front-center", "back", "left-shoulder", "right-shoulder"],
-  "Tank Tops": ["front-chest", "front-center", "back"],
-  // Drinkware
-  "Drinkware": ["mug-wrap", "mug-front", "mug-back"],
-  "Mugs": ["mug-wrap", "mug-front", "mug-back"],
-  "Tumblers": ["mug-wrap", "mug-front", "mug-back"],
-  // Headwear
-  "Hats & Caps": ["hat-front", "hat-side", "hat-back"],
-  "Hats": ["hat-front", "hat-side", "hat-back"],
-  "Beanies": ["hat-front"],
-  // Bags
-  "Bags": ["bag-front", "bag-back", "bag-pocket"],
-  "Tote Bags": ["bag-front", "bag-back"],
-  "Backpacks": ["bag-front", "bag-pocket"],
-};
-
-// Default placements for unknown categories
-export const DEFAULT_PLACEMENTS: PlacementId[] = ["front-chest", "front-center", "back"];
-
-// Helper function to normalize category names for matching
-function normalizeCategory(category: string): string {
-  const lower = category.toLowerCase();
-  if (lower.includes("t-shirt") || lower.includes("tshirt") || lower.includes("tee")) return "T-Shirts";
-  if (lower.includes("long sleeve")) return "Long Sleeve Shirts";
-  if (lower.includes("sweatshirt") || lower.includes("hoodie")) return "Sweatshirts & Hoodies";
-  if (lower.includes("tank")) return "Tank Tops";
-  if (lower.includes("drinkware") || lower.includes("mug") || lower.includes("tumbler")) return "Drinkware";
-  if (lower.includes("hat") || lower.includes("cap")) return "Hats & Caps";
-  if (lower.includes("beanie")) return "Hats & Caps";
-  if (lower.includes("bag")) return "Bags";
-  return category;
-}
-
-// Helper function to get placements for a category
-export function getPlacementsForCategory(category: string | null): PlacementOption[] {
-  if (!category) return DEFAULT_PLACEMENTS.map(id => ALL_PLACEMENT_OPTIONS.find(opt => opt.id === id)).filter((opt): opt is PlacementOption => opt !== undefined);
-  
-  const normalized = normalizeCategory(category);
-  const placementIds = CATEGORY_PLACEMENTS[normalized] || DEFAULT_PLACEMENTS;
-  return placementIds
-    .map(id => ALL_PLACEMENT_OPTIONS.find(opt => opt.id === id))
-    .filter((opt): opt is PlacementOption => opt !== undefined);
-}
-
 
 export interface SelectedColor {
   name: string;

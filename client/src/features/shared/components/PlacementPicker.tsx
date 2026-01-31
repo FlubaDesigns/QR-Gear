@@ -1,9 +1,12 @@
 import { Check, MapPin, QrCode, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { QR_ONLY_PLACEMENTS } from "@/features/adminProducts/builder/types";
+import { 
+  QR_ONLY_PLACEMENTS, 
+  type PlacementSize, 
+  type PlacementType 
+} from "@/features/shared/placementTypes";
 
-export type PlacementSize = 'small' | 'medium' | 'large';
-export type PlacementType = 'qr' | 'graphic';
+export type { PlacementSize, PlacementType };
 
 export interface Placement {
   id: string;
