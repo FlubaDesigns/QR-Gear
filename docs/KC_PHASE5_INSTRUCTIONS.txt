@@ -1,0 +1,106 @@
+KC PHASE 5 IMPLEMENTATION INSTRUCTIONS
+======================================
+
+WHAT THIS DOES:
+Embeds QR Gear widget on KC profile pages (business, church, member).
+Widget shows entity's QR items. Same pattern for all three page types.
+
+----------------------------------------------------------------------
+FILE 1: Add this HTML to profile templates
+----------------------------------------------------------------------
+
+Paste this div where you want the widget (recommended: below hero, above reviews):
+
+<div id="qrgear-widget-container" style="margin: 24px 0;"></div>
+
+----------------------------------------------------------------------
+FILE 2: Server-side token fetch (Node.js)
+----------------------------------------------------------------------
+
+Add this function to your server code:
+
+async function getQRGearWidgetToken(entityType, entityId) {
+  try {
+    const response = await fetch('https://qrgear-c1ffd.web.app/api/widget/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.KC_SERVICE_API_KEY
+      },
+      body: JSON.stringify({
+        entityType: entityType,
+        entityId: entityId,
+        placement: 'profile',
+        mode: 'public'
+      })
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (err) {
+    console.error('QR Gear token error:', err);
+    return null;
+  }
+}
+
+Call it in your route handler:
+
+const widgetData = await getQRGearWidgetToken('business', business.id);
+const qrgearToken = widgetData?.token || '';
+
+Pass qrgearToken to your template.
+
+----------------------------------------------------------------------
+FILE 3: Client-side widget loader (add to page footer)
+----------------------------------------------------------------------
+
+<script>
+(function() {
+  var container = document.getElementById('qrgear-widget-container');
+  if (!container) return;
+  var token = '{{QRGEAR_TOKEN}}';
+  if (!token || token === '{{QRGEAR_TOKEN}}') return;
+  var iframe = document.createElement('iframe');
+  iframe.src = 'https://qrgear-c1ffd.web.app/widget?token=' + encodeURIComponent(token);
+  iframe.width = '100%';
+  iframe.height = '400';
+  iframe.frameBorder = '0';
+  iframe.scrolling = 'no';
+  iframe.style.cssText = 'border:none;border-radius:12px;overflow:hidden';
+  iframe.setAttribute('loading', 'lazy');
+  container.appendChild(iframe);
+})();
+</script>
+
+Replace {{QRGEAR_TOKEN}} with your template engine's variable syntax.
+
+----------------------------------------------------------------------
+ENV VAR REQUIRED
+----------------------------------------------------------------------
+
+Add to KC server environment:
+
+KC_SERVICE_API_KEY=your_shared_api_key_here
+
+(Same key that QR Gear has configured)
+
+----------------------------------------------------------------------
+PAGES TO UPDATE
+----------------------------------------------------------------------
+
+Business profile: entityType = 'business', entityId = business.id
+Church profile:   entityType = 'church',   entityId = church.id
+Member profile:   entityType = 'member',   entityId = member.id
+
+----------------------------------------------------------------------
+TESTING
+----------------------------------------------------------------------
+
+1. Set KC_SERVICE_API_KEY env var on KC server
+2. Load a profile page
+3. Widget appears showing items (or "No items yet" if empty)
+
+Contact QR Gear admin to seed test items for a specific channel.
+
+======================================
+END OF INSTRUCTIONS
+======================================
