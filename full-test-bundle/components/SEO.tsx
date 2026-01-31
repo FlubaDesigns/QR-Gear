@@ -1,0 +1,78 @@
+import { useEffect } from "react";
+
+interface SEOProps {
+  title?: string;
+  description?: string;
+  keywords?: string;
+  ogImage?: string;
+  ogType?: string;
+  ogUrl?: string;
+  canonical?: string;
+}
+
+export default function SEO({
+  title = "QR Gear - Custom QR Code Merchandise",
+  description = "Create custom QR code merchandise with QR Gear. Apparel, hats, mugs, and more featuring your personalized QR codes. USA-made options available.",
+  keywords = "QR code merchandise, custom promotional products, QR gear",
+  ogImage = "/og-image.png",
+  ogType = "website",
+  ogUrl,
+  canonical,
+}: SEOProps) {
+  useEffect(() => {
+    document.title = title.includes("QR Gear") ? title : `${title} | QR Gear`;
+    
+    const updateMeta = (name: string, content: string) => {
+      let element = document.querySelector(`meta[name="${name}"]`);
+      if (element) {
+        element.setAttribute("content", content);
+      } else {
+        element = document.createElement("meta");
+        element.setAttribute("name", name);
+        element.setAttribute("content", content);
+        document.head.appendChild(element);
+      }
+    };
+
+    const updateOGMeta = (property: string, content: string) => {
+      let element = document.querySelector(`meta[property="${property}"]`);
+      if (element) {
+        element.setAttribute("content", content);
+      } else {
+        element = document.createElement("meta");
+        element.setAttribute("property", property);
+        element.setAttribute("content", content);
+        document.head.appendChild(element);
+      }
+    };
+
+    updateMeta("description", description);
+    updateMeta("keywords", keywords);
+    updateOGMeta("og:title", title);
+    updateOGMeta("og:description", description);
+    updateOGMeta("og:image", ogImage);
+    updateOGMeta("og:type", ogType);
+    if (ogUrl) {
+      updateOGMeta("og:url", ogUrl);
+    }
+    
+    updateMeta("twitter:card", "summary_large_image");
+    updateMeta("twitter:title", title);
+    updateMeta("twitter:description", description);
+    updateMeta("twitter:image", ogImage);
+
+    if (canonical) {
+      let link = document.querySelector('link[rel="canonical"]');
+      if (link) {
+        link.setAttribute("href", canonical);
+      } else {
+        link = document.createElement("link");
+        link.setAttribute("rel", "canonical");
+        link.setAttribute("href", canonical);
+        document.head.appendChild(link);
+      }
+    }
+  }, [title, description, keywords, ogImage, ogType, canonical]);
+
+  return null;
+}
