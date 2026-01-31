@@ -2,6 +2,33 @@
 
 ## COMPLETED CHANGES
 
+### KC Widget Integration - Phases 1-5 (Jan 31, 2026)
+**Full widget embed system for Kingdom Connects (KC) integration**
+
+**Phase 1-2: Token Minting & Security**
+- `POST /api/widget/token` - KC calls with entityType/entityId to mint JWT
+- JWT includes kid header for key rotation support
+- 10-minute token expiry for security
+- Service authentication via KC_SERVICE_API_KEY or WIDGET_API_KEY
+
+**Phase 3: Channel Items Collection**
+- `server/lib/channelItemsService.ts` - Firestore-backed service
+- Functions: getChannelItems, upsertChannelItem, setChannelItemActive
+- Items scoped by channelId (derived from entityType_entityId)
+
+**Phase 4: Widget Session & UI**
+- `GET /api/widget/session?token=JWT` - Returns channel items with 60s cache
+- Widget UI at `/widget?token=JWT` - Shows entity header, item grid
+- Top-3 default display with "View all" toggle
+- Share/view actions on each item card
+
+**Phase 5: KC Integration Ready**
+- Admin seed endpoint: `POST /api/admin/channel-items/seed`
+- Canonical model: storeId="kingdom_connects", channelId="{entityType}_{entityId}"
+- KC integration guide in `/docs/kc-widget-integration.md`
+
+---
+
 ### Universal Claim Page System (Jan 31, 2026)
 - **claimService.ts**: Firestore-backed service for claim code generation and validation
   - Generates unique claim codes tied to templates/products
