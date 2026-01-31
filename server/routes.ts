@@ -9047,18 +9047,39 @@ ${allPages.map(page => `  <url>
       const data = doc.data();
       const rawProducts = data?.products || [];
       
-      // Enrich with images from Printify blueprints
+      // Enrich with images and pricing from Printify blueprints + providers
       const enrichedProducts = await Promise.all(
         rawProducts.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
           try {
             const blueprint = await storage.getPrintifyBlueprint(p.blueprintId);
+            const providers = await storage.getPrintifyPrintProviders(p.blueprintId);
+            
+            // Get USA provider or first available
+            const usaProviders = providers.filter((prov: any) => prov.isUSA);
+            const selectedProvider = usaProviders[0] || providers[0];
+            
+            // Base cost is the manufacturing cost (minCost from provider, in cents)
+            const baseCostCents = selectedProvider?.minCost || 0;
+            const baseCost = baseCostCents / 100; // Convert to dollars
+            
+            // Calculate retail price: base + first graphic (included) = base
+            // Member markup: we need a retail price. Let's use a simple 2x markup for now
+            const retailPrice = Math.ceil(baseCost * 2);
+            const profit = retailPrice - baseCost;
+            const memberEarnings = profit * 0.25; // 25% profit share
+            
             return {
               ...p,
               imageUrl: blueprint?.primaryImageUrl || null,
               brand: blueprint?.brand || null,
+              baseCost: baseCost,
+              retailPrice: retailPrice,
+              profit: profit,
+              memberEarnings: memberEarnings,
+              hasUSAProvider: usaProviders.length > 0,
             };
           } catch {
-            return { ...p, imageUrl: null, brand: null };
+            return { ...p, imageUrl: null, brand: null, baseCost: 0, retailPrice: 0, profit: 0, memberEarnings: 0 };
           }
         })
       );

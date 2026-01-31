@@ -176,6 +176,11 @@ interface AllowedProduct {
   imageUrl?: string | null;
   brand?: string | null;
   addedAt?: string;
+  baseCost?: number;
+  retailPrice?: number;
+  profit?: number;
+  memberEarnings?: number;
+  hasUSAProvider?: boolean;
 }
 
 function ProductPickerStep({ 
@@ -197,6 +202,14 @@ function ProductPickerStep({
     name: p.title,
     primaryImage: p.imageUrl,
     isUsed: selectedProduct?.id === p.blueprintId,
+    metadata: {
+      brand: p.brand,
+      baseCost: p.baseCost || 0,
+      retailPrice: p.retailPrice || 0,
+      profit: p.profit || 0,
+      memberEarnings: p.memberEarnings || 0,
+      hasUSAProvider: p.hasUSAProvider || false,
+    },
   }));
 
   const skinActions: SkinActions = {
