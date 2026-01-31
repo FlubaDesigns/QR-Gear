@@ -132,7 +132,8 @@ function WizardProgressBar({
   completedSteps: Set<WizardStep>;
 }) {
   const currentIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
-  const progress = ((currentIndex + 1) / WIZARD_STEPS.length) * 100;
+  // Progress based on completed steps (starts at 0, fills as you proceed)
+  const progress = (currentIndex / WIZARD_STEPS.length) * 100;
   
   return (
     <div className="w-full mb-6">
