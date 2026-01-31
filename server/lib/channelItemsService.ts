@@ -15,6 +15,10 @@ export interface ChannelItem {
   isActive: boolean;
   sortOrder: number;
   collectionTag?: string;
+  shareImageSquareUrl?: string;
+  shareImageLinkUrl?: string;
+  shareImageStoryUrl?: string;
+  shareCaption?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,10 +32,27 @@ export interface ChannelItemInput {
   price?: number;
   collectionTag?: string;
   sortOrder?: number;
+  shareImageSquareUrl?: string;
+  shareImageLinkUrl?: string;
+  shareImageStoryUrl?: string;
+  shareCaption?: string;
 }
 
 export function deriveChannelId(entityType: string, entityId: string): string {
   return `${entityType}_${entityId}`;
+}
+
+export function generateShareCaption(title: string, description?: string, shareUrl?: string): string {
+  const baseUrl = process.env.VITE_BASE_URL || 'https://qrgear-c1ffd.web.app';
+  const fullUrl = shareUrl?.startsWith('http') ? shareUrl : `${baseUrl}${shareUrl || ''}`;
+  
+  let caption = `Check this out!\n${title}`;
+  if (description) {
+    caption += `\n\n${description.slice(0, 100)}${description.length > 100 ? '...' : ''}`;
+  }
+  caption += `\n\n${fullUrl}`;
+  
+  return caption;
 }
 
 export async function getChannelItems(options: {
@@ -71,6 +92,10 @@ export async function getChannelItems(options: {
       isActive: data.isActive,
       sortOrder: data.sortOrder || 0,
       collectionTag: data.collectionTag,
+      shareImageSquareUrl: data.shareImageSquareUrl,
+      shareImageLinkUrl: data.shareImageLinkUrl,
+      shareImageStoryUrl: data.shareImageStoryUrl,
+      shareCaption: data.shareCaption,
       createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
       updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt),
     };
@@ -99,6 +124,10 @@ export async function getChannelItem(itemId: string): Promise<ChannelItem | null
     isActive: data.isActive,
     sortOrder: data.sortOrder || 0,
     collectionTag: data.collectionTag,
+    shareImageSquareUrl: data.shareImageSquareUrl,
+    shareImageLinkUrl: data.shareImageLinkUrl,
+    shareImageStoryUrl: data.shareImageStoryUrl,
+    shareCaption: data.shareCaption,
     createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
     updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt),
   };
@@ -119,17 +148,25 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
   
   if (!existingQuery.empty) {
     const existingDoc = existingQuery.docs[0];
-    const updateData = {
+    const existingData = existingDoc.data();
+    const shareCaption = input.shareCaption || generateShareCaption(input.title, input.description, shareUrl);
+    
+    const updateData: Record<string, any> = {
       title: input.title,
       description: input.description || null,
       previewImageUrl: input.previewImageUrl || null,
       shareUrl,
       price: input.price || null,
       collectionTag: input.collectionTag || null,
-      sortOrder: input.sortOrder ?? existingDoc.data().sortOrder ?? 0,
+      sortOrder: input.sortOrder ?? existingData.sortOrder ?? 0,
+      shareCaption,
       isActive: true,
       updatedAt: now,
     };
+    
+    if (input.shareImageSquareUrl) updateData.shareImageSquareUrl = input.shareImageSquareUrl;
+    if (input.shareImageLinkUrl) updateData.shareImageLinkUrl = input.shareImageLinkUrl;
+    if (input.shareImageStoryUrl) updateData.shareImageStoryUrl = input.shareImageStoryUrl;
     
     await db.collection('channel_items').doc(existingDoc.id).update(updateData);
     
@@ -144,9 +181,13 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
       shareUrl,
       price: input.price,
       isActive: true,
-      sortOrder: input.sortOrder ?? existingDoc.data().sortOrder ?? 0,
+      sortOrder: input.sortOrder ?? existingData.sortOrder ?? 0,
       collectionTag: input.collectionTag,
-      createdAt: existingDoc.data().createdAt?.toDate?.() || now,
+      shareImageSquareUrl: input.shareImageSquareUrl || existingData.shareImageSquareUrl,
+      shareImageLinkUrl: input.shareImageLinkUrl || existingData.shareImageLinkUrl,
+      shareImageStoryUrl: input.shareImageStoryUrl || existingData.shareImageStoryUrl,
+      shareCaption,
+      createdAt: existingData.createdAt?.toDate?.() || now,
       updatedAt: now,
     };
   }
@@ -157,8 +198,9 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
     .count()
     .get();
   const existingCount = countSnapshot.data().count;
+  const shareCaption = input.shareCaption || generateShareCaption(input.title, input.description, shareUrl);
   
-  const newData = {
+  const newData: Record<string, any> = {
     storeId: STORE_ID,
     channelId: input.channelId,
     packetId: input.packetId,
@@ -166,6 +208,7 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
     description: input.description || null,
     previewImageUrl: input.previewImageUrl || null,
     shareUrl,
+    shareCaption,
     price: input.price || null,
     isActive: true,
     sortOrder: input.sortOrder ?? existingCount,
@@ -173,6 +216,10 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
     createdAt: now,
     updatedAt: now,
   };
+  
+  if (input.shareImageSquareUrl) newData.shareImageSquareUrl = input.shareImageSquareUrl;
+  if (input.shareImageLinkUrl) newData.shareImageLinkUrl = input.shareImageLinkUrl;
+  if (input.shareImageStoryUrl) newData.shareImageStoryUrl = input.shareImageStoryUrl;
   
   const docRef = await db.collection('channel_items').add(newData);
   
@@ -187,8 +234,12 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
     shareUrl,
     price: input.price,
     isActive: true,
-    sortOrder: newData.sortOrder,
+    sortOrder: newData.sortOrder as number,
     collectionTag: input.collectionTag,
+    shareImageSquareUrl: input.shareImageSquareUrl,
+    shareImageLinkUrl: input.shareImageLinkUrl,
+    shareImageStoryUrl: input.shareImageStoryUrl,
+    shareCaption,
     createdAt: now,
     updatedAt: now,
   };
