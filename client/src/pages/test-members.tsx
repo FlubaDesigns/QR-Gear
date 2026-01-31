@@ -32,7 +32,8 @@ import {
   ImagePlus,
   Play,
   Sparkles,
-  X
+  X,
+  MapPin
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
@@ -73,12 +74,13 @@ interface GraphicSet {
   imageCount: number;
 }
 
-type WizardStep = 'channel' | 'product' | 'qr-type' | 'customize' | 'preview' | 'publish';
+type WizardStep = 'channel' | 'product' | 'placement' | 'qr-type' | 'customize' | 'preview' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Pick Item', icon: Package },
+  { id: 'placement', label: 'Location', icon: MapPin },
   { id: 'qr-type', label: 'QR Type', icon: QrCode },
   { id: 'customize', label: 'Customize', icon: Sparkles },
   { id: 'preview', label: 'Preview', icon: Eye },
@@ -156,6 +158,7 @@ interface AllowedProduct {
   profit?: number;
   memberEarnings?: number;
   hasUSAProvider?: boolean;
+  placements?: { id: string; title: string }[];
 }
 
 interface MemberChannel {
@@ -372,6 +375,7 @@ function ProductPickerStep({
       profit: p.profit || 0,
       memberEarnings: p.memberEarnings || 0,
       hasUSAProvider: p.hasUSAProvider || false,
+      placements: p.placements || [],
     },
   }));
 
@@ -379,7 +383,8 @@ function ProductPickerStep({
     onSelect({
       id: Number(item.id),
       name: item.title,
-      thumbnailUrl: item.imageUrl || null
+      thumbnailUrl: item.imageUrl || null,
+      placements: item.metadata?.placements || [],
     });
   };
 
@@ -439,6 +444,134 @@ function ProductPickerStep({
             renderItem: renderProductSkin,
           }}
         />
+      )}
+    </div>
+  );
+}
+
+type PlacementSize = 'small' | 'medium' | 'large';
+
+const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
+  { value: "small", label: "S" },
+  { value: "medium", label: "M" },
+  { value: "large", label: "L" },
+];
+
+function PlacementStep({
+  product,
+  selectedPlacement,
+  onSelect,
+  placementSize,
+  onSizeChange
+}: {
+  product: ProductItem | null;
+  selectedPlacement: string;
+  onSelect: (placementId: string) => void;
+  placementSize: PlacementSize;
+  onSizeChange: (size: PlacementSize) => void;
+}) {
+  const placements = product?.placements || [];
+  
+  if (!product) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-slate-400">Please select a product first</p>
+      </div>
+    );
+  }
+  
+  if (placements.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-white mb-2">Pick Location</h2>
+          <p className="text-slate-400">Where do you want your design?</p>
+        </div>
+        <div className="text-center py-8 text-amber-400">
+          <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No placement options available for this product</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-white mb-2">Pick Location</h2>
+        <p className="text-slate-400">Where do you want your design on the {product.title}?</p>
+      </div>
+      
+      <div className="space-y-3">
+        {placements.map((placement) => {
+          const isSelected = selectedPlacement === placement.id;
+          return (
+            <div key={placement.id} className="space-y-2">
+              <button
+                type="button"
+                onClick={() => onSelect(placement.id)}
+                className={`
+                  w-full relative flex items-center justify-between gap-2 
+                  min-h-[48px] px-4 py-3 rounded-lg border-2 
+                  text-sm font-medium transition-all
+                  ${isSelected 
+                    ? "border-primary bg-primary/10 text-primary" 
+                    : "border-slate-600 bg-slate-800/50 hover:border-primary/50 hover:bg-slate-700/50 text-white"
+                  }
+                `}
+                data-testid={`button-placement-${placement.id}`}
+              >
+                <div className="flex items-center gap-2">
+                  {isSelected && <Check className="h-4 w-4 flex-shrink-0" />}
+                  <span>{placement.title}</span>
+                </div>
+                {isSelected && (
+                  <span className="text-xs px-2 py-1 rounded bg-primary/20 font-bold">
+                    {placementSize.toUpperCase()}
+                  </span>
+                )}
+              </button>
+              
+              {isSelected && (
+                <div className="ml-4 flex items-center gap-2">
+                  <span className="text-xs text-slate-400">Size:</span>
+                  <div className="flex gap-1">
+                    {SIZE_OPTIONS.map((size) => (
+                      <Button
+                        key={size.value}
+                        type="button"
+                        variant={placementSize === size.value ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => onSizeChange(size.value)}
+                        className="w-10 h-8 px-0"
+                        data-testid={`placement-size-${size.value}`}
+                      >
+                        {size.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {selectedPlacement && (
+        <div className="p-3 bg-primary/5 rounded-md border border-slate-600">
+          <p className="text-sm font-medium text-white">
+            Selected: {placements.find(p => p.id === selectedPlacement)?.title || selectedPlacement}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            Size: {placementSize.charAt(0).toUpperCase() + placementSize.slice(1)}
+          </p>
+        </div>
+      )}
+      
+      {!selectedPlacement && (
+        <p className="text-sm text-amber-400 text-center">
+          Please select a placement location to continue.
+        </p>
       )}
     </div>
   );
@@ -1206,6 +1339,8 @@ export default function TestMembersSandbox() {
   };
   
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
+  const [selectedPlacement, setSelectedPlacement] = useState<string>('');
+  const [placementSize, setPlacementSize] = useState<PlacementSize>('medium');
   const [qrType, setQrType] = useState<QRType>('');
   const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
@@ -1286,6 +1421,7 @@ export default function TestMembersSandbox() {
     switch (currentStep) {
       case 'channel': return selectedChannel !== null;
       case 'product': return selectedProduct !== null;
+      case 'placement': return selectedPlacement !== '';
       case 'qr-type': return qrType !== '';
       case 'customize': return true; // Will add validation per type
       case 'preview': return true;
@@ -1434,6 +1570,15 @@ export default function TestMembersSandbox() {
                   <ProductPickerStep 
                     selectedProduct={selectedProduct}
                     onSelect={setSelectedProduct}
+                  />
+                )}
+                {currentStep === 'placement' && (
+                  <PlacementStep
+                    product={selectedProduct}
+                    selectedPlacement={selectedPlacement}
+                    onSelect={setSelectedPlacement}
+                    placementSize={placementSize}
+                    onSizeChange={setPlacementSize}
                   />
                 )}
                 {currentStep === 'qr-type' && (

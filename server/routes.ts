@@ -9155,12 +9155,34 @@ ${allPages.map(page => `  <url>
         const profit = retailPrice - baseCost;
         const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
         
+        // Use stored placements if available, otherwise use common defaults for apparel
+        let placements: { id: string; title: string }[] = p.availablePlacements || [];
+        
+        // Convert string array to objects if needed
+        if (placements.length > 0 && typeof placements[0] === 'string') {
+          placements = (placements as unknown as string[]).map((pl: string) => ({
+            id: pl,
+            title: pl.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+          }));
+        }
+        
+        // If no placements stored, use common defaults for apparel products
+        if (placements.length === 0) {
+          placements = [
+            { id: 'front', title: 'Front' },
+            { id: 'back', title: 'Back' },
+            { id: 'left_sleeve', title: 'Left Sleeve' },
+            { id: 'right_sleeve', title: 'Right Sleeve' },
+          ];
+        }
+        
         return {
           ...p,
           baseCost,
           retailPrice,
           profit,
           memberEarnings,
+          placements,
         };
       }));
       
