@@ -48,6 +48,7 @@ import QRPlay from "@/pages/qr-play";
 import QRDynamics from "@/pages/qr-dynamics";
 import QRHistory from "@/pages/qr-history";
 import WeddingQRShirts from "@/pages/wedding-qr-shirts";
+import Customize from "@/pages/customize";
 import FamilyReunionShirts from "@/pages/family-reunion-shirts";
 import ArtistQRApparel from "@/pages/artist-qr-apparel";
 import MemorialQRGifts from "@/pages/memorial-qr-gifts";
@@ -124,6 +125,7 @@ function Router() {
       <Route path="/admin/test-images">{() => <ProtectedRoute><AdminTestImages /></ProtectedRoute>}</Route>
       <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
       <Route path="/checkout" component={Checkout} />
+      <Route path="/customize" component={Customize} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/renew/:instanceId" component={RenewPage} />
       <Route path="/renew/:instanceId/success" component={RenewPage} />
