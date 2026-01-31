@@ -46,16 +46,15 @@ function TextOverlayDisplay({
     return "none";
   };
 
-  const verticalOffset = style.verticalOffset ?? 20;
-  const horizontalOffset = style.horizontalOffset ?? 0;
+  const verticalOffset = style.verticalOffset ?? 10;
+  const horizontalOffset = style.horizontalOffset ?? 50;
 
   return (
     <div 
-      className="absolute left-0 right-0 text-center px-1"
+      className="absolute left-0 right-0 flex justify-center px-1"
       style={{ 
-        transform: getWarpTransform(),
-        [position === "top" ? "top" : "bottom"]: `${verticalOffset * 0.5}%`,
-        marginLeft: `${horizontalOffset}%`,
+        transform: `${getWarpTransform()} translateX(${(horizontalOffset - 50) * 0.8}%)`,
+        [position === "top" ? "top" : "bottom"]: `${verticalOffset * 0.4}%`,
       }}
     >
       <span 

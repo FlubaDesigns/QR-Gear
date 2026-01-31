@@ -51,8 +51,8 @@ export const defaultTextStyle: TextStyleConfig = {
   letterSpacing: 0,
   strokeColor: "",
   strokeWidth: 0,
-  verticalOffset: 100,
-  horizontalOffset: 100,
+  verticalOffset: 10,
+  horizontalOffset: 50,
 };
 
 interface TextStyleEditorProps {
