@@ -51,7 +51,7 @@ export function PlacementPicker({
   title = "Pick Locations",
   subtitle,
 }: PlacementPickerProps) {
-  if (placements.length === 0) {
+  if (!placements || placements.length === 0) {
     return (
       <div className="space-y-6">
         <div className="text-center mb-6">

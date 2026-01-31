@@ -1,14 +1,18 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Upload, Library, User, Check, X, Image as ImageIcon, Crop } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Upload, Library, User, X } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { CropUtility } from "./utilities/CropUtility";
+import { GridView, type GridViewItem } from "./views/GridView";
+import { SingleView } from "./views/SingleView";
+import { SelectCropDeleteSkin } from "./skins/SelectCropDeleteSkin";
+import { CropUtility, type CropAsset } from "./utilities/CropUtility";
+import { useToast } from "@/hooks/use-toast";
 
 interface LibraryAsset {
-  id: number;
+  id: string;
   name: string;
   assetType: string;
   mediaType: string;
@@ -16,8 +20,6 @@ interface LibraryAsset {
   publicUrl: string;
   width?: number | null;
   height?: number | null;
-  category?: string | null;
-  sourceAssetId?: number | null;
 }
 
 interface BackgroundLibraryPickerProps {
@@ -33,6 +35,15 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 }
 
+function assetToGridItem(asset: LibraryAsset): GridViewItem {
+  return {
+    id: asset.id,
+    name: asset.name,
+    imageUrl: asset.thumbnailUrl || asset.publicUrl,
+    dimensions: asset.width && asset.height ? `${asset.width}x${asset.height}` : undefined,
+  };
+}
+
 export function BackgroundLibraryPicker({
   memberId,
   selectedUrl,
@@ -41,12 +52,19 @@ export function BackgroundLibraryPicker({
   assetType = 'background'
 }: BackgroundLibraryPickerProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'common' | 'personal'>('common');
+  
+  const [activeTab, setActiveTab] = useState<'common' | 'personal'>('personal');
   const [uploading, setUploading] = useState(false);
-  const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
+  
+  const [selectedItem, setSelectedItem] = useState<GridViewItem | null>(null);
+  const [singleViewOpen, setSingleViewOpen] = useState(false);
+  
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
-  const { data: commonAssets, isLoading: loadingCommon } = useQuery({
+  const { data: commonAssets = [], isLoading: loadingCommon } = useQuery({
     queryKey: ['/api/members/common-library', assetType],
     queryFn: async () => {
       const res = await fetch(`/api/members/common-library?assetType=${assetType}`, {
@@ -58,7 +76,7 @@ export function BackgroundLibraryPicker({
     }
   });
 
-  const { data: personalAssets, isLoading: loadingPersonal } = useQuery({
+  const { data: personalAssets = [], isLoading: loadingPersonal } = useQuery({
     queryKey: ['/api/members', memberId, 'library', assetType],
     queryFn: async () => {
       const res = await fetch(`/api/members/${memberId}/library?assetType=${assetType}`, {
@@ -69,6 +87,26 @@ export function BackgroundLibraryPicker({
       return data.assets as LibraryAsset[];
     },
     enabled: !!memberId
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (assetId: string) => {
+      const res = await fetch(`/api/members/${memberId}/library/${assetId}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders()
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Image deleted" });
+      queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'library'] });
+      setSingleViewOpen(false);
+      setSelectedItem(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    }
   });
 
   const uploadMutation = useMutation({
@@ -97,12 +135,27 @@ export function BackgroundLibraryPicker({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'library'] });
-      if (data.asset?.publicUrl) {
-        onSelect(data.asset.publicUrl);
-      }
       setActiveTab('personal');
+      
+      if (data.asset) {
+        const newItem: GridViewItem = {
+          id: data.asset.id,
+          name: data.asset.name || 'Uploaded Image',
+          imageUrl: data.asset.publicUrl,
+        };
+        setSelectedItem(newItem);
+        setSingleViewOpen(true);
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     }
   });
+
+  const commonGridItems = useMemo(() => commonAssets.map(assetToGridItem), [commonAssets]);
+  const personalGridItems = useMemo(() => personalAssets.map(assetToGridItem), [personalAssets]);
+
+  const allAssets = useMemo(() => [...commonAssets, ...personalAssets], [commonAssets, personalAssets]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,8 +164,6 @@ export function BackgroundLibraryPicker({
     setUploading(true);
     try {
       await uploadMutation.mutateAsync(file);
-    } catch (err) {
-      console.error('Upload error:', err);
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -121,140 +172,154 @@ export function BackgroundLibraryPicker({
     }
   };
 
-  const handleSelect = (asset: LibraryAsset) => {
-    setCropImageUrl(asset.publicUrl);
+  const handleGridSelect = (item: GridViewItem) => {
+    setSelectedItem(item);
+    setSingleViewOpen(true);
+  };
+
+  const handleSelectImage = (id: string) => {
+    const asset = allAssets.find(a => a.id === id);
+    if (asset) {
+      onSelect(asset.publicUrl);
+    }
+  };
+
+  const handleCrop = (id: string) => {
+    const asset = allAssets.find(a => a.id === id);
+    if (asset) {
+      setAssetToCrop({
+        id: asset.id,
+        name: asset.name,
+        imageUrl: asset.publicUrl,
+      });
+      setSingleViewOpen(false);
+      setCropDialogOpen(true);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
   const handleCropComplete = (croppedUrl: string) => {
     onSelect(croppedUrl);
-    setCropImageUrl(null);
+    setCropDialogOpen(false);
+    setAssetToCrop(null);
   };
 
-  const renderAssetGrid = (assets: LibraryAsset[] | undefined, loading: boolean, emptyMessage: string) => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center h-48">
-          <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-        </div>
-      );
-    }
-
-    if (!assets || assets.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center h-48 text-slate-400">
-          <ImageIcon className="w-12 h-12 mb-2 opacity-50" />
-          <p>{emptyMessage}</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid grid-cols-3 gap-3 max-h-[400px] overflow-y-auto p-1">
-        {assets.map((asset) => {
-          const isSelected = selectedUrl === asset.publicUrl;
-          return (
-            <button
-              key={asset.id}
-              onClick={() => handleSelect(asset)}
-              className={`relative aspect-[9/16] rounded-lg overflow-hidden border-2 transition-all hover-elevate ${
-                isSelected ? 'border-primary ring-2 ring-primary/50' : 'border-transparent'
-              }`}
-              data-testid={`library-asset-${asset.id}`}
-            >
-              <img
-                src={asset.thumbnailUrl || asset.publicUrl}
-                alt={asset.name}
-                className="w-full h-full object-cover"
-              />
-              {isSelected && (
-                <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                  <Check className="w-8 h-8 text-white" />
-                </div>
-              )}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                <p className="text-xs text-white truncate">{asset.name}</p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
+  const isPersonalAsset = (id: string) => personalAssets.some(a => a.id === id);
 
   return (
-    <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
-        <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
-            <Library className="w-5 h-5" />
-            {assetType === 'background' ? 'Background Library' : 'Video Library'}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open onOpenChange={() => onClose()}>
+        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Library className="w-5 h-5" />
+              {assetType === 'background' ? 'Background Library' : 'Video Library'}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Choose from the library or upload your own images
+            </DialogDescription>
+          </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'common' | 'personal')}>
-          <TabsList className="grid w-full grid-cols-2 bg-slate-800">
-            <TabsTrigger value="common" className="flex items-center gap-2" data-testid="tab-common-library">
-              <Library className="w-4 h-4" />
-              Common Library
-            </TabsTrigger>
-            <TabsTrigger value="personal" className="flex items-center gap-2" data-testid="tab-personal-library">
-              <User className="w-4 h-4" />
-              My Library
-            </TabsTrigger>
-          </TabsList>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'common' | 'personal')}>
+            <TabsList className="grid w-full grid-cols-2 bg-slate-800">
+              <TabsTrigger value="common" className="flex items-center gap-2" data-testid="tab-common-library">
+                <Library className="w-4 h-4" />
+                Common Library
+              </TabsTrigger>
+              <TabsTrigger value="personal" className="flex items-center gap-2" data-testid="tab-personal-library">
+                <User className="w-4 h-4" />
+                My Library
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="common" className="mt-4">
-            <p className="text-sm text-slate-400 mb-3">
-              Choose from admin-curated backgrounds available to all members.
-            </p>
-            {renderAssetGrid(commonAssets, loadingCommon, 'No common backgrounds available')}
-          </TabsContent>
-
-          <TabsContent value="personal" className="mt-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-slate-400">
-                Your uploaded backgrounds.
+            <TabsContent value="common" className="mt-4">
+              <p className="text-sm text-slate-400 mb-3">
+                Admin-curated backgrounds available to all members.
               </p>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept={assetType === 'video' ? 'video/*' : 'image/*'}
-                className="hidden"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                data-testid="button-upload-to-library"
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
+              <div className="max-h-[400px] overflow-y-auto">
+                <GridView
+                  items={commonGridItems}
+                  onSelect={handleGridSelect}
+                  isLoading={loadingCommon}
+                  emptyMessage="No common backgrounds available"
+                  columns="grid-cols-3"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="personal" className="mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-slate-400">
+                  {personalAssets.length} uploaded background{personalAssets.length !== 1 ? 's' : ''}
+                </p>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept={assetType === 'video' ? 'video/*' : 'image/*'}
+                  className="hidden"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  data-testid="button-upload-to-library"
+                >
                   <Upload className="w-4 h-4 mr-2" />
-                )}
-                Upload
-              </Button>
-            </div>
-            {renderAssetGrid(personalAssets, loadingPersonal, 'No uploads yet')}
-          </TabsContent>
-        </Tabs>
+                  {uploading ? 'Uploading...' : 'Upload'}
+                </Button>
+              </div>
+              <div className="max-h-[400px] overflow-y-auto">
+                <GridView
+                  items={personalGridItems}
+                  onSelect={handleGridSelect}
+                  isLoading={loadingPersonal}
+                  emptyMessage="No uploads yet. Click Upload to add images."
+                  columns="grid-cols-3"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
 
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-700">
-          <Button variant="outline" onClick={onClose} data-testid="button-cancel-library">
-            <X className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-        </div>
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-700">
+            <Button variant="outline" onClick={onClose} data-testid="button-cancel-library">
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        <CropUtility
-          asset={cropImageUrl ? { id: 'crop', name: 'Background', imageUrl: cropImageUrl } : null}
-          open={!!cropImageUrl}
-          onOpenChange={(open) => !open && setCropImageUrl(null)}
-          onCropComplete={handleCropComplete}
+      <SingleView
+        item={selectedItem}
+        open={singleViewOpen}
+        onOpenChange={setSingleViewOpen}
+      >
+        <SelectCropDeleteSkin
+          itemId={selectedItem?.id || ''}
+          onSelect={handleSelectImage}
+          onCrop={handleCrop}
+          onDelete={selectedItem && isPersonalAsset(selectedItem.id) ? handleDelete : undefined}
+          onClose={() => setSingleViewOpen(false)}
+          isDeleting={deleteMutation.isPending}
         />
-      </DialogContent>
-    </Dialog>
+      </SingleView>
+
+      <CropUtility
+        asset={assetToCrop}
+        open={cropDialogOpen}
+        onOpenChange={(open) => {
+          setCropDialogOpen(open);
+          if (!open) setAssetToCrop(null);
+        }}
+        onCropComplete={handleCropComplete}
+        aspectRatio={9 / 16}
+        title="Crop Background"
+      />
+    </>
   );
 }
