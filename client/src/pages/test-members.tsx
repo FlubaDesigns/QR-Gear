@@ -73,7 +73,7 @@ interface GraphicSet {
   imageCount: number;
 }
 
-type WizardStep = 'channel' | 'product' | 'qr-type' | 'customize' | 'preview' | 'publish';
+type WizardStep = 'channel' | 'product' | 'qr-type' | 'customize' | 'background' | 'preview' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
@@ -81,6 +81,7 @@ const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
   { id: 'product', label: 'Pick Item', icon: Package },
   { id: 'qr-type', label: 'QR Type', icon: QrCode },
   { id: 'customize', label: 'Customize', icon: Sparkles },
+  { id: 'background', label: 'Background', icon: ImagePlus },
   { id: 'preview', label: 'Preview', icon: Eye },
   { id: 'publish', label: 'Publish', icon: Send },
 ];
