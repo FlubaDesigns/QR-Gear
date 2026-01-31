@@ -42,6 +42,8 @@ import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPr
 import { SkinGridViewer, type SkinItem, type SkinActions } from "@/features/shared/components/SkinGridViewer";
 import { AllowedProductCardSkin, AllowedProductDetailSkin } from "@/features/shared/components/skins/AllowedProductSkin";
 import { BackgroundLibraryPicker } from "@/features/shared/components/BackgroundLibraryPicker";
+import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const token = await auth.currentUser?.getIdToken();
@@ -384,31 +386,26 @@ function ProductPickerStep({
   const allowedProducts = allowedData?.products || [];
   const hasAllowedProducts = allowedProducts.length > 0;
 
-  const skinItems: SkinItem[] = allowedProducts.map((p) => ({
+  const scrollItems: ScrollViewItem[] = allowedProducts.map((p) => ({
     id: String(p.blueprintId),
-    name: p.title,
-    primaryImage: p.imageUrl,
-    isUsed: selectedProduct?.id === p.blueprintId,
-    metadata: {
-      brand: p.brand,
-      baseCost: p.baseCost || 0,
-      retailPrice: p.retailPrice || 0,
-      profit: p.profit || 0,
-      memberEarnings: p.memberEarnings || 0,
-      hasUSAProvider: p.hasUSAProvider || false,
-    },
+    imageUrl: p.imageUrl || "",
+    title: p.title,
+    subtitle: p.brand,
+    minPrice: p.retailPrice ? `$${p.retailPrice.toFixed(2)}` : null,
+    maxPrice: p.memberEarnings ? `+$${p.memberEarnings.toFixed(2)} earnings` : null,
+    colorCount: 0,
+    madeInUSA: p.hasUSAProvider || false,
+    description: p.baseCost ? `Base: $${p.baseCost.toFixed(2)}` : undefined,
   }));
 
-  const skinActions: SkinActions = {
-    onSelect: (id: string) => {
-      const product = allowedProducts.find(p => String(p.blueprintId) === id);
-      if (product) {
-        onSelect({
-          id: product.blueprintId,
-          name: product.title,
-          thumbnailUrl: product.imageUrl || null
-        });
-      }
+  const handleItemTap = (item: ScrollViewItem) => {
+    const product = allowedProducts.find(p => String(p.blueprintId) === item.id);
+    if (product) {
+      onSelect({
+        id: product.blueprintId,
+        name: product.title,
+        thumbnailUrl: product.imageUrl || null
+      });
     }
   };
 
@@ -424,7 +421,7 @@ function ProductPickerStep({
     <div>
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white mb-2">Pick Your Product</h2>
-        <p className="text-slate-400">Choose a blank product to customize</p>
+        <p className="text-slate-400">Tap a product to select it</p>
       </div>
 
       {!hasAllowedProducts ? (
@@ -436,15 +433,18 @@ function ProductPickerStep({
           </p>
         </div>
       ) : (
-        <div className="max-h-[60vh] overflow-y-auto pr-2">
-          <SkinGridViewer
-            items={skinItems}
-            CardSkin={AllowedProductCardSkin}
-            DetailSkin={AllowedProductDetailSkin}
-            actions={skinActions}
-            gridColumns="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-          />
-        </div>
+        <SharedViewer
+          mode="scroll"
+          scrollProps={{
+            items: scrollItems,
+            selectedId: selectedProduct ? String(selectedProduct.id) : undefined,
+            onSelect: handleItemTap,
+            aspectRatio: "square",
+            emptyMessage: "No products available.",
+            layout: "vertical",
+            gridHeight: "min(60vh, 500px)",
+          }}
+        />
       )}
     </div>
   );
@@ -1463,7 +1463,11 @@ export default function TestMembersSandbox() {
                   <Button
                     onClick={handleNext}
                     disabled={!canProceed()}
-                    className="flex-1 min-w-[100px] sm:flex-none bg-blue-600 hover:bg-blue-700"
+                    className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
+                      canProceed() 
+                        ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/50 animate-pulse" 
+                        : "bg-slate-600"
+                    }`}
                     data-testid="button-next"
                   >
                     Next
