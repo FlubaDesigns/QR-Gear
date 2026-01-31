@@ -39,7 +39,7 @@ export function PlacementPicker({
   placementType = 'qr',
   onTypeChange,
   showTypeToggle = true,
-  qrOnlyPlacements = ['front_pocket', 'sleeve_left', 'sleeve_right'],
+  qrOnlyPlacements = ['left-shoulder', 'right-shoulder', 'left_sleeve', 'right_sleeve', 'sleeve_left', 'sleeve_right'],
   productTitle,
   title = "Pick Location",
   subtitle,
