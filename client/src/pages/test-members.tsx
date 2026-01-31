@@ -39,7 +39,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
 import SEO from "@/components/SEO";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
-import { PlacementPicker, type PlacementSize, type PlacementType } from "@/features/shared/components/PlacementPicker";
+import { PlacementPicker, type PlacementSize, type PlacementType, type PlacementConfig } from "@/features/shared/components/PlacementPicker";
 import { HeaderFooterEditor } from "@/features/shared/components/HeaderFooterEditor";
 import { BackgroundPicker } from "@/features/shared/components/BackgroundPicker";
 import { LandingPageEditor, type LandingPageConfig, defaultLandingPage } from "@/features/shared/components/LandingPageEditor";
@@ -894,9 +894,8 @@ export default function TestMembersSandbox() {
   };
   
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
-  const [selectedPlacement, setSelectedPlacement] = useState<string>('');
-  const [placementSize, setPlacementSize] = useState<PlacementSize>('medium');
-  const [placementType, setPlacementType] = useState<PlacementType>('qr');
+  const [selectedPlacements, setSelectedPlacements] = useState<string[]>([]);
+  const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementConfig>>({});
   const [qrType, setQrType] = useState<QRType>('');
   const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
@@ -947,7 +946,7 @@ export default function TestMembersSandbox() {
           printfulProductId: selectedProduct.productId,
           variantId: selectedProduct.id,
           qrType,
-          qrDestination: qrDestination || landingPage.destinationUrl || null,
+          qrDestination: qrDestination || landingPage.url || null,
           headerStyle: headerStyle.enabled ? headerStyle : null,
           footerStyle: footerStyle.enabled ? footerStyle : null,
           backgroundUrl: backgroundUrl || null,
@@ -977,7 +976,7 @@ export default function TestMembersSandbox() {
     switch (currentStep) {
       case 'channel': return selectedChannel !== null;
       case 'product': return selectedProduct !== null;
-      case 'placement': return selectedPlacement !== '';
+      case 'placement': return selectedPlacements.length > 0;
       case 'header-footer': return true;
       case 'background': return true;
       case 'landing-page': return true;
@@ -1132,12 +1131,22 @@ export default function TestMembersSandbox() {
                 {currentStep === 'placement' && selectedProduct && (
                   <PlacementPicker
                     placements={selectedProduct.placements || []}
-                    selectedPlacement={selectedPlacement}
-                    onSelect={setSelectedPlacement}
-                    placementSize={placementSize}
-                    onSizeChange={setPlacementSize}
-                    placementType={placementType}
-                    onTypeChange={setPlacementType}
+                    selectedPlacements={selectedPlacements}
+                    placementConfigs={placementConfigs}
+                    onToggle={(id) => {
+                      setSelectedPlacements(prev => 
+                        prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+                      );
+                      if (!placementConfigs[id]) {
+                        setPlacementConfigs(prev => ({ ...prev, [id]: { type: 'qr', size: 'medium' } }));
+                      }
+                    }}
+                    onTypeChange={(id, type) => {
+                      setPlacementConfigs(prev => ({ ...prev, [id]: { ...prev[id], type } }));
+                    }}
+                    onSizeChange={(id, size) => {
+                      setPlacementConfigs(prev => ({ ...prev, [id]: { ...prev[id], size } }));
+                    }}
                     showTypeToggle={true}
                     productTitle={selectedProduct.name}
                   />
