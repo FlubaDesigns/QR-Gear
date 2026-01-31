@@ -115,6 +115,34 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
 - **COMPOSER creates TEMPLATES/PACKETS** (sellable items, member-owned)
 - **DYNAMICS controls INSTANCES** (buyer-owned, subscription-backed hosting)
 
+### Member Creation Wizards (Progressive Unlock System)
+Three-tier graduated learning for members who CREATE products to sell:
+- **Quick Create** (Simple Wizard) - Available immediately, 5 steps: Channel → Type → Background → Details → Publish
+- **Advanced** - Unlocks after 1st publish, full 8-step wizard with placements, header/footer, landing page options
+- **Studio** - Unlocks after 2nd publish, dropdown-based quick publishing for experienced creators
+- Publish count stored in localStorage as `publish_count_${userId}`
+
+### Buyer Customizer (FUTURE - Spec Saved)
+A completely separate BUYER-FIRST experience for casual customers customizing products to purchase.
+
+**Core Psychology**: They feel like they're customizing/previewing/making it theirs - NOT building/publishing/managing.
+
+**Language Rules**:
+- DO NOT USE: wizard, packet, publish, channel, collection, advanced, instance
+- USE: Customize, Preview, Next, Finish, Buy, Change later, Make it yours
+
+**Toolbox**:
+1. **Low-friction entry**: Cards like "Start with a design" / "Upload a photo" / "Use this example" - no blank canvas
+2. **Always-on preview**: Large, live, phone-shaped preview that updates immediately
+3. **Simple image control**: Drag to reposition, pinch to zoom, reset button - no sliders/coordinates
+4. **Safe text control**: Size (S/M/L buttons), Color (5-7 presets), Position (Top/Middle/Bottom zones)
+5. **Invisible style safety**: Auto-enforce contrast, margins, overflow - user never sees errors
+6. **Emotional confirmation**: "This is what it will look like" + "You can change this later"
+7. **Product context**: Always show what product, where QR goes, that it's included
+8. **Buy-first exit**: Primary CTA is [Buy this item], no account creation before purchase
+
+**NOT included**: Channels, collections, monetization, analytics, sharing, advanced layouts - those are for members only.
+
 ### System Design Choices
 - **Printful-First Mockup Architecture**: Decouples mockup generation from order fulfillment.
 - **Backend**: Node.js, Express, TypeScript.
