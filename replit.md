@@ -97,6 +97,14 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
 - `memberPacketService.ts` - Canvas packet creation with proper ordering
 - `memberVideoService.ts` - Video/Play packet creation with proper ordering
 - `ShareKitHandoff.tsx` - Post-publish handoff UI component
+- `social-image-generator.ts` - Auto-generates social media images (1080x1080 square, 1200x630 link preview)
+
+### Phase 8: Share Kit + Auto-Generated Assets
+- **Social Images**: Automatically generated on publish - 1080x1080 (Instagram/FB square) and 1200x630 (link preview)
+- **Auto-Caption**: Pre-written share caption generated from title + description + URL
+- **Share Kit UI**: Download buttons for social images, copy caption, one-click social sharing
+- **Regenerate Endpoint**: `POST /api/admin/channel-items/:itemId/regenerate-assets` for admin asset regeneration
+- **ChannelItem Fields**: `shareImageSquareUrl`, `shareImageLinkUrl`, `shareCaption` stored per item
 
 ### API Endpoints
 - `POST /api/member/library-links` - Create catalog entry (includes channelId, storeId)
