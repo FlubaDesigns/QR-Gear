@@ -740,7 +740,7 @@ function CustomizeStep({
         <div className="bg-slate-800/50 rounded-xl p-4 border border-rose-500/30">
           <div className="flex items-center gap-2 mb-4">
             <Play className="w-5 h-5 text-rose-400" />
-            <span className="font-medium text-white">Video Content</span>
+            <span className="font-medium text-white">Video</span>
           </div>
           
           <div className="grid grid-cols-2 gap-3 mb-4">
@@ -748,21 +748,49 @@ function CustomizeStep({
               className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-rose-500 transition-colors flex flex-col items-center justify-center gap-2"
               data-testid="button-upload-video"
             >
-              <Upload className="w-8 h-8 text-slate-400" />
+              <Upload className="w-8 h-8 text-rose-400" />
               <span className="text-sm text-slate-400">Upload Video</span>
             </button>
-            <div className="p-4 rounded-lg border border-slate-600 bg-slate-900">
-              <label className="text-xs text-slate-400 mb-2 block">Or paste URL</label>
-              <input
-                type="url"
-                value={videoUrl}
-                onChange={(e) => onVideoUrlChange(e.target.value)}
-                placeholder="YouTube, Vimeo..."
-                className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm placeholder:text-slate-500 focus:border-rose-500 outline-none"
-                data-testid="input-video-url"
-              />
-            </div>
+            <button
+              className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-rose-500 transition-colors flex flex-col items-center justify-center gap-2"
+              data-testid="button-url-video"
+            >
+              <Link2 className="w-8 h-8 text-rose-400" />
+              <span className="text-sm text-slate-400">Paste URL</span>
+            </button>
           </div>
+          
+          {/* Video URL input */}
+          <div className="mb-4">
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => onVideoUrlChange(e.target.value)}
+              placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+              className="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none"
+              data-testid="input-video-url"
+            />
+          </div>
+          
+          {/* Video Thumbnail Preview */}
+          {videoUrl && (
+            <div className="relative aspect-video max-w-sm mx-auto bg-slate-900 rounded-lg overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
+                <div className="text-center">
+                  <Play className="w-12 h-12 text-rose-400 mx-auto mb-2" />
+                  <p className="text-slate-400 text-sm">Video thumbnail</p>
+                  <p className="text-slate-500 text-xs mt-1 truncate px-4">{videoUrl}</p>
+                </div>
+              </div>
+              <button 
+                className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80"
+                onClick={() => onVideoUrlChange('')}
+                data-testid="button-clear-video"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
