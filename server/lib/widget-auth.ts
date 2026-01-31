@@ -1,12 +1,54 @@
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
-const JWT_SECRET = process.env.WIDGET_JWT_SECRET || "dev-secret-change-in-production";
-const JWT_EXPIRY = "1h";
+// ============ JWT KEY ROTATION SYSTEM ============
+// Keys are stored in env as JSON: WIDGET_JWT_KEYS='{"v1":"secret1","v2":"secret2"}'
+// Active key for signing: WIDGET_JWT_ACTIVE_KID
+const DEFAULT_DEV_SECRET = "dev-secret-change-in-production";
+const JWT_EXPIRY = "10m"; // Short-lived tokens for security
 
 // KC Canonical Contract issuer/audience
 const KC_ISSUER = 'kingdom_connects';
 const QR_GEAR_AUDIENCE = 'qrgear_widget';
+
+interface JWTKeys {
+  [kid: string]: string;
+}
+
+function getJWTKeys(): JWTKeys {
+  const keysEnv = process.env.WIDGET_JWT_KEYS;
+  if (!keysEnv) {
+    // Dev fallback - single key
+    return { v1: process.env.WIDGET_JWT_SECRET || DEFAULT_DEV_SECRET };
+  }
+  try {
+    return JSON.parse(keysEnv);
+  } catch (e) {
+    console.error("[WidgetAuth] Failed to parse WIDGET_JWT_KEYS, using fallback");
+    return { v1: process.env.WIDGET_JWT_SECRET || DEFAULT_DEV_SECRET };
+  }
+}
+
+function getActiveKid(): string {
+  return process.env.WIDGET_JWT_ACTIVE_KID || 'v1';
+}
+
+function getSigningKey(): { kid: string; secret: string } {
+  const keys = getJWTKeys();
+  const kid = getActiveKid();
+  const secret = keys[kid];
+  if (!secret) {
+    console.error(`[WidgetAuth] Active kid '${kid}' not found in keys, using first available`);
+    const firstKid = Object.keys(keys)[0];
+    return { kid: firstKid, secret: keys[firstKid] };
+  }
+  return { kid, secret };
+}
+
+function getKeyByKid(kid: string): string | null {
+  const keys = getJWTKeys();
+  return keys[kid] || null;
+}
 
 export interface WidgetTokenPayload {
   // ============ KC CANONICAL CONTRACT FIELDS ============
@@ -51,6 +93,24 @@ export interface WidgetTokenPayload {
   allowedSegments?: string[];
 }
 
+// Input schema for token minting API
+export const mintTokenInputSchema = z.object({
+  entityType: z.enum(['business', 'church', 'member']),
+  entityId: z.string().min(1),
+  entityName: z.string().optional(),
+  entityLogoUrl: z.string().url().optional().nullable(),
+  placement: z.enum(['homepage', 'church', 'business', 'member', 'dashboard', 'listing', 'profile', 'admin']).optional(),
+  mode: z.enum(['public', 'admin']).optional().default('public'),
+  returnUrl: z.string().url().optional(),
+  theme: z.string().optional(),
+  capabilities: z.object({
+    canCreate: z.boolean().optional(),
+    canManage: z.boolean().optional(),
+  }).optional(),
+});
+
+export type MintTokenInput = z.infer<typeof mintTokenInputSchema>;
+
 export const widgetTokenSchema = z.object({
   // KC Canonical Contract
   iss: z.string().optional(),
@@ -86,37 +146,107 @@ export const widgetTokenSchema = z.object({
   allowedSegments: z.array(z.string()).optional(),
 });
 
-export function signWidgetToken(payload: WidgetTokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
+/**
+ * Mint a new widget token for KC entities
+ * This is the ONLY place tokens should be signed
+ */
+export function mintWidgetToken(input: MintTokenInput): { token: string; expiresIn: string } {
+  const { kid, secret } = getSigningKey();
+  
+  // Derive channelId from entity
+  const channelId = `${input.entityType}_${input.entityId}`;
+  
+  const payload: Partial<WidgetTokenPayload> = {
+    // KC Canonical Contract - always set
+    iss: KC_ISSUER,
+    aud: QR_GEAR_AUDIENCE,
+    storeId: 'kingdom_connects',
+    channelId,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    entityName: input.entityName,
+    entityLogoUrl: input.entityLogoUrl,
+    placement: input.placement,
+    mode: input.mode || 'public',
+    returnUrl: input.returnUrl,
+    theme: input.theme,
+    capabilities: {
+      canCreate: input.capabilities?.canCreate || false,
+      canManage: input.capabilities?.canManage || false,
+    },
+  };
+  
+  const token = jwt.sign(payload, secret, {
     expiresIn: JWT_EXPIRY,
+    header: { alg: 'HS256', typ: 'JWT', kid },
+  });
+  
+  return { token, expiresIn: JWT_EXPIRY };
+}
+
+/**
+ * Legacy sign function - kept for backward compatibility
+ * New code should use mintWidgetToken
+ */
+export function signWidgetToken(payload: WidgetTokenPayload): string {
+  const { kid, secret } = getSigningKey();
+  return jwt.sign(payload, secret, {
+    expiresIn: JWT_EXPIRY,
+    header: { alg: 'HS256', typ: 'JWT', kid },
   });
 }
 
 export function verifyWidgetToken(token: string): WidgetTokenPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as WidgetTokenPayload;
+    // Decode header to get kid
+    const decoded = jwt.decode(token, { complete: true });
+    if (!decoded || typeof decoded === 'string') {
+      console.error("[WidgetAuth] Failed to decode token header");
+      return null;
+    }
+    
+    const kid = (decoded.header as any).kid || 'v1';
+    const secret = getKeyByKid(kid);
+    
+    if (!secret) {
+      console.error(`[WidgetAuth] Unknown key id: ${kid}`);
+      return null;
+    }
+    
+    const verified = jwt.verify(token, secret) as WidgetTokenPayload;
     
     // Validate KC canonical contract fields if present
-    if (decoded.iss && decoded.iss !== KC_ISSUER) {
-      console.error("Widget token invalid issuer:", decoded.iss);
+    if (verified.iss && verified.iss !== KC_ISSUER) {
+      console.error("[WidgetAuth] Invalid issuer:", verified.iss);
       return null;
     }
-    if (decoded.aud && decoded.aud !== QR_GEAR_AUDIENCE) {
-      console.error("Widget token invalid audience:", decoded.aud);
+    if (verified.aud && verified.aud !== QR_GEAR_AUDIENCE) {
+      console.error("[WidgetAuth] Invalid audience:", verified.aud);
       return null;
     }
     
-    const validated = widgetTokenSchema.parse(decoded);
+    // Validate exp/iat
+    const now = Math.floor(Date.now() / 1000);
+    if (verified.exp && verified.exp < now) {
+      console.error("[WidgetAuth] Token expired");
+      return null;
+    }
+    if (verified.iat && verified.iat > now + 60) {
+      console.error("[WidgetAuth] Token issued in future");
+      return null;
+    }
+    
+    const validated = widgetTokenSchema.parse(verified);
     
     return {
       ...validated,
-      iss: decoded.iss,
-      aud: decoded.aud,
-      iat: decoded.iat,
-      exp: decoded.exp,
+      iss: verified.iss,
+      aud: verified.aud,
+      iat: verified.iat,
+      exp: verified.exp,
     };
   } catch (error) {
-    console.error("Widget token verification failed:", error);
+    console.error("[WidgetAuth] Token verification failed:", error);
     return null;
   }
 }
@@ -204,4 +334,33 @@ export function createWidgetUrl(baseUrl: string, payload: WidgetTokenPayload): s
   }
   
   return url;
+}
+
+/**
+ * Verify KC service authentication for token minting
+ * Supports: API key or Firebase Admin token
+ */
+export async function verifyKCServiceAuth(authHeader: string | undefined): Promise<{ valid: boolean; error?: string }> {
+  if (!authHeader) {
+    return { valid: false, error: 'Authorization header required' };
+  }
+  
+  // Check API key auth
+  const apiKey = process.env.KC_SERVICE_API_KEY;
+  if (apiKey) {
+    if (authHeader === `Bearer ${apiKey}` || authHeader === apiKey) {
+      return { valid: true };
+    }
+  }
+  
+  // Check X-API-Key style
+  const widgetApiKey = process.env.WIDGET_API_KEY;
+  if (widgetApiKey && authHeader === widgetApiKey) {
+    return { valid: true };
+  }
+  
+  // Could add Firebase Admin token verification here
+  // For now, just API key auth
+  
+  return { valid: false, error: 'Invalid service authentication' };
 }

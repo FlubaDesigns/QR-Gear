@@ -727,37 +727,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Widget Token Generation (for embed script - requires API key)
+  // Widget Token Minting (KC service auth required)
+  // KC calls this endpoint to get short-lived widget tokens
+  // KC NEVER signs tokens locally - all signing happens here
   app.post("/api/widget/token", async (req, res) => {
     try {
-      const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
-      const expectedKey = process.env.WIDGET_API_KEY;
+      const { verifyKCServiceAuth, mintWidgetToken, mintTokenInputSchema } = await import("./lib/widget-auth");
       
-      if (!expectedKey || apiKey !== expectedKey) {
-        return res.status(401).json({ error: "Invalid or missing API key" });
-      }
-
-      const allowedOrigins = (process.env.ALLOWED_WIDGET_ORIGINS || 'https://kingdomconnects.com').split(',');
-      const origin = req.headers.origin || req.headers.referer || '';
-      const isAllowedOrigin = allowedOrigins.some(allowed => origin.startsWith(allowed.trim()));
+      // Verify KC service authentication (API key or Firebase Admin token)
+      const authHeader = req.headers['x-api-key'] as string || req.headers['authorization'];
+      const authResult = await verifyKCServiceAuth(authHeader);
       
-      if (!isAllowedOrigin && origin) {
-        console.warn("Widget token request from unauthorized origin:", origin);
+      if (!authResult.valid) {
+        return res.status(401).json({ ok: false, error: authResult.error || "Unauthorized" });
       }
-
-      const validated = widgetTokenSchema.parse(req.body);
-      const token = signWidgetToken(validated);
+      
+      // Validate input
+      const parsed = mintTokenInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: "Invalid token request", 
+          details: parsed.error.errors 
+        });
+      }
+      
+      // Mint token (10 min expiry, proper kid header)
+      const { token, expiresIn } = mintWidgetToken(parsed.data);
+      
+      console.log(`[WidgetToken] Minted token for ${parsed.data.entityType}_${parsed.data.entityId}`);
       
       res.json({ 
+        ok: true,
         token,
-        expiresIn: 3600
+        expiresIn,
+        channelId: `${parsed.data.entityType}_${parsed.data.entityId}`,
       });
     } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid widget configuration", details: error.errors });
-      }
-      console.error("Widget token error:", error);
-      res.status(500).json({ error: error.message });
+      console.error("[WidgetToken] Mint error:", error);
+      res.status(500).json({ ok: false, error: error.message });
     }
   });
 
