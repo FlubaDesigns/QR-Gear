@@ -386,28 +386,32 @@ function ProductPickerStep({
   const allowedProducts = allowedData?.products || [];
   const hasAllowedProducts = allowedProducts.length > 0;
 
-  const scrollItems: ScrollViewItem[] = allowedProducts.map((p) => ({
+  // Use SkinGridViewer with AllowedProductSkin for reusable earnings display
+  const skinItems: SkinItem[] = allowedProducts.map((p) => ({
     id: String(p.blueprintId),
-    imageUrl: p.imageUrl || "",
-    title: p.title,
-    subtitle: p.brand,
-    minPrice: p.retailPrice ? String(p.retailPrice) : null,
-    maxPrice: p.retailPrice ? String(p.retailPrice) : null,
-    colorCount: 0,
-    madeInUSA: p.hasUSAProvider || false,
-    description: p.memberEarnings 
-      ? `You earn: $${p.memberEarnings.toFixed(2)} per sale` 
-      : undefined,
+    name: p.title,
+    primaryImage: p.imageUrl,
+    isUsed: selectedProduct?.id === p.blueprintId,
+    metadata: {
+      brand: p.brand,
+      baseCost: p.baseCost || 0,
+      retailPrice: p.retailPrice || 0,
+      profit: p.profit || 0,
+      memberEarnings: p.memberEarnings || 0,
+      hasUSAProvider: p.hasUSAProvider || false,
+    },
   }));
 
-  const handleItemTap = (item: ScrollViewItem) => {
-    const product = allowedProducts.find(p => String(p.blueprintId) === item.id);
-    if (product) {
-      onSelect({
-        id: product.blueprintId,
-        name: product.title,
-        thumbnailUrl: product.imageUrl || null
-      });
+  const skinActions: SkinActions = {
+    onSelect: (id: string) => {
+      const product = allowedProducts.find(p => String(p.blueprintId) === id);
+      if (product) {
+        onSelect({
+          id: product.blueprintId,
+          name: product.title,
+          thumbnailUrl: product.imageUrl || null
+        });
+      }
     }
   };
 
@@ -435,18 +439,15 @@ function ProductPickerStep({
           </p>
         </div>
       ) : (
-        <SharedViewer
-          mode="scroll"
-          scrollProps={{
-            items: scrollItems,
-            selectedId: selectedProduct ? String(selectedProduct.id) : undefined,
-            onSelect: handleItemTap,
-            aspectRatio: "square",
-            emptyMessage: "No products available.",
-            layout: "vertical",
-            gridHeight: "min(60vh, 500px)",
-          }}
-        />
+        <div className="max-h-[60vh] overflow-y-auto pr-2">
+          <SkinGridViewer
+            items={skinItems}
+            CardSkin={AllowedProductCardSkin}
+            DetailSkin={AllowedProductDetailSkin}
+            actions={skinActions}
+            gridColumns="grid-cols-2 sm:grid-cols-3"
+          />
+        </div>
       )}
     </div>
   );

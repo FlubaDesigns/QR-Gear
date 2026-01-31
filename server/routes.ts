@@ -9123,10 +9123,32 @@ ${allPages.map(page => `  <url>
       }
       
       const data = doc.data();
-      const products = data?.products || [];
+      const storedProducts = data?.products || [];
       
-      // Products should already have packet data (pricing, images, etc.) from save time
-      console.log(`[Member Sandbox] Found ${products.length} product packets from member-products store`);
+      // Get current pricing settings to calculate earnings dynamically
+      const pricingDoc = await firestoreDb.collection("testSettings").doc("pricing").get();
+      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
+      const markupPercent = pricingSettings?.markupPercent ?? 25;
+      const markupFixed = pricingSettings?.markupFixed ?? 0;
+      
+      // Enrich products with current earnings calculation
+      const products = storedProducts.map((p: any) => {
+        const baseCost = p.baseCost || 0;
+        // Recalculate retail price and earnings based on current settings
+        const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+        const profit = retailPrice - baseCost;
+        const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+        
+        return {
+          ...p,
+          retailPrice,
+          profit,
+          memberEarnings,
+        };
+      });
+      
+      console.log(`[Member Sandbox] Found ${products.length} products, earnings @ ${memberProfitShare * 100}% share`);
       
       res.json({ products, storeId: "member-products" });
     } catch (error: any) {
