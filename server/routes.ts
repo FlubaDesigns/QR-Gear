@@ -9452,9 +9452,8 @@ ${allPages.map(page => `  <url>
         `members/${memberId}/cropped/${decodedFilename}`,
       ];
       
-      const { getFirebaseStorage } = await import("./lib/firebase-admin");
-      const storage = getFirebaseStorage();
-      const bucket = storage.bucket();
+      const { getStorageBucket } = await import("./lib/firebase-admin");
+      const bucket = getStorageBucket();
       
       for (const path of possiblePaths) {
         const file = bucket.file(path);
