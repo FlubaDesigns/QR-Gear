@@ -2,6 +2,25 @@
 
 ## COMPLETED CHANGES
 
+### Universal Claim Page System (Jan 31, 2026)
+- **claimService.ts**: Firestore-backed service for claim code generation and validation
+  - Generates unique claim codes tied to templates/products
+  - Single-use codes that mark as "claimed" after redemption
+  - Creates owned instances with Year 1 free hosting on claim
+- **Claim Page UI** (`/claim/:claimCode`): 4-step wizard flow
+  - Step 1: Welcome - shows product preview and start button
+  - Step 2: Auth - Firebase authentication required to claim
+  - Step 3: Confirm - review product details before claiming
+  - Step 4: Success - confirmation with link to QR Dynamics dashboard
+- **API Endpoints**:
+  - `GET /api/claim/validate/:claimCode` - validates code and returns product info
+  - `POST /api/claim/:claimCode` - claims item (requires auth)
+  - `GET /api/claimed-instances` - user's claimed instances
+  - `GET /api/claimed-instances/:instanceId` - single instance details
+  - `PATCH /api/claimed-instances/:instanceId` - update destination URL
+  - `POST /api/admin/claim-codes` - admin endpoint to generate codes
+- **Purpose**: Universal ownership establishment for ALL physical items regardless of distribution channel (own store, Amazon, Etsy, gifts, etc.)
+
 ### Wizard Wrap - channelId Flow (Jan 31, 2026)
 - **memberPacketService.ts**: Added `channelId` parameter that flows through packet creation
 - **memberVideoService.ts**: Added `channelId` parameter that flows through play packet publish
