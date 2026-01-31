@@ -118,6 +118,7 @@ function ItemCard({ item, onShare, onView }: {
 export default function Widget() {
   const { toast } = useToast();
   const [token, setToken] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -262,16 +263,30 @@ export default function Widget() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {items.map((item) => (
-            <ItemCard
-              key={item.itemId}
-              item={item}
-              onShare={() => handleShare(item)}
-              onView={() => handleView(item)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            {(showAll ? items : items.slice(0, 3)).map((item) => (
+              <ItemCard
+                key={item.itemId}
+                item={item}
+                onShare={() => handleShare(item)}
+                onView={() => handleView(item)}
+              />
+            ))}
+          </div>
+          {items.length > 3 && (
+            <div className="text-center mt-3">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowAll(!showAll)}
+                data-testid="button-view-all"
+              >
+                {showAll ? 'Show less' : `View all ${items.length} items`}
+              </Button>
+            </div>
+          )}
+        </>
       )}
       
       <div className="mt-4 pt-3 border-t text-center text-xs text-muted-foreground">
