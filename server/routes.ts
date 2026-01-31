@@ -7759,6 +7759,56 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Seed channel items for testing (admin only)
+  app.post("/api/admin/channel-items/seed", isAdmin, async (req: any, res) => {
+    try {
+      const { channelId } = req.body;
+      if (!channelId) {
+        return res.status(400).json({ error: "channelId is required" });
+      }
+      
+      const { upsertChannelItem } = await import("./lib/channelItemsService");
+      
+      const testItems = [
+        {
+          channelId,
+          packetId: `test-packet-1-${Date.now()}`,
+          title: "Welcome QR Card",
+          description: "Custom welcome card with your brand",
+          previewImageUrl: "https://firebasestorage.googleapis.com/v0/b/qrgear-c1ffd.firebasestorage.app/o/demo%2Fwelcome-card.png?alt=media",
+          collectionTag: "Official",
+        },
+        {
+          channelId,
+          packetId: `test-packet-2-${Date.now()}`,
+          title: "Event Promo",
+          description: "Promote your upcoming events",
+          previewImageUrl: "https://firebasestorage.googleapis.com/v0/b/qrgear-c1ffd.firebasestorage.app/o/demo%2Fevent-promo.png?alt=media",
+          collectionTag: "Events",
+        },
+        {
+          channelId,
+          packetId: `test-packet-3-${Date.now()}`,
+          title: "Contact Card",
+          description: "Digital contact card with QR code",
+          previewImageUrl: "https://firebasestorage.googleapis.com/v0/b/qrgear-c1ffd.firebasestorage.app/o/demo%2Fcontact-card.png?alt=media",
+        },
+      ];
+      
+      const created = [];
+      for (const item of testItems) {
+        const result = await upsertChannelItem(item);
+        created.push(result);
+      }
+      
+      console.log(`[ChannelItems] Seeded ${created.length} items for channel ${channelId}`);
+      res.json({ ok: true, message: `Seeded ${created.length} items`, items: created });
+    } catch (error: any) {
+      console.error("[ChannelItems] Seed error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Update hosting tier (admin only)
   app.put("/api/admin/hosting-tiers/:id", isAdmin, async (req, res) => {
     try {
