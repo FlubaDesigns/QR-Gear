@@ -10634,6 +10634,7 @@ ${allPages.map(page => `  <url>
           markupFixed: 0,
           additionalPlacementCost: 4,
           textLineUpcharge: 2,
+          memberProfitShare: 0.25,
           hostingTiers: [
             { code: "1_year", name: "1 Year", price: 5 },
             { code: "2_year", name: "2 Years", price: 8 },
@@ -10642,7 +10643,12 @@ ${allPages.map(page => `  <url>
         });
       }
       
-      res.json(doc.data());
+      const data = doc.data();
+      // Ensure memberProfitShare has a default value
+      res.json({
+        ...data,
+        memberProfitShare: data?.memberProfitShare ?? 0.25,
+      });
     } catch (error: any) {
       console.error("[Pricing Settings TEST] Error getting settings:", error);
       res.status(500).json({ error: error.message });
@@ -10652,7 +10658,7 @@ ${allPages.map(page => `  <url>
   // Test: Save pricing settings - NO AUTH REQUIRED
   app.post("/api/test/pricing-settings", async (req: any, res) => {
     try {
-      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, hostingTiers } = req.body;
+      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers } = req.body;
       
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -10663,6 +10669,7 @@ ${allPages.map(page => `  <url>
         markupFixed: parseFloat(markupFixed) || 0,
         additionalPlacementCost: parseFloat(additionalPlacementCost) || 4,
         textLineUpcharge: parseFloat(textLineUpcharge) || 2,
+        memberProfitShare: parseFloat(memberProfitShare) || 0.25,
         hostingTiers: hostingTiers || [
           { code: "1_year", name: "1 Year", price: 5 },
           { code: "2_year", name: "2 Years", price: 8 },
@@ -10682,6 +10689,89 @@ ${allPages.map(page => `  <url>
       });
     } catch (error: any) {
       console.error("[Pricing Settings TEST] Error saving settings:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Sync pricing to all existing product packets across all stores
+  app.post("/api/test/pricing-settings/sync", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get current pricing settings
+      const pricingDoc = await firestoreDb.collection("testSettings").doc("pricing").get();
+      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+      
+      const markupPercent = pricingSettings?.markupPercent ?? 25;
+      const markupFixed = pricingSettings?.markupFixed ?? 0;
+      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
+      const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
+      const textLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
+      
+      console.log(`[PricingSync] Starting sync with: ${markupPercent}% markup, ${memberProfitShare * 100}% member share`);
+      
+      // Get all store allowed products
+      const storesSnapshot = await firestoreDb.collection("storeAllowedProducts").get();
+      
+      let storesUpdated = 0;
+      let productsUpdated = 0;
+      
+      for (const storeDoc of storesSnapshot.docs) {
+        const storeData = storeDoc.data();
+        const storeId = storeDoc.id;
+        
+        if (!storeData.products || !Array.isArray(storeData.products)) {
+          continue;
+        }
+        
+        // Recalculate pricing for each product
+        const updatedProducts = storeData.products.map((p: any) => {
+          if (p.baseCost === undefined || p.baseCost === null) {
+            return p; // Skip products without base cost
+          }
+          
+          const baseCost = parseFloat(p.baseCost) || 0;
+          const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+          const profit = retailPrice - baseCost;
+          const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+          
+          return {
+            ...p,
+            retailPrice,
+            profit,
+            memberEarnings,
+            pricingUsed: {
+              markupPercent,
+              markupFixed,
+              additionalPlacementCost,
+              textLineUpcharge,
+              memberProfitShare,
+            },
+            pricingSyncedAt: new Date().toISOString(),
+          };
+        });
+        
+        await firestoreDb.collection("storeAllowedProducts").doc(storeId).update({
+          products: updatedProducts,
+          updatedAt: new Date().toISOString(),
+        });
+        
+        storesUpdated++;
+        productsUpdated += updatedProducts.length;
+      }
+      
+      console.log(`[PricingSync] Updated ${productsUpdated} products across ${storesUpdated} stores`);
+      
+      res.json({
+        success: true,
+        storesUpdated,
+        productsUpdated,
+        pricingUsed: { markupPercent, markupFixed, memberProfitShare, additionalPlacementCost, textLineUpcharge },
+        message: `Synced pricing to ${productsUpdated} products across ${storesUpdated} stores`,
+      });
+    } catch (error: any) {
+      console.error("[PricingSync] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

@@ -20,6 +20,7 @@ interface PricingSettings {
   markupFixed: number;
   additionalPlacementCost: number;
   textLineUpcharge: number;
+  memberProfitShare: number;
   hostingTiers: HostingTier[];
 }
 
@@ -34,6 +35,7 @@ export default function TestPricingPage() {
   const [markupFixed, setMarkupFixed] = useState<string>("");
   const [additionalPlacementCost, setAdditionalPlacementCost] = useState<string>("");
   const [textLineUpcharge, setTextLineUpcharge] = useState<string>("");
+  const [memberProfitShare, setMemberProfitShare] = useState<string>("");
   const [hostingTiers, setHostingTiers] = useState<HostingTier[]>([]);
   const [initialized, setInitialized] = useState(false);
 
@@ -42,6 +44,7 @@ export default function TestPricingPage() {
     setMarkupFixed(String(settings.markupFixed));
     setAdditionalPlacementCost(String(settings.additionalPlacementCost));
     setTextLineUpcharge(String(settings.textLineUpcharge));
+    setMemberProfitShare(String((settings.memberProfitShare || 0.25) * 100)); // Store as percentage
     setHostingTiers(settings.hostingTiers || []);
     setInitialized(true);
   }
@@ -71,9 +74,30 @@ export default function TestPricingPage() {
       markupFixed: parseFloat(markupFixed) || 0,
       additionalPlacementCost: parseFloat(additionalPlacementCost) || 0,
       textLineUpcharge: parseFloat(textLineUpcharge) || 0,
+      memberProfitShare: (parseFloat(memberProfitShare) || 25) / 100, // Convert from percentage to decimal
       hostingTiers,
     });
   };
+  
+  const syncPricingMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/test/pricing-settings/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Failed to sync pricing");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Pricing Synced", 
+        description: `Updated ${data.productsUpdated} products across ${data.storesUpdated} stores.` 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
 
   const updateTierPrice = (code: string, price: string) => {
     setHostingTiers(tiers => 
@@ -218,6 +242,57 @@ export default function TestPricingPage() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Charged per text line (header or footer) on each "full artwork" placement
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Percent className="h-5 w-5" />
+                Member Profit Share
+              </CardTitle>
+              <CardDescription>
+                Percentage of profit that members earn when their products sell
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="member-profit-share">Member Share (%)</Label>
+                <Input
+                  id="member-profit-share"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={memberProfitShare}
+                  onChange={(e) => setMemberProfitShare(e.target.value)}
+                  placeholder="25"
+                  className="min-h-[48px] text-lg max-w-xs"
+                  inputMode="decimal"
+                  data-testid="input-member-profit-share"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Members earn this % of profit (price - cost) on each sale. Default: 25%
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => syncPricingMutation.mutate()}
+                  disabled={syncPricingMutation.isPending}
+                  data-testid="button-sync-pricing"
+                >
+                  {syncPricingMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4 mr-2" />
+                  )}
+                  Sync Pricing to All Products
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Updates all existing product packets with current pricing settings
                 </p>
               </div>
             </CardContent>
