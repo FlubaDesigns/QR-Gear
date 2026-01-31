@@ -669,95 +669,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/widget/session", widgetCorsMiddleware, async (req, res) => {
     try {
       const token = req.query.token as string;
-      const segment = req.query.segment as string | undefined;
       
       if (!token) {
-        return res.status(400).json({ error: "Token required" });
+        return res.status(400).json({ ok: false, error: "Token required" });
       }
 
+      const { normalizeWidgetPayload } = await import("./lib/widget-auth");
       const payload = verifyWidgetToken(token);
       
       if (!payload) {
-        return res.status(401).json({ error: "Invalid or expired token" });
+        return res.status(401).json({ ok: false, error: "Invalid or expired token" });
       }
 
-      // Validate segment access if segment requested
-      if (segment && payload.allowedSegments && payload.allowedSegments.length > 0) {
-        if (!payload.allowedSegments.includes(segment)) {
-          return res.status(403).json({ error: "Segment not authorized for this token" });
-        }
-      }
-
-      // Get products - filter by partner and/or segment if provided
-      let productsToShow: any[] = [];
+      // Normalize payload to canonical store/channel format
+      const normalized = normalizeWidgetPayload(payload);
       
-      if (payload.partnerId) {
-        // Get partner store products
-        const store = await storage.getPartnerStoreBySlug(payload.partnerId);
-        if (store) {
-          const storeProducts = await storage.getPartnerStoreProducts(store.id);
-          const enabledProducts = storeProducts.filter(sp => sp.isEnabled);
-          
-          // Fetch actual product details
-          for (const sp of enabledProducts) {
-            const product = await storage.getProduct(sp.productId);
-            if (product && product.isEnabled) {
-              productsToShow.push({
-                id: product.id,
-                name: sp.customName || product.name,
-                imageUrl: product.imageUrl || "",
-                basePrice: sp.customPrice || product.basePrice,
-                category: product.category,
-                segment: product.productLine,
-                mockupsByColor: sp.mockupsByColor || product.mockupsByColor,
-              });
-            }
-          }
-        }
-      } else {
-        // Fall back to all products
-        const allProducts = await storage.getAllProducts();
-        productsToShow = allProducts.filter(p => p.isEnabled).map(p => ({
-          id: p.id,
-          name: p.name,
-          imageUrl: p.imageUrl || "",
-          basePrice: p.basePrice,
-          category: p.category,
-          segment: p.productLine,
-          mockupsByColor: p.mockupsByColor,
-        }));
+      // channelId MUST come from verified token - NEVER from request params
+      const { storeId, channelId, entityType, entityId, entityName, entityLogoUrl, mode, capabilities } = normalized;
+      
+      if (!channelId) {
+        return res.status(400).json({ ok: false, error: "Token missing channelId" });
       }
 
-      // Filter by segment if specified
-      if (segment) {
-        productsToShow = productsToShow.filter(p => 
-          p.segment === segment || p.category === segment
-        );
-      }
-
-      // Limit to 12 products for widget display
-      const featuredProducts = productsToShow.slice(0, 12);
-
-      // Generate QR code linking to KC business listing
-      const qrCodeDataUrl = payload.kcListingUrl 
-        ? await generateTextQRCode(payload.kcListingUrl, {
-            color: "#1e40af",
-            backgroundColor: "#ffffff",
-          })
-        : null;
-
+      // Load channel items from Firestore
+      const { getChannelItems } = await import("./lib/channelItemsService");
+      const items = await getChannelItems({ storeId, channelId, limit: 12 });
+      
       res.json({
-        businessName: payload.businessName,
-        businessLogoUrl: payload.businessLogoUrl,
-        kcListingUrl: payload.kcListingUrl,
-        qrCodeDataUrl,
-        products: featuredProducts,
-        segment: segment || null,
-        totalProducts: productsToShow.length,
+        ok: true,
+        storeId,
+        channelId,
+        entityType,
+        entityId,
+        items: items.map(item => ({
+          itemId: item.itemId,
+          packetId: item.packetId,
+          title: item.title,
+          description: item.description,
+          previewImageUrl: item.previewImageUrl,
+          shareUrl: item.shareUrl,
+          price: item.price,
+          collectionTag: item.collectionTag,
+        })),
+        display: {
+          entityName,
+          entityLogoUrl,
+          placement: payload.placement,
+          mode,
+          returnUrl: payload.returnUrl,
+          theme: payload.theme,
+        },
+        capabilities,
       });
     } catch (error: any) {
       console.error("Widget session error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ ok: false, error: error.message });
     }
   });
 
@@ -793,6 +759,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Widget token error:", error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // ============ KC WIDGET CANONICAL CONTRACT ENDPOINTS ============
+  // Verify widget token and return normalized context
+  app.get("/api/widget/verify", widgetCorsMiddleware, async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      
+      if (!token) {
+        return res.json({ valid: false, error: "No token provided" });
+      }
+      
+      const { normalizeWidgetPayload } = await import("./lib/widget-auth");
+      const payload = verifyWidgetToken(token);
+      
+      if (!payload) {
+        return res.json({ valid: false, error: "Invalid or expired token" });
+      }
+      
+      const normalized = normalizeWidgetPayload(payload);
+      
+      res.json({
+        valid: true,
+        payload: {
+          ...normalized,
+          returnUrl: payload.returnUrl,
+          theme: payload.theme,
+        }
+      });
+    } catch (error: any) {
+      console.error("[Widget] Verify error:", error);
+      res.json({ valid: false, error: error.message });
+    }
+  });
+
+  // Get channel items for widget storefront
+  app.get("/api/widget/items", widgetCorsMiddleware, async (req, res) => {
+    try {
+      const { channelId, storeId } = req.query;
+      
+      if (!channelId || typeof channelId !== 'string') {
+        return res.status(400).json({ error: "channelId is required" });
+      }
+      
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Query catalog item links for this channel
+      const snapshot = await firestoreDb.collection('catalogItemLinks')
+        .where('channelId', '==', channelId)
+        .where('status', '==', 'published')
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+      
+      // Also check memberLibraryLinks collection
+      const memberSnapshot = await firestoreDb.collection('memberLibraryLinks')
+        .where('channelId', '==', channelId)
+        .where('status', '==', 'published')
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+      
+      const items = [
+        ...snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+        ...memberSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      ];
+      
+      // Sort by createdAt descending
+      items.sort((a: any, b: any) => {
+        const aDate = a.createdAt?.toDate?.() || new Date(a.createdAt);
+        const bDate = b.createdAt?.toDate?.() || new Date(b.createdAt);
+        return bDate.getTime() - aDate.getTime();
+      });
+      
+      res.json({ items: items.slice(0, 50) });
+    } catch (error: any) {
+      console.error("[Widget] Items error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PostMessage handler info endpoint (for KC to know what events to expect)
+  app.get("/api/widget/events", widgetCorsMiddleware, (req, res) => {
+    res.json({
+      events: [
+        { type: "qrgear:ready", description: "Widget has loaded and is ready" },
+        { type: "qrgear:height", description: "Widget height changed", data: { height: "number" } },
+        { type: "qrgear:item_click", description: "User clicked on an item", data: { itemId: "string", packetId: "string" } },
+        { type: "qrgear:item_share", description: "User shared an item", data: { itemId: "string", packetId: "string" } },
+        { type: "qrgear:create_start", description: "Admin started create flow", data: { channelId: "string" } },
+        { type: "qrgear:checkout_start", description: "User started checkout" },
+        { type: "qrgear:checkout_complete", description: "User completed checkout" },
+      ]
+    });
   });
 
   // Partner API - Simple endpoint for partners to fetch their products
