@@ -695,6 +695,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getChannelItems } = await import("./lib/channelItemsService");
       const items = await getChannelItems({ storeId, channelId, limit: 12 });
       
+      // Cache for 60 seconds to reduce repeated loads
+      res.set('Cache-Control', 'public, max-age=60');
+      
       res.json({
         ok: true,
         storeId,

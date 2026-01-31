@@ -195,16 +195,20 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
 }
 
 export async function deactivateChannelItem(itemId: string): Promise<boolean> {
+  return setChannelItemActive(itemId, false);
+}
+
+export async function setChannelItemActive(itemId: string, isActive: boolean): Promise<boolean> {
   const db = getFirestoreDb();
   
   try {
     await db.collection('channel_items').doc(itemId).update({
-      isActive: false,
+      isActive,
       updatedAt: new Date(),
     });
     return true;
   } catch (error) {
-    console.error('[ChannelItems] Deactivate error:', error);
+    console.error('[ChannelItems] Set active error:', error);
     return false;
   }
 }
