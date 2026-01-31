@@ -16,6 +16,7 @@ export interface ScrollViewItem {
   sizes?: string[];
   description?: string;
   hasMockupMapping?: boolean;
+  metadata?: Record<string, any>;
 }
 
 export interface ScrollViewProps {

@@ -386,7 +386,7 @@ function ProductPickerStep({
   const allowedProducts = allowedData?.products || [];
   const hasAllowedProducts = allowedProducts.length > 0;
 
-  // Map to ScrollViewItem format with metadata for custom skin
+  // Map to ScrollViewItem format with metadata from admin
   const scrollItems: ScrollViewItem[] = allowedProducts.map((p) => ({
     id: String(p.blueprintId),
     imageUrl: p.imageUrl || "",
@@ -396,42 +396,32 @@ function ProductPickerStep({
     maxPrice: p.retailPrice ? String(p.retailPrice) : null,
     colorCount: 0,
     madeInUSA: p.hasUSAProvider || false,
-    description: JSON.stringify({
+    metadata: {
+      brand: p.brand,
       baseCost: p.baseCost || 0,
       retailPrice: p.retailPrice || 0,
       profit: p.profit || 0,
       memberEarnings: p.memberEarnings || 0,
-    }),
+      hasUSAProvider: p.hasUSAProvider || false,
+    },
   }));
 
   const handleItemTap = (item: ScrollViewItem) => {
-    const product = allowedProducts.find(p => String(p.blueprintId) === item.id);
-    if (product) {
-      onSelect({
-        id: product.blueprintId,
-        name: product.title,
-        thumbnailUrl: product.imageUrl || null
-      });
-    }
+    onSelect({
+      id: Number(item.id),
+      name: item.title,
+      thumbnailUrl: item.imageUrl || null
+    });
   };
 
-  // Custom skin renderer for ScrollView - AllowedProductCardSkin on top of ScrollView
+  // Skin renderer - receives data directly from scrollItem.metadata
   const renderProductSkin = (item: ScrollViewItem, isSelected: boolean, onSelectItem: () => void) => {
-    let metadata: any = {};
-    try {
-      metadata = item.description ? JSON.parse(item.description) : {};
-    } catch { metadata = {}; }
-    
     const skinItem: SkinItem = {
       id: String(item.id),
       name: item.title,
       primaryImage: item.imageUrl,
       isUsed: isSelected,
-      metadata: {
-        brand: item.subtitle,
-        ...metadata,
-        hasUSAProvider: item.madeInUSA,
-      },
+      metadata: item.metadata,
     };
     
     return (
