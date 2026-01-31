@@ -122,6 +122,12 @@ export function ProductSkin({
               </Badge>
             )}
           </div>
+
+          {description && (
+            <div className="text-sm font-medium text-green-500" data-testid={`text-product-earnings-${id}`}>
+              {description}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -391,11 +391,13 @@ function ProductPickerStep({
     imageUrl: p.imageUrl || "",
     title: p.title,
     subtitle: p.brand,
-    minPrice: p.retailPrice ? `$${p.retailPrice.toFixed(2)}` : null,
-    maxPrice: p.memberEarnings ? `+$${p.memberEarnings.toFixed(2)} earnings` : null,
+    minPrice: p.retailPrice ? String(p.retailPrice) : null,
+    maxPrice: p.retailPrice ? String(p.retailPrice) : null,
     colorCount: 0,
     madeInUSA: p.hasUSAProvider || false,
-    description: p.baseCost ? `Base: $${p.baseCost.toFixed(2)}` : undefined,
+    description: p.memberEarnings 
+      ? `You earn: $${p.memberEarnings.toFixed(2)} per sale` 
+      : undefined,
   }));
 
   const handleItemTap = (item: ScrollViewItem) => {
@@ -1465,9 +1467,10 @@ export default function TestMembersSandbox() {
                     disabled={!canProceed()}
                     className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
                       canProceed() 
-                        ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/50 animate-pulse" 
+                        ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
                         : "bg-slate-600"
                     }`}
+                    style={canProceed() ? { animation: "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite" } : undefined}
                     data-testid="button-next"
                   >
                     Next
