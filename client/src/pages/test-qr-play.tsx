@@ -100,7 +100,7 @@ export default function TestQRPlayPage() {
   const [publishProgress, setPublishProgress] = useState<{ step: ProgressStep; status: ProgressStatus } | null>(null);
   const [publishResult, setPublishResult] = useState<{ packetId?: string; shareUrl?: string; error?: string } | null>(null);
 
-  const memberId = user?.uid || "demo-user";
+  const memberId = user?.id?.toString() || "demo-user";
 
   function canProceed(): boolean {
     switch (currentStep) {
@@ -120,7 +120,7 @@ export default function TestQRPlayPage() {
   function goNext() {
     const stepIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
     if (stepIndex < WIZARD_STEPS.length - 1) {
-      setCompletedSteps(prev => new Set([...prev, currentStep]));
+      setCompletedSteps(prev => new Set(Array.from(prev).concat(currentStep)));
       setCurrentStep(WIZARD_STEPS[stepIndex + 1].id);
     }
   }
