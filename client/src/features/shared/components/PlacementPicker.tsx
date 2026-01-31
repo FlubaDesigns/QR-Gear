@@ -1,11 +1,9 @@
 import { Check, MapPin, QrCode, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { QR_ONLY_PLACEMENTS } from "@/features/adminProducts/builder/types";
 
 export type PlacementSize = 'small' | 'medium' | 'large';
 export type PlacementType = 'qr' | 'graphic';
-
-// Match exactly with adminProducts/builder/types.ts
-export const QR_ONLY_PLACEMENTS = ["left-shoulder", "right-shoulder"];
 
 export interface Placement {
   id: string;
