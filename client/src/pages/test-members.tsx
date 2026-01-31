@@ -33,7 +33,8 @@ import {
   Play,
   Sparkles,
   X,
-  MapPin
+  MapPin,
+  Library
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
@@ -41,7 +42,6 @@ import SEO from "@/components/SEO";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { PlacementPicker, type PlacementSize, type PlacementType, type PlacementConfig } from "@/features/shared/components/PlacementPicker";
 import { HeaderFooterEditor } from "@/features/shared/components/HeaderFooterEditor";
-import { BackgroundPicker } from "@/features/shared/components/BackgroundPicker";
 import { LandingPageEditor, type LandingPageConfig, defaultLandingPage } from "@/features/shared/components/LandingPageEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 import { SkinGridViewer, type SkinItem, type SkinActions } from "@/features/shared/components/SkinGridViewer";
@@ -906,6 +906,7 @@ export default function TestMembersSandbox() {
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [backgroundUrl, setBackgroundUrl] = useState<string>('');
+  const [showBackgroundLibrary, setShowBackgroundLibrary] = useState(false);
   const [landingPage, setLandingPage] = useState<LandingPageConfig>({ ...defaultLandingPage });
   const [videoUrl, setVideoUrl] = useState<string>('');
 
@@ -1161,11 +1162,58 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 {currentStep === 'background' && (
-                  <BackgroundPicker
-                    backgroundUrl={backgroundUrl}
-                    onBackgroundChange={setBackgroundUrl}
-                    memberId={user?.id}
-                  />
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold text-white mb-2">Background Image</h2>
+                      <p className="text-slate-400">Choose from the library or upload your own</p>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full h-16 text-lg"
+                      onClick={() => setShowBackgroundLibrary(true)}
+                      data-testid="button-open-background-library"
+                    >
+                      <Library className="w-5 h-5 mr-2" />
+                      Open Background Library
+                    </Button>
+                    
+                    {backgroundUrl && (
+                      <div className="relative">
+                        <div className="aspect-[9/16] max-w-[200px] mx-auto rounded-lg overflow-hidden border-2 border-primary">
+                          <img 
+                            src={backgroundUrl} 
+                            alt="Selected background" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="absolute top-2 right-2"
+                          onClick={() => setBackgroundUrl('')}
+                          data-testid="button-clear-background"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                        <p className="text-center text-sm text-slate-400 mt-2">Background selected</p>
+                      </div>
+                    )}
+                    
+                    {showBackgroundLibrary && user?.id && (
+                      <BackgroundLibraryPicker
+                        memberId={user.id}
+                        selectedUrl={backgroundUrl}
+                        onSelect={(url) => {
+                          setBackgroundUrl(url);
+                          setShowBackgroundLibrary(false);
+                        }}
+                        onClose={() => setShowBackgroundLibrary(false)}
+                        assetType="background"
+                      />
+                    )}
+                  </div>
                 )}
                 {currentStep === 'landing-page' && (
                   <LandingPageEditor
