@@ -107,7 +107,7 @@ export function PlacementPicker({
                         variant={placementType === "graphic" ? "default" : "outline"}
                         size="sm"
                         onClick={() => onTypeChange("graphic")}
-                        className="flex-1"
+                        className={`flex-1 ${placementType === "graphic" ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-slate-700 border-slate-500 text-white hover:bg-slate-600"}`}
                         data-testid={`placement-type-graphic-${placement.id}`}
                       >
                         <Image className="h-4 w-4 mr-2" />
@@ -118,7 +118,7 @@ export function PlacementPicker({
                         variant={placementType === "qr" ? "default" : "outline"}
                         size="sm"
                         onClick={() => onTypeChange("qr")}
-                        className="flex-1"
+                        className={`flex-1 ${placementType === "qr" ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-slate-700 border-slate-500 text-white hover:bg-slate-600"}`}
                         data-testid={`placement-type-qr-${placement.id}`}
                       >
                         <QrCode className="h-4 w-4 mr-2" />
@@ -135,7 +135,7 @@ export function PlacementPicker({
                   )}
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">Size:</span>
+                    <span className="text-xs text-slate-400">Graphic Size:</span>
                     <div className="flex gap-1">
                       {SIZE_OPTIONS.map((size) => (
                         <Button
@@ -144,7 +144,7 @@ export function PlacementPicker({
                           variant={placementSize === size.value ? "default" : "outline"}
                           size="sm"
                           onClick={() => onSizeChange(size.value)}
-                          className="w-10 h-8 px-0"
+                          className={`w-10 h-8 px-0 ${placementSize === size.value ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-slate-700 border-slate-500 text-white hover:bg-slate-600"}`}
                           data-testid={`placement-size-${size.value}`}
                         >
                           {size.label}

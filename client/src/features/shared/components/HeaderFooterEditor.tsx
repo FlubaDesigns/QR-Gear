@@ -33,10 +33,12 @@ export function HeaderFooterEditor({
             <span className="text-sm font-medium text-white">Header Text</span>
           </div>
           <TextStyleEditor
-            value={headerStyle}
+            style={headerStyle}
             onChange={onHeaderChange}
-            label="Header"
-            placeholder="Enter header text..."
+            label="Header Text"
+            sublabel="Appears above your design"
+            maxLength={40}
+            testIdPrefix="header"
           />
         </CardContent>
       </Card>
@@ -48,10 +50,12 @@ export function HeaderFooterEditor({
             <span className="text-sm font-medium text-white">Footer Text</span>
           </div>
           <TextStyleEditor
-            value={footerStyle}
+            style={footerStyle}
             onChange={onFooterChange}
-            label="Footer"
-            placeholder="Enter footer text..."
+            label="Footer Text"
+            sublabel="Appears below your design"
+            maxLength={40}
+            testIdPrefix="footer"
           />
         </CardContent>
       </Card>
