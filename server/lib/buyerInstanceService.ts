@@ -126,14 +126,19 @@ export async function getExpiringInstances(daysUntilExpiry: number): Promise<Buy
   const now = new Date();
   const targetDate = new Date(now.getTime() + daysUntilExpiry * 24 * 60 * 60 * 1000);
   
+  // Simple query on status only (no compound index needed)
+  // Then filter expiration range in memory
   const snapshot = await db.collection('buyerInstances')
     .where('status', '==', 'active')
-    .where('hostingExpiresAt', '<=', targetDate.toISOString())
-    .where('hostingExpiresAt', '>', now.toISOString())
-    .limit(500)
+    .limit(1000)
     .get();
   
-  return snapshot.docs.map(doc => doc.data() as BuyerInstance);
+  return snapshot.docs
+    .map(doc => doc.data() as BuyerInstance)
+    .filter(instance => {
+      const expiry = new Date(instance.hostingExpiresAt);
+      return expiry > now && expiry <= targetDate;
+    });
 }
 
 export async function markReminderSent(instanceId: string, reminderType: string): Promise<void> {
@@ -156,21 +161,27 @@ export async function checkAndUpdateExpiredInstances(): Promise<number> {
   const db = getFirestoreDb();
   const now = new Date();
   
+  // Simple query on status only (no compound index needed)
+  // Then filter expiration in memory
   const snapshot = await db.collection('buyerInstances')
     .where('status', '==', 'active')
-    .where('hostingExpiresAt', '<', now.toISOString())
-    .limit(500)
+    .limit(1000)
     .get();
   
   let count = 0;
   const batch = db.batch();
   
   for (const doc of snapshot.docs) {
-    batch.update(doc.ref, {
-      status: 'expired',
-      updatedAt: now.toISOString(),
-    });
-    count++;
+    const instance = doc.data() as BuyerInstance;
+    const expiry = new Date(instance.hostingExpiresAt);
+    
+    if (expiry < now) {
+      batch.update(doc.ref, {
+        status: 'expired',
+        updatedAt: now.toISOString(),
+      });
+      count++;
+    }
   }
   
   if (count > 0) {
