@@ -10076,6 +10076,20 @@ ${allPages.map(page => `  <url>
         updatedAt: new Date().toISOString(),
       });
       
+      // Also write to channel_items if channelId is provided (KC widget integration)
+      if (channelId) {
+        const { upsertChannelItem } = await import("./lib/channelItemsService");
+        await upsertChannelItem({
+          channelId,
+          packetId,
+          title: titleLayer?.text || 'Untitled Video',
+          description: metadata?.description,
+          previewImageUrl: packet?.shareCardUrl || packet?.videoSource?.posterUrl,
+          price: metadata?.price,
+        });
+        console.log(`[QR Play] Also wrote to channel_items for channel ${channelId}`);
+      }
+      
       console.log(`[QR Play] Published packet ${packetId} as ${libraryLinkId}`);
       res.json({ libraryLinkId, shareUrl: `/play/${packetId}`, success: true });
     } catch (error: any) {
@@ -10404,6 +10418,20 @@ ${allPages.map(page => `  <url>
         libraryLinkId,
         updatedAt: new Date().toISOString(),
       });
+      
+      // Also write to channel_items if channelId is provided (KC widget integration)
+      if (channelId) {
+        const { upsertChannelItem } = await import("./lib/channelItemsService");
+        await upsertChannelItem({
+          channelId,
+          packetId,
+          title: metadata?.title || 'Untitled Item',
+          description: metadata?.description,
+          previewImageUrl: compositeUrl || metadata?.previewUrl,
+          price: metadata?.price,
+        });
+        console.log(`[MemberLibrary] Also wrote to channel_items for channel ${channelId}`);
+      }
       
       console.log(`[MemberLibrary] Created link ${libraryLinkId} for packet ${packetId}`);
       res.json({ libraryLinkId, shareUrl: `/share/${packetId}` });
