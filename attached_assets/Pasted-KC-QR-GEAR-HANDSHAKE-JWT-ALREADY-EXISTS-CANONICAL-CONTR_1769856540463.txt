@@ -1,0 +1,110 @@
+KC ↔ QR GEAR HANDSHAKE (JWT ALREADY EXISTS) — CANONICAL CONTRACT
+===============================================================
+
+GOAL
+----
+KC pages (business/church/member) embed a QR Gear mini-store that is scoped to
+that entity’s channel, using an existing JWT for secure context passing.
+
+WE ARE NOT USING FB/X APIs.
+THIS IS ONLY KC → QR GEAR EMBED + AUTH CONTEXT.
+
+TERMS / MAPPING (LOCKED)
+------------------------
+Store = "kingdom_connects"   (single store host)
+Channel = KC entity id       (businessId OR churchId OR memberId)
+Collection = optional UI grouping inside a channel (not required)
+
+JWT PURPOSE
+-----------
+The JWT is a signed context token that tells QR Gear:
+- which KC entity is embedding the widget
+- what role/context the viewer has
+- what channel to load
+- optional display settings
+
+JWT PAYLOAD (MINIMUM REQUIRED)
+------------------------------
+Required:
+- iss: "kingdom_connects"
+- aud: "qrgear_widget"
+- exp: unix timestamp (short-lived, e.g. 10 minutes)
+- iat: unix timestamp
+- storeId: "kingdom_connects"
+- channelId: string (e.g. "business_{businessId}" OR raw businessId; choose 1 convention)
+- entityType: "business" | "church" | "member"
+- entityId: string (original KC id)
+
+Recommended (optional):
+- entityName: string
+- entityLogoUrl: string
+- placement: "profile" | "admin" | "homepage"
+- mode: "public" | "admin"
+- theme: "kc" (or theme hints)
+- returnUrl: KC page URL (for “Back” links)
+- capabilities: object (e.g. { canCreate: true/false, canManage: true/false })
+
+EMBED URL (KC SIDE)
+-------------------
+KC embeds an iframe (or a script -> iframe) into:
+- business profile template
+- church profile template
+- member profile template
+- admin page template (if you want creation inline)
+
+Example:
+<iframe
+  src="https://QRGEAR_DOMAIN.com/widget?token=JWT_HERE"
+  width="100%"
+  height="720"
+  frameborder="0"
+  scrolling="no"
+  allow="clipboard-read; clipboard-write"
+></iframe>
+
+QR GEAR WIDGET PAGE (QR GEAR SIDE)
+---------------------------------
+On load:
+1) Read token from query param (?token=...)
+2) Verify JWT signature + exp + iss/aud
+3) Extract storeId/channelId/entityType/entityId
+4) Load storefront data for that channel:
+   - featured packets / items
+   - optional collections
+5) Render mini-store UI (cards, share buttons, etc)
+
+OPTIONAL: POSTMESSAGE EVENTS (QR GEAR → KC)
+------------------------------------------
+QR Gear can notify KC parent window:
+- "qrgear:ready" (widget loaded)
+- "qrgear:height" (resize request)
+- "qrgear:item_click" (analytics)
+- "qrgear:checkout_start" / "qrgear:checkout_complete"
+
+KC must validate:
+- event.origin === "https://QRGEAR_DOMAIN.com"
+- event.data.type is expected
+
+ADMIN “WIZARD IN KC” (IF ENABLED)
+---------------------------------
+If mode="admin" AND capabilities.canCreate=true:
+- Widget shows “Create Item” button
+- Launches the wizard scoped to:
+   storeId="kingdom_connects"
+   channelId = entity channel
+   owner = entity admin user
+- Publish writes packets to that channel so the profile storefront updates immediately.
+
+SECURITY RULES (NON-NEGOTIABLE)
+-------------------------------
+- JWT must be verified server-side (or in a secure function) before allowing writes.
+- Public widget mode must be read-only.
+- Admin widget mode must require KC-authenticated user + permissions.
+- channelId must be derived from verified JWT, not from user input.
+- Widget must never allow writing to any channel other than the one in the verified token.
+
+DONE WHEN
+---------
+- KC can embed QR Gear mini-store on a business/church/member page with a JWT.
+- QR Gear renders the correct channel storefront.
+- (Optional) KC can embed the wizard for entity admins to create items directly into their channel.
