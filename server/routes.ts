@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, or, isNull, lte, gte } from "drizzle-orm";
+import { eq, and, or, isNull, lte, gte, desc } from "drizzle-orm";
 import { generateProxyUrl, extractObjectPath, addProxyUrlToAsset, addProxyUrlToAssets } from "./lib/storage-path-normalizer";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "./lib/qr-generator";
 import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOrderItemSchema, insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, insertPartnerStoreSchema, insertPartnerStoreProductSchema, productBundles, bundleItems, masterProducts, products, insertEmailTemplateSchema, mockupCache } from "@shared/schema";
@@ -9053,6 +9053,260 @@ ${allPages.map(page => `  <url>
       res.json({ success: true, count: products.length });
     } catch (error: any) {
       console.error("[Member Product Library] Save error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============== MEMBER LIBRARY SYSTEM ==============
+  
+  // Get Common Library (admin-curated assets available to all members)
+  app.get("/api/members/common-library", async (req: any, res) => {
+    try {
+      const { assetType = 'background' } = req.query;
+      const { libraryAssets } = await import("@shared/schema");
+      
+      const assets = await db.select()
+        .from(libraryAssets)
+        .where(and(
+          eq(libraryAssets.ownerType, 'admin'),
+          eq(libraryAssets.isActive, true),
+          assetType ? eq(libraryAssets.assetType, assetType as string) : undefined
+        ))
+        .orderBy(desc(libraryAssets.createdAt));
+      
+      // Add proxy URLs for serving
+      const assetsWithUrls = assets.map(a => {
+        const filename = (a.storageUrl || '').split('/').pop() || '';
+        return {
+          id: a.id,
+          name: a.name,
+          assetType: a.assetType,
+          mediaType: a.mediaType,
+          thumbnailUrl: a.thumbnailUrl || a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
+          publicUrl: a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
+          width: a.width,
+          height: a.height,
+          category: a.category,
+        };
+      });
+      
+      console.log(`[Member Common Library] Found ${assetsWithUrls.length} ${assetType} assets`);
+      res.json({ assets: assetsWithUrls });
+    } catch (error: any) {
+      console.error("[Member Common Library] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get Member's Personal Library
+  app.get("/api/members/:memberId/library", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { assetType } = req.query;
+      const { libraryAssets } = await import("@shared/schema");
+      
+      const conditions = [
+        eq(libraryAssets.ownerType, 'user'),
+        eq(libraryAssets.userId, memberId),
+        eq(libraryAssets.isActive, true),
+      ];
+      
+      if (assetType) {
+        conditions.push(eq(libraryAssets.assetType, assetType as string));
+      }
+      
+      const assets = await db.select()
+        .from(libraryAssets)
+        .where(and(...conditions))
+        .orderBy(desc(libraryAssets.createdAt));
+      
+      const assetsWithUrls = assets.map(a => {
+        const filename = (a.storageUrl || '').split('/').pop() || '';
+        return {
+          id: a.id,
+          name: a.name,
+          assetType: a.assetType,
+          mediaType: a.mediaType,
+          thumbnailUrl: a.thumbnailUrl || a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
+          publicUrl: a.publicUrl || `/api/library-files/${encodeURIComponent(filename)}`,
+          width: a.width,
+          height: a.height,
+          sourceAssetId: a.sourceAssetId,
+        };
+      });
+      
+      console.log(`[Member Personal Library] Found ${assetsWithUrls.length} assets for member ${memberId}`);
+      res.json({ assets: assetsWithUrls });
+    } catch (error: any) {
+      console.error("[Member Personal Library] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upload to Member's Personal Library
+  app.post("/api/members/:memberId/library/upload", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { assetType = 'background', name, imageData, mimeType: inputMimeType, originalName: inputOriginalName } = req.body;
+      
+      if (!imageData) {
+        return res.status(400).json({ error: "No imageData provided" });
+      }
+      
+      // Parse base64 data
+      const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      const mimeType = inputMimeType || 'image/png';
+      const originalName = inputOriginalName || `upload-${Date.now()}.png`;
+      const displayName = name || originalName;
+      
+      // Determine media type from mime
+      const mediaType = mimeType.startsWith('video/') ? 'video' : 'image';
+      
+      // Create member-scoped storage path
+      const sanitizedName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const folder = `members/${memberId}/${assetType}s`;
+      
+      const uploadResult = await uploadToFirebaseStorage(
+        buffer,
+        sanitizedName,
+        mimeType,
+        folder
+      );
+      
+      const proxyUrl = `/api/member-files/${memberId}/${encodeURIComponent(sanitizedName)}`;
+      
+      const { libraryAssets } = await import("@shared/schema");
+      const [asset] = await db.insert(libraryAssets).values({
+        userId: memberId,
+        ownerType: 'user',
+        assetType: assetType,
+        mediaType: mediaType,
+        name: displayName,
+        fileName: sanitizedName,
+        originalName: originalName,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: proxyUrl,
+        mimeType: mimeType,
+        sizeBytes: buffer.length,
+        isActive: true,
+      }).returning();
+      
+      console.log(`[Member Upload] Created ${assetType} asset ${asset.id} for member ${memberId}`);
+      
+      res.json({ 
+        success: true, 
+        asset: {
+          id: asset.id,
+          name: asset.name,
+          publicUrl: proxyUrl,
+          assetType: asset.assetType,
+          mediaType: asset.mediaType,
+        }
+      });
+    } catch (error: any) {
+      console.error("[Member Upload] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Save cropped version from Common Library to Personal Library
+  app.post("/api/members/:memberId/library/crop", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { sourceAssetId, name, cropData, imageData } = req.body;
+      
+      if (!imageData) {
+        return res.status(400).json({ error: "No imageData provided" });
+      }
+      
+      // Parse base64 data
+      const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      const mimeType = 'image/png';
+      
+      const sanitizedName = `${Date.now()}-cropped-${sourceAssetId}.png`;
+      const folder = `members/${memberId}/cropped`;
+      
+      const uploadResult = await uploadToFirebaseStorage(
+        buffer,
+        sanitizedName,
+        mimeType,
+        folder
+      );
+      
+      const proxyUrl = `/api/member-files/${memberId}/${encodeURIComponent(sanitizedName)}`;
+      
+      const { libraryAssets } = await import("@shared/schema");
+      const [asset] = await db.insert(libraryAssets).values({
+        userId: memberId,
+        ownerType: 'user',
+        assetType: 'cropped',
+        mediaType: 'image',
+        name: name || 'Cropped Image',
+        fileName: sanitizedName,
+        originalName: `cropped-${sourceAssetId}`,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: proxyUrl,
+        mimeType: mimeType,
+        sizeBytes: buffer.length,
+        sourceAssetId: sourceAssetId,
+        cropData: cropData ? JSON.parse(cropData) : null,
+        isActive: true,
+      }).returning();
+      
+      console.log(`[Member Crop] Created cropped asset ${asset.id} from ${sourceAssetId} for member ${memberId}`);
+      
+      res.json({ 
+        success: true, 
+        asset: {
+          id: asset.id,
+          name: asset.name,
+          publicUrl: proxyUrl,
+          sourceAssetId: sourceAssetId,
+        }
+      });
+    } catch (error: any) {
+      console.error("[Member Crop] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve member files
+  app.get("/api/member-files/:memberId/:filename", async (req: any, res) => {
+    try {
+      const { memberId, filename } = req.params;
+      const decodedFilename = decodeURIComponent(filename);
+      
+      // Try different possible paths
+      const possiblePaths = [
+        `members/${memberId}/backgrounds/${decodedFilename}`,
+        `members/${memberId}/videos/${decodedFilename}`,
+        `members/${memberId}/cropped/${decodedFilename}`,
+      ];
+      
+      const { getFirebaseStorage } = await import("./lib/firebase-admin");
+      const storage = getFirebaseStorage();
+      const bucket = storage.bucket();
+      
+      for (const path of possiblePaths) {
+        const file = bucket.file(path);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          const [metadata] = await file.getMetadata();
+          res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          
+          const stream = file.createReadStream();
+          stream.pipe(res);
+          return;
+        }
+      }
+      
+      res.status(404).json({ error: "File not found" });
+    } catch (error: any) {
+      console.error("[Member Files] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
