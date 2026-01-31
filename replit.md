@@ -42,6 +42,13 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
 - **File Storage**: Exclusively uses Firebase Storage for all file assets.
 - **Background Image Library**: Canonical storage for background images with an admin interface to sync from storage and handle ZIP uploads.
 - **Admin Library Module**: A modular, tenant-aware feature set for managing backgrounds, templates, and images, located at `client/src/features/adminLibrary/`.
+- **Shared Utilities Pattern** (Viewer/View/Skin architecture):
+  - `SkinGridViewer` - Reusable grid display with lightbox/detail view, navigation, and action buttons
+  - `CropUtility` - Shared 9:16 image cropping dialog
+  - `ImageUploader` - Upload single images or ZIP files
+  - `LibraryBackgroundPicker` - Pick backgrounds from library, crop, delete (uses SkinGridViewer + CropUtility)
+  - Skins: `BackgroundCardSkin`, `CroppedImageCardSkin`, `GraphicsSkin`, etc. - Pluggable display components
+  - **Design principle**: "Chair in a house" - use shared components everywhere, don't rebuild custom versions
 - **Authentication**: Exclusively uses Firebase Authentication.
 - **Nexus Self-Healing System**: Client-side self-healing with automatic retry logic, error capture, and an admin debugging console, including specific profiles for Printful and mockup fallbacks.
 - **NexusMail Email System**: A portable, self-healing, queue-first, idempotent, provider-agnostic email system with automatic monitoring and retry logic.
