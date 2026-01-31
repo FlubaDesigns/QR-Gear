@@ -2237,7 +2237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } else if (selectedProvider?.id) {
               // Sync from Printify to get colors/sizes with hex codes
               try {
-                const variantData = await syncProductVariants(p.blueprintId, selectedProvider.id);
+                const variantData = await syncProductVariants(p.blueprintId, Number(selectedProvider.id));
                 availableColors = variantData.colors;
                 availableSizes = variantData.sizes;
                 console.log(`[AllowedProducts] Synced ${availableColors.length} colors for blueprint ${p.blueprintId}`);
@@ -9555,6 +9555,287 @@ ${allPages.map(page => `  <url>
       res.status(404).json({ error: "File not found" });
     } catch (error: any) {
       console.error("[Member Files] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============== MEMBER CANVAS PACKET SYSTEM ==============
+  // Packet-first lifecycle: create packet → graphics → template → library link
+
+  // Create member packet (canonical anchor)
+  app.post("/api/member/packets", async (req: any, res) => {
+    try {
+      const { memberId, kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;
+      
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+      if (!background?.url) {
+        return res.status(400).json({ error: "background.url is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      const packetData = {
+        packetId,
+        memberId,
+        kind: kind || 'qr_canvas',
+        urlContent: urlContent || null,
+        background: {
+          url: background.url,
+          crop: background.crop || null,
+          assetId: background.assetId || null,
+        },
+        textLayers: textLayers || [],
+        boundProduct: boundProduct || null,
+        metadata: metadata || null,
+        source: source || { entryPoint: 'wizard' },
+        status: status || 'draft',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberPackets').doc(packetId).set(packetData);
+      
+      console.log(`[MemberPackets] Created packet ${packetId} for member ${memberId}`);
+      res.json({ packetId, success: true });
+    } catch (error: any) {
+      console.error('[MemberPackets] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get member packets
+  app.get("/api/member/packets", async (req: any, res) => {
+    try {
+      const { memberId } = req.query;
+      
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const snapshot = await firestoreDb.collection('memberPackets')
+        .where('memberId', '==', memberId)
+        .limit(100)
+        .get();
+      
+      const packets = snapshot.docs.map((doc: any) => doc.data());
+      res.json({ packets });
+    } catch (error: any) {
+      console.error('[MemberPackets] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete member packet (for rollback)
+  app.delete("/api/member/packets/:packetId", async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+      const { memberId } = req.body;
+      
+      if (!packetId || !memberId) {
+        return res.status(400).json({ error: "packetId and memberId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Verify ownership before delete
+      const doc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      if (doc.data()?.memberId !== memberId) {
+        return res.status(403).json({ error: "Not authorized to delete this packet" });
+      }
+
+      await firestoreDb.collection('memberPackets').doc(packetId).delete();
+      
+      console.log(`[MemberPackets] Deleted packet ${packetId}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[MemberPackets] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create graphics from packet (composite render)
+  app.post("/api/member/graphics/create", async (req: any, res) => {
+    try {
+      const { memberId, packetId } = req.body;
+      
+      if (!memberId || !packetId) {
+        return res.status(400).json({ error: "memberId and packetId are required" });
+      }
+
+      const { getFirestoreDb, getStorageBucket } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get packet data
+      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      if (!packetDoc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      
+      const packet = packetDoc.data();
+      if (!packet || packet.memberId !== memberId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Generate composite image (background + text layers)
+      // For now, we'll store a reference - actual rendering would use canvas/sharp
+      const graphicsId = `gfx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      // For MVP, use background URL as composite (full rendering comes later)
+      const compositeUrl = packet.background?.url || null;
+      
+      const graphicsData = {
+        graphicsId,
+        packetId,
+        memberId,
+        compositeUrl,
+        qrOnlyUrl: null, // Would be generated if urlContent exists
+        status: 'generated',
+        createdAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberGraphics').doc(graphicsId).set(graphicsData);
+      
+      // Update packet status
+      await firestoreDb.collection('memberPackets').doc(packetId).update({
+        status: 'graphics_ready',
+        graphicsId,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      console.log(`[MemberGraphics] Created graphics ${graphicsId} for packet ${packetId}`);
+      res.json({ graphicsId, compositeUrl, qrOnlyUrl: null });
+    } catch (error: any) {
+      console.error('[MemberGraphics] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Save template snapshot
+  app.post("/api/member/templates/save", async (req: any, res) => {
+    try {
+      const { memberId, packetId, compositeUrl, titleText, descriptionText, kind, metadata } = req.body;
+      
+      if (!memberId || !packetId) {
+        return res.status(400).json({ error: "memberId and packetId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      // Get full packet data to save as template
+      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const packetData = packetDoc.data() || {};
+      
+      const templateData = {
+        templateId,
+        packetId,
+        memberId,
+        kind: kind || packetData.kind || 'qr_canvas',
+        compositeUrl: compositeUrl || null,
+        titleText: titleText || '',
+        descriptionText: descriptionText || '',
+        background: packetData.background || null,
+        textLayers: packetData.textLayers || [],
+        metadata: metadata || null,
+        createdAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberTemplates').doc(templateId).set(templateData);
+      
+      // Update packet with template reference
+      await firestoreDb.collection('memberPackets').doc(packetId).update({
+        templateId,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      console.log(`[MemberTemplates] Created template ${templateId} for packet ${packetId}`);
+      res.json({ templateId });
+    } catch (error: any) {
+      console.error('[MemberTemplates] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create library link (register in member catalog)
+  app.post("/api/member/library-links", async (req: any, res) => {
+    try {
+      const { memberId, packetId, templateId, compositeUrl, qrOnlyUrl, boundProduct, metadata, status } = req.body;
+      
+      if (!memberId || !packetId) {
+        return res.status(400).json({ error: "memberId and packetId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const libraryLinkId = `lib-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      const linkData = {
+        libraryLinkId,
+        packetId,
+        templateId: templateId || null,
+        memberId,
+        compositeUrl: compositeUrl || null,
+        qrOnlyUrl: qrOnlyUrl || null,
+        boundProduct: boundProduct || null,
+        metadata: metadata || null,
+        status: status || 'active',
+        shareUrl: `/share/${packetId}`,
+        createdAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
+      
+      // Update packet to final status
+      await firestoreDb.collection('memberPackets').doc(packetId).update({
+        status: 'published',
+        libraryLinkId,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      console.log(`[MemberLibrary] Created link ${libraryLinkId} for packet ${packetId}`);
+      res.json({ libraryLinkId, shareUrl: `/share/${packetId}` });
+    } catch (error: any) {
+      console.error('[MemberLibrary] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get member library links
+  app.get("/api/member/library-links", async (req: any, res) => {
+    try {
+      const { memberId } = req.query;
+      
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const snapshot = await firestoreDb.collection('memberLibraryLinks')
+        .where('memberId', '==', memberId)
+        .limit(100)
+        .get();
+      
+      const items = snapshot.docs.map((doc: any) => doc.data());
+      res.json({ items });
+    } catch (error: any) {
+      console.error('[MemberLibrary] GET error:', error);
       res.status(500).json({ error: error.message });
     }
   });
