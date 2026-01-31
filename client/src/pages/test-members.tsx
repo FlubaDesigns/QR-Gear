@@ -118,7 +118,6 @@ const QR_TYPES = [
 
 function WizardProgressBar({ 
   currentStep, 
-  onStepClick,
   completedSteps 
 }: { 
   currentStep: WizardStep; 
@@ -126,51 +125,21 @@ function WizardProgressBar({
   completedSteps: Set<WizardStep>;
 }) {
   const currentIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
+  const progress = ((currentIndex + 1) / WIZARD_STEPS.length) * 100;
   
   return (
-    <div className="w-full mb-8">
-      <div className="flex items-center justify-between relative">
-        <div className="absolute top-5 left-0 right-0 h-0.5 bg-slate-700 -z-10" />
+    <div className="w-full mb-6">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-medium text-white">
+          Step {currentIndex + 1} of {WIZARD_STEPS.length}: {WIZARD_STEPS[currentIndex]?.label}
+        </span>
+        <span className="text-sm text-slate-400">{Math.round(progress)}%</span>
+      </div>
+      <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
         <div 
-          className="absolute top-5 left-0 h-0.5 bg-blue-500 transition-all duration-300 -z-10"
-          style={{ width: `${(currentIndex / (WIZARD_STEPS.length - 1)) * 100}%` }}
+          className="h-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300 rounded-full"
+          style={{ width: `${progress}%` }}
         />
-        
-        {WIZARD_STEPS.map((step, index) => {
-          const isActive = step.id === currentStep;
-          const isCompleted = completedSteps.has(step.id);
-          const isPast = index < currentIndex;
-          const StepIcon = step.icon;
-          
-          return (
-            <button
-              key={step.id}
-              onClick={() => onStepClick(step.id)}
-              className={`flex flex-col items-center gap-2 transition-all ${
-                isActive || isPast || isCompleted ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-              }`}
-              disabled={!isActive && !isPast && !isCompleted}
-              data-testid={`wizard-step-${step.id}`}
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                isCompleted 
-                  ? 'bg-green-600 text-white' 
-                  : isActive 
-                    ? 'bg-blue-600 text-white ring-4 ring-blue-600/30' 
-                    : isPast
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-400'
-              }`}>
-                {isCompleted ? <Check className="w-5 h-5" /> : <StepIcon className="w-5 h-5" />}
-              </div>
-              <span className={`text-xs font-medium ${
-                isActive ? 'text-blue-400' : isPast || isCompleted ? 'text-white' : 'text-slate-500'
-              }`}>
-                {step.label}
-              </span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );
@@ -584,7 +553,7 @@ function CustomizeStep({
         <p className="text-slate-400">
           {qrType === 'qr-basic' && 'Set up your landing page destination'}
           {qrType === 'qr-plus' && 'Add text styling to your landing page'}
-          {qrType === 'qr-canvas' && 'Design your image landing page'}
+          {qrType === 'qr-canvas' && 'Design the front of your item'}
           {qrType === 'qr-play' && 'Set up your video landing page'}
         </p>
       </div>
