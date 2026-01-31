@@ -1338,6 +1338,24 @@ export default function TestMembersSandbox() {
               </div>
             </div>
             
+            {/* Dev tool: Reset publish count */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (user?.id) {
+                  localStorage.removeItem(`publish_count_${user.id}`);
+                  setPublishCount(0);
+                  setWizardTier('simple');
+                  alert('Publish count reset to 0. You now see only Quick Create.');
+                }
+              }}
+              className="text-xs text-slate-500 hover:text-white"
+              data-testid="button-reset-publish-count"
+            >
+              Reset Progress
+            </Button>
+            
             <div className="flex gap-2 flex-wrap">
               <Button
                 variant={viewMode === 'wizard' && wizardTier === 'simple' ? 'default' : 'ghost'}
