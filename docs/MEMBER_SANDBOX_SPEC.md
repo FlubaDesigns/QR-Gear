@@ -86,6 +86,44 @@ Different modules render based on QR type:
 - Member's own uploads and saved product instances
 - Scoped by `memberId`
 
+## Pricing Model
+
+### Base Pricing
+- **Base cost** = Product manufacturing cost (e.g. $10 shirt)
+- **First graphic** = INCLUDED in base price (no extra charge)
+- **Each additional graphic** = +$4 (e.g. back graphic)
+- **Header text** = +$2
+- **Footer text** = +$2
+
+### Example Calculation
+```
+Product: $10 base (includes 1 graphic)
++ Back graphic: $4
++ Header text: $2
++ Footer text: $2
+= Retail: $18
+Profit: $8
+Member earns: $2 (25% of profit)
+```
+
+### Card Display for Members
+Show members their potential earnings on each product card:
+```
+Product: $10 base
++ Your graphic: $4
+= Retail: $14
+🎉 You earn: $1.00
+```
+
+## Server Requirements by QR Type
+
+| QR Type | Server Required? | Notes |
+|---------|------------------|-------|
+| **QR Basic** | No | Simple URL redirect |
+| **QR Plus** | No | Simple URL redirect with styling |
+| **QR Canvas** | Yes | Server-side landing page with image |
+| **QR Play** | Yes | Server-side landing page with video |
+
 ## Earnings Calculation
 - Members get **25% profit share** on sales
 - Displayed on each product card as earnings badge
