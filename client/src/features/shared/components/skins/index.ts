@@ -15,3 +15,4 @@ export * from "./DynamicsCollectionSkin";
 export * from "./ChannelItemSkin";
 export * from "./CollectionItemSkinV2";
 export * from "./QRDynamicsScanSkin";
+export * from "./ProductCanvasSkin";
