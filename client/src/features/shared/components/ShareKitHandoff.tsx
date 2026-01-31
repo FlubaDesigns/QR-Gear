@@ -25,26 +25,39 @@ export interface ShareKitData {
   compositeUrl?: string;
   channelName?: string;
   title?: string;
+  description?: string;
+  shareImageSquareUrl?: string;
+  shareImageLinkUrl?: string;
+  shareCaption?: string;
 }
 
 interface ShareKitHandoffProps {
   data: ShareKitData;
   onCreateAnother?: () => void;
   onViewLibrary?: () => void;
+  onRegenerateAssets?: () => void;
   baseUrl?: string;
+  showAdminControls?: boolean;
 }
 
 export function ShareKitHandoff({
   data,
   onCreateAnother,
   onViewLibrary,
-  baseUrl = ""
+  onRegenerateAssets,
+  baseUrl = "",
+  showAdminControls = false
 }: ShareKitHandoffProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const fullShareUrl = data.shareUrl.startsWith("http") 
     ? data.shareUrl 
     : `${baseUrl || window.location.origin}${data.shareUrl}`;
+
+  const defaultCaption = data.shareCaption || 
+    `Check this out!\n${data.title || ''}\n\n${data.description ? data.description.slice(0, 100) + '...' : ''}\n\n${fullShareUrl}`;
+
+  const hasSocialImages = data.shareImageSquareUrl || data.shareImageLinkUrl;
 
   async function copyToClipboard(text: string, field: string) {
     try {
@@ -123,6 +136,57 @@ export function ShareKitHandoff({
             </Button>
           </div>
         </div>
+
+        {hasSocialImages && (
+          <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-4 border border-indigo-500/20">
+            <p className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Social Media Assets
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {data.shareImageSquareUrl && (
+                <Button
+                  variant="default"
+                  className="flex items-center gap-2"
+                  onClick={() => downloadFile(data.shareImageSquareUrl!, `square-${data.packetId}.png`)}
+                  data-testid="btn-download-square"
+                >
+                  <Image className="h-4 w-4" />
+                  Square (1080x1080)
+                </Button>
+              )}
+              {data.shareImageLinkUrl && (
+                <Button
+                  variant="default"
+                  className="flex items-center gap-2"
+                  onClick={() => downloadFile(data.shareImageLinkUrl!, `link-${data.packetId}.png`)}
+                  data-testid="btn-download-link"
+                >
+                  <Image className="h-4 w-4" />
+                  Link Preview (1200x630)
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Use Square for Instagram/Facebook posts, Link Preview for sharing links
+            </p>
+          </div>
+        )}
+
+        {!hasSocialImages && showAdminControls && onRegenerateAssets && (
+          <div className="bg-amber-500/10 rounded-lg p-4 border border-amber-500/20">
+            <p className="text-sm text-amber-200 mb-2">Social images not generated yet</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRegenerateAssets}
+              data-testid="btn-regenerate-assets"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Generate Social Images
+            </Button>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           {data.qrImageUrl && (
@@ -254,21 +318,24 @@ export function ShareKitHandoff({
           </div>
 
           {/* Copy Caption */}
-          <div className="mt-3">
+          <div className="mt-3 space-y-2">
             <Button
-              variant="ghost"
+              variant="secondary"
               size="sm"
-              className="w-full text-xs"
-              onClick={() => copyToClipboard(`${data.title || "Check this out!"} ${fullShareUrl}`, "caption")}
+              className="w-full"
+              onClick={() => copyToClipboard(defaultCaption, "caption")}
               data-testid="btn-copy-caption"
             >
               {copiedField === "caption" ? (
-                <Check className="h-3 w-3 mr-1 text-green-500" />
+                <Check className="h-4 w-4 mr-2 text-green-500" />
               ) : (
-                <Copy className="h-3 w-3 mr-1" />
+                <Copy className="h-4 w-4 mr-2" />
               )}
-              Copy Caption + Link
+              Copy Caption
             </Button>
+            {copiedField === "caption" && (
+              <p className="text-xs text-green-400 text-center">Caption copied! Paste into your post.</p>
+            )}
           </div>
         </div>
 
