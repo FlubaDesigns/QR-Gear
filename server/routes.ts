@@ -252,6 +252,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ SERVER-RENDERED SHARE PAGE FOR SOCIAL SCRAPERS ============
+  // Facebook, Twitter, Discord, LinkedIn, etc. do NOT run JavaScript
+  // This route returns HTML with OG + Twitter meta tags, then redirects humans to SPA
+  app.get('/p/:packetId', async (req, res, next) => {
+    try {
+      const { packetId } = req.params;
+      
+      // Check if request is from a social crawler (user agent sniffing)
+      const userAgent = req.headers['user-agent'] || '';
+      const isCrawler = /facebookexternalhit|Twitterbot|LinkedInBot|Discordbot|Slackbot|TelegramBot|WhatsApp/i.test(userAgent);
+      
+      // If not a crawler, let SPA handle it
+      if (!isCrawler) {
+        return next();
+      }
+      
+      // Fetch packet from Firestore
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      
+      // Default OG values
+      let title = 'QR Gear - Dynamic QR Experience';
+      let description = 'Scan to discover personalized content';
+      let ogImage = 'https://qrgear-c1ffd.web.app/og-default.png';
+      const canonicalUrl = `https://qrgear-c1ffd.web.app/p/${packetId}`;
+      
+      if (packetDoc.exists) {
+        const packet = packetDoc.data();
+        
+        // Extract title from textLayers or use packet type
+        if (packet?.textLayers?.length > 0) {
+          const titleLayer = packet.textLayers.find((l: any) => l.id === 'title' || l.id === 'header');
+          if (titleLayer?.text) {
+            title = titleLayer.text;
+          }
+        }
+        
+        // Extract description
+        if (packet?.textLayers?.length > 0) {
+          const descLayer = packet.textLayers.find((l: any) => l.id === 'description' || l.id === 'footer');
+          if (descLayer?.text) {
+            description = descLayer.text;
+          }
+        }
+        
+        // Choose best OG image (priority: shareCardUrl > compositeUrl > posterUrl > preview)
+        ogImage = packet?.shareCardUrl 
+          || packet?.compositeUrl 
+          || packet?.videoSource?.posterUrl 
+          || packet?.previewUrl
+          || ogImage;
+      }
+      
+      // Return server-rendered HTML with OG + Twitter meta tags
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+  
+  <!-- Open Graph Tags (Facebook, LinkedIn, Discord, etc.) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="${escapeHtml(title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:image" content="${ogImage}" />
+  <meta property="og:url" content="${canonicalUrl}" />
+  <meta property="og:site_name" content="QR Gear" />
+  
+  <!-- Twitter Card Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${escapeHtml(title)}" />
+  <meta name="twitter:description" content="${escapeHtml(description)}" />
+  <meta name="twitter:image" content="${ogImage}" />
+  
+  <!-- Redirect humans to SPA after a brief moment -->
+  <meta http-equiv="refresh" content="0;url=/app/p/${packetId}" />
+  
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #0f172a; color: #fff; }
+    .loading { text-align: center; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #334155; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Loading your QR experience...</p>
+  </div>
+</body>
+</html>`;
+      
+      res.set('Content-Type', 'text/html');
+      res.set('Cache-Control', 'public, max-age=300'); // 5 min cache for crawlers
+      res.send(html);
+    } catch (error) {
+      console.error('[SharePage] Error:', error);
+      next(); // Fall through to SPA on error
+    }
+  });
+
+  // Helper function for HTML escaping
+  function escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   // Auth routes - returns null if not authenticated (no 401)
   app.get('/api/auth/user', async (req: any, res) => {
     try {

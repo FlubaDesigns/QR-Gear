@@ -10,8 +10,12 @@ import {
   QrCode, 
   Share2,
   Plus,
-  Image
+  Image,
+  Mail,
+  MessageCircle
 } from "lucide-react";
+import { SiFacebook, SiLinkedin, SiWhatsapp } from "react-icons/si";
+import { FaXTwitter } from "react-icons/fa6";
 
 export interface ShareKitData {
   packetId: string;
@@ -170,6 +174,102 @@ export function ShareKitHandoff({
             <Share2 className="h-4 w-4" />
             Share
           </Button>
+        </div>
+
+        {/* Social Share Buttons - NO API REQUIRED */}
+        <div className="pt-4 border-t border-slate-700">
+          <p className="text-xs text-muted-foreground mb-3">Share on Social</p>
+          <div className="grid grid-cols-5 gap-2">
+            {/* X / Twitter */}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => {
+                const text = encodeURIComponent(data.title || "Check this out!");
+                const url = encodeURIComponent(fullShareUrl);
+                window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, "_blank", "width=600,height=400");
+              }}
+              data-testid="btn-share-x"
+              title="Share on X"
+            >
+              <FaXTwitter className="h-4 w-4" />
+            </Button>
+
+            {/* Facebook */}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => {
+                const url = encodeURIComponent(fullShareUrl);
+                window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, "_blank", "width=600,height=400");
+              }}
+              data-testid="btn-share-facebook"
+              title="Share on Facebook"
+            >
+              <SiFacebook className="h-4 w-4" />
+            </Button>
+
+            {/* LinkedIn */}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => {
+                const url = encodeURIComponent(fullShareUrl);
+                window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, "_blank", "width=600,height=400");
+              }}
+              data-testid="btn-share-linkedin"
+              title="Share on LinkedIn"
+            >
+              <SiLinkedin className="h-4 w-4" />
+            </Button>
+
+            {/* WhatsApp */}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => {
+                const text = encodeURIComponent(`${data.title || "Check this out!"} ${fullShareUrl}`);
+                window.open(`https://wa.me/?text=${text}`, "_blank");
+              }}
+              data-testid="btn-share-whatsapp"
+              title="Share on WhatsApp"
+            >
+              <SiWhatsapp className="h-4 w-4" />
+            </Button>
+
+            {/* Email */}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => {
+                const subject = encodeURIComponent(data.title || "Check this out!");
+                const body = encodeURIComponent(`${data.title || "Check this out!"}\n\n${fullShareUrl}`);
+                window.location.href = `mailto:?subject=${subject}&body=${body}`;
+              }}
+              data-testid="btn-share-email"
+              title="Share via Email"
+            >
+              <Mail className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Copy Caption */}
+          <div className="mt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => copyToClipboard(`${data.title || "Check this out!"} ${fullShareUrl}`, "caption")}
+              data-testid="btn-copy-caption"
+            >
+              {copiedField === "caption" ? (
+                <Check className="h-3 w-3 mr-1 text-green-500" />
+              ) : (
+                <Copy className="h-3 w-3 mr-1" />
+              )}
+              Copy Caption + Link
+            </Button>
+          </div>
         </div>
 
         <div className="flex gap-3 pt-4 border-t border-slate-700">
