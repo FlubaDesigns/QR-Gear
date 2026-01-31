@@ -2185,7 +2185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Set allowed blank products for a store
+  // Set allowed blank products for a store - creates "common packets" with pricing from test-pricing settings
   app.post("/api/test/stores/:storeId/allowed-products", async (req: any, res) => {
     try {
       const { storeId } = req.params;
@@ -2197,19 +2197,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[AllowedProducts] POST ${products.length} products for store: ${storeId}`);
       
+      // Fetch pricing settings from test-pricing config
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const db = getFirestoreDb();
       
+      const pricingDoc = await db.collection("testSettings").doc("pricing").get();
+      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+      
+      // Dynamic pricing from settings (with defaults)
+      const markupPercent = pricingSettings?.markupPercent ?? 25;
+      const markupFixed = pricingSettings?.markupFixed ?? 0;
+      const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
+      const textLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
+      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25; // 25% default
+      
+      console.log(`[AllowedProducts] Using pricing: ${markupPercent}% markup, ${memberProfitShare * 100}% member share`);
+      
+      // Build common packets with pricing info at save time
+      const enrichedProducts = await Promise.all(
+        products.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
+          try {
+            const blueprint = await storage.getPrintifyBlueprint(p.blueprintId);
+            const providers = await storage.getPrintifyPrintProviders(p.blueprintId);
+            
+            // Get USA provider or first available
+            const usaProviders = providers.filter((prov: any) => prov.isUSA);
+            const selectedProvider = usaProviders[0] || providers[0];
+            
+            // Base cost is the manufacturing cost (minCost from provider, in cents)
+            const baseCostCents = selectedProvider?.minCost || 0;
+            const baseCost = baseCostCents / 100;
+            
+            // Calculate retail price using dynamic settings
+            const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+            const profit = retailPrice - baseCost;
+            const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+            
+            return {
+              blueprintId: p.blueprintId,
+              title: p.title,
+              addedAt: p.addedAt || new Date().toISOString(),
+              // Common packet data
+              imageUrl: blueprint?.primaryImageUrl || null,
+              brand: blueprint?.brand || null,
+              baseCost,
+              retailPrice,
+              profit,
+              memberEarnings,
+              hasUSAProvider: usaProviders.length > 0,
+              // Store pricing settings used for this packet
+              pricingUsed: {
+                markupPercent,
+                markupFixed,
+                additionalPlacementCost,
+                textLineUpcharge,
+                memberProfitShare,
+              },
+              packetCreatedAt: new Date().toISOString(),
+            };
+          } catch (err) {
+            console.error(`[AllowedProducts] Error enriching blueprint ${p.blueprintId}:`, err);
+            return {
+              ...p,
+              addedAt: p.addedAt || new Date().toISOString(),
+              imageUrl: null,
+              brand: null,
+              baseCost: 0,
+              retailPrice: 0,
+              profit: 0,
+              memberEarnings: 0,
+              hasUSAProvider: false,
+              pricingUsed: null,
+              packetCreatedAt: new Date().toISOString(),
+            };
+          }
+        })
+      );
+      
       await db.collection('storeAllowedProducts').doc(storeId).set({
         storeId,
-        products,
+        products: enrichedProducts,
         updatedAt: new Date().toISOString(),
       });
+      
+      console.log(`[AllowedProducts] Saved ${enrichedProducts.length} enriched packets for store: ${storeId}`);
       
       res.json({ 
         success: true, 
         storeId, 
-        productCount: products.length 
+        productCount: enrichedProducts.length,
+        message: `Created ${enrichedProducts.length} common packets with pricing (${markupPercent}% markup, ${memberProfitShare * 100}% member share)`
       });
     } catch (error: any) {
       console.error('[AllowedProducts] POST error:', error);
@@ -9032,6 +9109,7 @@ ${allPages.map(page => `  <url>
   });
 
   // Get allowed products for members (single global library)
+  // Products are pre-enriched with pricing packets at save time - no Printify calls needed
   app.get("/api/members/allowed-products", async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("./lib/firebase-admin");
@@ -9045,48 +9123,12 @@ ${allPages.map(page => `  <url>
       }
       
       const data = doc.data();
-      const rawProducts = data?.products || [];
+      const products = data?.products || [];
       
-      // Enrich with images and pricing from Printify blueprints + providers
-      const enrichedProducts = await Promise.all(
-        rawProducts.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
-          try {
-            const blueprint = await storage.getPrintifyBlueprint(p.blueprintId);
-            const providers = await storage.getPrintifyPrintProviders(p.blueprintId);
-            
-            // Get USA provider or first available
-            const usaProviders = providers.filter((prov: any) => prov.isUSA);
-            const selectedProvider = usaProviders[0] || providers[0];
-            
-            // Base cost is the manufacturing cost (minCost from provider, in cents)
-            const baseCostCents = selectedProvider?.minCost || 0;
-            const baseCost = baseCostCents / 100; // Convert to dollars
-            
-            // Calculate retail price: base + first graphic (included) = base
-            // Member markup: we need a retail price. Let's use a simple 2x markup for now
-            const retailPrice = Math.ceil(baseCost * 2);
-            const profit = retailPrice - baseCost;
-            const memberEarnings = profit * 0.25; // 25% profit share
-            
-            return {
-              ...p,
-              imageUrl: blueprint?.primaryImageUrl || null,
-              brand: blueprint?.brand || null,
-              baseCost: baseCost,
-              retailPrice: retailPrice,
-              profit: profit,
-              memberEarnings: memberEarnings,
-              hasUSAProvider: usaProviders.length > 0,
-            };
-          } catch {
-            return { ...p, imageUrl: null, brand: null, baseCost: 0, retailPrice: 0, profit: 0, memberEarnings: 0 };
-          }
-        })
-      );
+      // Products should already have packet data (pricing, images, etc.) from save time
+      console.log(`[Member Sandbox] Found ${products.length} product packets from member-products store`);
       
-      console.log(`[Member Sandbox] Found ${enrichedProducts.length} products from member-products store`);
-      
-      res.json({ products: enrichedProducts, storeId: "member-products" });
+      res.json({ products, storeId: "member-products" });
     } catch (error: any) {
       console.error("[Member Sandbox] Error:", error);
       res.status(500).json({ error: error.message });

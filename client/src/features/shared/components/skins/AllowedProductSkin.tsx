@@ -1,5 +1,5 @@
-import { Check, Package } from "lucide-react";
-import type { CardSkinProps, DetailSkinProps } from "./types";
+import { Check, Package, DollarSign } from "lucide-react";
+import type { CardSkinProps, DetailSkinProps, ProductPacket } from "./types";
 
 export function AllowedProductCardSkin({ 
   item, 
@@ -7,6 +7,8 @@ export function AllowedProductCardSkin({
   onClick 
 }: CardSkinProps & { selectedId?: string }) {
   const isSelected = item.isUsed;
+  const metadata = item.metadata as Partial<ProductPacket> | undefined;
+  const earnings = metadata?.memberEarnings || 0;
   
   return (
     <button
@@ -31,6 +33,14 @@ export function AllowedProductCardSkin({
       </div>
       <div className="p-3 bg-slate-800">
         <p className="text-sm text-white truncate">{item.name}</p>
+        {earnings > 0 && (
+          <div className="flex items-center gap-1 mt-1">
+            <DollarSign className="w-3 h-3 text-green-400" />
+            <span className="text-xs text-green-400 font-medium">
+              You earn ${earnings.toFixed(2)}
+            </span>
+          </div>
+        )}
       </div>
       {isSelected && (
         <div className="absolute top-2 right-2 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
@@ -47,14 +57,57 @@ export function AllowedProductDetailSkin({
   isActionPending,
   onClose 
 }: DetailSkinProps) {
+  const metadata = item.metadata as Partial<ProductPacket> | undefined;
+  
+  const baseCost = metadata?.baseCost || 0;
+  const retailPrice = metadata?.retailPrice || 0;
+  const profit = metadata?.profit || 0;
+  const earnings = metadata?.memberEarnings || 0;
+  const upcharges = metadata?.upcharges;
+  const brand = metadata?.brand;
+  
   return (
-    <div className="text-center space-y-3 w-full">
-      <h3 className="text-lg font-semibold text-foreground">{item.name}</h3>
+    <div className="text-center space-y-4 w-full">
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">{item.name}</h3>
+        {brand && <p className="text-sm text-muted-foreground">by {brand}</p>}
+      </div>
+      
+      {/* Pricing Breakdown */}
+      <div className="bg-slate-800/50 rounded-lg p-4 text-left space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-400">Base Price</span>
+          <span className="text-white">${baseCost.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-400">Retail Price</span>
+          <span className="text-white font-medium">${retailPrice.toFixed(2)}</span>
+        </div>
+        <div className="border-t border-slate-700 pt-2 flex justify-between text-sm">
+          <span className="text-slate-400">Your Profit (25%)</span>
+          <span className="text-green-400 font-bold">${earnings.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      {/* Size Upcharges */}
+      {upcharges && Object.keys(upcharges).length > 0 && (
+        <div className="bg-slate-800/30 rounded-lg p-3 text-left">
+          <p className="text-xs text-slate-400 mb-2">Size Upcharges:</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(upcharges).map(([size, upcharge]) => (
+              <span key={size} className="text-xs bg-slate-700 px-2 py-1 rounded">
+                {size}: +${upcharge.toFixed(2)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      
       {actions?.onSelect && (
         <button
           onClick={() => actions.onSelect?.(item.id)}
           disabled={isActionPending}
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
           data-testid="button-select-product"
         >
           {item.isUsed ? 'Selected' : 'Select This Product'}

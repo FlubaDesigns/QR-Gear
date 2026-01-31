@@ -1,5 +1,21 @@
 import type { GalleryImage } from "../views/GalleryView";
 
+// Universal Product Packet - syncs across all stores when pricing updates
+export interface ProductPacket {
+  blueprintId: number;
+  title: string;
+  imageUrl?: string | null;
+  brand?: string | null;
+  baseCost: number;          // Manufacturing cost
+  retailPrice: number;       // What customer pays
+  profit: number;            // retailPrice - baseCost
+  memberEarnings: number;    // 25% of profit
+  hasUSAProvider: boolean;
+  upcharges?: Record<string, number> | null;  // Size upcharges
+  packetCreatedAt?: string;
+  packetUpdatedAt?: string;
+}
+
 export interface SkinItem {
   id: string;
   packetId?: string;
@@ -18,6 +34,7 @@ export interface SkinItem {
   createdAt?: string | null;
   dimensions?: string | null;
   isUsed?: boolean;
+  metadata?: Partial<ProductPacket> | Record<string, any>;  // Dynamic packet data
 }
 
 export interface SkinActions {
