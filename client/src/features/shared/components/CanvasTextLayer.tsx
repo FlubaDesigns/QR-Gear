@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Type, Palette, Move, Maximize2, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
+import { Type, Palette, Move, Maximize2, ChevronDown, ChevronUp, Eye, EyeOff, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+
+export type TextBackdrop = "off" | "soft" | "strong";
 
 export type TextLayerConfig = {
   id: string;
@@ -18,6 +20,7 @@ export type TextLayerConfig = {
   fontWeight?: number;
   textAlign?: "left" | "center" | "right";
   visible: boolean;
+  backdrop?: TextBackdrop;
 };
 
 export const defaultTextLayer = (id: string, label: string): TextLayerConfig => ({
@@ -33,9 +36,10 @@ export const defaultTextLayer = (id: string, label: string): TextLayerConfig => 
   fontWeight: 600,
   textAlign: "center",
   visible: true,
+  backdrop: "off",
 });
 
-type ControlMode = "size" | "color" | "position" | "width" | null;
+type ControlMode = "size" | "color" | "position" | "width" | "backdrop" | null;
 
 interface CanvasTextLayerProps {
   layer: TextLayerConfig;
@@ -66,8 +70,9 @@ export function CanvasTextLayer({
   const controlButtons = [
     { mode: "size" as ControlMode, icon: Type, label: "Size" },
     { mode: "color" as ControlMode, icon: Palette, label: "Color" },
-    { mode: "position" as ControlMode, icon: Move, label: "Position" },
+    { mode: "position" as ControlMode, icon: Move, label: "Pos" },
     { mode: "width" as ControlMode, icon: Maximize2, label: "Width" },
+    { mode: "backdrop" as ControlMode, icon: Square, label: "BG" },
   ];
 
   return (
@@ -222,6 +227,31 @@ export function CanvasTextLayer({
                   />
                 </div>
               )}
+
+              {activeControl === "backdrop" && (
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground mb-2">Text Backdrop</div>
+                  <div className="flex gap-2">
+                    {(["off", "soft", "strong"] as TextBackdrop[]).map(option => (
+                      <Button
+                        key={option}
+                        size="sm"
+                        variant={(layer.backdrop || "off") === option ? "default" : "outline"}
+                        className="flex-1 capitalize"
+                        onClick={() => update("backdrop", option)}
+                        data-testid={`btn-backdrop-${option}-${layer.id}`}
+                      >
+                        {option}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {layer.backdrop === "soft" && "Semi-transparent background for readability"}
+                    {layer.backdrop === "strong" && "Solid background for maximum contrast"}
+                    {(!layer.backdrop || layer.backdrop === "off") && "No background behind text"}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -296,6 +326,25 @@ interface CanvasTextPreviewProps {
   className?: string;
 }
 
+function getBackdropStyles(backdrop: TextBackdrop | undefined): React.CSSProperties {
+  switch (backdrop) {
+    case "soft":
+      return {
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        padding: "0.5em 1em",
+        borderRadius: "0.25em",
+      };
+    case "strong":
+      return {
+        backgroundColor: "rgba(0, 0, 0, 0.85)",
+        padding: "0.5em 1em",
+        borderRadius: "0.25em",
+      };
+    default:
+      return {};
+  }
+}
+
 export function CanvasTextPreview({
   layers,
   containerWidth,
@@ -308,6 +357,7 @@ export function CanvasTextPreview({
         const left = (layer.x / 100) * containerWidth;
         const top = (layer.y / 100) * containerHeight;
         const width = (layer.width / 100) * containerWidth;
+        const backdropStyles = getBackdropStyles(layer.backdrop);
         
         return (
           <div
@@ -323,9 +373,12 @@ export function CanvasTextPreview({
               fontFamily: layer.fontFamily || "Inter",
               fontWeight: layer.fontWeight || 600,
               textAlign: layer.textAlign || "center",
-              textShadow: "0 2px 4px rgba(0,0,0,0.5)",
+              textShadow: layer.backdrop === "off" || !layer.backdrop 
+                ? "0 2px 4px rgba(0,0,0,0.5)" 
+                : "none",
               lineHeight: 1.2,
               wordWrap: "break-word",
+              ...backdropStyles,
             }}
             data-testid={`preview-text-${layer.id}`}
           >
