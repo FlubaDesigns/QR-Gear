@@ -68,10 +68,11 @@ interface GraphicSet {
   imageCount: number;
 }
 
-type WizardStep = 'product' | 'qr-type' | 'customize' | 'preview' | 'publish';
+type WizardStep = 'channel' | 'product' | 'qr-type' | 'customize' | 'preview' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; icon: any }[] = [
+  { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Pick Item', icon: Package },
   { id: 'qr-type', label: 'QR Type', icon: QrCode },
   { id: 'customize', label: 'Customize', icon: Sparkles },
@@ -181,6 +182,186 @@ interface AllowedProduct {
   profit?: number;
   memberEarnings?: number;
   hasUSAProvider?: boolean;
+}
+
+interface MemberChannel {
+  id: string;
+  name: string;
+  createdAt?: string;
+  productCount?: number;
+}
+
+function ChannelStep({ 
+  selectedChannel, 
+  onSelect,
+  memberId,
+  isCreatingChannel,
+  setIsCreatingChannel,
+  newChannelName,
+  setNewChannelName
+}: { 
+  selectedChannel: { id: string; name: string } | null;
+  onSelect: (channel: { id: string; name: string }) => void;
+  memberId: string;
+  isCreatingChannel: boolean;
+  setIsCreatingChannel: (v: boolean) => void;
+  newChannelName: string;
+  setNewChannelName: (v: string) => void;
+}) {
+  const { toast } = useToast();
+  
+  const { data: channels = [], isLoading, refetch } = useQuery<MemberChannel[]>({
+    queryKey: ["/api/members", memberId, "channels"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/channels`, { headers });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!memberId,
+  });
+
+  const createChannelMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/channels`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to create channel");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Channel Created", description: `"${data.name}" is ready to use.` });
+      onSelect({ id: data.id, name: data.name });
+      setIsCreatingChannel(false);
+      setNewChannelName('');
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleCreate = () => {
+    if (newChannelName.trim()) {
+      createChannelMutation.mutate(newChannelName.trim());
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Channel</h2>
+        <p className="text-slate-400">Products are organized into channels for your store</p>
+      </div>
+
+      {isCreatingChannel ? (
+        <div className="max-w-md mx-auto space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="channel-name" className="text-white">Channel Name</Label>
+            <Input
+              id="channel-name"
+              value={newChannelName}
+              onChange={(e) => setNewChannelName(e.target.value)}
+              placeholder="e.g., Summer Collection, Tech Gear..."
+              className="bg-slate-700 border-slate-600 text-white"
+              data-testid="input-new-channel-name"
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsCreatingChannel(false)}
+              className="flex-1"
+              data-testid="button-cancel-channel"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={!newChannelName.trim() || createChannelMutation.isPending}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              data-testid="button-create-channel"
+            >
+              {createChannelMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
+              Create Channel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {channels.map((channel) => (
+              <button
+                key={channel.id}
+                onClick={() => onSelect({ id: channel.id, name: channel.name })}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  selectedChannel?.id === channel.id
+                    ? 'border-blue-500 bg-blue-500/20'
+                    : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+                }`}
+                data-testid={`button-channel-${channel.id}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    selectedChannel?.id === channel.id ? 'bg-blue-500' : 'bg-slate-700'
+                  }`}>
+                    <Layers className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-white">{channel.name}</h3>
+                    {channel.productCount !== undefined && (
+                      <p className="text-sm text-slate-400">{channel.productCount} products</p>
+                    )}
+                  </div>
+                  {selectedChannel?.id === channel.id && (
+                    <Check className="w-5 h-5 text-blue-400 ml-auto" />
+                  )}
+                </div>
+              </button>
+            ))}
+
+            <button
+              onClick={() => setIsCreatingChannel(true)}
+              className="p-4 rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/30 hover:border-blue-500 hover:bg-blue-500/10 transition-all"
+              data-testid="button-new-channel"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-slate-700">
+                  <Plus className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-white">Create New Channel</h3>
+                  <p className="text-sm text-slate-400">Start a new product line</p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {channels.length === 0 && (
+            <div className="text-center py-4">
+              <p className="text-slate-400">No channels yet. Create your first one!</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ProductPickerStep({ 
@@ -647,37 +828,35 @@ function PreviewStep({
 function PublishStep({ 
   isPublishing,
   onPublish,
-  channelName,
-  onChannelNameChange
+  selectedChannel
 }: { 
   isPublishing: boolean;
   onPublish: () => void;
-  channelName: string;
-  onChannelNameChange: (name: string) => void;
+  selectedChannel: { id: string; name: string } | null;
 }) {
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <h2 className="text-xl font-bold text-white mb-2">Publish to Channel</h2>
-        <p className="text-slate-400">Save your item and get your share link</p>
+        <h2 className="text-xl font-bold text-white mb-2">Ready to Publish!</h2>
+        <p className="text-slate-400">Your product will be added to your channel</p>
       </div>
 
       <div className="max-w-md mx-auto space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm text-slate-300">Channel Name</label>
-          <input
-            type="text"
-            value={channelName}
-            onChange={(e) => onChannelNameChange(e.target.value)}
-            placeholder="My Products"
-            className="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-            data-testid="input-channel-name"
-          />
+        <div className="p-4 bg-slate-800/50 border border-slate-600 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-500">
+              <Layers className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-400">Publishing to</p>
+              <p className="text-lg font-medium text-white">{selectedChannel?.name || 'Unknown Channel'}</p>
+            </div>
+          </div>
         </div>
 
         <Button
           onClick={onPublish}
-          disabled={isPublishing}
+          disabled={isPublishing || !selectedChannel}
           className="w-full bg-blue-600 hover:bg-blue-700"
           data-testid="button-publish"
         >
@@ -974,11 +1153,14 @@ export default function TestMembersSandbox() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   
   const [viewMode, setViewMode] = useState<ViewMode>('wizard');
-  const [currentStep, setCurrentStep] = useState<WizardStep>('product');
+  const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
   const [powerMode, setPowerMode] = useState(false);
   const [hasCompletedWizard, setHasCompletedWizard] = useState(false);
   const [showSpeedBuildPrompt, setShowSpeedBuildPrompt] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<{ id: string; name: string } | null>(null);
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
   
   // Check if user has completed wizard before
   useEffect(() => {
@@ -1033,32 +1215,13 @@ export default function TestMembersSandbox() {
   };
 
   const handlePublish = async () => {
-    if (!user?.id || !selectedProduct) return;
+    if (!user?.id || !selectedProduct || !selectedChannel) return;
     
     setIsPublishing(true);
     try {
       const authHeaders = await getAuthHeaders();
       
-      // First, ensure channel exists or create it
-      let channelId = '';
-      const channelRes = await fetch(`/api/members/${user.id}/channels`, { headers: authHeaders });
-      const channels = await channelRes.json();
-      const existingChannel = channels.find((c: any) => c.name === channelName);
-      
-      if (existingChannel) {
-        channelId = existingChannel.id;
-      } else {
-        // Create new channel
-        const createRes = await fetch(`/api/members/${user.id}/channels`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body: JSON.stringify({ name: channelName })
-        });
-        const newChannel = await createRes.json();
-        channelId = newChannel.id;
-      }
-      
-      // Create the member product
+      // Create the member product using the pre-selected channel
       const productRes = await fetch(`/api/members/${user.id}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -1072,7 +1235,7 @@ export default function TestMembersSandbox() {
           backgroundUrl: backgroundUrl || null,
           backgroundText: backgroundText.enabled ? backgroundText : null,
           videoUrl: videoUrl || null,
-          channelId,
+          channelId: selectedChannel.id,
           name: selectedProduct.name,
           price: 0 // Will be calculated later
         })
@@ -1094,11 +1257,12 @@ export default function TestMembersSandbox() {
 
   const canProceed = () => {
     switch (currentStep) {
+      case 'channel': return selectedChannel !== null;
       case 'product': return selectedProduct !== null;
       case 'qr-type': return qrType !== '';
       case 'customize': return true; // Will add validation per type
       case 'preview': return true;
-      case 'publish': return channelName.trim() !== '';
+      case 'publish': return true; // Channel already selected
       default: return false;
     }
   };
@@ -1228,6 +1392,17 @@ export default function TestMembersSandbox() {
               />
 
               <div className="min-h-[400px]">
+                {currentStep === 'channel' && (
+                  <ChannelStep 
+                    selectedChannel={selectedChannel}
+                    onSelect={setSelectedChannel}
+                    memberId={user?.id || ''}
+                    isCreatingChannel={isCreatingChannel}
+                    setIsCreatingChannel={setIsCreatingChannel}
+                    newChannelName={newChannelName}
+                    setNewChannelName={setNewChannelName}
+                  />
+                )}
                 {currentStep === 'product' && (
                   <ProductPickerStep 
                     selectedProduct={selectedProduct}
@@ -1271,8 +1446,7 @@ export default function TestMembersSandbox() {
                   <PublishStep 
                     isPublishing={isPublishing}
                     onPublish={handlePublish}
-                    channelName={channelName}
-                    onChannelNameChange={setChannelName}
+                    selectedChannel={selectedChannel}
                   />
                 )}
               </div>
@@ -1281,7 +1455,7 @@ export default function TestMembersSandbox() {
                 <Button
                   variant="outline"
                   onClick={handleBack}
-                  disabled={currentStep === 'product'}
+                  disabled={currentStep === 'channel'}
                   data-testid="button-back"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
