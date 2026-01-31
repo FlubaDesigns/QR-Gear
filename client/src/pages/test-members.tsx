@@ -386,33 +386,61 @@ function ProductPickerStep({
   const allowedProducts = allowedData?.products || [];
   const hasAllowedProducts = allowedProducts.length > 0;
 
-  // Use SkinGridViewer with AllowedProductSkin for reusable earnings display
-  const skinItems: SkinItem[] = allowedProducts.map((p) => ({
+  // Map to ScrollViewItem format with metadata for custom skin
+  const scrollItems: ScrollViewItem[] = allowedProducts.map((p) => ({
     id: String(p.blueprintId),
-    name: p.title,
-    primaryImage: p.imageUrl,
-    isUsed: selectedProduct?.id === p.blueprintId,
-    metadata: {
-      brand: p.brand,
+    imageUrl: p.imageUrl || "",
+    title: p.title,
+    subtitle: p.brand,
+    minPrice: p.retailPrice ? String(p.retailPrice) : null,
+    maxPrice: p.retailPrice ? String(p.retailPrice) : null,
+    colorCount: 0,
+    madeInUSA: p.hasUSAProvider || false,
+    description: JSON.stringify({
       baseCost: p.baseCost || 0,
       retailPrice: p.retailPrice || 0,
       profit: p.profit || 0,
       memberEarnings: p.memberEarnings || 0,
-      hasUSAProvider: p.hasUSAProvider || false,
-    },
+    }),
   }));
 
-  const skinActions: SkinActions = {
-    onSelect: (id: string) => {
-      const product = allowedProducts.find(p => String(p.blueprintId) === id);
-      if (product) {
-        onSelect({
-          id: product.blueprintId,
-          name: product.title,
-          thumbnailUrl: product.imageUrl || null
-        });
-      }
+  const handleItemTap = (item: ScrollViewItem) => {
+    const product = allowedProducts.find(p => String(p.blueprintId) === item.id);
+    if (product) {
+      onSelect({
+        id: product.blueprintId,
+        name: product.title,
+        thumbnailUrl: product.imageUrl || null
+      });
     }
+  };
+
+  // Custom skin renderer for ScrollView - AllowedProductCardSkin on top of ScrollView
+  const renderProductSkin = (item: ScrollViewItem, isSelected: boolean, onSelectItem: () => void) => {
+    let metadata: any = {};
+    try {
+      metadata = item.description ? JSON.parse(item.description) : {};
+    } catch { metadata = {}; }
+    
+    const skinItem: SkinItem = {
+      id: String(item.id),
+      name: item.title,
+      primaryImage: item.imageUrl,
+      isUsed: isSelected,
+      metadata: {
+        brand: item.subtitle,
+        ...metadata,
+        hasUSAProvider: item.madeInUSA,
+      },
+    };
+    
+    return (
+      <AllowedProductCardSkin
+        item={skinItem}
+        actions={{ onSelect: () => onSelectItem() }}
+        onClick={onSelectItem}
+      />
+    );
   };
 
   if (loadingAllowed) {
@@ -439,15 +467,19 @@ function ProductPickerStep({
           </p>
         </div>
       ) : (
-        <div className="max-h-[60vh] overflow-y-auto pr-2">
-          <SkinGridViewer
-            items={skinItems}
-            CardSkin={AllowedProductCardSkin}
-            DetailSkin={AllowedProductDetailSkin}
-            actions={skinActions}
-            gridColumns="grid-cols-2 sm:grid-cols-3"
-          />
-        </div>
+        <SharedViewer
+          mode="scroll"
+          scrollProps={{
+            items: scrollItems,
+            selectedId: selectedProduct ? String(selectedProduct.id) : undefined,
+            onSelect: handleItemTap,
+            aspectRatio: "square",
+            emptyMessage: "No products available.",
+            layout: "vertical",
+            gridHeight: "min(60vh, 500px)",
+            renderItem: renderProductSkin,
+          }}
+        />
       )}
     </div>
   );

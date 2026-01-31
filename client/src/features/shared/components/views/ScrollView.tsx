@@ -28,6 +28,7 @@ export interface ScrollViewProps {
   emptyMessage?: string;
   layout?: "horizontal" | "grid" | "single" | "vertical";
   gridHeight?: string;
+  renderItem?: (item: ScrollViewItem, isSelected: boolean, onSelect: () => void) => React.ReactNode;
 }
 
 export function ScrollView({
@@ -40,6 +41,7 @@ export function ScrollView({
   emptyMessage = "No items available",
   layout = "horizontal",
   gridHeight = "400px",
+  renderItem: customRenderItem,
 }: ScrollViewProps) {
   const aspectClass =
     aspectRatio === "portrait"
@@ -172,6 +174,16 @@ export function ScrollView({
         >
           <div className="grid grid-cols-1 gap-4 p-1">
             {items.map((item) => {
+              const isSelected = selectedId === item.id;
+              
+              if (customRenderItem) {
+                return (
+                  <div key={item.id}>
+                    {customRenderItem(item, isSelected, () => onSelect?.(item))}
+                  </div>
+                );
+              }
+              
               const priceRange = item.minPrice && item.maxPrice 
                 ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
                 : item.minPrice 
@@ -191,7 +203,7 @@ export function ScrollView({
                   sizes={item.sizes}
                   description={item.description}
                   onClick={() => onSelect?.(item)}
-                  className={selectedId === item.id ? "ring-2 ring-primary ring-offset-2" : ""}
+                  className={isSelected ? "ring-2 ring-primary ring-offset-2" : ""}
                 />
               );
             })}
