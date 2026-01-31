@@ -70,7 +70,7 @@
 - [ ] Capture buyer email from Stripe checkout session
 - [ ] Store on Instance: `buyerEmail`, `hostingExpiresAt`, `remindersSent[]`
 - [ ] Cron job to check for expiring Instances
-- [ ] NexusMail renewal reminders (30 days, 7 days, 1 day before expiration)
+- [ ] Resend renewal reminders (30 days, 7 days, 1 day before expiration)
 - [ ] Stripe checkout link in reminder emails for $4.99 renewal
 - [ ] On renewal payment: extend `hostingExpiresAt` by 3 years
 - [ ] Expired Instance behavior: QR still works but shows "renew" page instead of content
