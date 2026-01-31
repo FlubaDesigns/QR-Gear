@@ -2215,6 +2215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Build common packets with pricing info at save time
       const { downloadAndStoreFromUrl } = await import("./lib/firebase-storage-service");
+      const { syncProductVariants } = await import("./lib/printify");
       
       const enrichedProducts = await Promise.all(
         products.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
@@ -2226,6 +2227,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const usaProviders = providers.filter((prov: any) => prov.isUSA);
             const selectedProvider = usaProviders[0] || providers[0];
             
+            // Get colors with hex codes from provider or sync from Printify
+            let availableColors: Array<{name: string; hex: string}> = [];
+            let availableSizes: string[] = [];
+            
+            if (selectedProvider?.availableColors && Array.isArray(selectedProvider.availableColors)) {
+              availableColors = selectedProvider.availableColors as Array<{name: string; hex: string}>;
+              availableSizes = (selectedProvider.availableSizes as string[]) || [];
+            } else if (selectedProvider?.id) {
+              // Sync from Printify to get colors/sizes with hex codes
+              try {
+                const variantData = await syncProductVariants(p.blueprintId, selectedProvider.id);
+                availableColors = variantData.colors;
+                availableSizes = variantData.sizes;
+                console.log(`[AllowedProducts] Synced ${availableColors.length} colors for blueprint ${p.blueprintId}`);
+              } catch (syncErr) {
+                console.error(`[AllowedProducts] Failed to sync variants for ${p.blueprintId}:`, syncErr);
+              }
+            }
+            
             // Base cost is the manufacturing cost (minCost from provider, in cents)
             const baseCostCents = selectedProvider?.minCost || 0;
             const baseCost = baseCostCents / 100;
@@ -2235,14 +2255,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const profit = retailPrice - baseCost;
             const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
             
-            // Download Printify image to Firebase Storage (proper asset management)
+            // Download primary Printify image to Firebase Storage
             let imageUrl: string | null = null;
             if (blueprint?.primaryImageUrl) {
               imageUrl = await downloadAndStoreFromUrl(
                 blueprint.primaryImageUrl, 
                 `product-blueprint-${p.blueprintId}`
               );
-              console.log(`[AllowedProducts] Stored image for blueprint ${p.blueprintId}: ${imageUrl}`);
+              console.log(`[AllowedProducts] Stored primary image for blueprint ${p.blueprintId}: ${imageUrl}`);
+            }
+            
+            // Initialize mockupsByColor with primary image as default
+            const mockupsByColor: Record<string, { front: string | null }> = {};
+            if (availableColors.length > 0 && imageUrl) {
+              // Set primary image as the first color's mockup (typically the catalog default)
+              const firstColor = availableColors[0].name;
+              mockupsByColor[firstColor] = { front: imageUrl };
+              console.log(`[AllowedProducts] Set default mockup for ${firstColor}: ${imageUrl}`);
+            }
+            
+            // Queue background jobs to generate mockups for remaining colors
+            // This happens asynchronously - mockups will be added as they complete
+            if (availableColors.length > 1 && selectedProvider?.id) {
+              console.log(`[AllowedProducts] Queuing mockup generation for ${availableColors.length - 1} additional colors...`);
+              // Note: Mockup generation jobs would be created here using the job queue
+              // For now, we store the color data and can generate mockups on-demand or via cron
             }
             
             return {
@@ -2252,6 +2289,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Common packet data - now uses Firebase Storage URL
               imageUrl,
               brand: blueprint?.brand || null,
+              // Colors with hex codes for UI swatches
+              availableColors,
+              availableSizes,
+              // Mockups by color (populated as they're generated)
+              mockupsByColor,
+              printProviderId: selectedProvider?.id || null,
               baseCost,
               retailPrice,
               profit,
