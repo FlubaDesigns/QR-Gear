@@ -2097,6 +2097,7 @@ import * as jwt from 'jsonwebtoken';
 // These will NOT work without proper configuration
 const WIDGET_JWT_SECRET = process.env.WIDGET_JWT_SECRET;
 const WIDGET_API_KEY = process.env.WIDGET_API_KEY;
+const KC_API_KEY = process.env.KC_API_KEY;
 
 function signWidgetToken(payload: any): string {
   if (!WIDGET_JWT_SECRET) {
@@ -2184,6 +2185,63 @@ app.post('/widget/token', async (req: Request, res: Response): Promise<void> => 
     });
   } catch (error: any) {
     console.error('Widget token error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// KC Widget Items endpoint - used by Kingdom Connects widget embed
+app.get('/widget/items', async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Check KC_API_KEY authentication
+    const authHeader = req.headers.authorization;
+    const apiKey = req.headers['x-api-key'] as string;
+    
+    const providedKey = apiKey || (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader);
+    
+    if (!KC_API_KEY || providedKey !== KC_API_KEY) {
+      res.status(401).json({ error: 'Invalid or missing API key' });
+      return;
+    }
+    
+    const channelId = req.query.channelId as string;
+    const storeId = req.query.storeId as string || 'kingdom_connects';
+    
+    if (!channelId) {
+      res.status(400).json({ error: 'channelId is required' });
+      return;
+    }
+    
+    // Query channel items from Firestore
+    const snapshot = await db.collection('catalogItemLinks')
+      .where('channelId', '==', channelId)
+      .where('status', '==', 'published')
+      .orderBy('createdAt', 'desc')
+      .limit(20)
+      .get();
+    
+    const items = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title || data.name,
+        description: data.description,
+        previewUrl: data.previewUrl || data.thumbnailUrl,
+        publicUrl: data.publicUrl,
+        createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        shareImageSquareUrl: data.shareImageSquareUrl,
+        shareImageLinkUrl: data.shareImageLinkUrl,
+        shareCaption: data.shareCaption,
+      };
+    });
+    
+    res.json({
+      channelId,
+      storeId,
+      items,
+      count: items.length,
+    });
+  } catch (error: any) {
+    console.error('Widget items error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -7451,6 +7509,4 @@ export const api = onRequest(
   },
   app
 );
-// Force redeploy: 2026-01-27T06:55:00Z
-// Force deploy Wed Jan 28 04:51:09 AM UTC 2026
-// Force deploy Sat Jan 31 11:41:54 AM UTC 2026
+// Force deploy with KC_API_KEY env var: 2026-01-31-v2
