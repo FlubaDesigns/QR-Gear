@@ -76,10 +76,17 @@
 - [x] Expired Instance behavior: QR still works but shows "renew" page instead of content
 - [x] Renewal page UI at `/renew/:instanceId`
 
+### Social Sharing (COMPLETED)
+- [x] Server-rendered /p/:packetId route with OG + Twitter meta tags
+- [x] ShareKitHandoff enhanced with social share buttons (X, Facebook, LinkedIn, WhatsApp, Email)
+- [x] Copy caption + link functionality
+- [x] Crawler detection for proper OG tag delivery
+- [x] No platform APIs required - uses share intent URLs
+
 ### Member Wizard Enhancements
 - [ ] Wire VIDEO (Play) surface into member wizard
 - [ ] Wire DOCUMENT (PDF) surface into member wizard
-- [ ] Integrate ShareKitHandoff into all publish flows
+- [x] Integrate ShareKitHandoff into all publish flows
 - [ ] Channel picker in wizard step 1
 
 ### Store/Channel Organization
