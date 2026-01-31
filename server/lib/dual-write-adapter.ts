@@ -645,7 +645,7 @@ export class DualWriteAdapter implements IStorage {
     return this.reader.toggleVariantEnabled(id, enabled);
   }
   
-  // Printify Blueprints
+  // Printify Blueprints - read from Firestore, write to both
   async getPrintifyBlueprints(): Promise<PrintifyBlueprint[]> {
     return this.reader.getPrintifyBlueprints();
   }
@@ -653,16 +653,23 @@ export class DualWriteAdapter implements IStorage {
     return this.reader.getPrintifyBlueprint(id);
   }
   async upsertPrintifyBlueprint(blueprint: InsertPrintifyBlueprint): Promise<PrintifyBlueprint> {
-    return this.reader.upsertPrintifyBlueprint(blueprint);
+    const result = await this.primary.upsertPrintifyBlueprint(blueprint);
+    this.secondary.upsertPrintifyBlueprint(blueprint).catch(e => 
+      this.logDualWriteError('upsertPrintifyBlueprint', e));
+    return result;
   }
   async deletePrintifyBlueprint(id: number): Promise<void> {
-    return this.reader.deletePrintifyBlueprint(id);
+    await this.primary.deletePrintifyBlueprint(id);
+    this.secondary.deletePrintifyBlueprint(id).catch(e => 
+      this.logDualWriteError('deletePrintifyBlueprint', e));
   }
   async clearPrintifyBlueprints(): Promise<void> {
-    return this.reader.clearPrintifyBlueprints();
+    await this.primary.clearPrintifyBlueprints();
+    this.secondary.clearPrintifyBlueprints().catch(e => 
+      this.logDualWriteError('clearPrintifyBlueprints', e));
   }
   
-  // Printify Print Providers
+  // Printify Print Providers - read from Firestore, write to both
   async getAllPrintifyProviders(): Promise<PrintifyPrintProvider[]> {
     return this.reader.getAllPrintifyProviders();
   }
@@ -674,24 +681,28 @@ export class DualWriteAdapter implements IStorage {
   }
   async upsertPrintifyPrintProvider(provider: InsertPrintifyPrintProvider): Promise<PrintifyPrintProvider> {
     const result = await this.primary.upsertPrintifyPrintProvider(provider);
-    // Sync to Firestore for production access
-    this.secondary.upsertPrintifyPrintProvider(provider).catch(e => console.error('[DualWrite] Provider sync failed:', e));
+    this.secondary.upsertPrintifyPrintProvider(provider).catch(e => 
+      this.logDualWriteError('upsertPrintifyPrintProvider', e));
     return result;
   }
   async updatePrintifyProviderCosts(blueprintId: number, providerId: number, costs: { minCost: number; maxCost: number; placeholderProductId?: string; availableColors?: any[]; availableSizes?: string[] }): Promise<PrintifyPrintProvider | undefined> {
     const result = await this.primary.updatePrintifyProviderCosts(blueprintId, providerId, costs);
-    // Sync to Firestore for production access
-    this.secondary.updatePrintifyProviderCosts(blueprintId, providerId, costs).catch(e => console.error('[DualWrite] Provider cost sync failed:', e));
+    this.secondary.updatePrintifyProviderCosts(blueprintId, providerId, costs).catch(e => 
+      this.logDualWriteError('updatePrintifyProviderCosts', e));
     return result;
   }
   async updateProductPricesByProvider(blueprintId: number, providerId: number, basePrice: string): Promise<number> {
     return this.reader.updateProductPricesByProvider(blueprintId, providerId, basePrice);
   }
   async deletePrintifyPrintProvidersByBlueprint(blueprintId: number): Promise<void> {
-    return this.reader.deletePrintifyPrintProvidersByBlueprint(blueprintId);
+    await this.primary.deletePrintifyPrintProvidersByBlueprint(blueprintId);
+    this.secondary.deletePrintifyPrintProvidersByBlueprint(blueprintId).catch(e => 
+      this.logDualWriteError('deletePrintifyPrintProvidersByBlueprint', e));
   }
   async clearPrintifyPrintProviders(): Promise<void> {
-    return this.reader.clearPrintifyPrintProviders();
+    await this.primary.clearPrintifyPrintProviders();
+    this.secondary.clearPrintifyPrintProviders().catch(e => 
+      this.logDualWriteError('clearPrintifyPrintProviders', e));
   }
   
   // Catalog Sync

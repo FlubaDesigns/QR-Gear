@@ -2528,6 +2528,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // One-time sync: Push all blueprint data from PostgreSQL to Firestore
+  app.post("/api/test/sync-blueprints-to-firestore", async (req: any, res) => {
+    try {
+      console.log('[Sync] Starting blueprint sync to Firestore...');
+      const { printifyBlueprints } = await import("@shared/schema");
+      const FirestoreAdapter = (await import("./lib/firestore-adapter")).FirestoreAdapter;
+      
+      const allBlueprints = await db.select().from(printifyBlueprints);
+      console.log(`[Sync] Found ${allBlueprints.length} blueprints to sync`);
+      
+      const firestoreAdapter = new FirestoreAdapter();
+      let synced = 0;
+      let errors = 0;
+      
+      for (const blueprint of allBlueprints) {
+        try {
+          await firestoreAdapter.upsertPrintifyBlueprint({
+            id: blueprint.id,
+            title: blueprint.title,
+            description: blueprint.description,
+            brand: blueprint.brand,
+            model: blueprint.model,
+            images: blueprint.images,
+            primaryImageUrl: blueprint.primaryImageUrl,
+            category: blueprint.category,
+          });
+          synced++;
+        } catch (e: any) {
+          console.error(`[Sync] Error syncing blueprint ${blueprint.id}:`, e.message);
+          errors++;
+        }
+      }
+      
+      console.log(`[Sync] Complete: ${synced} blueprints synced, ${errors} errors`);
+      res.json({ success: true, synced, errors, total: allBlueprints.length });
+    } catch (error: any) {
+      console.error('[Sync] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // One-time sync: Push all provider data from PostgreSQL to Firestore
   app.post("/api/test/sync-providers-to-firestore", async (req: any, res) => {
     try {
