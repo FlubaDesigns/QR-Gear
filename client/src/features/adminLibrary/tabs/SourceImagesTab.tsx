@@ -1,23 +1,20 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { ImagePlus } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
-import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
-import { SourceImageCardSkin } from "@/features/shared/components/skins";
-import { SingleView, type SingleViewItem } from "@/features/shared/components/views/SingleView";
+import { GridView, type GridViewItem } from "@/features/shared/components/views/GridView";
+import { SingleView } from "@/features/shared/components/views/SingleView";
 import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
-import type { SkinItem } from "@/features/shared/components/skins/types";
 import type { LibraryAssetWithProxy } from "../shared/types";
 import { getImageUrl } from "../shared/imageUtils";
 
-function assetToSkinItem(asset: LibraryAssetWithProxy): SkinItem {
+function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
   return {
     id: asset.id,
     name: asset.name,
-    primaryImage: getImageUrl(asset),
+    imageUrl: getImageUrl(asset),
     dimensions: asset.width && asset.height ? `${asset.width}x${asset.height}` : undefined,
   };
 }
@@ -25,10 +22,11 @@ function assetToSkinItem(asset: LibraryAssetWithProxy): SkinItem {
 export default function SourceImagesTab() {
   const { api } = useLibraryContext();
   const { toast } = useToast();
+  
+  const [selectedItem, setSelectedItem] = useState<GridViewItem | null>(null);
+  const [singleViewOpen, setSingleViewOpen] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
-  const [selectedItem, setSelectedItem] = useState<SingleViewItem | null>(null);
-  const [singleViewOpen, setSingleViewOpen] = useState(false);
 
   const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("source"),
@@ -40,13 +38,20 @@ export default function SourceImagesTab() {
     onSuccess: () => {
       toast({ title: "Image deleted" });
       api.invalidateAssets("source");
+      setSingleViewOpen(false);
+      setSelectedItem(null);
     },
     onError: (error: Error) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
 
-  const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
+  const gridItems = useMemo(() => assets.map(assetToGridItem), [assets]);
+
+  const handleSelect = (item: GridViewItem) => {
+    setSelectedItem(item);
+    setSingleViewOpen(true);
+  };
 
   const handleCrop = (id: string) => {
     const asset = assets.find(a => a.id === id);
@@ -56,6 +61,7 @@ export default function SourceImagesTab() {
         name: asset.name,
         imageUrl: getImageUrl(asset),
       });
+      setSingleViewOpen(false);
       setCropDialogOpen(true);
     }
   };
@@ -99,14 +105,6 @@ export default function SourceImagesTab() {
     return result;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
   return (
     <>
       <ImageUploader
@@ -120,33 +118,31 @@ export default function SourceImagesTab() {
         <h3 className="text-lg font-semibold">{assets.length} Source Images</h3>
       </div>
 
-      {assets.length === 0 ? (
-        <div className="text-center py-12 bg-muted/30 rounded-lg">
-          <ImagePlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground" data-testid="text-no-source">
-            No source images uploaded yet.
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Upload a ZIP file or select images above.
-          </p>
-        </div>
-      ) : (
-        <SkinGridViewer
-          items={skinItems}
-          CardSkin={SourceImageCardSkin}
-          DetailSkin={SourceImageDetailSkin}
-          actions={{
-            onCrop: handleCrop,
-            onDelete: handleDelete,
-          }}
-          isActionPending={deleteMutation.isPending}
-          confirmAction={{
-            type: "delete",
-            title: "Delete this image?",
-            description: "This will permanently delete this source image. This action cannot be undone.",
-          }}
+      <GridView
+        items={gridItems}
+        onSelect={handleSelect}
+        isLoading={isLoading}
+        emptyMessage="No source images uploaded yet."
+      />
+
+      <SingleView
+        item={selectedItem ? {
+          id: selectedItem.id,
+          name: selectedItem.name,
+          imageUrl: selectedItem.imageUrl,
+          dimensions: selectedItem.dimensions,
+        } : null}
+        open={singleViewOpen}
+        onOpenChange={setSingleViewOpen}
+      >
+        <CropDeleteSkin
+          itemId={selectedItem?.id || ''}
+          onCrop={handleCrop}
+          onDelete={handleDelete}
+          onClose={() => setSingleViewOpen(false)}
+          isDeleting={deleteMutation.isPending}
         />
-      )}
+      </SingleView>
 
       <CropUtility
         asset={assetToCrop}

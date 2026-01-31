@@ -1,25 +1,31 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Image as ImageIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
-import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
-import { BackgroundCardSkin, BackgroundDetailSkin } from "@/features/shared/components/skins";
-import type { SkinItem } from "@/features/shared/components/skins/types";
+import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
+import { GridView, type GridViewItem } from "@/features/shared/components/views/GridView";
+import { SingleView } from "@/features/shared/components/views/SingleView";
+import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
 import type { LibraryAssetWithProxy } from "../shared/types";
 import { getImageUrl } from "../shared/imageUtils";
 
-function assetToSkinItem(asset: LibraryAssetWithProxy): SkinItem {
+function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
   return {
     id: asset.id,
     name: asset.name,
-    primaryImage: getImageUrl(asset),
+    imageUrl: getImageUrl(asset),
   };
 }
 
 export default function BackgroundsTab() {
   const { api } = useLibraryContext();
   const { toast } = useToast();
+  
+  const [selectedItem, setSelectedItem] = useState<GridViewItem | null>(null);
+  const [singleViewOpen, setSingleViewOpen] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
   const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("background"),
@@ -31,25 +37,50 @@ export default function BackgroundsTab() {
     onSuccess: () => {
       toast({ title: "Image deleted" });
       api.invalidateAssets("background");
+      setSingleViewOpen(false);
+      setSelectedItem(null);
     },
     onError: (error: Error) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
 
-  const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
+  const gridItems = useMemo(() => assets.map(assetToGridItem), [assets]);
+
+  const handleSelect = (item: GridViewItem) => {
+    setSelectedItem(item);
+    setSingleViewOpen(true);
+  };
+
+  const handleCrop = (id: string) => {
+    const asset = assets.find(a => a.id === id);
+    if (asset) {
+      setAssetToCrop({
+        id: asset.id,
+        name: asset.name,
+        imageUrl: getImageUrl(asset),
+      });
+      setSingleViewOpen(false);
+      setCropDialogOpen(true);
+    }
+  };
+
+  const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
+    if (!sourceAsset) return;
+    await api.uploadAsset({
+      name: `cropped_${sourceAsset.name}`,
+      assetType: "cropped",
+      imageData,
+      mimeType: "image/jpeg",
+      sourceAssetId: sourceAsset.id,
+    });
+    api.invalidateAssets("cropped");
+    api.invalidateAssets("background");
+  };
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
 
   return (
     <>
@@ -60,7 +91,7 @@ export default function BackgroundsTab() {
         </div>
       </div>
 
-      {assets.length === 0 ? (
+      {assets.length === 0 && !isLoading ? (
         <div className="text-center py-12 bg-muted/30 rounded-lg">
           <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground" data-testid="text-no-backgrounds">
@@ -71,21 +102,44 @@ export default function BackgroundsTab() {
           </p>
         </div>
       ) : (
-        <SkinGridViewer
-          items={skinItems}
-          CardSkin={BackgroundCardSkin}
-          DetailSkin={BackgroundDetailSkin}
-          actions={{
-            onDelete: handleDelete,
-          }}
-          isActionPending={deleteMutation.isPending}
-          confirmAction={{
-            type: "delete",
-            title: "Delete this background?",
-            description: "This will permanently delete this background image. This action cannot be undone.",
-          }}
+        <GridView
+          items={gridItems}
+          onSelect={handleSelect}
+          isLoading={isLoading}
+          emptyMessage="No background images yet."
         />
       )}
+
+      <SingleView
+        item={selectedItem ? {
+          id: selectedItem.id,
+          name: selectedItem.name,
+          imageUrl: selectedItem.imageUrl,
+        } : null}
+        open={singleViewOpen}
+        onOpenChange={setSingleViewOpen}
+      >
+        <CropDeleteSkin
+          itemId={selectedItem?.id || ''}
+          onCrop={handleCrop}
+          onDelete={handleDelete}
+          onClose={() => setSingleViewOpen(false)}
+          isDeleting={deleteMutation.isPending}
+        />
+      </SingleView>
+
+      <CropUtility
+        asset={assetToCrop}
+        open={cropDialogOpen}
+        onOpenChange={(open) => {
+          setCropDialogOpen(open);
+          if (!open) setAssetToCrop(null);
+        }}
+        onSave={handleSaveCrop}
+        fetchImageBlob={api.fetchImageBlob}
+        aspectRatio={9 / 16}
+        title="Crop Image"
+      />
     </>
   );
 }
