@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { X, Camera, ZoomIn, ZoomOut, RotateCcw, Smartphone } from "lucide-react";
 
@@ -153,7 +154,10 @@ export function ARPreviewModal({ isOpen, onClose, imageUrl, productName }: ARPre
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-w-full h-full w-full p-0 bg-black border-0 rounded-none sm:rounded-none">
+      <DialogContent className="max-w-full h-full w-full p-0 bg-black border-0 rounded-none sm:rounded-none" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>{productName || "AR Preview"}</DialogTitle>
+        </VisuallyHidden>
         <div 
           ref={containerRef}
           className="relative w-full h-full overflow-hidden"

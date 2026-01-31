@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Layers, QrCode, Check, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface TemplatePickerItem {
   id: string;
@@ -81,7 +82,10 @@ export function TemplatePickerSkin({
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-4xl w-full p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-4xl w-full p-0 gap-0 overflow-hidden" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>Select Template</DialogTitle>
+        </VisuallyHidden>
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin" />

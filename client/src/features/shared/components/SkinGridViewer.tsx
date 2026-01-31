@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, X, ImageIcon, Layers } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -109,16 +110,19 @@ export function SkinGridViewer({
       </div>
 
       <Dialog open={selectedIndex !== null} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0">
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-hidden p-0" aria-describedby={undefined}>
+          <VisuallyHidden>
+            <DialogTitle>{selectedItem?.name || "Item Preview"}</DialogTitle>
+          </VisuallyHidden>
           <div className="relative">
             <Button
-              variant="ghost"
+              variant="secondary"
               size="icon"
-              className="absolute top-2 right-2 z-10"
+              className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70"
               onClick={handleClose}
               data-testid="button-gallery-close"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5 text-white" />
             </Button>
 
             <div className="relative aspect-square sm:aspect-video bg-muted flex items-center justify-center">

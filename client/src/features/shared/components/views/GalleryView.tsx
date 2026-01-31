@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, X, Edit, Trash2, Archive, ExternalLink, Link as LinkIcon, Image, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,7 +112,11 @@ export function GalleryView({
       <DialogContent 
         className="max-w-4xl w-full p-0 gap-0 overflow-hidden"
         onKeyDown={handleKeyDown}
+        aria-describedby={undefined}
       >
+        <VisuallyHidden>
+          <DialogTitle>{item.name}</DialogTitle>
+        </VisuallyHidden>
         <div className="relative">
           <Button
             variant="ghost"
