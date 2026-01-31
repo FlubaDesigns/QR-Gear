@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   Users, 
@@ -187,8 +190,11 @@ interface AllowedProduct {
 interface MemberChannel {
   id: string;
   name: string;
+  storeId?: string;
+  type?: string;
   createdAt?: string;
   productCount?: number;
+  mediaCount?: number;
 }
 
 function ChannelStep({ 
@@ -877,16 +883,6 @@ function PublishStep({
   );
 }
 
-interface MemberChannel {
-  id: string;
-  name: string;
-  storeId: string;
-  type: string;
-  productCount?: number;
-  mediaCount?: number;
-  createdAt: string;
-}
-
 interface MemberProduct {
   id: string;
   name: string;
@@ -978,7 +974,7 @@ function ChannelsView({ memberId }: { memberId: string }) {
                     <div>
                       <h3 className="text-white font-medium">{channel.name}</h3>
                       <p className="text-sm text-slate-400">
-                        {channelProducts.length} items · Created {new Date(channel.createdAt).toLocaleDateString()}
+                        {channelProducts.length} items {channel.createdAt && `· Created ${new Date(channel.createdAt).toLocaleDateString()}`}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -1451,11 +1447,12 @@ export default function TestMembersSandbox() {
                 )}
               </div>
 
-              <div className="flex justify-between mt-8 pt-6 border-t border-slate-700">
+              <div className="flex flex-wrap gap-3 justify-between mt-8 pt-6 border-t border-slate-700">
                 <Button
                   variant="outline"
                   onClick={handleBack}
                   disabled={currentStep === 'channel'}
+                  className="flex-1 min-w-[100px] sm:flex-none"
                   data-testid="button-back"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
@@ -1466,7 +1463,7 @@ export default function TestMembersSandbox() {
                   <Button
                     onClick={handleNext}
                     disabled={!canProceed()}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="flex-1 min-w-[100px] sm:flex-none bg-blue-600 hover:bg-blue-700"
                     data-testid="button-next"
                   >
                     Next
