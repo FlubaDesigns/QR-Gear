@@ -7809,6 +7809,55 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Regenerate social images for a channel item (admin only)
+  app.post("/api/admin/channel-items/:itemId/regenerate-assets", isAdmin, async (req: any, res) => {
+    try {
+      const { itemId } = req.params;
+      
+      const { getChannelItem } = await import("./lib/channelItemsService");
+      const { generateAndUploadSocialImages } = await import("./lib/social-image-generator");
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const { generateShareCaption } = await import("./lib/channelItemsService");
+      
+      const item = await getChannelItem(itemId);
+      if (!item) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+      
+      const baseUrl = process.env.VITE_BASE_URL || 'https://qrgear-c1ffd.web.app';
+      const fullShareUrl = item.shareUrl.startsWith('http') ? item.shareUrl : `${baseUrl}${item.shareUrl}`;
+      
+      const socialImages = await generateAndUploadSocialImages({
+        title: item.title,
+        description: item.description,
+        previewImageUrl: item.previewImageUrl,
+        packetId: item.packetId,
+        shareUrl: fullShareUrl,
+      });
+      
+      const shareCaption = generateShareCaption(item.title, item.description, fullShareUrl);
+      
+      const db = getFirestoreDb();
+      await db.collection('channel_items').doc(itemId).update({
+        shareImageSquareUrl: socialImages.squareUrl || null,
+        shareImageLinkUrl: socialImages.linkPreviewUrl || null,
+        shareCaption,
+        updatedAt: new Date(),
+      });
+      
+      console.log(`[ChannelItems] Regenerated social assets for item ${itemId}`);
+      res.json({ 
+        ok: true, 
+        shareImageSquareUrl: socialImages.squareUrl,
+        shareImageLinkUrl: socialImages.linkPreviewUrl,
+        shareCaption,
+      });
+    } catch (error: any) {
+      console.error("[ChannelItems] Regenerate assets error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Update hosting tier (admin only)
   app.put("/api/admin/hosting-tiers/:id", isAdmin, async (req, res) => {
     try {
