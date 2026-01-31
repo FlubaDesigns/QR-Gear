@@ -9521,6 +9521,246 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Upload video for QR Play - stores in member-scoped folder
+  app.post("/api/members/:memberId/videos/upload", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { videoData, mimeType: inputMimeType, fileName: inputFileName } = req.body;
+      
+      if (!videoData) {
+        return res.status(400).json({ error: "No videoData provided" });
+      }
+      
+      // Validate mime type
+      const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+      const mimeType = inputMimeType || 'video/mp4';
+      if (!allowedVideoTypes.includes(mimeType)) {
+        return res.status(400).json({ error: "Invalid video type. Allowed: MP4, WebM, MOV" });
+      }
+      
+      // Parse base64 data
+      const base64Data = videoData.replace(/^data:[^;]+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      // Check size limit (100MB)
+      const maxSize = 100 * 1024 * 1024;
+      if (buffer.length > maxSize) {
+        return res.status(400).json({ error: "Video exceeds 100MB limit" });
+      }
+      
+      const ext = mimeType === 'video/mp4' ? 'mp4' : mimeType === 'video/webm' ? 'webm' : 'mov';
+      const originalName = inputFileName || `video-${Date.now()}.${ext}`;
+      const sanitizedName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const folder = `members/${memberId}/videos`;
+      
+      const uploadResult = await uploadToFirebaseStorage(
+        buffer,
+        sanitizedName,
+        mimeType,
+        folder
+      );
+      
+      const proxyUrl = `/api/member-files/${memberId}/${encodeURIComponent(sanitizedName)}`;
+      
+      // Save metadata to Firestore
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const assetDoc = await firestoreDb.collection('memberLibrary').add({
+        memberId,
+        assetType: 'video',
+        mediaType: 'video',
+        name: originalName,
+        fileName: sanitizedName,
+        originalName,
+        storageUrl: uploadResult.storageUrl,
+        publicUrl: proxyUrl,
+        mimeType,
+        sizeBytes: buffer.length,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      });
+      
+      console.log(`[Member Video Upload] Created video asset ${assetDoc.id} for member ${memberId}, size: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`);
+      
+      res.json({ 
+        success: true, 
+        videoUrl: proxyUrl,
+        assetId: assetDoc.id,
+        fileName: sanitizedName,
+      });
+    } catch (error: any) {
+      console.error("[Member Video Upload] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create QR Play packet (video-based)
+  app.post("/api/member/play-packets", async (req: any, res) => {
+    try {
+      const { memberId, videoSource, textLayers, textBackdrop, playSettings, metadata, source, status } = req.body;
+      
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+      if (!videoSource?.type) {
+        return res.status(400).json({ error: "videoSource is required" });
+      }
+      if (videoSource.type === 'upload' && !videoSource.videoUrl) {
+        return res.status(400).json({ error: "videoUrl is required for uploaded videos" });
+      }
+      if (videoSource.type === 'external' && !videoSource.externalUrl) {
+        return res.status(400).json({ error: "externalUrl is required for external videos" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const packetId = `play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      const packetData = {
+        packetId,
+        memberId,
+        kind: 'qr_play',
+        videoSource: {
+          type: videoSource.type,
+          videoUrl: videoSource.videoUrl || null,
+          externalUrl: videoSource.externalUrl || null,
+          posterUrl: videoSource.posterUrl || null,
+          duration: videoSource.duration || null,
+          platform: videoSource.platform || null,
+          mimeType: videoSource.mimeType || null,
+          fileName: videoSource.fileName || null,
+        },
+        textLayers: textLayers || [],
+        textBackdrop: textBackdrop || 'off',
+        playSettings: {
+          muted: playSettings?.muted ?? true,
+          loop: playSettings?.loop ?? true,
+          controls: playSettings?.controls ?? 'minimal',
+        },
+        metadata: metadata || null,
+        source: source || { entryPoint: 'wizard' },
+        status: status || 'draft',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberPackets').doc(packetId).set(packetData);
+      
+      console.log(`[QR Play] Created play packet ${packetId} for member ${memberId}`);
+      res.json({ packetId, success: true });
+    } catch (error: any) {
+      console.error('[QR Play] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Generate share card for QR Play (poster + text overlay image)
+  app.post("/api/member/play-packets/:packetId/share-card", async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+      const { memberId } = req.body;
+      
+      if (!packetId || !memberId) {
+        return res.status(400).json({ error: "packetId and memberId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get packet data
+      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      if (!packetDoc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      
+      const packet = packetDoc.data();
+      if (packet?.memberId !== memberId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      
+      // For now, use the poster URL directly as the share card
+      // In the future, we could composite text overlays onto the poster
+      const shareCardUrl = packet?.videoSource?.posterUrl || null;
+      
+      // Update packet with share card URL
+      await firestoreDb.collection('memberPackets').doc(packetId).update({
+        shareCardUrl,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      console.log(`[QR Play] Generated share card for ${packetId}`);
+      res.json({ shareCardUrl, success: true });
+    } catch (error: any) {
+      console.error('[QR Play Share Card] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Publish QR Play packet to library
+  app.post("/api/member/play-packets/:packetId/publish", async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+      const { memberId, metadata } = req.body;
+      
+      if (!packetId || !memberId) {
+        return res.status(400).json({ error: "packetId and memberId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Get packet data
+      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      if (!packetDoc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      
+      const packet = packetDoc.data();
+      if (packet?.memberId !== memberId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      
+      // Create library link
+      const libraryLinkId = `link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      const titleLayer = packet?.textLayers?.find((l: any) => l.id === 'title' || l.label?.toLowerCase() === 'title');
+      
+      const linkData = {
+        libraryLinkId,
+        packetId,
+        memberId,
+        kind: 'qr_play',
+        videoSource: packet?.videoSource || null,
+        shareCardUrl: packet?.shareCardUrl || packet?.videoSource?.posterUrl || null,
+        titleText: titleLayer?.text || 'Untitled Video',
+        textLayers: packet?.textLayers || [],
+        textBackdrop: packet?.textBackdrop || 'off',
+        playSettings: packet?.playSettings || {},
+        metadata: metadata || packet?.metadata || null,
+        status: 'active',
+        shareUrl: `/play/${packetId}`,
+        createdAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
+      
+      // Update packet status
+      await firestoreDb.collection('memberPackets').doc(packetId).update({
+        status: 'published',
+        libraryLinkId,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      console.log(`[QR Play] Published packet ${packetId} as ${libraryLinkId}`);
+      res.json({ libraryLinkId, shareUrl: `/play/${packetId}`, success: true });
+    } catch (error: any) {
+      console.error('[QR Play Publish] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Serve member files - lookup storageUrl from Firestore
   app.get("/api/member-files/:memberId/:filename", async (req: any, res) => {
     try {
