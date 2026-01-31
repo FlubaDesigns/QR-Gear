@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
-import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield } from "lucide-react";
+import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield, Wand2, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const actionCards = [
@@ -92,6 +92,32 @@ export function QuickLinks() {
     <section className="home-section-muted">
       <div className="container">
         <div className="quick-links-grid">
+          <div className="glass-card quick-link-card hover-elevate" data-testid="quick-link-customize">
+            <div className="quick-link-icon icon-color-accent">
+              <Wand2 />
+            </div>
+            <h3>Quick Customize</h3>
+            <p>Create your own custom QR product in minutes</p>
+            <Link href="/customize">
+              <QRButton variant="ghost" size="small" data-testid="button-quick-customize">
+                Start Creating
+              </QRButton>
+            </Link>
+          </div>
+
+          <div className="glass-card quick-link-card hover-elevate" data-testid="quick-link-members">
+            <div className="quick-link-icon icon-color-ice">
+              <Users />
+            </div>
+            <h3>Members Studio</h3>
+            <p>Build and sell your own QR products</p>
+            <Link href="/test-members">
+              <QRButton variant="ghost" size="small" data-testid="button-members-studio">
+                Member Area
+              </QRButton>
+            </Link>
+          </div>
+
           <div className="glass-card quick-link-card hover-elevate" data-testid="quick-link-shop">
             <div className="quick-link-icon icon-color-ice">
               <ShoppingBag />
