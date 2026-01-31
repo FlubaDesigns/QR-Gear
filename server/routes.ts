@@ -2214,6 +2214,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[AllowedProducts] Using pricing: ${markupPercent}% markup, ${memberProfitShare * 100}% member share`);
       
       // Build common packets with pricing info at save time
+      const { downloadAndStoreFromUrl } = await import("./lib/firebase-storage-service");
+      
       const enrichedProducts = await Promise.all(
         products.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
           try {
@@ -2233,12 +2235,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const profit = retailPrice - baseCost;
             const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
             
+            // Download Printify image to Firebase Storage (proper asset management)
+            let imageUrl: string | null = null;
+            if (blueprint?.primaryImageUrl) {
+              imageUrl = await downloadAndStoreFromUrl(
+                blueprint.primaryImageUrl, 
+                `product-blueprint-${p.blueprintId}`
+              );
+              console.log(`[AllowedProducts] Stored image for blueprint ${p.blueprintId}: ${imageUrl}`);
+            }
+            
             return {
               blueprintId: p.blueprintId,
               title: p.title,
               addedAt: p.addedAt || new Date().toISOString(),
-              // Common packet data
-              imageUrl: blueprint?.primaryImageUrl || null,
+              // Common packet data - now uses Firebase Storage URL
+              imageUrl,
               brand: blueprint?.brand || null,
               baseCost,
               retailPrice,
@@ -9110,9 +9122,11 @@ ${allPages.map(page => `  <url>
 
   // Get allowed products for members (single global library)
   // Fetches baseCost from provider data if missing, then calculates earnings dynamically
+  // Also migrates any Printify URLs to Firebase Storage on-the-fly
   app.get("/api/members/allowed-products", async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const { downloadAndStoreFromUrl } = await import("./lib/firebase-storage-service");
       const firestoreDb = getFirestoreDb();
       
       // Read from the "member-products" store's allowed products collection
@@ -9132,9 +9146,24 @@ ${allPages.map(page => `  <url>
       const markupPercent = pricingSettings?.markupPercent ?? 25;
       const markupFixed = pricingSettings?.markupFixed ?? 0;
       
+      let needsUpdate = false; // Track if we need to persist migrated URLs
+      
       // Enrich products with current earnings calculation - fetch baseCost if missing
       const products = await Promise.all(storedProducts.map(async (p: any) => {
         let baseCost = p.baseCost || 0;
+        let imageUrl = p.imageUrl;
+        
+        // Migrate Printify URLs to Firebase Storage (one-time migration)
+        if (imageUrl && imageUrl.includes('images.printify.com')) {
+          console.log(`[Member Products] Migrating Printify URL for blueprint ${p.blueprintId}...`);
+          const firebaseUrl = await downloadAndStoreFromUrl(imageUrl, `product-blueprint-${p.blueprintId}`);
+          if (firebaseUrl) {
+            imageUrl = firebaseUrl;
+            p.imageUrl = firebaseUrl; // Update in-place for persistence
+            needsUpdate = true;
+            console.log(`[Member Products] Migrated to: ${firebaseUrl}`);
+          }
+        }
         
         // If baseCost is 0, look it up from provider data
         if (baseCost === 0 && p.blueprintId) {
@@ -9179,6 +9208,7 @@ ${allPages.map(page => `  <url>
         
         return {
           ...p,
+          imageUrl, // Use migrated URL if available
           baseCost,
           retailPrice,
           profit,
@@ -9188,6 +9218,15 @@ ${allPages.map(page => `  <url>
       }));
       
       console.log(`[Member Sandbox] Found ${products.length} products, earnings @ ${memberProfitShare * 100}% share`);
+      
+      // Persist migrated URLs back to Firestore (one-time migration)
+      if (needsUpdate) {
+        console.log(`[Member Products] Persisting ${storedProducts.length} products with migrated URLs...`);
+        await firestoreDb.collection("storeAllowedProducts").doc("member-products").update({
+          products: storedProducts,
+          updatedAt: new Date().toISOString(),
+        });
+      }
       
       res.json({ products, storeId: "member-products" });
     } catch (error: any) {
