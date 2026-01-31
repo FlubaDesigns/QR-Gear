@@ -69,37 +69,43 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
   - **Earnings Dashboard**: Tracks profit share (25% of sales)
   - **API Endpoints**: `/api/members/:memberId/graphics|channels|products|earnings`
 
-## CRITICAL: QR Dynamics Implementation (INCOMPLETE - MUST FIX)
+## QR GEAR DUAL-PRODUCT ARCHITECTURE
 
-### What Was Supposed To Be Done
-The test-dynamics.tsx page MUST use the **Viewer → View → Skin** architecture from `client/src/features/shared/`. See full spec at `docs/QR_DYNAMICS_SPEC.md`.
+### Two Distinct Products
+1. **QR COMPOSER** - Member/creator tool for building sellable QR merchandise templates
+2. **QR DYNAMICS** - Buyer/owner app for controlling purchased instances post-sale
 
-### What Went Wrong
-Agent built custom inline grids instead of using **SkinGridViewer**. This is WRONG. The user explicitly requested the shared architecture pattern.
+### Three Surfaces (Resolver Engine)
+- **IMAGE (Canvas)** - Static QR backgrounds with text layers (`test-canvas-packet.tsx`)
+- **VIDEO (Play)** - Video loops with QR overlay (`test-qr-play.tsx`)
+- **DOCUMENT (PDF)** - PDF documents with QR (future)
 
-### MANDATORY Requirements for Next Session
-1. **USE SkinGridViewer** from `client/src/features/shared/components/SkinGridViewer.tsx` - NOT custom grids
-2. **Channel View**: Use SkinGridViewer with ChannelContentSkin for browsing content
-3. **Collection View**: Use SkinGridViewer with CollectionItemSkin for managing playlists  
-4. **SkinActions pattern**: Use `actions.onSelect` for "Add to Collection" (NOT custom props like `onAddToCollection`)
-5. **Auto-select**: Default to "QR Gear" store (id: 'qr-gear'), NOT first alphabetically
-6. **Read the spec**: `docs/QR_DYNAMICS_SPEC.md` has all the details
+### Data Model
+- **Member Store** = memberId (each member has their own store)
+- **Channel** = marketing bucket for organizing content
+- **Packet** = single artifact experience (canvas/video/document)
+- **Template** = sellable blueprint (created from packet)
+- **Catalog Item Link** = what members share/sell (ties packet + template + channel)
+- **Buyer Instance** = created at point of sale (separate from template)
 
-### Files to Fix
-- `client/src/pages/test-dynamics.tsx` - REWRITE to use SkinGridViewer
-- `client/src/features/shared/components/skins/ChannelContentSkin.tsx` - Use standard CardSkinProps/DetailSkinProps with actions.onSelect
-- `client/src/features/shared/components/skins/CollectionItemSkin.tsx` - Use standard CardSkinProps/DetailSkinProps
+### Critical Flows
+- **Publish Ordering**: Packet → Assets → Template → Catalog Link (strict sequence)
+- **channelId Flow**: Survives through all wizard steps to final publish commit
+- **ShareKitHandoff**: Post-publish component with copy link, download QR/preview, share
 
-### Reference Files
-- `client/src/features/shared/components/SkinGridViewer.tsx` - The grid component to USE
-- `client/src/features/shared/components/skins/types.ts` - CardSkinProps, DetailSkinProps, SkinActions interfaces
-- `client/src/features/shared/README.md` - Documentation on the Viewer/View/Skin pattern
+### Key Services
+- `memberPacketService.ts` - Canvas packet creation with proper ordering
+- `memberVideoService.ts` - Video/Play packet creation with proper ordering
+- `ShareKitHandoff.tsx` - Post-publish handoff UI component
 
-### DO NOT
-- Build custom inline grids
-- Create custom props that don't match SkinActions interface
-- Ignore the spec document
-- Auto-select wrong store
+### API Endpoints
+- `POST /api/member/library-links` - Create catalog entry (includes channelId, storeId)
+- `POST /api/member/play-packets/:id/publish` - Publish video packet (includes channelId)
+- `GET /api/member/library-links?memberId=X` - Get member's catalog items
+
+### Member vs Buyer Distinction
+- **COMPOSER creates TEMPLATES/PACKETS** (sellable items, member-owned)
+- **DYNAMICS controls INSTANCES** (buyer-owned, subscription-backed hosting)
 
 ### System Design Choices
 - **Printful-First Mockup Architecture**: Decouples mockup generation from order fulfillment.
