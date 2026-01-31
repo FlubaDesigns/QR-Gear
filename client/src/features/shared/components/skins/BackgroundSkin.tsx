@@ -1,4 +1,4 @@
-import { Trash2, Image, Calendar } from "lucide-react";
+import { Trash2, Image, Calendar, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CardSkinProps, DetailSkinProps } from "./types";
@@ -56,7 +56,19 @@ export function BackgroundDetailSkin({
         )}
       </div>
 
-      <div className="grid-2x2 w-full">
+      <div className="flex flex-col gap-2 w-full">
+        {actions?.onCrop && (
+          <Button
+            variant="default"
+            className="w-full h-14 text-base"
+            onClick={() => actions.onCrop?.(item.id)}
+            disabled={isActionPending}
+            data-testid="button-gallery-crop"
+          >
+            <Crop className="h-5 w-5 mr-2" />
+            Crop (9:16)
+          </Button>
+        )}
         {actions?.onDelete && (
           <Button
             variant="destructive"

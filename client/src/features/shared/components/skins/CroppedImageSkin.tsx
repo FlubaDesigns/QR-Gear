@@ -5,6 +5,14 @@ import { Trash2, Image, Check } from "lucide-react";
 import type { CardSkinProps, DetailSkinProps } from "./types";
 
 export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) {
+  const handleClick = () => {
+    if (actions?.onSelect) {
+      actions.onSelect(item.id);
+    } else {
+      onClick?.();
+    }
+  };
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     actions?.onDelete?.(item.id);
@@ -12,8 +20,8 @@ export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) 
 
   return (
     <Card 
-      className="overflow-hidden cursor-pointer hover-elevate transition-all" 
-      onClick={onClick}
+      className={`overflow-hidden cursor-pointer hover-elevate transition-all ${item.isUsed ? 'ring-2 ring-primary' : ''}`}
+      onClick={handleClick}
       data-testid={`card-cropped-${item.id}`}
     >
       <div className="relative aspect-[9/16] bg-muted">
@@ -30,16 +38,15 @@ export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) 
           </div>
         )}
         {item.isUsed && (
-          <Badge variant="default" className="absolute top-2 right-2 text-xs">
-            <Check className="h-3 w-3 mr-1" />
-            In Use
-          </Badge>
+          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+            <Check className="h-8 w-8 text-primary" />
+          </div>
         )}
       </div>
       <CardContent className="p-2">
         <p className="text-xs truncate font-medium" data-testid="text-cropped-name">{item.name}</p>
-        <div className="flex gap-1 mt-2">
-          {actions?.onDelete && (
+        {actions?.onDelete && (
+          <div className="flex gap-1 mt-2">
             <Button
               size="sm"
               variant="ghost"
@@ -49,8 +56,8 @@ export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) 
             >
               <Trash2 className="h-3 w-3" />
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
