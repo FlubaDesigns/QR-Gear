@@ -1,0 +1,113 @@
+/**
+QR PLAY — MEMBER-ONLY VIDEO (NO COMMON VIDEO LIBRARY) + HOW/WHY (FULL EXPLANATION)
+================================================================================
+
+WHAT YOU WANT (RESTATE ACCURATELY)
+----------------------------------
+You do NOT want to host or provide a “common video library” that other members can reuse to sell.
+So QR Play must NOT depend on you supplying reusable video assets.
+
+Instead, QR Play becomes:
+- A new QRProductState step AFTER QR Canvas
+- That replaces the Canvas “image background skin” with a “video skin”
+- Using ONLY member-owned video sources (upload or external link)
+- While keeping the same packet-first lifecycle you already use in test-products.
+
+WHY THIS IS THE RIGHT DESIGN (THE REASONS)
+------------------------------------------
+1) IP / Licensing / Ethics:
+   - Shared video implies shared rights, resale, permissions, and liability.
+   - Member-only video avoids “you’re selling my footage” issues entirely.
+
+2) Hosting cost / performance:
+   - A shared video pool becomes a CDN problem for you (bandwidth + storage + abuse).
+   - Member-only uploads keep the economics predictable per user.
+
+3) Architectural consistency:
+   - QR Basics → QR Plus → QR Canvas → QR Play → QR Dynamics are steps.
+   - QR Play is simply a different “skin” on the same viewer/view foundation.
+   - Your packet model already solves “commit the artifact, then attach derivatives.”
+
+4) UX clarity:
+   - A member understands “Upload my video” or “Link my YouTube/Vimeo.”
+   - They do NOT need “use someone else’s video” as a starting point.
+
+THE QR PLAY WIZARD (MINIFIED MEMBER SANDBOX FLOW)
+-------------------------------------------------
+Step 1: Choose Video Source (member-only)
+  Option A: Upload MP4
+    - Store under memberId (private asset)
+    - Generate poster thumbnail (posterUrl)
+    - Record duration/metadata
+  Option B: Link External Video (YouTube/Vimeo/any URL)
+    - No hosting cost for you
+    - Use metadata fetch to get posterUrl OR allow user to upload poster image
+    - Store the external URL as the play target
+
+Step 2: Preview
+  - If uploaded: inline preview (tap-to-play, muted by default)
+  - If external: show poster + “Opens external platform” indicator
+
+Step 3: Text Overlay (same primitive as QR Canvas)
+  - Title layer + Description layer as CANVAS OBJECTS
+  - Controls: Size, Color, Width, X, Y
+  - Add one crucial setting: Text Backdrop = off | soft | strong
+    (Because video motion destroys readability without a backdrop)
+
+Step 4: Commit Work Product (packet-first, same ordering as admin Create Graphics)
+  1) Create Packet (kind = "qr_play") => get packetId (canonical anchor)
+  2) Bind video source to packet (upload info or external link)
+  3) Generate derived assets:
+       - shareCardUrl = poster + overlay text (for library cards/social preview)
+       - optional: normalized poster if needed
+  4) Save template snapshot (optional but recommended for reuse/fork)
+  5) Register in member library (member-equivalent of store-product-links)
+
+Step 5: Publish / Share
+  - QR opens to:
+      - inline hosted video (if upload)
+      - OR redirect to external URL (if link)
+  - Member shares the packet’s canonical URL/QR as usual
+
+WHAT’S “ACTUALLY HAPPENING” UNDER THE HOOD
+------------------------------------------
+- The viewer/view stays the same across products.
+- QR Play swaps only the skin:
+    Canvas skin uses {backgroundImage}
+    Play skin uses {videoSource + poster}
+- The packet remains the master record.
+  Everything else (share card, template, library entry) hangs off packetId.
+- The library entry is what powers “million cards” / dead-simple browsing:
+  each card points at a packetId + shareCardUrl.
+
+KEY DATA THAT MUST EXIST FOR QR PLAY
+------------------------------------
+At minimum, packet stores:
+- kind: "qr_play"
+- memberId
+- titleLayer, descriptionLayer (text objects with x/y/width/style)
+- videoSource:
+    - type: "upload" | "external"
+    - videoUrl (if upload)
+    - externalUrl (if external)
+    - posterUrl (always)
+    - duration (if known)
+- playSettings:
+    - muted: true (default, mobile/browser reality)
+    - loop: true (optional default)
+    - controls: minimal
+- textBackdrop: "off" | "soft" | "strong"
+- status: "draft" | "published"
+
+BOTTOM LINE
+-----------
+You are implementing QR Play as the next product step by:
+- Removing shared/common video entirely
+- Allowing only member-owned upload or external link
+- Keeping your proven “create packet first” lifecycle
+- Generating a poster-based share card so everything still works in your library/cards/social previews
+- Treating text as objects, with a readability backdrop toggle (essential for video)
+
+This gives you a clean, scalable, legally safe, cost-safe QR Play that fits your step ladder perfectly.
+*/
+export {};
