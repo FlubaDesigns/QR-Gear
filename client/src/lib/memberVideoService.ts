@@ -48,6 +48,7 @@ export type ProgressCallback = (step: ProgressStep, status: ProgressStatus) => v
 export type CreateMemberPlayPacketInput = {
   apiBase?: string;
   memberId: string;
+  channelId?: string;  // Channel for catalog organization
   idempotencyKey?: string;
   mode?: "draft" | "commit";
   rollbackOnError?: boolean;
@@ -109,7 +110,8 @@ export async function createMemberPlayPacket(
 ): Promise<CreateMemberPlayPacketResult> {
   const { 
     apiBase = "/api", 
-    memberId, 
+    memberId,
+    channelId,
     videoSource,
     textLayers,
     textBackdrop = "off",
@@ -230,7 +232,7 @@ export async function createMemberPlayPacket(
     }>(`${apiBase}/member/play-packets/${packetId}/publish`, {
       method: "POST",
       headers: { "X-Idempotency-Key": idem },
-      body: JSON.stringify({ memberId, metadata }),
+      body: JSON.stringify({ memberId, channelId, metadata }),
     });
 
     if (publishResp.error) {

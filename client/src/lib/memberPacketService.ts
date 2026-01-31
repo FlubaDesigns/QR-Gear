@@ -56,6 +56,7 @@ export type ProgressCallback = (step: ProgressStep, status: ProgressStatus) => v
 export type CreateMemberCanvasPacketInput = {
   apiBase?: string;
   memberId: string;
+  channelId?: string;  // Channel for catalog organization
   idempotencyKey?: string;
   mode?: 'draft' | 'commit';
   rollbackOnError?: boolean;
@@ -127,7 +128,8 @@ export async function createMemberCanvasPacket(
 ): Promise<CreateMemberCanvasPacketResult> {
   const { 
     apiBase = "/api", 
-    memberId, 
+    memberId,
+    channelId,
     canvas, 
     mode = 'commit',
     rollbackOnError = true,
@@ -268,6 +270,7 @@ export async function createMemberCanvasPacket(
         body: JSON.stringify({
           memberId,
           packetId,
+          channelId: channelId ?? null,
           templateId: templateResp.templateId ?? null,
           compositeUrl: graphicsResp.compositeUrl ?? null,
           qrOnlyUrl: graphicsResp.qrOnlyUrl ?? null,

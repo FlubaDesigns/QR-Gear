@@ -9702,7 +9702,7 @@ ${allPages.map(page => `  <url>
   app.post("/api/member/play-packets/:packetId/publish", async (req: any, res) => {
     try {
       const { packetId } = req.params;
-      const { memberId, metadata } = req.body;
+      const { memberId, channelId, metadata } = req.body;
       
       if (!packetId || !memberId) {
         return res.status(400).json({ error: "packetId and memberId are required" });
@@ -9730,6 +9730,8 @@ ${allPages.map(page => `  <url>
       const linkData = {
         libraryLinkId,
         packetId,
+        channelId: channelId || null,
+        storeId: memberId,
         memberId,
         kind: 'qr_play',
         videoSource: packet?.videoSource || null,
@@ -10046,7 +10048,7 @@ ${allPages.map(page => `  <url>
   // Create library link (register in member catalog)
   app.post("/api/member/library-links", async (req: any, res) => {
     try {
-      const { memberId, packetId, templateId, compositeUrl, qrOnlyUrl, boundProduct, metadata, status } = req.body;
+      const { memberId, packetId, channelId, templateId, compositeUrl, qrOnlyUrl, boundProduct, metadata, status } = req.body;
       
       if (!memberId || !packetId) {
         return res.status(400).json({ error: "memberId and packetId are required" });
@@ -10060,6 +10062,8 @@ ${allPages.map(page => `  <url>
       const linkData = {
         libraryLinkId,
         packetId,
+        channelId: channelId || null,
+        storeId: memberId,
         templateId: templateId || null,
         memberId,
         compositeUrl: compositeUrl || null,
