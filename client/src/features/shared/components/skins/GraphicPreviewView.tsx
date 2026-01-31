@@ -49,12 +49,23 @@ function TextOverlayDisplay({
   const verticalOffset = style.verticalOffset ?? 10;
   const horizontalOffset = style.horizontalOffset ?? 50;
 
+  // Constrain vertical range:
+  // Header: 0% = just above QR (with gap), 100% = top edge
+  // Footer: 0% = just below QR (with gap), 100% = bottom edge
+  // QR is roughly centered, so text should stay in top/bottom 35% of the view
+  const maxVerticalPercent = 35;
+  const verticalPosition = (verticalOffset / 100) * maxVerticalPercent;
+  
+  // Horizontal: 0% = left edge, 100% = right edge, centered at 50%
+  // Use 90% of total width (45% each direction from center)
+  const horizontalShift = ((horizontalOffset - 50) / 50) * 45;
+
   return (
     <div 
       className="absolute left-0 right-0 flex justify-center px-1"
       style={{ 
-        transform: `${getWarpTransform()} translateX(${(horizontalOffset - 50) * 0.8}%)`,
-        [position === "top" ? "top" : "bottom"]: `${verticalOffset * 0.4}%`,
+        transform: `${getWarpTransform()} translateX(${horizontalShift}%)`,
+        [position === "top" ? "top" : "bottom"]: `${verticalPosition}%`,
       }}
     >
       <span 
