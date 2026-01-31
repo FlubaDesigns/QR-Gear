@@ -9521,21 +9521,53 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Serve member files
+  // Serve member files - lookup storageUrl from Firestore
   app.get("/api/member-files/:memberId/:filename", async (req: any, res) => {
     try {
       const { memberId, filename } = req.params;
       const decodedFilename = decodeURIComponent(filename);
       
-      // Try different possible paths
+      const { getStorageBucket, getFirestoreDb } = await import("./lib/firebase-admin");
+      const bucket = getStorageBucket();
+      const firestoreDb = getFirestoreDb();
+      
+      // First, look up the asset in Firestore by fileName to get storageUrl
+      const snapshot = await firestoreDb.collection('memberLibrary')
+        .where('memberId', '==', memberId)
+        .where('fileName', '==', decodedFilename)
+        .limit(1)
+        .get();
+      
+      if (!snapshot.empty) {
+        const data = snapshot.docs[0].data();
+        if (data.storageUrl) {
+          // Extract path from storageUrl (format: gs://bucket/path or just path)
+          let storagePath = data.storageUrl;
+          if (storagePath.startsWith('gs://')) {
+            storagePath = storagePath.replace(/^gs:\/\/[^\/]+\//, '');
+          }
+          
+          const file = bucket.file(storagePath);
+          const [exists] = await file.exists();
+          
+          if (exists) {
+            const [metadata] = await file.getMetadata();
+            res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            
+            const stream = file.createReadStream();
+            stream.pipe(res);
+            return;
+          }
+        }
+      }
+      
+      // Fallback: Try different possible paths
       const possiblePaths = [
         `members/${memberId}/backgrounds/${decodedFilename}`,
         `members/${memberId}/videos/${decodedFilename}`,
         `members/${memberId}/cropped/${decodedFilename}`,
       ];
-      
-      const { getStorageBucket } = await import("./lib/firebase-admin");
-      const bucket = getStorageBucket();
       
       for (const path of possiblePaths) {
         const file = bucket.file(path);
@@ -9552,6 +9584,7 @@ ${allPages.map(page => `  <url>
         }
       }
       
+      console.log(`[Member Files] File not found: ${memberId}/${decodedFilename}`);
       res.status(404).json({ error: "File not found" });
     } catch (error: any) {
       console.error("[Member Files] Error:", error);
