@@ -9004,11 +9004,27 @@ ${allPages.map(page => `  <url>
       }
       
       const data = doc.data();
-      const products = data?.products || [];
+      const rawProducts = data?.products || [];
       
-      console.log(`[Member Sandbox] Found ${products.length} products from member-products store`);
+      // Enrich with images from Printify blueprints
+      const enrichedProducts = await Promise.all(
+        rawProducts.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
+          try {
+            const blueprint = await storage.getPrintifyBlueprint(p.blueprintId);
+            return {
+              ...p,
+              imageUrl: blueprint?.primaryImageUrl || null,
+              brand: blueprint?.brand || null,
+            };
+          } catch {
+            return { ...p, imageUrl: null, brand: null };
+          }
+        })
+      );
       
-      res.json({ products, storeId: "member-products" });
+      console.log(`[Member Sandbox] Found ${enrichedProducts.length} products from member-products store`);
+      
+      res.json({ products: enrichedProducts, storeId: "member-products" });
     } catch (error: any) {
       console.error("[Member Sandbox] Error:", error);
       res.status(500).json({ error: error.message });

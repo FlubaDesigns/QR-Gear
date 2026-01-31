@@ -35,6 +35,8 @@ import { auth } from "@/lib/firebase";
 import SEO from "@/components/SEO";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
+import { SkinGridViewer, type SkinItem, type SkinActions } from "@/features/shared/components/SkinGridViewer";
+import { AllowedProductCardSkin, AllowedProductDetailSkin } from "@/features/shared/components/skins/AllowedProductSkin";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const token = await auth.currentUser?.getIdToken();
@@ -169,6 +171,8 @@ function WizardProgressBar({
 interface AllowedProduct {
   blueprintId: number;
   title: string;
+  imageUrl?: string | null;
+  brand?: string | null;
   addedAt?: string;
 }
 
@@ -186,6 +190,26 @@ function ProductPickerStep({
   const allowedProducts = allowedData?.products || [];
   const hasAllowedProducts = allowedProducts.length > 0;
 
+  const skinItems: SkinItem[] = allowedProducts.map((p) => ({
+    id: String(p.blueprintId),
+    name: p.title,
+    primaryImage: p.imageUrl,
+    isUsed: selectedProduct?.id === p.blueprintId,
+  }));
+
+  const skinActions: SkinActions = {
+    onSelect: (id: string) => {
+      const product = allowedProducts.find(p => String(p.blueprintId) === id);
+      if (product) {
+        onSelect({
+          id: product.blueprintId,
+          name: product.title,
+          thumbnailUrl: product.imageUrl || null
+        });
+      }
+    }
+  };
+
   if (loadingAllowed) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -196,7 +220,10 @@ function ProductPickerStep({
 
   return (
     <div>
-      <p className="text-lg text-white mb-4">Pick an item</p>
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-white mb-2">Pick Your Product</h2>
+        <p className="text-slate-400">Choose a blank product to customize</p>
+      </div>
 
       {!hasAllowedProducts ? (
         <div className="text-center py-8">
@@ -208,40 +235,13 @@ function ProductPickerStep({
         </div>
       ) : (
         <div className="max-h-[60vh] overflow-y-auto pr-2">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {allowedProducts.map((product) => {
-              const productItem: ProductItem = {
-                id: product.blueprintId,
-                name: product.title,
-                thumbnailUrl: null
-              };
-              const isSelected = selectedProduct?.id === product.blueprintId;
-              return (
-                <button
-                  key={product.blueprintId}
-                  onClick={() => onSelect(productItem)}
-                  className={`relative rounded-lg overflow-hidden border-2 transition-all ${
-                    isSelected
-                      ? 'border-blue-500 ring-2 ring-blue-500/30'
-                      : 'border-slate-600 hover:border-slate-500'
-                  }`}
-                  data-testid={`product-${product.blueprintId}`}
-                >
-                  <div className="aspect-square bg-slate-700 flex items-center justify-center">
-                    <Package className="w-10 h-10 text-slate-500" />
-                  </div>
-                  <div className="p-3 bg-slate-800">
-                    <p className="text-sm text-white truncate">{product.title}</p>
-                  </div>
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <SkinGridViewer
+            items={skinItems}
+            CardSkin={AllowedProductCardSkin}
+            DetailSkin={AllowedProductDetailSkin}
+            actions={skinActions}
+            gridColumns="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+          />
         </div>
       )}
     </div>
