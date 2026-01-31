@@ -1773,7 +1773,7 @@ const jwt = __importStar(require("jsonwebtoken"));
 // These will NOT work without proper configuration
 const WIDGET_JWT_SECRET = process.env.WIDGET_JWT_SECRET;
 const WIDGET_API_KEY = process.env.WIDGET_API_KEY;
-const KC_API_KEY = process.env.KC_API_KEY;
+const KC_API_KEY = process.env['KC-API-KEY'];
 function signWidgetToken(payload) {
     if (!WIDGET_JWT_SECRET) {
         throw new Error('WIDGET_JWT_SECRET not configured');

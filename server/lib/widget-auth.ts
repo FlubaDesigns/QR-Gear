@@ -346,7 +346,7 @@ export async function verifyKCServiceAuth(authHeader: string | undefined): Promi
   }
   
   // Check API key auth
-  const apiKey = process.env.KC_API_KEY;
+  const apiKey = process.env['KC-API-KEY'];
   if (apiKey) {
     if (authHeader === `Bearer ${apiKey}` || authHeader === apiKey) {
       return { valid: true };

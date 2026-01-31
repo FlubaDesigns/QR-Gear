@@ -10,6 +10,15 @@
       ]
     },
     {
+      "collectionGroup": "memberLibraryLinks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "channelId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "commonLibrary",
       "queryScope": "COLLECTION",
       "fields": [
