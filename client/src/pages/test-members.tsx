@@ -39,7 +39,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
 import SEO from "@/components/SEO";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
-import { PlacementPicker, type PlacementSize } from "@/features/shared/components/PlacementPicker";
+import { PlacementPicker, type PlacementSize, type PlacementType } from "@/features/shared/components/PlacementPicker";
 import { HeaderFooterEditor } from "@/features/shared/components/HeaderFooterEditor";
 import { BackgroundPicker } from "@/features/shared/components/BackgroundPicker";
 import { LandingPageEditor, type LandingPageConfig, defaultLandingPage } from "@/features/shared/components/LandingPageEditor";
@@ -449,266 +449,6 @@ function ProductPickerStep({
             renderItem: renderProductSkin,
           }}
         />
-      )}
-    </div>
-  );
-}
-
-// QRTypeStep and CustomizeStep removed - replaced by shared components:
-// HeaderFooterEditor, BackgroundPicker, LandingPageEditor
-
-function LegacyCustomizeStep({ 
-  qrType,
-  qrDestination,
-  onDestinationChange,
-  headerStyle,
-  onHeaderStyleChange,
-  footerStyle,
-  onFooterStyleChange,
-  backgroundUrl,
-  onBackgroundChange,
-  backgroundText,
-  onBackgroundTextChange,
-  videoUrl,
-  onVideoUrlChange,
-  memberId
-}: { 
-  qrType: QRType;
-  qrDestination: string;
-  onDestinationChange: (url: string) => void;
-  headerStyle: TextStyleConfig;
-  onHeaderStyleChange: (style: TextStyleConfig) => void;
-  footerStyle: TextStyleConfig;
-  onFooterStyleChange: (style: TextStyleConfig) => void;
-  backgroundUrl: string;
-  onBackgroundChange: (url: string) => void;
-  backgroundText: TextStyleConfig;
-  onBackgroundTextChange: (style: TextStyleConfig) => void;
-  videoUrl: string;
-  onVideoUrlChange: (url: string) => void;
-  memberId: string;
-}) {
-  const [showBackgroundLibrary, setShowBackgroundLibrary] = useState(false);
-  const [showVideoLibrary, setShowVideoLibrary] = useState(false);
-  const showHeaderFooter = qrType === 'qr-plus' || qrType === 'qr-canvas' || qrType === 'qr-play';
-  const showBackground = qrType === 'qr-canvas';
-  const showVideo = qrType === 'qr-play';
-
-  return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Customize Your QR</h2>
-        <p className="text-slate-400">
-          {qrType === 'qr-basic' && 'Set up your landing page destination'}
-          {qrType === 'qr-plus' && 'Add text styling to your landing page'}
-          {qrType === 'qr-canvas' && 'Design the front of your item'}
-          {qrType === 'qr-play' && 'Set up your video landing page'}
-        </p>
-      </div>
-
-      {/* Header/Footer Module - Plus, Canvas, Play */}
-      {showHeaderFooter && (
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-          <div className="flex items-center gap-2 mb-4">
-            <Type className="w-5 h-5 text-blue-400" />
-            <span className="font-medium text-white">Header & Footer Text</span>
-            <Badge className="ml-auto text-xs">+$2 per line</Badge>
-          </div>
-          
-          <div className="space-y-4">
-            <TextStyleEditor
-              label="Top Text"
-              sublabel="Appears at top of graphic"
-              maxLength={40}
-              style={headerStyle}
-              onChange={(updates) => onHeaderStyleChange({ ...headerStyle, ...updates })}
-              testIdPrefix="header"
-              showPositionControls={true}
-              previewBackgroundColor="#1a1a2e"
-            />
-            
-            <TextStyleEditor
-              label="Bottom Text"
-              sublabel="Appears at bottom of graphic"
-              maxLength={40}
-              style={footerStyle}
-              onChange={(updates) => onFooterStyleChange({ ...footerStyle, ...updates })}
-              testIdPrefix="footer"
-              showPositionControls={true}
-              previewBackgroundColor="#1a1a2e"
-            />
-          </div>
-          
-          {(headerStyle.enabled || footerStyle.enabled) && (
-            <div className="mt-4 pt-4 border-t border-slate-600 flex flex-col items-center">
-              <p className="text-xs text-slate-400 mb-2">Live Preview</p>
-              <GraphicPreviewView
-                backgroundColor="#1a1a2e"
-                headerStyle={headerStyle}
-                footerStyle={footerStyle}
-                showQRCode={true}
-                aspectRatio="square"
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Background Module - Canvas only */}
-      {showBackground && (
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-purple-500/30">
-          <div className="flex items-center gap-2 mb-4">
-            <ImagePlus className="w-5 h-5 text-purple-400" />
-            <span className="font-medium text-white">Background</span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <button
-              className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-purple-500 transition-colors flex flex-col items-center justify-center gap-2"
-              onClick={() => setShowBackgroundLibrary(true)}
-              data-testid="button-upload-background"
-            >
-              <Upload className="w-8 h-8 text-purple-400" />
-              <span className="text-sm text-slate-400">Upload Image</span>
-            </button>
-            <button
-              className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-purple-500 transition-colors flex flex-col items-center justify-center gap-2"
-              onClick={() => setShowBackgroundLibrary(true)}
-              data-testid="button-library-background"
-            >
-              <Layers className="w-8 h-8 text-purple-400" />
-              <span className="text-sm text-slate-400">From Library</span>
-            </button>
-          </div>
-          
-          {backgroundUrl && (
-            <div className="relative aspect-[9/16] max-w-xs mx-auto bg-slate-900 rounded-lg overflow-hidden mb-4">
-              <img src={backgroundUrl} alt="Background" className="w-full h-full object-cover" />
-              <button 
-                className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80"
-                onClick={() => onBackgroundChange('')}
-                data-testid="button-clear-background"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          )}
-          
-          <TextStyleEditor
-            label="Title & Description"
-            sublabel="Text overlay on your background"
-            maxLength={100}
-            style={backgroundText}
-            onChange={(updates) => onBackgroundTextChange({ ...backgroundText, ...updates })}
-            testIdPrefix="bg-text"
-            showPositionControls={true}
-            previewBackgroundColor="#1a1a2e"
-          />
-        </div>
-      )}
-      
-      {showBackgroundLibrary && memberId && (
-        <BackgroundLibraryPicker
-          memberId={memberId}
-          selectedUrl={backgroundUrl}
-          onSelect={(url) => {
-            onBackgroundChange(url);
-            setShowBackgroundLibrary(false);
-          }}
-          onClose={() => setShowBackgroundLibrary(false)}
-          assetType="background"
-        />
-      )}
-
-      {/* Landing Page Module */}
-      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-        <div className="flex items-center gap-2 mb-3">
-          <Link2 className="w-5 h-5 text-blue-400" />
-          <span className="font-medium text-white">Landing Page</span>
-        </div>
-        
-        {/* URL input - only for Basic type */}
-        {qrType === 'qr-basic' && (
-          <>
-            <input
-              type="url"
-              value={qrDestination}
-              onChange={(e) => onDestinationChange(e.target.value)}
-              placeholder="https://example.com"
-              className="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-              data-testid="input-qr-destination"
-            />
-            <p className="text-xs text-slate-500 mt-2">
-              Where your QR code will take people when scanned
-            </p>
-          </>
-        )}
-        
-        {/* Info text for non-basic types */}
-        {qrType !== 'qr-basic' && (
-          <p className="text-xs text-slate-500">
-            Your landing page will be generated automatically when you publish
-          </p>
-        )}
-      </div>
-
-      {/* Video Module - Play only */}
-      {showVideo && (
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-rose-500/30">
-          <div className="flex items-center gap-2 mb-4">
-            <Play className="w-5 h-5 text-rose-400" />
-            <span className="font-medium text-white">Video</span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <button
-              className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-rose-500 transition-colors flex flex-col items-center justify-center gap-2"
-              data-testid="button-upload-video"
-            >
-              <Upload className="w-8 h-8 text-rose-400" />
-              <span className="text-sm text-slate-400">Upload Video</span>
-            </button>
-            <button
-              className="p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-rose-500 transition-colors flex flex-col items-center justify-center gap-2"
-              data-testid="button-url-video"
-            >
-              <Link2 className="w-8 h-8 text-rose-400" />
-              <span className="text-sm text-slate-400">Paste URL</span>
-            </button>
-          </div>
-          
-          {/* Video URL input */}
-          <div className="mb-4">
-            <input
-              type="url"
-              value={videoUrl}
-              onChange={(e) => onVideoUrlChange(e.target.value)}
-              placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
-              className="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none"
-              data-testid="input-video-url"
-            />
-          </div>
-          
-          {/* Video Thumbnail Preview */}
-          {videoUrl && (
-            <div className="relative aspect-video max-w-sm mx-auto bg-slate-900 rounded-lg overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
-                <div className="text-center">
-                  <Play className="w-12 h-12 text-rose-400 mx-auto mb-2" />
-                  <p className="text-slate-400 text-sm">Video thumbnail</p>
-                  <p className="text-slate-500 text-xs mt-1 truncate px-4">{videoUrl}</p>
-                </div>
-              </div>
-              <button 
-                className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80"
-                onClick={() => onVideoUrlChange('')}
-                data-testid="button-clear-video"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          )}
-        </div>
       )}
     </div>
   );
@@ -1156,7 +896,9 @@ export default function TestMembersSandbox() {
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [selectedPlacement, setSelectedPlacement] = useState<string>('');
   const [placementSize, setPlacementSize] = useState<PlacementSize>('medium');
+  const [placementType, setPlacementType] = useState<PlacementType>('qr');
   const [qrType, setQrType] = useState<QRType>('');
+  const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
   const [isPublishing, setIsPublishing] = useState(false);
   
@@ -1205,11 +947,11 @@ export default function TestMembersSandbox() {
           printfulProductId: selectedProduct.productId,
           variantId: selectedProduct.id,
           qrType,
-          qrDestination,
+          qrDestination: qrDestination || landingPage.destinationUrl || null,
           headerStyle: headerStyle.enabled ? headerStyle : null,
           footerStyle: footerStyle.enabled ? footerStyle : null,
           backgroundUrl: backgroundUrl || null,
-          backgroundText: backgroundText.enabled ? backgroundText : null,
+          landingPage: landingPage,
           videoUrl: videoUrl || null,
           channelId: selectedChannel.id,
           name: selectedProduct.name,
@@ -1394,6 +1136,9 @@ export default function TestMembersSandbox() {
                     onSelect={setSelectedPlacement}
                     placementSize={placementSize}
                     onSizeChange={setPlacementSize}
+                    placementType={placementType}
+                    onTypeChange={setPlacementType}
+                    showTypeToggle={true}
                     productTitle={selectedProduct.name}
                   />
                 )}
@@ -1505,7 +1250,7 @@ export default function TestMembersSandbox() {
                     <label className="text-sm font-medium text-slate-300">QR Type</label>
                     <div 
                       className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:border-blue-500 transition-colors"
-                      onClick={() => { setCurrentStep('qr-type'); setPowerMode(false); }}
+                      onClick={() => { setPowerMode(false); }}
                       data-testid="power-select-qr-type"
                     >
                       {qrType ? (

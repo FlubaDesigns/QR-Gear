@@ -1,7 +1,8 @@
-import { Check, MapPin } from "lucide-react";
+import { Check, MapPin, QrCode, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export type PlacementSize = 'small' | 'medium' | 'large';
+export type PlacementType = 'qr' | 'graphic';
 
 export interface Placement {
   id: string;
@@ -14,6 +15,10 @@ export interface PlacementPickerProps {
   onSelect: (placementId: string) => void;
   placementSize: PlacementSize;
   onSizeChange: (size: PlacementSize) => void;
+  placementType?: PlacementType;
+  onTypeChange?: (type: PlacementType) => void;
+  showTypeToggle?: boolean;
+  qrOnlyPlacements?: string[];
   productTitle?: string;
   title?: string;
   subtitle?: string;
@@ -31,6 +36,10 @@ export function PlacementPicker({
   onSelect,
   placementSize,
   onSizeChange,
+  placementType = 'qr',
+  onTypeChange,
+  showTypeToggle = true,
+  qrOnlyPlacements = ['front_pocket', 'sleeve_left', 'sleeve_right'],
   productTitle,
   title = "Pick Location",
   subtitle,
@@ -90,22 +99,58 @@ export function PlacementPicker({
               </button>
 
               {isSelected && (
-                <div className="ml-4 flex items-center gap-2">
-                  <span className="text-xs text-slate-400">Size:</span>
-                  <div className="flex gap-1">
-                    {SIZE_OPTIONS.map((size) => (
+                <div className="ml-4 space-y-2">
+                  {showTypeToggle && onTypeChange && !qrOnlyPlacements.includes(placement.id) && (
+                    <div className="flex gap-2">
                       <Button
-                        key={size.value}
                         type="button"
-                        variant={placementSize === size.value ? "default" : "outline"}
+                        variant={placementType === "graphic" ? "default" : "outline"}
                         size="sm"
-                        onClick={() => onSizeChange(size.value)}
-                        className="w-10 h-8 px-0"
-                        data-testid={`placement-size-${size.value}`}
+                        onClick={() => onTypeChange("graphic")}
+                        className="flex-1"
+                        data-testid={`placement-type-graphic-${placement.id}`}
                       >
-                        {size.label}
+                        <Image className="h-4 w-4 mr-2" />
+                        Graphic
                       </Button>
-                    ))}
+                      <Button
+                        type="button"
+                        variant={placementType === "qr" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => onTypeChange("qr")}
+                        className="flex-1"
+                        data-testid={`placement-type-qr-${placement.id}`}
+                      >
+                        <QrCode className="h-4 w-4 mr-2" />
+                        QR Code
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {showTypeToggle && qrOnlyPlacements.includes(placement.id) && (
+                    <div className="text-xs text-slate-400 flex items-center gap-1">
+                      <QrCode className="h-3 w-3" />
+                      This placement only supports QR codes
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Size:</span>
+                    <div className="flex gap-1">
+                      {SIZE_OPTIONS.map((size) => (
+                        <Button
+                          key={size.value}
+                          type="button"
+                          variant={placementSize === size.value ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => onSizeChange(size.value)}
+                          className="w-10 h-8 px-0"
+                          data-testid={`placement-size-${size.value}`}
+                        >
+                          {size.label}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
