@@ -183,22 +183,67 @@ Located in `client/src/features/shared/components/skins/`:
 
 ---
 
-## Files in This Bundle
-```
-test-pages-bundle/
-├── README.md (this file)
-├── api-endpoints.txt
-├── MEMBER_SANDBOX_SPEC.md
-├── QR_DYNAMICS_SPEC.md
-├── ASSET_LIBRARY_SPEC.md
-├── test-ar-demo.tsx
-├── test-dynamics.tsx
-├── test-images.tsx
-├── test-library.tsx
-├── test-members.tsx
-├── test-pricing.tsx
-├── test-products.tsx
-├── test-settings.tsx
-├── test-store-builder.tsx
-└── test-stores.tsx
-```
+## File Path Mapping (Bundle → Actual Codebase)
+
+### Test Pages
+All test pages live in `client/src/pages/`:
+| Bundle File | Actual Path |
+|-------------|-------------|
+| `test-ar-demo.tsx` | `client/src/pages/test-ar-demo.tsx` |
+| `test-dynamics.tsx` | `client/src/pages/test-dynamics.tsx` |
+| `test-images.tsx` | `client/src/pages/test-images.tsx` |
+| `test-library.tsx` | `client/src/pages/test-library.tsx` |
+| `test-members.tsx` | `client/src/pages/test-members.tsx` |
+| `test-pricing.tsx` | `client/src/pages/test-pricing.tsx` |
+| `test-products.tsx` | `client/src/pages/test-products.tsx` |
+| `test-settings.tsx` | `client/src/pages/test-settings.tsx` |
+| `test-store-builder.tsx` | `client/src/pages/test-store-builder.tsx` |
+| `test-stores.tsx` | `client/src/pages/test-stores.tsx` |
+
+### Harnesses
+| Bundle File | Actual Path |
+|-------------|-------------|
+| `harnesses/BuilderHarness.tsx` | `client/src/features/adminProducts/builder/BuilderHarness.tsx` |
+| `harnesses/ProductsHarness.tsx` | `client/src/features/adminProducts/ProductsHarness.tsx` |
+| `harnesses/StoreLibraryHarness.tsx` | `client/src/features/adminProducts/storeLibrary/StoreLibraryHarness.tsx` |
+| `harnesses/StoreBuilderHarness.tsx` | `client/src/features/adminProducts/storeBuilder/StoreBuilderHarness.tsx` |
+| `harnesses/library-harness.txt` | `downloads/library-harness.txt` (reference doc) |
+
+### Shared Components
+| Bundle File | Actual Path |
+|-------------|-------------|
+| `shared-components/SkinGridViewer.tsx` | `client/src/features/shared/components/SkinGridViewer.tsx` |
+
+### Skin Components
+All skins live in `client/src/features/shared/components/skins/`:
+| Bundle File | Actual Path |
+|-------------|-------------|
+| `shared-components/skins/AllowedProductSkin.tsx` | `client/src/features/shared/components/skins/AllowedProductSkin.tsx` |
+| `shared-components/skins/BackgroundSkin.tsx` | `client/src/features/shared/components/skins/BackgroundSkin.tsx` |
+| `shared-components/skins/ChannelContentSkin.tsx` | `client/src/features/shared/components/skins/ChannelContentSkin.tsx` |
+| `shared-components/skins/ChannelItemSkin.tsx` | `client/src/features/shared/components/skins/ChannelItemSkin.tsx` |
+| `shared-components/skins/CollectionItemSkin.tsx` | `client/src/features/shared/components/skins/CollectionItemSkin.tsx` |
+| `shared-components/skins/CollectionItemSkinV2.tsx` | `client/src/features/shared/components/skins/CollectionItemSkinV2.tsx` |
+| `shared-components/skins/CropDeleteSkin.tsx` | `client/src/features/shared/components/skins/CropDeleteSkin.tsx` |
+| `shared-components/skins/CroppedImageSkin.tsx` | `client/src/features/shared/components/skins/CroppedImageSkin.tsx` |
+| `shared-components/skins/DeleteSkin.tsx` | `client/src/features/shared/components/skins/DeleteSkin.tsx` |
+| `shared-components/skins/DynamicsChannelSkin.tsx` | `client/src/features/shared/components/skins/DynamicsChannelSkin.tsx` |
+| `shared-components/skins/DynamicsCollectionSkin.tsx` | `client/src/features/shared/components/skins/DynamicsCollectionSkin.tsx` |
+| `shared-components/skins/GraphicPreviewView.tsx` | `client/src/features/shared/components/skins/GraphicPreviewView.tsx` |
+| `shared-components/skins/GraphicsSkin.tsx` | `client/src/features/shared/components/skins/GraphicsSkin.tsx` |
+| `shared-components/skins/LandingPageView.tsx` | `client/src/features/shared/components/skins/LandingPageView.tsx` |
+| `shared-components/skins/MediaPreviewView.tsx` | `client/src/features/shared/components/skins/MediaPreviewView.tsx` |
+| `shared-components/skins/QRDynamicsScanSkin.tsx` | `client/src/features/shared/components/skins/QRDynamicsScanSkin.tsx` |
+| `shared-components/skins/SelectCropDeleteSkin.tsx` | `client/src/features/shared/components/skins/SelectCropDeleteSkin.tsx` |
+| `shared-components/skins/SourceImageSkin.tsx` | `client/src/features/shared/components/skins/SourceImageSkin.tsx` |
+| `shared-components/skins/StoreProductSkin.tsx` | `client/src/features/shared/components/skins/StoreProductSkin.tsx` |
+| `shared-components/skins/TemplatePickerSkin.tsx` | `client/src/features/shared/components/skins/TemplatePickerSkin.tsx` |
+| `shared-components/skins/TemplateSkin.tsx` | `client/src/features/shared/components/skins/TemplateSkin.tsx` |
+| `shared-components/skins/TextPreviewView.tsx` | `client/src/features/shared/components/skins/TextPreviewView.tsx` |
+
+### Spec Documents
+| Bundle File | Actual Path |
+|-------------|-------------|
+| `MEMBER_SANDBOX_SPEC.md` | `docs/MEMBER_SANDBOX_SPEC.md` |
+| `QR_DYNAMICS_SPEC.md` | `docs/QR_DYNAMICS_SPEC.md` |
+| `ASSET_LIBRARY_SPEC.md` | `ASSET_LIBRARY_SPEC.md` (root) |
