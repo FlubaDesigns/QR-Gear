@@ -282,28 +282,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (packetDoc.exists) {
         const packet = packetDoc.data();
         
-        // Extract title from textLayers or use packet type
-        if (packet?.textLayers?.length > 0) {
-          const titleLayer = packet.textLayers.find((l: any) => l.id === 'title' || l.id === 'header');
-          if (titleLayer?.text) {
-            title = titleLayer.text;
+        if (packet) {
+          // Extract title from textLayers or use packet type
+          if (packet.textLayers?.length > 0) {
+            const titleLayer = packet.textLayers.find((l: any) => l.id === 'title' || l.id === 'header');
+            if (titleLayer?.text) {
+              title = titleLayer.text;
+            }
           }
-        }
-        
-        // Extract description
-        if (packet?.textLayers?.length > 0) {
-          const descLayer = packet.textLayers.find((l: any) => l.id === 'description' || l.id === 'footer');
-          if (descLayer?.text) {
-            description = descLayer.text;
+          
+          // Extract description
+          if (packet.textLayers?.length > 0) {
+            const descLayer = packet.textLayers.find((l: any) => l.id === 'description' || l.id === 'footer');
+            if (descLayer?.text) {
+              description = descLayer.text;
+            }
           }
+          
+          // Choose best OG image (priority: shareCardUrl > compositeUrl > posterUrl > preview)
+          ogImage = packet.shareCardUrl 
+            || packet.compositeUrl 
+            || packet.videoSource?.posterUrl 
+            || packet.previewUrl
+            || ogImage;
         }
-        
-        // Choose best OG image (priority: shareCardUrl > compositeUrl > posterUrl > preview)
-        ogImage = packet?.shareCardUrl 
-          || packet?.compositeUrl 
-          || packet?.videoSource?.posterUrl 
-          || packet?.previewUrl
-          || ogImage;
       }
       
       // Return server-rendered HTML with OG + Twitter meta tags
@@ -364,6 +366,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
+  // ============ UNIVERSAL CLAIM PAGE API ============
+  // Validates a claim code and returns claim data for the UI
+  app.get('/api/claim/validate/:claimCode', async (req, res) => {
+    try {
+      const { claimCode } = req.params;
+      const { validateClaimCode } = await import('./lib/claimService');
+      const result = await validateClaimCode(claimCode);
+      res.json(result);
+    } catch (error: any) {
+      console.error('[Claim] Validation error:', error);
+      res.status(500).json({ valid: false, reason: error.message });
+    }
+  });
+
+  // Claims an item and creates an instance (requires auth)
+  app.post('/api/claim/:claimCode', isAuthenticated, async (req: any, res) => {
+    try {
+      const { claimCode } = req.params;
+      const userId = req.user.claims.sub;
+      const userEmail = req.user.claims.email || '';
+      
+      const { claimItem } = await import('./lib/claimService');
+      const result = await claimItem(claimCode, userId, userEmail);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      res.json({ success: true, instanceId: result.instanceId });
+    } catch (error: any) {
+      console.error('[Claim] Claim error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's claimed instances
+  app.get('/api/claimed-instances', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { getClaimedInstancesByUser } = await import('./lib/claimService');
+      const instances = await getClaimedInstancesByUser(userId);
+      res.json({ instances });
+    } catch (error: any) {
+      console.error('[Claim] Get instances error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single claimed instance
+  app.get('/api/claimed-instances/:instanceId', async (req, res) => {
+    try {
+      const { instanceId } = req.params;
+      const { getClaimedInstance, isClaimedInstanceActive } = await import('./lib/claimService');
+      const instance = await getClaimedInstance(instanceId);
+      
+      if (!instance) {
+        return res.status(404).json({ error: 'Instance not found' });
+      }
+      
+      res.json({ instance, isActive: isClaimedInstanceActive(instance) });
+    } catch (error: any) {
+      console.error('[Claim] Get instance error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update claimed instance destination
+  app.patch('/api/claimed-instances/:instanceId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { instanceId } = req.params;
+      const { destinationUrl } = req.body;
+      const userId = req.user.claims.sub;
+      
+      const { getClaimedInstance, updateClaimedInstanceDestination } = await import('./lib/claimService');
+      const instance = await getClaimedInstance(instanceId);
+      
+      if (!instance) {
+        return res.status(404).json({ error: 'Instance not found' });
+      }
+      
+      if (instance.ownerUserId !== userId) {
+        return res.status(403).json({ error: 'Not authorized' });
+      }
+      
+      await updateClaimedInstanceDestination(instanceId, destinationUrl);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Claim] Update instance error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Generate claim codes
+  app.post('/api/admin/claim-codes', isAdmin, async (req: any, res) => {
+    try {
+      const { templateId, packetType, productName, productDescription, previewImageUrl, count } = req.body;
+      
+      if (!templateId || !packetType || !productName) {
+        return res.status(400).json({ error: 'templateId, packetType, and productName are required' });
+      }
+      
+      const { generateClaimCode, generateBulkClaimCodes } = await import('./lib/claimService');
+      
+      if (count && count > 1) {
+        const codes = await generateBulkClaimCodes(
+          { templateId, packetType, productName, productDescription, previewImageUrl },
+          Math.min(count, 100)
+        );
+        res.json({ codes: codes.map(c => c.claimCode), count: codes.length });
+      } else {
+        const code = await generateClaimCode({ templateId, packetType, productName, productDescription, previewImageUrl });
+        res.json({ claimCode: code.claimCode });
+      }
+    } catch (error: any) {
+      console.error('[Claim] Generate codes error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // Auth routes - returns null if not authenticated (no 401)
   app.get('/api/auth/user', async (req: any, res) => {

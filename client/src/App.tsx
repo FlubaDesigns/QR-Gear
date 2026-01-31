@@ -89,6 +89,7 @@ import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
 import RenewPage from "@/pages/renew";
+import ClaimPage from "@/pages/claim";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -126,6 +127,7 @@ function Router() {
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/renew/:instanceId" component={RenewPage} />
       <Route path="/renew/:instanceId/success" component={RenewPage} />
+      <Route path="/claim/:claimCode" component={ClaimPage} />
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />
       <Route path="/customs/:id" component={Customs} />
