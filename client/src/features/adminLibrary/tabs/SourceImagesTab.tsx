@@ -6,7 +6,9 @@ import { useLibraryContext } from "../LibraryContext";
 import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
-import { SourceImageCardSkin, SourceImageDetailSkin } from "@/features/shared/components/skins";
+import { SourceImageCardSkin } from "@/features/shared/components/skins";
+import { SingleView, type SingleViewItem } from "@/features/shared/components/views/SingleView";
+import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import type { LibraryAssetWithProxy } from "../shared/types";
 import { getImageUrl } from "../shared/imageUtils";
@@ -25,6 +27,8 @@ export default function SourceImagesTab() {
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SingleViewItem | null>(null);
+  const [singleViewOpen, setSingleViewOpen] = useState(false);
 
   const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("source"),
