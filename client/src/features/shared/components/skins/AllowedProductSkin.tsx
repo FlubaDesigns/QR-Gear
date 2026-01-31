@@ -36,7 +36,7 @@ export function AllowedProductCardSkin({
             <div className="flex items-center gap-1">
               <DollarSign className="w-4 h-4 text-green-400" />
               <span className="text-sm text-green-400 font-bold">
-                You earn ${earnings.toFixed(2)}
+                Earn ${earnings.toFixed(2)}
               </span>
             </div>
           </div>
