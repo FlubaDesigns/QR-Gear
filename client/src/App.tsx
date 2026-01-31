@@ -88,6 +88,7 @@ import TestQRPlay from "@/pages/test-qr-play";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
+import RenewPage from "@/pages/renew";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -123,6 +124,8 @@ function Router() {
       <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
       <Route path="/checkout" component={Checkout} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
+      <Route path="/renew/:instanceId" component={RenewPage} />
+      <Route path="/renew/:instanceId/success" component={RenewPage} />
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />
       <Route path="/customs/:id" component={Customs} />

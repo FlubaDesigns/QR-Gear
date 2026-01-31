@@ -3,8 +3,15 @@ import { sendHostingExpirationReminder } from './email';
 import { syncPrintifyOrderStatuses } from './printify-orders';
 import { printify } from './printify';
 import { startCostSync, getCostSyncStatus } from './printify-cost-sync';
+import { 
+  getExpiringInstances, 
+  markReminderSent, 
+  checkAndUpdateExpiredInstances,
+  type BuyerInstance 
+} from './buyerInstanceService';
 
 const REMINDER_INTERVALS = [30, 7, 0];
+const INSTANCE_REMINDER_DAYS = [30, 7, 1];
 
 // Sync product catalog from Printify in background
 export async function syncPrintifyCatalog(): Promise<void> {
@@ -111,11 +118,64 @@ export async function checkHostingExpirations(): Promise<void> {
   }
 }
 
+export async function checkBuyerInstanceExpirations(): Promise<void> {
+  console.log('[Cron] Checking buyer instance expirations...');
+  
+  try {
+    // First, mark any expired instances
+    const expiredCount = await checkAndUpdateExpiredInstances();
+    if (expiredCount > 0) {
+      console.log(`[Cron] Marked ${expiredCount} buyer instances as expired`);
+    }
+    
+    // Send reminders for instances expiring soon
+    for (const days of INSTANCE_REMINDER_DAYS) {
+      const expiringInstances = await getExpiringInstances(days);
+      
+      for (const instance of expiringInstances) {
+        const reminderKey = `${days}day`;
+        
+        // Check if reminder already sent
+        if (instance.remindersSent.some(r => r.startsWith(reminderKey))) {
+          continue;
+        }
+        
+        console.log(`[Cron] Sending ${days}-day reminder for instance ${instance.instanceId}`);
+        
+        try {
+          // Send via Resend
+          const { sendInstanceExpirationReminder } = await import('./email');
+          const baseUrl = process.env.REPLIT_DOMAIN 
+            ? `https://${process.env.REPLIT_DOMAIN}`
+            : 'http://localhost:5000';
+          
+          await sendInstanceExpirationReminder({
+            customerEmail: instance.buyerEmail,
+            instanceId: instance.instanceId,
+            daysRemaining: days,
+            renewalUrl: `${baseUrl}/renew/${instance.instanceId}`,
+            expirationDate: new Date(instance.hostingExpiresAt),
+          });
+          
+          await markReminderSent(instance.instanceId, reminderKey);
+        } catch (emailErr) {
+          console.error(`[Cron] Failed to send reminder for ${instance.instanceId}:`, emailErr);
+        }
+      }
+    }
+    
+    console.log('[Cron] Buyer instance expiration check complete');
+  } catch (error) {
+    console.error('[Cron] Error checking buyer instance expirations:', error);
+  }
+}
+
 export async function runAllCronJobs(): Promise<void> {
   console.log('[Cron] Running scheduled jobs...');
   
   await Promise.allSettled([
     checkHostingExpirations(),
+    checkBuyerInstanceExpirations(),
     syncPrintifyOrderStatuses(),
     syncPrintifyCatalog(),
   ]);

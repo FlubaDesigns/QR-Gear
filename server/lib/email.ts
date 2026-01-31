@@ -221,6 +221,84 @@ export async function sendHostingExpirationReminder(data: HostingReminderData): 
   }
 }
 
+interface InstanceReminderData {
+  customerEmail: string;
+  instanceId: string;
+  daysRemaining: number;
+  renewalUrl: string;
+  expirationDate: Date;
+}
+
+export async function sendInstanceExpirationReminder(data: InstanceReminderData): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    
+    const urgencyText = data.daysRemaining === 1 
+      ? 'expires tomorrow' 
+      : data.daysRemaining === 0
+        ? 'expires today'
+        : `expires in ${data.daysRemaining} days`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f9fafb;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <div style="background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 32px;">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <h1 style="color: #111827; margin: 0 0 8px;">QR Hosting Renewal</h1>
+              <p style="color: #6b7280; margin: 0;">Your QR hosting ${urgencyText}!</p>
+            </div>
+            
+            <div style="background-color: ${data.daysRemaining <= 7 ? '#fef2f2' : '#fffbeb'}; border-radius: 6px; padding: 16px; margin-bottom: 24px; border: 1px solid ${data.daysRemaining <= 7 ? '#fecaca' : '#fde68a'};">
+              <p style="margin: 0; color: #374151;"><strong>Expiration Date:</strong> ${data.expirationDate.toLocaleDateString()}</p>
+            </div>
+            
+            <p style="color: #6b7280; line-height: 1.6;">
+              When your QR hosting expires, scanning your QR code will show a renewal page instead of your content.
+              Renew for just <strong>$4.99</strong> to extend your hosting for another 3 years.
+            </p>
+            
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${data.renewalUrl}" style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 600;">
+                Renew for $4.99
+              </a>
+            </div>
+            
+            <p style="color: #9ca3af; font-size: 14px; text-align: center;">
+              Questions? Reply to this email and we'll help you out.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 24px; color: #9ca3af; font-size: 14px;">
+            <p>&copy; ${new Date().getFullYear()} QR Gear. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await client.emails.send({
+      from: fromEmail || 'QR Gear <noreply@qrgear.com>',
+      to: data.customerEmail,
+      subject: data.daysRemaining <= 1 
+        ? `URGENT: Your QR hosting ${urgencyText}!`
+        : `Your QR hosting ${urgencyText}`,
+      html,
+    });
+
+    console.log(`Instance expiration reminder sent to ${data.customerEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send instance expiration reminder:', error);
+    return false;
+  }
+}
+
 export async function sendShippingUpdateEmail(
   customerEmail: string,
   customerName: string,

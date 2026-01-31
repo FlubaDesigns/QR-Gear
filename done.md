@@ -60,20 +60,21 @@
 ## PLANNED CHANGES
 
 ### QR Dynamics Implementation
-- [ ] Instance creation at point of sale (pull email from Stripe checkout)
-- [ ] Buyer control panel for managing QR destinations
+- [x] Instance creation at point of sale (pull email from Stripe checkout)
+- [x] Buyer control panel for managing QR destinations (API ready)
 - [ ] Collection management (rotating playlists)
-- [ ] Hosting subscription billing ($4.99/3-year after Year 1)
-- [ ] Instance status tracking (active/expired/renewed)
+- [x] Hosting subscription billing ($4.99/3-year after Year 1)
+- [x] Instance status tracking (active/expired/renewed)
 
 ### Buyer Email & Renewal System
-- [ ] Capture buyer email from Stripe checkout session
-- [ ] Store on Instance: `buyerEmail`, `hostingExpiresAt`, `remindersSent[]`
-- [ ] Cron job to check for expiring Instances
-- [ ] Resend renewal reminders (30 days, 7 days, 1 day before expiration)
-- [ ] Stripe checkout link in reminder emails for $4.99 renewal
-- [ ] On renewal payment: extend `hostingExpiresAt` by 3 years
-- [ ] Expired Instance behavior: QR still works but shows "renew" page instead of content
+- [x] Capture buyer email from Stripe checkout session
+- [x] Store on Instance: `buyerEmail`, `hostingExpiresAt`, `remindersSent[]`
+- [x] Cron job to check for expiring Instances (runs hourly)
+- [x] Resend renewal reminders (30 days, 7 days, 1 day before expiration)
+- [x] Stripe checkout link in reminder emails for $4.99 renewal
+- [x] On renewal payment: extend `hostingExpiresAt` by 3 years
+- [x] Expired Instance behavior: QR still works but shows "renew" page instead of content
+- [x] Renewal page UI at `/renew/:instanceId`
 
 ### Member Wizard Enhancements
 - [ ] Wire VIDEO (Play) surface into member wizard
