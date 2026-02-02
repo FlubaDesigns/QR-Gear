@@ -500,51 +500,72 @@ function TypePickerStep({
   selectedType: QRType;
   onSelect: (type: QRType) => void;
 }) {
-  const simpleTypes = [
+  const allTypes = [
+    { 
+      id: 'qr-basic' as QRType, 
+      label: 'QR Basic', 
+      description: 'Just the QR code - simple and clean',
+      icon: QrCode,
+      color: 'bg-slate-600'
+    },
+    { 
+      id: 'qr-plus' as QRType, 
+      label: 'QR Plus', 
+      description: 'QR code with header and footer text',
+      icon: Type,
+      color: 'bg-blue-600'
+    },
     { 
       id: 'qr-canvas' as QRType, 
-      label: 'Image Post', 
-      description: 'A beautiful image with your QR code',
+      label: 'QR Canvas', 
+      description: 'QR code with a custom background image',
       icon: ImagePlus,
       color: 'bg-purple-600'
     },
     { 
       id: 'qr-play' as QRType, 
-      label: 'Video Post', 
-      description: 'A video that plays when scanned',
+      label: 'QR Play', 
+      description: 'QR code that opens a video',
       icon: Play,
       color: 'bg-rose-600'
+    },
+    { 
+      id: 'qr-dynamics' as QRType, 
+      label: 'QR Dynamics', 
+      description: 'Rotating content that changes over time',
+      icon: Sparkles,
+      color: 'bg-amber-600'
     },
   ];
 
   return (
     <div>
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white mb-2">What do you want to create?</h2>
-        <p className="text-slate-400">Pick the type of content for your QR code</p>
+        <p className="text-slate-400">Choose the type of QR experience</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-lg mx-auto">
-        {simpleTypes.map((type) => (
+      <div className="grid grid-cols-1 gap-3 max-w-md mx-auto">
+        {allTypes.map((type) => (
           <button
             key={type.id}
             onClick={() => onSelect(type.id)}
-            className={`p-6 rounded-xl border-2 transition-all text-center ${
+            className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
               selectedType === type.id
-                ? 'border-white bg-white/10 scale-105'
-                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500 hover:scale-102'
+                ? 'border-white bg-white/10'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-type-${type.id}`}
           >
-            <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${type.color} flex items-center justify-center`}>
-              <type.icon className="w-8 h-8 text-white" />
+            <div className={`w-12 h-12 rounded-full ${type.color} flex items-center justify-center flex-shrink-0`}>
+              <type.icon className="w-6 h-6 text-white" />
             </div>
-            <h3 className="font-bold text-white text-lg mb-1">{type.label}</h3>
-            <p className="text-slate-400 text-sm">{type.description}</p>
+            <div className="text-left flex-1">
+              <h3 className="font-bold text-white">{type.label}</h3>
+              <p className="text-slate-400 text-sm">{type.description}</p>
+            </div>
             {selectedType === type.id && (
-              <div className="mt-3">
-                <Check className="w-6 h-6 text-green-400 mx-auto" />
-              </div>
+              <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
             )}
           </button>
         ))}

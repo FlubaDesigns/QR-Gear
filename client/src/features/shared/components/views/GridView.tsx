@@ -42,30 +42,20 @@ export function GridView({
   }
 
   return (
-    <div className={`grid gap-3 ${columns}`}>
+    <div className={`grid gap-2 ${columns}`}>
       {items.map((item) => (
-        <Card
+        <div
           key={item.id}
-          className="overflow-hidden cursor-pointer hover-elevate transition-all"
+          className="relative aspect-[9/16] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
           onClick={() => onSelect(item)}
           data-testid={`card-grid-item-${item.id}`}
         >
-          <div className="relative aspect-square bg-muted">
-            <img
-              src={item.imageUrl}
-              alt={item.name}
-              className="w-full h-full object-cover"
-            />
-            {item.dimensions && (
-              <Badge variant="secondary" className="absolute top-2 right-2 text-xs">
-                {item.dimensions}
-              </Badge>
-            )}
-          </div>
-          <CardContent className="p-2">
-            <p className="text-xs truncate font-medium">{item.name}</p>
-          </CardContent>
-        </Card>
+          <img
+            src={item.imageUrl}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        </div>
       ))}
     </div>
   );
