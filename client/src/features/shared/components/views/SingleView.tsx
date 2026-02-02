@@ -1,4 +1,5 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
@@ -21,7 +22,10 @@ export function SingleView({ item, open, onOpenChange, children }: SingleViewPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm p-0 overflow-hidden bg-slate-900 border-slate-700">
+      <DialogContent className="max-w-sm p-0 overflow-hidden bg-slate-900 border-slate-700" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>Image Preview</DialogTitle>
+        </VisuallyHidden>
         <Button
           variant="ghost"
           size="icon"
@@ -35,7 +39,7 @@ export function SingleView({ item, open, onOpenChange, children }: SingleViewPro
           <img
             src={item.imageUrl}
             alt=""
-            className="w-full max-h-[70vh] object-contain bg-black"
+            className="w-full max-h-[60vh] object-contain bg-black"
             data-testid="img-single-view"
           />
         </div>

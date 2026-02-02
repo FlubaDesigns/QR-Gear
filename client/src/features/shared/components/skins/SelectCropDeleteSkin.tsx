@@ -32,11 +32,11 @@ export function SelectCropDeleteSkin({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="space-y-3">
       {onSelect && (
         <Button
           size="lg"
-          className="w-full bg-green-600 hover:bg-green-700"
+          className="w-full"
           onClick={handleSelect}
           data-testid="button-select"
         >
@@ -47,7 +47,7 @@ export function SelectCropDeleteSkin({
       {onCrop && (
         <Button
           size="lg"
-          variant="outline"
+          variant="secondary"
           className="w-full"
           onClick={handleCrop}
           data-testid="button-crop"
@@ -60,7 +60,7 @@ export function SelectCropDeleteSkin({
         <Button
           size="sm"
           variant="ghost"
-          className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20"
+          className="w-full text-red-400 hover:text-red-300"
           onClick={handleDelete}
           disabled={isDeleting}
           data-testid="button-delete"
