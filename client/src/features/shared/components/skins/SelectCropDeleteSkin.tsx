@@ -31,42 +31,41 @@ export function SelectCropDeleteSkin({
     onDelete?.(itemId);
   };
 
-  const buttonCount = [onSelect, onCrop, onDelete].filter(Boolean).length;
-  const gridCols = buttonCount === 3 ? 'grid-cols-3' : buttonCount === 2 ? 'grid-cols-2' : 'grid-cols-1';
-
   return (
-    <div className={`grid gap-3 ${gridCols}`}>
+    <div className="flex flex-col gap-2">
       {onSelect && (
         <Button
-          variant="default"
-          className="h-14 text-base"
+          size="lg"
+          className="w-full bg-green-600 hover:bg-green-700"
           onClick={handleSelect}
           data-testid="button-select"
         >
           <Check className="h-5 w-5 mr-2" />
-          Select
+          Use This Image
         </Button>
       )}
       {onCrop && (
         <Button
+          size="lg"
           variant="outline"
-          className="h-14 text-base"
+          className="w-full"
           onClick={handleCrop}
           data-testid="button-crop"
         >
           <Crop className="h-5 w-5 mr-2" />
-          Crop
+          Crop First
         </Button>
       )}
       {onDelete && (
         <Button
-          variant="destructive"
-          className="h-14 text-base"
+          size="sm"
+          variant="ghost"
+          className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20"
           onClick={handleDelete}
           disabled={isDeleting}
           data-testid="button-delete"
         >
-          <Trash2 className="h-5 w-5 mr-2" />
+          <Trash2 className="h-4 w-4 mr-2" />
           Delete
         </Button>
       )}
