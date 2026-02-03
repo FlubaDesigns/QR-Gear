@@ -81,7 +81,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'location' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'details' | 'url-preview' | 'channel' | 'publish';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'location' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-creation';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop';
@@ -126,10 +126,8 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
-  { id: 'details', label: 'Details', icon: Type },
-  { id: 'url-preview', label: 'URL', icon: Link2 },
-  { id: 'channel', label: 'Channel', icon: Layers },
-  { id: 'publish', label: 'Publish', icon: Send },
+  { id: 'shirt-preview', label: 'Preview', icon: Eye },
+  { id: 'url-creation', label: 'Create URL', icon: Link2 },
 ];
 
 // Advanced Wizard - full 8 steps (unlocks after 1st publish)
@@ -716,19 +714,23 @@ function GraphicSizeStep({
   graphicLocation: GraphicLocation;
   onSelect: (size: GraphicSize) => void;
 }) {
-  // Graphic outline sizes (width x height) - the whole graphic area
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  // Graphic outline sizes for display
   const getOutlineSize = (size: GraphicSize) => {
     const sizeKey = size || 'medium';
-    // Width and height for the graphic outline (header + QR + footer)
     const sizes: Record<string, { w: number; h: number }> = { 
-      small: { w: 80, h: 120 }, 
-      medium: { w: 120, h: 180 }, 
-      large: { w: 160, h: 240 } 
+      small: { w: 30, h: 45 }, 
+      medium: { w: 45, h: 68 }, 
+      large: { w: 60, h: 90 } 
     };
     return sizes[sizeKey] || sizes.medium;
   };
   
   const currentSize = getOutlineSize(selectedSize || 'medium');
+  const isLeftChest = graphicLocation === 'left-chest';
+  const graphicX = isLeftChest ? 72 : 90;
+  const graphicY = isLeftChest ? 77 : 125;
   
   return (
     <div className="text-center space-y-6">
@@ -737,20 +739,64 @@ function GraphicSizeStep({
         <p className="text-slate-400">This is your entire print area</p>
       </div>
       
-      {/* Graphic outline preview - just the box */}
-      <div className="flex justify-center items-center py-4">
-        <div 
-          className="border-2 border-dashed border-green-500/70 rounded-lg flex flex-col items-center justify-center bg-slate-800/30 transition-all duration-300"
-          style={{ width: currentSize.w, height: currentSize.h }}
-        >
-          <span className="text-slate-500 text-xs">Header</span>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="border border-slate-600 rounded bg-slate-700/50 p-2">
-              <QrCode className="w-6 h-6 text-slate-400" />
-            </div>
-          </div>
-          <span className="text-slate-500 text-xs">Footer</span>
-        </div>
+      {/* Shirt with graphic outline preview */}
+      <div className="flex justify-center py-4">
+        <svg width="200" height="240" viewBox="0 0 180 210" className="drop-shadow-xl">
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+          
+          {/* Graphic outline on shirt */}
+          <rect
+            x={graphicX - currentSize.w/2}
+            y={graphicY - currentSize.h/2}
+            width={currentSize.w}
+            height={currentSize.h}
+            fill="transparent"
+            stroke="#22c55e"
+            strokeWidth="1.5"
+            strokeDasharray="4 2"
+            rx="3"
+          />
+          
+          {/* Header text placeholder */}
+          <text
+            x={graphicX}
+            y={graphicY - currentSize.h/2 + 10}
+            textAnchor="middle"
+            fill="#64748b"
+            fontSize={isLeftChest ? 4 : 6}
+          >
+            Header
+          </text>
+          
+          {/* QR placeholder */}
+          <rect 
+            x={graphicX - (isLeftChest ? 6 : 10)} 
+            y={graphicY - (isLeftChest ? 6 : 10)} 
+            width={isLeftChest ? 12 : 20} 
+            height={isLeftChest ? 12 : 20} 
+            fill="#374151" 
+            stroke="#64748b" 
+            strokeWidth="1" 
+            rx="2" 
+          />
+          <text x={graphicX} y={graphicY + 3} textAnchor="middle" fontSize={isLeftChest ? 4 : 6} fill="#94a3b8">QR</text>
+          
+          {/* Footer text placeholder */}
+          <text
+            x={graphicX}
+            y={graphicY + currentSize.h/2 - 4}
+            textAnchor="middle"
+            fill="#64748b"
+            fontSize={isLeftChest ? 4 : 6}
+          >
+            Footer
+          </text>
+        </svg>
       </div>
       
       <p className="text-xs text-slate-500">Header + QR + Footer all fit inside this box</p>
@@ -881,21 +927,25 @@ function ShirtTextEditStep({
   onHeaderChange: (style: TextStyleConfig) => void;
   onFooterChange: (style: TextStyleConfig) => void;
 }) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const showHeader = layout === 'header' || layout === 'both';
   const showFooter = layout === 'footer' || layout === 'both';
   
-  // Graphic outline sizes matching Step 6
+  // Graphic outline sizes for SVG
   const getOutlineSize = () => {
     const sizeKey = graphicSize || 'medium';
     const sizes: Record<string, { w: number; h: number }> = { 
-      small: { w: 120, h: 180 }, 
-      medium: { w: 160, h: 240 }, 
-      large: { w: 200, h: 300 } 
+      small: { w: 30, h: 45 }, 
+      medium: { w: 45, h: 68 }, 
+      large: { w: 60, h: 90 } 
     };
     return sizes[sizeKey] || sizes.medium;
   };
   
   const outlineSize = getOutlineSize();
+  const isLeftChest = graphicLocation === 'left-chest';
+  const graphicX = isLeftChest ? 72 : 90;
+  const graphicY = isLeftChest ? 77 : 125;
   
   const updateHeader = (updates: Partial<TextStyleConfig>) => {
     onHeaderChange({ ...headerStyle, ...updates, enabled: true });
@@ -903,12 +953,6 @@ function ShirtTextEditStep({
   
   const updateFooter = (updates: Partial<TextStyleConfig>) => {
     onFooterChange({ ...footerStyle, ...updates, enabled: true });
-  };
-
-  const getFontSize = (size?: string) => {
-    if (size === '12px') return 12;
-    if (size === '24px') return 18;
-    return 14;
   };
   
   return (
@@ -918,55 +962,70 @@ function ShirtTextEditStep({
         <p className="text-slate-400 text-sm">Text stays inside your graphic area</p>
       </div>
       
-      {/* Graphic outline with live preview */}
+      {/* Shirt with graphic and text preview */}
       <div className="flex justify-center py-2">
-        <div 
-          className="border-2 border-dashed border-slate-500/50 rounded-lg flex flex-col items-center justify-between bg-slate-900/50 p-3 transition-all"
-          style={{ width: outlineSize.w, height: outlineSize.h }}
-        >
-          {/* Header area */}
-          <div className="w-full text-center min-h-[24px] flex items-center justify-center">
-            {showHeader && headerStyle.text ? (
-              <span 
-                style={{ 
-                  color: headerStyle.color || '#fff',
-                  fontFamily: headerStyle.fontFamily || 'Arial',
-                  fontSize: getFontSize(headerStyle.fontSize)
-                }}
-                className="font-bold truncate px-1"
-              >
-                {headerStyle.text}
-              </span>
-            ) : showHeader ? (
-              <span className="text-slate-600 text-xs">Header text here</span>
-            ) : null}
-          </div>
+        <svg width="220" height="260" viewBox="0 0 180 210" className="drop-shadow-xl">
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
           
-          {/* QR Code in center */}
-          <div className="flex-1 flex items-center justify-center">
-            <div className="border-2 border-dashed border-slate-600 rounded-lg p-4 bg-slate-800/30">
-              <QrCode className="w-10 h-10 text-slate-500" />
-            </div>
-          </div>
+          {/* Graphic outline on shirt */}
+          <rect
+            x={graphicX - outlineSize.w/2}
+            y={graphicY - outlineSize.h/2}
+            width={outlineSize.w}
+            height={outlineSize.h}
+            fill="transparent"
+            stroke="#64748b"
+            strokeWidth="1"
+            strokeDasharray="4 2"
+            rx="3"
+          />
           
-          {/* Footer area */}
-          <div className="w-full text-center min-h-[24px] flex items-center justify-center">
-            {showFooter && footerStyle.text ? (
-              <span 
-                style={{ 
-                  color: footerStyle.color || '#fff',
-                  fontFamily: footerStyle.fontFamily || 'Arial',
-                  fontSize: getFontSize(footerStyle.fontSize)
-                }}
-                className="font-bold truncate px-1"
-              >
-                {footerStyle.text}
-              </span>
-            ) : showFooter ? (
-              <span className="text-slate-600 text-xs">Footer text here</span>
-            ) : null}
-          </div>
-        </div>
+          {/* Header text */}
+          {showHeader && (
+            <text
+              x={graphicX}
+              y={graphicY - outlineSize.h/2 + 10}
+              textAnchor="middle"
+              fill={headerStyle.color || '#fff'}
+              fontSize={isLeftChest ? 5 : 8}
+              fontFamily={headerStyle.fontFamily || 'Arial'}
+              fontWeight="bold"
+            >
+              {headerStyle.text?.substring(0, 15) || 'Header'}
+            </text>
+          )}
+          
+          {/* QR placeholder */}
+          <rect 
+            x={graphicX - (isLeftChest ? 8 : 12)} 
+            y={graphicY - (isLeftChest ? 8 : 12)} 
+            width={isLeftChest ? 16 : 24} 
+            height={isLeftChest ? 16 : 24} 
+            fill="white" 
+            rx="2" 
+          />
+          <text x={graphicX} y={graphicY + 3} textAnchor="middle" fontSize={isLeftChest ? 5 : 8} fill="#333">QR</text>
+          
+          {/* Footer text */}
+          {showFooter && (
+            <text
+              x={graphicX}
+              y={graphicY + outlineSize.h/2 - 4}
+              textAnchor="middle"
+              fill={footerStyle.color || '#fff'}
+              fontSize={isLeftChest ? 5 : 8}
+              fontFamily={footerStyle.fontFamily || 'Arial'}
+              fontWeight="bold"
+            >
+              {footerStyle.text?.substring(0, 15) || 'Footer'}
+            </text>
+          )}
+        </svg>
       </div>
       
       {/* Text input controls */}
@@ -1091,28 +1150,218 @@ function ShirtTextEditStep({
   );
 }
 
-// Step 8: URL Preview
-function UrlPreviewStep({
-  title
+// Step 10: Shirt Preview - shows completed graphic on shirt
+function ShirtPreviewStep({
+  selectedColor,
+  graphicLocation,
+  graphicSize,
+  headerStyle,
+  footerStyle,
+  textLayoutChoice
 }: {
-  title: string;
+  selectedColor: string;
+  graphicLocation: GraphicLocation;
+  graphicSize: GraphicSize;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  textLayoutChoice: TextLayoutChoice;
 }) {
-  const previewUrl = `https://qrgear.app/p/${title.toLowerCase().replace(/\s+/g, '-').substring(0, 20)}`;
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
+  const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+  
+  const getGraphicDimensions = () => {
+    const sizeKey = graphicSize || 'medium';
+    const sizes: Record<string, { w: number; h: number }> = {
+      small: { w: 30, h: 45 },
+      medium: { w: 45, h: 68 },
+      large: { w: 60, h: 90 }
+    };
+    return sizes[sizeKey] || sizes.medium;
+  };
+  
+  const graphicDims = getGraphicDimensions();
+  const isLeftChest = graphicLocation === 'left-chest';
+  const graphicX = isLeftChest ? 72 : 90;
+  const graphicY = isLeftChest ? 77 : 125;
   
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Your Creation URL</h2>
-        <p className="text-slate-400">This is where your QR code will link to</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Your Design Preview</h2>
+        <p className="text-slate-400">Here's how your graphic will look on the shirt</p>
       </div>
       
-      <div className="bg-slate-800/50 rounded-lg p-6 max-w-md mx-auto">
-        <p className="text-sm text-slate-400 mb-2">Preview URL</p>
-        <p className="text-green-400 font-mono text-sm break-all">{previewUrl}</p>
+      <div className="flex justify-center py-4">
+        <svg width="220" height="260" viewBox="0 0 180 210" className="drop-shadow-xl">
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+          
+          {/* Graphic area on shirt */}
+          <g transform={`translate(${graphicX - graphicDims.w/2}, ${graphicY - graphicDims.h/2})`}>
+            {/* Header text */}
+            {showHeader && (
+              <text
+                x={graphicDims.w / 2}
+                y={10}
+                textAnchor="middle"
+                fill={headerStyle.color || '#fff'}
+                fontSize={isLeftChest ? 5 : 8}
+                fontFamily={headerStyle.fontFamily || 'Arial'}
+                fontWeight="bold"
+              >
+                {headerStyle.text?.substring(0, 15) || ''}
+              </text>
+            )}
+            
+            {/* QR Code */}
+            <rect 
+              x={(graphicDims.w - (isLeftChest ? 15 : 25)) / 2} 
+              y={(graphicDims.h - (isLeftChest ? 15 : 25)) / 2} 
+              width={isLeftChest ? 15 : 25} 
+              height={isLeftChest ? 15 : 25} 
+              fill="white" 
+              rx="2" 
+            />
+            <text 
+              x={graphicDims.w / 2} 
+              y={graphicDims.h / 2 + 3} 
+              textAnchor="middle" 
+              fontSize={isLeftChest ? 5 : 8} 
+              fill="#333"
+            >
+              QR
+            </text>
+            
+            {/* Footer text */}
+            {showFooter && (
+              <text
+                x={graphicDims.w / 2}
+                y={graphicDims.h - 3}
+                textAnchor="middle"
+                fill={footerStyle.color || '#fff'}
+                fontSize={isLeftChest ? 5 : 8}
+                fontFamily={footerStyle.fontFamily || 'Arial'}
+                fontWeight="bold"
+              >
+                {footerStyle.text?.substring(0, 15) || ''}
+              </text>
+            )}
+          </g>
+        </svg>
       </div>
       
-      <p className="text-slate-500 text-sm">
-        The final URL will be created when you publish
+      <p className="text-green-400 text-sm">Looking good! Proceed to create your URL.</p>
+    </div>
+  );
+}
+
+// Step 11: URL Creation - title, description, and preview
+function UrlCreationStep({
+  title,
+  description,
+  onTitleChange,
+  onDescriptionChange,
+  headerStyle,
+  footerStyle,
+  textLayoutChoice
+}: {
+  title: string;
+  description: string;
+  onTitleChange: (title: string) => void;
+  onDescriptionChange: (description: string) => void;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  textLayoutChoice: TextLayoutChoice;
+}) {
+  const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
+  const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+  
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-white mb-2">Create Your URL Image</h2>
+        <p className="text-slate-400">This is what people see when they scan your QR code</p>
+      </div>
+      
+      {/* URL Image Preview */}
+      <div className="flex justify-center py-4">
+        <div className="w-48 h-80 bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl border-2 border-slate-600 p-3 flex flex-col items-center justify-between shadow-xl">
+          {/* Header area */}
+          {showHeader && (
+            <div className="text-center">
+              <span 
+                style={{ 
+                  color: headerStyle.color || '#fff',
+                  fontFamily: headerStyle.fontFamily || 'Arial'
+                }}
+                className="text-sm font-bold"
+              >
+                {headerStyle.text || 'Header'}
+              </span>
+            </div>
+          )}
+          
+          {/* QR placeholder */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center">
+              <QrCode className="w-12 h-12 text-slate-600" />
+            </div>
+          </div>
+          
+          {/* Footer area */}
+          {showFooter && (
+            <div className="text-center">
+              <span 
+                style={{ 
+                  color: footerStyle.color || '#fff',
+                  fontFamily: footerStyle.fontFamily || 'Arial'
+                }}
+                className="text-sm font-bold"
+              >
+                {footerStyle.text || 'Footer'}
+              </span>
+            </div>
+          )}
+          
+          {/* Title and description */}
+          <div className="w-full mt-2 pt-2 border-t border-slate-700 text-center">
+            <p className="text-white text-xs font-medium truncate">{title || 'Your Title'}</p>
+            <p className="text-slate-400 text-xs truncate">{description || 'Description'}</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Input fields */}
+      <div className="space-y-3 max-w-md mx-auto">
+        <div>
+          <Label className="text-white text-sm">Title</Label>
+          <Input
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder="Enter a title for your creation..."
+            className="bg-slate-700 border-slate-600 text-white"
+            data-testid="input-url-title"
+          />
+        </div>
+        <div>
+          <Label className="text-white text-sm">Description</Label>
+          <Input
+            value={description}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            placeholder="Brief description..."
+            className="bg-slate-700 border-slate-600 text-white"
+            data-testid="input-url-description"
+          />
+        </div>
+      </div>
+      
+      <p className="text-center text-slate-500 text-xs">
+        This will be the landing page when someone scans your QR code
       </p>
     </div>
   );
@@ -2767,15 +3016,6 @@ export default function TestMembersSandbox() {
       const nextStep = SIMPLE_WIZARD_STEPS[currentIndex + 1].id;
       
       // Generate QR code when moving from details to url-preview
-      if (simpleStep === 'details' && nextStep === 'url-preview') {
-        setIsGeneratingQr(true);
-        try {
-          await generatePreviewQrCode();
-        } finally {
-          setIsGeneratingQr(false);
-        }
-      }
-      
       setSimpleStep(nextStep);
     }
   };
@@ -2798,10 +3038,8 @@ export default function TestMembersSandbox() {
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
       case 'text-edit': return true;
-      case 'details': return simpleTitle.trim() !== '';
-      case 'url-preview': return true;
-      case 'channel': return selectedChannel !== null;
-      case 'publish': return true;
+      case 'shirt-preview': return true;
+      case 'url-creation': return true;
       default: return false;
     }
   };
@@ -3200,43 +3438,28 @@ export default function TestMembersSandbox() {
                 )}
                 
                 {/* Step 7: Details */}
-                {simpleStep === 'details' && (
-                  <DetailsStep
+                {/* Step 10: Shirt Preview - show graphic on shirt */}
+                {simpleStep === 'shirt-preview' && (
+                  <ShirtPreviewStep
+                    selectedColor={selectedColor}
+                    graphicLocation={graphicLocation}
+                    graphicSize={graphicSize}
+                    headerStyle={headerStyle}
+                    footerStyle={footerStyle}
+                    textLayoutChoice={textLayoutChoice}
+                  />
+                )}
+                
+                {/* Step 11: URL Creation - title and description */}
+                {simpleStep === 'url-creation' && (
+                  <UrlCreationStep
                     title={simpleTitle}
                     description={simpleDescription}
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
-                  />
-                )}
-                
-                {/* Step 8: URL Preview */}
-                {simpleStep === 'url-preview' && (
-                  <UrlPreviewStep
-                    title={simpleTitle}
-                  />
-                )}
-                
-                {/* Step 9: Channel */}
-                {simpleStep === 'channel' && (
-                  <ChannelStep 
-                    selectedChannel={selectedChannel}
-                    onSelect={setSelectedChannel}
-                    memberId={user?.id || ''}
-                    isCreatingChannel={isCreatingChannel}
-                    setIsCreatingChannel={setIsCreatingChannel}
-                    newChannelName={newChannelName}
-                    setNewChannelName={setNewChannelName}
-                  />
-                )}
-                
-                {/* Step 10: Publish */}
-                {simpleStep === 'publish' && (
-                  <SimplePublishStep
-                    isPublishing={isPublishing}
-                    onPublish={handleSimplePublish}
-                    title={simpleTitle}
-                    qrType={qrType}
-                    backgroundUrl={backgroundUrl}
+                    headerStyle={headerStyle}
+                    footerStyle={footerStyle}
+                    textLayoutChoice={textLayoutChoice}
                   />
                 )}
               </div>
@@ -3253,7 +3476,7 @@ export default function TestMembersSandbox() {
                   Back
                 </Button>
                 
-                {simpleStep !== 'publish' && (
+                {simpleStep !== 'url-creation' && (
                   <Button
                     onClick={handleSimpleNext}
                     disabled={!canSimpleProceed()}
