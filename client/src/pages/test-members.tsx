@@ -1059,14 +1059,19 @@ function ShirtTextEditStep({
         </div>
       )}
       
-      {/* Shirt with graphic and text preview */}
-      <div className="flex justify-center py-2">
-        <svg width="220" height="260" viewBox="0 0 180 210" className="drop-shadow-xl">
+      {/* Shirt with graphic and text preview - zoomed in on print area */}
+      <div className="flex justify-center py-1">
+        <svg 
+          width="280" 
+          height="220" 
+          viewBox={isLeftChest ? "40 25 80 90" : "45 25 90 100"} 
+          className="drop-shadow-xl"
+        >
           <path
             d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
             fill={colorHex}
             stroke="#444"
-            strokeWidth="2"
+            strokeWidth="1"
           />
           
           {/* Graphic outline on shirt */}
