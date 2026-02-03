@@ -2290,13 +2290,13 @@ function TextLayoutChoiceStep({
           >
             <div className="w-full aspect-[9/16] bg-slate-700 rounded-lg mb-3 flex flex-col items-center justify-center p-2">
               {(option.id === 'header' || option.id === 'both') && (
-                <div className="w-full h-3 bg-slate-500 rounded mb-1" />
+                <div className="w-full h-4 bg-yellow-400 border-2 border-yellow-200 rounded mb-1 shadow-lg" />
               )}
               <div className="w-8 h-8 bg-white rounded flex items-center justify-center my-1">
                 <QrCode className="w-5 h-5 text-slate-800" />
               </div>
               {(option.id === 'footer' || option.id === 'both') && (
-                <div className="w-full h-3 bg-slate-500 rounded mt-1" />
+                <div className="w-full h-4 bg-yellow-400 border-2 border-yellow-200 rounded mt-1 shadow-lg" />
               )}
             </div>
             <p className="text-white font-medium text-sm">{option.label}</p>
