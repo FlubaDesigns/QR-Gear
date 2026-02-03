@@ -102,8 +102,11 @@ export function CropUtility({
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
+    console.log("[CropUtility] Image loaded, dimensions:", width, height, "useCrop:", useCrop);
     if (useCrop) {
-      setCrop(centerAspectCrop(width, height, aspectRatio));
+      const initialCrop = centerAspectCrop(width, height, aspectRatio);
+      console.log("[CropUtility] Setting initial crop:", initialCrop);
+      setCrop(initialCrop);
     }
   }, [aspectRatio, useCrop]);
 
@@ -310,6 +313,7 @@ export function CropUtility({
                       src={imageSrc}
                       alt="Crop preview"
                       onLoad={onImageLoad}
+                      onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
                       className="max-w-full max-h-[60vh] mx-auto block"
                       data-testid="img-crop-preview"
                     />
