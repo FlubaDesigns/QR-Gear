@@ -433,44 +433,78 @@ function ProductPickerStep({
   selectedProduct,
   onSelect
 }: {
-  selectedProduct: string;
-  onSelect: (product: string) => void;
+  selectedProduct: AllowedProduct | null;
+  onSelect: (product: AllowedProduct) => void;
 }) {
+  const { data: productsData, isLoading } = useQuery<{ products: AllowedProduct[] }>({
+    queryKey: ["/api/members/allowed-products"],
+  });
+  
+  const products = productsData?.products || [];
+  
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-400" />
+        <p className="text-slate-400 mt-2">Loading products...</p>
+      </div>
+    );
+  }
+  
+  if (products.length === 0) {
+    return (
+      <div className="text-center py-12 space-y-4">
+        <Package className="w-12 h-12 mx-auto text-slate-500" />
+        <h2 className="text-xl font-bold text-white">No Products Available</h2>
+        <p className="text-slate-400">Contact admin to unlock products for you.</p>
+      </div>
+    );
+  }
+  
   return (
-    <div className="text-center space-y-6">
-      <div>
+    <div className="space-y-4">
+      <div className="text-center">
         <h2 className="text-2xl font-bold text-white mb-2">Pick Your Product</h2>
-        <p className="text-slate-400">What item would you like to create?</p>
+        <p className="text-slate-400">Select an item to customize</p>
       </div>
       
-      <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-        <button
-          onClick={() => onSelect('t-shirt')}
-          className={`p-6 rounded-xl border-2 transition-all ${
-            selectedProduct === 't-shirt'
-              ? 'border-green-500 bg-green-500/20'
-              : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-          }`}
-          data-testid="button-product-tshirt"
-        >
-          <div className="text-4xl mb-2">👕</div>
-          <p className="text-white font-medium">T-Shirt</p>
-        </button>
-        
-        <button
-          onClick={() => onSelect('hoodie')}
-          className={`p-6 rounded-xl border-2 transition-all opacity-50 cursor-not-allowed ${
-            selectedProduct === 'hoodie'
-              ? 'border-green-500 bg-green-500/20'
-              : 'border-slate-600 bg-slate-800/50'
-          }`}
-          disabled
-          data-testid="button-product-hoodie"
-        >
-          <div className="text-4xl mb-2">🧥</div>
-          <p className="text-white font-medium">Hoodie</p>
-          <p className="text-xs text-slate-500">Coming soon</p>
-        </button>
+      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+        {products.map((product) => (
+          <button
+            key={product.blueprintId}
+            onClick={() => onSelect(product)}
+            className={`w-full flex items-center gap-4 p-3 rounded-xl border-2 transition-all text-left ${
+              selectedProduct?.blueprintId === product.blueprintId
+                ? 'border-green-500 bg-green-500/20'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid={`button-product-${product.blueprintId}`}
+          >
+            {product.imageUrl ? (
+              <img 
+                src={product.imageUrl} 
+                alt={product.title}
+                className="w-16 h-16 rounded-lg object-cover bg-white"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg bg-slate-700 flex items-center justify-center">
+                <Package className="w-8 h-8 text-slate-500" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-medium truncate">{product.title}</p>
+              {product.brand && (
+                <p className="text-xs text-slate-400">{product.brand}</p>
+              )}
+              {product.memberEarnings && (
+                <p className="text-xs text-green-400">Earn ${product.memberEarnings.toFixed(2)}</p>
+              )}
+            </div>
+            {selectedProduct?.blueprintId === product.blueprintId && (
+              <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -2676,7 +2710,7 @@ export default function TestMembersSandbox() {
   const [simpleDescription, setSimpleDescription] = useState('');
   
   // New wizard state: product selection
-  const [selectedProductType, setSelectedProductType] = useState<string>('t-shirt');
+  const [selectedProductType, setSelectedProductType] = useState<AllowedProduct | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [selectedShirtSize, setSelectedShirtSize] = useState<string>('');
   const [graphicLocation, setGraphicLocation] = useState<GraphicLocation>('');
@@ -2778,7 +2812,7 @@ export default function TestMembersSandbox() {
 
   const canSimpleProceed = () => {
     switch (simpleStep) {
-      case 'product': return selectedProductType !== '';
+      case 'product': return selectedProductType !== null;
       case 'color': return selectedColor !== '';
       case 'size': return selectedShirtSize !== '';
       case 'type': return qrType !== '';
