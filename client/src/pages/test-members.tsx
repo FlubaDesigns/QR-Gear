@@ -81,7 +81,9 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'location' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-creation';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'location' | 'graphic-size' | 'generate' | 'text-choice' | 'placement-count' | 'text-edit' | 'shirt-preview' | 'url-creation';
+// Matches Printify placement IDs
+type PlacementOption = 'front' | 'back' | 'sleeve_left' | 'sleeve_right';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop';
@@ -125,9 +127,18 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
+  { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
   { id: 'url-creation', label: 'Create URL', icon: Link2 },
+];
+
+// Available placement options - matches Printify API placement IDs
+const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: string }[] = [
+  { id: 'front', label: 'Front', description: 'Main front of shirt' },
+  { id: 'back', label: 'Back', description: 'Center of back' },
+  { id: 'sleeve_left', label: 'Left Sleeve', description: 'Left arm' },
+  { id: 'sleeve_right', label: 'Right Sleeve', description: 'Right arm' },
 ];
 
 // Advanced Wizard - full 8 steps (unlocks after 1st publish)
@@ -913,7 +924,101 @@ function GenerateGraphicStep({
   );
 }
 
-// Step 6: Text Edit - shows graphic outline with QR in center, text above/below
+// Step 9: Placement Count - select multiple graphic placements
+function PlacementCountStep({
+  selected,
+  onToggle,
+  selectedColor
+}: {
+  selected: PlacementOption[];
+  onToggle: (placement: PlacementOption) => void;
+  selectedColor: string;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  // Positions for each placement on the shirt SVG
+  // Positions on SVG for each Printify placement
+  const placementPositions: Record<PlacementOption, { x: number; y: number; size: number }> = {
+    'front': { x: 90, y: 95, size: 20 },
+    'back': { x: 90, y: 95, size: 20 },
+    'sleeve_left': { x: 42, y: 68, size: 10 },
+    'sleeve_right': { x: 138, y: 68, size: 10 },
+  };
+  
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-xl font-bold text-white mb-1">Where Do You Want Graphics?</h2>
+        <p className="text-slate-400 text-sm">Select one or more placements</p>
+      </div>
+      
+      {/* Shirt preview showing selected placements */}
+      <div className="flex justify-center py-2">
+        <svg width="180" height="200" viewBox="0 0 180 180" className="drop-shadow-lg">
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+          
+          {/* Show selected placements */}
+          {selected.map(placement => {
+            const pos = placementPositions[placement];
+            if (!pos) return null;
+            return (
+              <g key={placement} transform={`translate(${pos.x - pos.size/2}, ${pos.y - pos.size/2})`}>
+                <rect width={pos.size} height={pos.size} fill="white" rx="1" opacity="0.9" />
+                <rect x="1" y="1" width={pos.size * 0.2} height={pos.size * 0.2} fill="#22c55e" />
+                <rect x={pos.size - pos.size * 0.2 - 1} y="1" width={pos.size * 0.2} height={pos.size * 0.2} fill="#22c55e" />
+                <rect x="1" y={pos.size - pos.size * 0.2 - 1} width={pos.size * 0.2} height={pos.size * 0.2} fill="#22c55e" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      
+      {/* Placement options */}
+      <div className="grid grid-cols-2 gap-2">
+        {PLACEMENT_OPTIONS.map((option) => {
+          const isSelected = selected.includes(option.id);
+          return (
+            <button
+              key={option.id}
+              onClick={() => onToggle(option.id)}
+              className={`p-3 rounded-lg border-2 text-left transition-all ${
+                isSelected
+                  ? 'border-green-500 bg-green-500/20'
+                  : 'border-slate-600 bg-slate-800/50 hover:border-slate-400'
+              }`}
+              data-testid={`button-placement-${option.id}`}
+            >
+              <div className="flex items-center gap-2">
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                  isSelected ? 'border-green-500 bg-green-500' : 'border-slate-500'
+                }`}>
+                  {isSelected && <Check className="w-3 h-3 text-white" />}
+                </div>
+                <div>
+                  <p className={`font-medium text-sm ${isSelected ? 'text-green-400' : 'text-white'}`}>
+                    {option.label}
+                  </p>
+                  <p className="text-xs text-slate-500">{option.description}</p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      
+      <p className="text-center text-slate-500 text-xs">
+        {selected.length === 0 ? 'Select at least one placement' : `${selected.length} placement${selected.length > 1 ? 's' : ''} selected`}
+      </p>
+    </div>
+  );
+}
+
+// Step 10: Text Edit - shows graphic outline with QR in center, text above/below
 function ShirtTextEditStep({
   layout,
   selectedColor,
@@ -3029,7 +3134,6 @@ export default function TestMembersSandbox() {
   };
   
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
-  const [selectedPlacements, setSelectedPlacements] = useState<string[]>([]);
   const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementConfig>>({});
   const [qrType, setQrType] = useState<QRType>('');
   const [qrDestination, setQrDestination] = useState<string>('');
@@ -3047,6 +3151,7 @@ export default function TestMembersSandbox() {
   
   // Simple wizard text state
   const [textLayoutChoice, setTextLayoutChoice] = useState<TextLayoutChoice>('');
+  const [selectedPlacements, setSelectedPlacements] = useState<PlacementOption[]>([]);
   const [wantsText, setWantsText] = useState<boolean | null>(null);
   const [previewQrUrl, setPreviewQrUrl] = useState<string>('');
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
@@ -3087,6 +3192,7 @@ export default function TestMembersSandbox() {
       case 'graphic-size': return graphicSize !== '';
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
+      case 'placement-count': return selectedPlacements.length > 0;
       case 'text-edit': return true;
       case 'shirt-preview': return true;
       case 'url-creation': return true;
@@ -3473,7 +3579,22 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 6: Text Edit */}
+                {/* Step 9: Placement Count */}
+                {simpleStep === 'placement-count' && (
+                  <PlacementCountStep
+                    selected={selectedPlacements}
+                    onToggle={(placement) => {
+                      setSelectedPlacements(prev => 
+                        prev.includes(placement)
+                          ? prev.filter(p => p !== placement)
+                          : [...prev, placement]
+                      );
+                    }}
+                    selectedColor={selectedColor}
+                  />
+                )}
+                
+                {/* Step 10: Text Edit */}
                 {simpleStep === 'text-edit' && (
                   <ShirtTextEditStep
                     layout={textLayoutChoice}
