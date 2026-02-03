@@ -128,35 +128,67 @@ export function CropUtility({
       };
     }
 
-    const canvas = document.createElement("canvas");
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    const cropX = (crop.x / 100) * image.width * scaleX;
-    const cropY = (crop.y / 100) * image.height * scaleY;
-    const cropWidth = (crop.width / 100) * image.width * scaleX;
-    const cropHeight = (crop.height / 100) * image.height * scaleY;
+    try {
+      const canvas = document.createElement("canvas");
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      const cropX = (crop.x / 100) * image.width * scaleX;
+      const cropY = (crop.y / 100) * image.height * scaleY;
+      const cropWidth = (crop.width / 100) * image.width * scaleX;
+      const cropHeight = (crop.height / 100) * image.height * scaleY;
 
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
+      console.log("[CropUtility] Crop dimensions:", { cropX, cropY, cropWidth, cropHeight, scaleX, scaleY });
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
 
-    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        console.error("[CropUtility] Failed to get canvas context");
+        return null;
+      }
 
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-    const blob = new Promise<Blob | null>((resolve) => 
-      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
-    );
+      ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      console.log("[CropUtility] Drew image to canvas");
 
-    return { dataUrl, blob };
+      let dataUrl: string;
+      try {
+        dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+        console.log("[CropUtility] toDataURL succeeded, length:", dataUrl.length);
+      } catch (securityErr) {
+        console.error("[CropUtility] Security error - canvas tainted:", securityErr);
+        return null;
+      }
+
+      const blob = new Promise<Blob | null>((resolve) => 
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
+      );
+
+      return { dataUrl, blob };
+    } catch (err) {
+      console.error("[CropUtility] Canvas error:", err);
+      return null;
+    }
   }, [crop, imageSrc, useCrop]);
 
   const handleConfirm = async () => {
+    console.log("[CropUtility] Crop button clicked, useCrop:", useCrop, "crop:", crop);
     const result = getCroppedImage();
-    if (!result) return;
+    console.log("[CropUtility] getCroppedImage result:", result ? `dataUrl length: ${result.dataUrl.length}` : "null");
+    
+    if (!result) {
+      toast({ title: "Failed to crop image", description: "Could not process the image", variant: "destructive" });
+      return;
+    }
+
+    if (!result.dataUrl || result.dataUrl.length < 100) {
+      console.error("[CropUtility] Invalid dataUrl:", result.dataUrl?.substring(0, 100));
+      toast({ title: "Failed to crop image", description: "Generated image is invalid", variant: "destructive" });
+      return;
+    }
 
     if (onCropComplete) {
+      console.log("[CropUtility] Calling onCropComplete with dataUrl");
       onCropComplete(result.dataUrl);
       onOpenChange(false);
       return;
@@ -279,7 +311,6 @@ export function CropUtility({
                       alt="Crop preview"
                       onLoad={onImageLoad}
                       className="max-w-full max-h-[60vh] mx-auto block"
-                      crossOrigin="anonymous"
                       data-testid="img-crop-preview"
                     />
                   </ReactCrop>
