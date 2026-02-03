@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Crop as CropIcon, Maximize, Check, X } from "lucide-react";
+import { Loader2, Upload, Crop as CropIcon, Maximize, Check, X, Trash2 } from "lucide-react";
 
 export interface CropAsset {
   id: string;
@@ -20,6 +20,8 @@ export interface CropUtilityProps {
   onOpenChange: (open: boolean) => void;
   onSave?: (croppedImageData: string, sourceAsset?: CropAsset) => Promise<void>;
   onCropComplete?: (croppedImageUrl: string) => void;
+  onDelete?: (id: string) => void;
+  isDeleting?: boolean;
   fetchImageBlob?: (url: string) => Promise<string>;
   aspectRatio?: number;
   title?: string;
@@ -41,6 +43,8 @@ export function CropUtility({
   onOpenChange,
   onSave,
   onCropComplete,
+  onDelete,
+  isDeleting = false,
   fetchImageBlob,
   aspectRatio = 9 / 16,
   title = "Crop Image",
@@ -333,41 +337,34 @@ export function CropUtility({
           ) : null}
         </div>
 
-        <DialogFooter className="flex-shrink-0 flex-row gap-2 pt-4">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)} 
-            className="flex-1 h-12"
-            data-testid="button-crop-cancel"
-          >
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-          {allowUpload && imageSrc && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setImageSrc(null);
-                setCrop(undefined);
-              }}
-              className="flex-1 h-12"
-              data-testid="button-choose-different"
-            >
-              Choose Different
-            </Button>
-          )}
-          {imageSrc && (
-            <Button 
-              onClick={handleConfirm} 
-              disabled={saving || (useCrop && !crop)} 
-              className="flex-1 h-12"
-              data-testid="button-crop-save"
-            >
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Check className="h-4 w-4 mr-2" />
-              {onSave ? "Save" : "Crop"}
-            </Button>
-          )}
+        <DialogFooter className="flex-shrink-0 pt-4">
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {imageSrc && (
+              <Button 
+                onClick={handleConfirm} 
+                disabled={saving || (useCrop && !crop)} 
+                className="h-14 text-base"
+                data-testid="button-crop-save"
+              >
+                {saving && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
+                <CropIcon className="h-5 w-5 mr-2" />
+                Crop
+              </Button>
+            )}
+            {onDelete && asset && (
+              <Button
+                variant="destructive"
+                onClick={() => onDelete(asset.id)}
+                disabled={isDeleting}
+                className="h-14 text-base"
+                data-testid="button-crop-delete"
+              >
+                {isDeleting && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
+                <Trash2 className="h-5 w-5 mr-2" />
+                Delete
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

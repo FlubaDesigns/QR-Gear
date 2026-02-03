@@ -6,8 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Upload, Library, User, X } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { GridView, type GridViewItem } from "./views/GridView";
-import { SingleView } from "./views/SingleView";
-import { SelectCropDeleteSkin } from "./skins/SelectCropDeleteSkin";
 import { CropUtility, type CropAsset } from "./utilities/CropUtility";
 import { useToast } from "@/hooks/use-toast";
 
@@ -58,9 +56,6 @@ export function BackgroundLibraryPicker({
   const [activeTab, setActiveTab] = useState<'common' | 'personal'>('personal');
   const [uploading, setUploading] = useState(false);
   
-  const [selectedItem, setSelectedItem] = useState<GridViewItem | null>(null);
-  const [singleViewOpen, setSingleViewOpen] = useState(false);
-  
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
@@ -107,8 +102,6 @@ export function BackgroundLibraryPicker({
     onSuccess: () => {
       toast({ title: "Image deleted" });
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'library'] });
-      setSingleViewOpen(false);
-      setSelectedItem(null);
     },
     onError: (error: Error) => {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
@@ -144,13 +137,12 @@ export function BackgroundLibraryPicker({
       setActiveTab('personal');
       
       if (data.asset) {
-        const newItem: GridViewItem = {
+        setAssetToCrop({
           id: data.asset.id,
           name: data.asset.name || 'Uploaded Image',
           imageUrl: data.asset.publicUrl,
-        };
-        setSelectedItem(newItem);
-        setSingleViewOpen(true);
+        });
+        setCropDialogOpen(true);
       }
     },
     onError: (error: Error) => {
@@ -179,32 +171,21 @@ export function BackgroundLibraryPicker({
   };
 
   const handleGridSelect = (item: GridViewItem) => {
-    setSelectedItem(item);
-    setSingleViewOpen(true);
-  };
-
-  const handleSelectImage = (id: string) => {
-    const asset = allAssets.find(a => a.id === id);
-    if (asset) {
-      onSelect(asset.publicUrl);
-    }
-  };
-
-  const handleCrop = (id: string) => {
-    const asset = allAssets.find(a => a.id === id);
+    const asset = allAssets.find(a => a.id === item.id);
     if (asset) {
       setAssetToCrop({
         id: asset.id,
         name: asset.name,
         imageUrl: asset.publicUrl,
       });
-      setSingleViewOpen(false);
       setCropDialogOpen(true);
     }
   };
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
+    setCropDialogOpen(false);
+    setAssetToCrop(null);
   };
 
   const handleCropComplete = (croppedUrl: string) => {
@@ -300,21 +281,6 @@ export function BackgroundLibraryPicker({
         </DialogContent>
       </Dialog>
 
-      <SingleView
-        item={selectedItem}
-        open={singleViewOpen}
-        onOpenChange={setSingleViewOpen}
-      >
-        <SelectCropDeleteSkin
-          itemId={selectedItem?.id || ''}
-          onSelect={handleSelectImage}
-          onCrop={handleCrop}
-          onDelete={selectedItem && isPersonalAsset(selectedItem.id) ? handleDelete : undefined}
-          onClose={() => setSingleViewOpen(false)}
-          isDeleting={deleteMutation.isPending}
-        />
-      </SingleView>
-
       <CropUtility
         asset={assetToCrop}
         open={cropDialogOpen}
@@ -323,6 +289,8 @@ export function BackgroundLibraryPicker({
           if (!open) setAssetToCrop(null);
         }}
         onCropComplete={handleCropComplete}
+        onDelete={assetToCrop && isPersonalAsset(assetToCrop.id) ? handleDelete : undefined}
+        isDeleting={deleteMutation.isPending}
         fetchImageBlob={fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Background"
