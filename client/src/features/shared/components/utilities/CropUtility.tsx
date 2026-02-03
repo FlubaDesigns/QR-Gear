@@ -264,20 +264,22 @@ export function CropUtility({
                 </div>
               )}
 
-              <div className="relative rounded-lg overflow-hidden bg-black/10 flex items-center justify-center">
+              <div className="relative rounded-lg bg-black/10 flex items-center justify-center">
                 {useCrop ? (
                   <ReactCrop
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     aspect={aspectRatio}
                     className="max-h-[60vh]"
+                    style={{ maxHeight: '60vh' }}
                   >
                     <img
                       ref={imgRef}
                       src={imageSrc}
                       alt="Crop preview"
                       onLoad={onImageLoad}
-                      className="max-w-full max-h-[60vh] mx-auto"
+                      className="max-w-full max-h-[60vh] mx-auto block"
+                      crossOrigin="anonymous"
                       data-testid="img-crop-preview"
                     />
                   </ReactCrop>

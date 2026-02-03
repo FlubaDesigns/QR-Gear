@@ -326,6 +326,7 @@ export function BackgroundLibraryPicker({
         fetchImageBlob={fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Background"
+        allowCropToggle={true}
       />
     </>
   );
