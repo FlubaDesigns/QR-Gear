@@ -1529,51 +1529,7 @@ export default function TestMembersSandbox() {
                       <p className="text-slate-400">Choose an image for your creation (optional)</p>
                     </div>
                     
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="w-full h-16 text-lg"
-                      onClick={() => setShowBackgroundLibrary(true)}
-                      data-testid="button-simple-background-library"
-                    >
-                      <Library className="w-5 h-5 mr-2" />
-                      Browse Backgrounds
-                    </Button>
-                    
-                    {backgroundUrl && (
-                      <div className="relative max-w-[200px] mx-auto">
-                        <div className="aspect-[9/16] rounded-lg overflow-hidden border-2 border-green-500">
-                          <img src={backgroundUrl} alt="Selected" className="w-full h-full object-cover" />
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="absolute top-2 right-2"
-                          onClick={() => setBackgroundUrl('')}
-                          data-testid="button-simple-clear-background"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {!backgroundUrl && (
-                      <p className="text-center text-slate-500 text-sm">You can skip this step if you prefer</p>
-                    )}
-                    
-                    {showBackgroundLibrary && user?.id && (
-                      <BackgroundLibraryPicker
-                        memberId={user.id}
-                        selectedUrl={backgroundUrl}
-                        onSelect={(croppedUrl, originalUrl) => {
-                          setBackgroundUrl(croppedUrl);
-                          setOriginalBackgroundUrl(originalUrl);
-                          setShowBackgroundLibrary(false);
-                        }}
-                        onClose={() => setShowBackgroundLibrary(false)}
-                        assetType="background"
-                      />
-                    )}
+                    {/* TODO: Implement background step */}
                   </div>
                 )}
                 {simpleStep === 'save' && (
