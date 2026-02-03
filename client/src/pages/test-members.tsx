@@ -704,7 +704,7 @@ function GraphicLocationStep({
   );
 }
 
-// Step 3: Graphic Size
+// Step 3: Graphic Size - shows outline of entire graphic area
 function GraphicSizeStep({
   selectedSize,
   selectedColor,
@@ -716,64 +716,44 @@ function GraphicSizeStep({
   graphicLocation: GraphicLocation;
   onSelect: (size: GraphicSize) => void;
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
-  
-  const getSizePreview = (size: GraphicSize) => {
+  // Graphic outline sizes (width x height) - the whole graphic area
+  const getOutlineSize = (size: GraphicSize) => {
     const sizeKey = size || 'medium';
-    if (graphicLocation === 'left-chest') {
-      // Left chest: proportional to 25%/45%/65% of ~40px area
-      const sizes: Record<string, number> = { small: 10, medium: 18, large: 26 };
-      return sizes[sizeKey] || 18;
-    }
-    // Front/back center: proportional to 25%/45%/65% of ~100px area
-    const sizes: Record<string, number> = { small: 25, medium: 45, large: 65 };
-    return sizes[sizeKey] || 45;
+    // Width and height for the graphic outline (header + QR + footer)
+    const sizes: Record<string, { w: number; h: number }> = { 
+      small: { w: 80, h: 120 }, 
+      medium: { w: 120, h: 180 }, 
+      large: { w: 160, h: 240 } 
+    };
+    return sizes[sizeKey] || sizes.medium;
   };
+  
+  const currentSize = getOutlineSize(selectedSize || 'medium');
   
   return (
     <div className="text-center space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white mb-2">What Size Graphic?</h2>
-        <p className="text-slate-400">How big should your design be?</p>
+        <p className="text-slate-400">This is your entire print area</p>
       </div>
       
-      {/* Shirt with size preview */}
-      <div className="flex justify-center">
-        <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
-          <path
-            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
-            fill={colorHex}
-            stroke="#444"
-            strokeWidth="2"
-          />
-          
-          {/* Show QR box in selected location with current size */}
-          {graphicLocation === 'left-chest' && (
-            <rect
-              x={72 - getSizePreview(selectedSize || 'medium') / 2}
-              y={77 - getSizePreview(selectedSize || 'medium') / 2}
-              width={getSizePreview(selectedSize || 'medium')}
-              height={getSizePreview(selectedSize || 'medium')}
-              fill="white"
-              stroke="#22c55e"
-              strokeWidth="2"
-              rx="2"
-            />
-          )}
-          {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
-            <rect
-              x={90 - getSizePreview(selectedSize || 'medium') / 2}
-              y={125 - getSizePreview(selectedSize || 'medium') / 2}
-              width={getSizePreview(selectedSize || 'medium')}
-              height={getSizePreview(selectedSize || 'medium')}
-              fill="white"
-              stroke="#22c55e"
-              strokeWidth="2"
-              rx="2"
-            />
-          )}
-        </svg>
+      {/* Graphic outline preview - just the box */}
+      <div className="flex justify-center items-center py-4">
+        <div 
+          className="border-2 border-dashed border-green-500/70 rounded-lg flex flex-col items-center justify-center bg-slate-800/30 transition-all duration-300"
+          style={{ width: currentSize.w, height: currentSize.h }}
+        >
+          <span className="text-slate-500 text-xs">Header</span>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="border border-slate-600 rounded bg-slate-700/50 p-2">
+              <QrCode className="w-6 h-6 text-slate-400" />
+            </div>
+          </div>
+          <span className="text-slate-500 text-xs">Footer</span>
+        </div>
       </div>
+      
+      <p className="text-xs text-slate-500">Header + QR + Footer all fit inside this box</p>
       
       <div className="flex flex-wrap justify-center gap-3">
         {(['small', 'medium', 'large'] as GraphicSize[]).map((size) => (
@@ -881,7 +861,7 @@ function GenerateGraphicStep({
   );
 }
 
-// Step 6: Shirt Text Edit (header input above shirt, footer input below)
+// Step 6: Text Edit - shows graphic outline with QR in center, text above/below
 function ShirtTextEditStep({
   layout,
   selectedColor,
@@ -901,21 +881,21 @@ function ShirtTextEditStep({
   onHeaderChange: (style: TextStyleConfig) => void;
   onFooterChange: (style: TextStyleConfig) => void;
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const showHeader = layout === 'header' || layout === 'both';
   const showFooter = layout === 'footer' || layout === 'both';
   
-  const getQrSize = () => {
+  // Graphic outline sizes matching Step 6
+  const getOutlineSize = () => {
     const sizeKey = graphicSize || 'medium';
-    if (graphicLocation === 'left-chest') {
-      const sizes: Record<string, number> = { small: 10, medium: 18, large: 26 };
-      return sizes[sizeKey] || 18;
-    }
-    const sizes: Record<string, number> = { small: 25, medium: 45, large: 65 };
-    return sizes[sizeKey] || 45;
+    const sizes: Record<string, { w: number; h: number }> = { 
+      small: { w: 120, h: 180 }, 
+      medium: { w: 160, h: 240 }, 
+      large: { w: 200, h: 300 } 
+    };
+    return sizes[sizeKey] || sizes.medium;
   };
   
-  const qrSize = getQrSize();
+  const outlineSize = getOutlineSize();
   
   const updateHeader = (updates: Partial<TextStyleConfig>) => {
     onHeaderChange({ ...headerStyle, ...updates, enabled: true });
@@ -924,24 +904,87 @@ function ShirtTextEditStep({
   const updateFooter = (updates: Partial<TextStyleConfig>) => {
     onFooterChange({ ...footerStyle, ...updates, enabled: true });
   };
+
+  const getFontSize = (size?: string) => {
+    if (size === '12px') return 12;
+    if (size === '24px') return 18;
+    return 14;
+  };
   
   return (
     <div className="space-y-4">
-      {/* Header input section */}
-      {showHeader && (
-        <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-          <Label className="text-white font-medium text-sm">Header Text</Label>
-          <Input
-            value={headerStyle.text}
-            onChange={(e) => updateHeader({ text: e.target.value })}
-            placeholder="Enter header text..."
-            className="bg-slate-700 border-slate-600 text-white h-9"
-            data-testid="input-header-text"
-          />
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 w-10">Color</span>
-              <div className="flex gap-1 flex-wrap">
+      <div className="text-center">
+        <h2 className="text-xl font-bold text-white mb-1">Add Your Text</h2>
+        <p className="text-slate-400 text-sm">Text stays inside your graphic area</p>
+      </div>
+      
+      {/* Graphic outline with live preview */}
+      <div className="flex justify-center py-2">
+        <div 
+          className="border-2 border-dashed border-slate-500/50 rounded-lg flex flex-col items-center justify-between bg-slate-900/50 p-3 transition-all"
+          style={{ width: outlineSize.w, height: outlineSize.h }}
+        >
+          {/* Header area */}
+          <div className="w-full text-center min-h-[24px] flex items-center justify-center">
+            {showHeader && headerStyle.text ? (
+              <span 
+                style={{ 
+                  color: headerStyle.color || '#fff',
+                  fontFamily: headerStyle.fontFamily || 'Arial',
+                  fontSize: getFontSize(headerStyle.fontSize)
+                }}
+                className="font-bold truncate px-1"
+              >
+                {headerStyle.text}
+              </span>
+            ) : showHeader ? (
+              <span className="text-slate-600 text-xs">Header text here</span>
+            ) : null}
+          </div>
+          
+          {/* QR Code in center */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="border-2 border-dashed border-slate-600 rounded-lg p-4 bg-slate-800/30">
+              <QrCode className="w-10 h-10 text-slate-500" />
+            </div>
+          </div>
+          
+          {/* Footer area */}
+          <div className="w-full text-center min-h-[24px] flex items-center justify-center">
+            {showFooter && footerStyle.text ? (
+              <span 
+                style={{ 
+                  color: footerStyle.color || '#fff',
+                  fontFamily: footerStyle.fontFamily || 'Arial',
+                  fontSize: getFontSize(footerStyle.fontSize)
+                }}
+                className="font-bold truncate px-1"
+              >
+                {footerStyle.text}
+              </span>
+            ) : showFooter ? (
+              <span className="text-slate-600 text-xs">Footer text here</span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      
+      {/* Text input controls */}
+      <div className="space-y-3">
+        {/* Header input */}
+        {showHeader && (
+          <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
+            <Label className="text-white font-medium text-sm">Header Text</Label>
+            <Input
+              value={headerStyle.text}
+              onChange={(e) => updateHeader({ text: e.target.value })}
+              placeholder="Enter header text..."
+              className="bg-slate-700 border-slate-600 text-white h-9"
+              data-testid="input-header-text"
+            />
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500">Color:</span>
                 {SHIRT_TEXT_COLORS.map((color) => (
                   <button
                     key={color}
@@ -953,26 +996,22 @@ function ShirtTextEditStep({
                   />
                 ))}
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 w-10">Size</span>
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500">Size:</span>
                 {SHIRT_TEXT_SIZES.map((size) => (
                   <Button
                     key={size.id}
                     size="sm"
                     variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
                     onClick={() => updateHeader({ fontSize: size.value })}
-                    className="h-6 px-2 text-xs"
+                    className="h-5 px-2 text-xs"
                   >
                     {size.label}
                   </Button>
                 ))}
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 w-10">Font</span>
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500">Font:</span>
                 {SHIRT_TEXT_FONTS.map((font) => (
                   <Button
                     key={font.id}
@@ -980,7 +1019,7 @@ function ShirtTextEditStep({
                     variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
                     onClick={() => updateHeader({ fontFamily: font.family })}
                     style={{ fontFamily: font.family }}
-                    className="h-6 px-2 text-xs"
+                    className="h-5 px-2 text-xs"
                   >
                     {font.label}
                   </Button>
@@ -988,80 +1027,22 @@ function ShirtTextEditStep({
               </div>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Shirt preview in the middle */}
-      <div className="flex justify-center py-2">
-        <svg width="140" height="170" viewBox="0 0 180 210" className="drop-shadow-lg">
-          <path
-            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
-            fill={colorHex}
-            stroke="#444"
-            strokeWidth="2"
-          />
-          
-          {/* Header text preview */}
-          {showHeader && headerStyle.text && (graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
-            <text
-              x="90"
-              y="105"
-              textAnchor="middle"
-              fill={headerStyle.color || '#fff'}
-              fontSize="10"
-              fontFamily={headerStyle.fontFamily || 'Arial'}
-              fontWeight="bold"
-            >
-              {headerStyle.text.substring(0, 15)}
-            </text>
-          )}
-          
-          {/* QR Code */}
-          {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
-            <g transform={`translate(${90 - qrSize/2}, ${125 - qrSize/2})`}>
-              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
-              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="10" fill="#333">QR</text>
-            </g>
-          )}
-          {graphicLocation === 'left-chest' && (
-            <g transform={`translate(${72 - qrSize/2}, ${77 - qrSize/2})`}>
-              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
-              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="8" fill="#333">QR</text>
-            </g>
-          )}
-          
-          {/* Footer text preview */}
-          {showFooter && footerStyle.text && (graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
-            <text
-              x="90"
-              y={125 + qrSize/2 + 15}
-              textAnchor="middle"
-              fill={footerStyle.color || '#fff'}
-              fontSize="10"
-              fontFamily={footerStyle.fontFamily || 'Arial'}
-              fontWeight="bold"
-            >
-              {footerStyle.text.substring(0, 15)}
-            </text>
-          )}
-        </svg>
-      </div>
-      
-      {/* Footer input section */}
-      {showFooter && (
-        <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-          <Label className="text-white font-medium text-sm">Footer Text</Label>
-          <Input
-            value={footerStyle.text}
-            onChange={(e) => updateFooter({ text: e.target.value })}
-            placeholder="Enter footer text..."
-            className="bg-slate-700 border-slate-600 text-white h-9"
-            data-testid="input-footer-text"
-          />
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 w-10">Color</span>
-              <div className="flex gap-1 flex-wrap">
+        )}
+        
+        {/* Footer input */}
+        {showFooter && (
+          <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
+            <Label className="text-white font-medium text-sm">Footer Text</Label>
+            <Input
+              value={footerStyle.text}
+              onChange={(e) => updateFooter({ text: e.target.value })}
+              placeholder="Enter footer text..."
+              className="bg-slate-700 border-slate-600 text-white h-9"
+              data-testid="input-footer-text"
+            />
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500">Color:</span>
                 {SHIRT_TEXT_COLORS.map((color) => (
                   <button
                     key={color}
@@ -1073,26 +1054,22 @@ function ShirtTextEditStep({
                   />
                 ))}
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 w-10">Size</span>
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500">Size:</span>
                 {SHIRT_TEXT_SIZES.map((size) => (
                   <Button
                     key={size.id}
                     size="sm"
                     variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
                     onClick={() => updateFooter({ fontSize: size.value })}
-                    className="h-6 px-2 text-xs"
+                    className="h-5 px-2 text-xs"
                   >
                     {size.label}
                   </Button>
                 ))}
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 w-10">Font</span>
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500">Font:</span>
                 {SHIRT_TEXT_FONTS.map((font) => (
                   <Button
                     key={font.id}
@@ -1100,7 +1077,7 @@ function ShirtTextEditStep({
                     variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
                     onClick={() => updateFooter({ fontFamily: font.family })}
                     style={{ fontFamily: font.family }}
-                    className="h-6 px-2 text-xs"
+                    className="h-5 px-2 text-xs"
                   >
                     {font.label}
                   </Button>
@@ -1108,8 +1085,8 @@ function ShirtTextEditStep({
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
