@@ -1024,6 +1024,85 @@ function SimpleBackgroundStep({
   );
 }
 
+// Phone mockup with actual QR code for preview
+function PhoneMockupWithQR({ 
+  backgroundUrl, 
+  headerText,
+  footerText,
+  headerStyle,
+  footerStyle,
+  qrCodeUrl
+}: { 
+  backgroundUrl: string;
+  headerText?: string;
+  footerText?: string;
+  headerStyle?: TextStyleConfig;
+  footerStyle?: TextStyleConfig;
+  qrCodeUrl?: string;
+}) {
+  const getFontSize = (size: string) => {
+    if (size === '12px' || size === 'sm') return '12px';
+    if (size === '24px' || size === 'lg') return '20px';
+    return '16px';
+  };
+
+  return (
+    <div className="relative mx-auto" style={{ width: '180px' }}>
+      <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
+        <div className="aspect-[9/19] relative">
+          {backgroundUrl && (
+            <img 
+              src={backgroundUrl} 
+              alt="Background" 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
+            {headerText && headerStyle?.enabled && (
+              <div 
+                className="text-center mb-2 px-1 max-w-full"
+                style={{
+                  color: headerStyle.color || '#ffffff',
+                  fontSize: getFontSize(headerStyle.fontSize),
+                  fontFamily: headerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(headerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {headerText}
+              </div>
+            )}
+            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {qrCodeUrl ? (
+                <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+              ) : (
+                <QrCode className="w-12 h-12 text-slate-800" />
+              )}
+            </div>
+            {footerText && footerStyle?.enabled && (
+              <div 
+                className="text-center mt-2 px-1 max-w-full"
+                style={{
+                  color: footerStyle.color || '#ffffff',
+                  fontSize: getFontSize(footerStyle.fontSize),
+                  fontFamily: footerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(footerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {footerText}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Phone mockup component for previews
 function PhoneMockup({ 
   backgroundUrl, 
@@ -1386,40 +1465,49 @@ function SimplePreviewStep({
   headerStyle,
   footerStyle,
   title,
+  qrCodeUrl,
   onGoBack
 }: { 
   backgroundUrl: string;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   title: string;
+  qrCodeUrl?: string;
   onGoBack: () => void;
 }) {
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Your Creation</h2>
-        <p className="text-slate-400">Here's what it will look like</p>
+        <h2 className="text-xl font-bold text-white mb-1">Your Creation</h2>
+        <p className="text-slate-400 text-sm">Here's what it will look like</p>
       </div>
 
-      <PhoneMockup
-        backgroundUrl={backgroundUrl}
-        headerText={headerStyle.enabled ? headerStyle.text : undefined}
-        footerText={footerStyle.enabled ? footerStyle.text : undefined}
-        headerStyle={headerStyle}
-        footerStyle={footerStyle}
-        className="scale-125 my-8"
-      />
-
       {title && (
-        <div className="bg-slate-800/50 rounded-lg p-4 max-w-sm mx-auto">
-          <p className="text-sm text-slate-400">Title</p>
-          <p className="text-white font-medium">{title}</p>
+        <div className="bg-slate-800/50 rounded-lg p-3 max-w-xs mx-auto">
+          <p className="text-xs text-slate-400">Title</p>
+          <p className="text-white font-medium text-sm">{title}</p>
         </div>
+      )}
+
+      <div className="pt-4">
+        <PhoneMockupWithQR
+          backgroundUrl={backgroundUrl}
+          headerText={headerStyle.enabled ? headerStyle.text : undefined}
+          footerText={footerStyle.enabled ? footerStyle.text : undefined}
+          headerStyle={headerStyle}
+          footerStyle={footerStyle}
+          qrCodeUrl={qrCodeUrl}
+        />
+      </div>
+
+      {qrCodeUrl && (
+        <p className="text-xs text-green-400">Scan the QR code to test it!</p>
       )}
 
       <Button
         variant="outline"
         onClick={onGoBack}
+        className="mt-4"
         data-testid="button-preview-change"
       >
         <ChevronLeft className="w-4 h-4 mr-2" />
@@ -2036,12 +2124,34 @@ export default function TestMembersSandbox() {
   // Simple wizard text state
   const [textLayoutChoice, setTextLayoutChoice] = useState<TextLayoutChoice>('');
   const [wantsText, setWantsText] = useState<boolean | null>(null);
+  const [previewQrUrl, setPreviewQrUrl] = useState<string>('');
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
 
   // === SIMPLE WIZARD HANDLERS ===
-  const handleSimpleNext = () => {
+  const generatePreviewQrCode = async () => {
+    // Generate a QR code pointing to a preview URL
+    const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(previewUrl)}`;
+    setPreviewQrUrl(qrApiUrl);
+    return qrApiUrl;
+  };
+
+  const handleSimpleNext = async () => {
     const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
     if (currentIndex < SIMPLE_WIZARD_STEPS.length - 1) {
-      setSimpleStep(SIMPLE_WIZARD_STEPS[currentIndex + 1].id);
+      const nextStep = SIMPLE_WIZARD_STEPS[currentIndex + 1].id;
+      
+      // Generate QR code when moving from details to preview
+      if (simpleStep === 'details' && nextStep === 'preview') {
+        setIsGeneratingQr(true);
+        try {
+          await generatePreviewQrCode();
+        } finally {
+          setIsGeneratingQr(false);
+        }
+      }
+      
+      setSimpleStep(nextStep);
     }
   };
 
@@ -2442,6 +2552,7 @@ export default function TestMembersSandbox() {
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
                     title={simpleTitle}
+                    qrCodeUrl={previewQrUrl}
                     onGoBack={() => setSimpleStep('details')}
                   />
                 )}
