@@ -716,13 +716,15 @@ function GraphicSizeStep({
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  // Graphic outline sizes for display
+  // Graphic outline sizes calculated from Printify specs
+  // SVG shirt body: 74px wide = 20" real shirt. Scale: 3.7 px/inch
+  // Small: 6"x8" = 22x30px, Medium: 9"x12" = 33x44px, Large: 11"x14" = 41x52px
   const getOutlineSize = (size: GraphicSize) => {
     const sizeKey = size || 'medium';
     const sizes: Record<string, { w: number; h: number }> = { 
-      small: { w: 30, h: 45 }, 
-      medium: { w: 45, h: 68 }, 
-      large: { w: 60, h: 90 } 
+      small: { w: 22, h: 30 }, 
+      medium: { w: 33, h: 44 }, 
+      large: { w: 41, h: 52 } 
     };
     return sizes[sizeKey] || sizes.medium;
   };
@@ -931,13 +933,15 @@ function ShirtTextEditStep({
   const showHeader = layout === 'header' || layout === 'both';
   const showFooter = layout === 'footer' || layout === 'both';
   
-  // Graphic outline sizes for SVG
+  // Graphic outline sizes calculated from Printify specs
+  // SVG shirt body: 74px wide = 20" real shirt. Scale: 3.7 px/inch
+  // Small: 6"x8" = 22x30px, Medium: 9"x12" = 33x44px, Large: 11"x14" = 41x52px
   const getOutlineSize = () => {
     const sizeKey = graphicSize || 'medium';
     const sizes: Record<string, { w: number; h: number }> = { 
-      small: { w: 30, h: 45 }, 
-      medium: { w: 45, h: 68 }, 
-      large: { w: 60, h: 90 } 
+      small: { w: 22, h: 30 }, 
+      medium: { w: 33, h: 44 }, 
+      large: { w: 41, h: 52 } 
     };
     return sizes[sizeKey] || sizes.medium;
   };
@@ -971,13 +975,16 @@ function ShirtTextEditStep({
     <div className="space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Add Your Text</h2>
-        <p className="text-slate-400 text-sm">Header above, footer below your graphic</p>
+        <p className="text-slate-400 text-sm">Text stays inside your graphic area</p>
       </div>
       
-      {/* Header controls ABOVE graphic */}
+      {/* Header controls */}
       {showHeader && (
         <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-          <Label className="text-white font-medium text-sm">Header Text (above graphic)</Label>
+          <div>
+            <Label className="text-white font-bold text-sm">Header Text</Label>
+            <p className="text-slate-500 text-xs">Top of graphic</p>
+          </div>
           <Input
             value={headerStyle.text}
             onChange={(e) => updateHeader({ text: e.target.value })}
@@ -1029,13 +1036,13 @@ function ShirtTextEditStep({
               ))}
             </div>
           </div>
-          {/* Position slider for header */}
+          {/* Position slider for header - moves within graphic */}
           <div className="flex items-center gap-2 pt-1">
             <span className="text-xs text-slate-500">Position:</span>
             <input
               type="range"
-              min="-15"
-              max="15"
+              min="-8"
+              max="8"
               value={headerOffset}
               onChange={(e) => setHeaderOffset(Number(e.target.value))}
               className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
@@ -1069,11 +1076,11 @@ function ShirtTextEditStep({
             rx="3"
           />
           
-          {/* Header text - ABOVE the graphic outline */}
+          {/* Header text - at TOP inside the graphic */}
           {showHeader && (
             <text
               x={graphicX}
-              y={graphicY - outlineSize.h/2 - 5 + headerOffset}
+              y={graphicY - outlineSize.h/2 + 8 + headerOffset}
               textAnchor="middle"
               fill={headerStyle.color || '#fff'}
               fontSize={getSvgFontSize(headerStyle.fontSize, isLeftChest)}
@@ -1095,11 +1102,11 @@ function ShirtTextEditStep({
           />
           <text x={graphicX} y={graphicY + 3} textAnchor="middle" fontSize={isLeftChest ? 5 : 8} fill="#333">QR</text>
           
-          {/* Footer text - BELOW the graphic outline */}
+          {/* Footer text - at BOTTOM inside the graphic */}
           {showFooter && (
             <text
               x={graphicX}
-              y={graphicY + outlineSize.h/2 + 10 + footerOffset}
+              y={graphicY + outlineSize.h/2 - 3 + footerOffset}
               textAnchor="middle"
               fill={footerStyle.color || '#fff'}
               fontSize={getSvgFontSize(footerStyle.fontSize, isLeftChest)}
@@ -1112,10 +1119,13 @@ function ShirtTextEditStep({
         </svg>
       </div>
       
-      {/* Footer controls BELOW graphic */}
+      {/* Footer controls */}
       {showFooter && (
         <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-          <Label className="text-white font-medium text-sm">Footer Text (below graphic)</Label>
+          <div>
+            <Label className="text-white font-bold text-sm">Footer Text</Label>
+            <p className="text-slate-500 text-xs">Bottom of graphic</p>
+          </div>
           <Input
             value={footerStyle.text}
             onChange={(e) => updateFooter({ text: e.target.value })}
@@ -1167,13 +1177,13 @@ function ShirtTextEditStep({
               ))}
             </div>
           </div>
-          {/* Position slider for footer */}
+          {/* Position slider for footer - moves within graphic */}
           <div className="flex items-center gap-2 pt-1">
             <span className="text-xs text-slate-500">Position:</span>
             <input
               type="range"
-              min="-15"
-              max="15"
+              min="-8"
+              max="8"
               value={footerOffset}
               onChange={(e) => setFooterOffset(Number(e.target.value))}
               className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
@@ -1209,10 +1219,12 @@ function ShirtPreviewStep({
   
   const getGraphicDimensions = () => {
     const sizeKey = graphicSize || 'medium';
+    // Calculated from Printify specs: 74px SVG = 20" real shirt (3.7 px/inch)
+    // Small: 6"x8" = 22x30px, Medium: 9"x12" = 33x44px, Large: 11"x14" = 41x52px
     const sizes: Record<string, { w: number; h: number }> = {
-      small: { w: 30, h: 45 },
-      medium: { w: 45, h: 68 },
-      large: { w: 60, h: 90 }
+      small: { w: 22, h: 30 },
+      medium: { w: 33, h: 44 },
+      large: { w: 41, h: 52 }
     };
     return sizes[sizeKey] || sizes.medium;
   };
