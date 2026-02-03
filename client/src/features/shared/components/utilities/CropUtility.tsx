@@ -238,12 +238,12 @@ export function CropUtility({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{title} {!showUploadUI && `(${aspectLabel} ratio)`}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col items-center justify-center min-h-[300px]">
+        <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center min-h-[200px]">
           {imageLoading ? (
             <Loader2 className="h-8 w-8 animate-spin" />
           ) : showUploadUI ? (
@@ -305,8 +305,8 @@ export function CropUtility({
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     aspect={aspectRatio}
-                    className="max-h-[60vh]"
-                    style={{ maxHeight: '60vh' }}
+                    className="max-h-[50vh]"
+                    style={{ maxHeight: '50vh' }}
                   >
                     <img
                       ref={imgRef}
@@ -314,7 +314,7 @@ export function CropUtility({
                       alt="Crop preview"
                       onLoad={onImageLoad}
                       onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
-                      className="max-w-full max-h-[60vh] mx-auto block"
+                      className="max-w-full max-h-[50vh] mx-auto block"
                       data-testid="img-crop-preview"
                     />
                   </ReactCrop>
@@ -324,7 +324,7 @@ export function CropUtility({
                     src={imageSrc}
                     alt="Full preview"
                     onLoad={onImageLoad}
-                    className="max-w-full max-h-[60vh] mx-auto"
+                    className="max-w-full max-h-[50vh] mx-auto"
                     data-testid="img-full-preview"
                   />
                 )}
@@ -333,7 +333,7 @@ export function CropUtility({
           ) : null}
         </div>
 
-        <DialogFooter className="flex-row gap-2">
+        <DialogFooter className="flex-shrink-0 flex-row gap-2 pt-4">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)} 
