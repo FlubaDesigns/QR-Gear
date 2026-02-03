@@ -81,18 +81,22 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'type' | 'background' | 'save' | 'details' | 'publish';
+type SimpleWizardStep = 'channel' | 'type' | 'background' | 'text-ask' | 'text-choice' | 'text-edit' | 'details' | 'preview' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop';
+type TextLayoutChoice = 'header' | 'footer' | 'both' | '';
 
-// Simple Wizard - 6 essential steps for first-time users
+// Simple Wizard - streamlined steps for first-time users
 const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'background', label: 'Background', icon: ImagePlus },
-  { id: 'save', label: 'Save', icon: Library },
+  { id: 'text-ask', label: 'Text', icon: Type },
+  { id: 'text-choice', label: 'Layout', icon: Type },
+  { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'details', label: 'Details', icon: Type },
+  { id: 'preview', label: 'Preview', icon: Eye },
   { id: 'publish', label: 'Publish', icon: Send },
 ];
 
@@ -1020,6 +1024,437 @@ function SimpleBackgroundStep({
   );
 }
 
+// Phone mockup component for previews
+function PhoneMockup({ 
+  backgroundUrl, 
+  headerText,
+  footerText,
+  headerStyle,
+  footerStyle,
+  className = ""
+}: { 
+  backgroundUrl: string;
+  headerText?: string;
+  footerText?: string;
+  headerStyle?: TextStyleConfig;
+  footerStyle?: TextStyleConfig;
+  className?: string;
+}) {
+  const getFontSize = (size: string) => {
+    if (size === '12px' || size === 'sm') return '10px';
+    if (size === '24px' || size === 'lg') return '16px';
+    return '12px';
+  };
+
+  return (
+    <div className={`relative mx-auto ${className}`} style={{ width: '200px' }}>
+      <div className="relative rounded-[2rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-4 bg-slate-700 rounded-full" />
+        <div className="aspect-[9/19] relative">
+          {backgroundUrl && (
+            <img 
+              src={backgroundUrl} 
+              alt="Background" 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+            {headerText && headerStyle?.enabled && (
+              <div 
+                className="text-center mb-2 px-2"
+                style={{
+                  color: headerStyle.color || '#ffffff',
+                  fontSize: getFontSize(headerStyle.fontSize),
+                  fontFamily: headerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                }}
+              >
+                {headerText}
+              </div>
+            )}
+            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center">
+              <QrCode className="w-12 h-12 text-slate-800" />
+            </div>
+            {footerText && footerStyle?.enabled && (
+              <div 
+                className="text-center mt-2 px-2"
+                style={{
+                  color: footerStyle.color || '#ffffff',
+                  fontSize: getFontSize(footerStyle.fontSize),
+                  fontFamily: footerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                }}
+              >
+                {footerText}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Simple Wizard Step: Text Ask (phone preview with "Want to add text?")
+function TextAskStep({ 
+  backgroundUrl,
+  onYes,
+  onNo
+}: { 
+  backgroundUrl: string;
+  onYes: () => void;
+  onNo: () => void;
+}) {
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Looking Good!</h2>
+        <p className="text-slate-400">Would you like to add some text?</p>
+      </div>
+
+      <PhoneMockup backgroundUrl={backgroundUrl} />
+
+      <div className="max-w-sm mx-auto grid grid-cols-2 gap-4">
+        <Button
+          size="lg"
+          className="h-16 text-lg bg-green-600 hover:bg-green-700"
+          onClick={onYes}
+          data-testid="button-text-yes"
+        >
+          <Type className="w-5 h-5 mr-2" />
+          Yes
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-16 text-lg"
+          onClick={onNo}
+          data-testid="button-text-no"
+        >
+          <ChevronRight className="w-5 h-5 mr-2" />
+          No, Skip
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Simple Wizard Step: Text Layout Choice (Header/Footer/Both)
+function TextLayoutChoiceStep({ 
+  selected,
+  onSelect
+}: { 
+  selected: TextLayoutChoice;
+  onSelect: (choice: TextLayoutChoice) => void;
+}) {
+  const options = [
+    {
+      id: 'header' as TextLayoutChoice,
+      label: 'Header Only',
+      description: 'Text above the QR code'
+    },
+    {
+      id: 'footer' as TextLayoutChoice,
+      label: 'Footer Only', 
+      description: 'Text below the QR code'
+    },
+    {
+      id: 'both' as TextLayoutChoice,
+      label: 'Both',
+      description: 'Text above and below'
+    }
+  ];
+
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Where Should the Text Go?</h2>
+        <p className="text-slate-400">Choose a layout for your text</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option.id)}
+            className={`p-4 rounded-xl border-2 transition-all ${
+              selected === option.id
+                ? 'border-green-500 bg-green-500/20'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid={`button-layout-${option.id}`}
+          >
+            <div className="w-full aspect-[9/16] bg-slate-700 rounded-lg mb-3 flex flex-col items-center justify-center p-2">
+              {(option.id === 'header' || option.id === 'both') && (
+                <div className="w-full h-3 bg-slate-500 rounded mb-1" />
+              )}
+              <div className="w-8 h-8 bg-white rounded flex items-center justify-center my-1">
+                <QrCode className="w-5 h-5 text-slate-800" />
+              </div>
+              {(option.id === 'footer' || option.id === 'both') && (
+                <div className="w-full h-3 bg-slate-500 rounded mt-1" />
+              )}
+            </div>
+            <p className="text-white font-medium text-sm">{option.label}</p>
+            {selected === option.id && (
+              <Check className="w-5 h-5 text-green-400 mx-auto mt-2" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Text style presets
+const TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444'];
+const TEXT_SIZES = [
+  { id: 'sm', label: 'S', value: '12px' },
+  { id: 'md', label: 'M', value: '18px' },
+  { id: 'lg', label: 'L', value: '24px' }
+];
+const TEXT_FONTS = [
+  { id: 'sans', label: 'Clean', family: 'Arial' },
+  { id: 'bold', label: 'Bold', family: 'Impact' },
+  { id: 'script', label: 'Script', family: 'Georgia' }
+];
+
+// Simple Wizard Step: Text Edit (enter text + styling)
+function TextEditStep({ 
+  layout,
+  backgroundUrl,
+  headerStyle,
+  footerStyle,
+  onHeaderChange,
+  onFooterChange
+}: { 
+  layout: TextLayoutChoice;
+  backgroundUrl: string;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  onHeaderChange: (style: TextStyleConfig) => void;
+  onFooterChange: (style: TextStyleConfig) => void;
+}) {
+  const showHeader = layout === 'header' || layout === 'both';
+  const showFooter = layout === 'footer' || layout === 'both';
+
+  const updateStyle = (
+    current: TextStyleConfig, 
+    updates: Partial<TextStyleConfig>,
+    setter: (style: TextStyleConfig) => void
+  ) => {
+    setter({ ...current, ...updates, enabled: true });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-white mb-2">Add Your Text</h2>
+        <p className="text-slate-400">Type your message and style it</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          {showHeader && (
+            <div className="space-y-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+              <Label className="text-white font-medium">Header Text</Label>
+              <Input
+                value={headerStyle.text || ''}
+                onChange={(e) => updateStyle(headerStyle, { text: e.target.value }, onHeaderChange)}
+                placeholder="Enter header text..."
+                className="bg-slate-700 border-slate-600 text-white"
+                data-testid="input-header-text"
+              />
+              
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400 w-16">Color</span>
+                  <div className="flex gap-2">
+                    {TEXT_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => updateStyle(headerStyle, { color }, onHeaderChange)}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                          headerStyle.color === color ? 'border-white scale-110' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        data-testid={`button-header-color-${color}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400 w-16">Size</span>
+                  <div className="flex gap-2">
+                    {TEXT_SIZES.map((size) => (
+                      <Button
+                        key={size.id}
+                        size="sm"
+                        variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
+                        onClick={() => updateStyle(headerStyle, { fontSize: size.value }, onHeaderChange)}
+                        data-testid={`button-header-size-${size.id}`}
+                      >
+                        {size.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400 w-16">Font</span>
+                  <div className="flex gap-2">
+                    {TEXT_FONTS.map((font) => (
+                      <Button
+                        key={font.id}
+                        size="sm"
+                        variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
+                        onClick={() => updateStyle(headerStyle, { fontFamily: font.family }, onHeaderChange)}
+                        style={{ fontFamily: font.family }}
+                        data-testid={`button-header-font-${font.id}`}
+                      >
+                        {font.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showFooter && (
+            <div className="space-y-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+              <Label className="text-white font-medium">Footer Text</Label>
+              <Input
+                value={footerStyle.text || ''}
+                onChange={(e) => updateStyle(footerStyle, { text: e.target.value }, onFooterChange)}
+                placeholder="Enter footer text..."
+                className="bg-slate-700 border-slate-600 text-white"
+                data-testid="input-footer-text"
+              />
+              
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400 w-16">Color</span>
+                  <div className="flex gap-2">
+                    {TEXT_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => updateStyle(footerStyle, { color }, onFooterChange)}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                          footerStyle.color === color ? 'border-white scale-110' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        data-testid={`button-footer-color-${color}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400 w-16">Size</span>
+                  <div className="flex gap-2">
+                    {TEXT_SIZES.map((size) => (
+                      <Button
+                        key={size.id}
+                        size="sm"
+                        variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
+                        onClick={() => updateStyle(footerStyle, { fontSize: size.value }, onFooterChange)}
+                        data-testid={`button-footer-size-${size.id}`}
+                      >
+                        {size.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400 w-16">Font</span>
+                  <div className="flex gap-2">
+                    {TEXT_FONTS.map((font) => (
+                      <Button
+                        key={font.id}
+                        size="sm"
+                        variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
+                        onClick={() => updateStyle(footerStyle, { fontFamily: font.family }, onFooterChange)}
+                        style={{ fontFamily: font.family }}
+                        data-testid={`button-footer-font-${font.id}`}
+                      >
+                        {font.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-center">
+          <PhoneMockup
+            backgroundUrl={backgroundUrl}
+            headerText={showHeader ? headerStyle.text : undefined}
+            footerText={showFooter ? footerStyle.text : undefined}
+            headerStyle={showHeader ? headerStyle : undefined}
+            footerStyle={showFooter ? footerStyle : undefined}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Simple Wizard Step: Final Preview
+function SimplePreviewStep({ 
+  backgroundUrl,
+  headerStyle,
+  footerStyle,
+  title,
+  onGoBack
+}: { 
+  backgroundUrl: string;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  title: string;
+  onGoBack: () => void;
+}) {
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Your Creation</h2>
+        <p className="text-slate-400">Here's what it will look like</p>
+      </div>
+
+      <PhoneMockup
+        backgroundUrl={backgroundUrl}
+        headerText={headerStyle.enabled ? headerStyle.text : undefined}
+        footerText={footerStyle.enabled ? footerStyle.text : undefined}
+        headerStyle={headerStyle}
+        footerStyle={footerStyle}
+        className="scale-125 my-8"
+      />
+
+      {title && (
+        <div className="bg-slate-800/50 rounded-lg p-4 max-w-sm mx-auto">
+          <p className="text-sm text-slate-400">Title</p>
+          <p className="text-white font-medium">{title}</p>
+        </div>
+      )}
+
+      <Button
+        variant="outline"
+        onClick={onGoBack}
+        data-testid="button-preview-change"
+      >
+        <ChevronLeft className="w-4 h-4 mr-2" />
+        Make Changes
+      </Button>
+    </div>
+  );
+}
+
 // Simple Wizard Step: Details (title + description only)
 function DetailsStep({ 
   title, 
@@ -1623,6 +2058,10 @@ export default function TestMembersSandbox() {
   const [showBackgroundLibrary, setShowBackgroundLibrary] = useState(false);
   const [landingPage, setLandingPage] = useState<LandingPageConfig>({ ...defaultLandingPage });
   const [videoUrl, setVideoUrl] = useState<string>('');
+  
+  // Simple wizard text state
+  const [textLayoutChoice, setTextLayoutChoice] = useState<TextLayoutChoice>('');
+  const [wantsText, setWantsText] = useState<boolean | null>(null);
 
   // === SIMPLE WIZARD HANDLERS ===
   const handleSimpleNext = () => {
@@ -1644,8 +2083,11 @@ export default function TestMembersSandbox() {
       case 'channel': return selectedChannel !== null;
       case 'type': return qrType !== '';
       case 'background': return backgroundUrl !== ''; // Background is REQUIRED for QR Canvas
-      case 'save': return true; // Save is optional - they can skip
+      case 'text-ask': return wantsText !== null;
+      case 'text-choice': return textLayoutChoice !== '';
+      case 'text-edit': return true; // Can proceed with or without text
       case 'details': return simpleTitle.trim() !== '';
+      case 'preview': return true;
       case 'publish': return true;
       default: return false;
     }
@@ -1971,128 +2413,46 @@ export default function TestMembersSandbox() {
                   <SimpleBackgroundStep
                     memberId={user.id}
                     backgroundUrl={backgroundUrl}
-                    onBackgroundSelected={(croppedUrl, originalUrl, needsCrop) => {
+                    onBackgroundSelected={(croppedUrl, originalUrl) => {
                       setBackgroundUrl(croppedUrl);
                       setOriginalBackgroundUrl(originalUrl);
-                      if (needsCrop && originalUrl !== croppedUrl) {
-                        setSimpleStep('save');
-                      } else {
-                        setSimpleStep('details');
-                      }
+                      // Go to text-ask step after background selection
+                      setSimpleStep('text-ask');
                     }}
                     onComplete={() => {}}
                   />
                 )}
-                {simpleStep === 'save' && (
-                  <div className="space-y-6">
-                    <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold text-white mb-2">Save to Your Library</h2>
-                      <p className="text-slate-400">Save your cropped image to use again later</p>
-                    </div>
-                    
-                    {backgroundUrl && (
-                      <div className="relative max-w-[200px] mx-auto mb-6">
-                        <div className="aspect-[9/16] rounded-lg overflow-hidden border-2 border-slate-600">
-                          <img src={backgroundUrl} alt="Cropped" className="w-full h-full object-cover" />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 gap-4 max-w-md mx-auto">
-                      <Button
-                        size="lg"
-                        className="h-16 text-lg"
-                        onClick={async () => {
-                          if (backgroundUrl && user?.id) {
-                            try {
-                              const headers = await getAuthHeaders();
-                              await fetch(`/api/members/${user.id}/library/upload`, {
-                                method: 'POST',
-                                headers: { ...headers, 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  assetType: 'background',
-                                  name: 'Cropped Background',
-                                  imageData: backgroundUrl,
-                                  mimeType: 'image/jpeg',
-                                  originalName: 'cropped_background.jpg'
-                                })
-                              });
-                              toast({ title: "Cropped image saved to your library" });
-                            } catch (err) {
-                              toast({ title: "Save failed", variant: "destructive" });
-                            }
-                          }
-                          setSimpleStep('details');
-                        }}
-                        data-testid="button-save-crop-only"
-                      >
-                        <Library className="w-5 h-5 mr-2" />
-                        Save Crop Only
-                      </Button>
-                      
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="h-16 text-lg"
-                        onClick={async () => {
-                          if (backgroundUrl && user?.id && originalBackgroundUrl) {
-                            try {
-                              const headers = await getAuthHeaders();
-                              // Save cropped
-                              await fetch(`/api/members/${user.id}/library/upload`, {
-                                method: 'POST',
-                                headers: { ...headers, 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  assetType: 'background',
-                                  name: 'Cropped Background',
-                                  imageData: backgroundUrl,
-                                  mimeType: 'image/jpeg',
-                                  originalName: 'cropped_background.jpg'
-                                })
-                              });
-                              // Save original
-                              const originalBlob = await fetch(originalBackgroundUrl).then(r => r.blob());
-                              const reader = new FileReader();
-                              const originalData = await new Promise<string>((resolve, reject) => {
-                                reader.onload = () => resolve(reader.result as string);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(originalBlob);
-                              });
-                              await fetch(`/api/members/${user.id}/library/upload`, {
-                                method: 'POST',
-                                headers: { ...headers, 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  assetType: 'background',
-                                  name: 'Original Background',
-                                  imageData: originalData,
-                                  mimeType: 'image/jpeg',
-                                  originalName: 'original_background.jpg'
-                                })
-                              });
-                              toast({ title: "Cropped and original saved to your library" });
-                            } catch (err) {
-                              toast({ title: "Save failed", variant: "destructive" });
-                            }
-                          }
-                          setSimpleStep('details');
-                        }}
-                        data-testid="button-save-crop-and-original"
-                      >
-                        <ImagePlus className="w-5 h-5 mr-2" />
-                        Save Crop & Original
-                      </Button>
-                      
-                      <Button
-                        size="lg"
-                        variant="ghost"
-                        className="h-12 text-slate-400"
-                        onClick={() => setSimpleStep('details')}
-                        data-testid="button-skip-save"
-                      >
-                        Skip
-                      </Button>
-                    </div>
-                  </div>
+                {simpleStep === 'text-ask' && (
+                  <TextAskStep
+                    backgroundUrl={backgroundUrl}
+                    onYes={() => {
+                      setWantsText(true);
+                      setSimpleStep('text-choice');
+                    }}
+                    onNo={() => {
+                      setWantsText(false);
+                      setSimpleStep('details');
+                    }}
+                  />
+                )}
+                {simpleStep === 'text-choice' && (
+                  <TextLayoutChoiceStep
+                    selected={textLayoutChoice}
+                    onSelect={(choice) => {
+                      setTextLayoutChoice(choice);
+                      setSimpleStep('text-edit');
+                    }}
+                  />
+                )}
+                {simpleStep === 'text-edit' && (
+                  <TextEditStep
+                    layout={textLayoutChoice}
+                    backgroundUrl={backgroundUrl}
+                    headerStyle={headerStyle}
+                    footerStyle={footerStyle}
+                    onHeaderChange={setHeaderStyle}
+                    onFooterChange={setFooterStyle}
+                  />
                 )}
                 {simpleStep === 'details' && (
                   <DetailsStep
@@ -2100,6 +2460,15 @@ export default function TestMembersSandbox() {
                     description={simpleDescription}
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
+                  />
+                )}
+                {simpleStep === 'preview' && (
+                  <SimplePreviewStep
+                    backgroundUrl={backgroundUrl}
+                    headerStyle={headerStyle}
+                    footerStyle={footerStyle}
+                    title={simpleTitle}
+                    onGoBack={() => setSimpleStep('details')}
                   />
                 )}
                 {simpleStep === 'publish' && (
