@@ -188,8 +188,70 @@ export function BackgroundLibraryPicker({
     setAssetToCrop(null);
   };
 
-  const handleCropComplete = (croppedUrl: string) => {
+  const saveCroppedMutation = useMutation({
+    mutationFn: async ({ croppedData, originalAsset }: { croppedData: string; originalAsset: CropAsset }) => {
+      const headers = await getAuthHeaders();
+      
+      // Save the cropped version
+      const croppedRes = await fetch(`/api/members/${memberId}/library/upload`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          assetType,
+          name: `${originalAsset.name} (cropped)`,
+          imageData: croppedData,
+          mimeType: 'image/jpeg',
+          originalName: `${originalAsset.name}_cropped.jpg`
+        })
+      });
+      if (!croppedRes.ok) throw new Error('Failed to save cropped image');
+      
+      // If from common library, also save the original to personal
+      const isFromPersonal = personalAssets.some(a => a.id === originalAsset.id);
+      if (!isFromPersonal) {
+        const originalBlob = await fetch(originalAsset.imageUrl).then(r => r.blob());
+        const reader = new FileReader();
+        const originalData = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(originalBlob);
+        });
+        
+        await fetch(`/api/members/${memberId}/library/upload`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            assetType,
+            name: originalAsset.name,
+            imageData: originalData,
+            mimeType: 'image/jpeg',
+            originalName: originalAsset.name
+          })
+        });
+      }
+      
+      return croppedRes.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Saved to your library" });
+      queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'library'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const handleCropComplete = async (croppedUrl: string) => {
     onSelect(croppedUrl);
+    
+    // Save to library in background
+    if (assetToCrop) {
+      saveCroppedMutation.mutate({
+        croppedData: croppedUrl,
+        originalAsset: assetToCrop
+      });
+    }
+    
     setCropDialogOpen(false);
     setAssetToCrop(null);
   };

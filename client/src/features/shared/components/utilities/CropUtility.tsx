@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Crop as CropIcon, Maximize, Check, X, Trash2 } from "lucide-react";
+import { Loader2, Upload, Crop as CropIcon, Maximize, Check, X, Trash2, Save } from "lucide-react";
 
 export interface CropAsset {
   id: string;
@@ -20,8 +20,10 @@ export interface CropUtilityProps {
   onOpenChange: (open: boolean) => void;
   onSave?: (croppedImageData: string, sourceAsset?: CropAsset) => Promise<void>;
   onCropComplete?: (croppedImageUrl: string) => void;
+  onCropAndSave?: (croppedImageUrl: string) => void;
   onDelete?: (id: string) => void;
   isDeleting?: boolean;
+  isSaving?: boolean;
   fetchImageBlob?: (url: string) => Promise<string>;
   aspectRatio?: number;
   title?: string;
@@ -43,8 +45,10 @@ export function CropUtility({
   onOpenChange,
   onSave,
   onCropComplete,
+  onCropAndSave,
   onDelete,
   isDeleting = false,
+  isSaving = false,
   fetchImageBlob,
   aspectRatio = 9 / 16,
   title = "Crop Image",
@@ -197,6 +201,13 @@ export function CropUtility({
     if (onCropComplete) {
       console.log("[CropUtility] Calling onCropComplete with dataUrl");
       onCropComplete(result.dataUrl);
+      onOpenChange(false);
+      return;
+    }
+
+    if (onCropAndSave) {
+      console.log("[CropUtility] Calling onCropAndSave with dataUrl");
+      onCropAndSave(result.dataUrl);
       onOpenChange(false);
       return;
     }
