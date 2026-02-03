@@ -64,6 +64,12 @@ export function BackgroundLibraryPicker({
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
+  const fetchImageBlob = async (url: string): Promise<string> => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  };
+
   const { data: commonAssets = [], isLoading: loadingCommon } = useQuery({
     queryKey: ['/api/members/common-library', assetType],
     queryFn: async () => {
@@ -317,6 +323,7 @@ export function BackgroundLibraryPicker({
           if (!open) setAssetToCrop(null);
         }}
         onCropComplete={handleCropComplete}
+        fetchImageBlob={fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Background"
       />
