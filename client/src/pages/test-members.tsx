@@ -1047,9 +1047,9 @@ function PhoneMockup({
   };
 
   return (
-    <div className={`relative mx-auto ${className}`} style={{ width: '200px' }}>
-      <div className="relative rounded-[2rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-4 bg-slate-700 rounded-full" />
+    <div className={`relative mx-auto ${className}`} style={{ width: '160px' }}>
+      <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
         <div className="aspect-[9/19] relative">
           {backgroundUrl && (
             <img 
@@ -1058,33 +1058,35 @@ function PhoneMockup({
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
             {headerText && headerStyle?.enabled && (
               <div 
-                className="text-center mb-2 px-2"
+                className="text-center mb-1 px-1 max-w-full"
                 style={{
                   color: headerStyle.color || '#ffffff',
                   fontSize: getFontSize(headerStyle.fontSize),
                   fontFamily: headerStyle.fontFamily || 'sans-serif',
                   fontWeight: 'bold',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(headerStyle.verticalOffset || 0) * 0.5}px)`
                 }}
               >
                 {headerText}
               </div>
             )}
-            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center">
-              <QrCode className="w-12 h-12 text-slate-800" />
+            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+              <QrCode className="w-9 h-9 text-slate-800" />
             </div>
             {footerText && footerStyle?.enabled && (
               <div 
-                className="text-center mt-2 px-2"
+                className="text-center mt-1 px-1 max-w-full"
                 style={{
                   color: footerStyle.color || '#ffffff',
                   fontSize: getFontSize(footerStyle.fontSize),
                   fontFamily: footerStyle.fontFamily || 'sans-serif',
                   fontWeight: 'bold',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(footerStyle.verticalOffset || 0) * 0.5}px)`
                 }}
               >
                 {footerText}
@@ -1221,6 +1223,106 @@ const TEXT_FONTS = [
   { id: 'script', label: 'Script', family: 'Georgia' }
 ];
 
+// Text style editor section component
+function TextStyleSection({ 
+  label,
+  style,
+  onStyleChange,
+  testIdPrefix
+}: {
+  label: string;
+  style: TextStyleConfig;
+  onStyleChange: (style: TextStyleConfig) => void;
+  testIdPrefix: string;
+}) {
+  const updateStyle = (updates: Partial<TextStyleConfig>) => {
+    onStyleChange({ ...style, ...updates, enabled: true });
+  };
+
+  return (
+    <div className="space-y-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700">
+      <Label className="text-white font-medium text-sm">{label}</Label>
+      <Input
+        value={style.text || ''}
+        onChange={(e) => updateStyle({ text: e.target.value })}
+        placeholder={`Enter ${label.toLowerCase()}...`}
+        className="bg-slate-700 border-slate-600 text-white h-10"
+        data-testid={`input-${testIdPrefix}-text`}
+      />
+      
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 w-12">Color</span>
+          <div className="flex gap-1 flex-wrap">
+            {TEXT_COLORS.map((color) => (
+              <button
+                key={color}
+                onClick={() => updateStyle({ color })}
+                className={`w-6 h-6 rounded-full border-2 transition-all ${
+                  style.color === color ? 'border-white scale-110' : 'border-slate-600'
+                }`}
+                style={{ backgroundColor: color }}
+                data-testid={`button-${testIdPrefix}-color-${color}`}
+              />
+            ))}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 w-12">Size</span>
+          <div className="flex gap-1">
+            {TEXT_SIZES.map((size) => (
+              <Button
+                key={size.id}
+                size="sm"
+                variant={style.fontSize === size.value ? 'default' : 'outline'}
+                onClick={() => updateStyle({ fontSize: size.value })}
+                className="h-7 px-3 text-xs"
+                data-testid={`button-${testIdPrefix}-size-${size.id}`}
+              >
+                {size.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 w-12">Font</span>
+          <div className="flex gap-1">
+            {TEXT_FONTS.map((font) => (
+              <Button
+                key={font.id}
+                size="sm"
+                variant={style.fontFamily === font.family ? 'default' : 'outline'}
+                onClick={() => updateStyle({ fontFamily: font.family })}
+                style={{ fontFamily: font.family }}
+                className="h-7 px-2 text-xs"
+                data-testid={`button-${testIdPrefix}-font-${font.id}`}
+              >
+                {font.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 w-12">Position</span>
+          <input
+            type="range"
+            min="-50"
+            max="50"
+            value={style.verticalOffset || 0}
+            onChange={(e) => updateStyle({ verticalOffset: parseInt(e.target.value) })}
+            className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+            data-testid={`slider-${testIdPrefix}-position`}
+          />
+          <span className="text-xs text-slate-500 w-8">{style.verticalOffset || 0}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Simple Wizard Step: Text Edit (enter text + styling)
 function TextEditStep({ 
   layout,
@@ -1240,168 +1342,40 @@ function TextEditStep({
   const showHeader = layout === 'header' || layout === 'both';
   const showFooter = layout === 'footer' || layout === 'both';
 
-  const updateStyle = (
-    current: TextStyleConfig, 
-    updates: Partial<TextStyleConfig>,
-    setter: (style: TextStyleConfig) => void
-  ) => {
-    setter({ ...current, ...updates, enabled: true });
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Add Your Text</h2>
-        <p className="text-slate-400">Type your message and style it</p>
+        <h2 className="text-xl font-bold text-white mb-1">Add Your Text</h2>
+        <p className="text-slate-400 text-sm">Type your message and style it</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          {showHeader && (
-            <div className="space-y-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-              <Label className="text-white font-medium">Header Text</Label>
-              <Input
-                value={headerStyle.text || ''}
-                onChange={(e) => updateStyle(headerStyle, { text: e.target.value }, onHeaderChange)}
-                placeholder="Enter header text..."
-                className="bg-slate-700 border-slate-600 text-white"
-                data-testid="input-header-text"
-              />
-              
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400 w-16">Color</span>
-                  <div className="flex gap-2">
-                    {TEXT_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => updateStyle(headerStyle, { color }, onHeaderChange)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          headerStyle.color === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        data-testid={`button-header-color-${color}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400 w-16">Size</span>
-                  <div className="flex gap-2">
-                    {TEXT_SIZES.map((size) => (
-                      <Button
-                        key={size.id}
-                        size="sm"
-                        variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
-                        onClick={() => updateStyle(headerStyle, { fontSize: size.value }, onHeaderChange)}
-                        data-testid={`button-header-size-${size.id}`}
-                      >
-                        {size.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+      {showHeader && (
+        <TextStyleSection
+          label="Header Text"
+          style={headerStyle}
+          onStyleChange={onHeaderChange}
+          testIdPrefix="header"
+        />
+      )}
 
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400 w-16">Font</span>
-                  <div className="flex gap-2">
-                    {TEXT_FONTS.map((font) => (
-                      <Button
-                        key={font.id}
-                        size="sm"
-                        variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
-                        onClick={() => updateStyle(headerStyle, { fontFamily: font.family }, onHeaderChange)}
-                        style={{ fontFamily: font.family }}
-                        data-testid={`button-header-font-${font.id}`}
-                      >
-                        {font.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showFooter && (
-            <div className="space-y-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-              <Label className="text-white font-medium">Footer Text</Label>
-              <Input
-                value={footerStyle.text || ''}
-                onChange={(e) => updateStyle(footerStyle, { text: e.target.value }, onFooterChange)}
-                placeholder="Enter footer text..."
-                className="bg-slate-700 border-slate-600 text-white"
-                data-testid="input-footer-text"
-              />
-              
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400 w-16">Color</span>
-                  <div className="flex gap-2">
-                    {TEXT_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => updateStyle(footerStyle, { color }, onFooterChange)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          footerStyle.color === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        data-testid={`button-footer-color-${color}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400 w-16">Size</span>
-                  <div className="flex gap-2">
-                    {TEXT_SIZES.map((size) => (
-                      <Button
-                        key={size.id}
-                        size="sm"
-                        variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
-                        onClick={() => updateStyle(footerStyle, { fontSize: size.value }, onFooterChange)}
-                        data-testid={`button-footer-size-${size.id}`}
-                      >
-                        {size.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400 w-16">Font</span>
-                  <div className="flex gap-2">
-                    {TEXT_FONTS.map((font) => (
-                      <Button
-                        key={font.id}
-                        size="sm"
-                        variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
-                        onClick={() => updateStyle(footerStyle, { fontFamily: font.family }, onFooterChange)}
-                        style={{ fontFamily: font.family }}
-                        data-testid={`button-footer-font-${font.id}`}
-                      >
-                        {font.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-center">
-          <PhoneMockup
-            backgroundUrl={backgroundUrl}
-            headerText={showHeader ? headerStyle.text : undefined}
-            footerText={showFooter ? footerStyle.text : undefined}
-            headerStyle={showHeader ? headerStyle : undefined}
-            footerStyle={showFooter ? footerStyle : undefined}
-          />
-        </div>
+      <div className="flex justify-center py-2">
+        <PhoneMockup
+          backgroundUrl={backgroundUrl}
+          headerText={showHeader ? headerStyle.text : undefined}
+          footerText={showFooter ? footerStyle.text : undefined}
+          headerStyle={showHeader ? headerStyle : undefined}
+          footerStyle={showFooter ? footerStyle : undefined}
+        />
       </div>
+
+      {showFooter && (
+        <TextStyleSection
+          label="Footer Text"
+          style={footerStyle}
+          onStyleChange={onFooterChange}
+          testIdPrefix="footer"
+        />
+      )}
     </div>
   );
 }
