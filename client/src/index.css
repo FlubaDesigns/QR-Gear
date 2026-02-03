@@ -377,3 +377,13 @@
     align-items: center !important;
   }
 }
+
+/* Subtle green glow animation for action buttons */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 8px 2px rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgba(34, 197, 94, 0.6);
+  }
+}

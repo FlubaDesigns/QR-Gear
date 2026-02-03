@@ -81,22 +81,41 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'type' | 'background' | 'text-ask' | 'text-choice' | 'text-edit' | 'details' | 'preview' | 'publish';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'location' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'details' | 'url-preview' | 'channel' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop';
 type TextLayoutChoice = 'header' | 'footer' | 'both' | '';
+type GraphicLocation = 'front-center' | 'left-chest' | 'back-center' | '';
+type GraphicSize = 'small' | 'medium' | 'large' | '';
+
+// Available shirt colors
+const SHIRT_COLORS = [
+  { id: 'white', name: 'White', hex: '#FFFFFF', textColor: '#000000' },
+  { id: 'black', name: 'Black', hex: '#1a1a1a', textColor: '#FFFFFF' },
+  { id: 'navy', name: 'Navy', hex: '#1e3a5f', textColor: '#FFFFFF' },
+  { id: 'red', name: 'Red', hex: '#dc2626', textColor: '#FFFFFF' },
+  { id: 'forest', name: 'Forest', hex: '#166534', textColor: '#FFFFFF' },
+  { id: 'gray', name: 'Gray', hex: '#6b7280', textColor: '#FFFFFF' },
+];
+
+// Available sizes
+const SHIRT_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
 
 // Simple Wizard - streamlined steps for first-time users
 const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
-  { id: 'channel', label: 'Channel', icon: Layers },
+  { id: 'product', label: 'Product', icon: Package },
+  { id: 'color', label: 'Color', icon: Sparkles },
+  { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
-  { id: 'background', label: 'Background', icon: ImagePlus },
-  { id: 'text-ask', label: 'Text', icon: Type },
+  { id: 'location', label: 'Location', icon: MapPin },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
+  { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'details', label: 'Details', icon: Type },
-  { id: 'preview', label: 'Preview', icon: Eye },
+  { id: 'url-preview', label: 'URL', icon: Link2 },
+  { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'publish', label: 'Publish', icon: Send },
 ];
 
@@ -395,112 +414,593 @@ function ChannelStep({
   );
 }
 
-function ProductPickerStep({ 
-  selectedProduct, 
+// Simple Wizard Step: Product Selection
+// Step 0: Product Picker
+function ProductPickerStep({
+  selectedProduct,
   onSelect
-}: { 
-  selectedProduct: ProductItem | null;
-  onSelect: (product: ProductItem) => void;
+}: {
+  selectedProduct: string;
+  onSelect: (product: string) => void;
 }) {
-  const { data: allowedData, isLoading: loadingAllowed } = useQuery<{ products: AllowedProduct[], storeCount?: number, message?: string }>({
-    queryKey: ["/api/members/allowed-products"],
-  });
-
-  const allowedProducts = allowedData?.products || [];
-  const hasAllowedProducts = allowedProducts.length > 0;
-
-  // Map to ScrollViewItem format with metadata from admin
-  const scrollItems: ScrollViewItem[] = allowedProducts.map((p) => ({
-    id: String(p.blueprintId),
-    imageUrl: p.imageUrl || "",
-    title: p.title,
-    subtitle: p.brand || undefined,
-    minPrice: p.retailPrice ? String(p.retailPrice) : null,
-    maxPrice: p.retailPrice ? String(p.retailPrice) : null,
-    colorCount: 0,
-    madeInUSA: p.hasUSAProvider || false,
-    metadata: {
-      brand: p.brand,
-      baseCost: p.baseCost || 0,
-      retailPrice: p.retailPrice || 0,
-      profit: p.profit || 0,
-      memberEarnings: p.memberEarnings || 0,
-      hasUSAProvider: p.hasUSAProvider || false,
-      placements: p.placements || [],
-    },
-  }));
-
-  const handleItemTap = (item: ScrollViewItem) => {
-    onSelect({
-      id: Number(item.id),
-      name: item.title,
-      thumbnailUrl: item.imageUrl || null,
-      placements: item.metadata?.placements || [],
-    });
-  };
-
-  // Skin renderer - receives data directly from scrollItem.metadata
-  const renderProductSkin = (item: ScrollViewItem, isSelected: boolean, onSelectItem: () => void) => {
-    const skinItem: SkinItem = {
-      id: String(item.id),
-      name: item.title,
-      primaryImage: item.imageUrl,
-      isUsed: isSelected,
-      metadata: item.metadata,
-    };
-    
-    return (
-      <AllowedProductCardSkin
-        item={skinItem}
-        actions={{ onSelect: () => onSelectItem() }}
-        onClick={onSelectItem}
-      />
-    );
-  };
-
-  if (loadingAllowed) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <div className="text-center mb-6">
+    <div className="text-center space-y-6">
+      <div>
         <h2 className="text-2xl font-bold text-white mb-2">Pick Your Product</h2>
-        <p className="text-slate-400">Tap a product to select it</p>
+        <p className="text-slate-400">What item would you like to create?</p>
       </div>
+      
+      <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+        <button
+          onClick={() => onSelect('t-shirt')}
+          className={`p-6 rounded-xl border-2 transition-all ${
+            selectedProduct === 't-shirt'
+              ? 'border-green-500 bg-green-500/20'
+              : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+          }`}
+          data-testid="button-product-tshirt"
+        >
+          <div className="text-4xl mb-2">👕</div>
+          <p className="text-white font-medium">T-Shirt</p>
+        </button>
+        
+        <button
+          onClick={() => onSelect('hoodie')}
+          className={`p-6 rounded-xl border-2 transition-all opacity-50 cursor-not-allowed ${
+            selectedProduct === 'hoodie'
+              ? 'border-green-500 bg-green-500/20'
+              : 'border-slate-600 bg-slate-800/50'
+          }`}
+          disabled
+          data-testid="button-product-hoodie"
+        >
+          <div className="text-4xl mb-2">🧥</div>
+          <p className="text-white font-medium">Hoodie</p>
+          <p className="text-xs text-slate-500">Coming soon</p>
+        </button>
+      </div>
+    </div>
+  );
+}
 
-      {!hasAllowedProducts ? (
-        <div className="text-center py-8">
-          <Package className="w-12 h-12 mx-auto mb-4 text-slate-500" />
-          <p className="text-slate-400 mb-2">No products available yet</p>
-          <p className="text-sm text-slate-500">
-            Admin needs to configure allowed products in Store Builder
-          </p>
-        </div>
-      ) : (
-        <SharedViewer
-          mode="scroll"
-          scrollProps={{
-            items: scrollItems,
-            selectedId: selectedProduct ? String(selectedProduct.id) : undefined,
-            onSelect: handleItemTap,
-            aspectRatio: "square",
-            emptyMessage: "No products available.",
-            layout: "vertical",
-            gridHeight: "min(60vh, 500px)",
-            renderItem: renderProductSkin,
-          }}
-        />
+// Advanced wizard product picker (placeholder - not in scope)
+function AdvancedProductPickerStep({ selectedProduct, onSelect }: { selectedProduct: ProductItem | null; onSelect: (product: ProductItem) => void; }) {
+  return <div className="text-center py-12 text-slate-400">Advanced product picker - use Simple Wizard for now</div>;
+}
+
+// Step 0a: Color Picker
+function ColorPickerStep({
+  selectedColor,
+  onSelect
+}: {
+  selectedColor: string;
+  onSelect: (color: string) => void;
+}) {
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Color</h2>
+        <p className="text-slate-400">What color would you like?</p>
+      </div>
+      
+      <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
+        {SHIRT_COLORS.map((color) => (
+          <button
+            key={color.id}
+            onClick={() => onSelect(color.id)}
+            className={`w-16 h-16 rounded-full border-4 transition-all ${
+              selectedColor === color.id
+                ? 'border-green-500 scale-110'
+                : 'border-slate-600 hover:border-slate-400'
+            }`}
+            style={{ backgroundColor: color.hex }}
+            title={color.name}
+            data-testid={`button-color-${color.id}`}
+          />
+        ))}
+      </div>
+      
+      {selectedColor && (
+        <p className="text-white font-medium">
+          {SHIRT_COLORS.find(c => c.id === selectedColor)?.name}
+        </p>
       )}
     </div>
   );
 }
 
-// Simple Wizard Step: Type Selection (beginner-friendly)
+// Step 0b: Size Picker with shirt preview
+function SizePickerStep({
+  selectedSize,
+  selectedColor,
+  onSelect
+}: {
+  selectedSize: string;
+  selectedColor: string;
+  onSelect: (size: string) => void;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">What Size?</h2>
+        <p className="text-slate-400">Select your size</p>
+      </div>
+      
+      {/* Shirt preview in selected color */}
+      <div className="flex justify-center">
+        <svg width="120" height="140" viewBox="0 0 120 140" className="drop-shadow-lg">
+          <path
+            d="M20,35 L35,20 L50,25 L60,20 L70,25 L85,20 L100,35 L95,55 L85,50 L85,120 L35,120 L35,50 L25,55 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+        </svg>
+      </div>
+      
+      <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
+        {SHIRT_SIZES.map((size) => (
+          <button
+            key={size}
+            onClick={() => onSelect(size)}
+            className={`w-14 h-14 rounded-lg border-2 font-bold transition-all ${
+              selectedSize === size
+                ? 'border-green-500 bg-green-500/20 text-green-400'
+                : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
+            }`}
+            data-testid={`button-size-${size}`}
+          >
+            {size}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Step 2: Graphic Location
+function GraphicLocationStep({
+  selectedLocation,
+  selectedColor,
+  onSelect
+}: {
+  selectedLocation: GraphicLocation;
+  selectedColor: string;
+  onSelect: (location: GraphicLocation) => void;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Where Do You Want Your Graphic?</h2>
+        <p className="text-slate-400">Tap a location to select</p>
+      </div>
+      
+      {/* Shirt with location boxes */}
+      <div className="flex justify-center">
+        <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
+          {/* Shirt shape */}
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+          
+          {/* Left Chest location */}
+          <rect
+            x="60" y="65" width="25" height="25"
+            fill={selectedLocation === 'left-chest' ? '#22c55e' : '#666'}
+            fillOpacity={selectedLocation === 'left-chest' ? 0.8 : 0.4}
+            stroke={selectedLocation === 'left-chest' ? '#22c55e' : '#888'}
+            strokeWidth="2"
+            strokeDasharray={selectedLocation === 'left-chest' ? '0' : '4'}
+            rx="3"
+            className="cursor-pointer"
+            onClick={() => onSelect('left-chest')}
+          />
+          
+          {/* Front Center location */}
+          <rect
+            x="65" y="100" width="50" height="50"
+            fill={selectedLocation === 'front-center' ? '#22c55e' : '#666'}
+            fillOpacity={selectedLocation === 'front-center' ? 0.8 : 0.4}
+            stroke={selectedLocation === 'front-center' ? '#22c55e' : '#888'}
+            strokeWidth="2"
+            strokeDasharray={selectedLocation === 'front-center' ? '0' : '4'}
+            rx="3"
+            className="cursor-pointer"
+            onClick={() => onSelect('front-center')}
+          />
+        </svg>
+      </div>
+      
+      <div className="flex flex-wrap justify-center gap-3">
+        <button
+          onClick={() => onSelect('left-chest')}
+          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+            selectedLocation === 'left-chest'
+              ? 'border-green-500 bg-green-500/20 text-green-400'
+              : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
+          }`}
+          data-testid="button-location-left-chest"
+        >
+          Left Chest
+        </button>
+        <button
+          onClick={() => onSelect('front-center')}
+          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+            selectedLocation === 'front-center'
+              ? 'border-green-500 bg-green-500/20 text-green-400'
+              : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
+          }`}
+          data-testid="button-location-front-center"
+        >
+          Front Center
+        </button>
+        <button
+          onClick={() => onSelect('back-center')}
+          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+            selectedLocation === 'back-center'
+              ? 'border-green-500 bg-green-500/20 text-green-400'
+              : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
+          }`}
+          data-testid="button-location-back-center"
+        >
+          Back Center
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Step 3: Graphic Size
+function GraphicSizeStep({
+  selectedSize,
+  selectedColor,
+  graphicLocation,
+  onSelect
+}: {
+  selectedSize: GraphicSize;
+  selectedColor: string;
+  graphicLocation: GraphicLocation;
+  onSelect: (size: GraphicSize) => void;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  const getSizePreview = (size: GraphicSize) => {
+    const sizeKey = size || 'medium';
+    if (graphicLocation === 'left-chest') {
+      const sizes: Record<string, number> = { small: 20, medium: 25, large: 30 };
+      return sizes[sizeKey] || 25;
+    }
+    const sizes: Record<string, number> = { small: 35, medium: 50, large: 65 };
+    return sizes[sizeKey] || 50;
+  };
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">What Size Graphic?</h2>
+        <p className="text-slate-400">How big should your design be?</p>
+      </div>
+      
+      {/* Shirt with size preview */}
+      <div className="flex justify-center">
+        <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+          
+          {/* Show QR box in selected location with current size */}
+          {graphicLocation === 'left-chest' && (
+            <rect
+              x={72 - getSizePreview(selectedSize || 'medium') / 2}
+              y={77 - getSizePreview(selectedSize || 'medium') / 2}
+              width={getSizePreview(selectedSize || 'medium')}
+              height={getSizePreview(selectedSize || 'medium')}
+              fill="white"
+              stroke="#22c55e"
+              strokeWidth="2"
+              rx="2"
+            />
+          )}
+          {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
+            <rect
+              x={90 - getSizePreview(selectedSize || 'medium') / 2}
+              y={125 - getSizePreview(selectedSize || 'medium') / 2}
+              width={getSizePreview(selectedSize || 'medium')}
+              height={getSizePreview(selectedSize || 'medium')}
+              fill="white"
+              stroke="#22c55e"
+              strokeWidth="2"
+              rx="2"
+            />
+          )}
+        </svg>
+      </div>
+      
+      <div className="flex flex-wrap justify-center gap-3">
+        {(['small', 'medium', 'large'] as GraphicSize[]).map((size) => (
+          <button
+            key={size}
+            onClick={() => onSelect(size)}
+            className={`px-6 py-3 rounded-lg border-2 capitalize transition-all ${
+              selectedSize === size
+                ? 'border-green-500 bg-green-500/20 text-green-400'
+                : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
+            }`}
+            data-testid={`button-graphic-size-${size}`}
+          >
+            {size}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Step 4: Generate Graphic (asks about header/footer)
+function GenerateGraphicStep({
+  selectedColor,
+  graphicLocation,
+  graphicSize,
+  onYes,
+  onNo
+}: {
+  selectedColor: string;
+  graphicLocation: GraphicLocation;
+  graphicSize: GraphicSize;
+  onYes: () => void;
+  onNo: () => void;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  const getQrSize = () => {
+    const sizeKey = graphicSize || 'medium';
+    if (graphicLocation === 'left-chest') {
+      const sizes: Record<string, number> = { small: 20, medium: 25, large: 30 };
+      return sizes[sizeKey] || 25;
+    }
+    const sizes: Record<string, number> = { small: 35, medium: 50, large: 65 };
+    return sizes[sizeKey] || 50;
+  };
+  
+  const qrSize = getQrSize();
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Want a Header and/or Footer?</h2>
+        <p className="text-slate-400">Add text above or below your QR code</p>
+      </div>
+      
+      {/* Shirt with QR placeholder */}
+      <div className="flex justify-center">
+        <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+          
+          {/* QR Code placeholder */}
+          {graphicLocation === 'left-chest' && (
+            <g transform={`translate(${72 - qrSize/2}, ${77 - qrSize/2})`}>
+              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
+              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="8" fill="#333">QR</text>
+            </g>
+          )}
+          {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
+            <g transform={`translate(${90 - qrSize/2}, ${125 - qrSize/2})`}>
+              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
+              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="10" fill="#333">QR</text>
+            </g>
+          )}
+        </svg>
+      </div>
+      
+      <div className="flex flex-wrap justify-center gap-4">
+        <Button
+          onClick={onYes}
+          className="px-8 py-4 bg-green-600 hover:bg-green-700 text-lg"
+          data-testid="button-want-text-yes"
+        >
+          <Check className="w-5 h-5 mr-2" />
+          Yes, add text
+        </Button>
+        <Button
+          onClick={onNo}
+          variant="outline"
+          className="px-8 py-4 text-lg"
+          data-testid="button-want-text-no"
+        >
+          <X className="w-5 h-5 mr-2" />
+          No, just the QR
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Step 6: Shirt Text Edit (header input above shirt, footer input below)
+function ShirtTextEditStep({
+  layout,
+  selectedColor,
+  graphicLocation,
+  graphicSize,
+  headerStyle,
+  footerStyle,
+  onHeaderChange,
+  onFooterChange
+}: {
+  layout: TextLayoutChoice;
+  selectedColor: string;
+  graphicLocation: GraphicLocation;
+  graphicSize: GraphicSize;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  onHeaderChange: (style: TextStyleConfig) => void;
+  onFooterChange: (style: TextStyleConfig) => void;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const showHeader = layout === 'header' || layout === 'both';
+  const showFooter = layout === 'footer' || layout === 'both';
+  
+  const getQrSize = () => {
+    const sizeKey = graphicSize || 'medium';
+    if (graphicLocation === 'left-chest') {
+      const sizes: Record<string, number> = { small: 20, medium: 25, large: 30 };
+      return sizes[sizeKey] || 25;
+    }
+    const sizes: Record<string, number> = { small: 35, medium: 50, large: 65 };
+    return sizes[sizeKey] || 50;
+  };
+  
+  const qrSize = getQrSize();
+  const colors = ['#FFFFFF', '#000000', '#FFD700', '#FF6B6B', '#4ECDC4', '#9B59B6'];
+  
+  return (
+    <div className="space-y-4">
+      {/* Header input section */}
+      {showHeader && (
+        <div className="bg-slate-800/50 rounded-lg p-4 space-y-3">
+          <Label className="text-white font-medium">Header Text</Label>
+          <Input
+            value={headerStyle.text}
+            onChange={(e) => onHeaderChange({ ...headerStyle, text: e.target.value, enabled: true })}
+            placeholder="Enter header text..."
+            className="bg-slate-700 border-slate-600 text-white"
+            data-testid="input-header-text"
+          />
+          <div className="flex flex-wrap gap-2">
+            {colors.map((color) => (
+              <button
+                key={color}
+                onClick={() => onHeaderChange({ ...headerStyle, color })}
+                className={`w-6 h-6 rounded-full border-2 ${headerStyle.color === color ? 'border-green-500' : 'border-slate-500'}`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Shirt preview in the middle */}
+      <div className="flex justify-center py-4">
+        <svg width="160" height="190" viewBox="0 0 180 210" className="drop-shadow-lg">
+          <path
+            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+            fill={colorHex}
+            stroke="#444"
+            strokeWidth="2"
+          />
+          
+          {/* Header text preview */}
+          {showHeader && headerStyle.text && (graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
+            <text
+              x="90"
+              y="105"
+              textAnchor="middle"
+              fill={headerStyle.color || '#fff'}
+              fontSize="10"
+              fontWeight="bold"
+            >
+              {headerStyle.text.substring(0, 15)}
+            </text>
+          )}
+          
+          {/* QR Code */}
+          {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
+            <g transform={`translate(${90 - qrSize/2}, ${125 - qrSize/2})`}>
+              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
+              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="10" fill="#333">QR</text>
+            </g>
+          )}
+          {graphicLocation === 'left-chest' && (
+            <g transform={`translate(${72 - qrSize/2}, ${77 - qrSize/2})`}>
+              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
+              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="8" fill="#333">QR</text>
+            </g>
+          )}
+          
+          {/* Footer text preview */}
+          {showFooter && footerStyle.text && (graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
+            <text
+              x="90"
+              y={125 + qrSize/2 + 15}
+              textAnchor="middle"
+              fill={footerStyle.color || '#fff'}
+              fontSize="10"
+              fontWeight="bold"
+            >
+              {footerStyle.text.substring(0, 15)}
+            </text>
+          )}
+        </svg>
+      </div>
+      
+      {/* Footer input section */}
+      {showFooter && (
+        <div className="bg-slate-800/50 rounded-lg p-4 space-y-3">
+          <Label className="text-white font-medium">Footer Text</Label>
+          <Input
+            value={footerStyle.text}
+            onChange={(e) => onFooterChange({ ...footerStyle, text: e.target.value, enabled: true })}
+            placeholder="Enter footer text..."
+            className="bg-slate-700 border-slate-600 text-white"
+            data-testid="input-footer-text"
+          />
+          <div className="flex flex-wrap gap-2">
+            {colors.map((color) => (
+              <button
+                key={color}
+                onClick={() => onFooterChange({ ...footerStyle, color })}
+                className={`w-6 h-6 rounded-full border-2 ${footerStyle.color === color ? 'border-green-500' : 'border-slate-500'}`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Step 8: URL Preview
+function UrlPreviewStep({
+  title
+}: {
+  title: string;
+}) {
+  const previewUrl = `https://qrgear.app/p/${title.toLowerCase().replace(/\s+/g, '-').substring(0, 20)}`;
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Your Creation URL</h2>
+        <p className="text-slate-400">This is where your QR code will link to</p>
+      </div>
+      
+      <div className="bg-slate-800/50 rounded-lg p-6 max-w-md mx-auto">
+        <p className="text-sm text-slate-400 mb-2">Preview URL</p>
+        <p className="text-green-400 font-mono text-sm break-all">{previewUrl}</p>
+      </div>
+      
+      <p className="text-slate-500 text-sm">
+        The final URL will be created when you publish
+      </p>
+    </div>
+  );
+}
+
 function TypePickerStep({ 
   selectedType, 
   onSelect 
@@ -2056,7 +2556,7 @@ export default function TestMembersSandbox() {
   
   const [viewMode, setViewMode] = useState<ViewMode>('wizard');
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
-  const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('channel');
+  const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('product');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
   const [wizardTier, setWizardTier] = useState<WizardTier>('simple');
   const [publishCount, setPublishCount] = useState(0);
@@ -2068,6 +2568,14 @@ export default function TestMembersSandbox() {
   // Simple wizard state
   const [simpleTitle, setSimpleTitle] = useState('');
   const [simpleDescription, setSimpleDescription] = useState('');
+  
+  // New wizard state: product selection
+  const [selectedProductType, setSelectedProductType] = useState<string>('t-shirt');
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedShirtSize, setSelectedShirtSize] = useState<string>('');
+  const [graphicLocation, setGraphicLocation] = useState<GraphicLocation>('');
+  const [graphicSize, setGraphicSize] = useState<GraphicSize>('');
+  const [wantsHeaderFooter, setWantsHeaderFooter] = useState<boolean | null>(null);
   
   // Load publish count from localStorage
   useEffect(() => {
@@ -2141,8 +2649,8 @@ export default function TestMembersSandbox() {
     if (currentIndex < SIMPLE_WIZARD_STEPS.length - 1) {
       const nextStep = SIMPLE_WIZARD_STEPS[currentIndex + 1].id;
       
-      // Generate QR code when moving from details to preview
-      if (simpleStep === 'details' && nextStep === 'preview') {
+      // Generate QR code when moving from details to url-preview
+      if (simpleStep === 'details' && nextStep === 'url-preview') {
         setIsGeneratingQr(true);
         try {
           await generatePreviewQrCode();
@@ -2164,14 +2672,18 @@ export default function TestMembersSandbox() {
 
   const canSimpleProceed = () => {
     switch (simpleStep) {
-      case 'channel': return selectedChannel !== null;
+      case 'product': return selectedProductType !== '';
+      case 'color': return selectedColor !== '';
+      case 'size': return selectedShirtSize !== '';
       case 'type': return qrType !== '';
-      case 'background': return backgroundUrl !== ''; // Background is REQUIRED for QR Canvas
-      case 'text-ask': return wantsText !== null;
+      case 'location': return graphicLocation !== '';
+      case 'graphic-size': return graphicSize !== '';
+      case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
-      case 'text-edit': return true; // Can proceed with or without text
+      case 'text-edit': return true;
       case 'details': return simpleTitle.trim() !== '';
-      case 'preview': return true;
+      case 'url-preview': return true;
+      case 'channel': return selectedChannel !== null;
       case 'publish': return true;
       default: return false;
     }
@@ -2476,6 +2988,118 @@ export default function TestMembersSandbox() {
               <SimpleWizardProgressBar currentStep={simpleStep} />
 
               <div className="min-h-[400px]">
+                {/* Step 0: Pick Product */}
+                {simpleStep === 'product' && (
+                  <ProductPickerStep
+                    selectedProduct={selectedProductType}
+                    onSelect={setSelectedProductType}
+                  />
+                )}
+                
+                {/* Step 0a: Pick Color */}
+                {simpleStep === 'color' && (
+                  <ColorPickerStep
+                    selectedColor={selectedColor}
+                    onSelect={setSelectedColor}
+                  />
+                )}
+                
+                {/* Step 0b: Pick Size */}
+                {simpleStep === 'size' && (
+                  <SizePickerStep
+                    selectedSize={selectedShirtSize}
+                    selectedColor={selectedColor}
+                    onSelect={setSelectedShirtSize}
+                  />
+                )}
+                
+                {/* Step 1: Type */}
+                {simpleStep === 'type' && (
+                  <TypePickerStep 
+                    selectedType={qrType}
+                    onSelect={setQrType}
+                  />
+                )}
+                
+                {/* Step 2: Graphic Location */}
+                {simpleStep === 'location' && (
+                  <GraphicLocationStep
+                    selectedLocation={graphicLocation}
+                    selectedColor={selectedColor}
+                    onSelect={setGraphicLocation}
+                  />
+                )}
+                
+                {/* Step 3: Graphic Size */}
+                {simpleStep === 'graphic-size' && (
+                  <GraphicSizeStep
+                    selectedSize={graphicSize}
+                    selectedColor={selectedColor}
+                    graphicLocation={graphicLocation}
+                    onSelect={setGraphicSize}
+                  />
+                )}
+                
+                {/* Step 4: Generate Graphic - asks about header/footer */}
+                {simpleStep === 'generate' && (
+                  <GenerateGraphicStep
+                    selectedColor={selectedColor}
+                    graphicLocation={graphicLocation}
+                    graphicSize={graphicSize}
+                    onYes={() => {
+                      setWantsHeaderFooter(true);
+                      setSimpleStep('text-choice');
+                    }}
+                    onNo={() => {
+                      setWantsHeaderFooter(false);
+                      setSimpleStep('details');
+                    }}
+                  />
+                )}
+                
+                {/* Step 5: Text Placement */}
+                {simpleStep === 'text-choice' && (
+                  <TextLayoutChoiceStep
+                    selected={textLayoutChoice}
+                    onSelect={(choice) => {
+                      setTextLayoutChoice(choice);
+                      setSimpleStep('text-edit');
+                    }}
+                  />
+                )}
+                
+                {/* Step 6: Text Edit */}
+                {simpleStep === 'text-edit' && (
+                  <ShirtTextEditStep
+                    layout={textLayoutChoice}
+                    selectedColor={selectedColor}
+                    graphicLocation={graphicLocation}
+                    graphicSize={graphicSize}
+                    headerStyle={headerStyle}
+                    footerStyle={footerStyle}
+                    onHeaderChange={setHeaderStyle}
+                    onFooterChange={setFooterStyle}
+                  />
+                )}
+                
+                {/* Step 7: Details */}
+                {simpleStep === 'details' && (
+                  <DetailsStep
+                    title={simpleTitle}
+                    description={simpleDescription}
+                    onTitleChange={setSimpleTitle}
+                    onDescriptionChange={setSimpleDescription}
+                  />
+                )}
+                
+                {/* Step 8: URL Preview */}
+                {simpleStep === 'url-preview' && (
+                  <UrlPreviewStep
+                    title={simpleTitle}
+                  />
+                )}
+                
+                {/* Step 9: Channel */}
                 {simpleStep === 'channel' && (
                   <ChannelStep 
                     selectedChannel={selectedChannel}
@@ -2487,75 +3111,8 @@ export default function TestMembersSandbox() {
                     setNewChannelName={setNewChannelName}
                   />
                 )}
-                {simpleStep === 'type' && (
-                  <TypePickerStep 
-                    selectedType={qrType}
-                    onSelect={setQrType}
-                  />
-                )}
-                {simpleStep === 'background' && user?.id && (
-                  <SimpleBackgroundStep
-                    memberId={user.id}
-                    backgroundUrl={backgroundUrl}
-                    onBackgroundSelected={(croppedUrl, originalUrl) => {
-                      setBackgroundUrl(croppedUrl);
-                      setOriginalBackgroundUrl(originalUrl);
-                      // Go to text-ask step after background selection
-                      setSimpleStep('text-ask');
-                    }}
-                    onComplete={() => {}}
-                  />
-                )}
-                {simpleStep === 'text-ask' && (
-                  <TextAskStep
-                    backgroundUrl={backgroundUrl}
-                    onYes={() => {
-                      setWantsText(true);
-                      setSimpleStep('text-choice');
-                    }}
-                    onNo={() => {
-                      setWantsText(false);
-                      setSimpleStep('details');
-                    }}
-                  />
-                )}
-                {simpleStep === 'text-choice' && (
-                  <TextLayoutChoiceStep
-                    selected={textLayoutChoice}
-                    onSelect={(choice) => {
-                      setTextLayoutChoice(choice);
-                      setSimpleStep('text-edit');
-                    }}
-                  />
-                )}
-                {simpleStep === 'text-edit' && (
-                  <TextEditStep
-                    layout={textLayoutChoice}
-                    backgroundUrl={backgroundUrl}
-                    headerStyle={headerStyle}
-                    footerStyle={footerStyle}
-                    onHeaderChange={setHeaderStyle}
-                    onFooterChange={setFooterStyle}
-                  />
-                )}
-                {simpleStep === 'details' && (
-                  <DetailsStep
-                    title={simpleTitle}
-                    description={simpleDescription}
-                    onTitleChange={setSimpleTitle}
-                    onDescriptionChange={setSimpleDescription}
-                  />
-                )}
-                {simpleStep === 'preview' && (
-                  <SimplePreviewStep
-                    backgroundUrl={backgroundUrl}
-                    headerStyle={headerStyle}
-                    footerStyle={footerStyle}
-                    title={simpleTitle}
-                    qrCodeUrl={previewQrUrl}
-                    onGoBack={() => setSimpleStep('details')}
-                  />
-                )}
+                
+                {/* Step 10: Publish */}
                 {simpleStep === 'publish' && (
                   <SimplePublishStep
                     isPublishing={isPublishing}
@@ -2571,7 +3128,7 @@ export default function TestMembersSandbox() {
                 <Button
                   variant="outline"
                   onClick={handleSimpleBack}
-                  disabled={simpleStep === 'channel'}
+                  disabled={simpleStep === 'product'}
                   className="flex-1 min-w-[100px] sm:flex-none"
                   data-testid="button-simple-back"
                 >
@@ -2588,6 +3145,7 @@ export default function TestMembersSandbox() {
                         ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
                         : "bg-slate-600"
                     }`}
+                    style={canSimpleProceed() ? { animation: "glow 2s ease-in-out infinite" } : undefined}
                     data-testid="button-simple-next"
                   >
                     Next
@@ -2628,7 +3186,7 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 {currentStep === 'product' && (
-                  <ProductPickerStep 
+                  <AdvancedProductPickerStep 
                     selectedProduct={selectedProduct}
                     onSelect={setSelectedProduct}
                   />
