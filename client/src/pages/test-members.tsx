@@ -1491,7 +1491,13 @@ export default function TestMembersSandbox() {
         {/* SIMPLE WIZARD - First-time user experience */}
         {viewMode === 'wizard' && wizardTier === 'simple' && (
           <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="p-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Wand2 className="w-5 h-5 text-green-400" />
+                Simple Wizard
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-2">
               <SimpleWizardProgressBar currentStep={simpleStep} />
 
               <div className="min-h-[400px]">
@@ -1619,7 +1625,13 @@ export default function TestMembersSandbox() {
         {/* ADVANCED WIZARD - Full 8-step experience (unlocked after 1st publish) */}
         {viewMode === 'wizard' && wizardTier === 'advanced' && (
           <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="p-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-blue-400" />
+                Advanced Wizard
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-2">
               <WizardProgressBar 
                 currentStep={currentStep}
                 onStepClick={handleStepClick}
