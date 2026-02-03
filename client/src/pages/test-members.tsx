@@ -775,18 +775,14 @@ function GraphicSizeStep({
             Header
           </text>
           
-          {/* QR placeholder */}
-          <rect 
-            x={graphicX - (isLeftChest ? 6 : 10)} 
-            y={graphicY - (isLeftChest ? 6 : 10)} 
-            width={isLeftChest ? 12 : 20} 
-            height={isLeftChest ? 12 : 20} 
-            fill="#374151" 
-            stroke="#64748b" 
-            strokeWidth="1" 
-            rx="2" 
-          />
-          <text x={graphicX} y={graphicY + 3} textAnchor="middle" fontSize={isLeftChest ? 4 : 6} fill="#94a3b8">QR</text>
+          {/* QR code - smaller with blank pattern */}
+          <g transform={`translate(${graphicX - (isLeftChest ? 4 : 6)}, ${graphicY - (isLeftChest ? 4 : 6)})`}>
+            <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
+            <rect x="1" y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
+            <rect x={isLeftChest ? 5 : 8.5} y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
+            <rect x="1" y={isLeftChest ? 5 : 8.5} width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
+            <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#374151" />
+          </g>
           
           {/* Footer text placeholder */}
           <text
@@ -870,17 +866,23 @@ function GenerateGraphicStep({
             strokeWidth="2"
           />
           
-          {/* QR Code placeholder */}
+          {/* QR Code - smaller with blank pattern */}
           {graphicLocation === 'left-chest' && (
-            <g transform={`translate(${72 - qrSize/2}, ${77 - qrSize/2})`}>
-              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
-              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="8" fill="#333">QR</text>
+            <g transform={`translate(${72 - 5}, ${77 - 5})`}>
+              <rect width="10" height="10" fill="white" rx="1" />
+              <rect x="1" y="1" width="2" height="2" fill="#333" />
+              <rect x="7" y="1" width="2" height="2" fill="#333" />
+              <rect x="1" y="7" width="2" height="2" fill="#333" />
+              <rect x="4" y="4" width="2" height="2" fill="#333" />
             </g>
           )}
           {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
-            <g transform={`translate(${90 - qrSize/2}, ${125 - qrSize/2})`}>
-              <rect width={qrSize} height={qrSize} fill="white" rx="2" />
-              <text x={qrSize/2} y={qrSize/2 + 4} textAnchor="middle" fontSize="10" fill="#333">QR</text>
+            <g transform={`translate(${90 - 8}, ${125 - 8})`}>
+              <rect width="16" height="16" fill="white" rx="1" />
+              <rect x="1" y="1" width="3" height="3" fill="#333" />
+              <rect x="12" y="1" width="3" height="3" fill="#333" />
+              <rect x="1" y="12" width="3" height="3" fill="#333" />
+              <rect x="6" y="6" width="4" height="4" fill="#333" />
             </g>
           )}
         </svg>
@@ -1091,16 +1093,15 @@ function ShirtTextEditStep({
             </text>
           )}
           
-          {/* QR placeholder in center */}
-          <rect 
-            x={graphicX - (isLeftChest ? 8 : 12)} 
-            y={graphicY - (isLeftChest ? 8 : 12)} 
-            width={isLeftChest ? 16 : 24} 
-            height={isLeftChest ? 16 : 24} 
-            fill="white" 
-            rx="2" 
-          />
-          <text x={graphicX} y={graphicY + 3} textAnchor="middle" fontSize={isLeftChest ? 5 : 8} fill="#333">QR</text>
+          {/* QR code in center - smaller, with blank QR pattern */}
+          <g transform={`translate(${graphicX - (isLeftChest ? 5 : 8)}, ${graphicY - (isLeftChest ? 5 : 8)})`}>
+            <rect width={isLeftChest ? 10 : 16} height={isLeftChest ? 10 : 16} fill="white" rx="1" />
+            {/* Simple QR pattern */}
+            <rect x="1" y="1" width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
+            <rect x={isLeftChest ? 7 : 12} y="1" width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
+            <rect x="1" y={isLeftChest ? 7 : 12} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
+            <rect x={isLeftChest ? 4 : 6} y={isLeftChest ? 4 : 6} width={isLeftChest ? 2 : 4} height={isLeftChest ? 2 : 4} fill="#333" />
+          </g>
           
           {/* Footer text - at BOTTOM inside the graphic */}
           {showFooter && (
@@ -1267,24 +1268,14 @@ function ShirtPreviewStep({
               </text>
             )}
             
-            {/* QR Code */}
-            <rect 
-              x={(graphicDims.w - (isLeftChest ? 15 : 25)) / 2} 
-              y={(graphicDims.h - (isLeftChest ? 15 : 25)) / 2} 
-              width={isLeftChest ? 15 : 25} 
-              height={isLeftChest ? 15 : 25} 
-              fill="white" 
-              rx="2" 
-            />
-            <text 
-              x={graphicDims.w / 2} 
-              y={graphicDims.h / 2 + 3} 
-              textAnchor="middle" 
-              fontSize={isLeftChest ? 5 : 8} 
-              fill="#333"
-            >
-              QR
-            </text>
+            {/* QR Code - smaller with blank pattern */}
+            <g transform={`translate(${(graphicDims.w - (isLeftChest ? 8 : 12)) / 2}, ${(graphicDims.h - (isLeftChest ? 8 : 12)) / 2})`}>
+              <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
+              <rect x="1" y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+              <rect x={isLeftChest ? 5.5 : 8.5} y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+              <rect x="1" y={isLeftChest ? 5.5 : 8.5} width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+              <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
+            </g>
             
             {/* Footer text */}
             {showFooter && (
