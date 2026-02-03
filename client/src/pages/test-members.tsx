@@ -731,8 +731,10 @@ function GraphicSizeStep({
   
   const currentSize = getOutlineSize(selectedSize || 'medium');
   const isLeftChest = graphicLocation === 'left-chest';
-  const graphicX = isLeftChest ? 72 : 90;
-  const graphicY = isLeftChest ? 77 : 125;
+  // Calculated from Printify specs: left chest 3" below shoulder, 3.5" from center
+  // Front center: 3.5" below collar (y=30), centered at y=79 for medium print
+  const graphicX = isLeftChest ? 77 : 90;
+  const graphicY = isLeftChest ? 68 : 79;
   
   return (
     <div className="text-center space-y-6">
@@ -868,7 +870,7 @@ function GenerateGraphicStep({
           
           {/* QR Code - smaller with blank pattern */}
           {graphicLocation === 'left-chest' && (
-            <g transform={`translate(${72 - 5}, ${77 - 5})`}>
+            <g transform={`translate(${77 - 5}, ${68 - 5})`}>
               <rect width="10" height="10" fill="white" rx="1" />
               <rect x="1" y="1" width="2" height="2" fill="#333" />
               <rect x="7" y="1" width="2" height="2" fill="#333" />
@@ -877,7 +879,7 @@ function GenerateGraphicStep({
             </g>
           )}
           {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
-            <g transform={`translate(${90 - 8}, ${125 - 8})`}>
+            <g transform={`translate(${90 - 8}, ${79 - 8})`}>
               <rect width="16" height="16" fill="white" rx="1" />
               <rect x="1" y="1" width="3" height="3" fill="#333" />
               <rect x="12" y="1" width="3" height="3" fill="#333" />
@@ -950,8 +952,10 @@ function ShirtTextEditStep({
   
   const outlineSize = getOutlineSize();
   const isLeftChest = graphicLocation === 'left-chest';
-  const graphicX = isLeftChest ? 72 : 90;
-  const graphicY = isLeftChest ? 77 : 125;
+  // Calculated from Printify specs: left chest 3" below shoulder, 3.5" from center
+  // Front center: 3.5" below collar, centered at y=79 for medium print
+  const graphicX = isLeftChest ? 77 : 90;
+  const graphicY = isLeftChest ? 68 : 79;
   
   const updateHeader = (updates: Partial<TextStyleConfig>) => {
     onHeaderChange({ ...headerStyle, ...updates, enabled: true });
@@ -1232,8 +1236,9 @@ function ShirtPreviewStep({
   
   const graphicDims = getGraphicDimensions();
   const isLeftChest = graphicLocation === 'left-chest';
-  const graphicX = isLeftChest ? 72 : 90;
-  const graphicY = isLeftChest ? 77 : 125;
+  // Calculated from Printify specs
+  const graphicX = isLeftChest ? 77 : 90;
+  const graphicY = isLeftChest ? 68 : 79;
   
   return (
     <div className="text-center space-y-4">
