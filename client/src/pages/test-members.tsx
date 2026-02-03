@@ -79,15 +79,16 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'type' | 'background' | 'details' | 'publish';
+type SimpleWizardStep = 'channel' | 'type' | 'background' | 'save' | 'details' | 'publish';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 
-// Simple Wizard - 5 essential steps for first-time users
+// Simple Wizard - 6 essential steps for first-time users
 const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'background', label: 'Background', icon: ImagePlus },
+  { id: 'save', label: 'Save', icon: Library },
   { id: 'details', label: 'Details', icon: Type },
   { id: 'publish', label: 'Publish', icon: Send },
 ];
@@ -1109,6 +1110,7 @@ type ViewMode = 'wizard' | 'channels' | 'collections' | 'earnings';
 
 export default function TestMembersSandbox() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   
   const [viewMode, setViewMode] = useState<ViewMode>('wizard');
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
@@ -1172,6 +1174,7 @@ export default function TestMembersSandbox() {
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [backgroundUrl, setBackgroundUrl] = useState<string>('');
+  const [originalBackgroundUrl, setOriginalBackgroundUrl] = useState<string>('');
   const [showBackgroundLibrary, setShowBackgroundLibrary] = useState(false);
   const [landingPage, setLandingPage] = useState<LandingPageConfig>({ ...defaultLandingPage });
   const [videoUrl, setVideoUrl] = useState<string>('');
@@ -1196,6 +1199,7 @@ export default function TestMembersSandbox() {
       case 'channel': return selectedChannel !== null;
       case 'type': return qrType !== '';
       case 'background': return true; // Background is optional
+      case 'save': return true; // Save is optional - they can skip
       case 'details': return simpleTitle.trim() !== '';
       case 'publish': return true;
       default: return false;
@@ -1561,14 +1565,126 @@ export default function TestMembersSandbox() {
                       <BackgroundLibraryPicker
                         memberId={user.id}
                         selectedUrl={backgroundUrl}
-                        onSelect={(url) => {
-                          setBackgroundUrl(url);
+                        onSelect={(croppedUrl, originalUrl) => {
+                          setBackgroundUrl(croppedUrl);
+                          setOriginalBackgroundUrl(originalUrl);
                           setShowBackgroundLibrary(false);
                         }}
                         onClose={() => setShowBackgroundLibrary(false)}
                         assetType="background"
                       />
                     )}
+                  </div>
+                )}
+                {simpleStep === 'save' && (
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold text-white mb-2">Save to Your Library</h2>
+                      <p className="text-slate-400">Save your cropped image to use again later</p>
+                    </div>
+                    
+                    {backgroundUrl && (
+                      <div className="relative max-w-[200px] mx-auto mb-6">
+                        <div className="aspect-[9/16] rounded-lg overflow-hidden border-2 border-slate-600">
+                          <img src={backgroundUrl} alt="Cropped" className="w-full h-full object-cover" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 max-w-md mx-auto">
+                      <Button
+                        size="lg"
+                        className="h-16 text-lg"
+                        onClick={async () => {
+                          if (backgroundUrl && user?.id) {
+                            try {
+                              const headers = await getAuthHeaders();
+                              await fetch(`/api/members/${user.id}/library/upload`, {
+                                method: 'POST',
+                                headers: { ...headers, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  assetType: 'background',
+                                  name: 'Cropped Background',
+                                  imageData: backgroundUrl,
+                                  mimeType: 'image/jpeg',
+                                  originalName: 'cropped_background.jpg'
+                                })
+                              });
+                              toast({ title: "Cropped image saved to your library" });
+                            } catch (err) {
+                              toast({ title: "Save failed", variant: "destructive" });
+                            }
+                          }
+                          setSimpleStep('details');
+                        }}
+                        data-testid="button-save-crop-only"
+                      >
+                        <Library className="w-5 h-5 mr-2" />
+                        Save Crop Only
+                      </Button>
+                      
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="h-16 text-lg"
+                        onClick={async () => {
+                          if (backgroundUrl && user?.id && originalBackgroundUrl) {
+                            try {
+                              const headers = await getAuthHeaders();
+                              // Save cropped
+                              await fetch(`/api/members/${user.id}/library/upload`, {
+                                method: 'POST',
+                                headers: { ...headers, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  assetType: 'background',
+                                  name: 'Cropped Background',
+                                  imageData: backgroundUrl,
+                                  mimeType: 'image/jpeg',
+                                  originalName: 'cropped_background.jpg'
+                                })
+                              });
+                              // Save original
+                              const originalBlob = await fetch(originalBackgroundUrl).then(r => r.blob());
+                              const reader = new FileReader();
+                              const originalData = await new Promise<string>((resolve, reject) => {
+                                reader.onload = () => resolve(reader.result as string);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(originalBlob);
+                              });
+                              await fetch(`/api/members/${user.id}/library/upload`, {
+                                method: 'POST',
+                                headers: { ...headers, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  assetType: 'background',
+                                  name: 'Original Background',
+                                  imageData: originalData,
+                                  mimeType: 'image/jpeg',
+                                  originalName: 'original_background.jpg'
+                                })
+                              });
+                              toast({ title: "Cropped and original saved to your library" });
+                            } catch (err) {
+                              toast({ title: "Save failed", variant: "destructive" });
+                            }
+                          }
+                          setSimpleStep('details');
+                        }}
+                        data-testid="button-save-crop-and-original"
+                      >
+                        <ImagePlus className="w-5 h-5 mr-2" />
+                        Save Crop & Original
+                      </Button>
+                      
+                      <Button
+                        size="lg"
+                        variant="ghost"
+                        className="h-12 text-slate-400"
+                        onClick={() => setSimpleStep('details')}
+                        data-testid="button-skip-save"
+                      >
+                        Skip
+                      </Button>
+                    </div>
                   </div>
                 )}
                 {simpleStep === 'details' && (
@@ -1731,8 +1847,9 @@ export default function TestMembersSandbox() {
                       <BackgroundLibraryPicker
                         memberId={user.id}
                         selectedUrl={backgroundUrl}
-                        onSelect={(url) => {
-                          setBackgroundUrl(url);
+                        onSelect={(croppedUrl, originalUrl) => {
+                          setBackgroundUrl(croppedUrl);
+                          setOriginalBackgroundUrl(originalUrl);
                           setShowBackgroundLibrary(false);
                         }}
                         onClose={() => setShowBackgroundLibrary(false)}
