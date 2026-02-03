@@ -32,8 +32,25 @@ export interface CropUtilityProps {
 }
 
 function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: number): Crop {
+  // Calculate maximum crop size that fits the image while maintaining aspect ratio
+  const imageAspect = mediaWidth / mediaHeight;
+  const targetAspect = aspect;
+  
+  let width: number;
+  let height: number;
+  
+  if (imageAspect > targetAspect) {
+    // Image is wider than target - use full height, calculate width
+    height = 100;
+    width = (targetAspect / imageAspect) * 100;
+  } else {
+    // Image is taller than target - use full width, calculate height
+    width = 100;
+    height = (imageAspect / targetAspect) * 100;
+  }
+  
   return centerCrop(
-    makeAspectCrop({ unit: "%", width: 90 }, aspect, mediaWidth, mediaHeight),
+    makeAspectCrop({ unit: "%", width }, aspect, mediaWidth, mediaHeight),
     mediaWidth,
     mediaHeight
   );
