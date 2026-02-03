@@ -955,12 +955,96 @@ function ShirtTextEditStep({
     onFooterChange({ ...footerStyle, ...updates, enabled: true });
   };
   
+  // Get font size for SVG based on selected size
+  const getSvgFontSize = (fontSize?: string, isSmallArea?: boolean) => {
+    const base = isSmallArea ? 4 : 7;
+    if (fontSize === '12px') return base * 0.8;
+    if (fontSize === '24px') return base * 1.4;
+    return base;
+  };
+
+  // Position offset state for slider
+  const [headerOffset, setHeaderOffset] = useState(0);
+  const [footerOffset, setFooterOffset] = useState(0);
+  
   return (
     <div className="space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Add Your Text</h2>
-        <p className="text-slate-400 text-sm">Text stays inside your graphic area</p>
+        <p className="text-slate-400 text-sm">Header above, footer below your graphic</p>
       </div>
+      
+      {/* Header controls ABOVE graphic */}
+      {showHeader && (
+        <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
+          <Label className="text-white font-medium text-sm">Header Text (above graphic)</Label>
+          <Input
+            value={headerStyle.text}
+            onChange={(e) => updateHeader({ text: e.target.value })}
+            placeholder="Enter header text..."
+            className="bg-slate-700 border-slate-600 text-white h-9"
+            data-testid="input-header-text"
+          />
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Color:</span>
+              {SHIRT_TEXT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => updateHeader({ color })}
+                  className={`w-5 h-5 rounded-full border-2 transition-all ${
+                    headerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Size:</span>
+              {SHIRT_TEXT_SIZES.map((size) => (
+                <Button
+                  key={size.id}
+                  size="sm"
+                  variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
+                  onClick={() => updateHeader({ fontSize: size.value })}
+                  className="h-5 px-2 text-xs"
+                >
+                  {size.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Font:</span>
+              {SHIRT_TEXT_FONTS.map((font) => (
+                <Button
+                  key={font.id}
+                  size="sm"
+                  variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
+                  onClick={() => updateHeader({ fontFamily: font.family })}
+                  style={{ fontFamily: font.family }}
+                  className="h-5 px-2 text-xs"
+                >
+                  {font.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {/* Position slider for header */}
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-xs text-slate-500">Position:</span>
+            <input
+              type="range"
+              min="-15"
+              max="15"
+              value={headerOffset}
+              onChange={(e) => setHeaderOffset(Number(e.target.value))}
+              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+              data-testid="slider-header-position"
+            />
+            <span className="text-xs text-slate-400 w-8">{headerOffset > 0 ? `+${headerOffset}` : headerOffset}</span>
+          </div>
+        </div>
+      )}
       
       {/* Shirt with graphic and text preview */}
       <div className="flex justify-center py-2">
@@ -985,14 +1069,14 @@ function ShirtTextEditStep({
             rx="3"
           />
           
-          {/* Header text */}
+          {/* Header text - ABOVE the graphic outline */}
           {showHeader && (
             <text
               x={graphicX}
-              y={graphicY - outlineSize.h/2 + 10}
+              y={graphicY - outlineSize.h/2 - 5 + headerOffset}
               textAnchor="middle"
               fill={headerStyle.color || '#fff'}
-              fontSize={isLeftChest ? 5 : 8}
+              fontSize={getSvgFontSize(headerStyle.fontSize, isLeftChest)}
               fontFamily={headerStyle.fontFamily || 'Arial'}
               fontWeight="bold"
             >
@@ -1000,7 +1084,7 @@ function ShirtTextEditStep({
             </text>
           )}
           
-          {/* QR placeholder */}
+          {/* QR placeholder in center */}
           <rect 
             x={graphicX - (isLeftChest ? 8 : 12)} 
             y={graphicY - (isLeftChest ? 8 : 12)} 
@@ -1011,14 +1095,14 @@ function ShirtTextEditStep({
           />
           <text x={graphicX} y={graphicY + 3} textAnchor="middle" fontSize={isLeftChest ? 5 : 8} fill="#333">QR</text>
           
-          {/* Footer text */}
+          {/* Footer text - BELOW the graphic outline */}
           {showFooter && (
             <text
               x={graphicX}
-              y={graphicY + outlineSize.h/2 - 4}
+              y={graphicY + outlineSize.h/2 + 10 + footerOffset}
               textAnchor="middle"
               fill={footerStyle.color || '#fff'}
-              fontSize={isLeftChest ? 5 : 8}
+              fontSize={getSvgFontSize(footerStyle.fontSize, isLeftChest)}
               fontFamily={footerStyle.fontFamily || 'Arial'}
               fontWeight="bold"
             >
@@ -1028,124 +1112,77 @@ function ShirtTextEditStep({
         </svg>
       </div>
       
-      {/* Text input controls */}
-      <div className="space-y-3">
-        {/* Header input */}
-        {showHeader && (
-          <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-            <Label className="text-white font-medium text-sm">Header Text</Label>
-            <Input
-              value={headerStyle.text}
-              onChange={(e) => updateHeader({ text: e.target.value })}
-              placeholder="Enter header text..."
-              className="bg-slate-700 border-slate-600 text-white h-9"
-              data-testid="input-header-text"
-            />
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">Color:</span>
-                {SHIRT_TEXT_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => updateHeader({ color })}
-                    className={`w-5 h-5 rounded-full border-2 transition-all ${
-                      headerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">Size:</span>
-                {SHIRT_TEXT_SIZES.map((size) => (
-                  <Button
-                    key={size.id}
-                    size="sm"
-                    variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
-                    onClick={() => updateHeader({ fontSize: size.value })}
-                    className="h-5 px-2 text-xs"
-                  >
-                    {size.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">Font:</span>
-                {SHIRT_TEXT_FONTS.map((font) => (
-                  <Button
-                    key={font.id}
-                    size="sm"
-                    variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
-                    onClick={() => updateHeader({ fontFamily: font.family })}
-                    style={{ fontFamily: font.family }}
-                    className="h-5 px-2 text-xs"
-                  >
-                    {font.label}
-                  </Button>
-                ))}
-              </div>
+      {/* Footer controls BELOW graphic */}
+      {showFooter && (
+        <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
+          <Label className="text-white font-medium text-sm">Footer Text (below graphic)</Label>
+          <Input
+            value={footerStyle.text}
+            onChange={(e) => updateFooter({ text: e.target.value })}
+            placeholder="Enter footer text..."
+            className="bg-slate-700 border-slate-600 text-white h-9"
+            data-testid="input-footer-text"
+          />
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Color:</span>
+              {SHIRT_TEXT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => updateFooter({ color })}
+                  className={`w-5 h-5 rounded-full border-2 transition-all ${
+                    footerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Size:</span>
+              {SHIRT_TEXT_SIZES.map((size) => (
+                <Button
+                  key={size.id}
+                  size="sm"
+                  variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
+                  onClick={() => updateFooter({ fontSize: size.value })}
+                  className="h-5 px-2 text-xs"
+                >
+                  {size.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Font:</span>
+              {SHIRT_TEXT_FONTS.map((font) => (
+                <Button
+                  key={font.id}
+                  size="sm"
+                  variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
+                  onClick={() => updateFooter({ fontFamily: font.family })}
+                  style={{ fontFamily: font.family }}
+                  className="h-5 px-2 text-xs"
+                >
+                  {font.label}
+                </Button>
+              ))}
             </div>
           </div>
-        )}
-        
-        {/* Footer input */}
-        {showFooter && (
-          <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-            <Label className="text-white font-medium text-sm">Footer Text</Label>
-            <Input
-              value={footerStyle.text}
-              onChange={(e) => updateFooter({ text: e.target.value })}
-              placeholder="Enter footer text..."
-              className="bg-slate-700 border-slate-600 text-white h-9"
-              data-testid="input-footer-text"
+          {/* Position slider for footer */}
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-xs text-slate-500">Position:</span>
+            <input
+              type="range"
+              min="-15"
+              max="15"
+              value={footerOffset}
+              onChange={(e) => setFooterOffset(Number(e.target.value))}
+              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+              data-testid="slider-footer-position"
             />
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">Color:</span>
-                {SHIRT_TEXT_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => updateFooter({ color })}
-                    className={`w-5 h-5 rounded-full border-2 transition-all ${
-                      footerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">Size:</span>
-                {SHIRT_TEXT_SIZES.map((size) => (
-                  <Button
-                    key={size.id}
-                    size="sm"
-                    variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
-                    onClick={() => updateFooter({ fontSize: size.value })}
-                    className="h-5 px-2 text-xs"
-                  >
-                    {size.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">Font:</span>
-                {SHIRT_TEXT_FONTS.map((font) => (
-                  <Button
-                    key={font.id}
-                    size="sm"
-                    variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
-                    onClick={() => updateFooter({ fontFamily: font.family })}
-                    style={{ fontFamily: font.family }}
-                    className="h-5 px-2 text-xs"
-                  >
-                    {font.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            <span className="text-xs text-slate-400 w-8">{footerOffset > 0 ? `+${footerOffset}` : footerOffset}</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3074,7 +3111,7 @@ export default function TestMembersSandbox() {
       setViewMode('channels');
       
       // Reset simple wizard state for next use
-      setSimpleStep('channel');
+      setSimpleStep('product');
       setSimpleTitle('');
       setSimpleDescription('');
       setQrType('');
@@ -3407,7 +3444,7 @@ export default function TestMembersSandbox() {
                     }}
                     onNo={() => {
                       setWantsHeaderFooter(false);
-                      setSimpleStep('details');
+                      setSimpleStep('shirt-preview');
                     }}
                   />
                 )}
