@@ -1016,8 +1016,8 @@ function SimpleBackgroundStep({
           onCropComplete={handleCropComplete}
           fetchImageBlob={fetchImageBlob}
           aspectRatio={9 / 16}
-          title="Crop for Mobile"
-          allowCropToggle={true}
+          title="Crop for Mobile Screen"
+          allowCropToggle={false}
         />
       )}
     </div>

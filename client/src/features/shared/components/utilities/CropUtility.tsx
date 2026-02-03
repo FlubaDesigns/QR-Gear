@@ -349,17 +349,17 @@ export function CropUtility({
         </div>
 
         <DialogFooter className="flex-shrink-0 pt-4">
-          <div className="grid grid-cols-2 gap-3 w-full">
+          <div className="flex flex-col gap-3 w-full">
             {imageSrc && (
               <Button 
                 onClick={handleConfirm} 
                 disabled={saving || (useCrop && !crop)} 
-                className="h-14 text-base"
+                className="h-16 text-lg w-full bg-green-600 hover:bg-green-700"
                 data-testid="button-crop-save"
               >
-                {saving && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
-                <CropIcon className="h-5 w-5 mr-2" />
-                Crop
+                {saving && <Loader2 className="h-6 w-6 mr-2 animate-spin" />}
+                <Check className="h-6 w-6 mr-2" />
+                Use This Crop
               </Button>
             )}
             {onDelete && asset && (
@@ -367,7 +367,7 @@ export function CropUtility({
                 variant="destructive"
                 onClick={() => onDelete(asset.id)}
                 disabled={isDeleting}
-                className="h-14 text-base"
+                className="h-14 text-base w-full"
                 data-testid="button-crop-delete"
               >
                 {isDeleting && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
