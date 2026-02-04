@@ -87,7 +87,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
+type SimpleWizardStep = 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -156,6 +156,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
+  { id: 'canvas-fork', label: 'Online Image', icon: Smartphone },
   { id: 'url-explainer', label: 'QR Canvas', icon: QrCode },
   { id: 'url-source-choice', label: 'Source', icon: ImagePlus },
   { id: 'url-library-pick', label: 'Pick Image', icon: Library },
@@ -205,6 +206,7 @@ const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
+  { id: 'canvas-fork', label: 'Online Image?', icon: Smartphone },
   { id: 'qr-plus-mockup', label: 'Final Preview', icon: Eye },
   { id: 'qr-plus-save-choice', label: 'Save Options', icon: Library },
   { id: 'qr-plus-confirm', label: 'Done', icon: Check },
@@ -3147,6 +3149,54 @@ interface LibraryAsset {
   isCropped?: boolean;
 }
 
+// Step 13: Canvas Fork - ask if they want online scannable image
+function CanvasForkStep({
+  onYes,
+  onNo
+}: {
+  onYes: () => void;
+  onNo: () => void;
+}) {
+  return (
+    <div className="text-center space-y-6">
+      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto">
+        <Smartphone className="w-10 h-10 text-white" />
+      </div>
+      
+      <div>
+        <h2 className="text-xl font-bold text-white mb-3">One More Thing...</h2>
+        <p className="text-slate-300 text-lg max-w-md mx-auto">
+          Would you like to create an online scannable image with custom text and image?
+        </p>
+      </div>
+      
+      <div className="p-4 bg-slate-800/50 rounded-lg max-w-md mx-auto">
+        <p className="text-slate-400 text-sm">
+          When customers scan your QR code, they'll see a beautiful landing page with your custom background and message.
+        </p>
+      </div>
+      
+      <div className="flex flex-col gap-3 max-w-xs mx-auto pt-4">
+        <Button
+          onClick={onYes}
+          className="w-full py-6 text-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+          data-testid="button-canvas-yes"
+        >
+          Yes, let's do it!
+        </Button>
+        <Button
+          onClick={onNo}
+          variant="outline"
+          className="w-full py-4 text-slate-300 border-slate-600"
+          data-testid="button-canvas-no"
+        >
+          No, I'm good with just the shirt
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function QRCanvasExplainerStep({
   onUploadClick,
   onLibraryClick
@@ -5463,41 +5513,7 @@ function MembersSandboxContent() {
     }
     
     // Fork at shirt-preview (step 12) based on qrType
-    if (simpleStep === 'shirt-preview') {
-      if (qrType === 'qr-plus') {
-        // QR Plus ends here - go to QR Plus mockup flow
-        setIsGeneratingPlusMockup(true);
-        // Generate mockup with productGraphic
-        try {
-          if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor && productGraphic) {
-            const mockupResult = await api.generateMockup({
-              blueprintId: selectedProductType.blueprintId,
-              printProviderId: selectedProductType.printProviderId,
-              colorName: selectedColor,
-              artworkUrl: productGraphic,
-              placement: 'FRONT_CHEST',
-              qrSize: graphicSize || 'medium',
-            });
-            const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-            if (mockupResult.success && bestUrl) {
-              setQrPlusMockup(bestUrl);
-            } else {
-              setQrPlusMockup(productGraphic);
-            }
-          } else {
-            setQrPlusMockup(productGraphic);
-          }
-        } catch (error) {
-          console.error('[QR Plus] Error generating mockup:', error);
-          setQrPlusMockup(productGraphic);
-        } finally {
-          setIsGeneratingPlusMockup(false);
-        }
-        setSimpleStep('qr-plus-mockup');
-        return;
-      }
-      // QR Canvas continues to url-explainer
-    }
+    // shirt-preview now advances to canvas-fork (step 13) for QR Plus vs Canvas decision
     
     if (currentIndex < SIMPLE_WIZARD_STEPS.length - 1) {
       const nextStep = SIMPLE_WIZARD_STEPS[currentIndex + 1].id;
@@ -5530,7 +5546,7 @@ function MembersSandboxContent() {
     
     // Handle QR Plus flow back navigation
     if (simpleStep === 'qr-plus-mockup') {
-      setSimpleStep('shirt-preview');
+      setSimpleStep('canvas-fork');
       return;
     }
     if (simpleStep === 'qr-plus-save-choice') {
@@ -5539,6 +5555,16 @@ function MembersSandboxContent() {
     }
     if (simpleStep === 'qr-plus-confirm') {
       setSimpleStep('qr-plus-save-choice');
+      return;
+    }
+    
+    // Handle canvas-fork and QR Canvas flow back navigation
+    if (simpleStep === 'canvas-fork') {
+      setSimpleStep('shirt-preview');
+      return;
+    }
+    if (simpleStep === 'url-explainer') {
+      setSimpleStep('canvas-fork');
       return;
     }
     
@@ -6211,7 +6237,47 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step 11: URL Explainer - shows QR scan flow and choice buttons */}
+                {/* Step 13: Canvas Fork - QR Plus vs QR Canvas decision */}
+                {simpleStep === 'canvas-fork' && (
+                  <CanvasForkStep
+                    onYes={() => {
+                      setQrType('qr-canvas');
+                      setSimpleStep('url-explainer');
+                    }}
+                    onNo={async () => {
+                      setQrType('qr-plus');
+                      setIsGeneratingPlusMockup(true);
+                      try {
+                        if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor && productGraphic) {
+                          const mockupResult = await api.generateMockup({
+                            blueprintId: selectedProductType.blueprintId,
+                            printProviderId: selectedProductType.printProviderId,
+                            colorName: selectedColor,
+                            artworkUrl: productGraphic,
+                            placement: 'FRONT_CHEST',
+                            qrSize: graphicSize || 'medium',
+                          });
+                          const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
+                          if (mockupResult.success && bestUrl) {
+                            setQrPlusMockup(bestUrl);
+                          } else {
+                            setQrPlusMockup(productGraphic);
+                          }
+                        } else {
+                          setQrPlusMockup(productGraphic);
+                        }
+                      } catch (error) {
+                        console.error('[QR Plus] Error generating mockup:', error);
+                        setQrPlusMockup(productGraphic);
+                      } finally {
+                        setIsGeneratingPlusMockup(false);
+                      }
+                      setSimpleStep('qr-plus-mockup');
+                    }}
+                  />
+                )}
+                
+                {/* Step 14: URL Explainer - shows QR scan flow and choice buttons */}
                 {simpleStep === 'url-explainer' && (
                   <QRCanvasExplainerStep
                     onUploadClick={() => {
