@@ -4810,6 +4810,8 @@ function MembersSandboxContent() {
             textLayers: qrBasicInputType === 'text' ? [{ text: qrContent, type: 'content' }] : [],
             'boundProduct.color': selectedColor,
             'boundProduct.size': selectedShirtSize,
+            'boundProduct.blueprintId': selectedProductType?.blueprintId,
+            'boundProduct.printProviderId': selectedProductType?.printProviderId,
             'metadata.inputType': qrBasicInputType,
             'metadata.graphicSize': graphicSize,
             'metadata.placements': selectedPlacements,
