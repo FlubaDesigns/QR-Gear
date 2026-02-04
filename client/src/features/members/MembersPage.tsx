@@ -2790,6 +2790,21 @@ function ShirtPreviewStep({
 }
 
 // Step 14: URL Creation - title, description with actual background preview
+// Landing page text styling options
+const LANDING_TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const LANDING_TEXT_SIZES = [
+  { id: 'sm', label: 'S', value: '14px' },
+  { id: 'md', label: 'M', value: '18px' },
+  { id: 'lg', label: 'L', value: '24px' },
+  { id: 'xl', label: 'XL', value: '32px' }
+];
+const LANDING_TEXT_FONTS = [
+  { id: 'sans', label: 'Clean', family: 'Arial' },
+  { id: 'serif', label: 'Classic', family: 'Georgia' },
+  { id: 'mono', label: 'Tech', family: 'Courier New' },
+  { id: 'display', label: 'Bold', family: 'Impact' }
+];
+
 function UrlCreationStep({
   title,
   description,
@@ -2798,12 +2813,24 @@ function UrlCreationStep({
   background,
   titleVertical,
   titleHorizontal,
+  titleColor,
+  titleSize,
+  titleFont,
   descVertical,
   descHorizontal,
+  descColor,
+  descSize,
+  descFont,
   onTitleVerticalChange,
   onTitleHorizontalChange,
+  onTitleColorChange,
+  onTitleSizeChange,
+  onTitleFontChange,
   onDescVerticalChange,
-  onDescHorizontalChange
+  onDescHorizontalChange,
+  onDescColorChange,
+  onDescSizeChange,
+  onDescFontChange
 }: {
   title: string;
   description: string;
@@ -2812,12 +2839,24 @@ function UrlCreationStep({
   background: string;
   titleVertical: number;
   titleHorizontal: number;
+  titleColor: string;
+  titleSize: string;
+  titleFont: string;
   descVertical: number;
   descHorizontal: number;
+  descColor: string;
+  descSize: string;
+  descFont: string;
   onTitleVerticalChange: (v: number) => void;
   onTitleHorizontalChange: (v: number) => void;
+  onTitleColorChange: (c: string) => void;
+  onTitleSizeChange: (s: string) => void;
+  onTitleFontChange: (f: string) => void;
   onDescVerticalChange: (v: number) => void;
   onDescHorizontalChange: (v: number) => void;
+  onDescColorChange: (c: string) => void;
+  onDescSizeChange: (s: string) => void;
+  onDescFontChange: (f: string) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -2850,7 +2889,7 @@ function UrlCreationStep({
             {/* Dark overlay for readability */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             
-            {/* Title - positioned by sliders */}
+            {/* Title - positioned by sliders with styling */}
             <div 
               className="absolute w-full px-2 text-center"
               style={{ 
@@ -2858,12 +2897,19 @@ function UrlCreationStep({
                 left: `${titleHorizontal - 50}%`
               }}
             >
-              <h3 className="text-white font-bold text-sm truncate drop-shadow-lg">
+              <h3 
+                className="font-bold truncate drop-shadow-lg"
+                style={{ 
+                  color: titleColor,
+                  fontSize: titleSize,
+                  fontFamily: titleFont
+                }}
+              >
                 {title || 'Your Title Here'}
               </h3>
             </div>
             
-            {/* Description - positioned by sliders */}
+            {/* Description - positioned by sliders with styling */}
             <div 
               className="absolute w-full px-2 text-center"
               style={{ 
@@ -2871,7 +2917,14 @@ function UrlCreationStep({
                 left: `${descHorizontal - 50}%`
               }}
             >
-              <p className="text-slate-200 text-xs line-clamp-2 drop-shadow-lg">
+              <p 
+                className="line-clamp-2 drop-shadow-lg"
+                style={{ 
+                  color: descColor,
+                  fontSize: descSize,
+                  fontFamily: descFont
+                }}
+              >
                 {description || 'Add a description...'}
               </p>
             </div>
@@ -2879,7 +2932,7 @@ function UrlCreationStep({
         </div>
       </div>
       
-      {/* Input fields with position sliders */}
+      {/* Input fields with position sliders and styling controls */}
       <div className="space-y-4 max-w-md mx-auto">
         {/* Title Section */}
         <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
@@ -2892,6 +2945,55 @@ function UrlCreationStep({
               className="bg-slate-700 border-slate-600 text-white mt-1"
               data-testid="input-url-title"
             />
+          </div>
+          
+          {/* Title Style Controls */}
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Color:</span>
+              {LANDING_TEXT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => onTitleColorChange(color)}
+                  className={`w-5 h-5 rounded-full border-2 transition-all ${
+                    titleColor === color ? 'border-white scale-110' : 'border-slate-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  data-testid={`btn-title-color-${color}`}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Size:</span>
+              {LANDING_TEXT_SIZES.map((size) => (
+                <Button
+                  key={size.id}
+                  size="sm"
+                  variant={titleSize === size.value ? 'default' : 'outline'}
+                  onClick={() => onTitleSizeChange(size.value)}
+                  className="h-5 px-2 text-xs"
+                  data-testid={`btn-title-size-${size.id}`}
+                >
+                  {size.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Font:</span>
+              {LANDING_TEXT_FONTS.map((font) => (
+                <Button
+                  key={font.id}
+                  size="sm"
+                  variant={titleFont === font.family ? 'default' : 'outline'}
+                  onClick={() => onTitleFontChange(font.family)}
+                  style={{ fontFamily: font.family }}
+                  className="h-5 px-2 text-xs"
+                  data-testid={`btn-title-font-${font.id}`}
+                >
+                  {font.label}
+                </Button>
+              ))}
+            </div>
           </div>
           
           {/* Title Position Sliders */}
@@ -2940,6 +3042,55 @@ function UrlCreationStep({
               className="bg-slate-700 border-slate-600 text-white mt-1"
               data-testid="input-url-description"
             />
+          </div>
+          
+          {/* Description Style Controls */}
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Color:</span>
+              {LANDING_TEXT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => onDescColorChange(color)}
+                  className={`w-5 h-5 rounded-full border-2 transition-all ${
+                    descColor === color ? 'border-white scale-110' : 'border-slate-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  data-testid={`btn-desc-color-${color}`}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Size:</span>
+              {LANDING_TEXT_SIZES.map((size) => (
+                <Button
+                  key={size.id}
+                  size="sm"
+                  variant={descSize === size.value ? 'default' : 'outline'}
+                  onClick={() => onDescSizeChange(size.value)}
+                  className="h-5 px-2 text-xs"
+                  data-testid={`btn-desc-size-${size.id}`}
+                >
+                  {size.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Font:</span>
+              {LANDING_TEXT_FONTS.map((font) => (
+                <Button
+                  key={font.id}
+                  size="sm"
+                  variant={descFont === font.family ? 'default' : 'outline'}
+                  onClick={() => onDescFontChange(font.family)}
+                  style={{ fontFamily: font.family }}
+                  className="h-5 px-2 text-xs"
+                  data-testid={`btn-desc-font-${font.id}`}
+                >
+                  {font.label}
+                </Button>
+              ))}
+            </div>
           </div>
           
           {/* Description Position Sliders */}
@@ -4988,9 +5139,17 @@ function MembersSandboxContent() {
   // Title position (vertical: 0=bottom, 100=top; horizontal: 0=left, 100=right)
   const [titleVertical, setTitleVertical] = useState(15);
   const [titleHorizontal, setTitleHorizontal] = useState(50);
+  // Title styling
+  const [titleColor, setTitleColor] = useState('#ffffff');
+  const [titleSize, setTitleSize] = useState('18px');
+  const [titleFont, setTitleFont] = useState('Arial');
   // Description position
   const [descVertical, setDescVertical] = useState(8);
   const [descHorizontal, setDescHorizontal] = useState(50);
+  // Description styling
+  const [descColor, setDescColor] = useState('#e2e8f0');
+  const [descSize, setDescSize] = useState('14px');
+  const [descFont, setDescFont] = useState('Arial');
   
   // New wizard state: product selection
   const [selectedProductType, setSelectedProductType] = useState<AllowedProduct | null>(null);
@@ -6273,12 +6432,24 @@ function MembersSandboxContent() {
                     background={urlGraphic}
                     titleVertical={titleVertical}
                     titleHorizontal={titleHorizontal}
+                    titleColor={titleColor}
+                    titleSize={titleSize}
+                    titleFont={titleFont}
                     descVertical={descVertical}
                     descHorizontal={descHorizontal}
+                    descColor={descColor}
+                    descSize={descSize}
+                    descFont={descFont}
                     onTitleVerticalChange={setTitleVertical}
                     onTitleHorizontalChange={setTitleHorizontal}
+                    onTitleColorChange={setTitleColor}
+                    onTitleSizeChange={setTitleSize}
+                    onTitleFontChange={setTitleFont}
                     onDescVerticalChange={setDescVertical}
                     onDescHorizontalChange={setDescHorizontal}
+                    onDescColorChange={setDescColor}
+                    onDescSizeChange={setDescSize}
+                    onDescFontChange={setDescFont}
                   />
                 )}
                 
