@@ -894,35 +894,158 @@ function GraphicLocationStep({
 function GraphicSizeStep({
   selectedSize,
   selectedColor,
-  graphicLocation,
+  currentPlacement,
   onSelect
 }: {
   selectedSize: GraphicSize;
   selectedColor: string;
-  graphicLocation: GraphicLocation;
+  currentPlacement: PlacementOption;
   onSelect: (size: GraphicSize) => void;
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  // Graphic outline sizes calculated from Printify specs
-  // SVG shirt body: 74px wide = 20" real shirt. Scale: 3.7 px/inch
-  // Small: 6"x8" = 22x30px, Medium: 9"x12" = 33x44px, Large: 11"x14" = 41x52px
-  const getOutlineSize = (size: GraphicSize) => {
-    const sizeKey = size || 'medium';
-    const sizes: Record<string, { w: number; h: number }> = { 
-      small: { w: 22, h: 30 }, 
-      medium: { w: 33, h: 44 }, 
-      large: { w: 41, h: 52 } 
-    };
-    return sizes[sizeKey] || sizes.medium;
+  // Get size options based on placement
+  const getSizeOptionsForPlacement = () => {
+    if (currentPlacement === 'sleeve_left' || currentPlacement === 'sleeve_right') {
+      return { small: { w: 12, h: 12 }, medium: { w: 16, h: 16 }, large: { w: 20, h: 20 } };
+    }
+    if (currentPlacement === 'left_chest') {
+      return { small: { w: 15, h: 15 }, medium: { w: 20, h: 20 }, large: { w: 25, h: 25 } };
+    }
+    // Front/back - larger sizes
+    return { small: { w: 22, h: 30 }, medium: { w: 33, h: 44 }, large: { w: 41, h: 52 } };
   };
   
-  const currentSize = getOutlineSize(selectedSize || 'medium');
-  const isLeftChest = graphicLocation === 'left-chest';
-  // Calculated from Printify specs: left chest 3" below shoulder, 3.5" from center
-  // Front center: 3.5" below collar (y=30), centered at y=79 for medium print
-  const graphicX = isLeftChest ? 77 : 90;
-  const graphicY = isLeftChest ? 68 : 79;
+  const sizeOptions = getSizeOptionsForPlacement();
+  const currentSize = sizeOptions[selectedSize || 'medium'] || sizeOptions.medium;
+  
+  // Check if this is a sleeve placement
+  const isSleeve = currentPlacement === 'sleeve_left' || currentPlacement === 'sleeve_right';
+  const isLeftSleeve = currentPlacement === 'sleeve_left';
+  const isLeftChest = currentPlacement === 'left_chest';
+  const isBack = currentPlacement === 'back';
+  
+  // Render sleeve view
+  const renderSleeveView = () => (
+    <svg width="200" height="200" viewBox="0 0 180 180" className="drop-shadow-xl">
+      {/* Angled sleeve shape - showing partial shirt from side */}
+      <g transform={isLeftSleeve ? "translate(90, 90) rotate(-25)" : "translate(90, 90) rotate(25) scale(-1,1)"}>
+        {/* Sleeve tube */}
+        <path
+          d="M-30,-60 L30,-60 L35,60 L-35,60 Z"
+          fill={colorHex}
+          stroke="#444"
+          strokeWidth="2"
+        />
+        {/* Shoulder seam hint */}
+        <path
+          d="M-30,-60 Q-40,-70 -50,-55"
+          fill="none"
+          stroke="#555"
+          strokeWidth="1.5"
+        />
+        {/* Partial body hint */}
+        <path
+          d="M-35,60 Q-45,80 -40,100 L40,100 Q45,80 35,60"
+          fill={colorHex}
+          stroke="#444"
+          strokeWidth="1"
+          opacity="0.5"
+        />
+      </g>
+      
+      {/* Graphic outline on sleeve - positioned in center */}
+      <g transform={isLeftSleeve ? "translate(90, 85) rotate(-25)" : "translate(90, 85) rotate(25) scale(-1,1)"}>
+        <rect
+          x={-currentSize.w/2}
+          y={-currentSize.h/2}
+          width={currentSize.w}
+          height={currentSize.h}
+          fill="transparent"
+          stroke="#22c55e"
+          strokeWidth="2"
+          strokeDasharray="4 2"
+          rx="2"
+        />
+        {/* Mini QR icon */}
+        <rect x={-4} y={-4} width={8} height={8} fill="white" rx="1" />
+        <rect x={-3} y={-3} width={2} height={2} fill="#374151" />
+        <rect x={1} y={-3} width={2} height={2} fill="#374151" />
+        <rect x={-3} y={1} width={2} height={2} fill="#374151" />
+      </g>
+      
+      {/* Label */}
+      <text x="90" y="175" textAnchor="middle" fill="#64748b" fontSize="10">
+        {isLeftSleeve ? 'Left Sleeve' : 'Right Sleeve'}
+      </text>
+    </svg>
+  );
+  
+  // Render front/back/chest view
+  const renderBodyView = () => {
+    const graphicX = isLeftChest ? 77 : 90;
+    const graphicY = isLeftChest ? 68 : 79;
+    
+    return (
+      <svg width="200" height="240" viewBox="0 0 180 210" className="drop-shadow-xl">
+        <path
+          d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+          fill={colorHex}
+          stroke="#444"
+          strokeWidth="2"
+        />
+        
+        {/* Back indicator */}
+        {isBack && (
+          <text x="90" y="25" textAnchor="middle" fill="#64748b" fontSize="8">BACK</text>
+        )}
+        
+        {/* Graphic outline on shirt */}
+        <rect
+          x={graphicX - currentSize.w/2}
+          y={graphicY - currentSize.h/2}
+          width={currentSize.w}
+          height={currentSize.h}
+          fill="transparent"
+          stroke="#22c55e"
+          strokeWidth="1.5"
+          strokeDasharray="4 2"
+          rx="3"
+        />
+        
+        {/* Header text placeholder */}
+        <text
+          x={graphicX}
+          y={graphicY - currentSize.h/2 + 10}
+          textAnchor="middle"
+          fill="#64748b"
+          fontSize={isLeftChest ? 4 : 6}
+        >
+          Header
+        </text>
+        
+        {/* QR code - smaller with blank pattern */}
+        <g transform={`translate(${graphicX - (isLeftChest ? 4 : 6)}, ${graphicY - (isLeftChest ? 4 : 6)})`}>
+          <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
+          <rect x="1" y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
+          <rect x={isLeftChest ? 5 : 8.5} y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
+          <rect x="1" y={isLeftChest ? 5 : 8.5} width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
+          <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#374151" />
+        </g>
+        
+        {/* Footer text placeholder */}
+        <text
+          x={graphicX}
+          y={graphicY + currentSize.h/2 - 4}
+          textAnchor="middle"
+          fill="#64748b"
+          fontSize={isLeftChest ? 4 : 6}
+        >
+          Footer
+        </text>
+      </svg>
+    );
+  };
   
   return (
     <div className="text-center space-y-6">
@@ -931,63 +1054,14 @@ function GraphicSizeStep({
         <p className="text-slate-400">This is your entire print area</p>
       </div>
       
-      {/* Shirt with graphic outline preview */}
+      {/* Shirt/Sleeve with graphic outline preview */}
       <div className="flex justify-center py-4">
-        <svg width="200" height="240" viewBox="0 0 180 210" className="drop-shadow-xl">
-          <path
-            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
-            fill={colorHex}
-            stroke="#444"
-            strokeWidth="2"
-          />
-          
-          {/* Graphic outline on shirt */}
-          <rect
-            x={graphicX - currentSize.w/2}
-            y={graphicY - currentSize.h/2}
-            width={currentSize.w}
-            height={currentSize.h}
-            fill="transparent"
-            stroke="#22c55e"
-            strokeWidth="1.5"
-            strokeDasharray="4 2"
-            rx="3"
-          />
-          
-          {/* Header text placeholder */}
-          <text
-            x={graphicX}
-            y={graphicY - currentSize.h/2 + 10}
-            textAnchor="middle"
-            fill="#64748b"
-            fontSize={isLeftChest ? 4 : 6}
-          >
-            Header
-          </text>
-          
-          {/* QR code - smaller with blank pattern */}
-          <g transform={`translate(${graphicX - (isLeftChest ? 4 : 6)}, ${graphicY - (isLeftChest ? 4 : 6)})`}>
-            <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
-            <rect x="1" y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
-            <rect x={isLeftChest ? 5 : 8.5} y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
-            <rect x="1" y={isLeftChest ? 5 : 8.5} width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
-            <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#374151" />
-          </g>
-          
-          {/* Footer text placeholder */}
-          <text
-            x={graphicX}
-            y={graphicY + currentSize.h/2 - 4}
-            textAnchor="middle"
-            fill="#64748b"
-            fontSize={isLeftChest ? 4 : 6}
-          >
-            Footer
-          </text>
-        </svg>
+        {isSleeve ? renderSleeveView() : renderBodyView()}
       </div>
       
-      <p className="text-xs text-slate-500">Header + QR + Footer all fit inside this box</p>
+      <p className="text-xs text-slate-500">
+        {isSleeve ? 'QR fits inside this box on the sleeve' : 'Header + QR + Footer all fit inside this box'}
+      </p>
       
       <div className="flex flex-wrap justify-center gap-3">
         {(['small', 'medium', 'large'] as GraphicSize[]).map((size) => (
@@ -4972,7 +5046,7 @@ export default function TestMembersSandbox() {
                     <GraphicSizeStep
                       selectedSize={graphicSize}
                       selectedColor={selectedColor}
-                      graphicLocation={graphicLocation}
+                      currentPlacement={currentPlacement}
                       onSelect={setGraphicSize}
                     />
                   </div>
