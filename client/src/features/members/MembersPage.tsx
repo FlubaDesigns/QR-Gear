@@ -4225,8 +4225,8 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
             className="bg-green-600 hover:bg-green-500"
             data-testid="button-new-product"
           >
-            <Plus className="w-4 h-4 mr-1" />
-            New Product
+            <Plus className="w-4 h-4 md:mr-1" />
+            <span className="hidden md:inline">New</span>
           </Button>
         </CardHeader>
         <CardContent>
