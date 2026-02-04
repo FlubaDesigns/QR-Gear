@@ -4091,9 +4091,7 @@ interface MemberIndexViewProps {
 }
 
 function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: MemberIndexViewProps) {
-  const [hasSeenIntro, setHasSeenIntro] = useState(() => {
-    return localStorage.getItem(`member_intro_seen_${memberId}`) === 'true';
-  });
+  const [hasSeenIntro, setHasSeenIntro] = useState(false); // Disabled for testing
 
   const { data: channels } = useQuery<MemberChannel[]>({
     queryKey: ['/api/members', memberId, 'channels'],
@@ -4214,20 +4212,32 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
   return (
     <div className="space-y-6">
       <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-slate-700">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-white flex items-center gap-2">
             <User className="w-5 h-5" />
             My Dashboard
           </CardTitle>
-          <Button
-            size="sm"
-            onClick={() => onStartWizard('simple')}
-            className="bg-green-600 hover:bg-green-500"
-            data-testid="button-new-product"
-          >
-            <Plus className="w-4 h-4 md:mr-1" />
-            <span className="hidden md:inline">New</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                localStorage.removeItem(`member_intro_seen_${memberId}`);
+                setHasSeenIntro(false);
+              }}
+              className="text-xs text-slate-500 hover:text-white"
+              data-testid="button-reset-intro"
+            >
+              Reset Intro
+            </button>
+            <Button
+              size="sm"
+              onClick={() => onStartWizard('simple')}
+              className="bg-green-600 hover:bg-green-500"
+              data-testid="button-new-product"
+            >
+              <Plus className="w-4 h-4 md:mr-1" />
+              <span className="hidden md:inline">New</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
