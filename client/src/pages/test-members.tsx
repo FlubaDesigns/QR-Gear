@@ -958,12 +958,13 @@ function PlacementCountStep({
   
   // Positions on SVG for each Printify placement - TRUE TO RATIO
   // Front/Back = 12" (base = 24 units), Left Chest = 4" (8 units), Sleeves = 3" (6 units)
+  // Sleeve positions adjusted to be on actual sleeve areas of the shirt SVG
   const placementPositions: Record<PlacementOption, { x: number; y: number; size: number }> = {
     'front': { x: 90, y: 100, size: 24 },
     'left_chest': { x: 70, y: 75, size: 8 },
     'back': { x: 90, y: 100, size: 24 },
-    'sleeve_left': { x: 42, y: 68, size: 6 },
-    'sleeve_right': { x: 138, y: 68, size: 6 },
+    'sleeve_left': { x: 44, y: 52, size: 6 },
+    'sleeve_right': { x: 136, y: 52, size: 6 },
   };
   
   return (
