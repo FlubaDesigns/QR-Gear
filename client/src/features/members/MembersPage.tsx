@@ -2546,9 +2546,7 @@ function PlacementConfigStep({
   currentIndex,
   totalPlacements,
   graphicChoice,
-  size,
   onGraphicChoiceChange,
-  onSizeChange,
   headerStyle,
   footerStyle,
   textLayoutChoice
@@ -2557,9 +2555,7 @@ function PlacementConfigStep({
   currentIndex: number;
   totalPlacements: number;
   graphicChoice: PlacementGraphicChoice;
-  size: GraphicSize;
   onGraphicChoiceChange: (choice: PlacementGraphicChoice) => void;
-  onSizeChange: (size: GraphicSize) => void;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   textLayoutChoice: TextLayoutChoice;
@@ -2567,32 +2563,6 @@ function PlacementConfigStep({
   const placementLabel = PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement;
   const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
   const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
-  
-  // Get recommended sizes based on placement
-  const getSizeOptions = () => {
-    if (currentPlacement === 'front' || currentPlacement === 'back') {
-      return [
-        { id: 'small' as GraphicSize, label: 'Small', size: '6"×8"' },
-        { id: 'medium' as GraphicSize, label: 'Medium', size: '9"×12"' },
-        { id: 'large' as GraphicSize, label: 'Large', size: '11"×14"' }
-      ];
-    } else if (currentPlacement === 'left_chest') {
-      return [
-        { id: 'small' as GraphicSize, label: 'Small', size: '2.5"' },
-        { id: 'medium' as GraphicSize, label: 'Medium', size: '3.5"' },
-        { id: 'large' as GraphicSize, label: 'Large', size: '4"' }
-      ];
-    } else {
-      // Sleeves
-      return [
-        { id: 'small' as GraphicSize, label: 'Small', size: '2"' },
-        { id: 'medium' as GraphicSize, label: 'Medium', size: '2.5"' },
-        { id: 'large' as GraphicSize, label: 'Large', size: '3"' }
-      ];
-    }
-  };
-  
-  const sizeOptions = getSizeOptions();
   
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
