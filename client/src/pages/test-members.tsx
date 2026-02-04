@@ -43,6 +43,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
 import SEO from "@/components/SEO";
+import { MemberAuthProvider } from "@/features/members/MemberAuthContext";
+import { MembersProvider, useMembersContext } from "@/features/members/MembersContext";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { PlacementPicker, type PlacementSize, type PlacementType, type PlacementConfig } from "@/features/shared/components/PlacementPicker";
 import { HeaderFooterEditor } from "@/features/shared/components/HeaderFooterEditor";
@@ -4316,7 +4318,7 @@ function EarningsView({ memberId }: { memberId: string }) {
 
 type ViewMode = 'wizard' | 'channels' | 'collections' | 'earnings';
 
-export default function TestMembersSandbox() {
+function MembersSandboxContent() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   
@@ -5682,5 +5684,15 @@ export default function TestMembersSandbox() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TestMembersSandbox() {
+  return (
+    <MemberAuthProvider apiBase="/api/members">
+      <MembersProvider>
+        <MembersSandboxContent />
+      </MembersProvider>
+    </MemberAuthProvider>
   );
 }
