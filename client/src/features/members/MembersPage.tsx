@@ -1315,17 +1315,14 @@ function QRBasicTypeStep({
 }
 
 // QR Basic Step 2: Enter URL or Text content
-// URL validation helper
+// URL validation helper - just check for no spaces and has a dot
 function isValidUrl(urlString: string): boolean {
   if (!urlString.trim()) return false;
-  // Check for spaces (not allowed in URLs)
+  // No spaces allowed
   if (urlString.includes(' ')) return false;
-  try {
-    const url = new URL(urlString);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
+  // Must contain a dot (like example.com)
+  if (!urlString.includes('.')) return false;
+  return true;
 }
 
 function QRBasicInputStep({
@@ -1414,7 +1411,7 @@ function QRBasicInputStep({
               data-testid="input-qr-basic-url"
             />
             {urlError ? (
-              <p className="text-red-400 text-sm">Please enter a valid URL (e.g., https://example.com). No spaces allowed.</p>
+              <p className="text-red-400 text-sm">Enter a valid link (e.g., example.com). No spaces allowed.</p>
             ) : (
               <p className="text-slate-500 text-xs text-right">{charCount} / {maxLength} characters</p>
             )}
