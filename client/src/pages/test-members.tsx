@@ -4321,6 +4321,7 @@ type ViewMode = 'wizard' | 'channels' | 'collections' | 'earnings';
 function MembersSandboxContent() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { api } = useMembersContext();
   
   const [viewMode, setViewMode] = useState<ViewMode>('wizard');
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
@@ -4550,23 +4551,24 @@ function MembersSandboxContent() {
         
         // Step 3: Get Printify mockup using product info from state (packet was created on product select)
         if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
-          const mockupResult = await fetchProductMockup({
+          const mockupResult = await api.generateMockup({
             blueprintId: selectedProductType.blueprintId,
             printProviderId: selectedProductType.printProviderId,
             colorName: selectedColor,
             artworkUrl: qrApiUrl,
-            artworkVariant: 'black',
-            canonicalPlacementId: 'FRONT_CHEST',
+            placement: 'FRONT_CHEST',
             qrSize: graphicSize as 'small' | 'medium' | 'large' || 'medium',
-          }, authHeaders);
+          });
           
-          if (mockupResult.success && mockupResult.bestUrl) {
+          // Normalize result - api.generateMockup returns lifestyleMockupUrl instead of lifestyleUrl
+          const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
+          if (mockupResult.success && bestUrl) {
             console.log('[QR Basic] Got mockup:', { 
-              lifestyle: !!mockupResult.lifestyleUrl, 
-              flat: !!mockupResult.flatUrl,
+              lifestyle: !!mockupResult.lifestyleMockupUrl, 
+              flat: !!mockupResult.mockupUrl,
               fromCache: mockupResult.fromCache 
             });
-            setQrBasicMockupUrl(mockupResult.bestUrl);
+            setQrBasicMockupUrl(bestUrl);
           } else {
             console.warn('[QR Basic] Mockup fetch failed:', mockupResult.error);
             setQrBasicMockupUrl(qrApiUrl);
