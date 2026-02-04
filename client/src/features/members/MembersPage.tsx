@@ -5985,10 +5985,12 @@ function MembersSandboxContent() {
                       graphicSize={graphicSize}
                       onYes={() => {
                         setWantsHeaderFooter(true);
+                        setQrType('qr-plus'); // Set type for header/footer flow (will become qr-canvas if they add landing page)
                         setSimpleStep('text-choice');
                       }}
                       onNo={() => {
                         setWantsHeaderFooter(false);
+                        setQrType('qr-basic'); // Set type for basic QR-only flow
                         // Fork to QR Basic flow: Step 8 = URL/Text choice
                         setQrBasicInputType('');
                         setQrBasicContent('');
