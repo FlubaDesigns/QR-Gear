@@ -5522,8 +5522,7 @@ function MembersSandboxContent() {
             <CardContent className="p-6 pt-1">
               <SimpleWizardProgressBar currentStep={simpleStep} />
               {runningEarnings > 0 && (
-                <div className="flex items-center gap-2 mb-4">
-                  <DollarSign className="w-4 h-4 text-green-400" />
+                <div className="flex items-center gap-1 mb-4">
                   <span className="text-green-400 font-semibold text-sm">
                     ${runningEarnings.toFixed(2)} potential
                   </span>
