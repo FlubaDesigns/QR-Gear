@@ -1889,78 +1889,57 @@ function ShirtPreviewStep({
   );
 }
 
-// Step 11: URL Creation - title, description, and preview
+// Step 14: URL Creation - title, description with actual background preview
 function UrlCreationStep({
   title,
   description,
   onTitleChange,
   onDescriptionChange,
-  headerStyle,
-  footerStyle,
-  textLayoutChoice
+  backgroundUrl
 }: {
   title: string;
   description: string;
   onTitleChange: (title: string) => void;
   onDescriptionChange: (description: string) => void;
-  headerStyle: TextStyleConfig;
-  footerStyle: TextStyleConfig;
-  textLayoutChoice: TextLayoutChoice;
+  backgroundUrl: string;
 }) {
-  const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
-  const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
-  
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Create Your URL Image</h2>
-        <p className="text-slate-400">This is what people see when they scan your QR code</p>
+        <h2 className="text-xl font-bold text-white mb-1">Create Your Landing Page</h2>
+        <p className="text-slate-400 text-sm">This is what people see when they scan your QR code</p>
       </div>
       
-      {/* URL Image Preview */}
-      <div className="flex justify-center py-4">
-        <div className="w-48 h-80 bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl border-2 border-slate-600 p-3 flex flex-col items-center justify-between shadow-xl">
-          {/* Header area */}
-          {showHeader && (
-            <div className="text-center">
-              <span 
-                style={{ 
-                  color: headerStyle.color || '#fff',
-                  fontFamily: headerStyle.fontFamily || 'Arial'
-                }}
-                className="text-sm font-bold"
-              >
-                {headerStyle.text || 'Header'}
-              </span>
-            </div>
-          )}
+      {/* Landing Page Preview - Phone mockup with actual background */}
+      <div className="flex justify-center py-2">
+        <div className="relative w-44 h-72 rounded-3xl border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+          {/* Phone notch */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-black rounded-b-xl z-10" />
           
-          {/* QR placeholder */}
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center">
-              <QrCode className="w-12 h-12 text-slate-600" />
+          {/* Screen content */}
+          <div className="w-full h-full relative">
+            {/* Background image or placeholder */}
+            {backgroundUrl ? (
+              <img 
+                src={backgroundUrl} 
+                alt="Landing page background" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-b from-slate-700 to-slate-900 flex items-center justify-center">
+                <span className="text-slate-500 text-xs">No background selected</span>
+              </div>
+            )}
+            
+            {/* Overlay with title and description */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
+              <h3 className="text-white font-bold text-sm truncate">
+                {title || 'Your Title Here'}
+              </h3>
+              <p className="text-slate-300 text-xs line-clamp-2 mt-1">
+                {description || 'Add a description...'}
+              </p>
             </div>
-          </div>
-          
-          {/* Footer area */}
-          {showFooter && (
-            <div className="text-center">
-              <span 
-                style={{ 
-                  color: footerStyle.color || '#fff',
-                  fontFamily: footerStyle.fontFamily || 'Arial'
-                }}
-                className="text-sm font-bold"
-              >
-                {footerStyle.text || 'Footer'}
-              </span>
-            </div>
-          )}
-          
-          {/* Title and description */}
-          <div className="w-full mt-2 pt-2 border-t border-slate-700 text-center">
-            <p className="text-white text-xs font-medium truncate">{title || 'Your Title'}</p>
-            <p className="text-slate-400 text-xs truncate">{description || 'Description'}</p>
           </div>
         </div>
       </div>
@@ -1972,26 +1951,23 @@ function UrlCreationStep({
           <Input
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
-            placeholder="Enter a title for your creation..."
+            placeholder="Give your creation a name..."
             className="bg-slate-700 border-slate-600 text-white"
             data-testid="input-url-title"
           />
+          <p className="text-slate-500 text-xs mt-1">Appears at the bottom of your landing page</p>
         </div>
         <div>
           <Label className="text-white text-sm">Description</Label>
           <Input
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
-            placeholder="Brief description..."
+            placeholder="What is this about?"
             className="bg-slate-700 border-slate-600 text-white"
             data-testid="input-url-description"
           />
         </div>
       </div>
-      
-      <p className="text-center text-slate-500 text-xs">
-        This will be the landing page when someone scans your QR code
-      </p>
     </div>
   );
 }
@@ -4385,9 +4361,7 @@ export default function TestMembersSandbox() {
                     description={simpleDescription}
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
-                    headerStyle={headerStyle}
-                    footerStyle={footerStyle}
-                    textLayoutChoice={textLayoutChoice}
+                    backgroundUrl={backgroundUrl}
                   />
                 )}
                 
