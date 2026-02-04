@@ -150,7 +150,6 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
-  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
@@ -173,7 +172,6 @@ const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
-  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'qr-basic-type', label: 'URL or Text', icon: Link2 },
   { id: 'qr-basic-input', label: 'Enter Content', icon: Type },
@@ -200,7 +198,6 @@ const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
-  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
@@ -5437,38 +5434,12 @@ function MembersSandboxContent() {
       : SIMPLE_WIZARD_STEPS;
     const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     
-    // Reset placement index when entering graphic-size from placement-count
-    if (simpleStep === 'placement-count') {
-      setCurrentPlacementIndex(0);
-      setGraphicSize('');
-      setPerPlacementSizes({} as any);
-    }
-    
-    // Step 6: Graphic Size loop - save size for current placement and loop
-    if (simpleStep === 'graphic-size') {
-      // Save size for current placement
-      setPerPlacementSizes(prev => ({
-        ...prev,
-        [currentPlacement]: graphicSize
-      }));
-      
-      // Check if more placements to configure
-      if (currentPlacementIndex < selectedPlacements.length - 1) {
-        // More placements - stay on graphic-size, move to next placement
-        setCurrentPlacementIndex(prev => prev + 1);
-        setGraphicSize(''); // Reset for next placement
-        return; // Stay on graphic-size step
-      }
-      // All placements have sizes - proceed to generate step
-    }
-    
     // After text-edit, reset placement index for the placement-config loop
     if (simpleStep === 'text-edit') {
       setCurrentPlacementIndex(0);
       setPlacementGraphicChoice('');
-      // Pre-populate size from the graphic-size step (perPlacementSizes)
-      const firstPlacement = selectedPlacements[0];
-      setPlacementSize(perPlacementSizes[firstPlacement] || '');
+      // Reset size for first placement
+      setPlacementSize('');
     }
     
     // Save current placement config when leaving placement-config step
@@ -5487,8 +5458,8 @@ function MembersSandboxContent() {
         const nextPlacement = selectedPlacements[currentPlacementIndex + 1];
         setCurrentPlacementIndex(prev => prev + 1);
         setPlacementGraphicChoice('');
-        // Pre-populate size from the graphic-size step
-        setPlacementSize(perPlacementSizes[nextPlacement] || '');
+        // Reset size for next placement
+        setPlacementSize('');
         return; // Stay on placement-config step
       }
       // All placements done - proceed to shirt-preview
@@ -5550,15 +5521,6 @@ function MembersSandboxContent() {
       return;
     }
     
-    // Handle graphic-size loop back navigation
-    if (simpleStep === 'graphic-size' && currentPlacementIndex > 0) {
-      // Go back to previous placement in the loop
-      const prevPlacement = selectedPlacements[currentPlacementIndex - 1];
-      setCurrentPlacementIndex(prev => prev - 1);
-      setGraphicSize(perPlacementSizes[prevPlacement] || '');
-      return;
-    }
-    
     // Select correct steps array based on qrType
     const stepsArray = qrType === 'qr-basic' ? QR_BASIC_STEPS
       : qrType === 'qr-plus' ? QR_PLUS_STEPS
@@ -5576,7 +5538,6 @@ function MembersSandboxContent() {
       case 'color': return selectedColor !== '';
       case 'size': return selectedShirtSize !== '';
       case 'type': return qrType !== '';
-      case 'graphic-size': return graphicSize !== '';
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
       case 'placement-count': return selectedPlacements.length > 0;
@@ -5962,28 +5923,7 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step: Graphic Size - with placement indicator */}
-                {simpleStep === 'graphic-size' && (
-                  <div className="space-y-2">
-                    {selectedPlacements.length > 1 && (
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-slate-400 text-sm">Configuring:</span>
-                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
-                        </span>
-                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
-                      </div>
-                    )}
-                    <GraphicSizeStep
-                      selectedSize={graphicSize}
-                      selectedColor={selectedColor}
-                      currentPlacement={currentPlacement}
-                      onSelect={setGraphicSize}
-                    />
-                  </div>
-                )}
-                
-                {/* Step 4: Generate Graphic - asks about header/footer */}
+                {/* Step: Generate Graphic - asks about header/footer */}
                 {simpleStep === 'generate' && (
                   <div className="space-y-2">
                     {selectedPlacements.length > 1 && (
