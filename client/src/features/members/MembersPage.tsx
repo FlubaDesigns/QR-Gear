@@ -6169,34 +6169,10 @@ function MembersSandboxContent() {
                       setQrType('qr-canvas');
                       setSimpleStep('url-explainer');
                     }}
-                    onNo={async () => {
+                    onNo={() => {
                       setQrType('qr-plus');
-                      setIsGeneratingPlusMockup(true);
-                      try {
-                        if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor && productGraphic) {
-                          const mockupResult = await api.generateMockup({
-                            blueprintId: selectedProductType.blueprintId,
-                            printProviderId: selectedProductType.printProviderId,
-                            colorName: selectedColor,
-                            artworkUrl: productGraphic,
-                            placement: 'FRONT_CHEST',
-                            qrSize: graphicSize || 'medium',
-                          });
-                          const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-                          if (mockupResult.success && bestUrl) {
-                            setQrPlusMockup(bestUrl);
-                          } else {
-                            setQrPlusMockup(productGraphic);
-                          }
-                        } else {
-                          setQrPlusMockup(productGraphic);
-                        }
-                      } catch (error) {
-                        console.error('[QR Plus] Error generating mockup:', error);
-                        setQrPlusMockup(productGraphic);
-                      } finally {
-                        setIsGeneratingPlusMockup(false);
-                      }
+                      // Use existing productGraphic - no need to regenerate mockup
+                      setQrPlusMockup(productGraphic);
                       setSimpleStep('qr-plus-mockup');
                     }}
                   />
