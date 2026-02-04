@@ -5043,6 +5043,7 @@ function MembersSandboxContent() {
   const canSimpleProceed = () => {
     switch (simpleStep) {
       case 'product': return selectedProductType !== null;
+      case 'product-congrats': return true;
       case 'color': return selectedColor !== '';
       case 'size': return selectedShirtSize !== '';
       case 'type': return qrType !== '';
@@ -5374,10 +5375,20 @@ function MembersSandboxContent() {
         {viewMode === 'wizard' && wizardTier === 'simple' && (
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader className="pb-2">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Wand2 className="w-5 h-5 text-green-400" />
-                Simple Wizard
-              </CardTitle>
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Wand2 className="w-5 h-5 text-green-400" />
+                  Simple Wizard
+                </CardTitle>
+                {runningEarnings > 0 && (
+                  <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1.5 rounded-full border border-green-500/30">
+                    <DollarSign className="w-4 h-4 text-green-400" />
+                    <span className="text-green-400 font-semibold text-sm">
+                      ${runningEarnings.toFixed(2)} earned
+                    </span>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-6 pt-2">
               <SimpleWizardProgressBar currentStep={simpleStep} />
@@ -5388,6 +5399,18 @@ function MembersSandboxContent() {
                   <ProductPickerStep
                     selectedProduct={selectedProductType}
                     onSelect={handleProductSelect}
+                  />
+                )}
+                
+                {/* Step: Product Congrats - earnings celebration */}
+                {simpleStep === 'product-congrats' && selectedProductType && (
+                  <ProductCongratsStep
+                    productName={selectedProductType.name}
+                    earnings={selectedProductType.price * 0.25}
+                    onContinue={() => {
+                      setRunningEarnings(prev => prev + selectedProductType.price * 0.25);
+                      setSimpleStep('color');
+                    }}
                   />
                 )}
                 
