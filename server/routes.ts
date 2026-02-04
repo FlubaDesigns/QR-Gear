@@ -12021,6 +12021,11 @@ ${allPages.map(page => `  <url>
       
       const doc = await firestoreDb.collection("testSettings").doc("pricing").get();
       
+      // Default size upcharges (from Printify pricing structure)
+      const defaultSizeUpcharges: Record<string, number> = {
+        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10
+      };
+      
       if (!doc.exists) {
         // Return defaults
         return res.json({
@@ -12029,6 +12034,7 @@ ${allPages.map(page => `  <url>
           additionalPlacementCost: 4,
           textLineUpcharge: 2,
           memberProfitShare: 0.25,
+          sizeUpcharges: defaultSizeUpcharges,
           hostingTiers: [
             { code: "1_year", name: "1 Year", price: 5 },
             { code: "2_year", name: "2 Years", price: 8 },
@@ -12038,10 +12044,11 @@ ${allPages.map(page => `  <url>
       }
       
       const data = doc.data();
-      // Ensure memberProfitShare has a default value
+      // Ensure memberProfitShare and sizeUpcharges have default values
       res.json({
         ...data,
         memberProfitShare: data?.memberProfitShare ?? 0.25,
+        sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
       });
     } catch (error: any) {
       console.error("[Pricing Settings TEST] Error getting settings:", error);
@@ -12052,11 +12059,16 @@ ${allPages.map(page => `  <url>
   // Test: Save pricing settings - NO AUTH REQUIRED
   app.post("/api/test/pricing-settings", async (req: any, res) => {
     try {
-      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers } = req.body;
+      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges } = req.body;
       
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       const admin = (await import("./lib/firebase-admin")).getFirebaseAdmin();
+      
+      // Default size upcharges
+      const defaultSizeUpcharges: Record<string, number> = {
+        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10
+      };
       
       const settings = {
         markupPercent: parseFloat(markupPercent) || 25,
@@ -12064,6 +12076,7 @@ ${allPages.map(page => `  <url>
         additionalPlacementCost: parseFloat(additionalPlacementCost) || 4,
         textLineUpcharge: parseFloat(textLineUpcharge) || 2,
         memberProfitShare: parseFloat(memberProfitShare) || 0.25,
+        sizeUpcharges: sizeUpcharges || defaultSizeUpcharges,
         hostingTiers: hostingTiers || [
           { code: "1_year", name: "1 Year", price: 5 },
           { code: "2_year", name: "2 Years", price: 8 },

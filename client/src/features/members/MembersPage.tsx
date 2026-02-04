@@ -113,16 +113,20 @@ const SHIRT_COLORS = [
   { id: 'gray', name: 'Gray', hex: '#6b7280', textColor: '#FFFFFF' },
 ];
 
-// Available sizes with earnings bonus (S is base, each size up adds $0.50)
+// Available sizes - earnings calculated dynamically from pricing settings
 const SHIRT_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
-const SIZE_EARNINGS_BONUS: Record<string, number> = {
-  'S': 0,
-  'M': 0.50,
-  'L': 1.00,
-  'XL': 1.50,
-  '2XL': 2.00,
-  '3XL': 2.50,
-};
+
+// Helper to calculate size earnings bonuses from pricing settings
+// S is base (0), each size up adds increment based on sizeUpcharges × memberProfitShare
+function calculateSizeEarningsBonuses(sizeUpcharges: Record<string, number> | undefined, memberProfitShare: number): Record<string, number> {
+  const defaultUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10 };
+  const upcharges = sizeUpcharges || defaultUpcharges;
+  const bonuses: Record<string, number> = {};
+  for (const size of SHIRT_SIZES) {
+    bonuses[size] = (upcharges[size] || 0) * memberProfitShare;
+  }
+  return bonuses;
+}
 
 // Text style presets for shirt text editor
 const SHIRT_TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444'];
@@ -817,11 +821,13 @@ function SizePickerStep({
   selectedSize,
   selectedColor,
   baseEarnings = 0,
+  sizeEarningsBonuses,
   onSelect
 }: {
   selectedSize: string;
   selectedColor: string;
   baseEarnings?: number;
+  sizeEarningsBonuses: Record<string, number>;
   onSelect: (size: string) => void;
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
@@ -866,7 +872,7 @@ function SizePickerStep({
       
       <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
         {SHIRT_SIZES.map((size) => {
-          const sizeEarnings = baseEarnings + (SIZE_EARNINGS_BONUS[size] || 0);
+          const sizeEarnings = baseEarnings + (sizeEarningsBonuses[size] || 0);
           return (
             <button
               key={size}
@@ -1700,11 +1706,13 @@ function QRBasicConfirmStep({
 function PlacementCountStep({
   selected,
   onToggle,
-  selectedColor
+  selectedColor,
+  placementEarningsBonus = 1.00
 }: {
   selected: PlacementOption[];
   onToggle: (placement: PlacementOption) => void;
   selectedColor: string;
+  placementEarningsBonus?: number;
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
@@ -1723,7 +1731,7 @@ function PlacementCountStep({
     <div className="space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Where Do You Want Graphics?</h2>
-        <p className="text-slate-400 text-sm">Select one or more placements</p>
+        <p className="text-slate-400 text-sm">Each extra placement adds +${placementEarningsBonus.toFixed(2)} to your earnings</p>
       </div>
       
       {/* Shirt preview with counter */}
@@ -4698,6 +4706,21 @@ function MembersSandboxContent() {
   // Running earnings total - accumulates as items are created
   const [runningEarnings, setRunningEarnings] = useState<number>(0);
   
+  // Fetch pricing settings from API for dynamic earnings calculations
+  const { data: pricingSettings } = useQuery<{
+    memberProfitShare: number;
+    additionalPlacementCost: number;
+    sizeUpcharges: Record<string, number>;
+    baseRetailPrice: number;
+  }>({
+    queryKey: ['/api/test/pricing-settings'],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+  
+  // Calculate earnings bonuses from pricing settings
+  const placementEarningsBonus = (pricingSettings?.additionalPlacementCost || 4) * (pricingSettings?.memberProfitShare || 0.25);
+  const sizeEarningsIncrement = (pricingSettings?.sizeUpcharges?.['M'] || 2) * (pricingSettings?.memberProfitShare || 0.25);
+  
   // Load publish count from localStorage
   useEffect(() => {
     if (user?.id) {
@@ -5445,29 +5468,37 @@ function MembersSandboxContent() {
                 )}
                 
                 {/* Step 0b: Pick Size */}
-                {simpleStep === 'size' && (
-                  <SizePickerStep
-                    selectedSize={selectedShirtSize}
-                    selectedColor={selectedColor}
-                    baseEarnings={selectedProductType?.memberEarnings || 0}
-                    onSelect={(size) => {
-                      // Calculate earnings difference when changing size
-                      const oldBonus = SIZE_EARNINGS_BONUS[selectedShirtSize] || 0;
-                      const newBonus = SIZE_EARNINGS_BONUS[size] || 0;
-                      const earningsDiff = newBonus - oldBonus;
-                      
-                      // Only update running earnings if changing from a previous selection
-                      if (selectedShirtSize && earningsDiff !== 0) {
-                        setRunningEarnings(prev => prev + earningsDiff);
-                      } else if (!selectedShirtSize) {
-                        // First time selecting - add the bonus
-                        setRunningEarnings(prev => prev + newBonus);
-                      }
-                      
-                      setSelectedShirtSize(size);
-                    }}
-                  />
-                )}
+                {simpleStep === 'size' && (() => {
+                  // Calculate size earnings bonuses from pricing settings
+                  const sizeEarningsBonuses = calculateSizeEarningsBonuses(
+                    pricingSettings?.sizeUpcharges,
+                    pricingSettings?.memberProfitShare || 0.25
+                  );
+                  return (
+                    <SizePickerStep
+                      selectedSize={selectedShirtSize}
+                      selectedColor={selectedColor}
+                      baseEarnings={selectedProductType?.memberEarnings || 0}
+                      sizeEarningsBonuses={sizeEarningsBonuses}
+                      onSelect={(size) => {
+                        // Calculate earnings difference when changing size
+                        const oldBonus = sizeEarningsBonuses[selectedShirtSize] || 0;
+                        const newBonus = sizeEarningsBonuses[size] || 0;
+                        const earningsDiff = newBonus - oldBonus;
+                        
+                        // Only update running earnings if changing from a previous selection
+                        if (selectedShirtSize && earningsDiff !== 0) {
+                          setRunningEarnings(prev => prev + earningsDiff);
+                        } else if (!selectedShirtSize) {
+                          // First time selecting - add the bonus
+                          setRunningEarnings(prev => prev + newBonus);
+                        }
+                        
+                        setSelectedShirtSize(size);
+                      }}
+                    />
+                  );
+                })()}
                 
                 {/* Step 1: Type */}
                 {simpleStep === 'type' && (
@@ -5619,13 +5650,25 @@ function MembersSandboxContent() {
                   <PlacementCountStep
                     selected={selectedPlacements}
                     onToggle={(placement) => {
-                      setSelectedPlacements(prev => 
-                        prev.includes(placement)
-                          ? prev.filter(p => p !== placement)
-                          : [...prev, placement]
-                      );
+                      const isRemoving = selectedPlacements.includes(placement);
+                      const currentCount = selectedPlacements.length;
+                      
+                      if (isRemoving) {
+                        // Only subtract earnings if removing a non-first placement
+                        if (currentCount > 1) {
+                          setRunningEarnings(prev => prev - placementEarningsBonus);
+                        }
+                        setSelectedPlacements(prev => prev.filter(p => p !== placement));
+                      } else {
+                        // Only add earnings for placements beyond the first
+                        if (currentCount >= 1) {
+                          setRunningEarnings(prev => prev + placementEarningsBonus);
+                        }
+                        setSelectedPlacements(prev => [...prev, placement]);
+                      }
                     }}
                     selectedColor={selectedColor}
+                    placementEarningsBonus={placementEarningsBonus}
                   />
                 )}
                 
