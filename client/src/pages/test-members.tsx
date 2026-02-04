@@ -4205,6 +4205,8 @@ export default function TestMembersSandbox() {
     graphicChoice: PlacementGraphicChoice;
     size: GraphicSize;
   }>>({} as any);
+  // Per-placement graphic sizes (step 6 loop)
+  const [perPlacementSizes, setPerPlacementSizes] = useState<Record<PlacementOption, GraphicSize>>({} as any);
   
   // QR Basic flow state (when user says No to header/footer)
   const [qrBasicInputType, setQrBasicInputType] = useState<QRBasicInputType>('');
@@ -4335,6 +4337,31 @@ export default function TestMembersSandbox() {
     
     const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
     
+    // Reset placement index when entering graphic-size from placement-count
+    if (simpleStep === 'placement-count') {
+      setCurrentPlacementIndex(0);
+      setGraphicSize('');
+      setPerPlacementSizes({} as any);
+    }
+    
+    // Step 6: Graphic Size loop - save size for current placement and loop
+    if (simpleStep === 'graphic-size') {
+      // Save size for current placement
+      setPerPlacementSizes(prev => ({
+        ...prev,
+        [currentPlacement]: graphicSize
+      }));
+      
+      // Check if more placements to configure
+      if (currentPlacementIndex < selectedPlacements.length - 1) {
+        // More placements - stay on graphic-size, move to next placement
+        setCurrentPlacementIndex(prev => prev + 1);
+        setGraphicSize(''); // Reset for next placement
+        return; // Stay on graphic-size step
+      }
+      // All placements have sizes - proceed to generate step
+    }
+    
     // After text-edit, reset placement index for the placement-config loop
     if (simpleStep === 'text-edit') {
       setCurrentPlacementIndex(0);
@@ -4389,6 +4416,15 @@ export default function TestMembersSandbox() {
     }
     if (simpleStep === 'qr-basic-confirm') {
       setSimpleStep('qr-basic-save-choice');
+      return;
+    }
+    
+    // Handle graphic-size loop back navigation
+    if (simpleStep === 'graphic-size' && currentPlacementIndex > 0) {
+      // Go back to previous placement in the loop
+      const prevPlacement = selectedPlacements[currentPlacementIndex - 1];
+      setCurrentPlacementIndex(prev => prev - 1);
+      setGraphicSize(perPlacementSizes[prevPlacement] || '');
       return;
     }
     
