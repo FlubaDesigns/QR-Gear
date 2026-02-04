@@ -150,6 +150,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
@@ -172,6 +173,7 @@ const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'qr-basic-type', label: 'URL or Text', icon: Link2 },
   { id: 'qr-basic-input', label: 'Enter Content', icon: Type },
@@ -198,6 +200,7 @@ const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
@@ -2575,7 +2578,7 @@ function PlacementConfigStep({
       
       {/* Visual placement diagram */}
       <div className="flex justify-center">
-        <PlacementDiagram placement={currentPlacement} size={size} />
+        <PlacementDiagram placement={currentPlacement} size="medium" />
       </div>
       
       {/* Choice: Full Graphic or QR Only */}
@@ -2622,32 +2625,7 @@ function PlacementConfigStep({
         </div>
       </div>
       
-      {/* Size selection */}
-      {graphicChoice && (
-        <div className="space-y-3 animate-in fade-in duration-300">
-          <p className="text-sm text-slate-300 text-center">Choose size for {placementLabel}</p>
-          <div className="flex justify-center gap-3">
-            {sizeOptions.map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => onSizeChange(opt.id)}
-                className={`px-4 py-3 rounded-xl border-2 transition-all ${
-                  size === opt.id
-                    ? 'border-green-400 bg-green-500/20'
-                    : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-                }`}
-                data-testid={`button-size-${opt.id}`}
-              >
-                <div className="text-center">
-                  <span className="block font-medium text-white">{opt.label}</span>
-                  <span className="text-xs text-slate-400">{opt.size}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
 
@@ -5418,7 +5396,7 @@ function MembersSandboxContent() {
         ...prev,
         [currentPlacement]: {
           graphicChoice: placementGraphicChoice,
-          size: placementSize
+          size: graphicSize || 'medium'
         }
       }));
       
@@ -5508,11 +5486,12 @@ function MembersSandboxContent() {
       case 'color': return selectedColor !== '';
       case 'size': return selectedShirtSize !== '';
       case 'type': return qrType !== '';
+      case 'graphic-size': return graphicSize !== '';
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
       case 'placement-count': return selectedPlacements.length > 0;
       case 'text-edit': return true;
-      case 'placement-config': return placementGraphicChoice !== '' && placementSize !== '';
+      case 'placement-config': return placementGraphicChoice !== '';
       case 'shirt-preview': return true;
       case 'url-explainer': return true;
       case 'url-source-choice': return libraryChoice !== '';
@@ -5893,6 +5872,16 @@ function MembersSandboxContent() {
                   />
                 )}
                 
+                {/* Step: Graphic Size - member picks size once */}
+                {simpleStep === 'graphic-size' && (
+                  <GraphicSizeStep
+                    selectedSize={graphicSize}
+                    selectedColor={selectedColor}
+                    currentPlacement={selectedPlacements[0] || 'front'}
+                    onSelect={setGraphicSize}
+                  />
+                )}
+                
                 {/* Step: Generate Graphic - asks about header/footer */}
                 {simpleStep === 'generate' && (
                   <div className="space-y-2">
@@ -6107,9 +6096,7 @@ function MembersSandboxContent() {
                     currentIndex={currentPlacementIndex}
                     totalPlacements={selectedPlacements.length}
                     graphicChoice={placementGraphicChoice}
-                    size={placementSize}
                     onGraphicChoiceChange={setPlacementGraphicChoice}
-                    onSizeChange={setPlacementSize}
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
                     textLayoutChoice={textLayoutChoice}
