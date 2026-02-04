@@ -5513,24 +5513,22 @@ function MembersSandboxContent() {
         {/* SIMPLE WIZARD - First-time user experience */}
         {viewMode === 'wizard' && wizardTier === 'simple' && (
           <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-4">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Wand2 className="w-5 h-5 text-green-400" />
-                  Simple Wizard
-                </CardTitle>
-                {runningEarnings > 0 && (
-                  <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1.5 rounded-full border border-green-500/30">
-                    <DollarSign className="w-4 h-4 text-green-400" />
-                    <span className="text-green-400 font-semibold text-sm">
-                      ${runningEarnings.toFixed(2)} potential
-                    </span>
-                  </div>
-                )}
-              </div>
+            <CardHeader className="pb-1 pt-3">
+              <p className="text-xs text-slate-400 flex items-center gap-1">
+                <Wand2 className="w-3 h-3" />
+                Simple Wizard
+              </p>
             </CardHeader>
-            <CardContent className="p-6 pt-2">
+            <CardContent className="p-6 pt-1">
               <SimpleWizardProgressBar currentStep={simpleStep} />
+              {runningEarnings > 0 && (
+                <div className="flex items-center gap-2 mb-4">
+                  <DollarSign className="w-4 h-4 text-green-400" />
+                  <span className="text-green-400 font-semibold text-sm">
+                    ${runningEarnings.toFixed(2)} potential
+                  </span>
+                </div>
+              )}
 
               <div className="min-h-[400px]">
                 {/* Step 0: Pick Product */}
