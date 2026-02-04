@@ -4806,7 +4806,7 @@ function MembersSandboxContent() {
         if (currentPacketId) {
           await updatePacket({
             urlContent: qrBasicInputType === 'url' ? qrContent : null,
-            background: { url: qrApiUrl },
+            graphicUrl: qrApiUrl,
             textLayers: qrBasicInputType === 'text' ? [{ text: qrContent, type: 'content' }] : [],
             'boundProduct.color': selectedColor,
             'boundProduct.size': selectedShirtSize,
