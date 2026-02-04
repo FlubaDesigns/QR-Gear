@@ -5431,7 +5431,11 @@ function MembersSandboxContent() {
       return;
     }
     
-    const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
+    // Select correct steps array based on qrType
+    const stepsArray = qrType === 'qr-basic' ? QR_BASIC_STEPS
+      : qrType === 'qr-plus' ? QR_PLUS_STEPS
+      : SIMPLE_WIZARD_STEPS;
+    const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     
     // Reset placement index when entering graphic-size from placement-count
     if (simpleStep === 'placement-count') {
@@ -5493,8 +5497,8 @@ function MembersSandboxContent() {
     // Fork at shirt-preview (step 12) based on qrType
     // shirt-preview now advances to canvas-fork (step 13) for QR Plus vs Canvas decision
     
-    if (currentIndex < SIMPLE_WIZARD_STEPS.length - 1) {
-      const nextStep = SIMPLE_WIZARD_STEPS[currentIndex + 1].id;
+    if (currentIndex < stepsArray.length - 1) {
+      const nextStep = stepsArray[currentIndex + 1].id;
       setSimpleStep(nextStep);
     }
   };
@@ -5555,9 +5559,13 @@ function MembersSandboxContent() {
       return;
     }
     
-    const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
+    // Select correct steps array based on qrType
+    const stepsArray = qrType === 'qr-basic' ? QR_BASIC_STEPS
+      : qrType === 'qr-plus' ? QR_PLUS_STEPS
+      : SIMPLE_WIZARD_STEPS;
+    const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     if (currentIndex > 0) {
-      setSimpleStep(SIMPLE_WIZARD_STEPS[currentIndex - 1].id);
+      setSimpleStep(stepsArray[currentIndex - 1].id);
     }
   };
 
