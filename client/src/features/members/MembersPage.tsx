@@ -4821,13 +4821,15 @@ function MembersSandboxContent() {
         
         // Step 3: Get Printify mockup using product info from state (packet was created on product select)
         if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+          const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
+          console.log('[QR Basic] Generating mockup with graphicSize:', graphicSize, '→ effectiveQrSize:', effectiveQrSize);
           const mockupResult = await api.generateMockup({
             blueprintId: selectedProductType.blueprintId,
             printProviderId: selectedProductType.printProviderId,
             colorName: selectedColor,
             artworkUrl: qrApiUrl,
             placement: 'FRONT_CHEST',
-            qrSize: graphicSize as 'small' | 'medium' | 'large' || 'medium',
+            qrSize: effectiveQrSize,
           });
           
           // Normalize result - api.generateMockup returns lifestyleMockupUrl instead of lifestyleUrl
