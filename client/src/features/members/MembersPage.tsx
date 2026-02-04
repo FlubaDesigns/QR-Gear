@@ -87,7 +87,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm';
+type SimpleWizardStep = 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type UrlSourceChoice = 'upload' | 'library' | '';
@@ -132,6 +132,7 @@ const SHIRT_TEXT_FONTS = [
 // Simple Wizard - streamlined steps for first-time users
 const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product', label: 'Product', icon: Package },
+  { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
@@ -153,6 +154,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
 // QR Basic fork steps (after saying No at step 7)
 const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product', label: 'Product', icon: Package },
+  { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
@@ -701,6 +703,64 @@ function ProductPickerStep({
 // Advanced wizard product picker (placeholder - not in scope)
 function AdvancedProductPickerStep({ selectedProduct, onSelect }: { selectedProduct: ProductItem | null; onSelect: (product: ProductItem) => void; }) {
   return <div className="text-center py-12 text-slate-400">Advanced product picker - use Simple Wizard for now</div>;
+}
+
+// Product Congrats Step - animated celebration showing earnings
+function ProductCongratsStep({
+  productName,
+  earnings,
+  onContinue
+}: {
+  productName: string;
+  earnings: number;
+  onContinue: () => void;
+}) {
+  const [showAmount, setShowAmount] = useState(false);
+  
+  useEffect(() => {
+    // Trigger animation after mount
+    const timer = setTimeout(() => setShowAmount(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  return (
+    <div className="flex flex-col items-center justify-center py-8 space-y-6">
+      <div className="relative">
+        <div className="absolute inset-0 bg-green-500/20 rounded-full blur-3xl animate-pulse" />
+        <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-full p-6">
+          <DollarSign className="w-16 h-16 text-white" />
+        </div>
+      </div>
+      
+      <div className="text-center space-y-3">
+        <h2 className="text-2xl font-bold text-white">
+          Congratulations!
+        </h2>
+        <p className="text-slate-300">
+          You selected the <span className="text-white font-semibold">{productName}</span>
+        </p>
+      </div>
+      
+      <div className={`transition-all duration-700 ${showAmount ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
+        <div className="bg-slate-800/80 rounded-2xl p-6 border border-green-500/30">
+          <p className="text-slate-400 text-sm mb-2">If you sell this item, you'll earn</p>
+          <div className="text-4xl font-bold text-green-400">
+            ${earnings.toFixed(2)}
+          </div>
+          <p className="text-slate-500 text-xs mt-2">per sale (25% profit share)</p>
+        </div>
+      </div>
+      
+      <Button
+        onClick={onContinue}
+        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white px-8 py-3"
+        data-testid="button-congrats-continue"
+      >
+        Let's Customize It
+        <ArrowRight className="w-4 h-4 ml-2" />
+      </Button>
+    </div>
+  );
 }
 
 // Step 0a: Color Picker
@@ -4618,6 +4678,9 @@ function MembersSandboxContent() {
   
   // Progressive packet - created when product is selected, updated as wizard proceeds
   const [currentPacketId, setCurrentPacketId] = useState<string | null>(null);
+  
+  // Running earnings total - accumulates as items are created
+  const [runningEarnings, setRunningEarnings] = useState<number>(0);
   
   // Load publish count from localStorage
   useEffect(() => {
