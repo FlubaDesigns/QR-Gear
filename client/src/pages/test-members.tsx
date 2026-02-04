@@ -971,8 +971,8 @@ function PlacementCountStep({
         <p className="text-slate-400 text-sm">Select one or more placements</p>
       </div>
       
-      {/* Shirt preview showing selected placements */}
-      <div className="flex justify-center py-2">
+      {/* Shirt preview with counter */}
+      <div className="flex justify-center items-center gap-4 py-2">
         <svg width="180" height="200" viewBox="0 0 180 180" className="drop-shadow-lg">
           <path
             d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
@@ -981,20 +981,37 @@ function PlacementCountStep({
             strokeWidth="2"
           />
           
-          {/* Show selected placements */}
+          {/* Show selected placements - back is larger */}
           {selected.map(placement => {
             const pos = placementPositions[placement];
             if (!pos) return null;
+            // Make back graphic larger to distinguish from front
+            const displaySize = placement === 'back' ? pos.size * 1.3 : pos.size;
             return (
-              <g key={placement} transform={`translate(${pos.x - pos.size/2}, ${pos.y - pos.size/2})`}>
-                <rect width={pos.size} height={pos.size} fill="white" rx="1" opacity="0.9" />
-                <rect x="1" y="1" width={pos.size * 0.2} height={pos.size * 0.2} fill="#22c55e" />
-                <rect x={pos.size - pos.size * 0.2 - 1} y="1" width={pos.size * 0.2} height={pos.size * 0.2} fill="#22c55e" />
-                <rect x="1" y={pos.size - pos.size * 0.2 - 1} width={pos.size * 0.2} height={pos.size * 0.2} fill="#22c55e" />
+              <g key={placement} transform={`translate(${pos.x - displaySize/2}, ${pos.y - displaySize/2})`}>
+                <rect width={displaySize} height={displaySize} fill="white" rx="2" opacity="0.95" stroke="#22c55e" strokeWidth="2" />
+                <rect x="2" y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
+                <rect x={displaySize - displaySize * 0.2 - 2} y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
+                <rect x="2" y={displaySize - displaySize * 0.2 - 2} width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
+                {placement === 'back' && (
+                  <text x={displaySize/2} y={displaySize/2 + 4} textAnchor="middle" fontSize="8" fill="#22c55e" fontWeight="bold">BACK</text>
+                )}
               </g>
             );
           })}
         </svg>
+        
+        {/* Counter badge */}
+        <div className="flex flex-col items-center">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold transition-all ${
+            selected.length > 0 
+              ? 'bg-green-500 text-white' 
+              : 'bg-slate-700 text-slate-400'
+          }`}>
+            {selected.length}
+          </div>
+          <p className="text-slate-400 text-xs mt-1">selected</p>
+        </div>
       </div>
       
       {/* Placement options */}
