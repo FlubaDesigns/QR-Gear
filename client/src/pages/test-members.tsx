@@ -218,19 +218,23 @@ async function fetchProductMockup(
   }
 
   try {
-    console.log('[MockupFetcher] Requesting mockup:', { blueprintId, printProviderId, colorName, canonicalPlacementId, qrSize });
+    console.log('[MockupFetcher] Requesting priority mockup (test-products pattern):', { 
+      blueprintId, printProviderId, colorName, placement: canonicalPlacementId, qrSize 
+    });
     
-    const response = await fetch('/api/mockups/get-or-generate', {
+    // Use same endpoint as test-products: /api/test/mockup/priority
+    const response = await fetch('/api/test/mockup/priority', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         blueprintId,
         printProviderId,
         colorName,
+        colorHex: '#000000',
+        placement: canonicalPlacementId,
         artworkUrl,
-        artworkVariant,
-        canonicalPlacementId,
         qrSize,
+        fulfillmentProvider: 'printify',
       }),
     });
 
@@ -248,11 +252,25 @@ async function fetchProductMockup(
     }
 
     const data = await response.json();
-    console.log('[MockupFetcher] Response:', {
+    console.log('[MockupFetcher] Priority mockup response:', {
+      success: data.success,
       hasLifestyle: !!data.lifestyleMockupUrl,
       hasFlat: !!data.mockupUrl,
       fromCache: data.fromCache,
+      error: data.error,
     });
+
+    // Handle the priority mockup response format
+    if (!data.success) {
+      return {
+        success: false,
+        lifestyleUrl: null,
+        flatUrl: null,
+        bestUrl: null,
+        fromCache: false,
+        error: data.error || 'Mockup generation failed',
+      };
+    }
 
     const lifestyleUrl = data.lifestyleMockupUrl || null;
     const flatUrl = data.mockupUrl || null;
