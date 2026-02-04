@@ -3,6 +3,13 @@
 ## Overview
 QR Gear is an e-commerce platform specializing in personalized promotional merchandise with custom QR codes, integrating with Printify for print-on-demand fulfillment. The platform's main purpose is to enable users to efficiently design and order custom QR-enhanced products. It aims to serve a niche market seeking unique, branded merchandise, offering advanced features for product management, custom QR code integration, and streamlined order fulfillment.
 
+## Image Naming Convention (Members Wizard)
+These are the canonical names for image state variables in the members wizard:
+- **productGraphic** = Graphic created for the physical item (shirt, cup, etc.)
+- **urlGraphic** = Graphic shown on phone when QR is scanned (the landing page background)
+- **qrBasicMockup** = The product mockup image (NO "Url" suffix)
+- **qrGraphic** = The actual QR code image
+
 ## User Preferences
 - **Communication**: Simple, everyday language
 - **Accessibility**: User has CIDP (limited hand mobility) - agent must be fully autonomous

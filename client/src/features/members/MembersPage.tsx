@@ -4882,8 +4882,8 @@ function MembersSandboxContent() {
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [productGraphic, setProductGraphic] = useState<string>(''); // Graphic on shirt/cup/product
-  const [originalBackground, setOriginalBackground] = useState<string>('');
-  const [background, setBackground] = useState<string>(''); // Mobile/landing page background (phone preview)
+  const [originalUrlGraphic, setOriginalUrlGraphic] = useState<string>('');
+  const [urlGraphic, setUrlGraphic] = useState<string>(''); // Graphic shown on phone when QR is scanned
   const [showBackgroundLibrary, setShowBackgroundLibrary] = useState(false);
   const [landingPage, setLandingPage] = useState<LandingPageConfig>({ ...defaultLandingPage });
   const [videoUrl, setVideoUrl] = useState<string>('');
@@ -4892,7 +4892,7 @@ function MembersSandboxContent() {
   const [textLayoutChoice, setTextLayoutChoice] = useState<TextLayoutChoice>('');
   const [selectedPlacements, setSelectedPlacements] = useState<PlacementOption[]>([]);
   const [wantsText, setWantsText] = useState<boolean | null>(null);
-  const [previewQrUrl, setPreviewQrUrl] = useState<string>('');
+  const [qrGraphic, setQrGraphic] = useState<string>(''); // The actual QR code image
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [urlSourceChoice, setUrlSourceChoice] = useState<UrlSourceChoice>('');
   const [libraryChoice, setLibraryChoice] = useState<LibraryChoice>('');
@@ -4913,7 +4913,7 @@ function MembersSandboxContent() {
   // QR Basic flow state (when user says No to header/footer)
   const [qrBasicInputType, setQrBasicInputType] = useState<QRBasicInputType>('');
   const [qrBasicContent, setQrBasicContent] = useState<string>('');
-  const [qrBasicMockupUrl, setQrBasicMockupUrl] = useState<string>('');
+  const [qrBasicMockup, setQrBasicMockup] = useState<string>(''); // The product mockup image
   const [isGeneratingBasicMockup, setIsGeneratingBasicMockup] = useState(false);
   const [qrBasicSaveChoice, setQrBasicSaveChoice] = useState<QRBasicSaveOption>('');
   const [isQrBasicSaving, setIsQrBasicSaving] = useState(false);
@@ -4926,7 +4926,7 @@ function MembersSandboxContent() {
     // Generate a QR code pointing to a preview URL
     const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
     const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(previewUrl)}`;
-    setPreviewQrUrl(qrApiUrl);
+    setQrGraphic(qrApiUrl);
     setProductGraphic(qrApiUrl); // Store as the graphic for the shirt/product
     return qrApiUrl;
   };
@@ -5067,19 +5067,19 @@ function MembersSandboxContent() {
               flat: !!mockupResult.mockupUrl,
               fromCache: mockupResult.fromCache 
             });
-            setQrBasicMockupUrl(bestUrl);
+            setQrBasicMockup(bestUrl);
           } else {
             console.warn('[QR Basic] Mockup fetch failed:', mockupResult.error);
-            setQrBasicMockupUrl(qrApiUrl);
+            setQrBasicMockup(qrApiUrl);
           }
         } else {
           console.warn('[QR Basic] Missing product info for mockup - blueprintId:', selectedProductType?.blueprintId, 'printProviderId:', selectedProductType?.printProviderId, 'color:', selectedColor);
-          setQrBasicMockupUrl(qrApiUrl);
+          setQrBasicMockup(qrApiUrl);
         }
       } catch (error) {
         console.error('[QR Basic] Error generating mockup:', error);
         // Fallback to QR preview using robust utility
-        setQrBasicMockupUrl(generateQRCodeUrl(qrBasicContent, 300));
+        setQrBasicMockup(generateQRCodeUrl(qrBasicContent, 300));
       } finally {
         setIsGeneratingBasicMockup(false);
       }
@@ -5222,7 +5222,7 @@ function MembersSandboxContent() {
       case 'shirt-preview': return true;
       case 'url-explainer': return true;
       case 'url-source-choice': return urlSourceChoice !== '';
-      case 'url-library-pick': return background !== '';
+      case 'url-library-pick': return urlGraphic !== '';
       case 'url-details': return simpleTitle.trim() !== '';
       case 'url-preview': return true;
       case 'url-publish': return true;
@@ -5254,7 +5254,7 @@ function MembersSandboxContent() {
         description: simpleDescription,
         channelId: selectedChannel.id,
         storeId: user.id, // Member store = memberId
-        background: background || null,
+        background: urlGraphic || null,
         status: 'published'
       };
       
@@ -5275,7 +5275,7 @@ function MembersSandboxContent() {
       setSimpleTitle('');
       setSimpleDescription('');
       setQrType('');
-      setBackground('');
+      setUrlGraphic('');
       setProductGraphic('');
     } catch (error) {
       console.error('Simple publish error:', error);
@@ -5326,7 +5326,7 @@ function MembersSandboxContent() {
           qrDestination: qrDestination || landingPage.url || null,
           headerStyle: headerStyle.enabled ? headerStyle : null,
           footerStyle: footerStyle.enabled ? footerStyle : null,
-          background: background || null,
+          background: urlGraphic || null,
           landingPage: landingPage,
           videoUrl: videoUrl || null,
           channelId: selectedChannel.id,
@@ -5679,7 +5679,7 @@ function MembersSandboxContent() {
                 {/* QR Basic Step 3: Show Mockup */}
                 {simpleStep === 'qr-basic-mockup' && (
                   <QRBasicMockupStep
-                    mockupUrl={qrBasicMockupUrl}
+                    mockupUrl={qrBasicMockup}
                     isLoading={isGeneratingBasicMockup}
                     selectedColor={selectedColor}
                     selectedSize={selectedShirtSize}
@@ -5700,7 +5700,7 @@ function MembersSandboxContent() {
                 {simpleStep === 'qr-basic-confirm' && (
                   <QRBasicConfirmStep
                     saveChoice={qrBasicSaveChoice}
-                    mockupUrl={qrBasicMockupUrl}
+                    mockupUrl={qrBasicMockup}
                     qrContent={qrBasicContent}
                     isSaving={isQrBasicSaving}
                     onDone={() => {
@@ -5709,7 +5709,7 @@ function MembersSandboxContent() {
                       setCurrentPacketId(null);
                       setQrBasicInputType('');
                       setQrBasicContent('');
-                      setQrBasicMockupUrl('');
+                      setQrBasicMockup('');
                       setQrBasicSaveChoice('');
                     }}
                   />
@@ -5845,10 +5845,10 @@ function MembersSandboxContent() {
                 {simpleStep === 'url-library-pick' && user?.id && (
                   <SimpleBackgroundStep
                     memberId={user.id}
-                    background={background}
+                    background={urlGraphic}
                     onBackgroundSelected={(croppedUrl, originalUrl, needsCrop) => {
-                      setBackground(croppedUrl);
-                      setOriginalBackground(originalUrl);
+                      setUrlGraphic(croppedUrl);
+                      setOriginalUrlGraphic(originalUrl);
                     }}
                     onComplete={() => setSimpleStep('url-details')}
                   />
@@ -5861,7 +5861,7 @@ function MembersSandboxContent() {
                     description={simpleDescription}
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
-                    background={background}
+                    background={urlGraphic}
                     titleVertical={titleVertical}
                     titleHorizontal={titleHorizontal}
                     descVertical={descVertical}
@@ -5876,11 +5876,11 @@ function MembersSandboxContent() {
                 {/* Step 15: URL Preview - preview the landing page */}
                 {simpleStep === 'url-preview' && (
                   <SimplePreviewStep
-                    background={background}
+                    background={urlGraphic}
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
                     title={simpleTitle}
-                    qrCodeUrl={previewQrUrl}
+                    qrCodeUrl={qrGraphic}
                     onGoBack={() => setSimpleStep('url-details')}
                   />
                 )}
@@ -5892,7 +5892,7 @@ function MembersSandboxContent() {
                     onPublish={handleSimplePublish}
                     title={simpleTitle}
                     qrType={qrType}
-                    background={background}
+                    background={urlGraphic}
                   />
                 )}
               </div>
@@ -6014,11 +6014,11 @@ function MembersSandboxContent() {
                       Open Background Library
                     </Button>
                     
-                    {background && (
+                    {urlGraphic && (
                       <div className="relative">
                         <div className="aspect-[9/16] max-w-[200px] mx-auto rounded-lg overflow-hidden border-2 border-primary">
                           <img 
-                            src={background} 
+                            src={urlGraphic} 
                             alt="Selected background" 
                             className="w-full h-full object-cover"
                           />
@@ -6027,7 +6027,7 @@ function MembersSandboxContent() {
                           size="sm"
                           variant="destructive"
                           className="absolute top-2 right-2"
-                          onClick={() => setBackground('')}
+                          onClick={() => setUrlGraphic('')}
                           data-testid="button-clear-background"
                         >
                           <X className="h-4 w-4" />
@@ -6039,10 +6039,10 @@ function MembersSandboxContent() {
                     {showBackgroundLibrary && user?.id && (
                       <BackgroundLibraryPicker
                         memberId={user.id}
-                        selectedUrl={background}
+                        selectedUrl={urlGraphic}
                         onSelect={(croppedUrl, originalUrl) => {
-                          setBackground(croppedUrl);
-                          setOriginalBackground(originalUrl);
+                          setUrlGraphic(croppedUrl);
+                          setOriginalUrlGraphic(originalUrl);
                           setShowBackgroundLibrary(false);
                         }}
                         onClose={() => setShowBackgroundLibrary(false)}
@@ -6063,7 +6063,7 @@ function MembersSandboxContent() {
                     qrType={qrType}
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
-                    background={background}
+                    background={urlGraphic}
                   />
                 )}
                 {currentStep === 'publish' && (
