@@ -751,12 +751,10 @@ function AdvancedProductPickerStep({ selectedProduct, onSelect }: { selectedProd
 // Product Congrats Step - animated celebration showing earnings
 function ProductCongratsStep({
   productName,
-  earnings,
-  onContinue
+  earnings
 }: {
   productName: string;
   earnings: number;
-  onContinue: () => void;
 }) {
   const [showAmount, setShowAmount] = useState(false);
   
@@ -793,15 +791,6 @@ function ProductCongratsStep({
           <p className="text-slate-500 text-xs mt-2">Actual earnings depend on size the customer picks!</p>
         </div>
       </div>
-      
-      <Button
-        onClick={onContinue}
-        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white px-8 py-3"
-        data-testid="button-congrats-continue"
-      >
-        Let's Customize It
-        <ArrowRight className="w-4 h-4 ml-2" />
-      </Button>
     </div>
   );
 }
@@ -5322,6 +5311,11 @@ function MembersSandboxContent() {
   };
 
   const handleSimpleNext = async () => {
+    // Add earnings when leaving product-congrats step
+    if (simpleStep === 'product-congrats' && selectedProductType) {
+      setRunningEarnings(prev => prev + (selectedProductType.memberEarnings || 0));
+    }
+    
     // Handle QR Basic flow navigation
     if (simpleStep === 'qr-basic-type') {
       setSimpleStep('qr-basic-input');
@@ -5908,10 +5902,6 @@ function MembersSandboxContent() {
                   <ProductCongratsStep
                     productName={selectedProductType.title}
                     earnings={selectedProductType.memberEarnings || 0}
-                    onContinue={() => {
-                      setRunningEarnings(prev => prev + (selectedProductType.memberEarnings || 0));
-                      setSimpleStep('color');
-                    }}
                   />
                 )}
                 
