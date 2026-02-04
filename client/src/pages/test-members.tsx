@@ -1729,14 +1729,15 @@ function PlacementConfigStep({
   );
 }
 
-// Step 11: Shirt Preview - shows completed graphic on shirt
+// Step 11: Shirt Preview - shows completed graphic on shirt (including sleeve views)
 function ShirtPreviewStep({
   selectedColor,
   graphicLocation,
   graphicSize,
   headerStyle,
   footerStyle,
-  textLayoutChoice
+  textLayoutChoice,
+  selectedPlacements = []
 }: {
   selectedColor: string;
   graphicLocation: GraphicLocation;
@@ -1744,15 +1745,19 @@ function ShirtPreviewStep({
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   textLayoutChoice: TextLayoutChoice;
+  selectedPlacements?: PlacementOption[];
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
   const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
   
+  const hasFrontPlacement = selectedPlacements.includes('front') || selectedPlacements.includes('left_chest');
+  const hasBackPlacement = selectedPlacements.includes('back');
+  const hasLeftSleeve = selectedPlacements.includes('sleeve_left');
+  const hasRightSleeve = selectedPlacements.includes('sleeve_right');
+  
   const getGraphicDimensions = () => {
     const sizeKey = graphicSize || 'medium';
-    // Calculated from Printify specs: 74px SVG = 20" real shirt (3.7 px/inch)
-    // Small: 6"x8" = 22x30px, Medium: 9"x12" = 33x44px, Large: 11"x14" = 41x52px
     const sizes: Record<string, { w: number; h: number }> = {
       small: { w: 22, h: 30 },
       medium: { w: 33, h: 44 },
@@ -1763,68 +1768,120 @@ function ShirtPreviewStep({
   
   const graphicDims = getGraphicDimensions();
   const isLeftChest = graphicLocation === 'left-chest';
-  // Calculated from Printify specs
   const graphicX = isLeftChest ? 77 : 90;
   const graphicY = isLeftChest ? 68 : 79;
   
+  // Front/Back shirt view
+  const ShirtFrontBackView = ({ view }: { view: 'front' | 'back' }) => (
+    <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
+      <path
+        d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+        fill={colorHex}
+        stroke="#444"
+        strokeWidth="2"
+      />
+      {view === 'back' && (
+        <path d="M75,37 Q90,42 105,37" fill="none" stroke="#444" strokeWidth="1.5"/>
+      )}
+      
+      {/* Graphic area on shirt */}
+      <g transform={`translate(${graphicX - graphicDims.w/2}, ${graphicY - graphicDims.h/2})`}>
+        {showHeader && (
+          <text x={graphicDims.w / 2} y={10} textAnchor="middle" fill={headerStyle.color || '#fff'}
+            fontSize={isLeftChest ? 5 : 8} fontFamily={headerStyle.fontFamily || 'Arial'} fontWeight="bold">
+            {headerStyle.text?.substring(0, 15) || ''}
+          </text>
+        )}
+        <g transform={`translate(${(graphicDims.w - (isLeftChest ? 8 : 12)) / 2}, ${(graphicDims.h - (isLeftChest ? 8 : 12)) / 2})`}>
+          <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
+          <rect x="1" y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+          <rect x={isLeftChest ? 5.5 : 8.5} y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+          <rect x="1" y={isLeftChest ? 5.5 : 8.5} width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+          <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
+        </g>
+        {showFooter && (
+          <text x={graphicDims.w / 2} y={graphicDims.h - 3} textAnchor="middle" fill={footerStyle.color || '#fff'}
+            fontSize={isLeftChest ? 5 : 8} fontFamily={footerStyle.fontFamily || 'Arial'} fontWeight="bold">
+            {footerStyle.text?.substring(0, 15) || ''}
+          </text>
+        )}
+      </g>
+      <text x="90" y="200" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold">
+        {view === 'front' ? 'FRONT' : 'BACK'}
+      </text>
+    </svg>
+  );
+  
+  // Left sleeve side view
+  const LeftSleeveView = () => (
+    <svg viewBox="0 0 120 160" className="w-full h-full drop-shadow-xl">
+      {/* Torso side profile */}
+      <path d="M70,50 L70,150 L95,150 L95,50 Q82,38 70,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      {/* Left arm/sleeve */}
+      <path d="M70,52 L20,65 L15,95 L22,98 L70,82" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      {/* Shoulder */}
+      <path d="M70,50 Q62,42 70,35 Q82,28 95,35 Q103,42 95,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      {/* QR on sleeve */}
+      <g transform="translate(32, 72) rotate(-10)">
+        <rect width="16" height="16" fill="white" rx="2"/>
+        <rect x="2" y="2" width="4" height="4" fill="#333"/>
+        <rect x="10" y="2" width="4" height="4" fill="#333"/>
+        <rect x="2" y="10" width="4" height="4" fill="#333"/>
+        <rect x="6" y="6" width="4" height="4" fill="#333"/>
+      </g>
+      <text x="60" y="155" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">LEFT SLEEVE</text>
+    </svg>
+  );
+  
+  // Right sleeve side view
+  const RightSleeveView = () => (
+    <svg viewBox="0 0 120 160" className="w-full h-full drop-shadow-xl">
+      {/* Torso side profile */}
+      <path d="M50,50 L50,150 L25,150 L25,50 Q38,38 50,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      {/* Right arm/sleeve */}
+      <path d="M50,52 L100,65 L105,95 L98,98 L50,82" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      {/* Shoulder */}
+      <path d="M50,50 Q58,42 50,35 Q38,28 25,35 Q17,42 25,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      {/* QR on sleeve */}
+      <g transform="translate(72, 72) rotate(10)">
+        <rect width="16" height="16" fill="white" rx="2"/>
+        <rect x="2" y="2" width="4" height="4" fill="#333"/>
+        <rect x="10" y="2" width="4" height="4" fill="#333"/>
+        <rect x="2" y="10" width="4" height="4" fill="#333"/>
+        <rect x="6" y="6" width="4" height="4" fill="#333"/>
+      </g>
+      <text x="60" y="155" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">RIGHT SLEEVE</text>
+    </svg>
+  );
+  
+  // Determine which views to show
+  const views: { id: string; component: JSX.Element }[] = [];
+  if (hasFrontPlacement || (!hasBackPlacement && !hasLeftSleeve && !hasRightSleeve)) {
+    views.push({ id: 'front', component: <ShirtFrontBackView view="front" /> });
+  }
+  if (hasBackPlacement) {
+    views.push({ id: 'back', component: <ShirtFrontBackView view="back" /> });
+  }
+  if (hasLeftSleeve) {
+    views.push({ id: 'left-sleeve', component: <LeftSleeveView /> });
+  }
+  if (hasRightSleeve) {
+    views.push({ id: 'right-sleeve', component: <RightSleeveView /> });
+  }
+  
   return (
-    <div className="text-center space-y-4">
+    <div className="text-center space-y-2">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Your Design Preview</h2>
-        <p className="text-slate-400">Here's how your graphic will look on the shirt</p>
+        <h2 className="text-xl font-bold text-white mb-1">Your Design Preview</h2>
+        <p className="text-slate-400 text-sm">Here's how your graphic will look</p>
       </div>
       
-      <div className="flex justify-center py-4">
-        <svg width="220" height="260" viewBox="0 0 180 210" className="drop-shadow-xl">
-          <path
-            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
-            fill={colorHex}
-            stroke="#444"
-            strokeWidth="2"
-          />
-          
-          {/* Graphic area on shirt */}
-          <g transform={`translate(${graphicX - graphicDims.w/2}, ${graphicY - graphicDims.h/2})`}>
-            {/* Header text */}
-            {showHeader && (
-              <text
-                x={graphicDims.w / 2}
-                y={10}
-                textAnchor="middle"
-                fill={headerStyle.color || '#fff'}
-                fontSize={isLeftChest ? 5 : 8}
-                fontFamily={headerStyle.fontFamily || 'Arial'}
-                fontWeight="bold"
-              >
-                {headerStyle.text?.substring(0, 15) || ''}
-              </text>
-            )}
-            
-            {/* QR Code - smaller with blank pattern */}
-            <g transform={`translate(${(graphicDims.w - (isLeftChest ? 8 : 12)) / 2}, ${(graphicDims.h - (isLeftChest ? 8 : 12)) / 2})`}>
-              <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
-              <rect x="1" y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
-              <rect x={isLeftChest ? 5.5 : 8.5} y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
-              <rect x="1" y={isLeftChest ? 5.5 : 8.5} width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
-              <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
-            </g>
-            
-            {/* Footer text */}
-            {showFooter && (
-              <text
-                x={graphicDims.w / 2}
-                y={graphicDims.h - 3}
-                textAnchor="middle"
-                fill={footerStyle.color || '#fff'}
-                fontSize={isLeftChest ? 5 : 8}
-                fontFamily={footerStyle.fontFamily || 'Arial'}
-                fontWeight="bold"
-              >
-                {footerStyle.text?.substring(0, 15) || ''}
-              </text>
-            )}
-          </g>
-        </svg>
+      <div className={`flex justify-center items-start gap-2 ${views.length > 2 ? 'flex-wrap' : ''}`}>
+        {views.map(view => (
+          <div key={view.id} className={`${views.length === 1 ? 'w-56 h-64' : views.length === 2 ? 'w-44 h-52' : 'w-36 h-44'}`}>
+            {view.component}
+          </div>
+        ))}
       </div>
       
       <p className="text-green-400 text-sm">Looking good! Proceed to create your URL.</p>
@@ -4281,6 +4338,7 @@ export default function TestMembersSandbox() {
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
                     textLayoutChoice={textLayoutChoice}
+                    selectedPlacements={selectedPlacements}
                   />
                 )}
                 
