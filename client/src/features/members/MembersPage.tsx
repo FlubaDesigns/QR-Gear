@@ -5382,6 +5382,30 @@ function MembersSandboxContent() {
       : SIMPLE_WIZARD_STEPS;
     const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     
+    // Reset placement index when entering graphic-size from placement-count
+    if (simpleStep === 'placement-count') {
+      setCurrentPlacementIndex(0);
+      setGraphicSize('');
+    }
+    
+    // Graphic-size loop - save size for current placement and loop through all
+    if (simpleStep === 'graphic-size') {
+      // Save size for current placement
+      setPerPlacementSizes(prev => ({
+        ...prev,
+        [currentPlacement]: graphicSize
+      }));
+      
+      // Check if more placements to configure
+      if (currentPlacementIndex < selectedPlacements.length - 1) {
+        // More placements - stay on graphic-size, move to next
+        setCurrentPlacementIndex(prev => prev + 1);
+        setGraphicSize(''); // Reset for next placement
+        return; // Stay on graphic-size step
+      }
+      // All placements have sizes - proceed to generate step
+    }
+    
     // After text-edit, reset placement index for the placement-config loop
     if (simpleStep === 'text-edit') {
       setCurrentPlacementIndex(0);
@@ -5392,11 +5416,13 @@ function MembersSandboxContent() {
     
     // Save current placement config when leaving placement-config step
     if (simpleStep === 'placement-config') {
+      // Use the size saved from graphic-size step for this placement
+      const savedSize = perPlacementSizes[currentPlacement] || 'medium';
       setPerPlacementConfigs(prev => ({
         ...prev,
         [currentPlacement]: {
           graphicChoice: placementGraphicChoice,
-          size: graphicSize || 'medium'
+          size: savedSize
         }
       }));
       
@@ -5466,6 +5492,15 @@ function MembersSandboxContent() {
     }
     if (simpleStep === 'url-explainer') {
       setSimpleStep('canvas-fork');
+      return;
+    }
+    
+    // Handle graphic-size loop back navigation
+    if (simpleStep === 'graphic-size' && currentPlacementIndex > 0) {
+      // Go back to previous placement in the loop
+      const prevPlacement = selectedPlacements[currentPlacementIndex - 1];
+      setCurrentPlacementIndex(prev => prev - 1);
+      setGraphicSize(perPlacementSizes[prevPlacement] || '');
       return;
     }
     
@@ -5872,14 +5907,25 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step: Graphic Size - member picks size once */}
+                {/* Step: Graphic Size - loops through each placement */}
                 {simpleStep === 'graphic-size' && (
-                  <GraphicSizeStep
-                    selectedSize={graphicSize}
-                    selectedColor={selectedColor}
-                    currentPlacement={selectedPlacements[0] || 'front'}
-                    onSelect={setGraphicSize}
-                  />
+                  <div className="space-y-2">
+                    {selectedPlacements.length > 1 && (
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-slate-400 text-sm">Configuring:</span>
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
+                        </span>
+                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
+                      </div>
+                    )}
+                    <GraphicSizeStep
+                      selectedSize={graphicSize}
+                      selectedColor={selectedColor}
+                      currentPlacement={currentPlacement}
+                      onSelect={setGraphicSize}
+                    />
+                  </div>
                 )}
                 
                 {/* Step: Generate Graphic - asks about header/footer */}
