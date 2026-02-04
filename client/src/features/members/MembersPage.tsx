@@ -2644,13 +2644,29 @@ function UrlCreationStep({
   description,
   onTitleChange,
   onDescriptionChange,
-  backgroundUrl
+  backgroundUrl,
+  titleVertical,
+  titleHorizontal,
+  descVertical,
+  descHorizontal,
+  onTitleVerticalChange,
+  onTitleHorizontalChange,
+  onDescVerticalChange,
+  onDescHorizontalChange
 }: {
   title: string;
   description: string;
   onTitleChange: (title: string) => void;
   onDescriptionChange: (description: string) => void;
   backgroundUrl: string;
+  titleVertical: number;
+  titleHorizontal: number;
+  descVertical: number;
+  descHorizontal: number;
+  onTitleVerticalChange: (v: number) => void;
+  onTitleHorizontalChange: (v: number) => void;
+  onDescVerticalChange: (v: number) => void;
+  onDescHorizontalChange: (v: number) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -2659,7 +2675,7 @@ function UrlCreationStep({
         <p className="text-slate-400 text-sm">This is what people see when they scan your QR code</p>
       </div>
       
-      {/* Landing Page Preview - Phone mockup with actual background */}
+      {/* Landing Page Preview - Phone mockup with positioned text */}
       <div className="flex justify-center py-2">
         <div className="relative w-44 h-72 rounded-3xl border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
           {/* Phone notch */}
@@ -2680,12 +2696,31 @@ function UrlCreationStep({
               </div>
             )}
             
-            {/* Overlay with title and description */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
-              <h3 className="text-white font-bold text-sm truncate">
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            
+            {/* Title - positioned by sliders */}
+            <div 
+              className="absolute w-full px-2 text-center"
+              style={{ 
+                bottom: `${titleVertical}%`,
+                left: `${titleHorizontal - 50}%`
+              }}
+            >
+              <h3 className="text-white font-bold text-sm truncate drop-shadow-lg">
                 {title || 'Your Title Here'}
               </h3>
-              <p className="text-slate-300 text-xs line-clamp-2 mt-1">
+            </div>
+            
+            {/* Description - positioned by sliders */}
+            <div 
+              className="absolute w-full px-2 text-center"
+              style={{ 
+                bottom: `${descVertical}%`,
+                left: `${descHorizontal - 50}%`
+              }}
+            >
+              <p className="text-slate-200 text-xs line-clamp-2 drop-shadow-lg">
                 {description || 'Add a description...'}
               </p>
             </div>
@@ -2693,28 +2728,102 @@ function UrlCreationStep({
         </div>
       </div>
       
-      {/* Input fields */}
-      <div className="space-y-3 max-w-md mx-auto">
-        <div>
-          <Label className="text-white text-sm">Title</Label>
-          <Input
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            placeholder="Give your creation a name..."
-            className="bg-slate-700 border-slate-600 text-white"
-            data-testid="input-url-title"
-          />
-          <p className="text-slate-500 text-xs mt-1">Appears at the bottom of your landing page</p>
+      {/* Input fields with position sliders */}
+      <div className="space-y-4 max-w-md mx-auto">
+        {/* Title Section */}
+        <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
+          <div>
+            <Label className="text-white text-sm font-medium">Title</Label>
+            <Input
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              placeholder="Give your creation a name..."
+              className="bg-slate-700 border-slate-600 text-white mt-1"
+              data-testid="input-url-title"
+            />
+          </div>
+          
+          {/* Title Position Sliders */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Vertical: {titleVertical}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="90"
+                value={titleVertical}
+                onChange={(e) => onTitleVerticalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-title-vertical"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Horizontal: {titleHorizontal}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={titleHorizontal}
+                onChange={(e) => onTitleHorizontalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-title-horizontal"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <Label className="text-white text-sm">Description</Label>
-          <Input
-            value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
-            placeholder="What is this about?"
-            className="bg-slate-700 border-slate-600 text-white"
-            data-testid="input-url-description"
-          />
+        
+        {/* Description Section */}
+        <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
+          <div>
+            <Label className="text-white text-sm font-medium">Description</Label>
+            <Input
+              value={description}
+              onChange={(e) => onDescriptionChange(e.target.value)}
+              placeholder="What is this about?"
+              className="bg-slate-700 border-slate-600 text-white mt-1"
+              data-testid="input-url-description"
+            />
+          </div>
+          
+          {/* Description Position Sliders */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Vertical: {descVertical}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="90"
+                value={descVertical}
+                onChange={(e) => onDescVerticalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-desc-vertical"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Horizontal: {descHorizontal}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={descHorizontal}
+                onChange={(e) => onDescHorizontalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-desc-horizontal"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4691,6 +4800,12 @@ function MembersSandboxContent() {
   // Simple wizard state
   const [simpleTitle, setSimpleTitle] = useState('');
   const [simpleDescription, setSimpleDescription] = useState('');
+  // Title position (vertical: 0=bottom, 100=top; horizontal: 0=left, 100=right)
+  const [titleVertical, setTitleVertical] = useState(15);
+  const [titleHorizontal, setTitleHorizontal] = useState(50);
+  // Description position
+  const [descVertical, setDescVertical] = useState(8);
+  const [descHorizontal, setDescHorizontal] = useState(50);
   
   // New wizard state: product selection
   const [selectedProductType, setSelectedProductType] = useState<AllowedProduct | null>(null);
@@ -5774,6 +5889,14 @@ function MembersSandboxContent() {
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
                     backgroundUrl={backgroundUrl}
+                    titleVertical={titleVertical}
+                    titleHorizontal={titleHorizontal}
+                    descVertical={descVertical}
+                    descHorizontal={descHorizontal}
+                    onTitleVerticalChange={setTitleVertical}
+                    onTitleHorizontalChange={setTitleHorizontal}
+                    onDescVerticalChange={setDescVertical}
+                    onDescHorizontalChange={setDescHorizontal}
                   />
                 )}
                 
