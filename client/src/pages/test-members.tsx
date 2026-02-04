@@ -4082,6 +4082,251 @@ interface EarningsSummary {
   profitShare: number;
 }
 
+interface MemberIndexViewProps {
+  memberId: string;
+  onNavigate: (view: ViewMode) => void;
+  onStartWizard: (tier: WizardTier) => void;
+  publishCount: number;
+}
+
+function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: MemberIndexViewProps) {
+  const [hasSeenIntro, setHasSeenIntro] = useState(() => {
+    return localStorage.getItem(`member_intro_seen_${memberId}`) === 'true';
+  });
+
+  const { data: channels } = useQuery<MemberChannel[]>({
+    queryKey: ['/api/members', memberId, 'channels'],
+    queryFn: async () => {
+      if (!memberId) return [];
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/channels`, { headers });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
+  const { data: products } = useQuery<MemberProduct[]>({
+    queryKey: ['/api/members', memberId, 'products'],
+    queryFn: async () => {
+      if (!memberId) return [];
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/products`, { headers });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
+  const { data: earnings } = useQuery<EarningsSummary>({
+    queryKey: ['/api/members', memberId, 'earnings'],
+    queryFn: async () => {
+      if (!memberId) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/earnings`, { headers });
+      if (!res.ok) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
+  const channelCount = channels?.length || 0;
+  const productCount = products?.length || 0;
+  const totalEarnings = earnings?.total || 0;
+
+  const handleGetStarted = () => {
+    localStorage.setItem(`member_intro_seen_${memberId}`, 'true');
+    setHasSeenIntro(true);
+    onStartWizard('simple');
+  };
+
+  if (!hasSeenIntro) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-blue-500/30">
+          <CardContent className="p-8 text-center">
+            <div className="mb-6">
+              <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <QrCode className="w-10 h-10 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-white mb-2">Welcome to QR Gear Creator</h1>
+              <p className="text-lg text-blue-200">Turn your ideas into sellable products</p>
+            </div>
+
+            <div className="max-w-2xl mx-auto text-left space-y-4 mb-8">
+              <div className="flex items-start gap-4 p-4 bg-white/5 rounded-lg">
+                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Package className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Create Custom Products</h3>
+                  <p className="text-sm text-slate-300">Design t-shirts, mugs, and more with your own QR codes and graphics. We handle printing and shipping.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 bg-white/5 rounded-lg">
+                <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Layers className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Organize in Channels</h3>
+                  <p className="text-sm text-slate-300">Group your products into channels for different brands, events, or themes. Share a channel link to showcase your collection.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 bg-white/5 rounded-lg">
+                <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <QrCode className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">QR Dynamics</h3>
+                  <p className="text-sm text-slate-300">Create rotating experiences - one QR code can show different content each time it's scanned.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 bg-white/5 rounded-lg">
+                <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Earn Money</h3>
+                  <p className="text-sm text-slate-300">You keep 25% of every sale. We track your earnings and handle payments automatically.</p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              size="lg"
+              onClick={handleGetStarted}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white px-8 py-6 text-lg"
+              data-testid="button-get-started"
+            >
+              <Wand2 className="w-5 h-5 mr-2" />
+              Create Your First Product
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-slate-700">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-white flex items-center gap-2">
+            <User className="w-5 h-5" />
+            My Dashboard
+          </CardTitle>
+          <Button
+            size="sm"
+            onClick={() => onStartWizard('simple')}
+            className="bg-green-600 hover:bg-green-500"
+            data-testid="button-new-product"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            New Product
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button
+              onClick={() => onNavigate('channels')}
+              className="bg-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-600/50 transition-colors"
+              data-testid="stat-products"
+            >
+              <Package className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+              <div className="text-2xl font-bold text-white">{productCount}</div>
+              <div className="text-sm text-slate-400">Products</div>
+            </button>
+            <button
+              onClick={() => onNavigate('channels')}
+              className="bg-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-600/50 transition-colors"
+              data-testid="stat-channels"
+            >
+              <Layers className="w-8 h-8 mx-auto mb-2 text-purple-400" />
+              <div className="text-2xl font-bold text-white">{channelCount}</div>
+              <div className="text-sm text-slate-400">Channels</div>
+            </button>
+            <button
+              onClick={() => onNavigate('earnings')}
+              className="bg-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-600/50 transition-colors"
+              data-testid="stat-earnings"
+            >
+              <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-400" />
+              <div className="text-2xl font-bold text-white">${totalEarnings.toFixed(2)}</div>
+              <div className="text-sm text-slate-400">Earnings</div>
+            </button>
+            <button
+              onClick={() => onNavigate('collections')}
+              className="bg-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-600/50 transition-colors"
+              data-testid="stat-dynamics"
+            >
+              <QrCode className="w-8 h-8 mx-auto mb-2 text-amber-400" />
+              <div className="text-2xl font-bold text-white">{publishCount}</div>
+              <div className="text-sm text-slate-400">Published</div>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {channelCount > 0 && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-white flex items-center gap-2">
+              <Layers className="w-5 h-5" />
+              My Channels
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('channels')} data-testid="view-all-channels">
+              View All
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {(channels || []).slice(0, 4).map((channel) => (
+                <div
+                  key={channel.id}
+                  className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors cursor-pointer flex items-center justify-between"
+                  data-testid={`channel-preview-${channel.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <Layers className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-white">{channel.name}</h4>
+                      <p className="text-xs text-slate-400">
+                        {(products || []).filter(p => p.channelId === channel.id).length} items
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {channelCount === 0 && (
+        <Card className="bg-slate-800/50 border-slate-700 border-dashed">
+          <CardContent className="p-8 text-center">
+            <Layers className="w-12 h-12 mx-auto mb-3 text-slate-500" />
+            <h3 className="text-lg font-medium text-white mb-1">No channels yet</h3>
+            <p className="text-slate-400 mb-4">Create your first product to start a channel</p>
+            <Button onClick={() => onStartWizard('simple')} className="bg-green-600 hover:bg-green-500" data-testid="create-first-product">
+              <Wand2 className="w-4 h-4 mr-2" />
+              Create First Product
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function ChannelsView({ memberId }: { memberId: string }) {
   const { data: channels, isLoading } = useQuery<MemberChannel[]>({
     queryKey: ['/api/members', memberId, 'channels'],
@@ -4316,14 +4561,14 @@ function EarningsView({ memberId }: { memberId: string }) {
   );
 }
 
-type ViewMode = 'wizard' | 'channels' | 'collections' | 'earnings';
+type ViewMode = 'index' | 'wizard' | 'channels' | 'collections' | 'earnings';
 
 function MembersSandboxContent() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const { api } = useMembersContext();
   
-  const [viewMode, setViewMode] = useState<ViewMode>('wizard');
+  const [viewMode, setViewMode] = useState<ViewMode>('index');
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
   const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('product');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
@@ -4909,6 +5154,16 @@ function MembersSandboxContent() {
             </Button>
             
             <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={viewMode === 'index' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('index')}
+                data-testid="tab-home"
+                className={viewMode === 'index' ? 'bg-slate-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+              >
+                <User className="w-4 h-4 mr-1" />
+                Home
+              </Button>
               <Button
                 variant={viewMode === 'wizard' && wizardTier === 'simple' ? 'default' : 'ghost'}
                 size="sm"
@@ -5667,6 +5922,18 @@ function MembersSandboxContent() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {viewMode === 'index' && (
+          <MemberIndexView 
+            memberId={user?.id || ''} 
+            onNavigate={setViewMode}
+            onStartWizard={(tier) => {
+              setWizardTier(tier);
+              setViewMode('wizard');
+            }}
+            publishCount={publishCount}
+          />
         )}
 
         {viewMode === 'channels' && (
