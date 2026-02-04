@@ -1018,7 +1018,7 @@ function QRBasicTypeStep({
         <p className="text-slate-400">Choose what people see when they scan</p>
       </div>
       
-      {/* Shirt with dashed graphic area */}
+      {/* Shirt with QR code sized to match step 6 graphic size */}
       <div className="flex justify-center py-4">
         <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
           <path
@@ -1027,26 +1027,28 @@ function QRBasicTypeStep({
             stroke="#444"
             strokeWidth="2"
           />
-          {/* Dashed graphic area */}
-          <rect
-            x={90 - outlineSize.w/2}
-            y={90 - outlineSize.h/2}
-            width={outlineSize.w}
-            height={outlineSize.h}
-            fill="transparent"
-            stroke="#64748b"
-            strokeWidth="1.5"
-            strokeDasharray="4 2"
-            rx="3"
-          />
-          {/* QR icon in center */}
-          <g transform="translate(82, 82)">
-            <rect width="16" height="16" fill="white" rx="1" opacity="0.9" />
-            <rect x="1" y="1" width="3" height="3" fill="#333" />
-            <rect x="12" y="1" width="3" height="3" fill="#333" />
-            <rect x="1" y="12" width="3" height="3" fill="#333" />
-            <rect x="6" y="6" width="4" height="4" fill="#333" />
-          </g>
+          {/* QR code fills the graphic area based on step 6 size */}
+          {(() => {
+            const qrSize = Math.min(outlineSize.w, outlineSize.h) - 2;
+            const qrX = 90 - qrSize/2;
+            const qrY = 90 - qrSize/2;
+            const cellSize = qrSize / 7;
+            return (
+              <g>
+                <rect x={qrX} y={qrY} width={qrSize} height={qrSize} fill="white" rx="2" />
+                <rect x={qrX + cellSize * 0.5} y={qrY + cellSize * 0.5} width={cellSize * 2} height={cellSize * 2} fill="#333" />
+                <rect x={qrX + cellSize * 4.5} y={qrY + cellSize * 0.5} width={cellSize * 2} height={cellSize * 2} fill="#333" />
+                <rect x={qrX + cellSize * 0.5} y={qrY + cellSize * 4.5} width={cellSize * 2} height={cellSize * 2} fill="#333" />
+                <rect x={qrX + cellSize * 3} y={qrY + cellSize * 3} width={cellSize} height={cellSize} fill="#333" />
+                <rect x={qrX + cellSize * 0.8} y={qrY + cellSize * 0.8} width={cellSize * 1.4} height={cellSize * 1.4} fill="white" />
+                <rect x={qrX + cellSize * 4.8} y={qrY + cellSize * 0.8} width={cellSize * 1.4} height={cellSize * 1.4} fill="white" />
+                <rect x={qrX + cellSize * 0.8} y={qrY + cellSize * 4.8} width={cellSize * 1.4} height={cellSize * 1.4} fill="white" />
+                <rect x={qrX + cellSize * 1.1} y={qrY + cellSize * 1.1} width={cellSize * 0.8} height={cellSize * 0.8} fill="#333" />
+                <rect x={qrX + cellSize * 5.1} y={qrY + cellSize * 1.1} width={cellSize * 0.8} height={cellSize * 0.8} fill="#333" />
+                <rect x={qrX + cellSize * 1.1} y={qrY + cellSize * 5.1} width={cellSize * 0.8} height={cellSize * 0.8} fill="#333" />
+              </g>
+            );
+          })()}
         </svg>
       </div>
       
