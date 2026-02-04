@@ -147,6 +147,27 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'url-publish', label: 'Publish', icon: Send },
 ];
 
+// QR Basic fork steps (after saying No at step 7)
+const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'product', label: 'Product', icon: Package },
+  { id: 'color', label: 'Color', icon: Sparkles },
+  { id: 'size', label: 'Size', icon: Package },
+  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'placement-count', label: 'Placements', icon: Layers },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
+  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'qr-basic-type', label: 'URL or Text', icon: Link2 },
+  { id: 'qr-basic-input', label: 'Enter Content', icon: Type },
+  { id: 'qr-basic-mockup', label: 'Preview', icon: Eye },
+  { id: 'qr-basic-save-choice', label: 'Save Options', icon: Library },
+  { id: 'qr-basic-confirm', label: 'Done', icon: Check },
+];
+
+// Helper to check if we're in QR Basic flow
+const isQRBasicStep = (step: SimpleWizardStep): boolean => {
+  return step.startsWith('qr-basic-');
+};
+
 // Available placement options - matches Printify API placement IDs
 // Sizes based on actual print areas: Front/Back ~12", Left Chest ~4", Sleeves ~3"
 const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: string; sizeLabel: string }[] = [
@@ -205,14 +226,16 @@ function SimpleWizardProgressBar({
 }: { 
   currentStep: SimpleWizardStep; 
 }) {
-  const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === currentStep);
-  const progress = (currentIndex / SIMPLE_WIZARD_STEPS.length) * 100;
+  // Use QR Basic steps when in that flow
+  const steps = isQRBasicStep(currentStep) ? QR_BASIC_STEPS : SIMPLE_WIZARD_STEPS;
+  const currentIndex = steps.findIndex(s => s.id === currentStep);
+  const progress = ((currentIndex + 1) / steps.length) * 100;
   
   return (
     <div className="w-full mb-6">
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm font-medium text-white">
-          Step {currentIndex + 1} of {SIMPLE_WIZARD_STEPS.length}: {SIMPLE_WIZARD_STEPS[currentIndex]?.label}
+          Step {currentIndex + 1} of {steps.length}: {steps[currentIndex]?.label}
         </span>
         <span className="text-sm text-slate-400">{Math.round(progress)}%</span>
       </div>
