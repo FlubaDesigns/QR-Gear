@@ -83,7 +83,7 @@ import TestARDemo from "@/pages/test-ar-demo";
 import TestDynamics from "@/pages/test-dynamics";
 import TestPricing from "@/pages/test-pricing";
 import TestSettings from "@/pages/test-settings";
-import TestMembers from "@/pages/test-members";
+import Members from "@/features/members/MembersPage";
 import TestCanvasPacket from "@/pages/test-canvas-packet";
 import TestQRPlay from "@/pages/test-qr-play";
 import PlayLanding from "@/pages/play";
@@ -153,7 +153,7 @@ function Router() {
       <Route path="/test-store-builder" component={TestStoreBuilder} />
       <Route path="/test-ar-demo" component={TestARDemo} />
       <Route path="/test-settings" component={TestSettings} />
-      <Route path="/test-members">{() => <ProtectedRoute><TestMembers /></ProtectedRoute>}</Route>
+      <Route path="/members">{() => <ProtectedRoute><Members /></ProtectedRoute>}</Route>
       <Route path="/test-canvas-packet" component={TestCanvasPacket} />
       <Route path="/test-qr-play" component={TestQRPlay} />
       <Route path="/login" component={Login} />

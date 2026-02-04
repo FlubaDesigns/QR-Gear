@@ -149,7 +149,7 @@ export default function TestCanvasPacketPage() {
               Test the member canvas packet creation lifecycle
             </p>
           </div>
-          <Link href="/test-members">
+          <Link href="/members">
             <Button variant="outline" size="sm">
               Back to Members
             </Button>

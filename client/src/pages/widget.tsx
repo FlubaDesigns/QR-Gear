@@ -194,7 +194,7 @@ export default function Widget() {
   const handleCreate = () => {
     if (!session) return;
     notifyParent('create_start', { channelId: session.channelId });
-    window.open(`/test-members?channelId=${session.channelId}&entityType=${session.entityType}&entityId=${session.entityId}`, '_blank');
+    window.open(`/members?channelId=${session.channelId}&entityType=${session.entityType}&entityId=${session.entityId}`, '_blank');
   };
 
   if (isLoading) {

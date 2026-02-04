@@ -1,5 +1,5 @@
 // Shared placement types and constants
-// Single source of truth - imported by test-products, test-members, and anywhere else
+// Single source of truth - imported by test-products, members, and anywhere else
 
 export type PlacementId = 
   // Shirts/Hoodies

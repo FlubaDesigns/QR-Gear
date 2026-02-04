@@ -41,7 +41,8 @@ import {
   ShoppingBag
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { auth } from "@/lib/firebase";
+import { auth, signInWithGoogle, signInWithEmail } from "@/lib/firebase";
+import { useQueryClient } from "@tanstack/react-query";
 import SEO from "@/components/SEO";
 import { MemberAuthProvider } from "@/features/members/MemberAuthContext";
 import { MembersProvider, useMembersContext } from "@/features/members/MembersContext";
