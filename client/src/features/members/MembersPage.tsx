@@ -1315,6 +1315,19 @@ function QRBasicTypeStep({
 }
 
 // QR Basic Step 2: Enter URL or Text content
+// URL validation helper
+function isValidUrl(urlString: string): boolean {
+  if (!urlString.trim()) return false;
+  // Check for spaces (not allowed in URLs)
+  if (urlString.includes(' ')) return false;
+  try {
+    const url = new URL(urlString);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function QRBasicInputStep({
   inputType,
   content,
@@ -1332,6 +1345,7 @@ function QRBasicInputStep({
   const isUrl = inputType === 'url';
   const maxLength = isUrl ? 500 : 2000;
   const charCount = content.length;
+  const urlError = isUrl && content.trim() !== '' && !isValidUrl(content);
   
   // Get outline size matching graphic-size step
   const getOutlineSize = () => {
@@ -1396,10 +1410,14 @@ function QRBasicInputStep({
               value={content}
               onChange={(e) => onContentChange(e.target.value)}
               placeholder="https://example.com"
-              className="bg-slate-700 border-slate-600 text-white h-12 text-lg"
+              className={`bg-slate-700 border-slate-600 text-white h-12 text-lg ${urlError ? 'border-red-500 focus:ring-red-500' : ''}`}
               data-testid="input-qr-basic-url"
             />
-            <p className="text-slate-500 text-xs text-right">{charCount} / {maxLength} characters</p>
+            {urlError ? (
+              <p className="text-red-400 text-sm">Please enter a valid URL (e.g., https://example.com). No spaces allowed.</p>
+            ) : (
+              <p className="text-slate-500 text-xs text-right">{charCount} / {maxLength} characters</p>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -4979,7 +4997,11 @@ function MembersSandboxContent() {
       case 'url-publish': return true;
       // QR Basic flow
       case 'qr-basic-type': return qrBasicInputType !== '';
-      case 'qr-basic-input': return qrBasicContent.trim() !== '';
+      case 'qr-basic-input': {
+        if (qrBasicContent.trim() === '') return false;
+        if (qrBasicInputType === 'url' && !isValidUrl(qrBasicContent)) return false;
+        return true;
+      }
       case 'qr-basic-mockup': return true;
       case 'qr-basic-save-choice': return qrBasicSaveChoice !== '';
       case 'qr-basic-confirm': return true;
