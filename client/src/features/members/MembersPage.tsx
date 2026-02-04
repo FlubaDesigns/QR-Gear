@@ -841,6 +841,12 @@ function ColorPickerStep({
           {SHIRT_COLORS.find(c => c.id === selectedColor)?.name}
         </p>
       )}
+      
+      <div className="mt-4 p-4 bg-slate-800/50 rounded-lg max-w-md mx-auto">
+        <p className="text-slate-400 text-sm">
+          This color creates your product's display image. Your customers can still choose their own color and size when they order.
+        </p>
+      </div>
     </div>
   );
 }
