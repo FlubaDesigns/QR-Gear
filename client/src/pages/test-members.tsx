@@ -168,6 +168,122 @@ const isQRBasicStep = (step: SimpleWizardStep): boolean => {
   return step.startsWith('qr-basic-');
 };
 
+// ============================================================================
+// ROBUST MOCKUP FETCHER - Reusable across all QR phases
+// ============================================================================
+interface MockupFetchParams {
+  blueprintId: number;
+  printProviderId: number;
+  colorName: string;
+  artworkUrl: string;
+  artworkVariant?: 'black' | 'white';
+  canonicalPlacementId?: string;
+  qrSize?: 'small' | 'medium' | 'large';
+}
+
+interface MockupFetchResult {
+  success: boolean;
+  lifestyleUrl: string | null;  // Glamor/lifestyle mockup (preferred)
+  flatUrl: string | null;       // Standard flat product shot
+  bestUrl: string | null;       // Best available (lifestyle > flat)
+  fromCache: boolean;
+  error?: string;
+}
+
+async function fetchProductMockup(
+  params: MockupFetchParams,
+  authHeaders: Record<string, string>
+): Promise<MockupFetchResult> {
+  const {
+    blueprintId,
+    printProviderId,
+    colorName,
+    artworkUrl,
+    artworkVariant = 'black',
+    canonicalPlacementId = 'FRONT_CHEST',
+    qrSize = 'medium',
+  } = params;
+
+  // Validate required params
+  if (!blueprintId || !printProviderId || !colorName || !artworkUrl) {
+    console.error('[MockupFetcher] Missing required params:', { blueprintId, printProviderId, colorName, artworkUrl: !!artworkUrl });
+    return {
+      success: false,
+      lifestyleUrl: null,
+      flatUrl: null,
+      bestUrl: null,
+      fromCache: false,
+      error: 'Missing required parameters for mockup generation',
+    };
+  }
+
+  try {
+    console.log('[MockupFetcher] Requesting mockup:', { blueprintId, printProviderId, colorName, canonicalPlacementId, qrSize });
+    
+    const response = await fetch('/api/mockups/get-or-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({
+        blueprintId,
+        printProviderId,
+        colorName,
+        artworkUrl,
+        artworkVariant,
+        canonicalPlacementId,
+        qrSize,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error('[MockupFetcher] API error:', response.status, errorText);
+      return {
+        success: false,
+        lifestyleUrl: null,
+        flatUrl: null,
+        bestUrl: null,
+        fromCache: false,
+        error: `Mockup API error: ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    console.log('[MockupFetcher] Response:', {
+      hasLifestyle: !!data.lifestyleMockupUrl,
+      hasFlat: !!data.mockupUrl,
+      fromCache: data.fromCache,
+    });
+
+    const lifestyleUrl = data.lifestyleMockupUrl || null;
+    const flatUrl = data.mockupUrl || null;
+    const bestUrl = lifestyleUrl || flatUrl;
+
+    return {
+      success: !!bestUrl,
+      lifestyleUrl,
+      flatUrl,
+      bestUrl,
+      fromCache: data.fromCache || false,
+      error: bestUrl ? undefined : 'No mockup URL returned',
+    };
+  } catch (err: any) {
+    console.error('[MockupFetcher] Exception:', err);
+    return {
+      success: false,
+      lifestyleUrl: null,
+      flatUrl: null,
+      bestUrl: null,
+      fromCache: false,
+      error: err.message || 'Network error during mockup fetch',
+    };
+  }
+}
+
+// Generate high-quality QR code URL (reusable across all phases)
+function generateQRCodeUrl(content: string, size: number = 1000): string {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=000000&bgcolor=ffffff`;
+}
+
 // Available placement options - matches Printify API placement IDs
 // Sizes based on actual print areas: Front/Back ~12", Left Chest ~4", Sleeves ~3"
 const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: string; sizeLabel: string }[] = [
