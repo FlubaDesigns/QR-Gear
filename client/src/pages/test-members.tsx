@@ -3951,7 +3951,7 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 13: URL Preview - preview the landing page */}
+                {/* Step 15: URL Preview - preview the landing page */}
                 {simpleStep === 'url-preview' && (
                   <SimplePreviewStep
                     backgroundUrl={backgroundUrl}
@@ -3963,7 +3963,7 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 14: Publish */}
+                {/* Step 16: Publish */}
                 {simpleStep === 'url-publish' && (
                   <SimplePublishStep
                     isPublishing={isPublishing}
