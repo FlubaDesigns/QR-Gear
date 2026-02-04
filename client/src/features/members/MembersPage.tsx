@@ -745,9 +745,9 @@ function ProductCongratsStep({
         <div className="bg-slate-800/80 rounded-2xl p-6 border border-green-500/30">
           <p className="text-slate-400 text-sm mb-2">If you sell this item, you'll earn</p>
           <div className="text-4xl font-bold text-green-400">
-            ${earnings.toFixed(2)}
+            ${(earnings || 0).toFixed(2)}
           </div>
-          <p className="text-slate-500 text-xs mt-2">per sale (25% profit share)</p>
+          <p className="text-slate-500 text-xs mt-2">but that can go up as you progress through this wizard!</p>
         </div>
       </div>
       
@@ -4782,6 +4782,9 @@ function MembersSandboxContent() {
         blueprintId: product.blueprintId,
         printProviderId: product.printProviderId,
         title: product.title,
+        memberEarnings: product.memberEarnings,
+        retailPrice: product.retailPrice,
+        baseCost: product.baseCost,
       });
       
       const authHeaders = await getAuthHeaders();
@@ -4797,6 +4800,9 @@ function MembersSandboxContent() {
           printProviderId: product.printProviderId,
           title: product.title,
           imageUrl: product.imageUrl,
+          memberEarnings: product.memberEarnings || 0,
+          retailPrice: product.retailPrice || 0,
+          baseCost: product.baseCost || 0,
         },
         metadata: {},
         source: { entryPoint: 'simple-wizard' },
@@ -5405,10 +5411,10 @@ function MembersSandboxContent() {
                 {/* Step: Product Congrats - earnings celebration */}
                 {simpleStep === 'product-congrats' && selectedProductType && (
                   <ProductCongratsStep
-                    productName={selectedProductType.name}
-                    earnings={selectedProductType.price * 0.25}
+                    productName={selectedProductType.title}
+                    earnings={selectedProductType.memberEarnings || 0}
                     onContinue={() => {
-                      setRunningEarnings(prev => prev + selectedProductType.price * 0.25);
+                      setRunningEarnings(prev => prev + (selectedProductType.memberEarnings || 0));
                       setSimpleStep('color');
                     }}
                   />
