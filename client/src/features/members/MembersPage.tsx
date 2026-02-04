@@ -3272,12 +3272,10 @@ function QRCanvasExplainerStep({
 
 function UrlSourceChoiceStep({
   choice,
-  onChoiceChange,
-  onContinue
+  onChoiceChange
 }: {
   choice: LibraryChoice;
   onChoiceChange: (choice: LibraryChoice) => void;
-  onContinue: () => void;
 }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -3327,20 +3325,6 @@ function UrlSourceChoiceStep({
           <p className="text-sm text-slate-400">Browse our curated collection</p>
         </button>
       </div>
-      
-      {choice && (
-        <div className="flex justify-center mt-6">
-          <Button
-            onClick={onContinue}
-            size="lg"
-            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/30 px-8"
-            data-testid="button-continue-library"
-          >
-            Continue
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
@@ -5598,7 +5582,7 @@ function MembersSandboxContent() {
       case 'placement-config': return placementGraphicChoice !== '' && placementSize !== '';
       case 'shirt-preview': return true;
       case 'url-explainer': return true;
-      case 'url-source-choice': return urlSourceChoice !== '';
+      case 'url-source-choice': return libraryChoice !== '';
       case 'url-library-pick': return urlGraphic !== '';
       case 'url-details': return simpleTitle.trim() !== '';
       case 'url-preview': return true;
@@ -6296,7 +6280,6 @@ function MembersSandboxContent() {
                   <UrlSourceChoiceStep
                     choice={libraryChoice}
                     onChoiceChange={setLibraryChoice}
-                    onContinue={() => setSimpleStep('url-library-pick')}
                   />
                 )}
                 
