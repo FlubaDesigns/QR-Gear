@@ -81,7 +81,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-creation';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-background' | 'url-details' | 'url-preview' | 'url-publish';
 // Matches Printify placement IDs
 type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
@@ -129,7 +129,10 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
-  { id: 'url-creation', label: 'Create URL', icon: Link2 },
+  { id: 'url-background', label: 'Background', icon: ImagePlus },
+  { id: 'url-details', label: 'Details', icon: Type },
+  { id: 'url-preview', label: 'URL Preview', icon: Eye },
+  { id: 'url-publish', label: 'Publish', icon: Send },
 ];
 
 // Available placement options - matches Printify API placement IDs
@@ -3280,7 +3283,10 @@ export default function TestMembersSandbox() {
       case 'placement-count': return selectedPlacements.length > 0;
       case 'text-edit': return true;
       case 'shirt-preview': return true;
-      case 'url-creation': return true;
+      case 'url-background': return backgroundUrl !== '';
+      case 'url-details': return simpleTitle.trim() !== '';
+      case 'url-preview': return true;
+      case 'url-publish': return true;
       default: return false;
     }
   };
@@ -3741,16 +3747,49 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 11: URL Creation - title and description */}
-                {simpleStep === 'url-creation' && (
-                  <UrlCreationStep
+                {/* Step 11: URL Background - select background for landing page */}
+                {simpleStep === 'url-background' && user?.id && (
+                  <SimpleBackgroundStep
+                    memberId={user.id}
+                    backgroundUrl={backgroundUrl}
+                    onBackgroundSelected={(croppedUrl, originalUrl, needsCrop) => {
+                      setBackgroundUrl(croppedUrl);
+                      setOriginalBackgroundUrl(originalUrl);
+                    }}
+                    onComplete={() => setSimpleStep('url-details')}
+                  />
+                )}
+                
+                {/* Step 12: URL Details - title and description */}
+                {simpleStep === 'url-details' && (
+                  <DetailsStep
                     title={simpleTitle}
                     description={simpleDescription}
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
+                  />
+                )}
+                
+                {/* Step 13: URL Preview - preview the landing page */}
+                {simpleStep === 'url-preview' && (
+                  <SimplePreviewStep
+                    backgroundUrl={backgroundUrl}
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
-                    textLayoutChoice={textLayoutChoice}
+                    title={simpleTitle}
+                    qrCodeUrl={previewQrUrl}
+                    onGoBack={() => setSimpleStep('url-details')}
+                  />
+                )}
+                
+                {/* Step 14: Publish */}
+                {simpleStep === 'url-publish' && (
+                  <SimplePublishStep
+                    isPublishing={isPublishing}
+                    onPublish={handleSimplePublish}
+                    title={simpleTitle}
+                    qrType={qrType}
+                    backgroundUrl={backgroundUrl}
                   />
                 )}
               </div>
@@ -3767,7 +3806,7 @@ export default function TestMembersSandbox() {
                   Back
                 </Button>
                 
-                {simpleStep !== 'url-creation' && (
+                {simpleStep !== 'url-publish' && (
                   <Button
                     onClick={handleSimpleNext}
                     disabled={!canSimpleProceed()}
