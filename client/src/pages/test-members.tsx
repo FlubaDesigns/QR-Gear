@@ -4127,6 +4127,37 @@ export default function TestMembersSandbox() {
   };
 
   const handleSimpleNext = async () => {
+    // Handle QR Basic flow navigation
+    if (simpleStep === 'qr-basic-type') {
+      setSimpleStep('qr-basic-input');
+      return;
+    }
+    if (simpleStep === 'qr-basic-input') {
+      // Generate QR and get mockup
+      setIsGeneratingBasicMockup(true);
+      try {
+        // Generate QR code URL for the mockup
+        const qrContent = qrBasicContent;
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrContent)}`;
+        setQrBasicMockupUrl(qrApiUrl);
+        // TODO: Call Printify for actual shirt mockup
+      } catch (error) {
+        console.error('Error generating mockup:', error);
+      } finally {
+        setIsGeneratingBasicMockup(false);
+      }
+      setSimpleStep('qr-basic-mockup');
+      return;
+    }
+    if (simpleStep === 'qr-basic-mockup') {
+      setSimpleStep('qr-basic-save');
+      return;
+    }
+    if (simpleStep === 'qr-basic-save') {
+      // End of QR Basic flow - handled by onSave/onSkip callbacks
+      return;
+    }
+    
     const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
     
     // After text-edit, reset placement index for the placement-config loop
@@ -4164,6 +4195,24 @@ export default function TestMembersSandbox() {
   };
 
   const handleSimpleBack = () => {
+    // Handle QR Basic flow back navigation
+    if (simpleStep === 'qr-basic-type') {
+      setSimpleStep('generate');
+      return;
+    }
+    if (simpleStep === 'qr-basic-input') {
+      setSimpleStep('qr-basic-type');
+      return;
+    }
+    if (simpleStep === 'qr-basic-mockup') {
+      setSimpleStep('qr-basic-input');
+      return;
+    }
+    if (simpleStep === 'qr-basic-save') {
+      setSimpleStep('qr-basic-mockup');
+      return;
+    }
+    
     const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
     if (currentIndex > 0) {
       setSimpleStep(SIMPLE_WIZARD_STEPS[currentIndex - 1].id);
@@ -4189,6 +4238,11 @@ export default function TestMembersSandbox() {
       case 'url-details': return simpleTitle.trim() !== '';
       case 'url-preview': return true;
       case 'url-publish': return true;
+      // QR Basic flow
+      case 'qr-basic-type': return qrBasicInputType !== '';
+      case 'qr-basic-input': return qrBasicContent.trim() !== '';
+      case 'qr-basic-mockup': return true;
+      case 'qr-basic-save': return true;
       default: return false;
     }
   };
@@ -4568,10 +4622,65 @@ export default function TestMembersSandbox() {
                       }}
                       onNo={() => {
                         setWantsHeaderFooter(false);
-                        setSimpleStep('text-edit');
+                        setQrBasicInputType('');
+                        setQrBasicContent('');
+                        setSimpleStep('qr-basic-type');
                       }}
                     />
                   </div>
+                )}
+                
+                {/* QR Basic Step 1: Choose URL or Text */}
+                {simpleStep === 'qr-basic-type' && (
+                  <QRBasicTypeStep
+                    selectedType={qrBasicInputType}
+                    onSelect={(type) => {
+                      setQrBasicInputType(type);
+                      setSimpleStep('qr-basic-input');
+                    }}
+                    selectedColor={selectedColor}
+                    graphicSize={graphicSize}
+                  />
+                )}
+                
+                {/* QR Basic Step 2: Enter URL or Text */}
+                {simpleStep === 'qr-basic-input' && (
+                  <QRBasicInputStep
+                    inputType={qrBasicInputType}
+                    content={qrBasicContent}
+                    onContentChange={setQrBasicContent}
+                    selectedColor={selectedColor}
+                    graphicSize={graphicSize}
+                  />
+                )}
+                
+                {/* QR Basic Step 3: Show Mockup */}
+                {simpleStep === 'qr-basic-mockup' && (
+                  <QRBasicMockupStep
+                    mockupUrl={qrBasicMockupUrl}
+                    isLoading={isGeneratingBasicMockup}
+                    selectedColor={selectedColor}
+                    selectedSize={selectedShirtSize}
+                    inputType={qrBasicInputType}
+                    content={qrBasicContent}
+                  />
+                )}
+                
+                {/* QR Basic Step 4: Save to Library */}
+                {simpleStep === 'qr-basic-save' && (
+                  <QRBasicSaveStep
+                    onSave={() => {
+                      // TODO: Implement save to library
+                      toast({ title: "Saved!", description: "Your design has been saved to your library." });
+                      // Reset wizard or go to next action
+                      setSimpleStep('product');
+                    }}
+                    onSkip={() => {
+                      // Reset wizard
+                      setSimpleStep('product');
+                    }}
+                    isSaving={false}
+                  />
                 )}
                 
                 {/* Step 5: Text Placement */}
