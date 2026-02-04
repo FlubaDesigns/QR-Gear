@@ -111,7 +111,7 @@ export function QuickLinks() {
             </div>
             <h3>Members Studio</h3>
             <p>Build and sell your own QR products</p>
-            <Link href="/members">
+            <Link href="/member">
               <QRButton variant="ghost" size="small" data-testid="button-members-studio">
                 Member Area
               </QRButton>

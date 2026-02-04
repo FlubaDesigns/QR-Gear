@@ -30,7 +30,7 @@ function AdminQuickAccess() {
         <Users className="w-4 h-4" />
         Member Area
       </Link>
-      <Link href="/members" className="admin-quick-link" data-testid="link-members-sandbox">
+      <Link href="/member" className="admin-quick-link" data-testid="link-members-sandbox">
         <Sparkles className="w-4 h-4" />
         Members
       </Link>

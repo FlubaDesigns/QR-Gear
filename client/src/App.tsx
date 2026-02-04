@@ -103,7 +103,7 @@ function Router() {
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
-      <Route path="/member" component={Member} />
+      <Route path="/member">{() => <ProtectedRoute><Members /></ProtectedRoute>}</Route>
       <Route path="/admin">{() => <ProtectedRoute><Admin /></ProtectedRoute>}</Route>
       <Route path="/admin/products">{() => <ProtectedRoute><AdminProducts /></ProtectedRoute>}</Route>
       <Route path="/admin/pricing">{() => <ProtectedRoute><AdminPricing /></ProtectedRoute>}</Route>
@@ -153,7 +153,6 @@ function Router() {
       <Route path="/test-store-builder" component={TestStoreBuilder} />
       <Route path="/test-ar-demo" component={TestARDemo} />
       <Route path="/test-settings" component={TestSettings} />
-      <Route path="/members">{() => <ProtectedRoute><Members /></ProtectedRoute>}</Route>
       <Route path="/test-canvas-packet" component={TestCanvasPacket} />
       <Route path="/test-qr-play" component={TestQRPlay} />
       <Route path="/login" component={Login} />
