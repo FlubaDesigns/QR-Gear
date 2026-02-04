@@ -526,7 +526,7 @@ function ChannelStep({
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Channel</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Choose Your Channel</h2>
         <p className="text-slate-400">Products are organized into channels for your store</p>
       </div>
 
@@ -666,7 +666,7 @@ function ProductPickerStep({
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Pick Your Product</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Pick Your Product</h2>
         <p className="text-slate-400">Select an item to customize</p>
       </div>
       
@@ -745,7 +745,7 @@ function ProductCongratsStep({
       </div>
       
       <div className="text-center space-y-3">
-        <h2 className="text-2xl font-bold text-white">
+        <h2 className="text-lg font-bold text-white">
           Congratulations!
         </h2>
         <p className="text-slate-300">
@@ -786,7 +786,7 @@ function ColorPickerStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Color</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Choose Your Color</h2>
         <p className="text-slate-400">What color would you like?</p>
       </div>
       
@@ -911,7 +911,7 @@ function GraphicLocationStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Where Do You Want Your Graphic?</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Where Do You Want Your Graphic?</h2>
         <p className="text-slate-400">Tap a location to select</p>
       </div>
       
@@ -1153,7 +1153,7 @@ function GraphicSizeStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">What Size Graphic?</h2>
+        <h2 className="text-lg font-bold text-white mb-2">What Size Graphic?</h2>
         <p className="text-slate-400">This is your entire print area</p>
       </div>
       
@@ -1219,7 +1219,7 @@ function GenerateGraphicStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Want a Header and/or Footer?</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Want a Header and/or Footer?</h2>
         <p className="text-slate-400">Add text above or below your QR code</p>
       </div>
       
@@ -1307,7 +1307,7 @@ function QRBasicTypeStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">What should the QR code link to?</h2>
+        <h2 className="text-lg font-bold text-white mb-2">What should the QR code link to?</h2>
         <p className="text-slate-400">Choose what people see when they scan</p>
       </div>
       
@@ -1441,7 +1441,7 @@ function QRBasicInputStep({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">
+        <h2 className="text-lg font-bold text-white mb-2">
           {isUrl ? 'Enter Your Website Link' : 'Enter Your Message'}
         </h2>
         <p className="text-slate-400">
@@ -1543,7 +1543,7 @@ function QRBasicMockupStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Your QR Shirt Preview</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Your QR Shirt Preview</h2>
         <p className="text-slate-400">Here's how your shirt will look!</p>
       </div>
       
@@ -1598,7 +1598,7 @@ function QRBasicSaveChoiceStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">What would you like to save?</h2>
+        <h2 className="text-lg font-bold text-white mb-2">What would you like to save?</h2>
         <p className="text-slate-400">Choose what to keep in your library</p>
       </div>
       
@@ -1665,7 +1665,7 @@ function QRBasicConfirmStep({
         <div className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-4">
           <Check className="w-10 h-10 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">{message.title}</h2>
+        <h2 className="text-lg font-bold text-white mb-2">{message.title}</h2>
         <p className="text-slate-400">{message.description}</p>
       </div>
       
@@ -2878,7 +2878,7 @@ function TypePickerStep({
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">What do you want to create?</h2>
+        <h2 className="text-lg font-bold text-white mb-2">What do you want to create?</h2>
         <p className="text-slate-400">Choose the type of QR experience</p>
       </div>
 
@@ -2941,7 +2941,7 @@ function QRCanvasExplainerStep({
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Create Your Landing Page</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Create Your Landing Page</h2>
         <p className="text-slate-400">When someone scans your QR code, they'll see a beautiful page you design</p>
       </div>
       
@@ -3016,7 +3016,7 @@ function UrlSourceChoiceStep({
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Library</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Choose Your Library</h2>
         <p className="text-slate-400">Pick from images you've saved or browse our collection</p>
       </div>
       
@@ -3216,7 +3216,7 @@ function SimpleBackgroundStep({
       {subStep === 'choice' && (
         <div className="text-center space-y-8">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Add Your Background</h2>
+            <h2 className="text-lg font-bold text-white mb-2">Add Your Background</h2>
             <p className="text-slate-400">Every great QR Canvas needs an image</p>
           </div>
 
@@ -3251,7 +3251,7 @@ function SimpleBackgroundStep({
       {subStep === 'upload' && (
         <div className="text-center space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Upload Your Image</h2>
+            <h2 className="text-lg font-bold text-white mb-2">Upload Your Image</h2>
             <p className="text-slate-400">Choose a photo from your device</p>
           </div>
 
@@ -3310,7 +3310,7 @@ function SimpleBackgroundStep({
       {subStep === 'library-choice' && (
         <div className="text-center space-y-8">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Pick From Library</h2>
+            <h2 className="text-lg font-bold text-white mb-2">Pick From Library</h2>
             <p className="text-slate-400">Choose from your saved images or browse common backgrounds</p>
           </div>
 
@@ -3355,7 +3355,7 @@ function SimpleBackgroundStep({
       {subStep === 'personal-library' && (
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">Your Library</h2>
+            <h2 className="text-lg font-bold text-white mb-2">Your Library</h2>
             <p className="text-slate-400">Select an image to use</p>
           </div>
 
@@ -3418,7 +3418,7 @@ function SimpleBackgroundStep({
       {subStep === 'common-library' && (
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">Common Library</h2>
+            <h2 className="text-lg font-bold text-white mb-2">Common Library</h2>
             <p className="text-slate-400">Select from curated backgrounds</p>
           </div>
 
@@ -3668,7 +3668,7 @@ function TextAskStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Looking Good!</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Looking Good!</h2>
         <p className="text-slate-400">Would you like to add some text?</p>
       </div>
 
@@ -3728,7 +3728,7 @@ function TextLayoutChoiceStep({
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Where Should the Text Go?</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Where Should the Text Go?</h2>
         <p className="text-slate-400">Choose a layout for your text</p>
       </div>
 
@@ -4009,7 +4009,7 @@ function DetailsStep({
   return (
     <div>
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">Add Your Details</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Add Your Details</h2>
         <p className="text-slate-400">Give your creation a title and description</p>
       </div>
 
@@ -4066,7 +4066,7 @@ function SimplePublishStep({
         <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-green-600/20 flex items-center justify-center">
           <Sparkles className="w-10 h-10 text-green-400" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Ready to Publish!</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Ready to Publish!</h2>
         <p className="text-slate-400">Your {typeLabel.toLowerCase()} is ready to share with the world</p>
       </div>
 
@@ -4135,7 +4135,7 @@ function PreviewStep({
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Preview Your Creation</h2>
+        <h2 className="text-lg font-bold text-white mb-2">Preview Your Creation</h2>
         <p className="text-slate-400">Review before publishing to your store</p>
       </div>
 
@@ -4455,7 +4455,7 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
               data-testid="stat-products"
             >
               <Package className="w-8 h-8 mx-auto mb-2 text-blue-400" />
-              <div className="text-2xl font-bold text-white">{productCount}</div>
+              <div className="text-lg font-bold text-white">{productCount}</div>
               <div className="text-sm text-slate-400">Products</div>
             </button>
             <button
@@ -4464,7 +4464,7 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
               data-testid="stat-channels"
             >
               <Layers className="w-8 h-8 mx-auto mb-2 text-purple-400" />
-              <div className="text-2xl font-bold text-white">{channelCount}</div>
+              <div className="text-lg font-bold text-white">{channelCount}</div>
               <div className="text-sm text-slate-400">Channels</div>
             </button>
             <button
@@ -4473,7 +4473,7 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
               data-testid="stat-earnings"
             >
               <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-400" />
-              <div className="text-2xl font-bold text-white">${totalEarnings.toFixed(2)}</div>
+              <div className="text-lg font-bold text-white">${totalEarnings.toFixed(2)}</div>
               <div className="text-sm text-slate-400">Earnings</div>
             </button>
             <button
@@ -4482,7 +4482,7 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
               data-testid="stat-dynamics"
             >
               <QrCode className="w-8 h-8 mx-auto mb-2 text-amber-400" />
-              <div className="text-2xl font-bold text-white">{publishCount}</div>
+              <div className="text-lg font-bold text-white">{publishCount}</div>
               <div className="text-sm text-slate-400">Published</div>
             </button>
           </div>
@@ -5389,6 +5389,7 @@ function MembersSandboxContent() {
       <SEO title="Members Sandbox" description="Build and sell your products" />
       
       <div className="container py-4 max-w-5xl mx-auto px-4">
+        {viewMode !== 'wizard' && (
         <div className="flex gap-2 flex-wrap mb-4">
               <Button
                 variant={viewMode === 'index' ? 'default' : 'ghost'}
@@ -5401,22 +5402,22 @@ function MembersSandboxContent() {
                 Home
               </Button>
               <Button
-                variant={viewMode === 'wizard' && wizardTier === 'simple' ? 'default' : 'ghost'}
+                variant="ghost"
                 size="sm"
                 onClick={() => { setViewMode('wizard'); setWizardTier('simple'); }}
                 data-testid="tab-simple"
-                className={viewMode === 'wizard' && wizardTier === 'simple' ? 'bg-green-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                className="text-white/70 hover:text-white hover:bg-white/10"
               >
                 <Wand2 className="w-4 h-4 mr-1" />
                 Quick Create
               </Button>
               {unlockedTiers.advanced && (
                 <Button
-                  variant={viewMode === 'wizard' && wizardTier === 'advanced' ? 'default' : 'ghost'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => { setViewMode('wizard'); setWizardTier('advanced'); }}
                   data-testid="tab-advanced"
-                  className={viewMode === 'wizard' && wizardTier === 'advanced' ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                  className="text-white/70 hover:text-white hover:bg-white/10"
                 >
                   <Layers className="w-4 h-4 mr-1" />
                   Advanced
@@ -5424,11 +5425,11 @@ function MembersSandboxContent() {
               )}
               {unlockedTiers.studio && (
                 <Button
-                  variant={viewMode === 'wizard' && wizardTier === 'studio' ? 'default' : 'ghost'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => { setViewMode('wizard'); setWizardTier('studio'); }}
                   data-testid="tab-studio"
-                  className={viewMode === 'wizard' && wizardTier === 'studio' ? 'bg-amber-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                  className="text-white/70 hover:text-white hover:bg-white/10"
                 >
                   <Zap className="w-4 h-4 mr-1" />
                   Studio
@@ -5465,6 +5466,7 @@ function MembersSandboxContent() {
                 Earnings
               </Button>
         </div>
+        )}
 
         {showUnlockPrompt === 'advanced' && (
           <div className="glass-card p-4 mb-6 flex items-center justify-between gap-4 border-blue-500/50 bg-blue-900/20">
@@ -5999,7 +6001,7 @@ function MembersSandboxContent() {
                 {currentStep === 'background' && (
                   <div className="space-y-6">
                     <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold text-white mb-2">Background Image</h2>
+                      <h2 className="text-lg font-bold text-white mb-2">Background Image</h2>
                       <p className="text-slate-400">Choose from the library or upload your own</p>
                     </div>
                     
