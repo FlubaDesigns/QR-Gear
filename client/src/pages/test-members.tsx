@@ -123,11 +123,11 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'location', label: 'Location', icon: MapPin },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
-  { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
   { id: 'url-creation', label: 'Create URL', icon: Link2 },
@@ -577,6 +577,20 @@ function SizePickerStep({
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
+  // Scale shirt size based on selected size
+  const sizeScales: Record<string, number> = {
+    'XS': 0.7,
+    'S': 0.8,
+    'M': 0.9,
+    'L': 1.0,
+    'XL': 1.1,
+    '2XL': 1.2,
+    '3XL': 1.3,
+  };
+  const scale = sizeScales[selectedSize] || 0.9;
+  const shirtWidth = Math.round(120 * scale);
+  const shirtHeight = Math.round(140 * scale);
+  
   return (
     <div className="text-center space-y-6">
       <div>
@@ -584,9 +598,14 @@ function SizePickerStep({
         <p className="text-slate-400">Select your size</p>
       </div>
       
-      {/* Shirt preview in selected color */}
-      <div className="flex justify-center">
-        <svg width="120" height="140" viewBox="0 0 120 140" className="drop-shadow-lg">
+      {/* Shirt preview - scales based on selected size */}
+      <div className="flex justify-center items-end h-[180px]">
+        <svg 
+          width={shirtWidth} 
+          height={shirtHeight} 
+          viewBox="0 0 120 140" 
+          className="drop-shadow-lg transition-all duration-300"
+        >
           <path
             d="M20,35 L35,20 L50,25 L60,20 L70,25 L85,20 L100,35 L95,55 L85,50 L85,120 L35,120 L35,50 L25,55 Z"
             fill={colorHex}
