@@ -2644,7 +2644,7 @@ function UrlCreationStep({
   description,
   onTitleChange,
   onDescriptionChange,
-  backgroundUrl,
+  background,
   titleVertical,
   titleHorizontal,
   descVertical,
@@ -2658,7 +2658,7 @@ function UrlCreationStep({
   description: string;
   onTitleChange: (title: string) => void;
   onDescriptionChange: (description: string) => void;
-  backgroundUrl: string;
+  background: string;
   titleVertical: number;
   titleHorizontal: number;
   descVertical: number;
@@ -2684,9 +2684,9 @@ function UrlCreationStep({
           {/* Screen content */}
           <div className="w-full h-full relative">
             {/* Background image or placeholder */}
-            {backgroundUrl ? (
+            {background ? (
               <img 
-                src={backgroundUrl} 
+                src={background} 
                 alt="Landing page background" 
                 className="w-full h-full object-cover"
               />
@@ -2914,7 +2914,7 @@ function TypePickerStep({
 // Simple Wizard Step: Background (5 sub-steps)
 interface SimpleBackgroundStepProps {
   memberId: string;
-  backgroundUrl: string;
+  background: string;
   onBackgroundSelected: (croppedUrl: string, originalUrl: string, needsCrop: boolean) => void;
   onComplete: () => void;
 }
@@ -3081,7 +3081,7 @@ function UrlSourceChoiceStep({
 
 function SimpleBackgroundStep({ 
   memberId, 
-  backgroundUrl,
+  background,
   onBackgroundSelected,
   onComplete
 }: SimpleBackgroundStepProps) {
@@ -3503,14 +3503,14 @@ function SimpleBackgroundStep({
 
 // Phone mockup with actual QR code for preview
 function PhoneMockupWithQR({ 
-  backgroundUrl, 
+  background, 
   headerText,
   footerText,
   headerStyle,
   footerStyle,
   qrCodeUrl
 }: { 
-  backgroundUrl: string;
+  background: string;
   headerText?: string;
   footerText?: string;
   headerStyle?: TextStyleConfig;
@@ -3528,9 +3528,9 @@ function PhoneMockupWithQR({
       <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
         <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
         <div className="aspect-[9/19] relative">
-          {backgroundUrl && (
+          {background && (
             <img 
-              src={backgroundUrl} 
+              src={background} 
               alt="Background" 
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -3582,14 +3582,14 @@ function PhoneMockupWithQR({
 
 // Phone mockup component for previews
 function PhoneMockup({ 
-  backgroundUrl, 
+  background, 
   headerText,
   footerText,
   headerStyle,
   footerStyle,
   className = ""
 }: { 
-  backgroundUrl: string;
+  background: string;
   headerText?: string;
   footerText?: string;
   headerStyle?: TextStyleConfig;
@@ -3607,9 +3607,9 @@ function PhoneMockup({
       <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
         <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
         <div className="aspect-[9/19] relative">
-          {backgroundUrl && (
+          {background && (
             <img 
-              src={backgroundUrl} 
+              src={background} 
               alt="Background" 
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -3657,11 +3657,11 @@ function PhoneMockup({
 
 // Simple Wizard Step: Text Ask (phone preview with "Want to add text?")
 function TextAskStep({ 
-  backgroundUrl,
+  background,
   onYes,
   onNo
 }: { 
-  backgroundUrl: string;
+  background: string;
   onYes: () => void;
   onNo: () => void;
 }) {
@@ -3672,7 +3672,7 @@ function TextAskStep({
         <p className="text-slate-400">Would you like to add some text?</p>
       </div>
 
-      <PhoneMockup backgroundUrl={backgroundUrl} />
+      <PhoneMockup background={background} />
 
       <div className="max-w-sm mx-auto grid grid-cols-2 gap-4">
         <Button
@@ -3882,14 +3882,14 @@ function TextStyleSection({
 // Simple Wizard Step: Text Edit (enter text + styling)
 function TextEditStep({ 
   layout,
-  backgroundUrl,
+  background,
   headerStyle,
   footerStyle,
   onHeaderChange,
   onFooterChange
 }: { 
   layout: TextLayoutChoice;
-  backgroundUrl: string;
+  background: string;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   onHeaderChange: (style: TextStyleConfig) => void;
@@ -3916,7 +3916,7 @@ function TextEditStep({
 
       <div className="flex justify-center py-2">
         <PhoneMockup
-          backgroundUrl={backgroundUrl}
+          background={background}
           headerText={showHeader ? headerStyle.text : undefined}
           footerText={showFooter ? footerStyle.text : undefined}
           headerStyle={showHeader ? headerStyle : undefined}
@@ -3938,14 +3938,14 @@ function TextEditStep({
 
 // Simple Wizard Step: Final Preview
 function SimplePreviewStep({ 
-  backgroundUrl,
+  background,
   headerStyle,
   footerStyle,
   title,
   qrCodeUrl,
   onGoBack
 }: { 
-  backgroundUrl: string;
+  background: string;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   title: string;
@@ -3968,7 +3968,7 @@ function SimplePreviewStep({
 
       <div className="pt-4">
         <PhoneMockupWithQR
-          backgroundUrl={backgroundUrl}
+          background={background}
           headerText={headerStyle.enabled ? headerStyle.text : undefined}
           footerText={footerStyle.enabled ? footerStyle.text : undefined}
           headerStyle={headerStyle}
@@ -4050,13 +4050,13 @@ function SimplePublishStep({
   onPublish,
   title,
   qrType,
-  backgroundUrl
+  background
 }: { 
   isPublishing: boolean;
   onPublish: () => void;
   title: string;
   qrType: QRType;
-  backgroundUrl: string;
+  background: string;
 }) {
   const typeLabel = qrType === 'qr-canvas' ? 'Image Post' : qrType === 'qr-play' ? 'Video Post' : 'Creation';
   
@@ -4073,9 +4073,9 @@ function SimplePublishStep({
       <Card className="bg-slate-800/50 border-slate-700 max-w-sm mx-auto mb-8">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
-            {backgroundUrl ? (
+            {background ? (
               <div className="w-12 h-12 rounded-lg overflow-hidden">
-                <img src={backgroundUrl} alt="" className="w-full h-full object-cover" />
+                <img src={background} alt="" className="w-full h-full object-cover" />
               </div>
             ) : (
               <div className="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center">
@@ -4122,13 +4122,13 @@ function PreviewStep({
   qrType,
   headerStyle,
   footerStyle,
-  backgroundUrl
+  background
 }: { 
   product: ProductItem | null;
   qrType: QRType;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
-  backgroundUrl: string;
+  background: string;
 }) {
   const showGraphicPreview = qrType === 'qr-plus' || qrType === 'qr-canvas' || qrType === 'qr-play';
   
@@ -4165,8 +4165,8 @@ function PreviewStep({
           <div className="flex justify-center">
             {showGraphicPreview ? (
               <GraphicPreviewView
-                backgroundColor={backgroundUrl ? undefined : '#1a1a2e'}
-                backgroundImage={backgroundUrl || undefined}
+                backgroundColor={background ? undefined : '#1a1a2e'}
+                backgroundImage={background || undefined}
                 headerStyle={headerStyle}
                 footerStyle={footerStyle}
                 showQRCode={true}
@@ -4200,7 +4200,7 @@ function PreviewStep({
                 </p>
               </div>
             )}
-            {backgroundUrl && (
+            {background && (
               <div>
                 <p className="text-xs text-slate-400">Background</p>
                 <Badge className="bg-purple-600/20 text-purple-400">Custom Image</Badge>
@@ -4881,8 +4881,9 @@ function MembersSandboxContent() {
   // Step state - shared components
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
-  const [backgroundUrl, setBackgroundUrl] = useState<string>('');
-  const [originalBackgroundUrl, setOriginalBackgroundUrl] = useState<string>('');
+  const [productGraphic, setProductGraphic] = useState<string>(''); // Graphic on shirt/cup/product
+  const [originalBackground, setOriginalBackground] = useState<string>('');
+  const [background, setBackground] = useState<string>(''); // Mobile/landing page background (phone preview)
   const [showBackgroundLibrary, setShowBackgroundLibrary] = useState(false);
   const [landingPage, setLandingPage] = useState<LandingPageConfig>({ ...defaultLandingPage });
   const [videoUrl, setVideoUrl] = useState<string>('');
@@ -4926,6 +4927,7 @@ function MembersSandboxContent() {
     const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
     const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(previewUrl)}`;
     setPreviewQrUrl(qrApiUrl);
+    setProductGraphic(qrApiUrl); // Store as the graphic for the shirt/product
     return qrApiUrl;
   };
 
@@ -5220,7 +5222,7 @@ function MembersSandboxContent() {
       case 'shirt-preview': return true;
       case 'url-explainer': return true;
       case 'url-source-choice': return urlSourceChoice !== '';
-      case 'url-library-pick': return backgroundUrl !== '';
+      case 'url-library-pick': return background !== '';
       case 'url-details': return simpleTitle.trim() !== '';
       case 'url-preview': return true;
       case 'url-publish': return true;
@@ -5252,7 +5254,7 @@ function MembersSandboxContent() {
         description: simpleDescription,
         channelId: selectedChannel.id,
         storeId: user.id, // Member store = memberId
-        backgroundUrl: backgroundUrl || null,
+        background: background || null,
         status: 'published'
       };
       
@@ -5273,7 +5275,8 @@ function MembersSandboxContent() {
       setSimpleTitle('');
       setSimpleDescription('');
       setQrType('');
-      setBackgroundUrl('');
+      setBackground('');
+      setProductGraphic('');
     } catch (error) {
       console.error('Simple publish error:', error);
       alert('Failed to publish. Please try again.');
@@ -5323,7 +5326,7 @@ function MembersSandboxContent() {
           qrDestination: qrDestination || landingPage.url || null,
           headerStyle: headerStyle.enabled ? headerStyle : null,
           footerStyle: footerStyle.enabled ? footerStyle : null,
-          backgroundUrl: backgroundUrl || null,
+          background: background || null,
           landingPage: landingPage,
           videoUrl: videoUrl || null,
           channelId: selectedChannel.id,
@@ -5385,36 +5388,8 @@ function MembersSandboxContent() {
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <SEO title="Members Sandbox" description="Build and sell your products" />
       
-      <div className="container py-6 max-w-5xl mx-auto px-4">
-        <div className="glass-card p-6 mb-6">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <Store className="w-8 h-8 text-blue-400" />
-              <div>
-                <h1 className="text-2xl font-bold text-white">Members Sandbox</h1>
-                <p className="text-white/70 text-sm">Build and sell your products</p>
-              </div>
-            </div>
-            
-            {/* Dev tool: Reset publish count */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (user?.id) {
-                  localStorage.removeItem(`publish_count_${user.id}`);
-                  setPublishCount(0);
-                  setWizardTier('simple');
-                  alert('Publish count reset to 0. You now see only Quick Create.');
-                }
-              }}
-              className="text-xs text-slate-500 hover:text-white"
-              data-testid="button-reset-publish-count"
-            >
-              Reset Progress
-            </Button>
-            
-            <div className="flex gap-2 flex-wrap">
+      <div className="container py-4 max-w-5xl mx-auto px-4">
+        <div className="flex gap-2 flex-wrap mb-4">
               <Button
                 variant={viewMode === 'index' ? 'default' : 'ghost'}
                 size="sm"
@@ -5489,8 +5464,6 @@ function MembersSandboxContent() {
                 <DollarSign className="w-4 h-4 mr-1" />
                 Earnings
               </Button>
-            </div>
-          </div>
         </div>
 
         {showUnlockPrompt === 'advanced' && (
@@ -5872,10 +5845,10 @@ function MembersSandboxContent() {
                 {simpleStep === 'url-library-pick' && user?.id && (
                   <SimpleBackgroundStep
                     memberId={user.id}
-                    backgroundUrl={backgroundUrl}
+                    background={background}
                     onBackgroundSelected={(croppedUrl, originalUrl, needsCrop) => {
-                      setBackgroundUrl(croppedUrl);
-                      setOriginalBackgroundUrl(originalUrl);
+                      setBackground(croppedUrl);
+                      setOriginalBackground(originalUrl);
                     }}
                     onComplete={() => setSimpleStep('url-details')}
                   />
@@ -5888,7 +5861,7 @@ function MembersSandboxContent() {
                     description={simpleDescription}
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
-                    backgroundUrl={backgroundUrl}
+                    background={background}
                     titleVertical={titleVertical}
                     titleHorizontal={titleHorizontal}
                     descVertical={descVertical}
@@ -5903,7 +5876,7 @@ function MembersSandboxContent() {
                 {/* Step 15: URL Preview - preview the landing page */}
                 {simpleStep === 'url-preview' && (
                   <SimplePreviewStep
-                    backgroundUrl={backgroundUrl}
+                    background={background}
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
                     title={simpleTitle}
@@ -5919,7 +5892,7 @@ function MembersSandboxContent() {
                     onPublish={handleSimplePublish}
                     title={simpleTitle}
                     qrType={qrType}
-                    backgroundUrl={backgroundUrl}
+                    background={background}
                   />
                 )}
               </div>
@@ -6041,11 +6014,11 @@ function MembersSandboxContent() {
                       Open Background Library
                     </Button>
                     
-                    {backgroundUrl && (
+                    {background && (
                       <div className="relative">
                         <div className="aspect-[9/16] max-w-[200px] mx-auto rounded-lg overflow-hidden border-2 border-primary">
                           <img 
-                            src={backgroundUrl} 
+                            src={background} 
                             alt="Selected background" 
                             className="w-full h-full object-cover"
                           />
@@ -6054,7 +6027,7 @@ function MembersSandboxContent() {
                           size="sm"
                           variant="destructive"
                           className="absolute top-2 right-2"
-                          onClick={() => setBackgroundUrl('')}
+                          onClick={() => setBackground('')}
                           data-testid="button-clear-background"
                         >
                           <X className="h-4 w-4" />
@@ -6066,10 +6039,10 @@ function MembersSandboxContent() {
                     {showBackgroundLibrary && user?.id && (
                       <BackgroundLibraryPicker
                         memberId={user.id}
-                        selectedUrl={backgroundUrl}
+                        selectedUrl={background}
                         onSelect={(croppedUrl, originalUrl) => {
-                          setBackgroundUrl(croppedUrl);
-                          setOriginalBackgroundUrl(originalUrl);
+                          setBackground(croppedUrl);
+                          setOriginalBackground(originalUrl);
                           setShowBackgroundLibrary(false);
                         }}
                         onClose={() => setShowBackgroundLibrary(false)}
@@ -6090,7 +6063,7 @@ function MembersSandboxContent() {
                     qrType={qrType}
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
-                    backgroundUrl={backgroundUrl}
+                    background={background}
                   />
                 )}
                 {currentStep === 'publish' && (
