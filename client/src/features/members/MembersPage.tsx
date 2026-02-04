@@ -5017,7 +5017,9 @@ function MembersSandboxContent() {
     if (simpleStep === 'text-edit') {
       setCurrentPlacementIndex(0);
       setPlacementGraphicChoice('');
-      setPlacementSize('');
+      // Pre-populate size from the graphic-size step (perPlacementSizes)
+      const firstPlacement = selectedPlacements[0];
+      setPlacementSize(perPlacementSizes[firstPlacement] || '');
     }
     
     // Save current placement config when leaving placement-config step
@@ -5033,9 +5035,11 @@ function MembersSandboxContent() {
       // Check if more placements to configure
       if (currentPlacementIndex < selectedPlacements.length - 1) {
         // More placements - stay on placement-config, move to next placement
+        const nextPlacement = selectedPlacements[currentPlacementIndex + 1];
         setCurrentPlacementIndex(prev => prev + 1);
         setPlacementGraphicChoice('');
-        setPlacementSize('');
+        // Pre-populate size from the graphic-size step
+        setPlacementSize(perPlacementSizes[nextPlacement] || '');
         return; // Stay on placement-config step
       }
       // All placements done - proceed to shirt-preview
