@@ -3166,13 +3166,13 @@ function CanvasForkStep({
       <div>
         <h2 className="text-xl font-bold text-white mb-3">One More Thing...</h2>
         <p className="text-slate-300 text-lg max-w-md mx-auto">
-          Would you like to create an online scannable image with custom text and image?
+          Would you like to create a scannable image that you can customize the background and text on?
         </p>
       </div>
       
       <div className="p-4 bg-slate-800/50 rounded-lg max-w-md mx-auto">
-        <p className="text-slate-400 text-sm">
-          When customers scan your QR code, they'll see a beautiful landing page with your custom background and message.
+        <p className="text-slate-300 text-base font-medium">
+          Make it yours! Show the world!
         </p>
       </div>
       
