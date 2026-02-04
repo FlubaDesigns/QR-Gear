@@ -6175,8 +6175,15 @@ function MembersSandboxContent() {
                       setSimpleStep('qr-plus-mockup');
                       
                       try {
-                        // Generate mockup using same pattern as QR Basic
-                        if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor && productGraphic) {
+                        // Step 1: Generate QR graphic if not already set (same as QR Basic)
+                        const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
+                        const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
+                        setQrGraphic(qrApiUrl);
+                        setProductGraphic(qrApiUrl);
+                        console.log('[QR Plus] Generated QR graphic:', qrApiUrl);
+                        
+                        // Step 2: Generate mockup using same pattern as QR Basic
+                        if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
                           const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
                           console.log('[QR Plus] Generating mockup with graphicSize:', graphicSize, '→ effectiveQrSize:', effectiveQrSize);
                           
@@ -6184,7 +6191,7 @@ function MembersSandboxContent() {
                             blueprintId: selectedProductType.blueprintId,
                             printProviderId: selectedProductType.printProviderId,
                             colorName: selectedColor,
-                            artworkUrl: productGraphic,
+                            artworkUrl: qrApiUrl,
                             placement: 'FRONT_CHEST',
                             qrSize: effectiveQrSize,
                           });
@@ -6199,15 +6206,16 @@ function MembersSandboxContent() {
                             setQrPlusMockup(bestUrl);
                           } else {
                             console.warn('[QR Plus] Mockup fetch failed:', mockupResult.error);
-                            setQrPlusMockup(productGraphic);
+                            setQrPlusMockup(qrApiUrl);
                           }
                         } else {
                           console.warn('[QR Plus] Missing product info for mockup');
-                          setQrPlusMockup(productGraphic);
+                          setQrPlusMockup(qrApiUrl);
                         }
                       } catch (error) {
                         console.error('[QR Plus] Error generating mockup:', error);
-                        setQrPlusMockup(productGraphic);
+                        const fallbackUrl = generateQRCodeUrl('placeholder', 200);
+                        setQrPlusMockup(fallbackUrl);
                       } finally {
                         setIsGeneratingPlusMockup(false);
                       }
