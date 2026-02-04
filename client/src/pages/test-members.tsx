@@ -3197,6 +3197,20 @@ export default function TestMembersSandbox() {
   const [wantsText, setWantsText] = useState<boolean | null>(null);
   const [previewQrUrl, setPreviewQrUrl] = useState<string>('');
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  
+  // Multi-placement loop state - track which placement we're currently configuring
+  const [currentPlacementIndex, setCurrentPlacementIndex] = useState<number>(0);
+  // Per-placement configurations: stores graphicSize, textLayout, header/footer text for each placement
+  const [perPlacementConfigs, setPerPlacementConfigs] = useState<Record<PlacementOption, {
+    graphicSize: GraphicSize;
+    textLayout: TextLayoutChoice;
+    headerText: string;
+    footerText: string;
+    wantsHeaderFooter: boolean | null;
+  }>>({} as any);
+  
+  // Get current placement being configured
+  const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
 
   // === SIMPLE WIZARD HANDLERS ===
   const generatePreviewQrCode = async () => {
@@ -3209,10 +3223,40 @@ export default function TestMembersSandbox() {
 
   const handleSimpleNext = async () => {
     const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
+    
+    // Save current placement config when leaving text-edit step
+    if (simpleStep === 'text-edit') {
+      setPerPlacementConfigs(prev => ({
+        ...prev,
+        [currentPlacement]: {
+          graphicSize,
+          textLayout: textLayoutChoice,
+          headerText: headerStyle.text,
+          footerText: footerStyle.text,
+          wantsHeaderFooter
+        }
+      }));
+    }
+    
+    // After showing graphic (text-edit), check if more placements to configure
+    if (simpleStep === 'text-edit') {
+      if (currentPlacementIndex < selectedPlacements.length - 1) {
+        // More placements to configure - loop back to graphic-size for next placement
+        setCurrentPlacementIndex(prev => prev + 1);
+        // Reset state for next placement
+        setGraphicSize('');
+        setWantsHeaderFooter(null);
+        setTextLayoutChoice('');
+        setHeaderStyle({ ...defaultTextStyle });
+        setFooterStyle({ ...defaultTextStyle });
+        setSimpleStep('graphic-size');
+        return;
+      }
+      // All placements done - proceed to shirt-preview
+    }
+    
     if (currentIndex < SIMPLE_WIZARD_STEPS.length - 1) {
       const nextStep = SIMPLE_WIZARD_STEPS[currentIndex + 1].id;
-      
-      // Generate QR code when moving from details to url-preview
       setSimpleStep(nextStep);
     }
   };
@@ -3573,42 +3617,75 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step: Graphic Size */}
+                {/* Step: Graphic Size - with placement indicator */}
                 {simpleStep === 'graphic-size' && (
-                  <GraphicSizeStep
-                    selectedSize={graphicSize}
-                    selectedColor={selectedColor}
-                    graphicLocation={graphicLocation}
-                    onSelect={setGraphicSize}
-                  />
+                  <div className="space-y-2">
+                    {selectedPlacements.length > 1 && (
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-slate-400 text-sm">Configuring:</span>
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
+                        </span>
+                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
+                      </div>
+                    )}
+                    <GraphicSizeStep
+                      selectedSize={graphicSize}
+                      selectedColor={selectedColor}
+                      graphicLocation={graphicLocation}
+                      onSelect={setGraphicSize}
+                    />
+                  </div>
                 )}
                 
                 {/* Step 4: Generate Graphic - asks about header/footer */}
                 {simpleStep === 'generate' && (
-                  <GenerateGraphicStep
-                    selectedColor={selectedColor}
-                    graphicLocation={graphicLocation}
-                    graphicSize={graphicSize}
-                    onYes={() => {
-                      setWantsHeaderFooter(true);
-                      setSimpleStep('text-choice');
-                    }}
-                    onNo={() => {
-                      setWantsHeaderFooter(false);
-                      setSimpleStep('shirt-preview');
-                    }}
-                  />
+                  <div className="space-y-2">
+                    {selectedPlacements.length > 1 && (
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-slate-400 text-sm">Configuring:</span>
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
+                        </span>
+                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
+                      </div>
+                    )}
+                    <GenerateGraphicStep
+                      selectedColor={selectedColor}
+                      graphicLocation={graphicLocation}
+                      graphicSize={graphicSize}
+                      onYes={() => {
+                        setWantsHeaderFooter(true);
+                        setSimpleStep('text-choice');
+                      }}
+                      onNo={() => {
+                        setWantsHeaderFooter(false);
+                        setSimpleStep('text-edit');
+                      }}
+                    />
+                  </div>
                 )}
                 
                 {/* Step 5: Text Placement */}
                 {simpleStep === 'text-choice' && (
-                  <TextLayoutChoiceStep
-                    selected={textLayoutChoice}
-                    onSelect={(choice) => {
-                      setTextLayoutChoice(choice);
-                      setSimpleStep('text-edit');
-                    }}
-                  />
+                  <div className="space-y-2">
+                    {selectedPlacements.length > 1 && (
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-slate-400 text-sm">Configuring:</span>
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
+                        </span>
+                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
+                      </div>
+                    )}
+                    <TextLayoutChoiceStep
+                      selected={textLayoutChoice}
+                      onSelect={(choice) => {
+                        setTextLayoutChoice(choice);
+                        setSimpleStep('text-edit');
+                      }}
+                    />
+                  </div>
                 )}
                 
                 {/* Step 9: Placement Count */}
@@ -3626,18 +3703,29 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 10: Text Edit */}
+                {/* Step 10: Text Edit - shows graphic with text for current placement */}
                 {simpleStep === 'text-edit' && (
-                  <ShirtTextEditStep
-                    layout={textLayoutChoice}
-                    selectedColor={selectedColor}
-                    graphicLocation={graphicLocation}
-                    graphicSize={graphicSize}
-                    headerStyle={headerStyle}
-                    footerStyle={footerStyle}
-                    onHeaderChange={setHeaderStyle}
-                    onFooterChange={setFooterStyle}
-                  />
+                  <div className="space-y-2">
+                    {selectedPlacements.length > 1 && (
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-slate-400 text-sm">Configuring:</span>
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
+                        </span>
+                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
+                      </div>
+                    )}
+                    <ShirtTextEditStep
+                      layout={textLayoutChoice}
+                      selectedColor={selectedColor}
+                      graphicLocation={graphicLocation}
+                      graphicSize={graphicSize}
+                      headerStyle={headerStyle}
+                      footerStyle={footerStyle}
+                      onHeaderChange={setHeaderStyle}
+                      onFooterChange={setFooterStyle}
+                    />
+                  </div>
                 )}
                 
                 {/* Step 7: Details */}
