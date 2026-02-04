@@ -192,7 +192,7 @@ interface MockupFetchResult {
 
 async function fetchProductMockup(
   params: MockupFetchParams,
-  authHeaders: Record<string, string>
+  authHeaders: HeadersInit
 ): Promise<MockupFetchResult> {
   const {
     blueprintId,
@@ -4356,9 +4356,9 @@ export default function TestMembersSandbox() {
       try {
         const authHeaders = await getAuthHeaders();
         
-        // Step 1: Generate QR code URL (black on white, high quality)
+        // Step 1: Generate QR code URL using robust utility (black on white, high quality)
         const qrContent = qrBasicContent;
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(qrContent)}&format=png&qzone=2&ecc=H&color=000000&bgcolor=ffffff`;
+        const qrApiUrl = generateQRCodeUrl(qrContent, 1000);
         
         // Step 2: Create member packet with the QR content
         const packetPayload = {
@@ -4394,31 +4394,31 @@ export default function TestMembersSandbox() {
           const packetData = await packetRes.json();
           console.log('[QR Basic] Created packet:', packetData.packetId);
           
-          // Step 3: Get Printify mockup using the QR graphic
+          // Step 3: Get Printify mockup using robust fetcher
           if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
-            const mockupRes = await fetch('/api/mockups/get-or-generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...authHeaders },
-              body: JSON.stringify({
-                blueprintId: selectedProductType.blueprintId,
-                printProviderId: selectedProductType.printProviderId,
-                colorName: selectedColor,
-                artworkUrl: qrApiUrl,
-                artworkVariant: 'black',
-                canonicalPlacementId: 'FRONT_CHEST',
-              }),
-            });
+            const mockupResult = await fetchProductMockup({
+              blueprintId: selectedProductType.blueprintId,
+              printProviderId: selectedProductType.printProviderId,
+              colorName: selectedColor,
+              artworkUrl: qrApiUrl,
+              artworkVariant: 'black',
+              canonicalPlacementId: 'FRONT_CHEST',
+              qrSize: graphicSize as 'small' | 'medium' | 'large' || 'medium',
+            }, authHeaders);
             
-            if (mockupRes.ok) {
-              const mockupData = await mockupRes.json();
-              console.log('[QR Basic] Got mockup:', mockupData);
-              // Prefer lifestyle (glamor) mockup, fall back to flat mockup
-              setQrBasicMockupUrl(mockupData.lifestyleMockupUrl || mockupData.mockupUrl || qrApiUrl);
+            if (mockupResult.success && mockupResult.bestUrl) {
+              console.log('[QR Basic] Got mockup:', { 
+                lifestyle: !!mockupResult.lifestyleUrl, 
+                flat: !!mockupResult.flatUrl,
+                fromCache: mockupResult.fromCache 
+              });
+              setQrBasicMockupUrl(mockupResult.bestUrl);
             } else {
-              console.warn('[QR Basic] Mockup generation failed, using QR preview');
+              console.warn('[QR Basic] Mockup fetch failed:', mockupResult.error);
               setQrBasicMockupUrl(qrApiUrl);
             }
           } else {
+            console.warn('[QR Basic] Missing product info for mockup');
             setQrBasicMockupUrl(qrApiUrl);
           }
         } else {
@@ -4426,10 +4426,9 @@ export default function TestMembersSandbox() {
           setQrBasicMockupUrl(qrApiUrl);
         }
       } catch (error) {
-        console.error('Error generating mockup:', error);
-        // Fallback to QR preview
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrBasicContent)}`;
-        setQrBasicMockupUrl(qrApiUrl);
+        console.error('[QR Basic] Error generating mockup:', error);
+        // Fallback to QR preview using robust utility
+        setQrBasicMockupUrl(generateQRCodeUrl(qrBasicContent, 300));
       } finally {
         setIsGeneratingBasicMockup(false);
       }
