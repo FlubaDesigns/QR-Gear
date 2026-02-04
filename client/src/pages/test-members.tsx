@@ -35,7 +35,9 @@ import {
   Sparkles,
   X,
   MapPin,
-  Library
+  Library,
+  Smartphone,
+  ArrowRight
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
@@ -81,7 +83,9 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-background' | 'url-details' | 'url-preview' | 'url-publish';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish';
+type UrlSourceChoice = 'upload' | 'library' | '';
+type LibraryChoice = 'personal' | 'common' | '';
 // Matches Printify placement IDs
 type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
@@ -129,9 +133,11 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
-  { id: 'url-background', label: 'Background', icon: ImagePlus },
+  { id: 'url-explainer', label: 'QR Canvas', icon: QrCode },
+  { id: 'url-source-choice', label: 'Source', icon: ImagePlus },
+  { id: 'url-library-pick', label: 'Pick Image', icon: Library },
   { id: 'url-details', label: 'Details', icon: Type },
-  { id: 'url-preview', label: 'URL Preview', icon: Eye },
+  { id: 'url-preview', label: 'Preview', icon: Eye },
   { id: 'url-publish', label: 'Publish', icon: Send },
 ];
 
@@ -1668,6 +1674,154 @@ interface LibraryAsset {
   isCropped?: boolean;
 }
 
+function QRCanvasExplainerStep({
+  onUploadClick,
+  onLibraryClick
+}: {
+  onUploadClick: () => void;
+  onLibraryClick: () => void;
+}) {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-white mb-2">Create Your Landing Page</h2>
+        <p className="text-slate-400">When someone scans your QR code, they'll see a beautiful page you design</p>
+      </div>
+      
+      <div className="flex justify-center py-6">
+        <div className="flex items-center gap-6">
+          <div className="relative">
+            <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <QrCode className="w-12 h-12 text-slate-800" />
+            </div>
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-500 whitespace-nowrap">
+              Your QR Code
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-center gap-1">
+            <ArrowRight className="w-8 h-8 text-emerald-400 animate-pulse" />
+            <Smartphone className="w-6 h-6 text-slate-400" />
+          </div>
+          
+          <div className="relative group">
+            <div className="w-32 h-56 bg-gradient-to-b from-slate-700 to-slate-800 rounded-2xl border-2 border-emerald-400 shadow-lg shadow-emerald-400/30 p-2 flex flex-col items-center justify-center">
+              <div className="w-full h-full bg-gradient-to-br from-purple-600/30 to-blue-600/30 rounded-xl flex flex-col items-center justify-center gap-2">
+                <ImagePlus className="w-8 h-8 text-white/60" />
+                <span className="text-xs text-white/80 text-center px-2">Your favorite picture</span>
+              </div>
+            </div>
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-emerald-400 whitespace-nowrap font-medium">
+              Landing Page
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="text-center text-slate-300 text-sm max-w-md mx-auto mt-8">
+        Pick your favorite photo, memory, or design. It becomes what people see when they scan.
+      </div>
+      
+      <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+        <Button
+          onClick={onUploadClick}
+          size="lg"
+          className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/30 px-8"
+          data-testid="button-upload-new"
+        >
+          <Upload className="w-5 h-5 mr-2" />
+          Upload New
+        </Button>
+        <Button
+          onClick={onLibraryClick}
+          size="lg"
+          variant="outline"
+          className="border-slate-500 text-slate-300 hover:bg-slate-700 px-8"
+          data-testid="button-pick-library"
+        >
+          <Library className="w-5 h-5 mr-2" />
+          Pick from Library
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function UrlSourceChoiceStep({
+  choice,
+  onChoiceChange,
+  onContinue
+}: {
+  choice: LibraryChoice;
+  onChoiceChange: (choice: LibraryChoice) => void;
+  onContinue: () => void;
+}) {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Library</h2>
+        <p className="text-slate-400">Pick from images you've saved or browse our collection</p>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto mt-6">
+        <button
+          onClick={() => onChoiceChange('personal')}
+          className={`p-6 rounded-xl border-2 transition-all duration-200 text-left ${
+            choice === 'personal'
+              ? 'border-emerald-400 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
+              : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+          }`}
+          data-testid="button-my-library"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              choice === 'personal' ? 'bg-emerald-500' : 'bg-slate-700'
+            }`}>
+              <User className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-semibold text-white">My Library</span>
+          </div>
+          <p className="text-sm text-slate-400">Your saved backgrounds and cropped images</p>
+        </button>
+        
+        <button
+          onClick={() => onChoiceChange('common')}
+          className={`p-6 rounded-xl border-2 transition-all duration-200 text-left ${
+            choice === 'common'
+              ? 'border-emerald-400 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
+              : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+          }`}
+          data-testid="button-common-library"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              choice === 'common' ? 'bg-emerald-500' : 'bg-slate-700'
+            }`}>
+              <Library className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-semibold text-white">Common Library</span>
+          </div>
+          <p className="text-sm text-slate-400">Browse our curated collection</p>
+        </button>
+      </div>
+      
+      {choice && (
+        <div className="flex justify-center mt-6">
+          <Button
+            onClick={onContinue}
+            size="lg"
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/30 px-8"
+            data-testid="button-continue-library"
+          >
+            Continue
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SimpleBackgroundStep({ 
   memberId, 
   backgroundUrl,
@@ -3200,6 +3354,8 @@ export default function TestMembersSandbox() {
   const [wantsText, setWantsText] = useState<boolean | null>(null);
   const [previewQrUrl, setPreviewQrUrl] = useState<string>('');
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [urlSourceChoice, setUrlSourceChoice] = useState<UrlSourceChoice>('');
+  const [libraryChoice, setLibraryChoice] = useState<LibraryChoice>('');
   
   // Multi-placement loop state - track which placement we're currently configuring
   const [currentPlacementIndex, setCurrentPlacementIndex] = useState<number>(0);
@@ -3283,7 +3439,9 @@ export default function TestMembersSandbox() {
       case 'placement-count': return selectedPlacements.length > 0;
       case 'text-edit': return true;
       case 'shirt-preview': return true;
-      case 'url-background': return backgroundUrl !== '';
+      case 'url-explainer': return true;
+      case 'url-source-choice': return urlSourceChoice !== '';
+      case 'url-library-pick': return backgroundUrl !== '';
       case 'url-details': return simpleTitle.trim() !== '';
       case 'url-preview': return true;
       case 'url-publish': return true;
@@ -3747,8 +3905,31 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 11: URL Background - select background for landing page */}
-                {simpleStep === 'url-background' && user?.id && (
+                {/* Step 11: URL Explainer - shows QR scan flow and choice buttons */}
+                {simpleStep === 'url-explainer' && (
+                  <QRCanvasExplainerStep
+                    onUploadClick={() => {
+                      setUrlSourceChoice('upload');
+                      setSimpleStep('url-library-pick');
+                    }}
+                    onLibraryClick={() => {
+                      setUrlSourceChoice('library');
+                      setSimpleStep('url-source-choice');
+                    }}
+                  />
+                )}
+                
+                {/* Step 12: URL Source Choice - My Library vs Common Library */}
+                {simpleStep === 'url-source-choice' && (
+                  <UrlSourceChoiceStep
+                    choice={libraryChoice}
+                    onChoiceChange={setLibraryChoice}
+                    onContinue={() => setSimpleStep('url-library-pick')}
+                  />
+                )}
+                
+                {/* Step 13: URL Library Pick - browse and select background */}
+                {simpleStep === 'url-library-pick' && user?.id && (
                   <SimpleBackgroundStep
                     memberId={user.id}
                     backgroundUrl={backgroundUrl}
@@ -3760,7 +3941,7 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 12: URL Details - title and description */}
+                {/* Step 14: URL Details - title and description */}
                 {simpleStep === 'url-details' && (
                   <DetailsStep
                     title={simpleTitle}
