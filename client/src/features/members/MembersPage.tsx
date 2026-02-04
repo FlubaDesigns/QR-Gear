@@ -1842,57 +1842,54 @@ function QRPlusConfirmStep({
   saveChoice,
   mockupUrl,
   productGraphicUrl,
+  qrGraphicUrl,
   isSaving,
   onDone
 }: {
   saveChoice: QRPlusSaveOption;
   mockupUrl: string | null;
   productGraphicUrl: string | null;
+  qrGraphicUrl: string | null;
   isSaving: boolean;
   onDone: () => void;
 }) {
-  const getMessage = () => {
-    switch (saveChoice) {
-      case 'item':
-        return { title: 'Item Saved!', description: 'Your shirt design has been saved to your library.' };
-      case 'graphic':
-        return { title: 'Graphic Saved!', description: 'Your graphic has been saved to your library.' };
-      case 'both':
-        return { title: 'Both Saved!', description: 'Your shirt design and graphic have been saved to your library.' };
-      default:
-        return { title: 'Saved!', description: 'Your design has been saved.' };
-    }
-  };
-  
-  const message = getMessage();
-  
   return (
     <div className="text-center space-y-6">
       <div>
         <div className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-4">
           <Check className="w-10 h-10 text-white" />
         </div>
-        <h2 className="text-lg font-bold text-white mb-2">{message.title}</h2>
-        <p className="text-slate-400">{message.description}</p>
+        <h2 className="text-lg font-bold text-white mb-2">Saved!</h2>
+        <p className="text-slate-400">Your QR Plus design has been saved to your library.</p>
       </div>
       
+      {/* Always show all saved assets */}
       <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
-        {(saveChoice === 'item' || saveChoice === 'both') && mockupUrl && (
-          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-            <img src={mockupUrl} alt="Saved item" className="w-32 h-32 object-contain mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Shirt Design</p>
+        {mockupUrl && (
+          <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+            <img src={mockupUrl} alt="Shirt mockup" className="w-28 h-28 object-contain mx-auto mb-2" />
+            <p className="text-xs text-slate-400">Shirt Mockup</p>
           </div>
         )}
-        {(saveChoice === 'graphic' || saveChoice === 'both') && productGraphicUrl && (
-          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-            <img 
-              src={productGraphicUrl} 
-              alt="Graphic" 
-              className="w-32 h-32 object-contain mx-auto mb-2"
-            />
-            <p className="text-sm text-slate-400">Product Graphic</p>
+        {productGraphicUrl && (
+          <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+            <img src={productGraphicUrl} alt="Product graphic" className="w-28 h-28 object-contain mx-auto mb-2" />
+            <p className="text-xs text-slate-400">Product Graphic</p>
           </div>
         )}
+        {qrGraphicUrl && (
+          <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+            <img src={qrGraphicUrl} alt="QR code" className="w-28 h-28 object-contain mx-auto mb-2" />
+            <p className="text-xs text-slate-400">QR Code</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Debug: Show what was saved */}
+      <div className="text-xs text-slate-500 space-y-1">
+        <p>Mockup: {mockupUrl ? '✓' : '✗'}</p>
+        <p>Graphic: {productGraphicUrl ? '✓' : '✗'}</p>
+        <p>QR Code: {qrGraphicUrl ? '✓' : '✗'}</p>
       </div>
       
       <Button
@@ -5385,10 +5382,22 @@ function MembersSandboxContent() {
 
   // Save QR Plus assets to packet
   const saveQrPlusToPacket = async () => {
-    if (!currentPacketId || !user?.id) return false;
+    if (!currentPacketId || !user?.id) {
+      console.error('[QR Plus Save] Missing packet or user:', { currentPacketId, userId: user?.id });
+      return false;
+    }
     
     setIsQrPlusSaving(true);
     try {
+      // Log EXACTLY what we're saving
+      console.log('[QR Plus Save] Preparing to save:', {
+        packetId: currentPacketId,
+        qrGraphic: qrGraphic ? qrGraphic.substring(0, 80) + '...' : 'EMPTY!',
+        productGraphic: productGraphic ? productGraphic.substring(0, 80) + '...' : 'EMPTY!',
+        qrPlusMockup: qrPlusMockup ? qrPlusMockup.substring(0, 80) + '...' : 'EMPTY!',
+        saveChoice: qrPlusSaveChoice,
+      });
+      
       const updates: Record<string, any> = {
         kind: 'qr_plus',
         qrGraphic: qrGraphic || null,
@@ -5401,7 +5410,7 @@ function MembersSandboxContent() {
       };
       
       const success = await updatePacket(updates);
-      console.log('[Wizard] QR Plus saved to packet:', { success, saveChoice: qrPlusSaveChoice });
+      console.log('[QR Plus Save] Result:', { success, packetId: currentPacketId });
       return success;
     } finally {
       setIsQrPlusSaving(false);
@@ -6191,6 +6200,7 @@ function MembersSandboxContent() {
                     saveChoice={qrPlusSaveChoice}
                     mockupUrl={qrPlusMockup}
                     productGraphicUrl={productGraphic}
+                    qrGraphicUrl={qrGraphic}
                     isSaving={isQrPlusSaving}
                     onDone={() => {
                       // Reset wizard
@@ -6198,6 +6208,8 @@ function MembersSandboxContent() {
                       setCurrentPacketId(null);
                       setQrPlusMockup('');
                       setQrPlusSaveChoice('');
+                      setQrGraphic('');
+                      setProductGraphic('');
                     }}
                   />
                 )}
