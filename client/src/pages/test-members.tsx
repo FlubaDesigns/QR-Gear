@@ -1365,6 +1365,229 @@ function ShirtTextEditStep({
   );
 }
 
+// Placement visual diagrams - shows WHERE on shirt the placement goes
+function PlacementDiagram({ placement, size }: { placement: PlacementOption; size: GraphicSize }) {
+  // Size multipliers for the print area indicator
+  const sizeScale = size === 'small' ? 0.7 : size === 'large' ? 1.2 : 1;
+  
+  // Front view of t-shirt
+  const FrontShirt = ({ highlight }: { highlight: 'center' | 'left-chest' | null }) => (
+    <svg viewBox="0 0 120 140" className="w-full h-full">
+      {/* Shirt body */}
+      <path 
+        d="M20,45 L10,55 L10,135 L110,135 L110,55 L100,45 L85,45 L75,25 C70,20 50,20 45,25 L35,45 Z" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Left sleeve */}
+      <path 
+        d="M20,45 L5,60 L5,80 L20,75 L20,45" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Right sleeve */}
+      <path 
+        d="M100,45 L115,60 L115,80 L100,75 L100,45" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Collar */}
+      <ellipse cx="60" cy="28" rx="15" ry="8" fill="#1f2937" stroke="#4b5563" strokeWidth="1"/>
+      
+      {/* Print area highlight - center */}
+      {highlight === 'center' && (
+        <g>
+          <rect 
+            x={60 - 20 * sizeScale} 
+            y={55} 
+            width={40 * sizeScale} 
+            height={50 * sizeScale} 
+            fill="rgba(74, 222, 128, 0.3)" 
+            stroke="#4ade80" 
+            strokeWidth="2" 
+            strokeDasharray="4,2"
+            rx="3"
+          />
+          <circle cx="60" cy={55 + 25 * sizeScale} r="12" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+        </g>
+      )}
+      
+      {/* Print area highlight - left chest */}
+      {highlight === 'left-chest' && (
+        <g>
+          <rect 
+            x={28} 
+            y={50} 
+            width={22 * sizeScale} 
+            height={22 * sizeScale} 
+            fill="rgba(74, 222, 128, 0.3)" 
+            stroke="#4ade80" 
+            strokeWidth="2" 
+            strokeDasharray="4,2"
+            rx="2"
+          />
+          <circle cx={39} cy={50 + 11 * sizeScale} r="6" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+        </g>
+      )}
+    </svg>
+  );
+  
+  // Back view of t-shirt
+  const BackShirt = () => (
+    <svg viewBox="0 0 120 140" className="w-full h-full">
+      {/* Shirt body */}
+      <path 
+        d="M20,45 L10,55 L10,135 L110,135 L110,55 L100,45 L85,45 L75,30 C70,25 50,25 45,30 L35,45 Z" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Left sleeve */}
+      <path 
+        d="M20,45 L5,60 L5,80 L20,75 L20,45" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Right sleeve */}
+      <path 
+        d="M100,45 L115,60 L115,80 L100,75 L100,45" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Back neck seam */}
+      <path d="M45,30 Q60,35 75,30" fill="none" stroke="#4b5563" strokeWidth="1.5"/>
+      
+      {/* Print area highlight - back center */}
+      <rect 
+        x={60 - 20 * sizeScale} 
+        y={50} 
+        width={40 * sizeScale} 
+        height={50 * sizeScale} 
+        fill="rgba(74, 222, 128, 0.3)" 
+        stroke="#4ade80" 
+        strokeWidth="2" 
+        strokeDasharray="4,2"
+        rx="3"
+      />
+      <circle cx="60" cy={50 + 25 * sizeScale} r="12" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+      
+      {/* "BACK" label */}
+      <text x="60" y="130" textAnchor="middle" fill="#9ca3af" fontSize="8" fontWeight="bold">BACK</text>
+    </svg>
+  );
+  
+  // Side view for left sleeve - viewing from left side
+  const LeftSleeveView = () => (
+    <svg viewBox="0 0 120 140" className="w-full h-full">
+      {/* Torso side profile */}
+      <path 
+        d="M70,45 L70,135 L90,135 L90,45 Q80,35 70,45" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Left arm/sleeve extending toward viewer */}
+      <path 
+        d="M70,48 L25,58 L20,80 L25,82 L70,72" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Shoulder curve */}
+      <path d="M70,45 Q65,40 70,35 Q80,30 90,35 Q95,40 90,45" fill="#374151" stroke="#4b5563" strokeWidth="1.5"/>
+      
+      {/* Print area on sleeve */}
+      <g transform="rotate(-8, 45, 68)">
+        <rect 
+          x={35} 
+          y={58} 
+          width={18 * sizeScale} 
+          height={18 * sizeScale} 
+          fill="rgba(74, 222, 128, 0.3)" 
+          stroke="#4ade80" 
+          strokeWidth="2" 
+          strokeDasharray="4,2"
+          rx="2"
+        />
+        <circle cx={44} cy={58 + 9 * sizeScale} r="5" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+      </g>
+      
+      {/* View indicator */}
+      <text x="60" y="130" textAnchor="middle" fill="#9ca3af" fontSize="7">LEFT SIDE VIEW</text>
+    </svg>
+  );
+  
+  // Side view for right sleeve - viewing from right side
+  const RightSleeveView = () => (
+    <svg viewBox="0 0 120 140" className="w-full h-full">
+      {/* Torso side profile */}
+      <path 
+        d="M50,45 L50,135 L30,135 L30,45 Q40,35 50,45" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Right arm/sleeve extending toward viewer */}
+      <path 
+        d="M50,48 L95,58 L100,80 L95,82 L50,72" 
+        fill="#374151" 
+        stroke="#4b5563" 
+        strokeWidth="1.5"
+      />
+      {/* Shoulder curve */}
+      <path d="M50,45 Q55,40 50,35 Q40,30 30,35 Q25,40 30,45" fill="#374151" stroke="#4b5563" strokeWidth="1.5"/>
+      
+      {/* Print area on sleeve */}
+      <g transform="rotate(8, 75, 68)">
+        <rect 
+          x={67} 
+          y={58} 
+          width={18 * sizeScale} 
+          height={18 * sizeScale} 
+          fill="rgba(74, 222, 128, 0.3)" 
+          stroke="#4ade80" 
+          strokeWidth="2" 
+          strokeDasharray="4,2"
+          rx="2"
+        />
+        <circle cx={76} cy={58 + 9 * sizeScale} r="5" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+      </g>
+      
+      {/* View indicator */}
+      <text x="60" y="130" textAnchor="middle" fill="#9ca3af" fontSize="7">RIGHT SIDE VIEW</text>
+    </svg>
+  );
+  
+  // Render appropriate diagram based on placement
+  const renderDiagram = () => {
+    switch (placement) {
+      case 'front':
+        return <FrontShirt highlight="center" />;
+      case 'back':
+        return <BackShirt />;
+      case 'left_chest':
+        return <FrontShirt highlight="left-chest" />;
+      case 'sleeve_left':
+        return <LeftSleeveView />;
+      case 'sleeve_right':
+        return <RightSleeveView />;
+      default:
+        return <FrontShirt highlight="center" />;
+    }
+  };
+  
+  return (
+    <div className="w-32 h-40 mx-auto">
+      {renderDiagram()}
+    </div>
+  );
+}
+
 // Step 10: Placement Config - for each placement, choose Full Graphic or QR Only + Size
 function PlacementConfigStep({
   currentPlacement,
@@ -1426,6 +1649,11 @@ function PlacementConfigStep({
         {totalPlacements > 1 && (
           <p className="text-slate-400 text-sm">Placement {currentIndex + 1} of {totalPlacements}</p>
         )}
+      </div>
+      
+      {/* Visual placement diagram */}
+      <div className="flex justify-center">
+        <PlacementDiagram placement={currentPlacement} size={size} />
       </div>
       
       {/* Choice: Full Graphic or QR Only */}
