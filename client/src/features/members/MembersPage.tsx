@@ -751,11 +751,11 @@ function ProductCongratsStep({
       
       <div className={`transition-all duration-700 ${showAmount ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
         <div className="bg-slate-800/80 rounded-2xl p-6 border border-green-500/30">
-          <p className="text-slate-400 text-sm mb-2">If you sell this item, you'll earn</p>
+          <p className="text-slate-400 text-sm mb-2">Starting potential earnings</p>
           <div className="text-4xl font-bold text-green-400">
-            ${(earnings || 0).toFixed(2)}
+            ${(earnings || 0).toFixed(2)}+
           </div>
-          <p className="text-slate-500 text-xs mt-2">but that can go up as you progress through this wizard!</p>
+          <p className="text-slate-500 text-xs mt-2">Actual earnings depend on size the customer picks!</p>
         </div>
       </div>
       
@@ -844,7 +844,7 @@ function SizePickerStep({
     <div className="text-center space-y-3">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">What Size?</h2>
-        <p className="text-slate-400 text-sm">Select your size</p>
+        <p className="text-slate-400 text-sm">For preview - customers pick their own size</p>
       </div>
       
       {/* Shirt preview - scales based on selected size */}
@@ -5406,7 +5406,7 @@ function MembersSandboxContent() {
                   <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1.5 rounded-full border border-green-500/30">
                     <DollarSign className="w-4 h-4 text-green-400" />
                     <span className="text-green-400 font-semibold text-sm">
-                      ${runningEarnings.toFixed(2)} earned
+                      ${runningEarnings.toFixed(2)} potential
                     </span>
                   </div>
                 )}
