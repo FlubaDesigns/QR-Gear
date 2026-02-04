@@ -4296,7 +4296,8 @@ export default function TestMembersSandbox() {
             if (mockupRes.ok) {
               const mockupData = await mockupRes.json();
               console.log('[QR Basic] Got mockup:', mockupData);
-              setQrBasicMockupUrl(mockupData.mockupUrl || qrApiUrl);
+              // Prefer lifestyle (glamor) mockup, fall back to flat mockup
+              setQrBasicMockupUrl(mockupData.lifestyleMockupUrl || mockupData.mockupUrl || qrApiUrl);
             } else {
               console.warn('[QR Basic] Mockup generation failed, using QR preview');
               setQrBasicMockupUrl(qrApiUrl);
