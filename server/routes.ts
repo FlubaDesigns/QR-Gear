@@ -9622,10 +9622,11 @@ ${allPages.map(page => `  <url>
       
       let needsUpdate = false; // Track if we need to persist migrated URLs
       
-      // Enrich products with current earnings calculation - fetch baseCost if missing
+      // Enrich products with current earnings calculation - fetch baseCost and printProviderId if missing
       const products = await Promise.all(storedProducts.map(async (p: any) => {
         let baseCost = p.baseCost || 0;
         let imageUrl = p.imageUrl;
+        let printProviderId = p.printProviderId || null;
         
         // Migrate Printify URLs to Firebase Storage (one-time migration)
         if (imageUrl && imageUrl.includes('images.printify.com')) {
@@ -9639,17 +9640,22 @@ ${allPages.map(page => `  <url>
           }
         }
         
-        // If baseCost is 0, look it up from provider data
-        if (baseCost === 0 && p.blueprintId) {
+        // If baseCost is 0 or printProviderId is missing, look it up from provider data
+        if ((baseCost === 0 || !printProviderId) && p.blueprintId) {
           try {
             const providers = await storage.getPrintifyPrintProviders(p.blueprintId);
             const usaProviders = providers.filter((prov: any) => prov.isUSA);
             const selectedProvider = usaProviders[0] || providers[0];
-            if (selectedProvider?.minCost) {
+            if (selectedProvider?.minCost && baseCost === 0) {
               baseCost = selectedProvider.minCost / 100; // Convert cents to dollars
             }
+            if (selectedProvider?.providerId && !printProviderId) {
+              printProviderId = selectedProvider.providerId;
+              p.printProviderId = printProviderId; // Update in-place for persistence
+              needsUpdate = true;
+            }
           } catch (e) {
-            // Fallback: keep baseCost as 0
+            // Fallback: keep values as-is
           }
         }
         
@@ -9683,6 +9689,7 @@ ${allPages.map(page => `  <url>
         return {
           ...p,
           imageUrl, // Use migrated URL if available
+          printProviderId, // Ensure printProviderId is included
           baseCost,
           retailPrice,
           profit,

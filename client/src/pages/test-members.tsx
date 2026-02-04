@@ -4424,11 +4424,20 @@ export default function TestMembersSandbox() {
   // Create packet when product is selected (step 1)
   const createPacketForProduct = async (product: AllowedProduct) => {
     try {
+      console.log('[Wizard] Creating packet for product:', {
+        blueprintId: product.blueprintId,
+        printProviderId: product.printProviderId,
+        title: product.title,
+      });
+      
       const authHeaders = await getAuthHeaders();
+      // Use a placeholder QR URL - will be replaced when user enters actual QR content
+      const placeholderQrUrl = generateQRCodeUrl('placeholder', 200);
+      
       const packetPayload = {
         memberId: user?.id,
         kind: 'qr_basic',
-        background: { url: '' }, // Will be set when QR is generated
+        background: { url: placeholderQrUrl },
         boundProduct: {
           blueprintId: product.blueprintId,
           printProviderId: product.printProviderId,
@@ -4451,6 +4460,9 @@ export default function TestMembersSandbox() {
         console.log('[Wizard] Created packet on product select:', data.packetId);
         setCurrentPacketId(data.packetId);
         return data.packetId;
+      } else {
+        const errorData = await res.json();
+        console.error('[Wizard] Packet creation failed:', errorData);
       }
     } catch (error) {
       console.error('[Wizard] Failed to create packet:', error);
