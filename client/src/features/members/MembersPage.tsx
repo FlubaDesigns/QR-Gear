@@ -113,8 +113,16 @@ const SHIRT_COLORS = [
   { id: 'gray', name: 'Gray', hex: '#6b7280', textColor: '#FFFFFF' },
 ];
 
-// Available sizes
+// Available sizes with earnings bonus (S is base, each size up adds $0.50)
 const SHIRT_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+const SIZE_EARNINGS_BONUS: Record<string, number> = {
+  'S': 0,
+  'M': 0.50,
+  'L': 1.00,
+  'XL': 1.50,
+  '2XL': 2.00,
+  '3XL': 2.50,
+};
 
 // Text style presets for shirt text editor
 const SHIRT_TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444'];
@@ -808,10 +816,12 @@ function ColorPickerStep({
 function SizePickerStep({
   selectedSize,
   selectedColor,
+  baseEarnings = 0,
   onSelect
 }: {
   selectedSize: string;
   selectedColor: string;
+  baseEarnings?: number;
   onSelect: (size: string) => void;
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
@@ -5433,7 +5443,23 @@ function MembersSandboxContent() {
                   <SizePickerStep
                     selectedSize={selectedShirtSize}
                     selectedColor={selectedColor}
-                    onSelect={setSelectedShirtSize}
+                    baseEarnings={selectedProductType?.memberEarnings || 0}
+                    onSelect={(size) => {
+                      // Calculate earnings difference when changing size
+                      const oldBonus = SIZE_EARNINGS_BONUS[selectedShirtSize] || 0;
+                      const newBonus = SIZE_EARNINGS_BONUS[size] || 0;
+                      const earningsDiff = newBonus - oldBonus;
+                      
+                      // Only update running earnings if changing from a previous selection
+                      if (selectedShirtSize && earningsDiff !== 0) {
+                        setRunningEarnings(prev => prev + earningsDiff);
+                      } else if (!selectedShirtSize) {
+                        // First time selecting - add the bonus
+                        setRunningEarnings(prev => prev + newBonus);
+                      }
+                      
+                      setSelectedShirtSize(size);
+                    }}
                   />
                 )}
                 
