@@ -1,15 +1,17 @@
 # Simple Wizard Flow by QR Type
 
-## QR BASIC (Simple QR code only)
+## QR BASIC (Simple QR code only - Fork from Step 7)
+Triggered when user says "No" to Header/Footer at Step 7
+
 | Step | ID | Action |
 |------|----|--------|
-| 1 | product | Select product type |
-| 2 | color | Choose color |
-| 3 | size | Pick shirt size |
-| 4 | type | Select **QR Basic** |
-| 5 | placement-count | Choose placements (front, back, sleeves) |
-| 6 | Per-placement: Size only | Just QR code, no header/footer |
-| 7 | **REVIEW & PUBLISH** | Stops here - no landing page |
+| 1-6 | (same as QR Canvas) | Product → Color → Size → Placements → Graphic Size |
+| 7 | generate | Header/Footer? → **NO** |
+| 8 | qr-basic-type | Choose: URL or Text |
+| 9 | qr-basic-input | Enter URL (500 chars) or Text (2000 words) |
+| 10 | qr-basic-mockup | Generate QR code → Printify mockup |
+| 11 | qr-basic-save-choice | Save: Item only, Graphic only, or Both? |
+| 12 | qr-basic-confirm | Show confirmation based on Step 11 choice |
 
 ---
 
