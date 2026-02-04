@@ -6069,15 +6069,6 @@ function MembersSandboxContent() {
                 {/* Step: Graphic Size - loops through each placement */}
                 {simpleStep === 'graphic-size' && (
                   <div className="space-y-2">
-                    {selectedPlacements.length > 1 && (
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-slate-400 text-sm">Configuring:</span>
-                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
-                        </span>
-                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
-                      </div>
-                    )}
                     <GraphicSizeStep
                       selectedSize={graphicSize}
                       selectedColor={selectedColor}
@@ -6090,15 +6081,6 @@ function MembersSandboxContent() {
                 {/* Step: Generate Graphic - asks about header/footer */}
                 {simpleStep === 'generate' && (
                   <div className="space-y-2">
-                    {selectedPlacements.length > 1 && (
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-slate-400 text-sm">Configuring:</span>
-                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
-                        </span>
-                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
-                      </div>
-                    )}
                     <GenerateGraphicStep
                       selectedColor={selectedColor}
                       graphicLocation={graphicLocation}
@@ -6223,15 +6205,6 @@ function MembersSandboxContent() {
                 {/* Step 5: Text Placement */}
                 {simpleStep === 'text-choice' && (
                   <div className="space-y-2">
-                    {selectedPlacements.length > 1 && (
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-slate-400 text-sm">Configuring:</span>
-                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
-                        </span>
-                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
-                      </div>
-                    )}
                     <TextLayoutChoiceStep
                       selected={textLayoutChoice}
                       onSelect={(choice) => {
@@ -6272,15 +6245,6 @@ function MembersSandboxContent() {
                 {/* Step 10: Text Edit - shows graphic with text for current placement */}
                 {simpleStep === 'text-edit' && (
                   <div className="space-y-2">
-                    {selectedPlacements.length > 1 && (
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-slate-400 text-sm">Configuring:</span>
-                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                          {PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement}
-                        </span>
-                        <span className="text-slate-500 text-xs">({currentPlacementIndex + 1} of {selectedPlacements.length})</span>
-                      </div>
-                    )}
                     <ShirtTextEditStep
                       layout={textLayoutChoice}
                       selectedColor={selectedColor}
