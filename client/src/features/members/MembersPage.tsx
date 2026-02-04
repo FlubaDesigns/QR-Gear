@@ -1746,11 +1746,23 @@ function QRPlusMockupStep({
 }) {
   const colorName = SHIRT_COLORS.find(c => c.id === selectedColor)?.name || selectedColor;
   
+  // Debug: Log what we received
+  console.log('[QRPlusMockupStep] Rendering with:', { 
+    mockupUrl: mockupUrl?.substring(0, 60) || 'EMPTY', 
+    isLoading, 
+    selectedColor 
+  });
+  
   return (
     <div className="text-center space-y-6">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">Your QR Plus Preview</h2>
         <p className="text-slate-400">Here's your shirt with the full graphic!</p>
+      </div>
+      
+      {/* Debug info */}
+      <div className="text-xs text-slate-500">
+        Loading: {isLoading ? 'Yes' : 'No'} | URL: {mockupUrl ? mockupUrl.substring(0, 40) + '...' : 'None'}
       </div>
       
       {isLoading ? (
@@ -1764,6 +1776,7 @@ function QRPlusMockupStep({
             src={mockupUrl} 
             alt="Shirt mockup preview" 
             className="w-full rounded-xl shadow-lg border border-slate-700"
+            onError={(e) => console.error('[QRPlusMockupStep] Image failed to load:', mockupUrl)}
           />
           <div className="mt-4 flex items-center justify-center gap-4 text-sm text-slate-400">
             <span className="bg-slate-700 px-3 py-1 rounded-full">{colorName}</span>
@@ -1781,7 +1794,7 @@ function QRPlusMockupStep({
           <div className="w-32 h-40 mx-auto bg-slate-700 rounded-lg flex items-center justify-center mb-4">
             <Type className="w-12 h-12 text-slate-500" />
           </div>
-          <p className="text-slate-400 text-sm">Your graphic with header/footer text</p>
+          <p className="text-slate-400 text-sm">No mockup available</p>
         </div>
       )}
     </div>
@@ -6332,15 +6345,18 @@ function MembersSandboxContent() {
                           });
                           
                           const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
+                          console.log('[QR Plus] Mockup result:', { 
+                            success: mockupResult.success,
+                            lifestyleUrl: mockupResult.lifestyleMockupUrl?.substring(0, 60),
+                            flatUrl: mockupResult.mockupUrl?.substring(0, 60),
+                            bestUrl: bestUrl?.substring(0, 60),
+                            fromCache: mockupResult.fromCache 
+                          });
                           if (mockupResult.success && bestUrl) {
-                            console.log('[QR Plus] Got mockup:', { 
-                              lifestyle: !!mockupResult.lifestyleMockupUrl, 
-                              flat: !!mockupResult.mockupUrl,
-                              fromCache: mockupResult.fromCache 
-                            });
+                            console.log('[QR Plus] Setting qrPlusMockup to:', bestUrl.substring(0, 80));
                             setQrPlusMockup(bestUrl);
                           } else {
-                            console.warn('[QR Plus] Mockup fetch failed:', mockupResult.error);
+                            console.warn('[QR Plus] Mockup fetch failed, using QR fallback:', mockupResult.error);
                             setQrPlusMockup(qrApiUrl);
                           }
                         } else {
