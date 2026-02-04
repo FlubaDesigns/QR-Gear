@@ -254,6 +254,7 @@ function WizardProgressBar({
 
 interface AllowedProduct {
   blueprintId: number;
+  printProviderId?: number;
   title: string;
   imageUrl?: string | null;
   brand?: string | null;
@@ -264,6 +265,8 @@ interface AllowedProduct {
   memberEarnings?: number;
   hasUSAProvider?: boolean;
   placements?: { id: string; title: string }[];
+  availableColors?: Array<{ name: string; hex: string }>;
+  availableSizes?: string[];
 }
 
 interface MemberChannel {
@@ -4133,16 +4136,84 @@ export default function TestMembersSandbox() {
       return;
     }
     if (simpleStep === 'qr-basic-input') {
-      // Generate QR and get mockup
+      // Generate QR and get Printify mockup
       setIsGeneratingBasicMockup(true);
       try {
-        // Generate QR code URL for the mockup
+        const authHeaders = await getAuthHeaders();
+        
+        // Step 1: Generate QR code URL (black on white, high quality)
         const qrContent = qrBasicContent;
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrContent)}`;
-        setQrBasicMockupUrl(qrApiUrl);
-        // TODO: Call Printify for actual shirt mockup
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(qrContent)}&format=png&qzone=2&ecc=H&color=000000&bgcolor=ffffff`;
+        
+        // Step 2: Create member packet with the QR content
+        const packetPayload = {
+          memberId: user?.id,
+          kind: 'qr_basic',
+          urlContent: qrBasicInputType === 'url' ? qrContent : null,
+          background: {
+            url: qrApiUrl, // Use QR code as the "background" for packet structure
+          },
+          textLayers: qrBasicInputType === 'text' ? [{ text: qrContent, type: 'content' }] : [],
+          boundProduct: selectedProductType ? {
+            blueprintId: selectedProductType.blueprintId,
+            printProviderId: selectedProductType.printProviderId,
+            title: selectedProductType.title,
+            color: selectedColor,
+            size: selectedShirtSize,
+          } : null,
+          metadata: {
+            inputType: qrBasicInputType,
+            graphicSize: graphicSize,
+          },
+          source: { entryPoint: 'simple-wizard-qr-basic' },
+          status: 'draft',
+        };
+        
+        const packetRes = await fetch('/api/member/packets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify(packetPayload),
+        });
+        
+        if (packetRes.ok) {
+          const packetData = await packetRes.json();
+          console.log('[QR Basic] Created packet:', packetData.packetId);
+          
+          // Step 3: Get Printify mockup using the QR graphic
+          if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+            const mockupRes = await fetch('/api/mockups/get-or-generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
+              body: JSON.stringify({
+                blueprintId: selectedProductType.blueprintId,
+                printProviderId: selectedProductType.printProviderId,
+                colorName: selectedColor,
+                artworkUrl: qrApiUrl,
+                artworkVariant: 'black',
+                canonicalPlacementId: 'FRONT_CHEST',
+              }),
+            });
+            
+            if (mockupRes.ok) {
+              const mockupData = await mockupRes.json();
+              console.log('[QR Basic] Got mockup:', mockupData);
+              setQrBasicMockupUrl(mockupData.mockupUrl || qrApiUrl);
+            } else {
+              console.warn('[QR Basic] Mockup generation failed, using QR preview');
+              setQrBasicMockupUrl(qrApiUrl);
+            }
+          } else {
+            setQrBasicMockupUrl(qrApiUrl);
+          }
+        } else {
+          console.error('[QR Basic] Packet creation failed');
+          setQrBasicMockupUrl(qrApiUrl);
+        }
       } catch (error) {
         console.error('Error generating mockup:', error);
+        // Fallback to QR preview
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrBasicContent)}`;
+        setQrBasicMockupUrl(qrApiUrl);
       } finally {
         setIsGeneratingBasicMockup(false);
       }
