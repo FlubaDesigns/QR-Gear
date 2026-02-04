@@ -3126,6 +3126,7 @@ interface SimpleBackgroundStepProps {
   background: string;
   onBackgroundSelected: (croppedUrl: string, originalUrl: string, needsCrop: boolean) => void;
   onComplete: () => void;
+  initialSubStep?: BackgroundSubStep; // Skip 'choice' if already decided
 }
 
 interface LibraryAsset {
@@ -3292,11 +3293,12 @@ function SimpleBackgroundStep({
   memberId, 
   background,
   onBackgroundSelected,
-  onComplete
+  onComplete,
+  initialSubStep = 'choice'
 }: SimpleBackgroundStepProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [subStep, setSubStep] = useState<BackgroundSubStep>('choice');
+  const [subStep, setSubStep] = useState<BackgroundSubStep>(initialSubStep);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<LibraryAsset | null>(null);
@@ -6226,7 +6228,7 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step 13: URL Library Pick - browse and select background */}
+                {/* Step 15: URL Library Pick - browse and select background */}
                 {simpleStep === 'url-library-pick' && user?.id && (
                   <SimpleBackgroundStep
                     memberId={user.id}
@@ -6236,6 +6238,11 @@ function MembersSandboxContent() {
                       setOriginalUrlGraphic(originalUrl);
                     }}
                     onComplete={() => setSimpleStep('url-details')}
+                    initialSubStep={
+                      urlSourceChoice === 'upload' ? 'upload' :
+                      libraryChoice === 'personal' ? 'personal-library' :
+                      libraryChoice === 'common' ? 'common-library' : 'choice'
+                    }
                   />
                 )}
                 
