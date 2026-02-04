@@ -4251,6 +4251,9 @@ export default function TestMembersSandbox() {
   const [graphicSize, setGraphicSize] = useState<GraphicSize>('');
   const [wantsHeaderFooter, setWantsHeaderFooter] = useState<boolean | null>(null);
   
+  // Progressive packet - created when product is selected, updated as wizard proceeds
+  const [currentPacketId, setCurrentPacketId] = useState<string | null>(null);
+  
   // Load publish count from localStorage
   useEffect(() => {
     if (user?.id) {
@@ -4344,6 +4347,68 @@ export default function TestMembersSandbox() {
     return qrApiUrl;
   };
 
+  // Create packet when product is selected (step 1)
+  const createPacketForProduct = async (product: AllowedProduct) => {
+    try {
+      const authHeaders = await getAuthHeaders();
+      const packetPayload = {
+        memberId: user?.id,
+        kind: 'qr_basic',
+        background: { url: '' }, // Will be set when QR is generated
+        boundProduct: {
+          blueprintId: product.blueprintId,
+          printProviderId: product.printProviderId,
+          title: product.title,
+          imageUrl: product.imageUrl,
+        },
+        metadata: {},
+        source: { entryPoint: 'simple-wizard' },
+        status: 'building',
+      };
+      
+      const res = await fetch('/api/member/packets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify(packetPayload),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('[Wizard] Created packet on product select:', data.packetId);
+        setCurrentPacketId(data.packetId);
+        return data.packetId;
+      }
+    } catch (error) {
+      console.error('[Wizard] Failed to create packet:', error);
+    }
+    return null;
+  };
+
+  // Update packet as wizard proceeds
+  const updatePacket = async (updates: Record<string, any>) => {
+    if (!currentPacketId) {
+      console.warn('[Wizard] No packet to update');
+      return;
+    }
+    try {
+      const authHeaders = await getAuthHeaders();
+      await fetch(`/api/member/packets/${currentPacketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ memberId: user?.id, updates }),
+      });
+      console.log('[Wizard] Updated packet:', currentPacketId, Object.keys(updates));
+    } catch (error) {
+      console.error('[Wizard] Failed to update packet:', error);
+    }
+  };
+
+  // Handle product selection - creates packet immediately
+  const handleProductSelect = async (product: AllowedProduct) => {
+    setSelectedProductType(product);
+    await createPacketForProduct(product);
+  };
+
   const handleSimpleNext = async () => {
     // Handle QR Basic flow navigation
     if (simpleStep === 'qr-basic-type') {
@@ -4360,69 +4425,48 @@ export default function TestMembersSandbox() {
         const qrContent = qrBasicContent;
         const qrApiUrl = generateQRCodeUrl(qrContent, 1000);
         
-        // Step 2: Create member packet with the QR content
-        const packetPayload = {
-          memberId: user?.id,
-          kind: 'qr_basic',
-          urlContent: qrBasicInputType === 'url' ? qrContent : null,
-          background: {
-            url: qrApiUrl, // Use QR code as the "background" for packet structure
-          },
-          textLayers: qrBasicInputType === 'text' ? [{ text: qrContent, type: 'content' }] : [],
-          boundProduct: selectedProductType ? {
+        // Step 2: Update the existing packet (created when product was selected) with QR content
+        if (currentPacketId) {
+          await updatePacket({
+            urlContent: qrBasicInputType === 'url' ? qrContent : null,
+            background: { url: qrApiUrl },
+            textLayers: qrBasicInputType === 'text' ? [{ text: qrContent, type: 'content' }] : [],
+            'boundProduct.color': selectedColor,
+            'boundProduct.size': selectedShirtSize,
+            'metadata.inputType': qrBasicInputType,
+            'metadata.graphicSize': graphicSize,
+            'metadata.placements': selectedPlacements,
+            'metadata.perPlacementSizes': perPlacementSizes,
+            status: 'draft',
+          });
+          console.log('[QR Basic] Updated packet with QR content:', currentPacketId);
+        }
+        
+        // Step 3: Get Printify mockup using product info from state (packet was created on product select)
+        if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+          const mockupResult = await fetchProductMockup({
             blueprintId: selectedProductType.blueprintId,
             printProviderId: selectedProductType.printProviderId,
-            title: selectedProductType.title,
-            color: selectedColor,
-            size: selectedShirtSize,
-          } : null,
-          metadata: {
-            inputType: qrBasicInputType,
-            graphicSize: graphicSize,
-          },
-          source: { entryPoint: 'simple-wizard-qr-basic' },
-          status: 'draft',
-        };
-        
-        const packetRes = await fetch('/api/member/packets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body: JSON.stringify(packetPayload),
-        });
-        
-        if (packetRes.ok) {
-          const packetData = await packetRes.json();
-          console.log('[QR Basic] Created packet:', packetData.packetId);
+            colorName: selectedColor,
+            artworkUrl: qrApiUrl,
+            artworkVariant: 'black',
+            canonicalPlacementId: 'FRONT_CHEST',
+            qrSize: graphicSize as 'small' | 'medium' | 'large' || 'medium',
+          }, authHeaders);
           
-          // Step 3: Get Printify mockup using robust fetcher
-          if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
-            const mockupResult = await fetchProductMockup({
-              blueprintId: selectedProductType.blueprintId,
-              printProviderId: selectedProductType.printProviderId,
-              colorName: selectedColor,
-              artworkUrl: qrApiUrl,
-              artworkVariant: 'black',
-              canonicalPlacementId: 'FRONT_CHEST',
-              qrSize: graphicSize as 'small' | 'medium' | 'large' || 'medium',
-            }, authHeaders);
-            
-            if (mockupResult.success && mockupResult.bestUrl) {
-              console.log('[QR Basic] Got mockup:', { 
-                lifestyle: !!mockupResult.lifestyleUrl, 
-                flat: !!mockupResult.flatUrl,
-                fromCache: mockupResult.fromCache 
-              });
-              setQrBasicMockupUrl(mockupResult.bestUrl);
-            } else {
-              console.warn('[QR Basic] Mockup fetch failed:', mockupResult.error);
-              setQrBasicMockupUrl(qrApiUrl);
-            }
+          if (mockupResult.success && mockupResult.bestUrl) {
+            console.log('[QR Basic] Got mockup:', { 
+              lifestyle: !!mockupResult.lifestyleUrl, 
+              flat: !!mockupResult.flatUrl,
+              fromCache: mockupResult.fromCache 
+            });
+            setQrBasicMockupUrl(mockupResult.bestUrl);
           } else {
-            console.warn('[QR Basic] Missing product info for mockup');
+            console.warn('[QR Basic] Mockup fetch failed:', mockupResult.error);
             setQrBasicMockupUrl(qrApiUrl);
           }
         } else {
-          console.error('[QR Basic] Packet creation failed');
+          console.warn('[QR Basic] Missing product info for mockup - blueprintId:', selectedProductType?.blueprintId, 'printProviderId:', selectedProductType?.printProviderId, 'color:', selectedColor);
           setQrBasicMockupUrl(qrApiUrl);
         }
       } catch (error) {
@@ -4448,6 +4492,7 @@ export default function TestMembersSandbox() {
     if (simpleStep === 'qr-basic-confirm') {
       // End of QR Basic flow - reset wizard
       setSimpleStep('product');
+      setCurrentPacketId(null);
       return;
     }
     
@@ -4610,6 +4655,7 @@ export default function TestMembersSandbox() {
       
       // Reset simple wizard state for next use
       setSimpleStep('product');
+      setCurrentPacketId(null);
       setSimpleTitle('');
       setSimpleDescription('');
       setQrType('');
@@ -4882,7 +4928,7 @@ export default function TestMembersSandbox() {
                 {simpleStep === 'product' && (
                   <ProductPickerStep
                     selectedProduct={selectedProductType}
-                    onSelect={setSelectedProductType}
+                    onSelect={handleProductSelect}
                   />
                 )}
                 
@@ -5017,6 +5063,7 @@ export default function TestMembersSandbox() {
                     onDone={() => {
                       // Reset wizard
                       setSimpleStep('product');
+                      setCurrentPacketId(null);
                       setQrBasicInputType('');
                       setQrBasicContent('');
                       setQrBasicMockupUrl('');
