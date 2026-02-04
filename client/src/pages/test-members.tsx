@@ -4693,9 +4693,8 @@ export default function TestMembersSandbox() {
                       }}
                       onNo={() => {
                         setWantsHeaderFooter(false);
-                        setQrBasicInputType('');
-                        setQrBasicContent('');
-                        setSimpleStep('qr-basic-type');
+                        // Skip text editing, continue to placement config (step 8)
+                        setSimpleStep('placement-config');
                       }}
                     />
                   </div>
