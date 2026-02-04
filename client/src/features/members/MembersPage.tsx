@@ -4197,14 +4197,13 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
             </div>
 
             <Button
-              size="lg"
               onClick={handleGetStarted}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white px-8 py-6 text-lg"
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white px-4 py-3 text-sm md:px-8 md:py-4 md:text-base"
               data-testid="button-get-started"
             >
-              <Wand2 className="w-5 h-5 mr-2" />
+              <Wand2 className="w-4 h-4 mr-2" />
               Create Your First Product
-              <ArrowRight className="w-5 h-5 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </CardContent>
         </Card>
