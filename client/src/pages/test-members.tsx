@@ -4378,13 +4378,16 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 14: URL Details - title and description */}
+                {/* Step 14: URL Details - title, description with visual preview */}
                 {simpleStep === 'url-details' && (
-                  <DetailsStep
+                  <UrlCreationStep
                     title={simpleTitle}
                     description={simpleDescription}
                     onTitleChange={setSimpleTitle}
                     onDescriptionChange={setSimpleDescription}
+                    headerStyle={headerStyle}
+                    footerStyle={footerStyle}
+                    textLayoutChoice={textLayoutChoice}
                   />
                 )}
                 
