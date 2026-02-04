@@ -87,9 +87,10 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm';
+type SimpleWizardStep = 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
+type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
 type PlacementGraphicChoice = 'full' | 'qr-only' | '';
@@ -184,6 +185,30 @@ const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
 const isQRBasicStep = (step: SimpleWizardStep): boolean => {
   return step.startsWith('qr-basic-');
 };
+
+// Helper to check if we're in QR Plus flow
+const isQRPlusStep = (step: SimpleWizardStep): boolean => {
+  return step.startsWith('qr-plus-');
+};
+
+// QR Plus fork steps (after step 12 shirt-preview for qr-plus type)
+const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'product', label: 'Product', icon: Package },
+  { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
+  { id: 'color', label: 'Color', icon: Sparkles },
+  { id: 'size', label: 'Size', icon: Package },
+  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'placement-count', label: 'Placements', icon: Layers },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
+  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'text-choice', label: 'Layout', icon: Type },
+  { id: 'text-edit', label: 'Edit', icon: Type },
+  { id: 'placement-config', label: 'Configure', icon: Layers },
+  { id: 'shirt-preview', label: 'Preview', icon: Eye },
+  { id: 'qr-plus-mockup', label: 'Final Preview', icon: Eye },
+  { id: 'qr-plus-save-choice', label: 'Save Options', icon: Library },
+  { id: 'qr-plus-confirm', label: 'Done', icon: Check },
+];
 
 // ============================================================================
 // ROBUST MOCKUP FETCHER - Reusable across all QR phases
@@ -377,8 +402,12 @@ function SimpleWizardProgressBar({
 }: { 
   currentStep: SimpleWizardStep; 
 }) {
-  // Use QR Basic steps when in that flow
-  const steps = isQRBasicStep(currentStep) ? QR_BASIC_STEPS : SIMPLE_WIZARD_STEPS;
+  // Use appropriate step array based on current flow
+  const steps = isQRBasicStep(currentStep) 
+    ? QR_BASIC_STEPS 
+    : isQRPlusStep(currentStep) 
+      ? QR_PLUS_STEPS 
+      : SIMPLE_WIZARD_STEPS;
   const currentIndex = steps.findIndex(s => s.id === currentStep);
   const progress = ((currentIndex + 1) / steps.length) * 100;
   
@@ -1694,6 +1723,186 @@ function QRBasicConfirmStep({
         disabled={isSaving}
         className="px-8 py-4 bg-green-600 hover:bg-green-700 text-lg"
         data-testid="button-qr-basic-done"
+      >
+        {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+        Done
+      </Button>
+    </div>
+  );
+}
+
+// QR Plus Step 1: Mockup Preview (shows productGraphic on shirt)
+function QRPlusMockupStep({
+  mockupUrl,
+  isLoading,
+  selectedColor,
+  selectedSize,
+  headerText,
+  footerText
+}: {
+  mockupUrl: string;
+  isLoading: boolean;
+  selectedColor: string;
+  selectedSize: string;
+  headerText?: string;
+  footerText?: string;
+}) {
+  const colorName = SHIRT_COLORS.find(c => c.id === selectedColor)?.name || selectedColor;
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-white mb-2">Your QR Plus Preview</h2>
+        <p className="text-slate-400">Here's your shirt with the full graphic!</p>
+      </div>
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-400 mb-4" />
+          <p className="text-slate-400">Generating your preview...</p>
+        </div>
+      ) : mockupUrl ? (
+        <div className="max-w-sm mx-auto">
+          <img 
+            src={mockupUrl} 
+            alt="Shirt mockup preview" 
+            className="w-full rounded-xl shadow-lg border border-slate-700"
+          />
+          <div className="mt-4 flex items-center justify-center gap-4 text-sm text-slate-400">
+            <span className="bg-slate-700 px-3 py-1 rounded-full">{colorName}</span>
+            <span className="bg-slate-700 px-3 py-1 rounded-full">Size {selectedSize}</span>
+          </div>
+          {(headerText || footerText) && (
+            <div className="mt-3 text-sm text-slate-500">
+              {headerText && <p>Header: {headerText}</p>}
+              {footerText && <p>Footer: {footerText}</p>}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="max-w-sm mx-auto bg-slate-800 rounded-xl p-8 border border-slate-700">
+          <div className="w-32 h-40 mx-auto bg-slate-700 rounded-lg flex items-center justify-center mb-4">
+            <Type className="w-12 h-12 text-slate-500" />
+          </div>
+          <p className="text-slate-400 text-sm">Your graphic with header/footer text</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// QR Plus Step 2: Save to library prompt (reuses same options as QR Basic)
+function QRPlusSaveChoiceStep({
+  selected,
+  onSelect
+}: {
+  selected: QRPlusSaveOption;
+  onSelect: (choice: QRPlusSaveOption) => void;
+}) {
+  const options: { id: QRPlusSaveOption; label: string; description: string; icon: React.ReactNode }[] = [
+    { id: 'item', label: 'Save Item Only', description: 'Save the shirt design to your library', icon: <ShoppingBag className="w-8 h-8" /> },
+    { id: 'graphic', label: 'Save Graphic Only', description: 'Save the graphic (with text) to reuse', icon: <Type className="w-8 h-8" /> },
+    { id: 'both', label: 'Save Both', description: 'Save the shirt and the graphic separately', icon: <Library className="w-8 h-8" /> },
+  ];
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-white mb-2">What would you like to save?</h2>
+        <p className="text-slate-400">Choose what to keep in your library</p>
+      </div>
+      
+      <div className="grid gap-4 max-w-md mx-auto">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option.id)}
+            className={`p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${
+              selected === option.id
+                ? 'border-green-500 bg-green-500/10'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid={`button-qr-plus-save-${option.id}`}
+          >
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
+              selected === option.id ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'
+            }`}>
+              {option.icon}
+            </div>
+            <div>
+              <div className="font-semibold text-white">{option.label}</div>
+              <div className="text-sm text-slate-400">{option.description}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// QR Plus Step 3: Confirmation based on save choice
+function QRPlusConfirmStep({
+  saveChoice,
+  mockupUrl,
+  productGraphicUrl,
+  isSaving,
+  onDone
+}: {
+  saveChoice: QRPlusSaveOption;
+  mockupUrl: string | null;
+  productGraphicUrl: string | null;
+  isSaving: boolean;
+  onDone: () => void;
+}) {
+  const getMessage = () => {
+    switch (saveChoice) {
+      case 'item':
+        return { title: 'Item Saved!', description: 'Your shirt design has been saved to your library.' };
+      case 'graphic':
+        return { title: 'Graphic Saved!', description: 'Your graphic has been saved to your library.' };
+      case 'both':
+        return { title: 'Both Saved!', description: 'Your shirt design and graphic have been saved to your library.' };
+      default:
+        return { title: 'Saved!', description: 'Your design has been saved.' };
+    }
+  };
+  
+  const message = getMessage();
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <div className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-4">
+          <Check className="w-10 h-10 text-white" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-2">{message.title}</h2>
+        <p className="text-slate-400">{message.description}</p>
+      </div>
+      
+      <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
+        {(saveChoice === 'item' || saveChoice === 'both') && mockupUrl && (
+          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+            <img src={mockupUrl} alt="Saved item" className="w-32 h-32 object-contain mx-auto mb-2" />
+            <p className="text-sm text-slate-400">Shirt Design</p>
+          </div>
+        )}
+        {(saveChoice === 'graphic' || saveChoice === 'both') && productGraphicUrl && (
+          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+            <img 
+              src={productGraphicUrl} 
+              alt="Graphic" 
+              className="w-32 h-32 object-contain mx-auto mb-2"
+            />
+            <p className="text-sm text-slate-400">Product Graphic</p>
+          </div>
+        )}
+      </div>
+      
+      <Button
+        onClick={onDone}
+        disabled={isSaving}
+        className="px-8 py-4 bg-green-600 hover:bg-green-700 text-lg"
+        data-testid="button-qr-plus-done"
       >
         {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
         Done
@@ -4918,6 +5127,12 @@ function MembersSandboxContent() {
   const [qrBasicSaveChoice, setQrBasicSaveChoice] = useState<QRBasicSaveOption>('');
   const [isQrBasicSaving, setIsQrBasicSaving] = useState(false);
   
+  // QR Plus flow state (fork at step 12 for qr-plus type)
+  const [qrPlusMockup, setQrPlusMockup] = useState<string>(''); // The product mockup image with full graphic
+  const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
+  const [qrPlusSaveChoice, setQrPlusSaveChoice] = useState<QRPlusSaveOption>('');
+  const [isQrPlusSaving, setIsQrPlusSaving] = useState(false);
+  
   // Get current placement being configured
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
 
@@ -5103,6 +5318,22 @@ function MembersSandboxContent() {
       return;
     }
     
+    // Handle QR Plus flow navigation
+    if (simpleStep === 'qr-plus-mockup') {
+      setSimpleStep('qr-plus-save-choice');
+      return;
+    }
+    if (simpleStep === 'qr-plus-save-choice') {
+      setSimpleStep('qr-plus-confirm');
+      return;
+    }
+    if (simpleStep === 'qr-plus-confirm') {
+      // End of QR Plus flow - reset wizard
+      setSimpleStep('product');
+      setCurrentPacketId(null);
+      return;
+    }
+    
     const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
     
     // Reset placement index when entering graphic-size from placement-count
@@ -5162,6 +5393,43 @@ function MembersSandboxContent() {
       // All placements done - proceed to shirt-preview
     }
     
+    // Fork at shirt-preview (step 12) based on qrType
+    if (simpleStep === 'shirt-preview') {
+      if (qrType === 'qr-plus') {
+        // QR Plus ends here - go to QR Plus mockup flow
+        setIsGeneratingPlusMockup(true);
+        // Generate mockup with productGraphic
+        try {
+          if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor && productGraphic) {
+            const mockupResult = await api.generateMockup({
+              blueprintId: selectedProductType.blueprintId,
+              printProviderId: selectedProductType.printProviderId,
+              colorName: selectedColor,
+              artworkUrl: productGraphic,
+              placement: 'FRONT_CHEST',
+              qrSize: graphicSize || 'medium',
+            });
+            const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
+            if (mockupResult.success && bestUrl) {
+              setQrPlusMockup(bestUrl);
+            } else {
+              setQrPlusMockup(productGraphic);
+            }
+          } else {
+            setQrPlusMockup(productGraphic);
+          }
+        } catch (error) {
+          console.error('[QR Plus] Error generating mockup:', error);
+          setQrPlusMockup(productGraphic);
+        } finally {
+          setIsGeneratingPlusMockup(false);
+        }
+        setSimpleStep('qr-plus-mockup');
+        return;
+      }
+      // QR Canvas continues to url-explainer
+    }
+    
     if (currentIndex < SIMPLE_WIZARD_STEPS.length - 1) {
       const nextStep = SIMPLE_WIZARD_STEPS[currentIndex + 1].id;
       setSimpleStep(nextStep);
@@ -5188,6 +5456,20 @@ function MembersSandboxContent() {
     }
     if (simpleStep === 'qr-basic-confirm') {
       setSimpleStep('qr-basic-save-choice');
+      return;
+    }
+    
+    // Handle QR Plus flow back navigation
+    if (simpleStep === 'qr-plus-mockup') {
+      setSimpleStep('shirt-preview');
+      return;
+    }
+    if (simpleStep === 'qr-plus-save-choice') {
+      setSimpleStep('qr-plus-mockup');
+      return;
+    }
+    if (simpleStep === 'qr-plus-confirm') {
+      setSimpleStep('qr-plus-save-choice');
       return;
     }
     
@@ -5236,6 +5518,10 @@ function MembersSandboxContent() {
       case 'qr-basic-mockup': return true;
       case 'qr-basic-save-choice': return qrBasicSaveChoice !== '';
       case 'qr-basic-confirm': return true;
+      // QR Plus flow
+      case 'qr-plus-mockup': return true;
+      case 'qr-plus-save-choice': return qrPlusSaveChoice !== '';
+      case 'qr-plus-confirm': return true;
       default: return false;
     }
   };
@@ -5710,6 +5996,43 @@ function MembersSandboxContent() {
                       setQrBasicContent('');
                       setQrBasicMockup('');
                       setQrBasicSaveChoice('');
+                    }}
+                  />
+                )}
+                
+                {/* QR Plus Step 1: Mockup Preview */}
+                {simpleStep === 'qr-plus-mockup' && (
+                  <QRPlusMockupStep
+                    mockupUrl={qrPlusMockup}
+                    isLoading={isGeneratingPlusMockup}
+                    selectedColor={selectedColor}
+                    selectedSize={selectedShirtSize}
+                    headerText={headerStyle.text}
+                    footerText={footerStyle.text}
+                  />
+                )}
+                
+                {/* QR Plus Step 2: Save Choice */}
+                {simpleStep === 'qr-plus-save-choice' && (
+                  <QRPlusSaveChoiceStep
+                    selected={qrPlusSaveChoice}
+                    onSelect={(choice) => setQrPlusSaveChoice(choice)}
+                  />
+                )}
+                
+                {/* QR Plus Step 3: Confirmation */}
+                {simpleStep === 'qr-plus-confirm' && (
+                  <QRPlusConfirmStep
+                    saveChoice={qrPlusSaveChoice}
+                    mockupUrl={qrPlusMockup}
+                    productGraphicUrl={productGraphic}
+                    isSaving={isQrPlusSaving}
+                    onDone={() => {
+                      // Reset wizard
+                      setSimpleStep('product');
+                      setCurrentPacketId(null);
+                      setQrPlusMockup('');
+                      setQrPlusSaveChoice('');
                     }}
                   />
                 )}
