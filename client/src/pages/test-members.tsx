@@ -37,7 +37,8 @@ import {
   MapPin,
   Library,
   Smartphone,
-  ArrowRight
+  ArrowRight,
+  ShoppingBag
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
@@ -83,7 +84,9 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm';
+
+type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
 type PlacementGraphicChoice = 'full' | 'qr-only' | '';
@@ -1246,55 +1249,122 @@ function QRBasicMockupStep({
 }
 
 // QR Basic Step 4: Save to library prompt
-function QRBasicSaveStep({
-  onSave,
-  onSkip,
-  isSaving
+function QRBasicSaveChoiceStep({
+  selected,
+  onSelect
 }: {
-  onSave: () => void;
-  onSkip: () => void;
-  isSaving: boolean;
+  selected: QRBasicSaveOption;
+  onSelect: (choice: QRBasicSaveOption) => void;
 }) {
+  const options: { id: QRBasicSaveOption; label: string; description: string; icon: React.ReactNode }[] = [
+    { id: 'item', label: 'Save Item Only', description: 'Save the shirt design to your library', icon: <ShoppingBag className="w-8 h-8" /> },
+    { id: 'graphic', label: 'Save Graphic Only', description: 'Save just the QR code graphic', icon: <QrCode className="w-8 h-8" /> },
+    { id: 'both', label: 'Save Both', description: 'Save the shirt and the graphic separately', icon: <Library className="w-8 h-8" /> },
+  ];
+  
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Save to Your Library?</h2>
-        <p className="text-slate-400">Keep this graphic and shirt design for later</p>
+        <h2 className="text-2xl font-bold text-white mb-2">What would you like to save?</h2>
+        <p className="text-slate-400">Choose what to keep in your library</p>
       </div>
       
-      <div className="max-w-sm mx-auto bg-slate-800 rounded-xl p-6 border border-slate-700">
-        <div className="w-20 h-20 mx-auto bg-slate-700 rounded-full flex items-center justify-center mb-4">
-          <Library className="w-10 h-10 text-green-400" />
+      <div className="grid gap-4 max-w-md mx-auto">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option.id)}
+            className={`p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${
+              selected === option.id
+                ? 'border-green-500 bg-green-500/10'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid={`button-save-${option.id}`}
+          >
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
+              selected === option.id ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'
+            }`}>
+              {option.icon}
+            </div>
+            <div>
+              <div className="font-semibold text-white">{option.label}</div>
+              <div className="text-sm text-slate-400">{option.description}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// QR Basic Step 5: Confirmation based on save choice
+function QRBasicConfirmStep({
+  saveChoice,
+  mockupUrl,
+  qrContent,
+  isSaving,
+  onDone
+}: {
+  saveChoice: QRBasicSaveOption;
+  mockupUrl: string | null;
+  qrContent: string;
+  isSaving: boolean;
+  onDone: () => void;
+}) {
+  const getMessage = () => {
+    switch (saveChoice) {
+      case 'item':
+        return { title: 'Item Saved!', description: 'Your shirt design has been saved to your library.' };
+      case 'graphic':
+        return { title: 'Graphic Saved!', description: 'Your QR code graphic has been saved to your library.' };
+      case 'both':
+        return { title: 'Both Saved!', description: 'Your shirt design and QR graphic have been saved to your library.' };
+      default:
+        return { title: 'Saved!', description: 'Your design has been saved.' };
+    }
+  };
+  
+  const message = getMessage();
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <div className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-4">
+          <Check className="w-10 h-10 text-white" />
         </div>
-        <p className="text-slate-300 text-sm mb-4">
-          Saving lets you reuse this design or order more shirts with the same QR code anytime.
-        </p>
+        <h2 className="text-2xl font-bold text-white mb-2">{message.title}</h2>
+        <p className="text-slate-400">{message.description}</p>
       </div>
       
-      <div className="flex flex-wrap justify-center gap-4">
-        <Button
-          onClick={onSave}
-          disabled={isSaving}
-          className="px-8 py-4 bg-green-600 hover:bg-green-700 text-lg"
-          data-testid="button-qr-basic-save"
-        >
-          {isSaving ? (
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-          ) : (
-            <Check className="w-5 h-5 mr-2" />
-          )}
-          Yes, Save It
-        </Button>
-        <Button
-          onClick={onSkip}
-          disabled={isSaving}
-          variant="outline"
-          className="px-8 py-4 text-lg"
-          data-testid="button-qr-basic-skip"
-        >
-          No Thanks
-        </Button>
+      {/* Show what was saved */}
+      <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
+        {(saveChoice === 'item' || saveChoice === 'both') && mockupUrl && (
+          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+            <img src={mockupUrl} alt="Saved item" className="w-32 h-32 object-contain mx-auto mb-2" />
+            <p className="text-sm text-slate-400">Shirt Design</p>
+          </div>
+        )}
+        {(saveChoice === 'graphic' || saveChoice === 'both') && (
+          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${encodeURIComponent(qrContent)}`} 
+              alt="QR Code" 
+              className="w-32 h-32 object-contain mx-auto mb-2 bg-white rounded"
+            />
+            <p className="text-sm text-slate-400">QR Graphic</p>
+          </div>
+        )}
       </div>
+      
+      <Button
+        onClick={onDone}
+        disabled={isSaving}
+        className="px-8 py-4 bg-green-600 hover:bg-green-700 text-lg"
+        data-testid="button-qr-basic-done"
+      >
+        {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+        Done
+      </Button>
     </div>
   );
 }
@@ -4116,6 +4186,8 @@ export default function TestMembersSandbox() {
   const [qrBasicContent, setQrBasicContent] = useState<string>('');
   const [qrBasicMockupUrl, setQrBasicMockupUrl] = useState<string>('');
   const [isGeneratingBasicMockup, setIsGeneratingBasicMockup] = useState(false);
+  const [qrBasicSaveChoice, setQrBasicSaveChoice] = useState<QRBasicSaveOption>('');
+  const [isQrBasicSaving, setIsQrBasicSaving] = useState(false);
   
   // Get current placement being configured
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
@@ -4221,11 +4293,18 @@ export default function TestMembersSandbox() {
       return;
     }
     if (simpleStep === 'qr-basic-mockup') {
-      setSimpleStep('qr-basic-save');
+      setSimpleStep('qr-basic-save-choice');
       return;
     }
-    if (simpleStep === 'qr-basic-save') {
-      // End of QR Basic flow - handled by onSave/onSkip callbacks
+    if (simpleStep === 'qr-basic-save-choice') {
+      // Move to confirmation step and do the actual save
+      setSimpleStep('qr-basic-confirm');
+      // TODO: Actually save based on qrBasicSaveChoice
+      return;
+    }
+    if (simpleStep === 'qr-basic-confirm') {
+      // End of QR Basic flow - reset wizard
+      setSimpleStep('product');
       return;
     }
     
@@ -4279,8 +4358,12 @@ export default function TestMembersSandbox() {
       setSimpleStep('qr-basic-input');
       return;
     }
-    if (simpleStep === 'qr-basic-save') {
+    if (simpleStep === 'qr-basic-save-choice') {
       setSimpleStep('qr-basic-mockup');
+      return;
+    }
+    if (simpleStep === 'qr-basic-confirm') {
+      setSimpleStep('qr-basic-save-choice');
       return;
     }
     
@@ -4313,7 +4396,8 @@ export default function TestMembersSandbox() {
       case 'qr-basic-type': return qrBasicInputType !== '';
       case 'qr-basic-input': return qrBasicContent.trim() !== '';
       case 'qr-basic-mockup': return true;
-      case 'qr-basic-save': return true;
+      case 'qr-basic-save-choice': return qrBasicSaveChoice !== '';
+      case 'qr-basic-confirm': return true;
       default: return false;
     }
   };
@@ -4738,20 +4822,29 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* QR Basic Step 4: Save to Library */}
-                {simpleStep === 'qr-basic-save' && (
-                  <QRBasicSaveStep
-                    onSave={() => {
-                      // TODO: Implement save to library
-                      toast({ title: "Saved!", description: "Your design has been saved to your library." });
-                      // Reset wizard or go to next action
-                      setSimpleStep('product');
-                    }}
-                    onSkip={() => {
+                {/* QR Basic Step 4: Save Choice (Item, Graphic, or Both) */}
+                {simpleStep === 'qr-basic-save-choice' && (
+                  <QRBasicSaveChoiceStep
+                    selected={qrBasicSaveChoice}
+                    onSelect={(choice) => setQrBasicSaveChoice(choice)}
+                  />
+                )}
+                
+                {/* QR Basic Step 5: Confirmation */}
+                {simpleStep === 'qr-basic-confirm' && (
+                  <QRBasicConfirmStep
+                    saveChoice={qrBasicSaveChoice}
+                    mockupUrl={qrBasicMockupUrl}
+                    qrContent={qrBasicContent}
+                    isSaving={isQrBasicSaving}
+                    onDone={() => {
                       // Reset wizard
                       setSimpleStep('product');
+                      setQrBasicInputType('');
+                      setQrBasicContent('');
+                      setQrBasicMockupUrl('');
+                      setQrBasicSaveChoice('');
                     }}
-                    isSaving={false}
                   />
                 )}
                 
