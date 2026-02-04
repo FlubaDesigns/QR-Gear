@@ -83,9 +83,10 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish';
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
+type PlacementGraphicChoice = 'full' | 'qr-only' | '';
 // Matches Printify placement IDs
 type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
@@ -132,6 +133,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit', label: 'Edit', icon: Type },
+  { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
   { id: 'url-explainer', label: 'QR Canvas', icon: QrCode },
   { id: 'url-source-choice', label: 'Source', icon: ImagePlus },
@@ -1363,7 +1365,143 @@ function ShirtTextEditStep({
   );
 }
 
-// Step 10: Shirt Preview - shows completed graphic on shirt
+// Step 10: Placement Config - for each placement, choose Full Graphic or QR Only + Size
+function PlacementConfigStep({
+  currentPlacement,
+  currentIndex,
+  totalPlacements,
+  graphicChoice,
+  size,
+  onGraphicChoiceChange,
+  onSizeChange,
+  headerStyle,
+  footerStyle,
+  textLayoutChoice
+}: {
+  currentPlacement: PlacementOption;
+  currentIndex: number;
+  totalPlacements: number;
+  graphicChoice: PlacementGraphicChoice;
+  size: GraphicSize;
+  onGraphicChoiceChange: (choice: PlacementGraphicChoice) => void;
+  onSizeChange: (size: GraphicSize) => void;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  textLayoutChoice: TextLayoutChoice;
+}) {
+  const placementLabel = PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement;
+  const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
+  const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+  
+  // Get recommended sizes based on placement
+  const getSizeOptions = () => {
+    if (currentPlacement === 'front' || currentPlacement === 'back') {
+      return [
+        { id: 'small' as GraphicSize, label: 'Small', size: '6"×8"' },
+        { id: 'medium' as GraphicSize, label: 'Medium', size: '9"×12"' },
+        { id: 'large' as GraphicSize, label: 'Large', size: '11"×14"' }
+      ];
+    } else if (currentPlacement === 'left_chest') {
+      return [
+        { id: 'small' as GraphicSize, label: 'Small', size: '2.5"' },
+        { id: 'medium' as GraphicSize, label: 'Medium', size: '3.5"' },
+        { id: 'large' as GraphicSize, label: 'Large', size: '4"' }
+      ];
+    } else {
+      // Sleeves
+      return [
+        { id: 'small' as GraphicSize, label: 'Small', size: '2"' },
+        { id: 'medium' as GraphicSize, label: 'Medium', size: '2.5"' },
+        { id: 'large' as GraphicSize, label: 'Large', size: '3"' }
+      ];
+    }
+  };
+  
+  const sizeOptions = getSizeOptions();
+  
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <h2 className="text-xl font-bold text-white mb-1">Configure {placementLabel}</h2>
+        {totalPlacements > 1 && (
+          <p className="text-slate-400 text-sm">Placement {currentIndex + 1} of {totalPlacements}</p>
+        )}
+      </div>
+      
+      {/* Choice: Full Graphic or QR Only */}
+      <div className="space-y-3">
+        <p className="text-sm text-slate-300 text-center">What do you want on this placement?</p>
+        <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
+          <button
+            onClick={() => onGraphicChoiceChange('full')}
+            className={`p-4 rounded-xl border-2 transition-all ${
+              graphicChoice === 'full'
+                ? 'border-green-400 bg-green-500/20 shadow-lg shadow-green-500/20'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid="button-full-graphic"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-20 bg-slate-700 rounded-lg flex flex-col items-center justify-center gap-1 p-1">
+                {showHeader && <div className="w-10 h-2 bg-white/60 rounded-sm" />}
+                <QrCode className="w-8 h-8 text-white" />
+                {showFooter && <div className="w-10 h-2 bg-white/60 rounded-sm" />}
+              </div>
+              <span className="font-medium text-white text-sm">Full Graphic</span>
+              <span className="text-xs text-slate-400">Header + QR + Footer</span>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => onGraphicChoiceChange('qr-only')}
+            className={`p-4 rounded-xl border-2 transition-all ${
+              graphicChoice === 'qr-only'
+                ? 'border-green-400 bg-green-500/20 shadow-lg shadow-green-500/20'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid="button-qr-only"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-20 bg-slate-700 rounded-lg flex items-center justify-center">
+                <QrCode className="w-10 h-10 text-white" />
+              </div>
+              <span className="font-medium text-white text-sm">QR Only</span>
+              <span className="text-xs text-slate-400">Just the QR code</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      
+      {/* Size selection */}
+      {graphicChoice && (
+        <div className="space-y-3 animate-in fade-in duration-300">
+          <p className="text-sm text-slate-300 text-center">Choose size for {placementLabel}</p>
+          <div className="flex justify-center gap-3">
+            {sizeOptions.map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => onSizeChange(opt.id)}
+                className={`px-4 py-3 rounded-xl border-2 transition-all ${
+                  size === opt.id
+                    ? 'border-green-400 bg-green-500/20'
+                    : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+                }`}
+                data-testid={`button-size-${opt.id}`}
+              >
+                <div className="text-center">
+                  <span className="block font-medium text-white">{opt.label}</span>
+                  <span className="text-xs text-slate-400">{opt.size}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Step 11: Shirt Preview - shows completed graphic on shirt
 function ShirtPreviewStep({
   selectedColor,
   graphicLocation,
@@ -3359,13 +3497,13 @@ export default function TestMembersSandbox() {
   
   // Multi-placement loop state - track which placement we're currently configuring
   const [currentPlacementIndex, setCurrentPlacementIndex] = useState<number>(0);
-  // Per-placement configurations: stores graphicSize, textLayout, header/footer text for each placement
+  // Current placement's graphic choice (full graphic or QR only)
+  const [placementGraphicChoice, setPlacementGraphicChoice] = useState<PlacementGraphicChoice>('');
+  const [placementSize, setPlacementSize] = useState<GraphicSize>('');
+  // Per-placement configurations: stores graphic choice and size for each placement
   const [perPlacementConfigs, setPerPlacementConfigs] = useState<Record<PlacementOption, {
-    graphicSize: GraphicSize;
-    textLayout: TextLayoutChoice;
-    headerText: string;
-    footerText: string;
-    wantsHeaderFooter: boolean | null;
+    graphicChoice: PlacementGraphicChoice;
+    size: GraphicSize;
   }>>({} as any);
   
   // Get current placement being configured
@@ -3383,33 +3521,30 @@ export default function TestMembersSandbox() {
   const handleSimpleNext = async () => {
     const currentIndex = SIMPLE_WIZARD_STEPS.findIndex(s => s.id === simpleStep);
     
-    // Save current placement config when leaving text-edit step
+    // After text-edit, reset placement index for the placement-config loop
     if (simpleStep === 'text-edit') {
+      setCurrentPlacementIndex(0);
+      setPlacementGraphicChoice('');
+      setPlacementSize('');
+    }
+    
+    // Save current placement config when leaving placement-config step
+    if (simpleStep === 'placement-config') {
       setPerPlacementConfigs(prev => ({
         ...prev,
         [currentPlacement]: {
-          graphicSize,
-          textLayout: textLayoutChoice,
-          headerText: headerStyle.text,
-          footerText: footerStyle.text,
-          wantsHeaderFooter
+          graphicChoice: placementGraphicChoice,
+          size: placementSize
         }
       }));
-    }
-    
-    // After showing graphic (text-edit), check if more placements to configure
-    if (simpleStep === 'text-edit') {
+      
+      // Check if more placements to configure
       if (currentPlacementIndex < selectedPlacements.length - 1) {
-        // More placements to configure - loop back to graphic-size for next placement
+        // More placements - stay on placement-config, move to next placement
         setCurrentPlacementIndex(prev => prev + 1);
-        // Reset state for next placement
-        setGraphicSize('');
-        setWantsHeaderFooter(null);
-        setTextLayoutChoice('');
-        setHeaderStyle({ ...defaultTextStyle });
-        setFooterStyle({ ...defaultTextStyle });
-        setSimpleStep('graphic-size');
-        return;
+        setPlacementGraphicChoice('');
+        setPlacementSize('');
+        return; // Stay on placement-config step
       }
       // All placements done - proceed to shirt-preview
     }
@@ -3438,6 +3573,7 @@ export default function TestMembersSandbox() {
       case 'text-choice': return textLayoutChoice !== '';
       case 'placement-count': return selectedPlacements.length > 0;
       case 'text-edit': return true;
+      case 'placement-config': return placementGraphicChoice !== '' && placementSize !== '';
       case 'shirt-preview': return true;
       case 'url-explainer': return true;
       case 'url-source-choice': return urlSourceChoice !== '';
@@ -3892,8 +4028,23 @@ export default function TestMembersSandbox() {
                   </div>
                 )}
                 
-                {/* Step 7: Details */}
-                {/* Step 10: Shirt Preview - show graphic on shirt */}
+                {/* Step 10: Placement Config - Full Graphic or QR Only for each placement */}
+                {simpleStep === 'placement-config' && (
+                  <PlacementConfigStep
+                    currentPlacement={currentPlacement}
+                    currentIndex={currentPlacementIndex}
+                    totalPlacements={selectedPlacements.length}
+                    graphicChoice={placementGraphicChoice}
+                    size={placementSize}
+                    onGraphicChoiceChange={setPlacementGraphicChoice}
+                    onSizeChange={setPlacementSize}
+                    headerStyle={headerStyle}
+                    footerStyle={footerStyle}
+                    textLayoutChoice={textLayoutChoice}
+                  />
+                )}
+                
+                {/* Step 11: Shirt Preview - show graphic on shirt */}
                 {simpleStep === 'shirt-preview' && (
                   <ShirtPreviewStep
                     selectedColor={selectedColor}
