@@ -865,20 +865,26 @@ function SizePickerStep({
       </div>
       
       <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
-        {SHIRT_SIZES.map((size) => (
-          <button
-            key={size}
-            onClick={() => onSelect(size)}
-            className={`w-14 h-14 rounded-lg border-2 font-bold transition-all ${
-              selectedSize === size
-                ? 'border-green-500 bg-green-500/20 text-green-400'
-                : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
-            }`}
-            data-testid={`button-size-${size}`}
-          >
-            {size}
-          </button>
-        ))}
+        {SHIRT_SIZES.map((size) => {
+          const sizeEarnings = baseEarnings + (SIZE_EARNINGS_BONUS[size] || 0);
+          return (
+            <button
+              key={size}
+              onClick={() => onSelect(size)}
+              className={`w-16 h-20 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
+                selectedSize === size
+                  ? 'border-green-500 bg-green-500/20 text-green-400'
+                  : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
+              }`}
+              data-testid={`button-size-${size}`}
+            >
+              <span className="text-lg">{size}</span>
+              <span className={`text-xs ${selectedSize === size ? 'text-green-400' : 'text-slate-400'}`}>
+                ${sizeEarnings.toFixed(2)}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
