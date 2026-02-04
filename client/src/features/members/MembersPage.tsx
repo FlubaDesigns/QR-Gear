@@ -5203,20 +5203,73 @@ function MembersSandboxContent() {
 
   // Update packet as wizard proceeds
   const updatePacket = async (updates: Record<string, any>) => {
-    if (!currentPacketId) {
-      console.warn('[Wizard] No packet to update');
-      return;
+    if (!currentPacketId || !user?.id) {
+      console.warn('[Wizard] No packet or user to update');
+      return false;
     }
     try {
       const authHeaders = await getAuthHeaders();
-      await fetch(`/api/member/packets/${currentPacketId}`, {
+      const res = await fetch(`/api/members/${user.id}/packets/${currentPacketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ memberId: user?.id, updates }),
+        body: JSON.stringify(updates),
       });
-      console.log('[Wizard] Updated packet:', currentPacketId, Object.keys(updates));
+      if (res.ok) {
+        console.log('[Wizard] Updated packet:', currentPacketId, Object.keys(updates));
+        return true;
+      }
+      console.error('[Wizard] Packet update failed:', await res.json());
+      return false;
     } catch (error) {
       console.error('[Wizard] Failed to update packet:', error);
+      return false;
+    }
+  };
+
+  // Save QR Basic assets to packet
+  const saveQrBasicToPacket = async () => {
+    if (!currentPacketId || !user?.id) return false;
+    
+    setIsQrBasicSaving(true);
+    try {
+      const updates: Record<string, any> = {
+        kind: 'qr_basic',
+        qrGraphic: qrGraphic || null,
+        qrBasicMockup: qrBasicMockup || null,
+        qrBasicSaveChoice: qrBasicSaveChoice,
+        status: 'saved',
+      };
+      
+      const success = await updatePacket(updates);
+      console.log('[Wizard] QR Basic saved to packet:', { success, saveChoice: qrBasicSaveChoice });
+      return success;
+    } finally {
+      setIsQrBasicSaving(false);
+    }
+  };
+
+  // Save QR Plus assets to packet
+  const saveQrPlusToPacket = async () => {
+    if (!currentPacketId || !user?.id) return false;
+    
+    setIsQrPlusSaving(true);
+    try {
+      const updates: Record<string, any> = {
+        kind: 'qr_plus',
+        qrGraphic: qrGraphic || null,
+        productGraphic: productGraphic || null,
+        qrPlusMockup: qrPlusMockup || null,
+        qrPlusSaveChoice: qrPlusSaveChoice,
+        headerStyle: headerStyle,
+        footerStyle: footerStyle,
+        status: 'saved',
+      };
+      
+      const success = await updatePacket(updates);
+      console.log('[Wizard] QR Plus saved to packet:', { success, saveChoice: qrPlusSaveChoice });
+      return success;
+    } finally {
+      setIsQrPlusSaving(false);
     }
   };
 
@@ -5306,15 +5359,19 @@ function MembersSandboxContent() {
       return;
     }
     if (simpleStep === 'qr-basic-save-choice') {
-      // Move to confirmation step and do the actual save
+      // Save to packet then move to confirmation
+      await saveQrBasicToPacket();
       setSimpleStep('qr-basic-confirm');
-      // TODO: Actually save based on qrBasicSaveChoice
       return;
     }
     if (simpleStep === 'qr-basic-confirm') {
       // End of QR Basic flow - reset wizard
       setSimpleStep('product');
       setCurrentPacketId(null);
+      setQrBasicInputType('');
+      setQrBasicContent('');
+      setQrBasicMockup('');
+      setQrBasicSaveChoice('');
       return;
     }
     
@@ -5324,6 +5381,8 @@ function MembersSandboxContent() {
       return;
     }
     if (simpleStep === 'qr-plus-save-choice') {
+      // Save to packet then move to confirmation
+      await saveQrPlusToPacket();
       setSimpleStep('qr-plus-confirm');
       return;
     }
@@ -5331,6 +5390,8 @@ function MembersSandboxContent() {
       // End of QR Plus flow - reset wizard
       setSimpleStep('product');
       setCurrentPacketId(null);
+      setQrPlusMockup('');
+      setQrPlusSaveChoice('');
       return;
     }
     

@@ -10443,6 +10443,44 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Update member packet (save graphics/assets)
+  app.patch("/api/members/:memberId/packets/:packetId", async (req: any, res) => {
+    try {
+      const { memberId, packetId } = req.params;
+      const updates = req.body;
+      
+      if (!memberId || !packetId) {
+        return res.status(400).json({ error: "memberId and packetId are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      // Verify ownership before update
+      const doc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      if (doc.data()?.memberId !== memberId) {
+        return res.status(403).json({ error: "Not authorized to update this packet" });
+      }
+
+      // Merge updates with existing data
+      const updateData = {
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberPackets').doc(packetId).update(updateData);
+      
+      console.log(`[MemberPackets] Updated packet ${packetId} for member ${memberId}`, Object.keys(updates));
+      res.json({ success: true, packetId });
+    } catch (error: any) {
+      console.error('[MemberPackets] PATCH error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Create graphics from packet (composite render)
   app.post("/api/member/graphics/create", async (req: any, res) => {
     try {
