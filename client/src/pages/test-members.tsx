@@ -81,9 +81,9 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'location' | 'graphic-size' | 'generate' | 'text-choice' | 'placement-count' | 'text-edit' | 'shirt-preview' | 'url-creation';
+type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'shirt-preview' | 'url-creation';
 // Matches Printify placement IDs
-type PlacementOption = 'front' | 'back' | 'sleeve_left' | 'sleeve_right';
+type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop';
@@ -124,7 +124,6 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'size', label: 'Size', icon: Package },
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
-  { id: 'location', label: 'Location', icon: MapPin },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
@@ -134,11 +133,13 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
 ];
 
 // Available placement options - matches Printify API placement IDs
-const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: string }[] = [
-  { id: 'front', label: 'Front', description: 'Main front of shirt' },
-  { id: 'back', label: 'Back', description: 'Center of back' },
-  { id: 'sleeve_left', label: 'Left Sleeve', description: 'Left arm' },
-  { id: 'sleeve_right', label: 'Right Sleeve', description: 'Right arm' },
+// Sizes based on actual print areas: Front/Back ~12", Left Chest ~4", Sleeves ~3"
+const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: string; sizeLabel: string }[] = [
+  { id: 'front', label: 'Front Center', description: 'Large main print', sizeLabel: '12"×14"' },
+  { id: 'left_chest', label: 'Left Chest', description: 'Small logo area', sizeLabel: '4"×4"' },
+  { id: 'back', label: 'Back Center', description: 'Large back print', sizeLabel: '12"×14"' },
+  { id: 'sleeve_left', label: 'Left Sleeve', description: 'Small sleeve print', sizeLabel: '3"×3"' },
+  { id: 'sleeve_right', label: 'Right Sleeve', description: 'Small sleeve print', sizeLabel: '3"×3"' },
 ];
 
 // Advanced Wizard - full 8 steps (unlocks after 1st publish)
@@ -955,13 +956,14 @@ function PlacementCountStep({
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  // Positions for each placement on the shirt SVG
-  // Positions on SVG for each Printify placement
+  // Positions on SVG for each Printify placement - TRUE TO RATIO
+  // Front/Back = 12" (base = 24 units), Left Chest = 4" (8 units), Sleeves = 3" (6 units)
   const placementPositions: Record<PlacementOption, { x: number; y: number; size: number }> = {
-    'front': { x: 90, y: 95, size: 20 },
-    'back': { x: 90, y: 95, size: 20 },
-    'sleeve_left': { x: 42, y: 68, size: 10 },
-    'sleeve_right': { x: 138, y: 68, size: 10 },
+    'front': { x: 90, y: 100, size: 24 },
+    'left_chest': { x: 70, y: 75, size: 8 },
+    'back': { x: 90, y: 100, size: 24 },
+    'sleeve_left': { x: 42, y: 68, size: 6 },
+    'sleeve_right': { x: 138, y: 68, size: 6 },
   };
   
   return (
@@ -1035,10 +1037,13 @@ function PlacementCountStep({
                 }`}>
                   {isSelected && <Check className="w-3 h-3 text-white" />}
                 </div>
-                <div>
-                  <p className={`font-medium text-sm ${isSelected ? 'text-green-400' : 'text-white'}`}>
-                    {option.label}
-                  </p>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className={`font-medium text-sm ${isSelected ? 'text-green-400' : 'text-white'}`}>
+                      {option.label}
+                    </p>
+                    <span className="text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded">{option.sizeLabel}</span>
+                  </div>
                   <p className="text-xs text-slate-500">{option.description}</p>
                 </div>
               </div>
@@ -3224,7 +3229,6 @@ export default function TestMembersSandbox() {
       case 'color': return selectedColor !== '';
       case 'size': return selectedShirtSize !== '';
       case 'type': return qrType !== '';
-      case 'location': return graphicLocation !== '';
       case 'graphic-size': return graphicSize !== '';
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
@@ -3568,16 +3572,7 @@ export default function TestMembersSandbox() {
                   />
                 )}
                 
-                {/* Step 2: Graphic Location */}
-                {simpleStep === 'location' && (
-                  <GraphicLocationStep
-                    selectedLocation={graphicLocation}
-                    selectedColor={selectedColor}
-                    onSelect={setGraphicLocation}
-                  />
-                )}
-                
-                {/* Step 3: Graphic Size */}
+                {/* Step: Graphic Size */}
                 {simpleStep === 'graphic-size' && (
                   <GraphicSizeStep
                     selectedSize={graphicSize}
@@ -3744,8 +3739,9 @@ export default function TestMembersSandbox() {
                     selectedPlacements={selectedPlacements}
                     placementConfigs={placementConfigs}
                     onToggle={(id) => {
+                      const placementId = id as PlacementOption;
                       setSelectedPlacements(prev => 
-                        prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+                        prev.includes(placementId) ? prev.filter(p => p !== placementId) : [...prev, placementId]
                       );
                       if (!placementConfigs[id]) {
                         setPlacementConfigs(prev => ({ ...prev, [id]: { type: 'qr', size: 'medium' } }));
