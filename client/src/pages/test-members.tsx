@@ -593,17 +593,17 @@ function SizePickerStep({
   const shirtHeight = Math.round(140 * scale);
   
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-3">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">What Size?</h2>
-        <p className="text-slate-400">Select your size</p>
+        <h2 className="text-xl font-bold text-white mb-1">What Size?</h2>
+        <p className="text-slate-400 text-sm">Select your size</p>
       </div>
       
       {/* Shirt preview - scales based on selected size */}
-      <div className="flex justify-center items-end h-[180px]">
+      <div className="flex justify-center items-end h-[200px]">
         <svg 
-          width={shirtWidth} 
-          height={shirtHeight} 
+          width={shirtWidth * 1.4} 
+          height={shirtHeight * 1.4} 
           viewBox="0 0 120 140" 
           className="drop-shadow-lg transition-all duration-300"
         >
