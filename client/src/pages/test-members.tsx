@@ -222,8 +222,8 @@ async function fetchProductMockup(
       blueprintId, printProviderId, colorName, placement: canonicalPlacementId, qrSize 
     });
     
-    // Use same endpoint as test-products: /api/test/mockup/priority
-    const response = await fetch('/api/test/mockup/priority', {
+    // Use member-specific endpoint (same pattern as test-products)
+    const response = await fetch('/api/members/mockup/priority', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({

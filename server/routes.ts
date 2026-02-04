@@ -9414,6 +9414,57 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Generate priority mockup for member (same pattern as /api/test/mockup/priority)
+  app.post("/api/members/mockup/priority", isAuthenticated, async (req: any, res) => {
+    try {
+      const { 
+        blueprintId, printProviderId, colorName, colorHex, 
+        placement, artworkUrl, qrSize = "medium",
+        fulfillmentProvider = "printify"
+      } = req.body;
+
+      if (!blueprintId || !colorName || !artworkUrl) {
+        return res.status(400).json({ 
+          error: "Missing required fields: blueprintId, colorName, artworkUrl" 
+        });
+      }
+
+      console.log(`[Member Mockup] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
+
+      const { getMockupWithFallback } = await import("./lib/mockup-service");
+      
+      const result = await getMockupWithFallback({
+        blueprintId: parseInt(blueprintId),
+        printProviderId: parseInt(printProviderId) || 99,
+        colorName,
+        colorHex,
+        canonicalPlacementId: placement || "FRONT_CHEST",
+        artworkUrl,
+        artworkVariant: "black",
+        qrSize: qrSize as 'small' | 'medium' | 'large',
+        fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
+      }, storage);
+
+      console.log(`[Member Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+
+      res.json({
+        success: true,
+        mockupUrl: result.mockupUrl,
+        lifestyleMockupUrl: result.lifestyleMockupUrl,
+        fromCache: result.fromCache,
+        generatedAt: result.generatedAt,
+      });
+    } catch (error: any) {
+      console.error("[Member Mockup] Error:", error);
+      res.json({
+        success: false,
+        error: error.message,
+        mockupUrl: null,
+        message: "Mockup generation in progress - check back shortly",
+      });
+    }
+  });
+
   // Create a new channel for member
   app.post("/api/members/:memberId/channels", async (req: any, res) => {
     try {
