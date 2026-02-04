@@ -87,7 +87,7 @@ type SimpleWizardStep = 'product' | 'color' | 'size' | 'type' | 'placement-count
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
 // Matches Printify placement IDs
-type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right' | 'shoulder_left' | 'shoulder_right';
+type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right' | 'arm_left' | 'arm_right';
 type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop';
@@ -149,8 +149,8 @@ const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: stri
   { id: 'back', label: 'Back Center', description: 'Large back print', sizeLabel: '12"×14"' },
   { id: 'sleeve_left', label: 'Left Sleeve', description: 'Small sleeve print', sizeLabel: '3"×3"' },
   { id: 'sleeve_right', label: 'Right Sleeve', description: 'Small sleeve print', sizeLabel: '3"×3"' },
-  { id: 'shoulder_left', label: 'Left Shoulder', description: 'Shoulder area print', sizeLabel: '3"×3"' },
-  { id: 'shoulder_right', label: 'Right Shoulder', description: 'Shoulder area print', sizeLabel: '3"×3"' },
+  { id: 'arm_left', label: 'Left Arm', description: 'Upper arm print', sizeLabel: '3"×3"' },
+  { id: 'arm_right', label: 'Right Arm', description: 'Upper arm print', sizeLabel: '3"×3"' },
 ];
 
 // Advanced Wizard - full 8 steps (unlocks after 1st publish)
@@ -976,6 +976,8 @@ function PlacementCountStep({
     'back': { x: 90, y: 100, size: 24 },
     'sleeve_left': { x: 44, y: 52, size: 6 },
     'sleeve_right': { x: 136, y: 52, size: 6 },
+    'arm_left': { x: 56, y: 44, size: 6 },
+    'arm_right': { x: 124, y: 44, size: 6 },
   };
   
   return (
