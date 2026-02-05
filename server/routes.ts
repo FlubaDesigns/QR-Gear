@@ -10119,11 +10119,11 @@ ${allPages.map(page => `  <url>
       // Determine media type from mime
       const mediaType = mimeType.startsWith('video/') ? 'video' : 'image';
       
-      // Create member-scoped storage path (add cropped subfolder for cropped images)
+      // Create member-scoped storage path: members/{memberId}/library/{type}
       const sanitizedName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const folder = isCropped 
-        ? `members/${memberId}/${assetType}s/cropped` 
-        : `members/${memberId}/${assetType}s`;
+        ? `members/${memberId}/library/cropped` 
+        : `members/${memberId}/library/backgrounds`;
       
       const uploadResult = await uploadToFirebaseStorage(
         buffer,
@@ -10196,7 +10196,7 @@ ${allPages.map(page => `  <url>
       const mimeType = 'image/png';
       
       const sanitizedName = `${Date.now()}-cropped-${sourceAssetId}.png`;
-      const folder = `members/${memberId}/cropped`;
+      const folder = `members/${memberId}/library/cropped`;
       
       const uploadResult = await uploadToFirebaseStorage(
         buffer,
@@ -10275,7 +10275,7 @@ ${allPages.map(page => `  <url>
       const ext = mimeType === 'video/mp4' ? 'mp4' : mimeType === 'video/webm' ? 'webm' : 'mov';
       const originalName = inputFileName || `video-${Date.now()}.${ext}`;
       const sanitizedName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const folder = `members/${memberId}/videos`;
+      const folder = `members/${memberId}/library/videos`;
       
       const uploadResult = await uploadToFirebaseStorage(
         buffer,
@@ -10544,6 +10544,10 @@ ${allPages.map(page => `  <url>
       
       // Fallback: Try different possible paths
       const possiblePaths = [
+        `members/${memberId}/library/backgrounds/${decodedFilename}`,
+        `members/${memberId}/library/cropped/${decodedFilename}`,
+        `members/${memberId}/library/videos/${decodedFilename}`,
+        // Legacy paths for backwards compatibility
         `members/${memberId}/backgrounds/${decodedFilename}`,
         `members/${memberId}/videos/${decodedFilename}`,
         `members/${memberId}/cropped/${decodedFilename}`,
