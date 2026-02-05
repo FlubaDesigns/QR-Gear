@@ -64,7 +64,8 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   let currentY = padding;
 
   if (topText && topText.text) {
-    const fontSize = parseInt(topText.fontSize) * 3;
+    // Scale font for print resolution (1200x1800) - use 1.5x multiplier to match preview proportions
+    const fontSize = parseInt(topText.fontSize) * 1.5;
     const fontFamily = FONT_MAP[topText.fontFamily] || "Arial";
     const fillColor = topText.color || textColor;
     
@@ -76,7 +77,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     // Apply stroke if configured
     if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
       ctx.strokeStyle = topText.strokeColor;
-      ctx.lineWidth = topText.strokeWidth * 3;
+      ctx.lineWidth = topText.strokeWidth * 1.5;
     }
     
     const lines = wrapText(ctx, topText.text, width - padding * 2);
@@ -91,9 +92,9 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   }
 
   // Support black or white QR codes for different shirt colors
+  // QR needs a contrasting background to be scannable
   const qrDark = qrColor === 'white' ? "#FFFFFF" : "#000000";
-  // Use hex with alpha (00 = fully transparent) - qrcode library requires hex format
-  const qrLight = "#FFFFFF00";
+  const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF"; // Solid background, not transparent
   
   const qrDataUrl = await QRCode.toDataURL(qrUrl, {
     width: qrSize,
@@ -104,12 +105,23 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const qrImage = await loadImage(qrDataUrl);
   const qrX = (width - qrSize) / 2;
   const qrY = topText ? currentY : (height - qrSize) / 2 - (bottomText ? 100 : 0);
+  
+  // Draw white background behind QR for visibility on colored shirts
+  // Add rounded corners for a polished look
+  const bgPadding = 20;
+  const bgRadius = 16;
+  ctx.fillStyle = qrLight;
+  ctx.beginPath();
+  ctx.roundRect(qrX - bgPadding, qrY - bgPadding, qrSize + bgPadding * 2, qrSize + bgPadding * 2, bgRadius);
+  ctx.fill();
+  
   ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
   
   currentY = qrY + qrSize + padding;
 
   if (bottomText && bottomText.text) {
-    const fontSize = parseInt(bottomText.fontSize) * 3;
+    // Scale font for print resolution (1200x1800) - use 1.5x multiplier to match preview proportions
+    const fontSize = parseInt(bottomText.fontSize) * 1.5;
     const fontFamily = FONT_MAP[bottomText.fontFamily] || "Arial";
     const fillColor = bottomText.color || textColor;
     
@@ -121,7 +133,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     // Apply stroke if configured
     if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
       ctx.strokeStyle = bottomText.strokeColor;
-      ctx.lineWidth = bottomText.strokeWidth * 3;
+      ctx.lineWidth = bottomText.strokeWidth * 1.5;
     }
     
     const lines = wrapText(ctx, bottomText.text, width - padding * 2);
