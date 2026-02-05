@@ -5,10 +5,10 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 
 ## Image Naming Convention (Members Wizard)
 These are the canonical names for image state variables in the members wizard:
-- **productGraphic** = Graphic created for the physical item (shirt, cup, etc.)
+- **productGraphic** = Graphic created for the physical item (shirt, cup, etc.) - composed of header + QR code + footer
 - **urlGraphic** = Graphic shown on phone when QR is scanned (the landing page background)
 - **qrBasicMockup** = The product mockup image (NO "Url" suffix)
-- **qrGraphic** = The actual QR code image
+- **qrGraphic** = The actual QR code image (bare QR, no text)
 
 ## User Preferences
 - **Communication**: Simple, everyday language
