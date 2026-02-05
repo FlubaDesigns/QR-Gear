@@ -51,8 +51,12 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
 
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, width, height);
+  // Only fill background if it's not transparent
+  // Canvas is transparent by default for PNG output
+  if (backgroundColor && backgroundColor !== "transparent") {
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   const padding = 60;
   const textColor = "#000000";

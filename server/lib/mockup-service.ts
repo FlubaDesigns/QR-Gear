@@ -144,7 +144,9 @@ export async function getMockupWithFallback(
     }
   }
 
-  // Step 1: Check cache (includes qrSize to get size-specific mockup)
+  // Step 1: Check cache (includes qrSize and artworkUrl to get exact mockup)
+  // For member-generated productGraphics (data URIs), artworkUrl is unique per composite
+  // so we must include it in the cache lookup to avoid returning stale mockups
   const cached = await db
     .select()
     .from(mockupCache)
@@ -155,7 +157,8 @@ export async function getMockupWithFallback(
         eq(mockupCache.colorName, colorName),
         eq(mockupCache.canonicalPlacementId, canonicalPlacementId),
         eq(mockupCache.artworkVariant, artworkVariant),
-        eq(mockupCache.qrSize, qrSize)
+        eq(mockupCache.qrSize, qrSize),
+        eq(mockupCache.artworkUrl, artworkUrl)
       )
     )
     .limit(1);
