@@ -2033,7 +2033,7 @@ function PlacementCountStep({
                       {option.label}
                     </p>
                     {option.sizeLabel && (
-                      <span className="text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded w-fit">{option.sizeLabel}</span>
+                      <span className="text-[10px] text-slate-400 bg-slate-700 px-1 py-0.5 rounded w-fit whitespace-nowrap">{option.sizeLabel}</span>
                     )}
                   </div>
                   <p className="text-xs text-slate-500">{option.description}</p>
