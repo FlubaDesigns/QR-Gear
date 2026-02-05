@@ -92,7 +92,7 @@ type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | '
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
-type QRCanvasSaveOption = 'canvas' | 'qr' | 'both' | 'skip' | '';
+type QRCanvasSaveOption = 'canvas' | 'qr' | 'both' | '';
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
 type PlacementGraphicChoice = 'full' | 'qr-only' | '';
@@ -1936,7 +1936,6 @@ function QRCanvasSaveChoiceStep({
     { id: 'canvas', label: 'Save Background', description: 'Save the background image to your library', icon: <ImagePlus className="w-8 h-8" /> },
     { id: 'qr', label: 'Save QR Code', description: 'Save the generated QR code graphic', icon: <QrCode className="w-8 h-8" /> },
     { id: 'both', label: 'Save Both', description: 'Save the background and QR code separately', icon: <Library className="w-8 h-8" /> },
-    { id: 'skip', label: 'Skip', description: "Don't save anything to library", icon: <X className="w-8 h-8" /> },
   ];
   
   return (
@@ -1999,9 +1998,7 @@ function QRCanvasConfirmStep({
         return { title: 'QR Code Saved!', description: 'Your QR code graphic has been saved to your library.' };
       case 'both':
         return { title: 'Both Saved!', description: 'Your background and QR code have been saved to your library.' };
-      case 'skip':
-        return { title: 'All Done!', description: 'Your creation has been published.' };
-      default:
+            default:
         return { title: 'Done!', description: 'Your creation is ready.' };
     }
   };
@@ -2019,7 +2016,7 @@ function QRCanvasConfirmStep({
       </div>
       
       {/* Show what was saved */}
-      {saveChoice !== 'skip' && (
+      {(
         <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
           {(saveChoice === 'canvas' || saveChoice === 'both') && backgroundUrl && (
             <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
