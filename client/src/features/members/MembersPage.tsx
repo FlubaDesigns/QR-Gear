@@ -4329,16 +4329,38 @@ function SimplePreviewStep({
   return (
     <div className="text-center space-y-4">
       <div>
-        <h2 className="text-xl font-bold text-white mb-1">Your Creation</h2>
-        <p className="text-slate-400 text-sm">Here's what it will look like when scanned</p>
+        <h2 className="text-xl font-bold text-white mb-1">Your Landing Page</h2>
+        <p className="text-slate-400 text-sm">This is what people see when they scan your QR code</p>
       </div>
 
       <div className="pt-4">
-        <PhoneMockupWithQR
-          background={background}
-          headerText={title}
-          footerText={description}
-        />
+        {/* Phone mockup showing ONLY background + title + description - NO QR */}
+        <div className="relative mx-auto" style={{ width: '180px' }}>
+          <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+            <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
+            <div className="aspect-[9/19] relative">
+              {background && (
+                <img 
+                  src={background} 
+                  alt="Background" 
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              )}
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                {title && (
+                  <h3 className="text-white font-bold text-lg text-center mb-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                    {title}
+                  </h3>
+                )}
+                {description && (
+                  <p className="text-white/90 text-sm text-center" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                    {description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Button
