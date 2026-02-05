@@ -122,6 +122,26 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
 - **COMPOSER creates TEMPLATES/PACKETS** (sellable items, member-owned)
 - **DYNAMICS controls INSTANCES** (buyer-owned, subscription-backed hosting)
 
+### Member Library Storage Paths (Firebase Storage)
+Each member has their own isolated library in Firebase Storage:
+- **Backgrounds**: `members/{memberId}/library/backgrounds` - Original uploaded images
+- **Cropped**: `members/{memberId}/library/cropped` - 9:16 cropped versions for landing pages
+- **Videos**: `members/{memberId}/library/videos` - Video uploads for QR Play
+
+**Crop Flow**: When a member crops an image in the wizard:
+1. Original saves to `members/{memberId}/library/backgrounds`
+2. Cropped version saves to `members/{memberId}/library/cropped`
+
+**Firestore Collection**: `memberLibrary` stores metadata with fields:
+- `memberId`, `assetType`, `mediaType`, `name`, `fileName`, `storageUrl`, `publicUrl`
+- `isCropped: boolean` - true for cropped images
+- `originalAssetId` - links cropped to original
+
+**API Endpoints**:
+- `GET /api/members/:memberId/library` - Fetch member's personal library
+- `POST /api/members/:memberId/library/upload` - Upload new asset (set `isCropped: true` for cropped)
+- `GET /api/member-files/:memberId/:filename` - Proxy to serve files
+
 ### Member Creation Wizards (Progressive Unlock System)
 Three-tier graduated learning for members who CREATE products to sell:
 - **Quick Create** (Simple Wizard) - Available immediately, 5 steps: Channel → Type → Background → Details → Publish
