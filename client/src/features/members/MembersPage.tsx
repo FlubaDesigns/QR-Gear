@@ -6323,41 +6323,59 @@ function MembersSandboxContent() {
                       setSimpleStep('qr-plus-mockup');
                       
                       try {
-                        // Step 1: Generate QR graphic if not already set (same as QR Basic)
+                        // Step 1: Generate qrGraphic (the actual QR code)
                         const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
                         const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
                         setQrGraphic(qrApiUrl);
-                        setProductGraphic(qrApiUrl);
-                        console.log('[QR Plus] Generated QR graphic:', qrApiUrl);
+                        console.log('[QR Plus] Generated qrGraphic:', qrApiUrl);
                         
-                        // Step 2: Generate mockup using same pattern as QR Basic
+                        // Step 2: Generate productGraphic (composite: header + QR + footer)
+                        // This is what goes on the physical product (shirt, cup, etc.)
+                        console.log('[QR Plus] Generating productGraphic with header/footer...');
+                        const productGraphicResult = await api.generateProductGraphic({
+                          qrUrl: previewUrl,
+                          headerStyle: headerStyle,
+                          footerStyle: footerStyle,
+                          textLayoutChoice: textLayoutChoice,
+                          qrColor: 'black',
+                        });
+                        
+                        if (productGraphicResult.success && productGraphicResult.productGraphic) {
+                          setProductGraphic(productGraphicResult.productGraphic);
+                          console.log('[QR Plus] Generated productGraphic (composite)');
+                        } else {
+                          console.warn('[QR Plus] productGraphic generation failed, using qrGraphic as fallback');
+                          setProductGraphic(qrApiUrl);
+                        }
+                        
+                        // Step 3: Generate mockup using the productGraphic (composite with header/footer)
                         if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
                           const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
                           console.log('[QR Plus] Generating mockup with graphicSize:', graphicSize, '→ effectiveQrSize:', effectiveQrSize);
+                          
+                          // Use productGraphic (composite) for the mockup, not bare qrGraphic
+                          const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic 
+                            ? productGraphicResult.productGraphic 
+                            : qrApiUrl;
                           
                           const mockupResult = await api.generateMockup({
                             blueprintId: selectedProductType.blueprintId,
                             printProviderId: selectedProductType.printProviderId,
                             colorName: selectedColor,
-                            artworkUrl: qrApiUrl,
+                            artworkUrl: artworkForMockup,
                             placement: 'FRONT_CHEST',
                             qrSize: effectiveQrSize,
                           });
                           
-                          // DEBUG: Log FULL response
-                          console.log('[QR Plus] FULL API Response:', JSON.stringify(mockupResult, null, 2));
-                          console.log('[QR Plus] mockupUrl FULL:', mockupResult.mockupUrl);
-                          console.log('[QR Plus] lifestyleMockupUrl FULL:', mockupResult.lifestyleMockupUrl);
+                          console.log('[QR Plus] Mockup API Response:', JSON.stringify(mockupResult, null, 2));
                           
                           const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-                          console.log('[QR Plus] bestUrl selected:', bestUrl);
                           
                           if (mockupResult.success && bestUrl) {
                             console.log('[QR Plus] SUCCESS - Setting qrPlusMockup to:', bestUrl);
                             setQrPlusMockup(bestUrl);
                           } else {
                             console.warn('[QR Plus] FAILED - Using QR fallback. Error:', mockupResult.error);
-                            console.warn('[QR Plus] qrApiUrl is:', qrApiUrl.substring(0, 50) + '...');
                             setQrPlusMockup(qrApiUrl);
                           }
                         } else {

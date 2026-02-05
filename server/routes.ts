@@ -9465,6 +9465,76 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // Generate composite productGraphic (header + QR + footer) for QR Plus
+  app.post("/api/members/generate-product-graphic", isAuthenticated, async (req: any, res) => {
+    try {
+      const { 
+        qrUrl,
+        headerStyle,
+        footerStyle,
+        textLayoutChoice,
+        qrColor = 'black'
+      } = req.body;
+
+      if (!qrUrl) {
+        return res.status(400).json({ error: "Missing required field: qrUrl" });
+      }
+
+      console.log(`[ProductGraphic] Generating composite with layout: ${textLayoutChoice}`);
+
+      const { generatePrintifyComposite } = await import("./lib/composite-image-generator");
+      
+      // Build text objects based on layout choice
+      const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
+      const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+      
+      const topText = showHeader && headerStyle?.text ? {
+        text: headerStyle.text,
+        fontFamily: headerStyle.fontFamily || 'Arial',
+        fontSize: headerStyle.fontSize || '48',
+        color: headerStyle.color || '#000000',
+        letterSpacing: headerStyle.letterSpacing || 0,
+        warpPreset: headerStyle.warpPreset || 'straight',
+        strokeColor: headerStyle.strokeColor,
+        strokeWidth: headerStyle.strokeWidth,
+      } : null;
+      
+      const bottomText = showFooter && footerStyle?.text ? {
+        text: footerStyle.text,
+        fontFamily: footerStyle.fontFamily || 'Arial',
+        fontSize: footerStyle.fontSize || '48',
+        color: footerStyle.color || '#000000',
+        letterSpacing: footerStyle.letterSpacing || 0,
+        warpPreset: footerStyle.warpPreset || 'straight',
+        strokeColor: footerStyle.strokeColor,
+        strokeWidth: footerStyle.strokeWidth,
+      } : null;
+
+      // Generate the composite productGraphic (returns data URL)
+      const productGraphicDataUrl = await generatePrintifyComposite(
+        qrUrl,
+        topText,
+        bottomText,
+        1200,  // width
+        1800,  // height
+        qrColor as 'black' | 'white'
+      );
+
+      console.log(`[ProductGraphic] Generated composite, length: ${productGraphicDataUrl.length}`);
+
+      res.json({
+        success: true,
+        productGraphic: productGraphicDataUrl,
+      });
+    } catch (error: any) {
+      console.error("[ProductGraphic] Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
+
   // Create a new channel for member
   app.post("/api/members/:memberId/channels", async (req: any, res) => {
     try {

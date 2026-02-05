@@ -20,6 +20,32 @@ export interface Channel {
   storeId?: string;
 }
 
+export interface TextStyleConfig {
+  text: string;
+  fontFamily?: string;
+  fontSize?: string;
+  color?: string;
+  letterSpacing?: number;
+  warpPreset?: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+  enabled?: boolean;
+}
+
+export interface ProductGraphicParams {
+  qrUrl: string;
+  headerStyle?: TextStyleConfig | null;
+  footerStyle?: TextStyleConfig | null;
+  textLayoutChoice: 'header' | 'footer' | 'both' | '';
+  qrColor?: 'black' | 'white';
+}
+
+export interface ProductGraphicResult {
+  success: boolean;
+  productGraphic: string | null;
+  error?: string;
+}
+
 export interface MembersApi {
   baseUrl: string;
   getAuthHeaders: () => Promise<HeadersInit>;
@@ -29,6 +55,7 @@ export interface MembersApi {
   fetchChannels: (memberId: string) => Promise<Channel[]>;
   createChannel: (memberId: string, name: string, storeId?: string) => Promise<Channel>;
   generateMockup: (params: MockupParams) => Promise<MockupResult>;
+  generateProductGraphic: (params: ProductGraphicParams) => Promise<ProductGraphicResult>;
 }
 
 export interface MockupParams {
@@ -116,6 +143,36 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
         });
         if (!res.ok) throw new Error(`Failed to create channel: ${res.status}`);
         return res.json();
+      },
+
+      generateProductGraphic: async (params: ProductGraphicParams): Promise<ProductGraphicResult> => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${apiBase}/generate-product-graphic`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({
+            qrUrl: params.qrUrl,
+            headerStyle: params.headerStyle,
+            footerStyle: params.footerStyle,
+            textLayoutChoice: params.textLayoutChoice,
+            qrColor: params.qrColor || 'black',
+          }),
+        });
+        
+        if (!res.ok) {
+          return {
+            success: false,
+            productGraphic: null,
+            error: `ProductGraphic API error: ${res.status}`,
+          };
+        }
+
+        const data = await res.json();
+        return {
+          success: data.success,
+          productGraphic: data.productGraphic || null,
+          error: data.error,
+        };
       },
 
       generateMockup: async (params: MockupParams): Promise<MockupResult> => {
