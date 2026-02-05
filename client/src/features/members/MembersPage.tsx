@@ -1935,15 +1935,9 @@ function PlacementCountStep({
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  // Use actual product placements if available, otherwise fall back to defaults
-  const displayPlacements = productPlacements && productPlacements.length > 0
-    ? productPlacements.map(p => ({
-        id: p.id as PlacementOption,
-        label: p.title,
-        description: p.widthInches && p.heightInches ? 'Product-specific print area' : 'Print area',
-        sizeLabel: p.widthInches && p.heightInches ? `${p.widthInches}×${p.heightInches}` : '',
-      }))
-    : PLACEMENT_OPTIONS;
+  // Always show all placement options - PLACEMENT_OPTIONS is the source of truth
+  // productPlacements from API can be used for dimension lookup but we always show all options
+  const displayPlacements = PLACEMENT_OPTIONS;
   
   // Positions on SVG for each Printify placement - TRUE TO RATIO
   // Sleeve positions adjusted to be on actual sleeve areas of the shirt SVG

@@ -9812,19 +9812,11 @@ ${allPages.map(page => `  <url>
         const profit = retailPrice - baseCost;
         const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
         
-        // Use stored placements if available, otherwise use common defaults for apparel
-        let placements: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[] = p.availablePlacements || [];
-        
-        // Convert string array to objects if needed
-        if (placements.length > 0 && typeof placements[0] === 'string') {
-          placements = (placements as unknown as string[]).map((pl: string) => ({
-            id: pl,
-            title: pl.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-          }));
-        }
+        // Always fetch ACTUAL placements from Printify API when possible (they have real dimensions)
+        let placements: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[] = [];
         
         // Fetch ACTUAL placement dimensions from Printify if we have blueprintId + printProviderId
-        if (p.blueprintId && printProviderId && placements.length === 0) {
+        if (p.blueprintId && printProviderId) {
           try {
             const { printify } = await import("./lib/printify");
             const variantsResult = await printify.getVariants(p.blueprintId, printProviderId);
