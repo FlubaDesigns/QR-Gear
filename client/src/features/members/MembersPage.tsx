@@ -3246,6 +3246,7 @@ interface SimpleBackgroundStepProps {
   onBackgroundSelected: (croppedUrl: string, originalUrl: string, needsCrop: boolean) => void;
   onComplete: () => void;
   initialSubStep?: BackgroundSubStep; // Skip 'choice' if already decided
+  croppedOnly?: boolean; // Show only cropped images and skip crop step
 }
 
 interface LibraryAsset {
@@ -3445,7 +3446,8 @@ function SimpleBackgroundStep({
   background,
   onBackgroundSelected,
   onComplete,
-  initialSubStep = 'choice'
+  initialSubStep = 'choice',
+  croppedOnly = false
 }: SimpleBackgroundStepProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -3552,13 +3554,19 @@ function SimpleBackgroundStep({
 
   const handleAssetSelect = (asset: LibraryAsset) => {
     setSelectedAsset(asset);
-    if (isAlready916(asset)) {
+    // If croppedOnly mode, always skip crop (these are pre-cropped images)
+    if (croppedOnly || isAlready916(asset)) {
       onBackgroundSelected(asset.publicUrl, asset.publicUrl, false);
       onComplete();
     } else {
       setShowCrop(true);
     }
   };
+  
+  // Filter personal assets to only show cropped images when croppedOnly is true
+  const filteredPersonalAssets = croppedOnly 
+    ? personalAssets.filter(asset => isAlready916(asset))
+    : personalAssets;
 
   const handleCropComplete = (croppedUrl: string) => {
     const originalUrl = selectedAsset?.publicUrl || '';
@@ -3717,20 +3725,26 @@ function SimpleBackgroundStep({
       {subStep === 'personal-library' && (
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-lg font-bold text-white mb-2">Your Library</h2>
-            <p className="text-slate-400">Select an image to use</p>
+            <h2 className="text-lg font-bold text-white mb-2">
+              {croppedOnly ? "Your Cropped Images" : "Your Library"}
+            </h2>
+            <p className="text-slate-400">
+              {croppedOnly ? "Ready to use - no cropping needed" : "Select an image to use"}
+            </p>
           </div>
 
           {loadingPersonal ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
             </div>
-          ) : personalAssets.length === 0 ? (
+          ) : filteredPersonalAssets.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-700 flex items-center justify-center">
                 <ImagePlus className="w-8 h-8 text-slate-500" />
               </div>
-              <p className="text-slate-400 mb-4">No images in your library yet</p>
+              <p className="text-slate-400 mb-4">
+                {croppedOnly ? "No cropped images yet - crop some from the raw library first" : "No images in your library yet"}
+              </p>
               <Button onClick={() => setSubStep('upload')} data-testid="button-bg-upload-instead">
                 <Upload className="w-4 h-4 mr-2" />
                 Upload One
@@ -3738,7 +3752,7 @@ function SimpleBackgroundStep({
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3 max-h-[400px] overflow-y-auto">
-              {personalAssets.map((asset) => (
+              {filteredPersonalAssets.map((asset) => (
                 <button
                   key={asset.id}
                   onClick={() => handleAssetSelect(asset)}
@@ -6454,6 +6468,7 @@ function MembersSandboxContent() {
                       libraryChoice === 'personal' ? 'personal-library' :
                       libraryChoice === 'common' ? 'common-library' : 'choice'
                     }
+                    croppedOnly={libraryChoice === 'personal'}
                   />
                 )}
                 
