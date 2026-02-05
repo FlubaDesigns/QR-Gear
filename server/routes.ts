@@ -9636,32 +9636,114 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Create a new member product
+  // Create a new member product (supports both Printful products and QR Canvas packets)
   app.post("/api/members/:memberId/products", async (req: any, res) => {
     try {
       const { memberId } = req.params;
       const { 
+        // Printful product fields
         printfulProductId, 
         variantId,
         graphicUrl, 
-        qrType, 
         qrDestination, 
-        channelId,
         name,
-        price
+        price,
+        // QR Canvas/Play packet fields
+        packetType,
+        title,
+        description,
+        background,
+        storeId,
+        status,
+        // Common fields
+        qrType,
+        channelId,
+        // Header/footer for productGraphic
+        headerText,
+        footerText
       } = req.body;
 
-      if (!memberId || !printfulProductId) {
-        return res.status(400).json({ error: "memberId and printfulProductId are required" });
-      }
-      
       const auth = await verifyMemberAuth(req, memberId);
       if (!auth.authorized) {
         return res.status(401).json({ error: auth.error });
       }
 
-      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const { getFirestoreDb, getFirebaseStorage } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
+      
+      // QR Canvas/Play packet flow
+      if (packetType === 'qr-canvas' || packetType === 'qr-play') {
+        const packetId = `pkt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+        
+        // Create destination URL for the landing page
+        const baseUrl = process.env.PUBLIC_URL || 'https://qrgear-c1ffd.web.app';
+        const destinationUrl = `${baseUrl}/view/${packetId}`;
+        
+        // Generate qrGraphic (bare QR code pointing to destination URL)
+        const { generateTextQRCode } = await import("./lib/qr-generator");
+        const qrGraphicDataUrl = await generateTextQRCode(destinationUrl, { color: '#000000', backgroundColor: '#FFFFFF' });
+        
+        // Upload qrGraphic to Firebase Storage
+        const storage = getFirebaseStorage();
+        const bucket = storage.bucket();
+        const qrGraphicPath = `members/${memberId}/qr-graphics/${packetId}-qr.png`;
+        const qrBuffer = Buffer.from(qrGraphicDataUrl.split(',')[1], 'base64');
+        const qrFile = bucket.file(qrGraphicPath);
+        await qrFile.save(qrBuffer, { contentType: 'image/png' });
+        await qrFile.makePublic();
+        const qrGraphicUrl = `https://storage.googleapis.com/${bucket.name}/${qrGraphicPath}`;
+        
+        // Generate productGraphic (header + QR + footer composite) if we have header/footer
+        let productGraphicUrl = qrGraphicUrl; // Default to just QR if no text
+        if (headerText || footerText) {
+          const { generateCompositeImage } = await import("./lib/composite-image-generator");
+          const productGraphicDataUrl = await generateCompositeImage({
+            width: 1200,
+            height: 1800,
+            backgroundColor: 'transparent',
+            qrUrl: destinationUrl,
+            qrSize: 600,
+            qrColor: 'black',
+            topText: headerText ? { text: headerText, fontFamily: 'Arial', fontSize: '24px', color: '#000000' } : null,
+            bottomText: footerText ? { text: footerText, fontFamily: 'Arial', fontSize: '24px', color: '#000000' } : null
+          });
+          
+          // Upload productGraphic
+          const productGraphicPath = `members/${memberId}/product-graphics/${packetId}-product.png`;
+          const productBuffer = Buffer.from(productGraphicDataUrl.split(',')[1], 'base64');
+          const productFile = bucket.file(productGraphicPath);
+          await productFile.save(productBuffer, { contentType: 'image/png' });
+          await productFile.makePublic();
+          productGraphicUrl = `https://storage.googleapis.com/${bucket.name}/${productGraphicPath}`;
+        }
+        
+        const packetData = {
+          id: packetId,
+          memberId,
+          storeId: storeId || memberId,
+          channelId,
+          packetType,
+          title: title || 'Untitled',
+          description: description || '',
+          urlGraphic: background || null,
+          qrGraphic: qrGraphicUrl,
+          productGraphic: productGraphicUrl,
+          destinationUrl,
+          status: status || 'published',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        await firestoreDb.collection("memberPackets").doc(packetId).set(packetData);
+
+        res.json(packetData);
+        return;
+      }
+      
+      // Original Printful product flow
+      if (!printfulProductId) {
+        return res.status(400).json({ error: "printfulProductId is required for product creation" });
+      }
       
       const productData = {
         memberId,

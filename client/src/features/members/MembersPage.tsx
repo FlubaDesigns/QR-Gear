@@ -4431,12 +4431,14 @@ function SimplePublishStep({
   isPublishing,
   onPublish,
   title,
+  description,
   qrType,
   background
 }: { 
   isPublishing: boolean;
   onPublish: () => void;
   title: string;
+  description?: string;
   qrType: QRType;
   background: string;
 }) {
@@ -4444,33 +4446,45 @@ function SimplePublishStep({
   
   return (
     <div className="text-center">
-      <div className="mb-8">
-        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-green-600/20 flex items-center justify-center">
-          <Sparkles className="w-10 h-10 text-green-400" />
+      <div className="mb-6">
+        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-green-600/20 flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-green-400" />
         </div>
-        <h2 className="text-lg font-bold text-white mb-2">Ready to Publish!</h2>
-        <p className="text-slate-400">Your {typeLabel.toLowerCase()} is ready to share with the world</p>
+        <h2 className="text-lg font-bold text-white mb-1">Ready to Publish!</h2>
+        <p className="text-slate-400 text-sm">Your {typeLabel.toLowerCase()} is ready to share</p>
       </div>
 
-      <Card className="bg-slate-800/50 border-slate-700 max-w-sm mx-auto mb-8">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            {background ? (
-              <div className="w-12 h-12 rounded-lg overflow-hidden">
-                <img src={background} alt="" className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center">
-                {qrType === 'qr-play' ? <Play className="w-6 h-6 text-slate-400" /> : <ImagePlus className="w-6 h-6 text-slate-400" />}
-              </div>
-            )}
-            <div className="text-left">
-              <p className="text-white font-medium">{title || 'Untitled'}</p>
-              <p className="text-slate-400 text-sm">{typeLabel}</p>
+      {/* 9:16 ratio thumbnail showing landing page with title/description */}
+      <div className="flex justify-center mb-6">
+        <div className="relative rounded-xl overflow-hidden border-2 border-slate-600 shadow-lg" style={{ width: '120px', aspectRatio: '9/16' }}>
+          {background ? (
+            <img 
+              src={background} 
+              alt="Landing page" 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-slate-700 flex items-center justify-center">
+              {qrType === 'qr-play' ? <Play className="w-8 h-8 text-slate-500" /> : <ImagePlus className="w-8 h-8 text-slate-500" />}
             </div>
+          )}
+          {/* Title/description overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+            {title && (
+              <p className="text-white font-bold text-xs text-center leading-tight" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                {title}
+              </p>
+            )}
+            {description && (
+              <p className="text-white/80 text-[8px] text-center mt-1 leading-tight line-clamp-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                {description}
+              </p>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      <p className="text-slate-400 text-xs mb-4">{typeLabel}</p>
 
       <Button
         size="lg"
@@ -6541,6 +6555,7 @@ function MembersSandboxContent() {
                     isPublishing={isPublishing}
                     onPublish={handleSimplePublish}
                     title={simpleTitle}
+                    description={simpleDescription}
                     qrType={qrType}
                     background={urlGraphic}
                   />
