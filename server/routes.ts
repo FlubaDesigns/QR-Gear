@@ -9481,12 +9481,18 @@ ${allPages.map(page => `  <url>
       }
 
       console.log(`[ProductGraphic] Generating composite with layout: ${textLayoutChoice}`);
+      console.log(`[ProductGraphic] headerStyle:`, JSON.stringify(headerStyle));
+      console.log(`[ProductGraphic] footerStyle:`, JSON.stringify(footerStyle));
+      console.log(`[ProductGraphic] qrUrl:`, qrUrl);
 
       const { generatePrintifyComposite } = await import("./lib/composite-image-generator");
       
       // Build text objects based on layout choice
       const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
       const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+      
+      console.log(`[ProductGraphic] showHeader: ${showHeader}, showFooter: ${showFooter}`);
+      console.log(`[ProductGraphic] headerStyle?.text: "${headerStyle?.text || ''}", footerStyle?.text: "${footerStyle?.text || ''}"`);
       
       const topText = showHeader && headerStyle?.text ? {
         text: headerStyle.text,
@@ -9509,6 +9515,9 @@ ${allPages.map(page => `  <url>
         strokeColor: footerStyle.strokeColor,
         strokeWidth: footerStyle.strokeWidth,
       } : null;
+      
+      console.log(`[ProductGraphic] topText:`, topText ? JSON.stringify(topText) : 'null');
+      console.log(`[ProductGraphic] bottomText:`, bottomText ? JSON.stringify(bottomText) : 'null');
 
       // Generate the composite productGraphic (returns data URL)
       const productGraphicDataUrl = await generatePrintifyComposite(

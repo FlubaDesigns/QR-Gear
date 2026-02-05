@@ -6331,7 +6331,22 @@ function MembersSandboxContent() {
                         
                         // Step 2: Generate productGraphic (composite: header + QR + footer)
                         // This is what goes on the physical product (shirt, cup, etc.)
-                        console.log('[QR Plus] Generating productGraphic with header/footer...');
+                        console.log('[QR Plus] Generating productGraphic with:');
+                        console.log('[QR Plus]   textLayoutChoice:', textLayoutChoice);
+                        console.log('[QR Plus]   headerStyle:', JSON.stringify({
+                          text: headerStyle.text,
+                          enabled: headerStyle.enabled,
+                          color: headerStyle.color,
+                          fontFamily: headerStyle.fontFamily,
+                          fontSize: headerStyle.fontSize,
+                        }));
+                        console.log('[QR Plus]   footerStyle:', JSON.stringify({
+                          text: footerStyle.text,
+                          enabled: footerStyle.enabled,
+                          color: footerStyle.color,
+                          fontFamily: footerStyle.fontFamily,
+                          fontSize: footerStyle.fontSize,
+                        }));
                         const productGraphicResult = await api.generateProductGraphic({
                           qrUrl: previewUrl,
                           headerStyle: headerStyle,
@@ -6340,11 +6355,19 @@ function MembersSandboxContent() {
                           qrColor: 'black',
                         });
                         
+                        console.log('[QR Plus] productGraphicResult:', JSON.stringify({
+                          success: productGraphicResult.success,
+                          hasProductGraphic: !!productGraphicResult.productGraphic,
+                          productGraphicLength: productGraphicResult.productGraphic?.length || 0,
+                          error: productGraphicResult.error,
+                        }));
+                        
                         if (productGraphicResult.success && productGraphicResult.productGraphic) {
                           setProductGraphic(productGraphicResult.productGraphic);
-                          console.log('[QR Plus] Generated productGraphic (composite)');
+                          console.log('[QR Plus] Generated productGraphic (composite), length:', productGraphicResult.productGraphic.length);
                         } else {
                           console.warn('[QR Plus] productGraphic generation failed, using qrGraphic as fallback');
+                          console.warn('[QR Plus] Fallback reason - success:', productGraphicResult.success, 'hasGraphic:', !!productGraphicResult.productGraphic);
                           setProductGraphic(qrApiUrl);
                         }
                         

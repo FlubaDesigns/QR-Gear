@@ -88,7 +88,8 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
 
   // Support black or white QR codes for different shirt colors
   const qrDark = qrColor === 'white' ? "#FFFFFF" : "#000000";
-  const qrLight = "transparent";  // Transparent background for overlay on shirts
+  // Use hex with alpha (00 = fully transparent) - qrcode library requires hex format
+  const qrLight = "#FFFFFF00";
   
   const qrDataUrl = await QRCode.toDataURL(qrUrl, {
     width: qrSize,
