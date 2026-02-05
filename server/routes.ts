@@ -9531,8 +9531,10 @@ ${allPages.map(page => `  <url>
 
       console.log(`[ProductGraphic] Generated composite, length: ${productGraphicDataUrl.length}`);
 
-      // Upload to Firebase Storage and return URL (like QR Basic uses qrserver URL)
-      const { uploadImageFromBuffer } = await import("./lib/firebase-storage-service");
+      // Upload to Firebase Storage with DIRECT public URL (no proxy needed)
+      // This gives us a URL like: https://storage.googleapis.com/bucket/path.png
+      // which Printful can fetch directly - just like qrserver.com URLs work for QR Basic
+      const { uploadToFirebasePublic } = await import("./lib/firebase-storage-service");
       const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (!match) {
         throw new Error("Invalid data URL format from composite generator");
@@ -9541,27 +9543,15 @@ ${allPages.map(page => `  <url>
       const mimeType = match[1];
       const base64Data = match[2];
       const buffer = Buffer.from(base64Data, 'base64');
-      const filename = `product-graphic-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
       
-      // Upload to library/backgrounds/raw which is already served by /api/library-files proxy
-      const uploadResult = await uploadImageFromBuffer(buffer, filename, mimeType, 'library/backgrounds/raw');
+      // Upload to Firebase with public access - returns direct Firebase URL
+      const uploadResult = await uploadToFirebasePublic(buffer, mimeType, 'member-graphics');
       
-      if (!uploadResult.publicUrl) {
-        console.error(`[ProductGraphic] Upload failed - no publicUrl returned`);
-        throw new Error("Failed to upload product graphic to storage");
-      }
-      
-      // Make absolute URL for Printful (they need full URL, not relative)
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : "http://localhost:5000";
-      const absoluteUrl = `${baseUrl}${uploadResult.publicUrl}`;
-      
-      console.log(`[ProductGraphic] Uploaded to: ${absoluteUrl}`);
+      console.log(`[ProductGraphic] Uploaded to Firebase: ${uploadResult.publicUrl}`);
 
       res.json({
         success: true,
-        productGraphic: absoluteUrl,  // Return absolute URL for Printful
+        productGraphic: uploadResult.publicUrl,  // Direct Firebase URL - Printful can fetch this
       });
     } catch (error: any) {
       console.error("[ProductGraphic] Error:", error);

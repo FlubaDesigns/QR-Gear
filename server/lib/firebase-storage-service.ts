@@ -98,6 +98,58 @@ export async function uploadToFirebaseStorage(
   };
 }
 
+/**
+ * Upload to Firebase Storage and return a DIRECT Firebase public URL
+ * This makes the file publicly accessible via Firebase's CDN
+ * Use this when external services (like Printful) need to fetch the image
+ */
+export async function uploadToFirebasePublic(
+  buffer: Buffer,
+  mimeType: string,
+  folder: string = 'member-graphics'
+): Promise<{ publicUrl: string; storagePath: string }> {
+  ensureFirebaseInitialized();
+  
+  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+    throw new Error(`Invalid file type: ${mimeType}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
+  }
+
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+  }
+
+  const extension = mimeType.split('/')[1] || 'png';
+  const uniqueId = crypto.randomBytes(16).toString('hex');
+  const objectName = `${folder}/${uniqueId}.${extension}`;
+
+  const bucket = getStorageBucket();
+  const file = bucket.file(objectName);
+
+  // Upload with public read access
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+    },
+    public: true,
+  });
+
+  // Make file publicly accessible
+  await file.makePublic();
+
+  // Get the direct Firebase public URL
+  const bucketName = bucket.name;
+  const encodedPath = encodeURIComponent(objectName);
+  const publicUrl = `https://storage.googleapis.com/${bucketName}/${encodedPath}`;
+
+  console.log(`[FirebaseStorage] Uploaded PUBLIC: ${objectName} (${buffer.length} bytes)`);
+  console.log(`[FirebaseStorage] Direct URL: ${publicUrl}`);
+
+  return {
+    publicUrl,
+    storagePath: objectName,
+  };
+}
+
 export async function uploadImageBase64(
   base64Data: string,
   originalName: string,
