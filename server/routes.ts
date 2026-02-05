@@ -9531,9 +9531,30 @@ ${allPages.map(page => `  <url>
 
       console.log(`[ProductGraphic] Generated composite, length: ${productGraphicDataUrl.length}`);
 
+      // Upload to Firebase Storage and return URL (like QR Basic uses qrserver URL)
+      const { uploadImageFromBuffer } = await import("./lib/firebase-storage-service");
+      const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        throw new Error("Invalid data URL format from composite generator");
+      }
+      
+      const mimeType = match[1];
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+      const filename = `product-graphic-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+      
+      const uploadResult = await uploadImageFromBuffer(buffer, filename, mimeType, 'member-graphics');
+      
+      if (!uploadResult.success || !uploadResult.publicUrl) {
+        console.error(`[ProductGraphic] Upload failed:`, uploadResult.error);
+        throw new Error("Failed to upload product graphic to storage");
+      }
+      
+      console.log(`[ProductGraphic] Uploaded to: ${uploadResult.publicUrl}`);
+
       res.json({
         success: true,
-        productGraphic: productGraphicDataUrl,
+        productGraphic: uploadResult.publicUrl,  // Return URL, not data URI
       });
     } catch (error: any) {
       console.error("[ProductGraphic] Error:", error);
