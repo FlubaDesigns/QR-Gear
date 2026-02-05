@@ -6344,19 +6344,20 @@ function MembersSandboxContent() {
                             qrSize: effectiveQrSize,
                           });
                           
+                          // DEBUG: Log FULL response
+                          console.log('[QR Plus] FULL API Response:', JSON.stringify(mockupResult, null, 2));
+                          console.log('[QR Plus] mockupUrl FULL:', mockupResult.mockupUrl);
+                          console.log('[QR Plus] lifestyleMockupUrl FULL:', mockupResult.lifestyleMockupUrl);
+                          
                           const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-                          console.log('[QR Plus] Mockup result:', { 
-                            success: mockupResult.success,
-                            lifestyleUrl: mockupResult.lifestyleMockupUrl?.substring(0, 60),
-                            flatUrl: mockupResult.mockupUrl?.substring(0, 60),
-                            bestUrl: bestUrl?.substring(0, 60),
-                            fromCache: mockupResult.fromCache 
-                          });
+                          console.log('[QR Plus] bestUrl selected:', bestUrl);
+                          
                           if (mockupResult.success && bestUrl) {
-                            console.log('[QR Plus] Setting qrPlusMockup to:', bestUrl.substring(0, 80));
+                            console.log('[QR Plus] SUCCESS - Setting qrPlusMockup to:', bestUrl);
                             setQrPlusMockup(bestUrl);
                           } else {
-                            console.warn('[QR Plus] Mockup fetch failed, using QR fallback:', mockupResult.error);
+                            console.warn('[QR Plus] FAILED - Using QR fallback. Error:', mockupResult.error);
+                            console.warn('[QR Plus] qrApiUrl is:', qrApiUrl.substring(0, 50) + '...');
                             setQrPlusMockup(qrApiUrl);
                           }
                         } else {
