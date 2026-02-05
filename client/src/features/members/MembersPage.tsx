@@ -88,10 +88,11 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
+type QRCanvasSaveOption = 'canvas' | 'qr' | 'both' | 'skip' | '';
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
 type PlacementGraphicChoice = 'full' | 'qr-only' | '';
@@ -1915,6 +1916,131 @@ function QRPlusConfirmStep({
         disabled={isSaving}
         className="px-8 py-4 bg-green-600 hover:bg-green-700 text-lg"
         data-testid="button-qr-plus-done"
+      >
+        {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+        Done
+      </Button>
+    </div>
+  );
+}
+
+// QR Canvas Save Choice Step - after publishing, choose what to save to library
+function QRCanvasSaveChoiceStep({
+  selected,
+  onSelect
+}: {
+  selected: QRCanvasSaveOption;
+  onSelect: (choice: QRCanvasSaveOption) => void;
+}) {
+  const options: { id: QRCanvasSaveOption; label: string; description: string; icon: React.ReactNode }[] = [
+    { id: 'canvas', label: 'Save Background', description: 'Save the background image to your library', icon: <ImagePlus className="w-8 h-8" /> },
+    { id: 'qr', label: 'Save QR Code', description: 'Save the generated QR code graphic', icon: <QrCode className="w-8 h-8" /> },
+    { id: 'both', label: 'Save Both', description: 'Save the background and QR code separately', icon: <Library className="w-8 h-8" /> },
+    { id: 'skip', label: 'Skip', description: "Don't save anything to library", icon: <X className="w-8 h-8" /> },
+  ];
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-green-600/20 flex items-center justify-center">
+          <Check className="w-8 h-8 text-green-400" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-2">Published Successfully!</h2>
+        <p className="text-slate-400">Would you like to save anything to your library?</p>
+      </div>
+      
+      <div className="grid gap-3 max-w-md mx-auto">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option.id)}
+            className={`p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${
+              selected === option.id
+                ? 'border-green-500 bg-green-500/10'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid={`button-canvas-save-${option.id}`}
+          >
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+              selected === option.id ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'
+            }`}>
+              {option.icon}
+            </div>
+            <div>
+              <div className="font-semibold text-white">{option.label}</div>
+              <div className="text-sm text-slate-400">{option.description}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// QR Canvas Confirm Step - confirmation after saving
+function QRCanvasConfirmStep({
+  saveChoice,
+  backgroundUrl,
+  qrGraphicUrl,
+  isSaving,
+  onDone
+}: {
+  saveChoice: QRCanvasSaveOption;
+  backgroundUrl: string | null;
+  qrGraphicUrl: string | null;
+  isSaving: boolean;
+  onDone: () => void;
+}) {
+  const getMessage = () => {
+    switch (saveChoice) {
+      case 'canvas':
+        return { title: 'Background Saved!', description: 'Your background image has been saved to your library.' };
+      case 'qr':
+        return { title: 'QR Code Saved!', description: 'Your QR code graphic has been saved to your library.' };
+      case 'both':
+        return { title: 'Both Saved!', description: 'Your background and QR code have been saved to your library.' };
+      case 'skip':
+        return { title: 'All Done!', description: 'Your creation has been published.' };
+      default:
+        return { title: 'Done!', description: 'Your creation is ready.' };
+    }
+  };
+  
+  const message = getMessage();
+  
+  return (
+    <div className="text-center space-y-6">
+      <div>
+        <div className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-4">
+          <Check className="w-10 h-10 text-white" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-2">{message.title}</h2>
+        <p className="text-slate-400">{message.description}</p>
+      </div>
+      
+      {/* Show what was saved */}
+      {saveChoice !== 'skip' && (
+        <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
+          {(saveChoice === 'canvas' || saveChoice === 'both') && backgroundUrl && (
+            <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+              <img src={backgroundUrl} alt="Background" className="w-28 h-28 object-cover rounded mx-auto mb-2" />
+              <p className="text-xs text-slate-400">Background</p>
+            </div>
+          )}
+          {(saveChoice === 'qr' || saveChoice === 'both') && qrGraphicUrl && (
+            <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+              <img src={qrGraphicUrl} alt="QR Code" className="w-28 h-28 object-contain mx-auto mb-2 bg-white rounded" />
+              <p className="text-xs text-slate-400">QR Code</p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <Button
+        onClick={onDone}
+        disabled={isSaving}
+        className="px-8 py-4 bg-green-600 hover:bg-green-700 text-lg"
+        data-testid="button-canvas-done"
       >
         {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
         Done
@@ -5635,6 +5761,12 @@ function MembersSandboxContent() {
   const [qrBasicSaveChoice, setQrBasicSaveChoice] = useState<QRBasicSaveOption>('');
   const [isQrBasicSaving, setIsQrBasicSaving] = useState(false);
   
+  // QR Canvas save-to-library state
+  const [canvasSaveChoice, setCanvasSaveChoice] = useState<QRCanvasSaveOption>('');
+  const [isCanvasSaving, setIsCanvasSaving] = useState(false);
+  const [publishedPacketId, setPublishedPacketId] = useState<string | null>(null);
+  const [publishedQrGraphicUrl, setPublishedQrGraphicUrl] = useState<string | null>(null);
+  
   // QR Plus flow state (fork at step 12 for qr-plus type)
   const [qrPlusMockup, setQrPlusMockup] = useState<string>(''); // The product mockup image with full graphic
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
@@ -5793,6 +5925,74 @@ function MembersSandboxContent() {
     }
   };
 
+  // Save QR Canvas assets to member library
+  const saveCanvasToLibrary = async () => {
+    if (!user?.id) return false;
+    
+    setIsCanvasSaving(true);
+    try {
+      const authHeaders = await getAuthHeaders();
+      const assetsToSave: { url: string; assetType: string; name: string }[] = [];
+      
+      // Determine what to save based on choice
+      if ((canvasSaveChoice === 'canvas' || canvasSaveChoice === 'both') && urlGraphic) {
+        assetsToSave.push({
+          url: urlGraphic,
+          assetType: 'background',
+          name: `${simpleTitle || 'Canvas'} - Background`
+        });
+      }
+      
+      if ((canvasSaveChoice === 'qr' || canvasSaveChoice === 'both') && publishedQrGraphicUrl) {
+        assetsToSave.push({
+          url: publishedQrGraphicUrl,
+          assetType: 'graphic',
+          name: `${simpleTitle || 'Canvas'} - QR Code`
+        });
+      }
+      
+      // Save each asset to member library
+      for (const asset of assetsToSave) {
+        try {
+          await fetch(`/api/members/${user.id}/library`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({
+              publicUrl: asset.url,
+              storageUrl: asset.url,
+              assetType: asset.assetType,
+              mediaType: 'image',
+              name: asset.name,
+              fileName: asset.name.replace(/[^a-zA-Z0-9]/g, '_') + '.png'
+            })
+          });
+          console.log('[Canvas Save] Saved to library:', asset.assetType, asset.name);
+        } catch (err) {
+          console.error('[Canvas Save] Failed to save:', asset.assetType, err);
+        }
+      }
+      
+      return true;
+    } finally {
+      setIsCanvasSaving(false);
+    }
+  };
+
+  // Handle QR Canvas done - reset wizard
+  const handleCanvasDone = () => {
+    setViewMode('channels');
+    setSimpleStep('channel');
+    setCurrentPacketId(null);
+    setSimpleTitle('');
+    setSimpleDescription('');
+    setQrType('');
+    setUrlGraphic('');
+    setProductGraphic('');
+    setCanvasSaveChoice('');
+    setPublishedPacketId(null);
+    setPublishedQrGraphicUrl(null);
+  };
+
   // Handle product selection - creates packet immediately
   const handleProductSelect = async (product: AllowedProduct) => {
     setSelectedProductType(product);
@@ -5917,6 +6117,19 @@ function MembersSandboxContent() {
       setCurrentPacketId(null);
       setQrPlusMockup('');
       setQrPlusSaveChoice('');
+      return;
+    }
+    
+    // Handle QR Canvas save flow navigation
+    if (simpleStep === 'canvas-save-choice') {
+      // Save to library based on choice, then confirm
+      await saveCanvasToLibrary();
+      setSimpleStep('canvas-confirm');
+      return;
+    }
+    if (simpleStep === 'canvas-confirm') {
+      // End of QR Canvas flow - reset wizard
+      handleCanvasDone();
       return;
     }
     
@@ -6093,6 +6306,9 @@ function MembersSandboxContent() {
       case 'qr-plus-mockup': return true;
       case 'qr-plus-save-choice': return qrPlusSaveChoice !== '';
       case 'qr-plus-confirm': return true;
+      // QR Canvas save flow
+      case 'canvas-save-choice': return canvasSaveChoice !== '';
+      case 'canvas-confirm': return true;
       default: return false;
     }
   };
@@ -6130,17 +6346,26 @@ function MembersSandboxContent() {
       
       if (!res.ok) throw new Error('Failed to publish');
       
+      const result = await res.json();
       incrementPublishCount();
-      setViewMode('channels');
       
-      // Reset simple wizard state for next use
-      setSimpleStep('channel');
-      setCurrentPacketId(null);
-      setSimpleTitle('');
-      setSimpleDescription('');
-      setQrType('');
-      setUrlGraphic('');
-      setProductGraphic('');
+      // For QR Canvas, show save-to-library choice
+      if (qrType === 'qr-canvas') {
+        setPublishedPacketId(result.packetId || null);
+        setPublishedQrGraphicUrl(result.qrGraphicUrl || null);
+        setSimpleStep('canvas-save-choice');
+      } else {
+        // For other types, go back to channels
+        setViewMode('channels');
+        // Reset simple wizard state for next use
+        setSimpleStep('channel');
+        setCurrentPacketId(null);
+        setSimpleTitle('');
+        setSimpleDescription('');
+        setQrType('');
+        setUrlGraphic('');
+        setProductGraphic('');
+      }
     } catch (error) {
       console.error('Simple publish error:', error);
       alert('Failed to publish. Please try again.');
@@ -6914,6 +7139,25 @@ function MembersSandboxContent() {
                     descColor={descColor}
                     descSize={descSize}
                     descFont={descFont}
+                  />
+                )}
+                
+                {/* QR Canvas: Save to Library Choice */}
+                {simpleStep === 'canvas-save-choice' && (
+                  <QRCanvasSaveChoiceStep
+                    selected={canvasSaveChoice}
+                    onSelect={setCanvasSaveChoice}
+                  />
+                )}
+                
+                {/* QR Canvas: Confirmation */}
+                {simpleStep === 'canvas-confirm' && (
+                  <QRCanvasConfirmStep
+                    saveChoice={canvasSaveChoice}
+                    backgroundUrl={urlGraphic}
+                    qrGraphicUrl={publishedQrGraphicUrl}
+                    isSaving={isCanvasSaving}
+                    onDone={handleCanvasDone}
                   />
                 )}
               </div>
