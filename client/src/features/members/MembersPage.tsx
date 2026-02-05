@@ -88,11 +88,13 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-publish' | 'play-save-choice' | 'play-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRCanvasSaveOption = 'item' | 'landing' | 'all' | '';
+type QRPlaySaveOption = 'video' | 'skip' | '';
+type PlayVideoSource = 'upload' | 'url' | 'library' | '';
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
 type PlacementGraphicChoice = 'full' | 'qr-only' | '';
@@ -216,6 +218,32 @@ const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'qr-plus-save-choice', label: 'Save Options', icon: Library },
   { id: 'qr-plus-confirm', label: 'Done', icon: Check },
 ];
+
+const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'channel', label: 'Channel', icon: Layers },
+  { id: 'product', label: 'Product', icon: Package },
+  { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
+  { id: 'color', label: 'Color', icon: Sparkles },
+  { id: 'size', label: 'Size', icon: Package },
+  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'placement-count', label: 'Placements', icon: Layers },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
+  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'text-choice', label: 'Layout', icon: Type },
+  { id: 'text-edit', label: 'Edit', icon: Type },
+  { id: 'placement-config', label: 'Configure', icon: Layers },
+  { id: 'shirt-preview', label: 'Preview', icon: Eye },
+  { id: 'canvas-fork', label: 'QR Experience', icon: Smartphone },
+  { id: 'play-video-source', label: 'Video', icon: Play },
+  { id: 'play-preview', label: 'Preview', icon: Eye },
+  { id: 'play-publish', label: 'Publish', icon: Send },
+  { id: 'play-save-choice', label: 'Save Options', icon: Library },
+  { id: 'play-confirm', label: 'Done', icon: Check },
+];
+
+const isQRPlayStep = (step: SimpleWizardStep): boolean => {
+  return step.startsWith('play-');
+};
 
 // ============================================================================
 // ROBUST MOCKUP FETCHER - Reusable across all QR phases
@@ -414,7 +442,9 @@ function SimpleWizardProgressBar({
     ? QR_BASIC_STEPS 
     : isQRPlusStep(currentStep) 
       ? QR_PLUS_STEPS 
-      : SIMPLE_WIZARD_STEPS;
+      : isQRPlayStep(currentStep)
+        ? QR_PLAY_STEPS
+        : SIMPLE_WIZARD_STEPS;
   const currentIndex = steps.findIndex(s => s.id === currentStep);
   const progress = ((currentIndex + 1) / steps.length) * 100;
   
@@ -3511,13 +3541,15 @@ interface LibraryAsset {
   isCropped?: boolean;
 }
 
-// Step 13: Canvas Fork - ask if they want online scannable image
-function CanvasForkStep({
-  onYes,
-  onNo
+// Step 13: Surface Picker - choose QR experience type (Canvas, Play, or Skip)
+function SurfacePickerStep({
+  onCanvas,
+  onPlay,
+  onSkip
 }: {
-  onYes: () => void;
-  onNo: () => void;
+  onCanvas: () => void;
+  onPlay: () => void;
+  onSkip: () => void;
 }) {
   return (
     <div className="text-center space-y-6">
@@ -3526,34 +3558,319 @@ function CanvasForkStep({
       </div>
       
       <div>
-        <h2 className="text-xl font-bold text-white mb-3">One More Thing...</h2>
+        <h2 className="text-xl font-bold text-white mb-3">What Happens When They Scan?</h2>
         <p className="text-slate-300 text-lg max-w-md mx-auto">
-          Would you like to create a scannable image that you can customize the background and text on?
+          Choose what people see when they scan your QR code
         </p>
       </div>
       
-      <div className="p-4 bg-slate-800/50 rounded-lg max-w-md mx-auto">
-        <p className="text-slate-300 text-base font-medium">
-          Make it yours! Show the world!
-        </p>
-      </div>
-      
-      <div className="flex flex-col gap-3 max-w-xs mx-auto pt-4">
+      <div className="flex flex-col gap-3 max-w-sm mx-auto pt-4">
         <Button
-          onClick={onYes}
-          className="w-full py-6 text-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
-          data-testid="button-canvas-yes"
+          onClick={onCanvas}
+          className="w-full py-6 text-lg bg-gradient-to-r from-purple-600 to-blue-600"
+          data-testid="button-surface-canvas"
         >
-          Yes, let's do it!
+          <ImagePlus className="w-5 h-5 mr-2" />
+          Image with Custom Background
         </Button>
         <Button
-          onClick={onNo}
+          onClick={onPlay}
+          className="w-full py-6 text-lg bg-gradient-to-r from-emerald-600 to-teal-600"
+          data-testid="button-surface-play"
+        >
+          <Play className="w-5 h-5 mr-2" />
+          Play a Video
+        </Button>
+        <Button
+          onClick={onSkip}
           variant="outline"
           className="w-full py-4 text-slate-300 border-slate-600"
-          data-testid="button-canvas-no"
+          data-testid="button-surface-skip"
         >
-          No, I'm good with just the shirt
+          No thanks, just the product
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function PlayVideoSourceStep({
+  videoUrl,
+  onVideoUrlChange,
+  onFileUpload,
+  isUploading,
+  uploadError
+}: {
+  videoUrl: string;
+  onVideoUrlChange: (url: string) => void;
+  onFileUpload: (file: File) => void;
+  isUploading: boolean;
+  uploadError: string | null;
+}) {
+  const [sourceMode, setSourceMode] = useState<'url' | 'upload'>('upload');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-2">Add Your Video</h2>
+        <p className="text-slate-400">This is what plays when someone scans your QR code</p>
+      </div>
+      
+      <div className="flex gap-2 max-w-sm mx-auto">
+        <Button
+          variant={sourceMode === 'upload' ? 'default' : 'outline'}
+          onClick={() => setSourceMode('upload')}
+          className="flex-1"
+          data-testid="button-video-upload-tab"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Upload
+        </Button>
+        <Button
+          variant={sourceMode === 'url' ? 'default' : 'outline'}
+          onClick={() => setSourceMode('url')}
+          className="flex-1"
+          data-testid="button-video-url-tab"
+        >
+          <Link2 className="w-4 h-4 mr-2" />
+          Paste URL
+        </Button>
+      </div>
+      
+      {sourceMode === 'upload' && (
+        <div className="max-w-sm mx-auto space-y-4">
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400 transition-colors"
+            data-testid="dropzone-video-upload"
+          >
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+                <p className="text-slate-300">Uploading...</p>
+              </div>
+            ) : videoUrl ? (
+              <div className="flex flex-col items-center gap-2">
+                <Check className="w-8 h-8 text-emerald-400" />
+                <p className="text-emerald-400 font-medium">Video uploaded</p>
+                <p className="text-xs text-slate-500">Click to change</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Upload className="w-8 h-8 text-slate-400" />
+                <p className="text-slate-300">Click to select a video</p>
+                <p className="text-xs text-slate-500">MP4, WebM, or MOV - up to 50MB</p>
+              </div>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onFileUpload(file);
+            }}
+            data-testid="input-video-file"
+          />
+          {uploadError && (
+            <p className="text-red-400 text-sm text-center" data-testid="text-upload-error">{uploadError}</p>
+          )}
+          <p className="text-xs text-slate-500 text-center">
+            50MB limit. For larger videos, save your video on another hosting service and use the "Paste URL" option to link it here.
+          </p>
+        </div>
+      )}
+      
+      {sourceMode === 'url' && (
+        <div className="max-w-sm mx-auto space-y-3">
+          <input
+            type="url"
+            placeholder="https://example.com/your-video.mp4"
+            value={videoUrl}
+            onChange={(e) => onVideoUrlChange(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none"
+            data-testid="input-video-url"
+          />
+          <p className="text-xs text-slate-500 text-center">
+            Paste a direct link to your video file (MP4, WebM, or MOV)
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlayPreviewStep({
+  videoUrl,
+  title
+}: {
+  videoUrl: string;
+  title?: string;
+}) {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-2">Preview</h2>
+        <p className="text-slate-400">This is what people see when they scan your QR code</p>
+      </div>
+      
+      <div className="flex justify-center">
+        <div className="w-44 h-72 bg-black rounded-2xl border-2 border-slate-600 p-1 shadow-xl relative overflow-hidden">
+          <div className="w-full h-full rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
+            {videoUrl ? (
+              <video
+                src={videoUrl}
+                className="w-full h-full object-cover"
+                controls
+                playsInline
+                data-testid="video-preview-player"
+              />
+            ) : (
+              <div className="text-slate-500 text-center p-4">
+                <Play className="w-12 h-12 mx-auto mb-2" />
+                <p className="text-sm">No video loaded</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayPublishStep({
+  videoUrl,
+  isPublishing,
+  onPublish
+}: {
+  videoUrl: string;
+  isPublishing: boolean;
+  onPublish: () => void;
+}) {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-2">Ready to Publish</h2>
+        <p className="text-slate-400">Your video QR experience is ready to go live</p>
+      </div>
+      
+      <div className="flex justify-center">
+        <div className="w-44 h-72 bg-black rounded-2xl border-2 border-emerald-500 p-1 shadow-xl shadow-emerald-500/20 relative overflow-hidden">
+          <div className="w-full h-full rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
+            {videoUrl ? (
+              <video
+                src={videoUrl}
+                className="w-full h-full object-cover"
+                playsInline
+                muted
+                data-testid="video-publish-preview"
+              />
+            ) : (
+              <div className="text-slate-500 text-center p-4">
+                <Play className="w-12 h-12 mx-auto mb-2" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="max-w-xs mx-auto">
+        <Button
+          onClick={onPublish}
+          disabled={isPublishing || !videoUrl}
+          className="w-full py-6 text-lg bg-gradient-to-r from-emerald-600 to-teal-600"
+          data-testid="button-play-publish"
+        >
+          {isPublishing ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Publishing...
+            </>
+          ) : (
+            <>
+              <Send className="w-5 h-5 mr-2" />
+              Publish
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PlaySaveChoiceStep({
+  selected,
+  onSelect
+}: {
+  selected: QRPlaySaveOption;
+  onSelect: (choice: QRPlaySaveOption) => void;
+}) {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mx-auto mb-4">
+          <Check className="w-8 h-8 text-white" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-2">Published!</h2>
+        <p className="text-slate-400">Would you like to save the video to your library?</p>
+      </div>
+      
+      <div className="flex flex-col gap-3 max-w-xs mx-auto">
+        <Button
+          variant={selected === 'video' ? 'default' : 'outline'}
+          className={`w-full py-4 ${selected === 'video' ? 'bg-emerald-600 border-emerald-500' : 'border-slate-600 text-slate-300'}`}
+          onClick={() => onSelect('video')}
+          data-testid="button-play-save-video"
+        >
+          <Play className="w-5 h-5 mr-2" />
+          Save Video to My Library
+        </Button>
+        <Button
+          variant={selected === 'skip' ? 'default' : 'outline'}
+          className={`w-full py-4 ${selected === 'skip' ? 'bg-slate-600 border-slate-500' : 'border-slate-600 text-slate-300'}`}
+          onClick={() => onSelect('skip')}
+          data-testid="button-play-save-skip"
+        >
+          Skip - I'm Done
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PlayConfirmStep({
+  saveChoice,
+  videoUrl,
+  isSaving,
+  onDone
+}: {
+  saveChoice: QRPlaySaveOption;
+  videoUrl: string | null;
+  isSaving: boolean;
+  onDone: () => void;
+}) {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="text-center">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mx-auto mb-4">
+          {isSaving ? (
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          ) : (
+            <Check className="w-8 h-8 text-white" />
+          )}
+        </div>
+        <h2 className="text-lg font-bold text-white mb-2">
+          {isSaving ? 'Saving...' : 'All Done!'}
+        </h2>
+        {saveChoice === 'video' && !isSaving && (
+          <p className="text-emerald-400 text-sm">Video saved to your library</p>
+        )}
+        {saveChoice === 'skip' && (
+          <p className="text-slate-400 text-sm">Your QR Play experience is live</p>
+        )}
       </div>
     </div>
   );
@@ -5771,6 +6088,14 @@ function MembersSandboxContent() {
   const [publishedQrGraphicUrl, setPublishedQrGraphicUrl] = useState<string | null>(null);
   const [publishedProductGraphicUrl, setPublishedProductGraphicUrl] = useState<string | null>(null);
   
+  // QR Play flow state
+  const [playVideoSource, setPlayVideoSource] = useState<PlayVideoSource>('');
+  const [playVideoUrl, setPlayVideoUrl] = useState<string>('');
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
+  const [playSaveChoice, setPlaySaveChoice] = useState<QRPlaySaveOption>('');
+  const [isPlaySaving, setIsPlaySaving] = useState(false);
+  
   // QR Plus flow state (fork at step 12 for qr-plus type)
   const [qrPlusMockup, setQrPlusMockup] = useState<string>(''); // The product mockup image with full graphic
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
@@ -5990,6 +6315,97 @@ function MembersSandboxContent() {
     }
   };
 
+  const handleVideoFileUpload = async (file: File) => {
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_SIZE) {
+      setVideoUploadError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 50MB. For larger videos, save your video on another hosting service and paste the URL instead.`);
+      return;
+    }
+    
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+    if (!allowedTypes.includes(file.type)) {
+      setVideoUploadError('Please upload an MP4, WebM, or MOV video file.');
+      return;
+    }
+    
+    setVideoUploadError(null);
+    setIsUploadingVideo(true);
+    
+    try {
+      const authHeaders = await getAuthHeaders();
+      
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const base64Data = await base64Promise;
+      
+      const res = await fetch(`/api/members/${user?.id}/library/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          assetType: 'video',
+          name: file.name,
+          imageData: base64Data,
+          mimeType: file.type,
+          originalName: file.name,
+        })
+      });
+      
+      if (!res.ok) throw new Error('Upload failed');
+      
+      const result = await res.json();
+      setPlayVideoUrl(result.asset?.publicUrl || '');
+      setVideoUrl(result.asset?.publicUrl || '');
+    } catch (error) {
+      console.error('[QR Play] Video upload error:', error);
+      setVideoUploadError('Failed to upload video. Please try again.');
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
+  
+  const savePlayToLibrary = async () => {
+    if (!user?.id || playSaveChoice === 'skip') return;
+    
+    setIsPlaySaving(true);
+    try {
+      if (playVideoUrl && !playVideoUrl.startsWith('/api/member-files/')) {
+        const authHeaders = await getAuthHeaders();
+        const res = await fetch(`/api/members/${user.id}/library/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            assetType: 'video',
+            name: `${simpleTitle || 'QR Play'} - Video`,
+            imageData: 'data:text/plain;base64,' + btoa(playVideoUrl),
+            mimeType: 'text/plain',
+            originalName: `video-url-${Date.now()}.txt`,
+          })
+        });
+      }
+    } catch (error) {
+      console.error('[QR Play] Save to library error:', error);
+    } finally {
+      setIsPlaySaving(false);
+    }
+  };
+  
+  const handlePlayDone = () => {
+    setSimpleStep('channel');
+    setCurrentPacketId(null);
+    setSimpleTitle('');
+    setSimpleDescription('');
+    setQrType('');
+    setPlayVideoUrl('');
+    setPlayVideoSource('');
+    setVideoUrl('');
+    setPlaySaveChoice('');
+    setVideoUploadError(null);
+  };
+
   // Handle QR Canvas done - reset wizard
   const handleCanvasDone = () => {
     setViewMode('channels');
@@ -6133,6 +6549,30 @@ function MembersSandboxContent() {
       return;
     }
     
+    // Handle QR Play flow navigation
+    if (simpleStep === 'play-video-source') {
+      setSimpleStep('play-preview');
+      return;
+    }
+    if (simpleStep === 'play-preview') {
+      setSimpleStep('play-publish');
+      return;
+    }
+    if (simpleStep === 'play-publish') {
+      return;
+    }
+    if (simpleStep === 'play-save-choice') {
+      if (playSaveChoice === 'video') {
+        await savePlayToLibrary();
+      }
+      setSimpleStep('play-confirm');
+      return;
+    }
+    if (simpleStep === 'play-confirm') {
+      handlePlayDone();
+      return;
+    }
+    
     // Handle QR Canvas save flow navigation
     if (simpleStep === 'canvas-save-choice') {
       // Save to library based on choice, then confirm
@@ -6149,6 +6589,7 @@ function MembersSandboxContent() {
     // Select correct steps array based on qrType
     const stepsArray = qrType === 'qr-basic' ? QR_BASIC_STEPS
       : qrType === 'qr-plus' ? QR_PLUS_STEPS
+      : qrType === 'qr-play' ? QR_PLAY_STEPS
       : SIMPLE_WIZARD_STEPS;
     const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     
@@ -6255,6 +6696,27 @@ function MembersSandboxContent() {
       return;
     }
     
+    // Handle QR Play flow back navigation
+    if (simpleStep === 'play-video-source') {
+      setSimpleStep('canvas-fork');
+      return;
+    }
+    if (simpleStep === 'play-preview') {
+      setSimpleStep('play-video-source');
+      return;
+    }
+    if (simpleStep === 'play-publish') {
+      setSimpleStep('play-preview');
+      return;
+    }
+    if (simpleStep === 'play-save-choice') {
+      return;
+    }
+    if (simpleStep === 'play-confirm') {
+      setSimpleStep('play-save-choice');
+      return;
+    }
+    
     // Handle canvas-fork and QR Canvas flow back navigation
     if (simpleStep === 'canvas-fork') {
       setSimpleStep('shirt-preview');
@@ -6277,6 +6739,7 @@ function MembersSandboxContent() {
     // Select correct steps array based on qrType
     const stepsArray = qrType === 'qr-basic' ? QR_BASIC_STEPS
       : qrType === 'qr-plus' ? QR_PLUS_STEPS
+      : qrType === 'qr-play' ? QR_PLAY_STEPS
       : SIMPLE_WIZARD_STEPS;
     const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     if (currentIndex > 0) {
@@ -6322,6 +6785,12 @@ function MembersSandboxContent() {
       // QR Canvas save flow
       case 'canvas-save-choice': return canvasSaveChoice !== '';
       case 'canvas-confirm': return true;
+      // QR Play flow
+      case 'play-video-source': return playVideoUrl !== '' && !isUploadingVideo;
+      case 'play-preview': return true;
+      case 'play-publish': return true;
+      case 'play-save-choice': return playSaveChoice !== '';
+      case 'play-confirm': return true;
       default: return false;
     }
   };
@@ -6348,6 +6817,7 @@ function MembersSandboxContent() {
         channelId: selectedChannel.id,
         storeId: user.id, // Member store = memberId
         background: urlGraphic || null,
+        videoUrl: qrType === 'qr-play' ? (playVideoUrl || videoUrl) : null,
         status: 'published'
       };
       
@@ -6362,8 +6832,11 @@ function MembersSandboxContent() {
       const result = await res.json();
       incrementPublishCount();
       
-      // For QR Canvas, show save-to-library choice
-      if (qrType === 'qr-canvas') {
+      // For QR Play, show save-to-library choice
+      if (qrType === 'qr-play') {
+        setPublishedPacketId(result.id || result.packetId || null);
+        setSimpleStep('play-save-choice');
+      } else if (qrType === 'qr-canvas') {
         setPublishedPacketId(result.id || result.packetId || null);
         setPublishedQrGraphicUrl(result.qrGraphic || null);
         setPublishedProductGraphicUrl(result.productGraphic || null);
@@ -6936,14 +7409,18 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step 13: Canvas Fork - QR Plus vs QR Canvas decision */}
+                {/* Step 13: Surface Picker - QR Canvas, Play, or Skip */}
                 {simpleStep === 'canvas-fork' && (
-                  <CanvasForkStep
-                    onYes={() => {
+                  <SurfacePickerStep
+                    onCanvas={() => {
                       setQrType('qr-canvas');
                       setSimpleStep('url-explainer');
                     }}
-                    onNo={async () => {
+                    onPlay={() => {
+                      setQrType('qr-play');
+                      setSimpleStep('play-video-source');
+                    }}
+                    onSkip={async () => {
                       setQrType('qr-plus');
                       setIsGeneratingPlusMockup(true);
                       setSimpleStep('qr-plus-mockup');
@@ -7173,6 +7650,50 @@ function MembersSandboxContent() {
                     qrGraphicUrl={publishedQrGraphicUrl}
                     isSaving={isCanvasSaving}
                     onDone={handleCanvasDone}
+                  />
+                )}
+                
+                {simpleStep === 'play-video-source' && (
+                  <PlayVideoSourceStep
+                    videoUrl={playVideoUrl}
+                    onVideoUrlChange={(url) => {
+                      setPlayVideoUrl(url);
+                      setVideoUrl(url);
+                    }}
+                    onFileUpload={handleVideoFileUpload}
+                    isUploading={isUploadingVideo}
+                    uploadError={videoUploadError}
+                  />
+                )}
+                
+                {simpleStep === 'play-preview' && (
+                  <PlayPreviewStep
+                    videoUrl={playVideoUrl}
+                    title={simpleTitle}
+                  />
+                )}
+                
+                {simpleStep === 'play-publish' && (
+                  <PlayPublishStep
+                    videoUrl={playVideoUrl}
+                    isPublishing={isPublishing}
+                    onPublish={handleSimplePublish}
+                  />
+                )}
+                
+                {simpleStep === 'play-save-choice' && (
+                  <PlaySaveChoiceStep
+                    selected={playSaveChoice}
+                    onSelect={setPlaySaveChoice}
+                  />
+                )}
+                
+                {simpleStep === 'play-confirm' && (
+                  <PlayConfirmStep
+                    saveChoice={playSaveChoice}
+                    videoUrl={playVideoUrl}
+                    isSaving={isPlaySaving}
+                    onDone={handlePlayDone}
                   />
                 )}
               </div>

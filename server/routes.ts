@@ -9660,7 +9660,8 @@ ${allPages.map(page => `  <url>
         channelId,
         // Header/footer for productGraphic
         headerText,
-        footerText
+        footerText,
+        videoUrl
       } = req.body;
 
       const auth = await verifyMemberAuth(req, memberId);
@@ -9725,6 +9726,7 @@ ${allPages.map(page => `  <url>
           title: title || 'Untitled',
           description: description || '',
           urlGraphic: background || null,
+          videoUrl: videoUrl || null,
           qrGraphic: qrGraphicUrl,
           productGraphic: productGraphicUrl,
           destinationUrl,
@@ -10122,7 +10124,9 @@ ${allPages.map(page => `  <url>
       const sanitizedName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const folder = isCropped 
         ? `members/${memberId}/library/cropped` 
-        : `members/${memberId}/library/backgrounds`;
+        : mediaType === 'video'
+          ? `members/${memberId}/library/videos`
+          : `members/${memberId}/library/backgrounds`;
       
       const uploadResult = await uploadToFirebaseStorage(
         buffer,
