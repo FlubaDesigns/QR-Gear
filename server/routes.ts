@@ -9545,16 +9545,22 @@ ${allPages.map(page => `  <url>
       
       const uploadResult = await uploadImageFromBuffer(buffer, filename, mimeType, 'member-graphics');
       
-      if (!uploadResult.success || !uploadResult.publicUrl) {
-        console.error(`[ProductGraphic] Upload failed:`, uploadResult.error);
+      if (!uploadResult.publicUrl) {
+        console.error(`[ProductGraphic] Upload failed - no publicUrl returned`);
         throw new Error("Failed to upload product graphic to storage");
       }
       
-      console.log(`[ProductGraphic] Uploaded to: ${uploadResult.publicUrl}`);
+      // Make absolute URL for Printful (they need full URL, not relative)
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : "http://localhost:5000";
+      const absoluteUrl = `${baseUrl}${uploadResult.publicUrl}`;
+      
+      console.log(`[ProductGraphic] Uploaded to: ${absoluteUrl}`);
 
       res.json({
         success: true,
-        productGraphic: uploadResult.publicUrl,  // Return URL, not data URI
+        productGraphic: absoluteUrl,  // Return absolute URL for Printful
       });
     } catch (error: any) {
       console.error("[ProductGraphic] Error:", error);
