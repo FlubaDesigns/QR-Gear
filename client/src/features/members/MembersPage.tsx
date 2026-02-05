@@ -4284,18 +4284,16 @@ function TextEditStep({
 
 // Simple Wizard Step: Final Preview for QR Canvas
 // QR Canvas shows the urlGraphic (landing page) with title + description
-// Header/footer text is for QR Plus productGraphic (shirt), not landing page
+// NO QR code - that's on the physical product, not the landing page
 function SimplePreviewStep({ 
   background,
   title,
   description,
-  qrCodeUrl,
   onGoBack
 }: { 
   background: string;
   title: string;
   description?: string;
-  qrCodeUrl?: string;
   onGoBack: () => void;
 }) {
   return (
@@ -4310,13 +4308,8 @@ function SimplePreviewStep({
           background={background}
           headerText={title}
           footerText={description}
-          qrCodeUrl={qrCodeUrl}
         />
       </div>
-
-      {qrCodeUrl && (
-        <p className="text-xs text-green-400">Scan the QR code to test it!</p>
-      )}
 
       <Button
         variant="outline"
@@ -6478,13 +6471,12 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step 15: URL Preview - preview the landing page (title + description, NOT header/footer) */}
+                {/* Step 15: URL Preview - preview the landing page (title + description, no QR) */}
                 {simpleStep === 'url-preview' && (
                   <SimplePreviewStep
                     background={urlGraphic}
                     title={simpleTitle}
                     description={simpleDescription}
-                    qrCodeUrl={qrGraphic}
                     onGoBack={() => setSimpleStep('url-details')}
                   />
                 )}
