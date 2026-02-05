@@ -4426,24 +4426,26 @@ function SimplePreviewStep({
         <p className="text-slate-400 text-sm">This is what people see when they scan your QR code</p>
       </div>
 
-      <div className="pt-4">
-        {/* Phone mockup showing ONLY background + title + description - NO QR */}
-        {/* WYSIWYG: Uses exact same positioning/styling as url-details step */}
-        <div className="relative mx-auto" style={{ width: '180px' }}>
-          <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
-            <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
-            <div className="aspect-[9/19] relative">
-              {background ? (
-                <img 
-                  src={background} 
-                  alt="Background" 
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-b from-slate-700 to-slate-900" />
-              )}
-              
-              {/* Dark overlay for readability - WYSIWYG: same as UrlCreationStep */}
+      <div className="flex justify-center py-2">
+        {/* Phone mockup - WYSIWYG: EXACT same dimensions as UrlCreationStep (w-44 h-72) */}
+        <div className="relative w-44 h-72 rounded-3xl border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+          {/* Phone notch - same as UrlCreationStep */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-black rounded-b-xl z-10" />
+          
+          {/* Screen content */}
+          <div className="w-full h-full relative">
+            {/* Background image or placeholder */}
+            {background ? (
+              <img 
+                src={background} 
+                alt="Background" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-b from-slate-700 to-slate-900" />
+            )}
+            
+            {/* Dark overlay for readability - WYSIWYG: same as UrlCreationStep */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
               
               {/* Title - WYSIWYG: exact same positioning as UrlCreationStep */}
@@ -4488,7 +4490,6 @@ function SimplePreviewStep({
                   </p>
                 </div>
               )}
-            </div>
           </div>
         </div>
       </div>
@@ -5914,7 +5915,14 @@ function MembersSandboxContent() {
   };
 
   const handleSimplePublish = async () => {
-    if (!user?.id || !selectedChannel) return;
+    if (!user?.id) {
+      alert('You must be logged in to publish.');
+      return;
+    }
+    if (!selectedChannel) {
+      alert('Please select a channel first. Go to My Channels and select or create one.');
+      return;
+    }
     
     setIsPublishing(true);
     try {
