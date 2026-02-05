@@ -10078,6 +10078,8 @@ ${allPages.map(page => `  <url>
           width: data.width,
           height: data.height,
           sourceAssetId: data.sourceAssetId,
+          isCropped: data.isCropped || false,
+          originalAssetId: data.originalAssetId,
         };
       });
       
