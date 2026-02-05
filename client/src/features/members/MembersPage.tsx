@@ -4685,7 +4685,17 @@ function SimplePublishStep({
   title,
   description,
   qrType,
-  background
+  background,
+  titleVertical,
+  titleHorizontal,
+  titleColor,
+  titleSize,
+  titleFont,
+  descVertical,
+  descHorizontal,
+  descColor,
+  descSize,
+  descFont
 }: { 
   isPublishing: boolean;
   onPublish: () => void;
@@ -4693,44 +4703,95 @@ function SimplePublishStep({
   description?: string;
   qrType: QRType;
   background: string;
+  titleVertical: number;
+  titleHorizontal: number;
+  titleColor: string;
+  titleSize: string;
+  titleFont: string;
+  descVertical: number;
+  descHorizontal: number;
+  descColor: string;
+  descSize: string;
+  descFont: string;
 }) {
   const typeLabel = qrType === 'qr-canvas' ? 'Image Post' : qrType === 'qr-play' ? 'Video Post' : 'Creation';
   
   return (
     <div className="text-center">
-      <div className="mb-6">
-        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-green-600/20 flex items-center justify-center">
-          <Sparkles className="w-8 h-8 text-green-400" />
+      <div className="mb-4">
+        <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-green-600/20 flex items-center justify-center">
+          <Sparkles className="w-6 h-6 text-green-400" />
         </div>
         <h2 className="text-lg font-bold text-white mb-1">Ready to Publish!</h2>
         <p className="text-slate-400 text-sm">Your {typeLabel.toLowerCase()} is ready to share</p>
       </div>
 
-      {/* 9:16 ratio thumbnail showing landing page with title/description */}
-      <div className="flex justify-center mb-6">
-        <div className="relative rounded-xl overflow-hidden border-2 border-slate-600 shadow-lg" style={{ width: '120px', aspectRatio: '9/16' }}>
-          {background ? (
-            <img 
-              src={background} 
-              alt="Landing page" 
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-slate-700 flex items-center justify-center">
-              {qrType === 'qr-play' ? <Play className="w-8 h-8 text-slate-500" /> : <ImagePlus className="w-8 h-8 text-slate-500" />}
-            </div>
-          )}
-          {/* Title/description overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-            {title && (
-              <p className="text-white font-bold text-xs text-center leading-tight" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                {title}
-              </p>
+      {/* WYSIWYG: EXACT same dimensions as SimplePreviewStep (w-44 h-72) */}
+      <div className="flex justify-center mb-4">
+        <div className="relative w-44 h-72 rounded-3xl border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+          {/* Phone notch - same as SimplePreviewStep */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-black rounded-b-xl z-10" />
+          
+          {/* Screen content */}
+          <div className="w-full h-full relative">
+            {/* Background image or placeholder */}
+            {background ? (
+              <img 
+                src={background} 
+                alt="Background" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-b from-slate-700 to-slate-900 flex items-center justify-center">
+                {qrType === 'qr-play' ? <Play className="w-8 h-8 text-slate-500" /> : <ImagePlus className="w-8 h-8 text-slate-500" />}
+              </div>
             )}
+            
+            {/* Dark overlay for readability - WYSIWYG: same as SimplePreviewStep */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            
+            {/* Title - WYSIWYG: exact same positioning as SimplePreviewStep */}
+            {title && (
+              <div
+                className="absolute w-full px-2 text-center"
+                style={{
+                  bottom: `${titleVertical}%`,
+                  left: `${titleHorizontal - 50}%`
+                }}
+              >
+                <h3
+                  className="font-bold truncate drop-shadow-lg"
+                  style={{
+                    color: titleColor,
+                    fontSize: titleSize,
+                    fontFamily: titleFont
+                  }}
+                >
+                  {title}
+                </h3>
+              </div>
+            )}
+            
+            {/* Description - WYSIWYG: exact same positioning as SimplePreviewStep */}
             {description && (
-              <p className="text-white/80 text-[8px] text-center mt-1 leading-tight line-clamp-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-                {description}
-              </p>
+              <div
+                className="absolute w-full px-2 text-center"
+                style={{
+                  bottom: `${descVertical}%`,
+                  left: `${descHorizontal - 50}%`
+                }}
+              >
+                <p
+                  className="drop-shadow-md line-clamp-2"
+                  style={{
+                    color: descColor,
+                    fontSize: descSize,
+                    fontFamily: descFont
+                  }}
+                >
+                  {description}
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -6843,6 +6904,16 @@ function MembersSandboxContent() {
                     description={simpleDescription}
                     qrType={qrType}
                     background={urlGraphic}
+                    titleVertical={titleVertical}
+                    titleHorizontal={titleHorizontal}
+                    titleColor={titleColor}
+                    titleSize={titleSize}
+                    titleFont={titleFont}
+                    descVertical={descVertical}
+                    descHorizontal={descHorizontal}
+                    descColor={descColor}
+                    descSize={descSize}
+                    descFont={descFont}
                   />
                 )}
               </div>

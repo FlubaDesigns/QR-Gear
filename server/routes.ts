@@ -9668,7 +9668,7 @@ ${allPages.map(page => `  <url>
         return res.status(401).json({ error: auth.error });
       }
 
-      const { getFirestoreDb, getFirebaseStorage } = await import("./lib/firebase-admin");
+      const { getFirestoreDb, getStorageBucket, getStorageBucketName } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
       // QR Canvas/Play packet flow
@@ -9684,8 +9684,7 @@ ${allPages.map(page => `  <url>
         const qrGraphicDataUrl = await generateTextQRCode(destinationUrl, { color: '#000000', backgroundColor: '#FFFFFF' });
         
         // Upload qrGraphic to Firebase Storage
-        const storage = getFirebaseStorage();
-        const bucket = storage.bucket();
+        const bucket = getStorageBucket();
         const qrGraphicPath = `members/${memberId}/qr-graphics/${packetId}-qr.png`;
         const qrBuffer = Buffer.from(qrGraphicDataUrl.split(',')[1], 'base64');
         const qrFile = bucket.file(qrGraphicPath);
