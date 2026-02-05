@@ -2014,12 +2014,12 @@ function PlacementCountStep({
                 }`}>
                   {isSelected && <Check className="w-3 h-3 text-white" />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2">
                     <p className={`font-medium text-sm ${isSelected ? 'text-green-400' : 'text-white'}`}>
                       {option.label}
                     </p>
-                    <span className="text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded">{option.sizeLabel}</span>
+                    <span className="text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded w-fit">{option.sizeLabel}</span>
                   </div>
                   <p className="text-xs text-slate-500">{option.description}</p>
                 </div>
