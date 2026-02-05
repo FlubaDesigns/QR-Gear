@@ -4319,11 +4319,31 @@ function SimplePreviewStep({
   background,
   title,
   description,
+  titleVertical,
+  titleHorizontal,
+  titleColor,
+  titleSize,
+  titleFont,
+  descVertical,
+  descHorizontal,
+  descColor,
+  descSize,
+  descFont,
   onGoBack
 }: { 
   background: string;
   title: string;
   description?: string;
+  titleVertical: number;
+  titleHorizontal: number;
+  titleColor: string;
+  titleSize: string;
+  titleFont: string;
+  descVertical: number;
+  descHorizontal: number;
+  descColor: string;
+  descSize: string;
+  descFont: string;
   onGoBack: () => void;
 }) {
   return (
@@ -4335,29 +4355,66 @@ function SimplePreviewStep({
 
       <div className="pt-4">
         {/* Phone mockup showing ONLY background + title + description - NO QR */}
+        {/* WYSIWYG: Uses exact same positioning/styling as url-details step */}
         <div className="relative mx-auto" style={{ width: '180px' }}>
           <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
             <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
             <div className="aspect-[9/19] relative">
-              {background && (
+              {background ? (
                 <img 
                   src={background} 
                   alt="Background" 
                   className="absolute inset-0 w-full h-full object-cover"
                 />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-700 to-slate-900" />
               )}
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                {title && (
-                  <h3 className="text-white font-bold text-lg text-center mb-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+              
+              {/* Dark overlay for readability - WYSIWYG: same as UrlCreationStep */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              
+              {/* Title - WYSIWYG: exact same positioning as UrlCreationStep */}
+              {title && (
+                <div
+                  className="absolute w-full px-2 text-center"
+                  style={{
+                    bottom: `${titleVertical}%`,
+                    left: `${titleHorizontal - 50}%`
+                  }}
+                >
+                  <h3
+                    className="font-bold truncate drop-shadow-lg"
+                    style={{
+                      color: titleColor,
+                      fontSize: titleSize,
+                      fontFamily: titleFont
+                    }}
+                  >
                     {title}
                   </h3>
-                )}
-                {description && (
-                  <p className="text-white/90 text-sm text-center" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                </div>
+              )}
+              {/* Description - WYSIWYG: exact same positioning as UrlCreationStep */}
+              {description && (
+                <div
+                  className="absolute w-full px-2 text-center"
+                  style={{
+                    bottom: `${descVertical}%`,
+                    left: `${descHorizontal - 50}%`
+                  }}
+                >
+                  <p
+                    className="line-clamp-2 drop-shadow-lg"
+                    style={{
+                      color: descColor,
+                      fontSize: descSize,
+                      fontFamily: descFont
+                    }}
+                  >
                     {description}
                   </p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -6545,6 +6602,16 @@ function MembersSandboxContent() {
                     background={urlGraphic}
                     title={simpleTitle}
                     description={simpleDescription}
+                    titleVertical={titleVertical}
+                    titleHorizontal={titleHorizontal}
+                    titleColor={titleColor}
+                    titleSize={titleSize}
+                    titleFont={titleFont}
+                    descVertical={descVertical}
+                    descHorizontal={descHorizontal}
+                    descColor={descColor}
+                    descSize={descSize}
+                    descFont={descFont}
                     onGoBack={() => setSimpleStep('url-details')}
                   />
                 )}
