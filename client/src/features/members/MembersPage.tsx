@@ -38,7 +38,8 @@ import {
   Library,
   Smartphone,
   ArrowRight,
-  ShoppingBag
+  ShoppingBag,
+  Crop
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth, signInWithGoogle, signInWithEmail } from "@/lib/firebase";
@@ -158,7 +159,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
   { id: 'canvas-fork', label: 'Online Image', icon: Smartphone },
   { id: 'url-explainer', label: 'QR Canvas', icon: QrCode },
-  { id: 'url-source-choice', label: 'Source', icon: ImagePlus },
+  { id: 'url-source-choice', label: 'Image Source', icon: Crop },
   { id: 'url-library-pick', label: 'Pick Image', icon: Library },
   { id: 'url-details', label: 'Details', icon: Type },
   { id: 'url-preview', label: 'Preview', icon: Eye },
@@ -3390,8 +3391,8 @@ function UrlSourceChoiceStep({
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="text-center">
-        <h2 className="text-lg font-bold text-white mb-2">Choose Your Library</h2>
-        <p className="text-slate-400">Pick from images you've saved or browse our collection</p>
+        <h2 className="text-lg font-bold text-white mb-2">Choose Image Source</h2>
+        <p className="text-slate-400">Pick from ready-to-use cropped images or browse raw backgrounds</p>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto mt-6">
@@ -3402,17 +3403,17 @@ function UrlSourceChoiceStep({
               ? 'border-emerald-400 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
               : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
           }`}
-          data-testid="button-my-library"
+          data-testid="button-cropped-library"
         >
           <div className="flex items-center gap-3 mb-2">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
               choice === 'personal' ? 'bg-emerald-500' : 'bg-slate-700'
             }`}>
-              <User className="w-5 h-5 text-white" />
+              <Crop className="w-5 h-5 text-white" />
             </div>
-            <span className="font-semibold text-white">My Library</span>
+            <span className="font-semibold text-white">Cropped Library</span>
           </div>
-          <p className="text-sm text-slate-400">Your saved backgrounds and cropped images</p>
+          <p className="text-sm text-slate-400">Your saved 9:16 cropped images - ready to use</p>
         </button>
         
         <button
@@ -3422,7 +3423,7 @@ function UrlSourceChoiceStep({
               ? 'border-emerald-400 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
               : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
           }`}
-          data-testid="button-common-library"
+          data-testid="button-raw-library"
         >
           <div className="flex items-center gap-3 mb-2">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -3430,9 +3431,9 @@ function UrlSourceChoiceStep({
             }`}>
               <Library className="w-5 h-5 text-white" />
             </div>
-            <span className="font-semibold text-white">Common Library</span>
+            <span className="font-semibold text-white">Raw Background Library</span>
           </div>
-          <p className="text-sm text-slate-400">Browse our curated collection</p>
+          <p className="text-sm text-slate-400">Browse backgrounds - you'll crop to 9:16</p>
         </button>
       </div>
     </div>
