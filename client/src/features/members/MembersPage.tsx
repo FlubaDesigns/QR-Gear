@@ -88,7 +88,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -145,6 +145,7 @@ const SHIRT_TEXT_FONTS = [
 
 // Simple Wizard - streamlined steps for first-time users
 const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Product', icon: Package },
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
@@ -168,6 +169,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
 
 // QR Basic fork steps (after saying No at step 7)
 const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Product', icon: Package },
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
@@ -195,6 +197,7 @@ const isQRPlusStep = (step: SimpleWizardStep): boolean => {
 
 // QR Plus fork steps (after step 12 shirt-preview for qr-plus type)
 const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Product', icon: Package },
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
@@ -5315,7 +5318,7 @@ function MembersSandboxContent() {
   
   const [viewMode, setViewMode] = useState<ViewMode>('index');
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
-  const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('product');
+  const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('channel');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
   const [wizardTier, setWizardTier] = useState<WizardTier>('simple');
   const [publishCount, setPublishCount] = useState(0);
@@ -5709,7 +5712,7 @@ function MembersSandboxContent() {
     }
     if (simpleStep === 'qr-basic-confirm') {
       // End of QR Basic flow - reset wizard
-      setSimpleStep('product');
+      setSimpleStep('channel');
       setCurrentPacketId(null);
       setQrBasicInputType('');
       setQrBasicContent('');
@@ -5731,7 +5734,7 @@ function MembersSandboxContent() {
     }
     if (simpleStep === 'qr-plus-confirm') {
       // End of QR Plus flow - reset wizard
-      setSimpleStep('product');
+      setSimpleStep('channel');
       setCurrentPacketId(null);
       setQrPlusMockup('');
       setQrPlusSaveChoice('');
@@ -5878,6 +5881,7 @@ function MembersSandboxContent() {
 
   const canSimpleProceed = () => {
     switch (simpleStep) {
+      case 'channel': return selectedChannel !== null;
       case 'product': return selectedProductType !== null;
       case 'product-congrats': return true;
       case 'color': return selectedColor !== '';
@@ -5951,7 +5955,7 @@ function MembersSandboxContent() {
       setViewMode('channels');
       
       // Reset simple wizard state for next use
-      setSimpleStep('product');
+      setSimpleStep('channel');
       setCurrentPacketId(null);
       setSimpleTitle('');
       setSimpleDescription('');
@@ -6211,7 +6215,20 @@ function MembersSandboxContent() {
               )}
 
               <div className="min-h-[400px]">
-                {/* Step 0: Pick Product */}
+                {/* Step 0: Pick Channel */}
+                {simpleStep === 'channel' && user && (
+                  <ChannelStep
+                    selectedChannel={selectedChannel}
+                    onSelect={setSelectedChannel}
+                    memberId={user.id}
+                    isCreatingChannel={isCreatingChannel}
+                    setIsCreatingChannel={setIsCreatingChannel}
+                    newChannelName={newChannelName}
+                    setNewChannelName={setNewChannelName}
+                  />
+                )}
+                
+                {/* Step 1: Pick Product */}
                 {simpleStep === 'product' && (
                   <ProductPickerStep
                     selectedProduct={selectedProductType}
@@ -6365,7 +6382,7 @@ function MembersSandboxContent() {
                     isSaving={isQrBasicSaving}
                     onDone={() => {
                       // Reset wizard
-                      setSimpleStep('product');
+                      setSimpleStep('channel');
                       setCurrentPacketId(null);
                       setQrBasicInputType('');
                       setQrBasicContent('');
@@ -6405,7 +6422,7 @@ function MembersSandboxContent() {
                     isSaving={isQrPlusSaving}
                     onDone={() => {
                       // Reset wizard
-                      setSimpleStep('product');
+                      setSimpleStep('channel');
                       setCurrentPacketId(null);
                       setQrPlusMockup('');
                       setQrPlusSaveChoice('');
@@ -6714,7 +6731,7 @@ function MembersSandboxContent() {
                 <Button
                   variant="outline"
                   onClick={handleSimpleBack}
-                  disabled={simpleStep === 'product'}
+                  disabled={simpleStep === 'channel'}
                   className="flex-1 min-w-[100px] sm:flex-none"
                   data-testid="button-simple-back"
                 >
