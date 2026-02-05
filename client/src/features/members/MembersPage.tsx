@@ -4282,19 +4282,19 @@ function TextEditStep({
   );
 }
 
-// Simple Wizard Step: Final Preview
+// Simple Wizard Step: Final Preview for QR Canvas
+// QR Canvas shows the urlGraphic (landing page) with title + description
+// Header/footer text is for QR Plus productGraphic (shirt), not landing page
 function SimplePreviewStep({ 
   background,
-  headerStyle,
-  footerStyle,
   title,
+  description,
   qrCodeUrl,
   onGoBack
 }: { 
   background: string;
-  headerStyle: TextStyleConfig;
-  footerStyle: TextStyleConfig;
   title: string;
+  description?: string;
   qrCodeUrl?: string;
   onGoBack: () => void;
 }) {
@@ -4302,23 +4302,14 @@ function SimplePreviewStep({
     <div className="text-center space-y-4">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">Your Creation</h2>
-        <p className="text-slate-400 text-sm">Here's what it will look like</p>
+        <p className="text-slate-400 text-sm">Here's what it will look like when scanned</p>
       </div>
-
-      {title && (
-        <div className="bg-slate-800/50 rounded-lg p-3 max-w-xs mx-auto">
-          <p className="text-xs text-slate-400">Title</p>
-          <p className="text-white font-medium text-sm">{title}</p>
-        </div>
-      )}
 
       <div className="pt-4">
         <PhoneMockupWithQR
           background={background}
-          headerText={headerStyle.enabled ? headerStyle.text : undefined}
-          footerText={footerStyle.enabled ? footerStyle.text : undefined}
-          headerStyle={headerStyle}
-          footerStyle={footerStyle}
+          headerText={title}
+          footerText={description}
           qrCodeUrl={qrCodeUrl}
         />
       </div>
@@ -6487,13 +6478,12 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step 15: URL Preview - preview the landing page */}
+                {/* Step 15: URL Preview - preview the landing page (title + description, NOT header/footer) */}
                 {simpleStep === 'url-preview' && (
                   <SimplePreviewStep
                     background={urlGraphic}
-                    headerStyle={headerStyle}
-                    footerStyle={footerStyle}
                     title={simpleTitle}
+                    description={simpleDescription}
                     qrCodeUrl={qrGraphic}
                     onGoBack={() => setSimpleStep('url-details')}
                   />
