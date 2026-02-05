@@ -197,20 +197,20 @@ function wrapText(ctx: any, text: string, maxWidth: number): string[] {
 }
 
 /**
- * Generate print-ready composite that matches the phone preview exactly.
+ * Generate print-ready composite that matches the phone preview.
  * 
  * Preview dimensions (PhoneMockup component):
  * - Container: 160px wide
- * - QR code: 48px (w-12 h-12)
+ * - QR code: 36px (smaller to leave room for text)
  * - Font sizes: 10-16px (via getFontSize function)
  * 
- * Print dimensions: 1200x1800px
- * Scale factor: 1200 / 160 = 7.5x
+ * Printful actual t-shirt print area: 4500x5400px
+ * We generate at 1200x1800 (same 2:3 ratio) for efficiency, Printful scales up.
  * 
- * This ensures WYSIWYG: What You See Is What You Get
+ * Scale factor: 1200 / 160 = 7.5x
  */
 const PREVIEW_WIDTH = 160;  // PhoneMockup container width
-const PREVIEW_QR_SIZE = 48; // w-12 h-12 in preview
+const PREVIEW_QR_SIZE = 36; // Smaller QR to leave room for header/footer text
 
 export async function generatePrintifyComposite(
   qrUrl: string,
@@ -222,7 +222,7 @@ export async function generatePrintifyComposite(
 ): Promise<string> {
   // Calculate exact scale to match preview
   const scaleFactor = printWidth / PREVIEW_WIDTH; // 7.5x for 1200px
-  const qrSize = PREVIEW_QR_SIZE * scaleFactor;   // 360px to match preview proportions
+  const qrSize = PREVIEW_QR_SIZE * scaleFactor;   // 270px - smaller for text room
   
   // Use transparent background so the shirt color shows through
   return generateCompositeImage({
