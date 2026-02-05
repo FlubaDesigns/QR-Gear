@@ -36,6 +36,24 @@ const FONT_MAP: Record<string, string> = {
   "Palatino Linotype": "Palatino Linotype",
 };
 
+/**
+ * Convert fontSize setting to actual display size (matches frontend PhoneMockup).
+ * This ensures print output matches what the user sees in preview.
+ * 
+ * Frontend getFontSize logic:
+ * - '12px' or 'sm' → '10px'
+ * - '24px' or 'lg' → '16px'  
+ * - default → '12px'
+ */
+function getPreviewFontSize(fontSize: string): number {
+  if (fontSize === '12px' || fontSize === 'sm') return 10;
+  if (fontSize === '24px' || fontSize === 'lg') return 16;
+  return 12; // Default size shown in preview
+}
+
+// WYSIWYG scaling constants
+const PREVIEW_CONTAINER_WIDTH = 160;  // PhoneMockup container width in pixels
+
 export async function generateCompositeImage(options: CompositeImageOptions): Promise<string> {
   const {
     width = 1200,
@@ -64,8 +82,11 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   let currentY = padding;
 
   if (topText && topText.text) {
-    // Scale font for print resolution (1200x1800) - use 1.5x multiplier to match preview proportions
-    const fontSize = parseInt(topText.fontSize) * 1.5;
+    // WYSIWYG: Convert fontSize setting to preview size, then scale to print
+    // Scale factor = print width / preview width = 1200 / 160 = 7.5x
+    const scaleFactor = width / PREVIEW_CONTAINER_WIDTH;
+    const previewFontSize = getPreviewFontSize(topText.fontSize);
+    const fontSize = previewFontSize * scaleFactor;
     const fontFamily = FONT_MAP[topText.fontFamily] || "Arial";
     const fillColor = topText.color || textColor;
     
@@ -74,10 +95,10 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     
-    // Apply stroke if configured
+    // Apply stroke if configured (scale to match print resolution)
     if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
       ctx.strokeStyle = topText.strokeColor;
-      ctx.lineWidth = topText.strokeWidth * 1.5;
+      ctx.lineWidth = topText.strokeWidth * scaleFactor;
     }
     
     const lines = wrapText(ctx, topText.text, width - padding * 2);
@@ -120,8 +141,10 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   currentY = qrY + qrSize + padding;
 
   if (bottomText && bottomText.text) {
-    // Scale font for print resolution (1200x1800) - use 1.5x multiplier to match preview proportions
-    const fontSize = parseInt(bottomText.fontSize) * 1.5;
+    // WYSIWYG: Convert fontSize setting to preview size, then scale to print
+    const scaleFactor = width / PREVIEW_CONTAINER_WIDTH;
+    const previewFontSize = getPreviewFontSize(bottomText.fontSize);
+    const fontSize = previewFontSize * scaleFactor;
     const fontFamily = FONT_MAP[bottomText.fontFamily] || "Arial";
     const fillColor = bottomText.color || textColor;
     
@@ -133,7 +156,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     // Apply stroke if configured
     if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
       ctx.strokeStyle = bottomText.strokeColor;
-      ctx.lineWidth = bottomText.strokeWidth * 1.5;
+      ctx.lineWidth = bottomText.strokeWidth * scaleFactor;
     }
     
     const lines = wrapText(ctx, bottomText.text, width - padding * 2);
@@ -173,6 +196,22 @@ function wrapText(ctx: any, text: string, maxWidth: number): string[] {
   return lines;
 }
 
+/**
+ * Generate print-ready composite that matches the phone preview exactly.
+ * 
+ * Preview dimensions (PhoneMockup component):
+ * - Container: 160px wide
+ * - QR code: 48px (w-12 h-12)
+ * - Font sizes: 10-16px (via getFontSize function)
+ * 
+ * Print dimensions: 1200x1800px
+ * Scale factor: 1200 / 160 = 7.5x
+ * 
+ * This ensures WYSIWYG: What You See Is What You Get
+ */
+const PREVIEW_WIDTH = 160;  // PhoneMockup container width
+const PREVIEW_QR_SIZE = 48; // w-12 h-12 in preview
+
 export async function generatePrintifyComposite(
   qrUrl: string,
   topText: TextStyle | null,
@@ -181,12 +220,16 @@ export async function generatePrintifyComposite(
   printHeight: number = 1800,
   qrColor: 'black' | 'white' = 'black'
 ): Promise<string> {
+  // Calculate exact scale to match preview
+  const scaleFactor = printWidth / PREVIEW_WIDTH; // 7.5x for 1200px
+  const qrSize = PREVIEW_QR_SIZE * scaleFactor;   // 360px to match preview proportions
+  
   // Use transparent background so the shirt color shows through
   return generateCompositeImage({
     width: printWidth,
     height: printHeight,
     backgroundColor: "transparent",
-    qrSize: Math.min(printWidth, printHeight) * 0.4,
+    qrSize: qrSize,
     topText,
     bottomText,
     qrUrl,
