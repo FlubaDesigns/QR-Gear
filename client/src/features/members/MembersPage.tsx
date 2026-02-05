@@ -347,13 +347,13 @@ function generateQRCodeUrl(content: string, size: number = 1000): string {
 }
 
 // Available placement options - matches Printify API placement IDs
-// Sizes based on actual print areas: Front/Back ~12", Left Chest ~4", Sleeves ~3"
+// Sizes based on actual Printify print areas: Front/Back 12"×16", Left Chest 4"×4", Sleeves 4"×4"
 const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: string; sizeLabel: string }[] = [
-  { id: 'front', label: 'Front Center', description: 'Large main print', sizeLabel: '12"×14"' },
+  { id: 'front', label: 'Front Center', description: 'Large main print', sizeLabel: '12"×16"' },
   { id: 'left_chest', label: 'Left Chest', description: 'Small logo area', sizeLabel: '4"×4"' },
-  { id: 'back', label: 'Back Center', description: 'Large back print', sizeLabel: '12"×14"' },
-  { id: 'sleeve_left', label: 'Left Sleeve', description: 'Small sleeve print', sizeLabel: '3"×3"' },
-  { id: 'sleeve_right', label: 'Right Sleeve', description: 'Small sleeve print', sizeLabel: '3"×3"' },
+  { id: 'back', label: 'Back Center', description: 'Large back print', sizeLabel: '12"×16"' },
+  { id: 'sleeve_left', label: 'Left Sleeve', description: 'Sleeve print', sizeLabel: '4"×4"' },
+  { id: 'sleeve_right', label: 'Right Sleeve', description: 'Sleeve print', sizeLabel: '4"×4"' },
 ];
 
 // Advanced Wizard - full 8 steps (unlocks after 1st publish)
@@ -472,7 +472,7 @@ interface AllowedProduct {
   profit?: number;
   memberEarnings?: number;
   hasUSAProvider?: boolean;
-  placements?: { id: string; title: string }[];
+  placements?: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[];
   availableColors?: Array<{ name: string; hex: string }>;
   availableSizes?: string[];
 }
@@ -1036,7 +1036,8 @@ function GraphicSizeStep({
   // Get size options based on placement
   const getSizeOptionsForPlacement = () => {
     if (currentPlacement === 'sleeve_left' || currentPlacement === 'sleeve_right') {
-      return { small: { w: 12, h: 12 }, medium: { w: 16, h: 16 }, large: { w: 20, h: 20 } };
+      // 4"×4" sleeve - proportionally larger visual
+      return { small: { w: 16, h: 16 }, medium: { w: 22, h: 22 }, large: { w: 28, h: 28 } };
     }
     if (currentPlacement === 'left_chest') {
       return { small: { w: 15, h: 15 }, medium: { w: 20, h: 20 }, large: { w: 25, h: 25 } };
@@ -1923,24 +1924,35 @@ function PlacementCountStep({
   selected,
   onToggle,
   selectedColor,
-  placementEarningsBonus = 1.00
+  placementEarningsBonus = 1.00,
+  productPlacements
 }: {
   selected: PlacementOption[];
   onToggle: (placement: PlacementOption) => void;
   selectedColor: string;
   placementEarningsBonus?: number;
+  productPlacements?: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[];
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
+  // Use actual product placements if available, otherwise fall back to defaults
+  const displayPlacements = productPlacements && productPlacements.length > 0
+    ? productPlacements.map(p => ({
+        id: p.id as PlacementOption,
+        label: p.title,
+        description: p.widthInches && p.heightInches ? 'Product-specific print area' : 'Print area',
+        sizeLabel: p.widthInches && p.heightInches ? `${p.widthInches}×${p.heightInches}` : '',
+      }))
+    : PLACEMENT_OPTIONS;
+  
   // Positions on SVG for each Printify placement - TRUE TO RATIO
-  // Front/Back = 12" (base = 24 units), Left Chest = 4" (8 units), Sleeves = 3" (6 units)
   // Sleeve positions adjusted to be on actual sleeve areas of the shirt SVG
-  const placementPositions: Record<PlacementOption, { x: number; y: number; size: number }> = {
+  const placementPositions: Record<string, { x: number; y: number; size: number }> = {
     'front': { x: 90, y: 100, size: 24 },
     'left_chest': { x: 70, y: 75, size: 8 },
     'back': { x: 90, y: 100, size: 24 },
-    'sleeve_left': { x: 44, y: 52, size: 6 },
-    'sleeve_right': { x: 136, y: 52, size: 6 },
+    'sleeve_left': { x: 44, y: 52, size: 10 },
+    'sleeve_right': { x: 136, y: 52, size: 10 },
   };
   
   return (
@@ -1993,14 +2005,14 @@ function PlacementCountStep({
         </div>
       </div>
       
-      {/* Placement options */}
+      {/* Placement options - uses actual product placements if available */}
       <div className="grid grid-cols-2 gap-2">
-        {PLACEMENT_OPTIONS.map((option) => {
-          const isSelected = selected.includes(option.id);
+        {displayPlacements.map((option) => {
+          const isSelected = selected.includes(option.id as PlacementOption);
           return (
             <button
               key={option.id}
-              onClick={() => onToggle(option.id)}
+              onClick={() => onToggle(option.id as PlacementOption)}
               className={`p-3 rounded-lg border-2 text-left transition-all ${
                 isSelected
                   ? 'border-green-500 bg-green-500/20'
@@ -2019,7 +2031,9 @@ function PlacementCountStep({
                     <p className={`font-medium text-sm ${isSelected ? 'text-green-400' : 'text-white'}`}>
                       {option.label}
                     </p>
-                    <span className="text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded w-fit">{option.sizeLabel}</span>
+                    {option.sizeLabel && (
+                      <span className="text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded w-fit">{option.sizeLabel}</span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-500">{option.description}</p>
                 </div>
@@ -6224,7 +6238,7 @@ function MembersSandboxContent() {
                   </div>
                 )}
                 
-                {/* Step 9: Placement Count */}
+                {/* Step 9: Placement Count - uses actual Printify dimensions if available */}
                 {simpleStep === 'placement-count' && (
                   <PlacementCountStep
                     selected={selectedPlacements}
@@ -6248,6 +6262,7 @@ function MembersSandboxContent() {
                     }}
                     selectedColor={selectedColor}
                     placementEarningsBonus={placementEarningsBonus}
+                    productPlacements={selectedProductType?.placements}
                   />
                 )}
                 

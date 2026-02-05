@@ -9813,7 +9813,7 @@ ${allPages.map(page => `  <url>
         const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
         
         // Use stored placements if available, otherwise use common defaults for apparel
-        let placements: { id: string; title: string }[] = p.availablePlacements || [];
+        let placements: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[] = p.availablePlacements || [];
         
         // Convert string array to objects if needed
         if (placements.length > 0 && typeof placements[0] === 'string') {
@@ -9823,14 +9823,57 @@ ${allPages.map(page => `  <url>
           }));
         }
         
-        // If no placements stored, use common defaults for apparel products
+        // Fetch ACTUAL placement dimensions from Printify if we have blueprintId + printProviderId
+        if (p.blueprintId && printProviderId && placements.length === 0) {
+          try {
+            const { printify } = await import("./lib/printify");
+            const variantsResult = await printify.getVariants(p.blueprintId, printProviderId);
+            const variants = variantsResult.variants || [];
+            
+            // Extract unique placements with their pixel dimensions
+            const placementMap = new Map<string, { widthPx: number; heightPx: number }>();
+            for (const variant of variants) {
+              if (variant.placeholders) {
+                for (const placeholder of variant.placeholders) {
+                  if (placeholder.position && !placementMap.has(placeholder.position)) {
+                    placementMap.set(placeholder.position, {
+                      widthPx: placeholder.width,
+                      heightPx: placeholder.height
+                    });
+                  }
+                }
+              }
+            }
+            
+            // Convert to array with human-readable titles and inch dimensions (300 DPI)
+            placements = Array.from(placementMap.entries()).map(([position, dims]) => {
+              const widthInches = (dims.widthPx / 300).toFixed(1);
+              const heightInches = (dims.heightPx / 300).toFixed(1);
+              return {
+                id: position,
+                title: position.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                widthPx: dims.widthPx,
+                heightPx: dims.heightPx,
+                widthInches: `${widthInches}"`,
+                heightInches: `${heightInches}"`,
+              };
+            });
+            
+            console.log(`[Member Products] Fetched ${placements.length} placements for blueprint ${p.blueprintId}`);
+          } catch (e: any) {
+            console.log(`[Member Products] Could not fetch placements: ${e.message}`);
+          }
+        }
+        
+        // If still no placements, use common defaults for apparel products
         // Match naming from adminProducts/builder/types.ts
         if (placements.length === 0) {
           placements = [
-            { id: 'front-chest', title: 'Front Chest' },
-            { id: 'back', title: 'Back' },
-            { id: 'left-shoulder', title: 'Left Shoulder (QR Only)' },
-            { id: 'right-shoulder', title: 'Right Shoulder (QR Only)' },
+            { id: 'front', title: 'Front', widthInches: '12"', heightInches: '16"' },
+            { id: 'back', title: 'Back', widthInches: '12"', heightInches: '16"' },
+            { id: 'left_chest', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
+            { id: 'sleeve_left', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
+            { id: 'sleeve_right', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
           ];
         }
         
