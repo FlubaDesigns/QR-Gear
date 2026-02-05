@@ -92,7 +92,7 @@ type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | '
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
-type QRCanvasSaveOption = 'canvas' | 'qr' | 'both' | '';
+type QRCanvasSaveOption = 'item' | 'landing' | 'all' | '';
 type UrlSourceChoice = 'upload' | 'library' | '';
 type LibraryChoice = 'personal' | 'common' | '';
 type PlacementGraphicChoice = 'full' | 'qr-only' | '';
@@ -1933,9 +1933,9 @@ function QRCanvasSaveChoiceStep({
   onSelect: (choice: QRCanvasSaveOption) => void;
 }) {
   const options: { id: QRCanvasSaveOption; label: string; description: string; icon: React.ReactNode }[] = [
-    { id: 'canvas', label: 'Save Background', description: 'Save the background image to your library', icon: <ImagePlus className="w-8 h-8" /> },
-    { id: 'qr', label: 'Save QR Code', description: 'Save the generated QR code graphic', icon: <QrCode className="w-8 h-8" /> },
-    { id: 'both', label: 'Save Both', description: 'Save the background and QR code separately', icon: <Library className="w-8 h-8" /> },
+    { id: 'item', label: 'Save Product Graphic', description: 'Save the graphic that goes on the shirt/product', icon: <ShoppingBag className="w-8 h-8" /> },
+    { id: 'landing', label: 'Save Landing Page', description: 'Save the background image for the QR landing page', icon: <ImagePlus className="w-8 h-8" /> },
+    { id: 'all', label: 'Save Everything', description: 'Save product graphic, landing page, and QR code', icon: <Library className="w-8 h-8" /> },
   ];
   
   return (
@@ -1979,12 +1979,14 @@ function QRCanvasSaveChoiceStep({
 // QR Canvas Confirm Step - confirmation after saving
 function QRCanvasConfirmStep({
   saveChoice,
+  productGraphicUrl,
   backgroundUrl,
   qrGraphicUrl,
   isSaving,
   onDone
 }: {
   saveChoice: QRCanvasSaveOption;
+  productGraphicUrl: string | null;
   backgroundUrl: string | null;
   qrGraphicUrl: string | null;
   isSaving: boolean;
@@ -1992,13 +1994,13 @@ function QRCanvasConfirmStep({
 }) {
   const getMessage = () => {
     switch (saveChoice) {
-      case 'canvas':
-        return { title: 'Background Saved!', description: 'Your background image has been saved to your library.' };
-      case 'qr':
-        return { title: 'QR Code Saved!', description: 'Your QR code graphic has been saved to your library.' };
-      case 'both':
-        return { title: 'Both Saved!', description: 'Your background and QR code have been saved to your library.' };
-            default:
+      case 'item':
+        return { title: 'Product Graphic Saved!', description: 'The graphic for your product has been saved to your library.' };
+      case 'landing':
+        return { title: 'Landing Page Saved!', description: 'Your landing page background has been saved to your library.' };
+      case 'all':
+        return { title: 'Everything Saved!', description: 'Your product graphic, landing page, and QR code have been saved to your library.' };
+      default:
         return { title: 'Done!', description: 'Your creation is ready.' };
     }
   };
@@ -2016,22 +2018,26 @@ function QRCanvasConfirmStep({
       </div>
       
       {/* Show what was saved */}
-      {(
-        <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
-          {(saveChoice === 'canvas' || saveChoice === 'both') && backgroundUrl && (
-            <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
-              <img src={backgroundUrl} alt="Background" className="w-28 h-28 object-cover rounded mx-auto mb-2" />
-              <p className="text-xs text-slate-400">Background</p>
-            </div>
-          )}
-          {(saveChoice === 'qr' || saveChoice === 'both') && qrGraphicUrl && (
-            <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
-              <img src={qrGraphicUrl} alt="QR Code" className="w-28 h-28 object-contain mx-auto mb-2 bg-white rounded" />
-              <p className="text-xs text-slate-400">QR Code</p>
-            </div>
-          )}
-        </div>
-      )}
+      <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
+        {(saveChoice === 'item' || saveChoice === 'all') && productGraphicUrl && (
+          <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+            <img src={productGraphicUrl} alt="Product graphic" className="w-28 h-28 object-contain mx-auto mb-2" />
+            <p className="text-xs text-slate-400">Product Graphic</p>
+          </div>
+        )}
+        {(saveChoice === 'landing' || saveChoice === 'all') && backgroundUrl && (
+          <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+            <img src={backgroundUrl} alt="Landing page" className="w-28 h-28 object-cover rounded mx-auto mb-2" />
+            <p className="text-xs text-slate-400">Landing Page</p>
+          </div>
+        )}
+        {saveChoice === 'all' && qrGraphicUrl && (
+          <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+            <img src={qrGraphicUrl} alt="QR Code" className="w-28 h-28 object-contain mx-auto mb-2 bg-white rounded" />
+            <p className="text-xs text-slate-400">QR Code</p>
+          </div>
+        )}
+      </div>
       
       <Button
         onClick={onDone}
@@ -5763,6 +5769,7 @@ function MembersSandboxContent() {
   const [isCanvasSaving, setIsCanvasSaving] = useState(false);
   const [publishedPacketId, setPublishedPacketId] = useState<string | null>(null);
   const [publishedQrGraphicUrl, setPublishedQrGraphicUrl] = useState<string | null>(null);
+  const [publishedProductGraphicUrl, setPublishedProductGraphicUrl] = useState<string | null>(null);
   
   // QR Plus flow state (fork at step 12 for qr-plus type)
   const [qrPlusMockup, setQrPlusMockup] = useState<string>(''); // The product mockup image with full graphic
@@ -5932,15 +5939,23 @@ function MembersSandboxContent() {
       const assetsToSave: { url: string; assetType: string; name: string }[] = [];
       
       // Determine what to save based on choice
-      if ((canvasSaveChoice === 'canvas' || canvasSaveChoice === 'both') && urlGraphic) {
+      if ((canvasSaveChoice === 'item' || canvasSaveChoice === 'all') && publishedProductGraphicUrl) {
         assetsToSave.push({
-          url: urlGraphic,
-          assetType: 'background',
-          name: `${simpleTitle || 'Canvas'} - Background`
+          url: publishedProductGraphicUrl,
+          assetType: 'graphic',
+          name: `${simpleTitle || 'Canvas'} - Product Graphic`
         });
       }
       
-      if ((canvasSaveChoice === 'qr' || canvasSaveChoice === 'both') && publishedQrGraphicUrl) {
+      if ((canvasSaveChoice === 'landing' || canvasSaveChoice === 'all') && urlGraphic) {
+        assetsToSave.push({
+          url: urlGraphic,
+          assetType: 'background',
+          name: `${simpleTitle || 'Canvas'} - Landing Page`
+        });
+      }
+      
+      if (canvasSaveChoice === 'all' && publishedQrGraphicUrl) {
         assetsToSave.push({
           url: publishedQrGraphicUrl,
           assetType: 'graphic',
@@ -5988,6 +6003,7 @@ function MembersSandboxContent() {
     setCanvasSaveChoice('');
     setPublishedPacketId(null);
     setPublishedQrGraphicUrl(null);
+    setPublishedProductGraphicUrl(null);
   };
 
   // Handle product selection - creates packet immediately
@@ -6348,8 +6364,9 @@ function MembersSandboxContent() {
       
       // For QR Canvas, show save-to-library choice
       if (qrType === 'qr-canvas') {
-        setPublishedPacketId(result.packetId || null);
-        setPublishedQrGraphicUrl(result.qrGraphicUrl || null);
+        setPublishedPacketId(result.id || result.packetId || null);
+        setPublishedQrGraphicUrl(result.qrGraphic || null);
+        setPublishedProductGraphicUrl(result.productGraphic || null);
         setSimpleStep('canvas-save-choice');
       } else {
         // For other types, go back to channels
@@ -7151,6 +7168,7 @@ function MembersSandboxContent() {
                 {simpleStep === 'canvas-confirm' && (
                   <QRCanvasConfirmStep
                     saveChoice={canvasSaveChoice}
+                    productGraphicUrl={publishedProductGraphicUrl}
                     backgroundUrl={urlGraphic}
                     qrGraphicUrl={publishedQrGraphicUrl}
                     isSaving={isCanvasSaving}
