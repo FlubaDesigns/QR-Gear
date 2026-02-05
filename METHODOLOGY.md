@@ -8,6 +8,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-02-05 | Added Member Library Storage Paths (Section 7) |
 | 2026-02-04 | Initial methodology document created |
 
 ---
@@ -77,6 +78,28 @@ Packets have a status that tracks their lifecycle:
 - `draft` - Started but paused, can resume
 - `saved` - Complete and in member's library
 - `published` - Live and available for sale
+
+### 7. Member Library Storage Paths
+**Established: 2026-02-05**
+
+Each member has isolated storage in Firebase:
+- `members/{memberId}/library/backgrounds` - Original uploaded images
+- `members/{memberId}/library/cropped` - 9:16 cropped versions for landing pages
+- `members/{memberId}/library/videos` - Video uploads for QR Play
+
+**Crop Flow**: When a member crops an image:
+1. Original saves to `/library/backgrounds`
+2. Cropped version saves to `/library/cropped`
+
+**Firestore Collection**: `memberLibrary` with fields:
+- `memberId`, `assetType`, `mediaType`, `name`, `fileName`, `storageUrl`, `publicUrl`
+- `isCropped: boolean` - true for cropped images
+- `originalAssetId` - links cropped back to original
+
+**API Endpoints**:
+- `GET /api/members/:memberId/library` - Fetch member's library
+- `POST /api/members/:memberId/library/upload` - Upload asset
+- `GET /api/member-files/:memberId/:filename` - Proxy to serve files
 
 ---
 
