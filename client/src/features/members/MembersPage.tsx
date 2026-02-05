@@ -2581,7 +2581,9 @@ function PlacementConfigStep({
   onGraphicChoiceChange,
   headerStyle,
   footerStyle,
-  textLayoutChoice
+  textLayoutChoice,
+  selectedColor,
+  graphicSize
 }: {
   currentPlacement: PlacementOption;
   currentIndex: number;
@@ -2591,13 +2593,124 @@ function PlacementConfigStep({
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   textLayoutChoice: TextLayoutChoice;
+  selectedColor: string;
+  graphicSize: GraphicSize;
 }) {
   const placementLabel = PLACEMENT_OPTIONS.find(p => p.id === currentPlacement)?.label || currentPlacement;
-  const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
-  const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+  const showHeader = graphicChoice === 'full' && (textLayoutChoice === 'header' || textLayoutChoice === 'both');
+  const showFooter = graphicChoice === 'full' && (textLayoutChoice === 'footer' || textLayoutChoice === 'both');
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  // Determine if this is a left chest placement for sizing
+  const isLeftChest = currentPlacement === 'left_chest';
+  const isSleeve = currentPlacement === 'sleeve_left' || currentPlacement === 'sleeve_right';
+  
+  // Get graphic dimensions based on size
+  const getGraphicDimensions = () => {
+    const sizeKey = graphicSize || 'medium';
+    const sizes: Record<string, { w: number; h: number }> = {
+      small: { w: 22, h: 30 },
+      medium: { w: 33, h: 44 },
+      large: { w: 41, h: 52 }
+    };
+    return sizes[sizeKey] || sizes.medium;
+  };
+  const graphicDims = getGraphicDimensions();
+  
+  // Front/back shirt SVG with live graphic preview
+  const ShirtPreviewWithGraphic = () => {
+    const graphicX = isLeftChest ? 77 : 90;
+    const graphicY = isLeftChest ? 68 : 79;
+    
+    return (
+      <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
+        <path
+          d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+          fill={colorHex}
+          stroke="#444"
+          strokeWidth="2"
+        />
+        {currentPlacement === 'back' && (
+          <path d="M75,37 Q90,42 105,37" fill="none" stroke="#444" strokeWidth="1.5"/>
+        )}
+        
+        {/* Show graphic only when a choice is made */}
+        {graphicChoice && (
+          <g transform={`translate(${graphicX - graphicDims.w/2}, ${graphicY - graphicDims.h/2})`}>
+            {showHeader && (
+              <text x={graphicDims.w / 2} y={10} textAnchor="middle" fill={headerStyle.color || '#fff'}
+                fontSize={isLeftChest ? 5 : 8} fontFamily={headerStyle.fontFamily || 'Arial'} fontWeight="bold">
+                {headerStyle.text?.substring(0, 15) || 'HEADER'}
+              </text>
+            )}
+            <g transform={`translate(${(graphicDims.w - (isLeftChest ? 8 : 12)) / 2}, ${(graphicDims.h - (isLeftChest ? 8 : 12)) / 2})`}>
+              <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
+              <rect x="1" y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+              <rect x={isLeftChest ? 5.5 : 8.5} y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+              <rect x="1" y={isLeftChest ? 5.5 : 8.5} width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
+              <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
+            </g>
+            {showFooter && (
+              <text x={graphicDims.w / 2} y={graphicDims.h - 3} textAnchor="middle" fill={footerStyle.color || '#fff'}
+                fontSize={isLeftChest ? 5 : 8} fontFamily={footerStyle.fontFamily || 'Arial'} fontWeight="bold">
+                {footerStyle.text?.substring(0, 15) || 'FOOTER'}
+              </text>
+            )}
+          </g>
+        )}
+        
+        <text x="90" y="200" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold">
+          {currentPlacement === 'back' ? 'BACK' : 'FRONT'}
+        </text>
+      </svg>
+    );
+  };
+  
+  // Sleeve view SVG
+  const SleevePreviewWithGraphic = ({ side }: { side: 'left' | 'right' }) => {
+    const isLeft = side === 'left';
+    return (
+      <svg viewBox="0 0 120 160" className="w-full h-full drop-shadow-xl">
+        {isLeft ? (
+          <>
+            <path d="M70,50 L70,150 L95,150 L95,50 Q82,38 70,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+            <path d="M70,52 L20,65 L15,95 L22,98 L70,82" fill={colorHex} stroke="#444" strokeWidth="2"/>
+            <path d="M70,50 Q62,42 70,35 Q82,28 95,35 Q103,42 95,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+            {graphicChoice && (
+              <g transform="translate(32, 72) rotate(-10)">
+                <rect width="16" height="16" fill="white" rx="2"/>
+                <rect x="2" y="2" width="4" height="4" fill="#333"/>
+                <rect x="10" y="2" width="4" height="4" fill="#333"/>
+                <rect x="2" y="10" width="4" height="4" fill="#333"/>
+                <rect x="6" y="6" width="4" height="4" fill="#333"/>
+              </g>
+            )}
+          </>
+        ) : (
+          <>
+            <path d="M50,50 L50,150 L25,150 L25,50 Q38,38 50,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+            <path d="M50,52 L100,65 L105,95 L98,98 L50,82" fill={colorHex} stroke="#444" strokeWidth="2"/>
+            <path d="M50,50 Q58,42 50,35 Q38,28 25,35 Q17,42 25,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+            {graphicChoice && (
+              <g transform="translate(72, 72) rotate(10)">
+                <rect width="16" height="16" fill="white" rx="2"/>
+                <rect x="2" y="2" width="4" height="4" fill="#333"/>
+                <rect x="10" y="2" width="4" height="4" fill="#333"/>
+                <rect x="2" y="10" width="4" height="4" fill="#333"/>
+                <rect x="6" y="6" width="4" height="4" fill="#333"/>
+              </g>
+            )}
+          </>
+        )}
+        <text x="60" y="155" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">
+          {side === 'left' ? 'LEFT SLEEVE' : 'RIGHT SLEEVE'}
+        </text>
+      </svg>
+    );
+  };
   
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in duration-500">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Configure {placementLabel}</h2>
         {totalPlacements > 1 && (
@@ -2605,9 +2718,15 @@ function PlacementConfigStep({
         )}
       </div>
       
-      {/* Visual placement diagram */}
+      {/* Live shirt preview showing current selection */}
       <div className="flex justify-center">
-        <PlacementDiagram placement={currentPlacement} size="medium" />
+        <div className="w-32 h-40">
+          {isSleeve ? (
+            <SleevePreviewWithGraphic side={currentPlacement === 'sleeve_left' ? 'left' : 'right'} />
+          ) : (
+            <ShirtPreviewWithGraphic />
+          )}
+        </div>
       </div>
       
       {/* Choice: Full Graphic or QR Only */}
@@ -2625,9 +2744,9 @@ function PlacementConfigStep({
           >
             <div className="flex flex-col items-center gap-2">
               <div className="w-16 h-20 bg-slate-700 rounded-lg flex flex-col items-center justify-center gap-1 p-1">
-                {showHeader && <div className="w-10 h-2 bg-white/60 rounded-sm" />}
+                {(textLayoutChoice === 'header' || textLayoutChoice === 'both') && <div className="w-10 h-2 bg-white/60 rounded-sm" />}
                 <QrCode className="w-8 h-8 text-white" />
-                {showFooter && <div className="w-10 h-2 bg-white/60 rounded-sm" />}
+                {(textLayoutChoice === 'footer' || textLayoutChoice === 'both') && <div className="w-10 h-2 bg-white/60 rounded-sm" />}
               </div>
               <span className="font-medium text-white text-sm">Full Graphic</span>
               <span className="text-xs text-slate-400">Header + QR + Footer</span>
@@ -2653,8 +2772,7 @@ function PlacementConfigStep({
           </button>
         </div>
       </div>
-      
-      </div>
+    </div>
   );
 }
 
@@ -6500,6 +6618,8 @@ function MembersSandboxContent() {
                     headerStyle={headerStyle}
                     footerStyle={footerStyle}
                     textLayoutChoice={textLayoutChoice}
+                    selectedColor={selectedColor}
+                    graphicSize={graphicSize}
                   />
                 )}
                 
