@@ -10093,7 +10093,15 @@ ${allPages.map(page => `  <url>
   app.post("/api/members/:memberId/library/upload", async (req: any, res) => {
     try {
       const { memberId } = req.params;
-      const { assetType = 'background', name, imageData, mimeType: inputMimeType, originalName: inputOriginalName } = req.body;
+      const { 
+        assetType = 'background', 
+        name, 
+        imageData, 
+        mimeType: inputMimeType, 
+        originalName: inputOriginalName,
+        isCropped = false,
+        originalAssetId
+      } = req.body;
       
       if (!imageData) {
         return res.status(400).json({ error: "No imageData provided" });
@@ -10109,9 +10117,11 @@ ${allPages.map(page => `  <url>
       // Determine media type from mime
       const mediaType = mimeType.startsWith('video/') ? 'video' : 'image';
       
-      // Create member-scoped storage path
+      // Create member-scoped storage path (add cropped subfolder for cropped images)
       const sanitizedName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const folder = `members/${memberId}/${assetType}s`;
+      const folder = isCropped 
+        ? `members/${memberId}/${assetType}s/cropped` 
+        : `members/${memberId}/${assetType}s`;
       
       const uploadResult = await uploadToFirebaseStorage(
         buffer,
@@ -10126,7 +10136,7 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const assetDoc = await firestoreDb.collection('memberLibrary').add({
+      const assetData: any = {
         memberId,
         assetType,
         mediaType,
@@ -10138,8 +10148,16 @@ ${allPages.map(page => `  <url>
         mimeType,
         sizeBytes: buffer.length,
         isActive: true,
+        isCropped: isCropped,
         createdAt: new Date().toISOString(),
-      });
+      };
+      
+      // Link to original asset if this is a cropped version
+      if (originalAssetId) {
+        assetData.originalAssetId = originalAssetId;
+      }
+      
+      const assetDoc = await firestoreDb.collection('memberLibrary').add(assetData);
       
       console.log(`[Member Upload] Created ${assetType} asset ${assetDoc.id} for member ${memberId}`);
       
@@ -10151,6 +10169,7 @@ ${allPages.map(page => `  <url>
           publicUrl: proxyUrl,
           assetType,
           mediaType,
+          isCropped: isCropped,
         }
       });
     } catch (error: any) {

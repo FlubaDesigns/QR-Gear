@@ -3568,9 +3568,45 @@ function SimpleBackgroundStep({
     ? personalAssets.filter(asset => isAlready916(asset))
     : personalAssets;
 
-  const handleCropComplete = (croppedUrl: string) => {
+  const handleCropComplete = async (croppedDataUrl: string) => {
     const originalUrl = selectedAsset?.publicUrl || '';
-    onBackgroundSelected(croppedUrl, originalUrl, true);
+    
+    // Save the cropped image to the member's library for persistence
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const headers: HeadersInit = token 
+        ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } 
+        : { 'Content-Type': 'application/json' };
+
+      const res = await fetch(`/api/members/${memberId}/library/upload`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          assetType: 'background',
+          name: `${selectedAsset?.name || 'Image'} (cropped)`,
+          imageData: croppedDataUrl,
+          mimeType: 'image/png',
+          originalName: selectedAsset?.name || 'cropped-image.png',
+          isCropped: true,
+          originalAssetId: selectedAsset?.id
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const savedUrl = data.asset?.publicUrl || croppedDataUrl;
+        console.log('[Crop] Saved cropped image to library:', savedUrl);
+        onBackgroundSelected(savedUrl, originalUrl, true);
+        refetchPersonal(); // Refresh the library to show the new cropped image
+      } else {
+        console.error('[Crop] Failed to save cropped image, using data URL');
+        onBackgroundSelected(croppedDataUrl, originalUrl, true);
+      }
+    } catch (error) {
+      console.error('[Crop] Error saving cropped image:', error);
+      onBackgroundSelected(croppedDataUrl, originalUrl, true);
+    }
+    
     setShowCrop(false);
     onComplete();
   };
