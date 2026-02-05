@@ -9543,7 +9543,8 @@ ${allPages.map(page => `  <url>
       const buffer = Buffer.from(base64Data, 'base64');
       const filename = `product-graphic-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
       
-      const uploadResult = await uploadImageFromBuffer(buffer, filename, mimeType, 'member-graphics');
+      // Upload to library/backgrounds/raw which is already served by /api/library-files proxy
+      const uploadResult = await uploadImageFromBuffer(buffer, filename, mimeType, 'library/backgrounds/raw');
       
       if (!uploadResult.publicUrl) {
         console.error(`[ProductGraphic] Upload failed - no publicUrl returned`);
