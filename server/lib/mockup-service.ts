@@ -12,8 +12,43 @@ import { db } from "../db";
 import { eq, and } from "drizzle-orm";
 import { mockupCache, canonicalPlacements, providerPlacementMappings, productPlacementAvailability, printifyPrintfulMapping } from "../../shared/schema";
 import type { IStorage } from "../storage";
-import { downloadAndStoreFromUrl } from "./firebase-storage-service";
+import { downloadAndStoreFromUrl, uploadImageFromBuffer } from "./firebase-storage-service";
 import { printfulClient } from "./printful";
+
+/**
+ * Upload a data URI to Firebase Storage and return public URL
+ * Used for member-generated productGraphics that need to be sent to Printful
+ */
+async function uploadDataUriToStorage(dataUri: string): Promise<string | null> {
+  try {
+    const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      console.error("[MockupService] Invalid data URI format");
+      return null;
+    }
+    
+    const mimeType = match[1];
+    const base64Data = match[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Generate unique filename
+    const ext = mimeType.includes('png') ? 'png' : 'jpg';
+    const filename = `product-graphic-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+    
+    const result = await uploadImageFromBuffer(buffer, filename, mimeType, 'member-graphics/temp');
+    
+    if (result.success && result.publicUrl) {
+      console.log(`[MockupService] Uploaded data URI to storage: ${result.publicUrl}`);
+      return result.publicUrl;
+    }
+    
+    console.error("[MockupService] Failed to upload data URI:", result.error);
+    return null;
+  } catch (error) {
+    console.error("[MockupService] Error uploading data URI:", error);
+    return null;
+  }
+}
 
 interface MockupRequest {
   blueprintId: number;
@@ -311,11 +346,27 @@ async function generatePrintfulMockupInternal(params: {
     }
   }
 
-  // Make artwork URL absolute
-  const baseUrl = process.env.REPLIT_DEV_DOMAIN
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : "http://localhost:5000";
-  const absoluteArtworkUrl = artworkUrl.startsWith("http") ? artworkUrl : `${baseUrl}${artworkUrl}`;
+  // Make artwork URL absolute - handle data URIs by uploading to Firebase Storage
+  let absoluteArtworkUrl: string;
+  
+  if (artworkUrl.startsWith("data:")) {
+    // Data URI (member-generated productGraphic) - must upload to get public URL
+    console.log(`[MockupService/Printful] Uploading data URI to Firebase Storage...`);
+    const uploadedUrl = await uploadDataUriToStorage(artworkUrl);
+    if (!uploadedUrl) {
+      console.error(`[MockupService/Printful] Failed to upload data URI to storage`);
+      return null;
+    }
+    absoluteArtworkUrl = uploadedUrl;
+  } else if (artworkUrl.startsWith("http")) {
+    absoluteArtworkUrl = artworkUrl;
+  } else {
+    // Relative URL - make absolute
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "http://localhost:5000";
+    absoluteArtworkUrl = `${baseUrl}${artworkUrl}`;
+  }
 
   console.log(`[MockupService/Printful] Using Printful product ${printfulProductId} for color ${printfulColorName}`);
   console.log(`[MockupService/Printful] Artwork URL: ${absoluteArtworkUrl}`);
