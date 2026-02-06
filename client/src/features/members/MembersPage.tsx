@@ -3625,6 +3625,27 @@ function ShirtPreviewStep({
   const graphicX = isLeftChest ? 77 : 90;
   const graphicY = isLeftChest ? 68 : 79;
   
+  const qrHeight = graphicDims.h * 0.25;
+  const qrWidth = qrHeight;
+  const qrY = graphicY - qrHeight / 2;
+  const headerZoneTop = graphicY - graphicDims.h / 2 + 2;
+  const headerZoneBottom = qrY - 2;
+  const footerZoneTop = qrY + qrHeight + 2;
+  const footerZoneBottom = graphicY + graphicDims.h / 2 - 2;
+
+  const headerAutoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', graphicDims.w);
+  const footerAutoText = calculateAutoTextSize(footerStyle.text || '', footerStyle.fontSize || '18px', graphicDims.w);
+
+  const headerVOffset = headerStyle.verticalOffset ?? 50;
+  const headerHOffset = headerStyle.horizontalOffset ?? 50;
+  const headerTextY = Math.max(headerZoneTop + headerAutoText.fontSize * 0.8, Math.min(headerZoneBottom - (headerAutoText.lines.length > 1 ? headerAutoText.fontSize : 0), headerZoneTop + ((headerZoneBottom - headerZoneTop) * (headerVOffset / 100))));
+  const headerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (headerHOffset / 100));
+
+  const footerVOffset = footerStyle.verticalOffset ?? 50;
+  const footerHOffset = footerStyle.horizontalOffset ?? 50;
+  const footerTextY = Math.max(footerZoneTop + footerAutoText.fontSize * 0.8, Math.min(footerZoneBottom - (footerAutoText.lines.length > 1 ? footerAutoText.fontSize : 0), footerZoneTop + ((footerZoneBottom - footerZoneTop) * (footerVOffset / 100))));
+  const footerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (footerHOffset / 100));
+
   // Front/Back shirt view
   const ShirtFrontBackView = ({ view }: { view: 'front' | 'back' }) => (
     <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
@@ -3638,28 +3659,41 @@ function ShirtPreviewStep({
         <path d="M75,37 Q90,42 105,37" fill="none" stroke="#444" strokeWidth="1.5"/>
       )}
       
-      {/* Graphic area on shirt */}
-      <g transform={`translate(${graphicX - graphicDims.w/2}, ${graphicY - graphicDims.h/2})`}>
-        {showHeader && (
-          <text x={graphicDims.w / 2} y={10} textAnchor="middle" fill={headerStyle.color || '#fff'}
-            fontSize={isLeftChest ? 5 : 8} fontFamily={headerStyle.fontFamily || 'Arial'} fontWeight="bold">
-            {headerStyle.text?.substring(0, 15) || ''}
-          </text>
-        )}
-        <g transform={`translate(${(graphicDims.w - (isLeftChest ? 8 : 12)) / 2}, ${(graphicDims.h - (isLeftChest ? 8 : 12)) / 2})`}>
-          <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
-          <rect x="1" y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
-          <rect x={isLeftChest ? 5.5 : 8.5} y="1" width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
-          <rect x="1" y={isLeftChest ? 5.5 : 8.5} width={isLeftChest ? 1.5 : 2.5} height={isLeftChest ? 1.5 : 2.5} fill="#333" />
-          <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#333" />
-        </g>
-        {showFooter && (
-          <text x={graphicDims.w / 2} y={graphicDims.h - 3} textAnchor="middle" fill={footerStyle.color || '#fff'}
-            fontSize={isLeftChest ? 5 : 8} fontFamily={footerStyle.fontFamily || 'Arial'} fontWeight="bold">
-            {footerStyle.text?.substring(0, 15) || ''}
-          </text>
-        )}
+      {showHeader && headerAutoText.lines.map((line, i) => (
+        <text
+          key={`hdr-${i}`}
+          x={headerTextX}
+          y={headerTextY + i * (headerAutoText.fontSize + 1)}
+          textAnchor="middle"
+          fill={headerStyle.color || '#fff'}
+          fontSize={headerAutoText.fontSize}
+          fontFamily={headerStyle.fontFamily || 'Arial'}
+          fontWeight="bold"
+        >
+          {line}
+        </text>
+      ))}
+      <g transform={`translate(${graphicX - qrWidth / 2}, ${qrY})`}>
+        <rect width={qrWidth} height={qrHeight} fill="white" rx="1" />
+        <rect x={qrHeight * 0.08} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+        <rect x={qrWidth - qrHeight * 0.08 - qrHeight * 0.18} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+        <rect x={qrHeight * 0.08} y={qrHeight - qrHeight * 0.08 - qrHeight * 0.18} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+        <rect x={qrWidth / 2 - qrHeight * 0.12} y={qrHeight * 0.38} width={qrHeight * 0.24} height={qrHeight * 0.24} fill="#333" />
       </g>
+      {showFooter && footerAutoText.lines.map((line, i) => (
+        <text
+          key={`ftr-${i}`}
+          x={footerTextX}
+          y={footerTextY + i * (footerAutoText.fontSize + 1)}
+          textAnchor="middle"
+          fill={footerStyle.color || '#fff'}
+          fontSize={footerAutoText.fontSize}
+          fontFamily={footerStyle.fontFamily || 'Arial'}
+          fontWeight="bold"
+        >
+          {line}
+        </text>
+      ))}
       <text x="90" y="200" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold">
         {view === 'front' ? 'FRONT' : 'BACK'}
       </text>
