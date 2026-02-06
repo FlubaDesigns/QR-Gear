@@ -1245,28 +1245,38 @@ function GraphicSizeStep({
     );
   };
   
+  const placementLabel = currentPlacement === 'front' ? 'Front' 
+    : currentPlacement === 'back' ? 'Back'
+    : currentPlacement === 'left_chest' ? 'Left Chest'
+    : currentPlacement === 'sleeve_left' ? 'Left Sleeve'
+    : currentPlacement === 'sleeve_right' ? 'Right Sleeve'
+    : currentPlacement;
+
   return (
-    <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
+    <div className="text-center space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
-        <h2 className="text-lg font-bold text-white mb-2">What Size Graphic?</h2>
-        <p className="text-slate-400">This is your entire print area</p>
+        <h2 className="text-base font-bold text-white mb-0.5">What Size Graphic?</h2>
+        <p className="text-slate-400 text-xs">This is your entire print area</p>
       </div>
       
-      {/* Shirt/Sleeve with graphic outline preview */}
-      <div className="flex justify-center py-1">
-        {isSleeve ? renderSleeveView() : renderBodyView()}
+      <div className="flex items-center justify-center gap-3">
+        <div className="flex-shrink-0">
+          {isSleeve ? renderSleeveView() : renderBodyView()}
+        </div>
+        <div className="text-left">
+          <p className="text-orange-400 font-bold text-sm">{placementLabel}</p>
+          <p className="text-slate-500 text-[10px]">
+            {isSleeve ? 'QR fits inside this box' : 'Header + QR + Footer fit inside'}
+          </p>
+        </div>
       </div>
-      
-      <p className="text-xs text-slate-500">
-        {isSleeve ? 'QR fits inside this box on the sleeve' : 'Header + QR + Footer all fit inside this box'}
-      </p>
       
       <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto">
         {(['small', 'medium', 'large'] as GraphicSize[]).map((size) => (
           <button
             key={size}
             onClick={() => onSelect(size)}
-            className={`py-3 rounded-lg border-2 capitalize transition-all ${
+            className={`py-2.5 rounded-lg border-2 capitalize transition-all text-sm ${
               selectedSize === size
                 ? 'border-orange-500 bg-orange-500/15 text-orange-400'
                 : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
