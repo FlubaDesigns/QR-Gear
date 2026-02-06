@@ -5315,18 +5315,18 @@ function TextLayoutChoiceStep({
   };
 
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-2">
       <div>
-        <h2 className="text-xl font-bold text-white mb-2">Add Text to Your Design</h2>
-        <p className="text-slate-400">Each text line earns you more per sale</p>
+        <h2 className="text-base font-bold text-white mb-0.5">Add Text to Your Design</h2>
+        <p className="text-slate-400 text-xs">Each text line earns you more per sale</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
+      <div className="grid grid-cols-1 gap-2 max-w-sm mx-auto">
         {options.map((option) => (
           <button
             key={option.id}
             onClick={() => handleSelect(option.id)}
-            className={`relative p-3 rounded-xl border-2 transition-all ${
+            className={`relative p-2 rounded-xl border-2 transition-all ${
               selected === option.id
                 ? 'border-orange-500 bg-orange-500/20 shadow-lg shadow-orange-500/20'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
@@ -5345,7 +5345,7 @@ function TextLayoutChoiceStep({
               </div>
             )}
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-16 rounded flex flex-col items-center justify-center p-1 flex-shrink-0 ${
+              <div className={`w-8 h-12 rounded flex flex-col items-center justify-center p-0.5 flex-shrink-0 ${
                 selected === option.id ? 'bg-orange-900/40' : 'bg-slate-700'
               }`}>
                 {(option.id === 'header' || option.id === 'both') && (
