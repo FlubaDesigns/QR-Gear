@@ -5311,40 +5311,40 @@ function TextLayoutChoiceStep({
         <p className="text-slate-400">Each text line earns you more per sale</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 max-w-sm mx-auto">
+      <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
         {options.map((option) => (
           <button
             key={option.id}
             onClick={() => onSelect(option.id)}
-            className={`p-5 rounded-xl border-2 transition-all ${
+            className={`p-3 rounded-xl border-2 transition-all ${
               selected === option.id
                 ? 'border-orange-500 bg-orange-500/15'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-layout-${option.id}`}
           >
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-24 bg-slate-700 rounded-lg flex flex-col items-center justify-center p-2 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-16 bg-slate-700 rounded flex flex-col items-center justify-center p-1 flex-shrink-0">
                 {(option.id === 'header' || option.id === 'both') && (
-                  <div className="w-full h-3 bg-yellow-400 border border-yellow-200 rounded mb-1 shadow-lg" />
+                  <div className="w-full h-2 bg-yellow-400 border border-yellow-200 rounded mb-0.5 shadow-lg" />
                 )}
-                <div className="w-7 h-7 bg-white rounded flex items-center justify-center my-1">
-                  <QrCode className="w-4 h-4 text-slate-800" />
+                <div className="w-5 h-5 bg-white rounded flex items-center justify-center my-0.5">
+                  <QrCode className="w-3 h-3 text-slate-800" />
                 </div>
                 {(option.id === 'footer' || option.id === 'both') && (
-                  <div className="w-full h-3 bg-yellow-400 border border-yellow-200 rounded mt-1 shadow-lg" />
+                  <div className="w-full h-2 bg-yellow-400 border border-yellow-200 rounded mt-0.5 shadow-lg" />
                 )}
               </div>
-              <div className="flex-1 text-left">
-                <p className="text-white font-semibold text-lg">{option.label}</p>
-                <p className="text-slate-400 text-sm">{option.description}</p>
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-white font-semibold text-sm">{option.label}</p>
+                <p className="text-slate-400 text-xs">{option.description}</p>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-green-400 font-bold text-lg">+${(textLineEarningsBonus * option.lines).toFixed(2)}</p>
-                <p className="text-slate-500 text-xs">per sale</p>
+                <p className="text-green-400 font-bold text-sm">+${(textLineEarningsBonus * option.lines).toFixed(2)}</p>
+                <p className="text-slate-500 text-[10px]">per sale</p>
               </div>
               {selected === option.id && (
-                <Check className="w-6 h-6 text-orange-400 flex-shrink-0" />
+                <Check className="w-5 h-5 text-orange-400 flex-shrink-0" />
               )}
             </div>
           </button>
