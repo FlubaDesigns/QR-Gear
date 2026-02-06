@@ -5339,13 +5339,15 @@ function TextLayoutChoiceStep({
             onClick={() => handleSelect(option.id)}
             className={`p-3 rounded-xl border-2 transition-all ${
               selected === option.id
-                ? 'border-orange-500 bg-orange-500/15'
+                ? 'border-orange-500 bg-orange-500/20 shadow-lg shadow-orange-500/20'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-layout-${option.id}`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-16 bg-slate-700 rounded flex flex-col items-center justify-center p-1 flex-shrink-0">
+              <div className={`w-10 h-16 rounded flex flex-col items-center justify-center p-1 flex-shrink-0 ${
+                selected === option.id ? 'bg-orange-900/40' : 'bg-slate-700'
+              }`}>
                 {(option.id === 'header' || option.id === 'both') && (
                   <div className="w-full h-2 bg-yellow-400 border border-yellow-200 rounded mb-0.5 shadow-lg" />
                 )}
@@ -5357,8 +5359,8 @@ function TextLayoutChoiceStep({
                 )}
               </div>
               <div className="flex-1 text-left min-w-0">
-                <p className="text-white font-semibold text-sm">{option.label}</p>
-                <p className="text-slate-400 text-xs">{option.description}</p>
+                <p className={`font-semibold text-sm ${selected === option.id ? 'text-orange-400' : 'text-white'}`}>{option.label}</p>
+                <p className={`text-xs ${selected === option.id ? 'text-orange-300/70' : 'text-slate-400'}`}>{option.description}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-green-400 font-bold text-sm">+${(textLineEarningsBonus * option.lines).toFixed(2)}</p>
