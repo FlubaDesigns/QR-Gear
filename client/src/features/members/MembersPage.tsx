@@ -7921,7 +7921,7 @@ function MembersSandboxContent() {
                     <SizePickerStep
                       selectedSize={selectedShirtSize}
                       selectedColor={selectedColor}
-                      baseEarnings={selectedProductType?.memberEarnings || 0}
+                      baseEarnings={runningEarnings}
                       sizeEarningsBonuses={sizeEarningsBonuses}
                       selectedPlacements={selectedPlacements}
                       onSelect={(size) => {
