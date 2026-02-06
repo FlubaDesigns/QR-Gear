@@ -4302,7 +4302,7 @@ function PlayVideoSourceStep({
           <input
             ref={fileInputRef}
             type="file"
-            accept="video/*"
+            accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/3gpp,.mp4,.mov,.webm,.m4v,.3gp"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -4340,6 +4340,33 @@ function PlayVideoSourceStep({
   );
 }
 
+function VideoPlayerWithFallback({ videoUrl, testId }: { videoUrl: string; testId: string }) {
+  const [hasError, setHasError] = useState(false);
+  
+  if (hasError) {
+    return (
+      <div className="text-center p-4 flex flex-col items-center justify-center h-full">
+        <AlertCircle className="w-8 h-8 text-red-400 mb-2" />
+        <p className="text-red-400 text-xs font-medium mb-1">Can't play this video</p>
+        <p className="text-slate-500 text-xs">Try uploading an MP4 or MOV file instead</p>
+      </div>
+    );
+  }
+  
+  return (
+    <video
+      key={videoUrl}
+      src={videoUrl}
+      className="w-full h-full object-cover"
+      controls
+      playsInline
+      preload="auto"
+      onError={() => setHasError(true)}
+      data-testid={testId}
+    />
+  );
+}
+
 function PlayPreviewStep({
   videoUrl,
   title
@@ -4358,15 +4385,7 @@ function PlayPreviewStep({
         <div className="w-44 h-72 bg-black rounded-2xl border-2 border-slate-600 p-1 shadow-xl relative overflow-hidden">
           <div className="w-full h-full rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
             {videoUrl ? (
-              <video
-                key={videoUrl}
-                src={videoUrl}
-                className="w-full h-full object-cover"
-                controls
-                playsInline
-                preload="auto"
-                data-testid="video-preview-player"
-              />
+              <VideoPlayerWithFallback videoUrl={videoUrl} testId="video-preview-player" />
             ) : (
               <div className="text-slate-500 text-center p-4">
                 <Play className="w-12 h-12 mx-auto mb-2" />
@@ -6997,13 +7016,29 @@ function MembersSandboxContent() {
 
   const handleVideoFileUpload = async (file: File) => {
     const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    const MIN_SIZE = 10 * 1024; // 10KB - reject tiny fragment files
     if (file.size > MAX_SIZE) {
       setVideoUploadError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 50MB. For larger videos, use the "Paste URL" option instead.`);
       return;
     }
+    if (file.size < MIN_SIZE) {
+      setVideoUploadError('This file is too small to be a valid video. Please select the actual video file from your camera roll.');
+      return;
+    }
+    
+    const rejectedExtensions = /\.(ts|m3u8|m3u)$/i;
+    if (rejectedExtensions.test(file.name)) {
+      setVideoUploadError('This file type (.ts stream) is not supported. Please select an MP4 or MOV video from your camera roll instead.');
+      return;
+    }
+    
+    if (file.type === 'video/mp2t' || file.type === 'video/mp2ts' || file.type === 'video/MP2T') {
+      setVideoUploadError('Transport stream (.ts) files are not supported. Please select an MP4 or MOV video from your camera roll instead.');
+      return;
+    }
     
     const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp', 'video/3gpp2', 'video/x-m4v', 'video/x-matroska'];
-    const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|3gp|mkv)$/i.test(file.name);
+    const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|3gp)$/i.test(file.name);
     if (!isVideo && !allowedTypes.includes(file.type)) {
       setVideoUploadError('Please upload a video file (MP4, MOV, WebM, M4V, or 3GP).');
       return;
