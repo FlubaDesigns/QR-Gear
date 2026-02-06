@@ -5315,18 +5315,7 @@ function TextLayoutChoiceStep({
   };
 
   return (
-    <div className="text-center space-y-6 relative">
-      {floatingEarning && (
-        <div
-          key={floatingEarning.key}
-          className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none z-20"
-        >
-          <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
-            <DollarSign className="w-5 h-5" />
-            +${floatingEarning.amount.toFixed(2)}
-          </div>
-        </div>
-      )}
+    <div className="text-center space-y-6">
       <div>
         <h2 className="text-xl font-bold text-white mb-2">Add Text to Your Design</h2>
         <p className="text-slate-400">Each text line earns you more per sale</p>
@@ -5337,13 +5326,24 @@ function TextLayoutChoiceStep({
           <button
             key={option.id}
             onClick={() => handleSelect(option.id)}
-            className={`p-3 rounded-xl border-2 transition-all ${
+            className={`relative p-3 rounded-xl border-2 transition-all ${
               selected === option.id
                 ? 'border-orange-500 bg-orange-500/20 shadow-lg shadow-orange-500/20'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-layout-${option.id}`}
           >
+            {floatingEarning && floatingEarning.buttonId === option.id && (
+              <div
+                key={floatingEarning.key}
+                className="absolute -top-2 left-1/2 -translate-x-1/2 pointer-events-none z-20"
+              >
+                <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
+                  <DollarSign className="w-5 h-5" />
+                  +${floatingEarning.amount.toFixed(2)}
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <div className={`w-10 h-16 rounded flex flex-col items-center justify-center p-1 flex-shrink-0 ${
                 selected === option.id ? 'bg-orange-900/40' : 'bg-slate-700'
@@ -7066,8 +7066,13 @@ function MembersSandboxContent() {
   };
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     const el = document.getElementById('wizard-step-content');
     if (el) el.scrollTop = 0;
+    const card = el?.closest('.overflow-auto, .overflow-y-auto, .overflow-scroll');
+    if (card) card.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   }, [simpleStep]);
 
   const handleSimpleNext = async () => {
