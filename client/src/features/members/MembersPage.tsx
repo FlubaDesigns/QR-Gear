@@ -4440,31 +4440,55 @@ function PlayPreviewStep({
 
 function PlayPublishStep({
   videoUrl,
-  isPublishing,
-  onPublish
+  isPublishing
 }: {
   videoUrl: string;
   isPublishing: boolean;
-  onPublish: () => void;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [posterReady, setPosterReady] = useState(false);
+  
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (vid && videoUrl) {
+      vid.currentTime = 0.5;
+      vid.addEventListener('seeked', () => setPosterReady(true), { once: true });
+    }
+  }, [videoUrl]);
+  
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in duration-500">
       <div className="text-center">
-        <h2 className="text-lg font-bold text-white mb-2">Ready to Publish</h2>
-        <p className="text-slate-400">Your video QR experience is ready to go live</p>
+        <h2 className="text-lg font-bold text-white mb-1">Ready to Publish</h2>
+        <p className="text-slate-400 text-sm">Your video QR experience is ready to go live</p>
+        {isPublishing && (
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+            <span className="text-emerald-400 text-sm font-medium">Publishing...</span>
+          </div>
+        )}
       </div>
       
       <div className="flex justify-center">
         <div className="w-44 h-72 bg-black rounded-2xl border-2 border-emerald-500 p-1 shadow-xl shadow-emerald-500/20 relative overflow-hidden">
-          <div className="w-full h-full rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
+          <div className="w-full h-full rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center relative">
             {videoUrl ? (
-              <video
-                src={videoUrl}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-                data-testid="video-publish-preview"
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  className="w-full h-full object-contain"
+                  playsInline
+                  muted
+                  preload="auto"
+                  data-testid="video-publish-snapshot"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+                    <Play className="w-6 h-6 text-white ml-0.5" />
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="text-slate-500 text-center p-4">
                 <Play className="w-12 h-12 mx-auto mb-2" />
@@ -4474,26 +4498,7 @@ function PlayPublishStep({
         </div>
       </div>
       
-      <div className="max-w-xs mx-auto">
-        <Button
-          onClick={onPublish}
-          disabled={isPublishing || !videoUrl}
-          className="w-full py-6 text-lg bg-gradient-to-r from-emerald-600 to-teal-600"
-          data-testid="button-play-publish"
-        >
-          {isPublishing ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Publishing...
-            </>
-          ) : (
-            <>
-              <Send className="w-5 h-5 mr-2" />
-              Publish
-            </>
-          )}
-        </Button>
-      </div>
+      <p className="text-center text-slate-500 text-xs">Tap Next to publish</p>
     </div>
   );
 }
@@ -7363,6 +7368,7 @@ function MembersSandboxContent() {
       return;
     }
     if (simpleStep === 'play-publish') {
+      await handleSimplePublish();
       return;
     }
     if (simpleStep === 'play-save-choice') {
@@ -8557,7 +8563,6 @@ function MembersSandboxContent() {
                   <PlayPublishStep
                     videoUrl={playVideoUrl}
                     isPublishing={isPublishing}
-                    onPublish={handleSimplePublish}
                   />
                 )}
                 
