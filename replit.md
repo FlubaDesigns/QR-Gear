@@ -32,6 +32,7 @@ These are the canonical names for image state variables in the members wizard:
     - "Let's talk" = discussion only, no code changes
     - Always read the page code before making new code
     - **NEVER REMOVE FEATURES** - Do NOT remove any feature, toggle, module, or functionality unless the user EXPLICITLY tells you to remove it. Adding features is fine. Removing features without explicit permission is FORBIDDEN.
+    - **NEVER CHANGE WORKING CODE** - Do NOT modify any existing working behavior, logic, values, or data flow unless the user EXPLICITLY tells you to change it. Only touch exactly what was asked. If a task says "add X", do NOT also change Y. If something is already working, leave it alone.
 
 ## System Architecture
 
