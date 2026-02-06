@@ -8354,7 +8354,10 @@ function MembersSandboxContent() {
       incrementPublishCount();
       
       // Route to appropriate post-publish step based on QR type
-      if (qrType === 'qr-play') {
+      if (qrType === 'qr-compose') {
+        setComposeInstanceId(result.composeInstanceId || null);
+        setSimpleStep('compose-confirm');
+      } else if (qrType === 'qr-play') {
         setSimpleStep('play-save-choice');
       } else if (qrType === 'qr-canvas') {
         setPublishedQrGraphicUrl(result.qrGraphic || null);

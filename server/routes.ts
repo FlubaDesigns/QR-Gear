@@ -9707,8 +9707,8 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb, getStorageBucket } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      // === UNIFIED PACKET FLOW (all 4 QR types) ===
-      if (packetType === 'qr-canvas' || packetType === 'qr-play' || packetType === 'qr-basic' || packetType === 'qr-plus') {
+      // === UNIFIED PACKET FLOW (all 5 QR types) ===
+      if (packetType === 'qr-canvas' || packetType === 'qr-play' || packetType === 'qr-basic' || packetType === 'qr-plus' || packetType === 'qr-compose') {
 
         // Use existing packet ID if provided (created at step 2 for mockup handshake)
         // Otherwise generate a new one, with dedup check as fallback
@@ -9836,6 +9836,11 @@ ${allPages.map(page => `  <url>
           qrCanvasMockup: qrCanvasMockup || null,
           // QR Play mockup
           qrPlayMockup: qrPlayMockup || null,
+          // QR Compose
+          composeMockup: body.composeMockup || null,
+          composeItems: body.composeItems || null,
+          composeHostingTerm: body.composeHostingTerm || null,
+          composeInstanceId: null,
           // Pricing
           textLines: textLines || 0,
           textUpcharge: textUpcharge || 0,
@@ -9845,6 +9850,41 @@ ${allPages.map(page => `  <url>
 
         await firestoreDb.collection("memberPackets").doc(packetId).set(packetData);
         console.log(`[UnifiedPublish] Saved complete ${packetType} packet ${packetId} for member ${memberId}`);
+
+        // QR Compose: auto-create dynamics instance
+        if (packetType === 'qr-compose' && body.composeItems && Array.isArray(body.composeItems)) {
+          try {
+            const nowEpoch = Math.floor(Date.now() / 1000);
+            const instanceData = {
+              memberId,
+              packetId,
+              createdAt: nowEpoch,
+              startTimestamp: nowEpoch,
+              mode: 'loop',
+              hostingTerm: body.composeHostingTerm || '1-year',
+              fallbackUrl: null,
+              slots: body.composeItems.map((item: any, index: number) => ({
+                slotId: `slot-${Date.now()}-${index}`,
+                packetId: item.packetId,
+                name: item.name || 'Untitled',
+                thumbnailUrl: item.thumbnailUrl || null,
+                type: item.type || 'qr-canvas',
+                durationSeconds: item.durationSeconds || 86400,
+                order: item.order ?? index + 1,
+              })),
+            };
+            const instanceRef = await firestoreDb.collection("qr_dynamics_instances").add(instanceData);
+            await firestoreDb.collection("memberPackets").doc(packetId).update({
+              composeInstanceId: instanceRef.id,
+              destinationUrl: `/qr/d/${instanceRef.id}`,
+            });
+            packetData.composeInstanceId = instanceRef.id;
+            packetData.destinationUrl = `/qr/d/${instanceRef.id}`;
+            console.log(`[QR Compose] Created dynamics instance ${instanceRef.id} for packet ${packetId}`);
+          } catch (instanceErr: any) {
+            console.error('[QR Compose] Instance creation failed (non-fatal):', instanceErr);
+          }
+        }
 
         res.json(packetData);
         return;
@@ -9882,6 +9922,48 @@ ${allPages.map(page => `  <url>
       });
     } catch (error: any) {
       console.error("[Member Products POST] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get member's published Canvas/Play items (for QR Compose selection)
+  app.get("/api/members/:memberId/published-items", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { types } = req.query;
+
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+
+      const auth = await verifyMemberAuth(req, memberId);
+      if (!auth.authorized) {
+        return res.status(401).json({ error: auth.error });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      const snapshot = await firestoreDb.collection('memberPackets')
+        .where('memberId', '==', memberId)
+        .where('status', '==', 'published')
+        .get();
+
+      let items = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        packetId: doc.id,
+        ...doc.data()
+      }));
+
+      if (types) {
+        const typeList = (types as string).split(',').map((t: string) => t.trim());
+        items = items.filter((item: any) => typeList.includes(item.packetType));
+      }
+
+      console.log(`[PublishedItems] Found ${items.length} items for member ${memberId}`);
+      res.json({ items });
+    } catch (error: any) {
+      console.error("[PublishedItems] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -12211,8 +12293,11 @@ ${allPages.map(page => `  <url>
         return res.status(500).send("Unable to resolve slot");
       }
 
-      // Fetch packet for redirect URL
-      const packetDoc = await firestoreDb.collection("productPackets").doc(activeSlot.packetId).get();
+      // Fetch packet for redirect URL (check both productPackets and memberPackets)
+      let packetDoc = await firestoreDb.collection("productPackets").doc(activeSlot.packetId).get();
+      if (!packetDoc.exists) {
+        packetDoc = await firestoreDb.collection("memberPackets").doc(activeSlot.packetId).get();
+      }
 
       if (!packetDoc.exists) {
         // Slot's packet missing - skip to next slot
