@@ -2548,29 +2548,33 @@ function HeaderTextEditStep({
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">Up/Down</span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={vOffset}
-          onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
-          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-          style={{ touchAction: 'none' }}
-          data-testid="slider-header-vertical"
-        />
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">Left/Right</span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={hOffset}
-          onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
-          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-          style={{ touchAction: 'none' }}
-          data-testid="slider-header-horizontal"
-        />
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 font-bold w-3">Y</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={vOffset}
+            onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
+            className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-header-vertical"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 font-bold w-3">X</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={hOffset}
+            onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
+            className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-header-horizontal"
+          />
+        </div>
       </div>
     </div>
   );
@@ -2779,29 +2783,33 @@ function FooterTextEditStep({
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">Up/Down</span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={vOffset}
-          onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
-          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-          style={{ touchAction: 'none' }}
-          data-testid="slider-footer-vertical"
-        />
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">Left/Right</span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={hOffset}
-          onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
-          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-          style={{ touchAction: 'none' }}
-          data-testid="slider-footer-horizontal"
-        />
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 font-bold w-3">Y</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={vOffset}
+            onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
+            className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-footer-vertical"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 font-bold w-3">X</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={hOffset}
+            onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
+            className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-footer-horizontal"
+          />
+        </div>
       </div>
     </div>
   );
