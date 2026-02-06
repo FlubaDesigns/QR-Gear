@@ -3478,11 +3478,9 @@ function PlacementConfigStep({
   
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
-      <div className="text-center">
-        <h2 className="text-xl font-bold text-white mb-1">Configure {placementLabel}</h2>
-        {totalPlacements > 1 && (
-          <p className="text-slate-400 text-sm">Placement {currentIndex + 1} of {totalPlacements}</p>
-        )}
+      <div className="flex items-center justify-center gap-3 mb-1">
+        <h2 className="text-xl font-bold text-white">Configure Graphic</h2>
+        <span className="text-slate-400 text-sm">{placementLabel}{totalPlacements > 1 ? ` (${currentIndex + 1}/${totalPlacements})` : ''}</span>
       </div>
       
       {/* Live shirt preview showing current selection */}
