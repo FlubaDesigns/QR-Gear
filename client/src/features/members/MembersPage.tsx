@@ -594,7 +594,7 @@ function ChannelStep({
   }
 
   return (
-    <div>
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center mb-6">
         <h2 className="text-lg font-bold text-white mb-2">Choose Your Channel</h2>
         <p className="text-slate-400">Products are organized into channels for your store</p>
@@ -734,7 +734,7 @@ function ProductPickerStep({
   }
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center">
         <h2 className="text-lg font-bold text-white mb-2">Pick Your Product</h2>
         <p className="text-slate-400">Select an item to customize</p>
@@ -804,11 +804,11 @@ function ProductCongratsStep({
   }, []);
   
   return (
-    <div className="flex flex-col items-center justify-center py-8 space-y-6">
+    <div className="flex flex-col items-center justify-center py-4 space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="relative">
         <div className="absolute inset-0 bg-green-500/20 rounded-full blur-3xl animate-pulse" />
-        <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-full p-6">
-          <DollarSign className="w-16 h-16 text-white" />
+        <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-full p-4">
+          <DollarSign className="w-12 h-12 text-white" />
         </div>
       </div>
       
@@ -824,7 +824,7 @@ function ProductCongratsStep({
       <div className={`transition-all duration-700 ${showAmount ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
         <div className="bg-slate-800/80 rounded-2xl p-6 border border-green-500/30">
           <p className="text-slate-400 text-sm mb-2">Starting potential earnings</p>
-          <div className="text-4xl font-bold text-green-400">
+          <div className="text-3xl font-bold text-green-400">
             ${(earnings || 0).toFixed(2)}+
           </div>
           <p className="text-slate-500 text-xs mt-2">Actual earnings depend on size the customer picks!</p>
@@ -843,7 +843,7 @@ function ColorPickerStep({
   onSelect: (color: string) => void;
 }) {
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">Choose Your Color</h2>
         <p className="text-slate-400">What color would you like?</p>
@@ -912,17 +912,17 @@ function SizePickerStep({
   const shirtHeight = Math.round(140 * scale);
   
   return (
-    <div className="text-center space-y-3">
+    <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">What Size?</h2>
         <p className="text-slate-400 text-sm">For preview - customers pick their own size</p>
       </div>
       
       {/* Shirt preview - scales based on selected size */}
-      <div className="flex justify-center items-end h-[200px]">
+      <div className="flex justify-center items-end h-[130px]">
         <svg 
-          width={shirtWidth * 1.4} 
-          height={shirtHeight * 1.4} 
+          width={shirtWidth * 1.0} 
+          height={shirtHeight * 1.0} 
           viewBox="0 0 120 140" 
           className="drop-shadow-lg transition-all duration-300"
         >
@@ -974,7 +974,7 @@ function GraphicLocationStep({
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">Where Do You Want Your Graphic?</h2>
         <p className="text-slate-400">Tap a location to select</p>
@@ -982,7 +982,7 @@ function GraphicLocationStep({
       
       {/* Shirt with location boxes */}
       <div className="flex justify-center">
-        <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
+        <svg width="140" height="165" viewBox="0 0 180 210" className="drop-shadow-lg">
           {/* Shirt shape */}
           <path
             d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
@@ -1096,7 +1096,7 @@ function GraphicSizeStep({
   
   // Render sleeve view
   const renderSleeveView = () => (
-    <svg width="200" height="200" viewBox="0 0 180 180" className="drop-shadow-xl">
+    <svg width="140" height="140" viewBox="0 0 180 180" className="drop-shadow-xl">
       {/* Angled sleeve shape - showing partial shirt from side */}
       <g transform={isLeftSleeve ? "translate(90, 90) rotate(-25)" : "translate(90, 90) rotate(25) scale(-1,1)"}>
         {/* Sleeve tube */}
@@ -1156,7 +1156,7 @@ function GraphicSizeStep({
     const graphicY = isLeftChest ? 68 : 79;
     
     return (
-      <svg width="200" height="240" viewBox="0 0 180 210" className="drop-shadow-xl">
+      <svg width="150" height="180" viewBox="0 0 180 210" className="drop-shadow-xl">
         <path
           d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
           fill={colorHex}
@@ -1217,14 +1217,14 @@ function GraphicSizeStep({
   };
   
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">What Size Graphic?</h2>
         <p className="text-slate-400">This is your entire print area</p>
       </div>
       
       {/* Shirt/Sleeve with graphic outline preview */}
-      <div className="flex justify-center py-4">
+      <div className="flex justify-center py-1">
         {isSleeve ? renderSleeveView() : renderBodyView()}
       </div>
       
@@ -1283,7 +1283,7 @@ function GenerateGraphicStep({
   const qrSize = getQrSize();
   
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">Want a Header and/or Footer?</h2>
         <p className="text-slate-400">Add text above or below your QR code</p>
@@ -1291,7 +1291,7 @@ function GenerateGraphicStep({
       
       {/* Shirt with QR placeholder */}
       <div className="flex justify-center">
-        <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
+        <svg width="140" height="165" viewBox="0 0 180 210" className="drop-shadow-lg">
           <path
             d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
             fill={colorHex}
@@ -1371,15 +1371,15 @@ function QRBasicTypeStep({
   const outlineSize = getOutlineSize();
   
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">What should the QR code link to?</h2>
         <p className="text-slate-400">Choose what people see when they scan</p>
       </div>
       
       {/* Shirt with QR code sized to match step 6 graphic size */}
-      <div className="flex justify-center py-4">
-        <svg width="180" height="210" viewBox="0 0 180 210" className="drop-shadow-lg">
+      <div className="flex justify-center py-1">
+        <svg width="140" height="165" viewBox="0 0 180 210" className="drop-shadow-lg">
           <path
             d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
             fill={colorHex}
@@ -2124,7 +2124,7 @@ function PlacementCountStep({
   };
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Where Do You Want Graphics?</h2>
         <p className="text-slate-400 text-sm">Each extra placement adds +${placementEarningsBonus.toFixed(2)} to your earnings</p>
@@ -3323,7 +3323,7 @@ function PlacementConfigStep({
   };
   
   return (
-    <div className="space-y-4 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Configure {placementLabel}</h2>
         {totalPlacements > 1 && (
@@ -3530,7 +3530,7 @@ function ShirtPreviewStep({
   }
   
   return (
-    <div className="text-center space-y-2">
+    <div className="text-center space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">Your Design Preview</h2>
         <p className="text-slate-400 text-sm">Here's how your graphic will look</p>
@@ -3938,8 +3938,8 @@ function TypePickerStep({
   ];
 
   return (
-    <div>
-      <div className="text-center mb-6">
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-3">
         <h2 className="text-lg font-bold text-white mb-2">What do you want to create?</h2>
         <p className="text-slate-400">Choose the type of QR experience</p>
       </div>
@@ -4006,9 +4006,9 @@ function SurfacePickerStep({
   onSkip: () => void;
 }) {
   return (
-    <div className="text-center space-y-6">
-      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto">
-        <Smartphone className="w-10 h-10 text-white" />
+    <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto">
+        <Smartphone className="w-7 h-7 text-white" />
       </div>
       
       <div>
@@ -4018,7 +4018,7 @@ function SurfacePickerStep({
         </p>
       </div>
       
-      <div className="flex flex-col gap-3 max-w-sm mx-auto pt-4">
+      <div className="flex flex-col gap-3 max-w-sm mx-auto pt-2">
         <Button
           onClick={onCanvas}
           className="w-full py-6 text-lg bg-gradient-to-r from-purple-600 to-blue-600"
@@ -7659,17 +7659,18 @@ function MembersSandboxContent() {
                 Simple Wizard
               </p>
             </CardHeader>
-            <CardContent className="p-6 pt-1">
+            <CardContent className="p-4 pt-1">
               <SimpleWizardProgressBar currentStep={simpleStep} />
               {runningEarnings > 0 && (
-                <div className="flex items-center gap-1 mb-4">
-                  <span className="text-green-400 font-semibold text-sm">
-                    ${runningEarnings.toFixed(2)} potential
+                <div className="flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit animate-in fade-in duration-500">
+                  <DollarSign className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-green-400 font-bold text-sm">
+                    ${runningEarnings.toFixed(2)} potential earnings
                   </span>
                 </div>
               )}
 
-              <div className="min-h-[400px]">
+              <div className="min-h-[300px]">
                 {/* Step 0: Pick Channel */}
                 {simpleStep === 'channel' && user && (
                   <ChannelStep
@@ -8276,7 +8277,7 @@ function MembersSandboxContent() {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-3 justify-between mt-8 pt-6 border-t border-slate-700">
+              <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
                 <Button
                   variant="outline"
                   onClick={handleSimpleBack}
