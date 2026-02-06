@@ -929,10 +929,10 @@ function SizePickerStep({
   onEarningsAnimate?: (amount: number) => void;
   selectedPlacements?: string[];
 }) {
-  const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
+  const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number; x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  // Scale shirt size based on selected size
   const sizeScales: Record<string, number> = {
     'XS': 0.7,
     'S': 0.8,
@@ -947,7 +947,7 @@ function SizePickerStep({
   const shirtHeight = Math.round(140 * scale);
   
   return (
-    <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300 relative">
+    <div ref={containerRef} className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300 relative">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">What Size?</h2>
         <p className="text-slate-400 text-sm">For preview - customers pick their own size</p>
@@ -956,16 +956,16 @@ function SizePickerStep({
       {floatingEarning && (
         <div
           key={floatingEarning.key}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-20"
+          className="absolute pointer-events-none z-20"
+          style={{ left: floatingEarning.x, top: floatingEarning.y }}
         >
-          <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
-            <DollarSign className="w-5 h-5" />
-            ${floatingEarning.amount.toFixed(2)}
+          <div className="animate-cash-to-top text-green-200 font-bold text-xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-4 py-1.5 shadow-xl shadow-green-400/40 whitespace-nowrap">
+            <DollarSign className="w-4 h-4" />
+            +${floatingEarning.amount.toFixed(2)}
           </div>
         </div>
       )}
       
-      {/* Shirt preview - scales based on selected size */}
       <div className="flex justify-center items-end h-[130px]">
         <svg 
           width={shirtWidth * 1.0} 
@@ -989,15 +989,21 @@ function SizePickerStep({
       
       <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
         {SHIRT_SIZES.map((size) => {
-          const sizeEarnings = baseEarnings + (sizeEarningsBonuses[size] || 0);
+          const bonus = sizeEarningsBonuses[size] || 0;
+          const totalForSize = baseEarnings + bonus;
           return (
             <button
               key={size}
-              onClick={() => {
-                const sizeEarnings = baseEarnings + (sizeEarningsBonuses[size] || 0);
-                const prevEarnings = baseEarnings + (sizeEarningsBonuses[selectedSize] || 0);
+              onClick={(e) => {
                 if (size !== selectedSize) {
-                  setFloatingEarning({ amount: sizeEarnings, key: Date.now() });
+                  const btnRect = e.currentTarget.getBoundingClientRect();
+                  const containerRect = containerRef.current?.getBoundingClientRect();
+                  if (containerRect) {
+                    const x = btnRect.left - containerRect.left + btnRect.width / 2 - 50;
+                    const y = btnRect.top - containerRect.top - 10;
+                    setFloatingEarning({ amount: totalForSize, key: Date.now(), x, y });
+                    setTimeout(() => setFloatingEarning(null), 1500);
+                  }
                 }
                 onSelect(size);
               }}
@@ -1009,8 +1015,8 @@ function SizePickerStep({
               data-testid={`button-size-${size}`}
             >
               <span className="text-lg">{size}</span>
-              <span className={`text-xs ${selectedSize === size ? 'text-orange-400' : 'text-slate-400'}`}>
-                ${sizeEarnings.toFixed(2)}
+              <span className={`text-[10px] ${selectedSize === size ? 'text-orange-400' : 'text-green-400/70'}`}>
+                +${totalForSize.toFixed(2)}
               </span>
             </button>
           );
@@ -6678,6 +6684,7 @@ function MembersSandboxContent() {
   
   // Running earnings total - accumulates as items are created
   const [runningEarnings, setRunningEarnings] = useState<number>(0);
+  const [earningsPulse, setEarningsPulse] = useState(false);
   
   // Fetch pricing settings from API for dynamic earnings calculations
   const { data: pricingSettings } = useQuery<{
@@ -7914,7 +7921,7 @@ function MembersSandboxContent() {
               })()}
               <SimpleWizardProgressBar currentStep={simpleStep} />
               {runningEarnings > 0 && (
-                <div className="flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit animate-in fade-in duration-500">
+                <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-green-400/60 bg-green-500/20' : ''}`} data-testid="badge-potential-earnings">
                   <DollarSign className="w-3.5 h-3.5 text-green-400" />
                   <span className="text-green-400 font-bold text-sm">
                     ${runningEarnings.toFixed(2)} potential earnings
@@ -7975,20 +7982,27 @@ function MembersSandboxContent() {
                       sizeEarningsBonuses={sizeEarningsBonuses}
                       selectedPlacements={selectedPlacements}
                       onSelect={(size) => {
-                        // Calculate earnings difference when changing size
                         const oldBonus = sizeEarningsBonuses[selectedShirtSize] || 0;
                         const newBonus = sizeEarningsBonuses[size] || 0;
                         const earningsDiff = newBonus - oldBonus;
                         
-                        // Only update running earnings if changing from a previous selection
-                        if (selectedShirtSize && earningsDiff !== 0) {
-                          setRunningEarnings(prev => prev + earningsDiff);
-                        } else if (!selectedShirtSize) {
-                          // First time selecting - add the bonus
-                          setRunningEarnings(prev => prev + newBonus);
-                        }
-                        
                         setSelectedShirtSize(size);
+                        
+                        const doUpdate = () => {
+                          if (selectedShirtSize && earningsDiff !== 0) {
+                            setRunningEarnings(prev => prev + earningsDiff);
+                          } else if (!selectedShirtSize) {
+                            setRunningEarnings(prev => prev + newBonus);
+                          }
+                          setEarningsPulse(true);
+                          setTimeout(() => setEarningsPulse(false), 600);
+                        };
+                        
+                        if (size !== selectedShirtSize) {
+                          setTimeout(doUpdate, 800);
+                        } else {
+                          doUpdate();
+                        }
                       }}
                     />
                   );

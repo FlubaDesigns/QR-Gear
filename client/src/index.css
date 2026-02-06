@@ -414,3 +414,30 @@
 .animate-bounce-up {
   animation: bounce-up 2s ease-out forwards;
 }
+
+@keyframes cash-to-top {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.2);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-200px) scale(1);
+  }
+  80% {
+    opacity: 0.7;
+    transform: translateY(-280px) scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-320px) scale(0.6);
+  }
+}
+
+.animate-cash-to-top {
+  animation: cash-to-top 1.4s ease-out forwards;
+}
