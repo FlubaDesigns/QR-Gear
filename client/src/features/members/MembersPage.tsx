@@ -2466,9 +2466,9 @@ function HeaderTextEditStep({
           <Button
             key={size.id}
             size="sm"
-            variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
+            variant="outline"
             onClick={() => updateHeader({ fontSize: size.value })}
-            className="h-7 px-3 text-xs"
+            className={`h-7 px-3 text-xs ${headerStyle.fontSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
             data-testid={`btn-header-size-${size.id}`}
           >
             {size.label}
@@ -2481,10 +2481,10 @@ function HeaderTextEditStep({
           <Button
             key={font.id}
             size="sm"
-            variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
+            variant="outline"
             onClick={() => updateHeader({ fontFamily: font.family })}
             style={{ fontFamily: font.family }}
-            className="h-7 px-3 text-xs"
+            className={`h-7 px-3 text-xs ${headerStyle.fontFamily === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
             data-testid={`btn-header-font-${font.id}`}
           >
             {font.label}
@@ -2697,9 +2697,9 @@ function FooterTextEditStep({
           <Button
             key={size.id}
             size="sm"
-            variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
+            variant="outline"
             onClick={() => updateFooter({ fontSize: size.value })}
-            className="h-7 px-3 text-xs"
+            className={`h-7 px-3 text-xs ${footerStyle.fontSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
             data-testid={`btn-footer-size-${size.id}`}
           >
             {size.label}
@@ -2712,10 +2712,10 @@ function FooterTextEditStep({
           <Button
             key={font.id}
             size="sm"
-            variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
+            variant="outline"
             onClick={() => updateFooter({ fontFamily: font.family })}
             style={{ fontFamily: font.family }}
-            className="h-7 px-3 text-xs"
+            className={`h-7 px-3 text-xs ${footerStyle.fontFamily === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
             data-testid={`btn-footer-font-${font.id}`}
           >
             {font.label}
@@ -2856,9 +2856,9 @@ function ShirtTextEditStep({
                 <Button
                   key={size.id}
                   size="sm"
-                  variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => updateHeader({ fontSize: size.value })}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${headerStyle.fontSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                 >
                   {size.label}
                 </Button>
@@ -2870,10 +2870,10 @@ function ShirtTextEditStep({
                 <Button
                   key={font.id}
                   size="sm"
-                  variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => updateHeader({ fontFamily: font.family })}
                   style={{ fontFamily: font.family }}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${headerStyle.fontFamily === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                 >
                   {font.label}
                 </Button>
@@ -3001,9 +3001,9 @@ function ShirtTextEditStep({
                 <Button
                   key={size.id}
                   size="sm"
-                  variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => updateFooter({ fontSize: size.value })}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${footerStyle.fontSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                 >
                   {size.label}
                 </Button>
@@ -3015,10 +3015,10 @@ function ShirtTextEditStep({
                 <Button
                   key={font.id}
                   size="sm"
-                  variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => updateFooter({ fontFamily: font.family })}
                   style={{ fontFamily: font.family }}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${footerStyle.fontFamily === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                 >
                   {font.label}
                 </Button>
@@ -3812,9 +3812,9 @@ function UrlCreationStep({
                 <Button
                   key={size.id}
                   size="sm"
-                  variant={titleSize === size.value ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => onTitleSizeChange(size.value)}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${titleSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                   data-testid={`btn-title-size-${size.id}`}
                 >
                   {size.label}
@@ -3827,10 +3827,10 @@ function UrlCreationStep({
                 <Button
                   key={font.id}
                   size="sm"
-                  variant={titleFont === font.family ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => onTitleFontChange(font.family)}
                   style={{ fontFamily: font.family }}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${titleFont === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                   data-testid={`btn-title-font-${font.id}`}
                 >
                   {font.label}
@@ -3909,9 +3909,9 @@ function UrlCreationStep({
                 <Button
                   key={size.id}
                   size="sm"
-                  variant={descSize === size.value ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => onDescSizeChange(size.value)}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${descSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                   data-testid={`btn-desc-size-${size.id}`}
                 >
                   {size.label}
@@ -3924,10 +3924,10 @@ function UrlCreationStep({
                 <Button
                   key={font.id}
                   size="sm"
-                  variant={descFont === font.family ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={() => onDescFontChange(font.family)}
                   style={{ fontFamily: font.family }}
-                  className="h-5 px-2 text-xs"
+                  className={`h-5 px-2 text-xs ${descFont === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                   data-testid={`btn-desc-font-${font.id}`}
                 >
                   {font.label}
@@ -4160,18 +4160,18 @@ function PlayVideoSourceStep({
       
       <div className="flex gap-2 max-w-sm mx-auto">
         <Button
-          variant={sourceMode === 'upload' ? 'default' : 'outline'}
+          variant="outline"
           onClick={() => setSourceMode('upload')}
-          className="flex-1"
+          className={`flex-1 ${sourceMode === 'upload' ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
           data-testid="button-video-upload-tab"
         >
           <Upload className="w-4 h-4 mr-2" />
           Upload
         </Button>
         <Button
-          variant={sourceMode === 'url' ? 'default' : 'outline'}
+          variant="outline"
           onClick={() => setSourceMode('url')}
-          className="flex-1"
+          className={`flex-1 ${sourceMode === 'url' ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
           data-testid="button-video-url-tab"
         >
           <Link2 className="w-4 h-4 mr-2" />
@@ -4388,8 +4388,8 @@ function PlaySaveChoiceStep({
       
       <div className="flex flex-col gap-3 max-w-xs mx-auto">
         <Button
-          variant={selected === 'video' ? 'default' : 'outline'}
-          className={`w-full py-4 ${selected === 'video' ? 'bg-emerald-600 border-emerald-500' : 'border-slate-600 text-slate-300'}`}
+          variant="outline"
+          className={`w-full py-4 ${selected === 'video' ? 'border-orange-500 text-orange-400 font-semibold' : 'border-slate-600 text-slate-300'}`}
           onClick={() => onSelect('video')}
           data-testid="button-play-save-video"
         >
@@ -4397,8 +4397,8 @@ function PlaySaveChoiceStep({
           Save Video to My Library
         </Button>
         <Button
-          variant={selected === 'skip' ? 'default' : 'outline'}
-          className={`w-full py-4 ${selected === 'skip' ? 'bg-slate-600 border-slate-500' : 'border-slate-600 text-slate-300'}`}
+          variant="outline"
+          className={`w-full py-4 ${selected === 'skip' ? 'border-orange-500 text-orange-400 font-semibold' : 'border-slate-600 text-slate-300'}`}
           onClick={() => onSelect('skip')}
           data-testid="button-play-save-skip"
         >
@@ -5452,9 +5452,9 @@ function TextStyleSection({
               <Button
                 key={size.id}
                 size="sm"
-                variant={style.fontSize === size.value ? 'default' : 'outline'}
+                variant="outline"
                 onClick={() => updateStyle({ fontSize: size.value })}
-                className="h-7 px-3 text-xs"
+                className={`h-7 px-3 text-xs ${style.fontSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                 data-testid={`button-${testIdPrefix}-size-${size.id}`}
               >
                 {size.label}
@@ -5470,10 +5470,10 @@ function TextStyleSection({
               <Button
                 key={font.id}
                 size="sm"
-                variant={style.fontFamily === font.family ? 'default' : 'outline'}
+                variant="outline"
                 onClick={() => updateStyle({ fontFamily: font.family })}
                 style={{ fontFamily: font.family }}
-                className="h-7 px-2 text-xs"
+                className={`h-7 px-2 text-xs ${style.fontFamily === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
                 data-testid={`button-${testIdPrefix}-font-${font.id}`}
               >
                 {font.label}
