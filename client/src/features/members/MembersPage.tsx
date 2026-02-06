@@ -8075,9 +8075,6 @@ function MembersSandboxContent() {
                           setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
                         }
                         setTextLayoutChoice(choice);
-                        setTimeout(() => {
-                          setSimpleStep(choice === 'footer' ? 'text-edit-footer' : 'text-edit-header');
-                        }, 400);
                       }}
                     />
                   </div>
