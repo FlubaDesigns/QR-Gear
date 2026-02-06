@@ -4351,7 +4351,7 @@ function PlayVideoSourceStep({
   );
 }
 
-function VideoPlayerWithFallback({ videoUrl, testId }: { videoUrl: string; testId: string }) {
+function VideoPlayerWithFallback({ videoUrl, testId, objectFit = 'cover' }: { videoUrl: string; testId: string; objectFit?: 'cover' | 'contain' }) {
   const [hasError, setHasError] = useState(false);
   
   if (hasError) {
@@ -4368,7 +4368,7 @@ function VideoPlayerWithFallback({ videoUrl, testId }: { videoUrl: string; testI
     <video
       key={videoUrl}
       src={videoUrl}
-      className="w-full h-full object-cover"
+      className={`w-full h-full ${objectFit === 'contain' ? 'object-contain' : 'object-cover'}`}
       controls
       playsInline
       preload="auto"
@@ -4385,18 +4385,46 @@ function PlayPreviewStep({
   videoUrl: string;
   title?: string;
 }) {
+  const [isLandscape, setIsLandscape] = useState(false);
+  
+  useEffect(() => {
+    const mql = window.matchMedia('(orientation: landscape)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsLandscape(e.matches);
+    handler(mql);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+  
+  if (isLandscape && videoUrl) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center" data-testid="video-landscape-fullscreen">
+        <video
+          key={videoUrl}
+          src={videoUrl}
+          className="w-full h-full object-contain"
+          controls
+          autoPlay
+          playsInline
+          preload="auto"
+          data-testid="video-preview-player-landscape"
+        />
+      </div>
+    );
+  }
+  
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in duration-500">
       <div className="text-center">
-        <h2 className="text-lg font-bold text-white mb-2">Preview</h2>
-        <p className="text-slate-400">This is what people see when they scan your QR code</p>
+        <h2 className="text-lg font-bold text-white mb-1">Preview</h2>
+        <p className="text-slate-400 text-sm">This is what people see when they scan your QR code</p>
+        <p className="text-slate-500 text-xs mt-1">Tip your phone sideways for fullscreen</p>
       </div>
       
       <div className="flex justify-center">
         <div className="w-44 h-72 bg-black rounded-2xl border-2 border-slate-600 p-1 shadow-xl relative overflow-hidden">
           <div className="w-full h-full rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
             {videoUrl ? (
-              <VideoPlayerWithFallback videoUrl={videoUrl} testId="video-preview-player" />
+              <VideoPlayerWithFallback videoUrl={videoUrl} testId="video-preview-player" objectFit="contain" />
             ) : (
               <div className="text-slate-500 text-center p-4">
                 <Play className="w-12 h-12 mx-auto mb-2" />
