@@ -7258,6 +7258,11 @@ function MembersSandboxContent() {
       // All placements have sizes - proceed to generate step
     }
     
+    if (simpleStep === 'text-choice') {
+      setSimpleStep(textLayoutChoice === 'footer' ? 'text-edit-footer' : 'text-edit-header');
+      return;
+    }
+    
     if (simpleStep === 'text-edit-header') {
       if (textLayoutChoice === 'header') {
         setCurrentPlacementIndex(0);
@@ -8027,7 +8032,6 @@ function MembersSandboxContent() {
                           setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
                         }
                         setTextLayoutChoice(choice);
-                        setSimpleStep(choice === 'footer' ? 'text-edit-footer' : 'text-edit-header');
                       }}
                     />
                   </div>
