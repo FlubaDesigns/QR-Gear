@@ -739,7 +739,7 @@ function ProductPickerStep({
   selectedProduct: AllowedProduct | null;
   onSelect: (product: AllowedProduct) => void;
 }) {
-  const [zoomedProduct, setZoomedProduct] = useState<{ product: AllowedProduct; url: string; title: string } | null>(null);
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string; product: AllowedProduct } | null>(null);
   const { data: productsData, isLoading } = useQuery<{ products: AllowedProduct[] }>({
     queryKey: ["/api/members/allowed-products"],
   });
@@ -791,7 +791,7 @@ function ProductPickerStep({
                 className="w-14 h-14 rounded-lg object-cover bg-white flex-shrink-0 cursor-zoom-in"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setZoomedImage({ url: product.imageUrl!, title: product.title });
+                  setZoomedImage({ url: product.imageUrl!, title: product.title, product });
                 }}
                 data-testid={`img-product-${product.blueprintId}`}
               />
@@ -818,24 +818,32 @@ function ProductPickerStep({
 
       {zoomedImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setZoomedImage(null)}
           data-testid="overlay-product-zoom"
         >
-          <div className="relative w-[75vw] h-[75vh] flex items-center justify-center">
+          <div 
+            className="relative max-w-[85vw] max-h-[80vh] animate-in zoom-in-90 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <img
               src={zoomedImage.url}
               alt={zoomedImage.title}
-              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+              className="w-full h-auto max-h-[60vh] object-contain rounded-xl shadow-2xl"
             />
-            <button
-              onClick={() => setZoomedImage(null)}
-              className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center"
-              data-testid="button-close-zoom"
+            <p className="text-white text-center text-sm font-medium mt-3 mb-3">{zoomedImage.title}</p>
+            <Button
+              onClick={() => {
+                onSelect(zoomedImage.product);
+                setZoomedImage(null);
+              }}
+              className="w-full bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40 transition-all duration-300"
+              style={{ animation: "glow 1.2s ease-in-out infinite" }}
+              data-testid="button-zoom-select"
             >
-              <X className="w-5 h-5" />
-            </button>
-            <p className="absolute bottom-2 left-0 right-0 text-center text-white font-medium text-sm bg-black/50 rounded-lg mx-4 py-1">{zoomedImage.title}</p>
+              <Check className="w-4 h-4 mr-2" />
+              Select This Product
+            </Button>
           </div>
         </div>
       )}
