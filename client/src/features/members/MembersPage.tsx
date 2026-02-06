@@ -8743,7 +8743,7 @@ function MembersSandboxContent() {
                   if (['canvas-upload', 'canvas-crop', 'canvas-preview', 'canvas-save-choice', 'canvas-confirm', 'url-bg-pick', 'url-bg-crop', 'url-preview', 'url-publish'].includes(simpleStep)) {
                     return { label: 'QR Canvas', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' };
                   }
-                  if (['text-choice', 'text-edit-header', 'text-edit-footer', 'qr-plus-mockup', 'qr-plus-save-choice', 'qr-plus-confirm'].includes(simpleStep)) {
+                  if (['text-choice', 'text-edit-header', 'text-edit-footer', 'placement-config', 'shirt-preview', 'qr-plus-mockup', 'qr-plus-save-choice', 'qr-plus-confirm'].includes(simpleStep)) {
                     return { label: 'QR Plus', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' };
                   }
                   if (['qr-basic-type', 'qr-basic-input', 'qr-basic-mockup', 'qr-basic-save-choice', 'qr-basic-confirm'].includes(simpleStep)) {
