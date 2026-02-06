@@ -1016,7 +1016,7 @@ function SizePickerStep({
             >
               <span className="text-lg">{size}</span>
               <span className={`text-[10px] ${selectedSize === size ? 'text-orange-400' : 'text-green-400/70'}`}>
-                +${totalForSize.toFixed(2)}
+                +${bonus.toFixed(2)}
               </span>
             </button>
           );
