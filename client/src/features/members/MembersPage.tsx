@@ -5283,6 +5283,16 @@ function TextLayoutChoiceStep({
   onSelect: (choice: TextLayoutChoice) => void;
   textLineEarningsBonus: number;
 }) {
+  const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
+  
+  const handleSelect = (choice: TextLayoutChoice) => {
+    const option = options.find(o => o.id === choice);
+    if (option && choice !== selected) {
+      setFloatingEarning({ amount: textLineEarningsBonus * option.lines, key: Date.now() });
+    }
+    onSelect(choice);
+  };
+
   const options = [
     {
       id: 'header' as TextLayoutChoice,
@@ -5305,7 +5315,18 @@ function TextLayoutChoiceStep({
   ];
 
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-6 relative">
+      {floatingEarning && (
+        <div
+          key={floatingEarning.key}
+          className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none z-20"
+        >
+          <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
+            <DollarSign className="w-5 h-5" />
+            +${floatingEarning.amount.toFixed(2)}
+          </div>
+        </div>
+      )}
       <div>
         <h2 className="text-xl font-bold text-white mb-2">Add Text to Your Design</h2>
         <p className="text-slate-400">Each text line earns you more per sale</p>
@@ -5315,7 +5336,7 @@ function TextLayoutChoiceStep({
         {options.map((option) => (
           <button
             key={option.id}
-            onClick={() => onSelect(option.id)}
+            onClick={() => handleSelect(option.id)}
             className={`p-3 rounded-xl border-2 transition-all ${
               selected === option.id
                 ? 'border-orange-500 bg-orange-500/15'
