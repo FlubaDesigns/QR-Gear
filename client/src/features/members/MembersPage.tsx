@@ -1374,28 +1374,32 @@ function GenerateGraphicStep({
             strokeWidth="2"
           />
           
-          {/* $ above QR */}
-          <text
-            x={graphicLocation === 'left-chest' ? 77 : 90}
-            y={graphicLocation === 'left-chest' ? 56 : 64}
-            textAnchor="middle"
-            fill="#22c55e"
-            fontSize={graphicLocation === 'left-chest' ? 8 : 12}
-            fontWeight="bold"
-          >$</text>
+          {/* Header box with $ above QR */}
+          {graphicLocation === 'left-chest' ? (
+            <>
+              <rect x={67} y={56} width={20} height={8} rx="1" fill="none" stroke="white" strokeWidth="0.8" strokeDasharray="2 1" />
+              <text x={77} y={62} textAnchor="middle" fill="#22c55e" fontSize={6} fontWeight="bold">$</text>
+            </>
+          ) : (
+            <>
+              <rect x={72} y={56} width={36} height={14} rx="1" fill="none" stroke="white" strokeWidth="1" strokeDasharray="3 1.5" />
+              <text x={90} y={67} textAnchor="middle" fill="#22c55e" fontSize={10} fontWeight="bold">$</text>
+            </>
+          )}
           
-          {/* QR Code */}
-          {graphicLocation === 'left-chest' && (
+          {/* QR Code with white outline box */}
+          {graphicLocation === 'left-chest' ? (
             <g transform={`translate(${77 - 5}, ${68 - 5})`}>
+              <rect x={-2} y={-2} width={14} height={14} rx="1.5" fill="none" stroke="white" strokeWidth="1" />
               <rect width="10" height="10" fill="white" rx="1" />
               <rect x="1" y="1" width="2" height="2" fill="#333" />
               <rect x="7" y="1" width="2" height="2" fill="#333" />
               <rect x="1" y="7" width="2" height="2" fill="#333" />
               <rect x="4" y="4" width="2" height="2" fill="#333" />
             </g>
-          )}
-          {(graphicLocation === 'front-center' || graphicLocation === 'back-center') && (
+          ) : (
             <g transform={`translate(${90 - 8}, ${79 - 8})`}>
+              <rect x={-3} y={-3} width={22} height={22} rx="2" fill="none" stroke="white" strokeWidth="1.2" />
               <rect width="16" height="16" fill="white" rx="1" />
               <rect x="1" y="1" width="3" height="3" fill="#333" />
               <rect x="12" y="1" width="3" height="3" fill="#333" />
@@ -1404,15 +1408,18 @@ function GenerateGraphicStep({
             </g>
           )}
           
-          {/* $ below QR */}
-          <text
-            x={graphicLocation === 'left-chest' ? 77 : 90}
-            y={graphicLocation === 'left-chest' ? 84 : 100}
-            textAnchor="middle"
-            fill="#22c55e"
-            fontSize={graphicLocation === 'left-chest' ? 8 : 12}
-            fontWeight="bold"
-          >$</text>
+          {/* Footer box with $ below QR */}
+          {graphicLocation === 'left-chest' ? (
+            <>
+              <rect x={67} y={78} width={20} height={8} rx="1" fill="none" stroke="white" strokeWidth="0.8" strokeDasharray="2 1" />
+              <text x={77} y={84} textAnchor="middle" fill="#22c55e" fontSize={6} fontWeight="bold">$</text>
+            </>
+          ) : (
+            <>
+              <rect x={72} y={96} width={36} height={14} rx="1" fill="none" stroke="white" strokeWidth="1" strokeDasharray="3 1.5" />
+              <text x={90} y={107} textAnchor="middle" fill="#22c55e" fontSize={10} fontWeight="bold">$</text>
+            </>
+          )}
         </svg>
       </div>
       
