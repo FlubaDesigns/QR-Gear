@@ -89,7 +89,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'canvas-mockup' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-mockup' | 'play-publish' | 'play-save-choice';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'canvas-mockup' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-mockup' | 'play-publish' | 'play-save-choice' | 'compose-pick-items' | 'compose-durations' | 'compose-order' | 'compose-hosting' | 'compose-mockup' | 'compose-preview' | 'compose-publish' | 'compose-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -102,7 +102,7 @@ type PlacementGraphicChoice = 'full' | 'qr-only' | '';
 type QRBasicInputType = 'url' | 'text' | '';
 // Matches Printify placement IDs
 type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right';
-type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | '';
+type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | 'qr-compose' | '';
 type WizardTier = 'simple' | 'advanced' | 'studio';
 type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop';
 type TextLayoutChoice = 'header' | 'footer' | 'both' | '';
@@ -248,6 +248,36 @@ const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
 
 const isQRPlayStep = (step: SimpleWizardStep): boolean => {
   return step.startsWith('play-');
+};
+
+const QR_COMPOSE_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
+  { id: 'channel', label: 'Channel', icon: Layers },
+  { id: 'product', label: 'Product', icon: Package },
+  { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
+  { id: 'color', label: 'Color', icon: Sparkles },
+  { id: 'size', label: 'Size', icon: Package },
+  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'placement-count', label: 'Placements', icon: Layers },
+  { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
+  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'text-choice', label: 'Layout', icon: Type },
+  { id: 'text-edit-header', label: 'Header', icon: Type },
+  { id: 'text-edit-footer', label: 'Footer', icon: Type },
+  { id: 'placement-config', label: 'Configure', icon: Layers },
+  { id: 'shirt-preview', label: 'Preview', icon: Eye },
+  { id: 'canvas-fork', label: 'QR Experience', icon: Smartphone },
+  { id: 'compose-pick-items', label: 'Pick Items', icon: Library },
+  { id: 'compose-durations', label: 'Durations', icon: Zap },
+  { id: 'compose-order', label: 'Order', icon: Layers },
+  { id: 'compose-hosting', label: 'Hosting', icon: Store },
+  { id: 'compose-mockup', label: 'Product Preview', icon: Eye },
+  { id: 'compose-preview', label: 'Summary', icon: Eye },
+  { id: 'compose-publish', label: 'Publish', icon: Send },
+  { id: 'compose-confirm', label: 'Done', icon: Check },
+];
+
+const isQRComposeStep = (step: SimpleWizardStep): boolean => {
+  return step.startsWith('compose-');
 };
 
 // ============================================================================
@@ -4093,9 +4123,9 @@ function TypePickerStep({
       color: 'bg-rose-600'
     },
     { 
-      id: 'qr-dynamics' as QRType, 
-      label: 'QR Dynamics', 
-      description: 'Rotating content that changes over time',
+      id: 'qr-compose' as QRType, 
+      label: 'QR Compose', 
+      description: 'Build a rotating playlist from your images & videos',
       icon: Sparkles,
       color: 'bg-amber-600'
     },
@@ -4159,15 +4189,412 @@ interface LibraryAsset {
   isCropped?: boolean;
 }
 
+const COMPOSE_DURATION_PRESETS = [
+  { label: '1 hour', seconds: 3600 },
+  { label: '6 hours', seconds: 21600 },
+  { label: '12 hours', seconds: 43200 },
+  { label: '1 day', seconds: 86400 },
+  { label: '1 week', seconds: 604800 },
+  { label: '1 month', seconds: 2592000 },
+];
+
+function formatComposeDuration(seconds: number): string {
+  const preset = COMPOSE_DURATION_PRESETS.find(p => p.seconds === seconds);
+  if (preset) return preset.label;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+}
+
+function ComposePickItemsStep({
+  availableItems,
+  selectedItems,
+  onToggleItem,
+  isLoading,
+}: {
+  availableItems: any[];
+  selectedItems: Array<{ packetId: string; name: string; thumbnailUrl: string; type: 'qr-canvas' | 'qr-play'; durationSeconds: number; order: number }>;
+  onToggleItem: (item: any) => void;
+  isLoading: boolean;
+}) {
+  const selectedIds = selectedItems.map(i => i.packetId);
+  
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-4">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-3">
+          <Library className="w-7 h-7 text-white" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-1">Pick Your Rotation Items</h2>
+        <p className="text-slate-400 text-sm">Select at least 2 published items for your playlist</p>
+        <Badge className="mt-2 bg-amber-600">{selectedItems.length} selected</Badge>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+        </div>
+      ) : availableItems.length === 0 ? (
+        <div className="text-center py-8 text-slate-400">
+          <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p>No published Canvas or Play items found.</p>
+          <p className="text-sm mt-1">Create and publish some items first!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto">
+          {availableItems.map((item: any) => {
+            const isSelected = selectedIds.includes(item.packetId || item.id);
+            return (
+              <button
+                key={item.packetId || item.id}
+                onClick={() => onToggleItem(item)}
+                className={`relative rounded-xl overflow-hidden border-2 transition-all ${
+                  isSelected 
+                    ? 'border-amber-400 ring-2 ring-amber-400/30' 
+                    : 'border-slate-600 hover:border-slate-500'
+                }`}
+                data-testid={`button-compose-item-${item.packetId || item.id}`}
+              >
+                <div className="aspect-square bg-slate-800">
+                  {(item.thumbnailUrl || item.urlGraphic || item.qrCanvasMockup || item.qrPlayMockup) ? (
+                    <img 
+                      src={item.thumbnailUrl || item.urlGraphic || item.qrCanvasMockup || item.qrPlayMockup} 
+                      alt={item.title || item.name || 'Item'} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      {item.packetType === 'qr-play' ? (
+                        <Play className="w-8 h-8 text-slate-500" />
+                      ) : (
+                        <ImagePlus className="w-8 h-8 text-slate-500" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="p-2 bg-slate-800">
+                  <p className="text-white text-xs font-medium truncate">{item.title || item.name || 'Untitled'}</p>
+                  <Badge variant="outline" className="text-[10px] mt-1">
+                    {item.packetType === 'qr-play' ? 'Video' : 'Image'}
+                  </Badge>
+                </div>
+                {isSelected && (
+                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComposeDurationsStep({
+  items,
+  onUpdateDuration,
+}: {
+  items: Array<{ packetId: string; name: string; thumbnailUrl: string; type: string; durationSeconds: number; order: number }>;
+  onUpdateDuration: (packetId: string, seconds: number) => void;
+}) {
+  const totalSeconds = items.reduce((acc, i) => acc + i.durationSeconds, 0);
+  
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-4">
+        <h2 className="text-lg font-bold text-white mb-1">Set Rotation Durations</h2>
+        <p className="text-slate-400 text-sm">How long should each item stay active?</p>
+        <Badge className="mt-2 bg-purple-600">Full cycle: {formatComposeDuration(totalSeconds)}</Badge>
+      </div>
+
+      <div className="space-y-3">
+        {items.map((item) => (
+          <div key={item.packetId} className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700">
+            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
+              {item.thumbnailUrl ? (
+                <img src={item.thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImagePlus className="w-5 h-5 text-slate-500" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-medium truncate">{item.name}</p>
+              <select
+                value={String(item.durationSeconds)}
+                onChange={(e) => onUpdateDuration(item.packetId, parseInt(e.target.value))}
+                className="mt-1 w-full bg-slate-700 text-white text-sm rounded-lg border border-slate-600 px-2 py-1"
+                data-testid={`select-duration-${item.packetId}`}
+              >
+                {COMPOSE_DURATION_PRESETS.map(p => (
+                  <option key={p.seconds} value={String(p.seconds)}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComposeOrderStep({
+  items,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+}: {
+  items: Array<{ packetId: string; name: string; thumbnailUrl: string; type: string; durationSeconds: number; order: number }>;
+  onMoveUp: (packetId: string) => void;
+  onMoveDown: (packetId: string) => void;
+  onRemove: (packetId: string) => void;
+}) {
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-4">
+        <h2 className="text-lg font-bold text-white mb-1">Playlist Order</h2>
+        <p className="text-slate-400 text-sm">Arrange the rotation sequence</p>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item, idx) => (
+          <div key={item.packetId} className="flex items-center gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700">
+            <div className="w-8 h-8 flex items-center justify-center bg-amber-600 rounded-lg text-white text-sm font-bold flex-shrink-0">
+              {idx + 1}
+            </div>
+            <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
+              {item.thumbnailUrl ? (
+                <img src={item.thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImagePlus className="w-4 h-4 text-slate-500" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm truncate">{item.name}</p>
+              <p className="text-slate-400 text-xs">{formatComposeDuration(item.durationSeconds)}</p>
+            </div>
+            <div className="flex gap-1 flex-shrink-0">
+              <Button size="icon" variant="ghost" onClick={() => onMoveUp(item.packetId)} disabled={idx === 0} data-testid={`button-move-up-${item.packetId}`}>
+                <ChevronLeft className="w-4 h-4 rotate-90" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => onMoveDown(item.packetId)} disabled={idx === items.length - 1} data-testid={`button-move-down-${item.packetId}`}>
+                <ChevronRight className="w-4 h-4 rotate-90" />
+              </Button>
+              <Button size="icon" variant="ghost" className="text-red-400" onClick={() => onRemove(item.packetId)} data-testid={`button-remove-${item.packetId}`}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComposeHostingStep({
+  selected,
+  onSelect,
+}: {
+  selected: string;
+  onSelect: (term: '1-year' | '3-year' | '5-year') => void;
+}) {
+  const terms = [
+    { id: '1-year' as const, label: '1 Year', price: '$4.99/yr', description: 'Great for trying it out' },
+    { id: '3-year' as const, label: '3 Years', price: '$3.99/yr', description: 'Best value - save 20%', popular: true },
+    { id: '5-year' as const, label: '5 Years', price: '$2.99/yr', description: 'Maximum savings - save 40%' },
+  ];
+
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-4">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mx-auto mb-3">
+          <Store className="w-7 h-7 text-white" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-1">Choose Your Space Term</h2>
+        <p className="text-slate-400 text-sm">How long should your rotating QR stay active?</p>
+      </div>
+
+      <div className="flex flex-col gap-3 max-w-sm mx-auto">
+        {terms.map((term) => (
+          <button
+            key={term.id}
+            onClick={() => onSelect(term.id)}
+            className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+              selected === term.id
+                ? 'border-green-400 bg-green-500/10'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid={`button-hosting-${term.id}`}
+          >
+            {term.popular && (
+              <Badge className="absolute -top-2 right-3 bg-green-500 text-xs">Most Popular</Badge>
+            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-white text-lg">{term.label}</h3>
+                <p className="text-slate-400 text-sm">{term.description}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-green-400 font-bold text-lg">{term.price}</p>
+              </div>
+            </div>
+            {selected === term.id && (
+              <Check className="absolute top-3 left-3 w-5 h-5 text-green-400" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComposePreviewStep({
+  items,
+  hostingTerm,
+  mockupUrl,
+  isLoadingMockup,
+  selectedColor,
+  selectedSize,
+}: {
+  items: Array<{ packetId: string; name: string; thumbnailUrl: string; type: string; durationSeconds: number; order: number }>;
+  hostingTerm: string;
+  mockupUrl: string;
+  isLoadingMockup: boolean;
+  selectedColor: string;
+  selectedSize: string;
+}) {
+  const totalSeconds = items.reduce((acc, i) => acc + i.durationSeconds, 0);
+  
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-4">
+        <h2 className="text-lg font-bold text-white mb-1">QR Compose Summary</h2>
+        <p className="text-slate-400 text-sm">Review your rotating playlist</p>
+      </div>
+
+      {isLoadingMockup ? (
+        <div className="flex flex-col items-center justify-center py-8">
+          <Loader2 className="w-10 h-10 animate-spin text-amber-400 mb-3" />
+          <p className="text-slate-300 text-sm">Generating product preview...</p>
+        </div>
+      ) : mockupUrl ? (
+        <div className="mx-auto max-w-[200px] mb-4">
+          <img src={mockupUrl} alt="Product mockup" className="w-full rounded-xl border border-slate-600" />
+        </div>
+      ) : null}
+
+      <div className="space-y-2 bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-400">Items in rotation</span>
+          <span className="text-white font-medium">{items.length}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-400">Full cycle</span>
+          <span className="text-white font-medium">{formatComposeDuration(totalSeconds)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-400">Product</span>
+          <span className="text-white font-medium">{selectedColor} / {selectedSize}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-400">Hosting term</span>
+          <span className="text-green-400 font-medium">{hostingTerm.replace('-', ' ')}</span>
+        </div>
+      </div>
+
+      <div className="mt-3 space-y-1">
+        <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Playlist</p>
+        {items.map((item, idx) => (
+          <div key={item.packetId} className="flex items-center gap-2 p-2 bg-slate-800/30 rounded-lg">
+            <span className="text-amber-400 text-xs font-bold w-5">{idx + 1}.</span>
+            <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-slate-700">
+              {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+            </div>
+            <span className="text-white text-sm flex-1 truncate">{item.name}</span>
+            <span className="text-slate-500 text-xs">{formatComposeDuration(item.durationSeconds)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComposePublishStep({
+  isPublishing,
+  itemCount,
+}: {
+  isPublishing: boolean;
+  itemCount: number;
+}) {
+  return (
+    <div className="text-center space-y-6 animate-in fade-in duration-500">
+      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto">
+        <Send className="w-8 h-8 text-white" />
+      </div>
+      <div>
+        <h2 className="text-xl font-bold text-white mb-2">Ready to Publish</h2>
+        <p className="text-slate-300">
+          Your rotating playlist with {itemCount} items will go live
+        </p>
+      </div>
+      {isPublishing && (
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+          <p className="text-slate-300 text-sm">Creating your QR Compose experience...</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComposeConfirmStep({
+  instanceId,
+  resolverUrl,
+  itemCount,
+}: {
+  instanceId: string | null;
+  resolverUrl: string | null;
+  itemCount: number;
+}) {
+  return (
+    <div className="text-center space-y-4 animate-in fade-in duration-500">
+      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mx-auto">
+        <Check className="w-8 h-8 text-white" />
+      </div>
+      <h2 className="text-xl font-bold text-white">QR Compose Published!</h2>
+      <p className="text-slate-300">
+        Your rotating playlist with {itemCount} items is now live
+      </p>
+      {resolverUrl && (
+        <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700 max-w-sm mx-auto">
+          <p className="text-slate-400 text-xs mb-1">Resolver URL</p>
+          <p className="text-amber-400 text-sm font-mono break-all">{resolverUrl}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Step 13: Surface Picker - choose QR experience type (Canvas, Play, or Skip)
 function SurfacePickerStep({
   onCanvas,
   onPlay,
-  onSkip
+  onSkip,
+  onCompose,
+  composeDisabled,
+  publishedItemCount
 }: {
   onCanvas: () => void;
   onPlay: () => void;
   onSkip: () => void;
+  onCompose: () => void;
+  composeDisabled?: boolean;
+  publishedItemCount?: number;
 }) {
   return (
     <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
@@ -4198,6 +4625,20 @@ function SurfacePickerStep({
         >
           <Play className="w-5 h-5 mr-2" />
           Play a Video
+        </Button>
+        <Button
+          onClick={onCompose}
+          disabled={composeDisabled}
+          className={`w-full py-6 text-lg ${composeDisabled ? 'opacity-50' : 'bg-gradient-to-r from-amber-600 to-orange-600'}`}
+          data-testid="button-surface-compose"
+        >
+          <Sparkles className="w-5 h-5 mr-2" />
+          Rotating Playlist
+          {composeDisabled && publishedItemCount !== undefined && (
+            <span className="ml-2 text-xs opacity-75">
+              (Need {2 - publishedItemCount} more items)
+            </span>
+          )}
         </Button>
         <Button
           onClick={onSkip}
@@ -6221,8 +6662,8 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
                   <QrCode className="w-5 h-5 text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">QR Dynamics</h3>
-                  <p className="text-sm text-slate-300">Create rotating experiences - one QR code can show different content each time it's scanned.</p>
+                  <h3 className="font-semibold text-white">QR Compose</h3>
+                  <p className="text-sm text-slate-300">Build rotating playlists - one QR code cycles through your images and videos over time.</p>
                 </div>
               </div>
 
@@ -6472,7 +6913,7 @@ function CollectionsView({ memberId }: { memberId: string }) {
     queryKey: ['/api/members', memberId, 'collections'],
     queryFn: async () => {
       if (!memberId) return [];
-      // Use the QR Dynamics collections endpoint, filtered by member
+      // Use the QR Compose collections endpoint, filtered by member
       const res = await fetch(`/api/test/stores/qr-gear/collections?ownerId=${memberId}`);
       if (!res.ok) return [];
       return res.json();
@@ -6487,7 +6928,7 @@ function CollectionsView({ memberId }: { memberId: string }) {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-white flex items-center gap-2">
           <QrCode className="w-5 h-5" />
-          My Collections (Dynamics)
+          My Collections (Compose)
         </CardTitle>
         <Button size="sm" className="bg-blue-600 hover:bg-blue-500" data-testid="button-create-collection">
           <Plus className="w-4 h-4 mr-1" />
@@ -6794,6 +7235,22 @@ function MembersSandboxContent() {
   // QR Play mockup state
   const [qrPlayMockup, setQrPlayMockup] = useState<string>('');
   const [isGeneratingPlayMockup, setIsGeneratingPlayMockup] = useState(false);
+  
+  // QR Compose state
+  const [composeItems, setComposeItems] = useState<Array<{
+    packetId: string;
+    name: string;
+    thumbnailUrl: string;
+    type: 'qr-canvas' | 'qr-play';
+    durationSeconds: number;
+    order: number;
+  }>>([]);
+  const [composeHostingTerm, setComposeHostingTerm] = useState<'1-year' | '3-year' | '5-year' | ''>('');
+  const [composeMockup, setComposeMockup] = useState<string>('');
+  const [isGeneratingComposeMockup, setIsGeneratingComposeMockup] = useState(false);
+  const [publishedCanvasPlayItems, setPublishedCanvasPlayItems] = useState<any[]>([]);
+  const [isLoadingPublishedItems, setIsLoadingPublishedItems] = useState(false);
+  const [composeInstanceId, setComposeInstanceId] = useState<string | null>(null);
   
   // Get current placement being configured
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
@@ -7126,6 +7583,25 @@ function MembersSandboxContent() {
     }
   };
   
+  const fetchPublishedCanvasPlayItems = async () => {
+    if (!user?.id) return;
+    setIsLoadingPublishedItems(true);
+    try {
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`/api/members/${user.id}/published-items?types=qr-canvas,qr-play`, {
+        headers: authHeaders
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPublishedCanvasPlayItems(data.items || []);
+      }
+    } catch (error) {
+      console.error('[QR Compose] Error fetching published items:', error);
+    } finally {
+      setIsLoadingPublishedItems(false);
+    }
+  };
+
   const handlePlayDone = () => {
     setSimpleStep('channel');
     setCurrentPacketId(null);
@@ -7172,6 +7648,12 @@ function MembersSandboxContent() {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
   }, [simpleStep]);
+
+  useEffect(() => {
+    if (simpleStep === 'canvas-fork' && user?.id) {
+      fetchPublishedCanvasPlayItems();
+    }
+  }, [simpleStep, user?.id]);
 
   const handleSimpleNext = async () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -7354,10 +7836,58 @@ function MembersSandboxContent() {
       return;
     }
     
+    // Handle QR Compose flow navigation
+    if (simpleStep === 'compose-pick-items') {
+      if (composeItems.length < 2) return;
+      setSimpleStep('compose-durations');
+      return;
+    }
+    if (simpleStep === 'compose-durations') {
+      setSimpleStep('compose-order');
+      return;
+    }
+    if (simpleStep === 'compose-order') {
+      setSimpleStep('compose-hosting');
+      return;
+    }
+    if (simpleStep === 'compose-hosting') {
+      if (!composeHostingTerm) return;
+      setIsGeneratingComposeMockup(true);
+      setSimpleStep('compose-mockup');
+      try {
+        await generateProductMockupForType('qr-compose', setComposeMockup);
+      } finally {
+        setIsGeneratingComposeMockup(false);
+      }
+      return;
+    }
+    if (simpleStep === 'compose-mockup') {
+      setSimpleStep('compose-preview');
+      return;
+    }
+    if (simpleStep === 'compose-preview') {
+      setSimpleStep('compose-publish');
+      return;
+    }
+    if (simpleStep === 'compose-publish') {
+      await handleSimplePublish();
+      return;
+    }
+    if (simpleStep === 'compose-confirm') {
+      setSimpleStep('channel');
+      setCurrentPacketId(null);
+      setComposeItems([]);
+      setComposeHostingTerm('');
+      setComposeMockup('');
+      setComposeInstanceId(null);
+      return;
+    }
+    
     // Select correct steps array based on qrType
     const stepsArray = qrType === 'qr-basic' ? QR_BASIC_STEPS
       : qrType === 'qr-plus' ? QR_PLUS_STEPS
       : qrType === 'qr-play' ? QR_PLAY_STEPS
+      : qrType === 'qr-compose' ? QR_COMPOSE_STEPS
       : SIMPLE_WIZARD_STEPS;
     const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     
@@ -7502,6 +8032,39 @@ function MembersSandboxContent() {
       return;
     }
     
+    // Handle QR Compose back navigation
+    if (simpleStep === 'compose-pick-items') {
+      setSimpleStep('canvas-fork');
+      return;
+    }
+    if (simpleStep === 'compose-durations') {
+      setSimpleStep('compose-pick-items');
+      return;
+    }
+    if (simpleStep === 'compose-order') {
+      setSimpleStep('compose-durations');
+      return;
+    }
+    if (simpleStep === 'compose-hosting') {
+      setSimpleStep('compose-order');
+      return;
+    }
+    if (simpleStep === 'compose-mockup') {
+      setSimpleStep('compose-hosting');
+      return;
+    }
+    if (simpleStep === 'compose-preview') {
+      setSimpleStep('compose-mockup');
+      return;
+    }
+    if (simpleStep === 'compose-publish') {
+      setSimpleStep('compose-preview');
+      return;
+    }
+    if (simpleStep === 'compose-confirm') {
+      return;
+    }
+    
     // Handle canvas-fork and QR Canvas flow back navigation
     if (simpleStep === 'canvas-fork') {
       setSimpleStep('shirt-preview');
@@ -7533,6 +8096,7 @@ function MembersSandboxContent() {
     const stepsArray = qrType === 'qr-basic' ? QR_BASIC_STEPS
       : qrType === 'qr-plus' ? QR_PLUS_STEPS
       : qrType === 'qr-play' ? QR_PLAY_STEPS
+      : qrType === 'qr-compose' ? QR_COMPOSE_STEPS
       : SIMPLE_WIZARD_STEPS;
     const currentIndex = stepsArray.findIndex(s => s.id === simpleStep);
     if (currentIndex > 0) {
@@ -7587,6 +8151,14 @@ function MembersSandboxContent() {
       case 'play-preview': return true;
       case 'play-publish': return true;
       case 'play-save-choice': return true;
+      case 'compose-pick-items': return composeItems.length >= 2;
+      case 'compose-durations': return true;
+      case 'compose-order': return true;
+      case 'compose-hosting': return composeHostingTerm !== '';
+      case 'compose-mockup': return !isGeneratingComposeMockup;
+      case 'compose-preview': return true;
+      case 'compose-publish': return !isPublishing;
+      case 'compose-confirm': return true;
       default: return false;
     }
   };
@@ -7729,6 +8301,10 @@ function MembersSandboxContent() {
         qrCanvasMockup: qrType === 'qr-canvas' ? (qrCanvasMockup || null) : null,
         // QR Play mockup
         qrPlayMockup: qrType === 'qr-play' ? (qrPlayMockup || null) : null,
+        // QR Compose
+        composeMockup: qrType === 'qr-compose' ? (composeMockup || null) : null,
+        composeItems: qrType === 'qr-compose' ? composeItems : null,
+        composeHostingTerm: qrType === 'qr-compose' ? (composeHostingTerm || null) : null,
         // Pricing breakdown
         textLines,
         textUpcharge,
@@ -7986,7 +8562,7 @@ function MembersSandboxContent() {
                 className={viewMode === 'collections' ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
               >
                 <QrCode className="w-4 h-4 mr-1" />
-                Dynamics
+                Compose
               </Button>
               <Button
                 variant={viewMode === 'earnings' ? 'default' : 'ghost'}
@@ -8066,6 +8642,9 @@ function MembersSandboxContent() {
                   }
                   if (['qr-basic-type', 'qr-basic-input', 'qr-basic-mockup', 'qr-basic-save-choice', 'qr-basic-confirm'].includes(simpleStep)) {
                     return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
+                  }
+                  if (['compose-pick-items', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
+                    return { label: 'QR Compose', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
                   }
                   return null;
                 };
@@ -8422,6 +9001,13 @@ function MembersSandboxContent() {
                       setQrType('qr-play');
                       setSimpleStep('play-video-source');
                     }}
+                    onCompose={() => {
+                      setQrType('qr-compose');
+                      fetchPublishedCanvasPlayItems();
+                      setSimpleStep('compose-pick-items');
+                    }}
+                    composeDisabled={publishedCanvasPlayItems.length < 2 && !isLoadingPublishedItems}
+                    publishedItemCount={publishedCanvasPlayItems.length}
                     onSkip={async () => {
                       setQrType('qr-plus');
                       setIsGeneratingPlusMockup(true);
@@ -8710,6 +9296,112 @@ function MembersSandboxContent() {
                 
                 {simpleStep === 'play-save-choice' && (
                   <PlayPublishedStep />
+                )}
+                
+                {simpleStep === 'compose-pick-items' && (
+                  <ComposePickItemsStep
+                    availableItems={publishedCanvasPlayItems}
+                    selectedItems={composeItems}
+                    onToggleItem={(item: any) => {
+                      const packetId = item.packetId || item.id;
+                      const existing = composeItems.find(i => i.packetId === packetId);
+                      if (existing) {
+                        setComposeItems(prev => prev.filter(i => i.packetId !== packetId));
+                      } else {
+                        setComposeItems(prev => [...prev, {
+                          packetId,
+                          name: item.title || item.name || 'Untitled',
+                          thumbnailUrl: item.thumbnailUrl || item.urlGraphic || item.qrCanvasMockup || item.qrPlayMockup || '',
+                          type: item.packetType === 'qr-play' ? 'qr-play' : 'qr-canvas',
+                          durationSeconds: 86400,
+                          order: prev.length + 1,
+                        }]);
+                      }
+                    }}
+                    isLoading={isLoadingPublishedItems}
+                  />
+                )}
+
+                {simpleStep === 'compose-durations' && (
+                  <ComposeDurationsStep
+                    items={composeItems}
+                    onUpdateDuration={(packetId, seconds) => {
+                      setComposeItems(prev => prev.map(i => 
+                        i.packetId === packetId ? { ...i, durationSeconds: seconds } : i
+                      ));
+                    }}
+                  />
+                )}
+
+                {simpleStep === 'compose-order' && (
+                  <ComposeOrderStep
+                    items={composeItems}
+                    onMoveUp={(packetId) => {
+                      setComposeItems(prev => {
+                        const idx = prev.findIndex(i => i.packetId === packetId);
+                        if (idx <= 0) return prev;
+                        const next = [...prev];
+                        [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                        return next.map((i, j) => ({ ...i, order: j + 1 }));
+                      });
+                    }}
+                    onMoveDown={(packetId) => {
+                      setComposeItems(prev => {
+                        const idx = prev.findIndex(i => i.packetId === packetId);
+                        if (idx < 0 || idx >= prev.length - 1) return prev;
+                        const next = [...prev];
+                        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                        return next.map((i, j) => ({ ...i, order: j + 1 }));
+                      });
+                    }}
+                    onRemove={(packetId) => {
+                      setComposeItems(prev => prev.filter(i => i.packetId !== packetId).map((i, j) => ({ ...i, order: j + 1 })));
+                    }}
+                  />
+                )}
+
+                {simpleStep === 'compose-hosting' && (
+                  <ComposeHostingStep
+                    selected={composeHostingTerm}
+                    onSelect={setComposeHostingTerm}
+                  />
+                )}
+
+                {simpleStep === 'compose-mockup' && (
+                  <QRPlusMockupStep
+                    mockupUrl={composeMockup}
+                    isLoading={isGeneratingComposeMockup}
+                    selectedColor={selectedColor}
+                    selectedSize={selectedShirtSize}
+                    headerText={headerStyle.enabled ? headerStyle.text : undefined}
+                    footerText={footerStyle.enabled ? footerStyle.text : undefined}
+                  />
+                )}
+
+                {simpleStep === 'compose-preview' && (
+                  <ComposePreviewStep
+                    items={composeItems}
+                    hostingTerm={composeHostingTerm}
+                    mockupUrl={composeMockup}
+                    isLoadingMockup={isGeneratingComposeMockup}
+                    selectedColor={selectedColor}
+                    selectedSize={selectedShirtSize}
+                  />
+                )}
+
+                {simpleStep === 'compose-publish' && (
+                  <ComposePublishStep
+                    isPublishing={isPublishing}
+                    itemCount={composeItems.length}
+                  />
+                )}
+
+                {simpleStep === 'compose-confirm' && (
+                  <ComposeConfirmStep
+                    instanceId={composeInstanceId}
+                    resolverUrl={composeInstanceId ? `/qr/d/${composeInstanceId}` : null}
+                    itemCount={composeItems.length}
+                  />
                 )}
               </div>
 
