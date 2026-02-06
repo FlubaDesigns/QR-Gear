@@ -2253,12 +2253,14 @@ function HeaderTextEditStep({
   graphicLocation,
   headerStyle,
   onHeaderChange,
+  earningsPerLine,
 }: {
   selectedColor: string;
   graphicSize: GraphicSize;
   graphicLocation: GraphicLocation;
   headerStyle: TextStyleConfig;
   onHeaderChange: (style: TextStyleConfig) => void;
+  earningsPerLine: number;
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const isLeftChest = graphicLocation === 'left-chest';
@@ -2365,9 +2367,17 @@ function HeaderTextEditStep({
         className="w-full text-sm min-h-[40px] px-2 py-1.5 bg-slate-700 border border-slate-600 text-white rounded resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
         data-testid="textarea-header-text"
       />
-      <div className="text-right text-xs text-slate-500" data-testid="text-header-counter">{charCount}/40</div>
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500">{charCount}/40</div>
+        {earningsPerLine > 0 && (
+          <div className="flex items-center gap-1 py-0.5 px-2 rounded-full bg-green-500/15 border border-green-500/25 animate-in fade-in duration-500" data-testid="badge-header-earnings">
+            <DollarSign className="w-3 h-3 text-green-400" />
+            <span className="text-green-400 font-bold text-xs">+${earningsPerLine.toFixed(2)} for this line</span>
+          </div>
+        )}
+      </div>
 
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-slate-500">Color:</span>
         {SHIRT_TEXT_COLORS.map((color) => (
           <button
@@ -2380,21 +2390,23 @@ function HeaderTextEditStep({
             data-testid={`btn-header-color-${color.replace('#', '')}`}
           />
         ))}
-        <span className="text-xs text-slate-500 ml-2">Size:</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-slate-500">Size:</span>
         {SHIRT_TEXT_SIZES.map((size) => (
           <Button
             key={size.id}
             size="sm"
             variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
             onClick={() => updateHeader({ fontSize: size.value })}
-            className="h-6 px-2 text-xs"
+            className="h-7 px-3 text-xs"
             data-testid={`btn-header-size-${size.id}`}
           >
             {size.label}
           </Button>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-slate-500">Font:</span>
         {SHIRT_TEXT_FONTS.map((font) => (
           <Button
@@ -2403,7 +2415,7 @@ function HeaderTextEditStep({
             variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
             onClick={() => updateHeader({ fontFamily: font.family })}
             style={{ fontFamily: font.family }}
-            className="h-6 px-2 text-xs"
+            className="h-7 px-3 text-xs"
             data-testid={`btn-header-font-${font.id}`}
           >
             {font.label}
@@ -2412,7 +2424,7 @@ function HeaderTextEditStep({
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">V</span>
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">Up/Down</span>
         <input
           type="range"
           min="0"
@@ -2423,7 +2435,7 @@ function HeaderTextEditStep({
           style={{ touchAction: 'none' }}
           data-testid="slider-header-vertical"
         />
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">H</span>
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">Left/Right</span>
         <input
           type="range"
           min="0"
@@ -2446,6 +2458,7 @@ function FooterTextEditStep({
   footerStyle,
   onFooterChange,
   headerStyle,
+  earningsPerLine,
 }: {
   selectedColor: string;
   graphicSize: GraphicSize;
@@ -2453,6 +2466,7 @@ function FooterTextEditStep({
   footerStyle: TextStyleConfig;
   onFooterChange: (style: TextStyleConfig) => void;
   headerStyle: TextStyleConfig;
+  earningsPerLine: number;
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const isLeftChest = graphicLocation === 'left-chest';
@@ -2584,7 +2598,15 @@ function FooterTextEditStep({
         className="w-full text-sm min-h-[40px] px-2 py-1.5 bg-slate-700 border border-slate-600 text-white rounded resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
         data-testid="textarea-footer-text"
       />
-      <div className="text-right text-xs text-slate-500" data-testid="text-footer-counter">{charCount}/40</div>
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500">{charCount}/40</div>
+        {earningsPerLine > 0 && (
+          <div className="flex items-center gap-1 py-0.5 px-2 rounded-full bg-green-500/15 border border-green-500/25 animate-in fade-in duration-500" data-testid="badge-footer-earnings">
+            <DollarSign className="w-3 h-3 text-green-400" />
+            <span className="text-green-400 font-bold text-xs">+${earningsPerLine.toFixed(2)} for this line</span>
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-wrap items-center gap-1">
         <span className="text-xs text-slate-500">Color:</span>
@@ -2599,21 +2621,23 @@ function FooterTextEditStep({
             data-testid={`btn-footer-color-${color.replace('#', '')}`}
           />
         ))}
-        <span className="text-xs text-slate-500 ml-2">Size:</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-slate-500">Size:</span>
         {SHIRT_TEXT_SIZES.map((size) => (
           <Button
             key={size.id}
             size="sm"
             variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
             onClick={() => updateFooter({ fontSize: size.value })}
-            className="h-6 px-2 text-xs"
+            className="h-7 px-3 text-xs"
             data-testid={`btn-footer-size-${size.id}`}
           >
             {size.label}
           </Button>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-slate-500">Font:</span>
         {SHIRT_TEXT_FONTS.map((font) => (
           <Button
@@ -2622,7 +2646,7 @@ function FooterTextEditStep({
             variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
             onClick={() => updateFooter({ fontFamily: font.family })}
             style={{ fontFamily: font.family }}
-            className="h-6 px-2 text-xs"
+            className="h-7 px-3 text-xs"
             data-testid={`btn-footer-font-${font.id}`}
           >
             {font.label}
@@ -2631,7 +2655,7 @@ function FooterTextEditStep({
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">V</span>
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">Up/Down</span>
         <input
           type="range"
           min="0"
@@ -2642,7 +2666,7 @@ function FooterTextEditStep({
           style={{ touchAction: 'none' }}
           data-testid="slider-footer-vertical"
         />
-        <span className="text-[10px] text-slate-500 whitespace-nowrap">H</span>
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">Left/Right</span>
         <input
           type="range"
           min="0"
@@ -7933,6 +7957,7 @@ function MembersSandboxContent() {
                     graphicLocation={graphicLocation}
                     headerStyle={headerStyle}
                     onHeaderChange={setHeaderStyle}
+                    earningsPerLine={textLineEarningsBonus}
                   />
                 )}
 
@@ -7944,6 +7969,7 @@ function MembersSandboxContent() {
                     footerStyle={footerStyle}
                     onFooterChange={setFooterStyle}
                     headerStyle={headerStyle}
+                    earningsPerLine={textLineEarningsBonus}
                   />
                 )}
                 
