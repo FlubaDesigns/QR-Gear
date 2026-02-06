@@ -89,7 +89,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-publish' | 'play-save-choice' | 'play-confirm';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-publish' | 'play-save-choice';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -4503,13 +4503,7 @@ function PlayPublishStep({
   );
 }
 
-function PlaySaveChoiceStep({
-  selected,
-  onSelect
-}: {
-  selected: QRPlaySaveOption;
-  onSelect: (choice: QRPlaySaveOption) => void;
-}) {
+function PlayPublishedStep() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="text-center">
@@ -4517,62 +4511,8 @@ function PlaySaveChoiceStep({
           <Check className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-lg font-bold text-white mb-2">Published!</h2>
-        <p className="text-slate-400">Would you like to save the video to your library?</p>
-      </div>
-      
-      <div className="flex flex-col gap-3 max-w-xs mx-auto">
-        <Button
-          variant="outline"
-          className={`w-full py-4 ${selected === 'video' ? 'border-orange-500 text-orange-400 font-semibold' : 'border-slate-600 text-slate-300'}`}
-          onClick={() => onSelect('video')}
-          data-testid="button-play-save-video"
-        >
-          <Play className="w-5 h-5 mr-2" />
-          Save Video to My Library
-        </Button>
-        <Button
-          variant="outline"
-          className={`w-full py-4 ${selected === 'skip' ? 'border-orange-500 text-orange-400 font-semibold' : 'border-slate-600 text-slate-300'}`}
-          onClick={() => onSelect('skip')}
-          data-testid="button-play-save-skip"
-        >
-          Skip - I'm Done
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function PlayConfirmStep({
-  saveChoice,
-  videoUrl,
-  isSaving,
-  onDone
-}: {
-  saveChoice: QRPlaySaveOption;
-  videoUrl: string | null;
-  isSaving: boolean;
-  onDone: () => void;
-}) {
-  return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mx-auto mb-4">
-          {isSaving ? (
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
-          ) : (
-            <Check className="w-8 h-8 text-white" />
-          )}
-        </div>
-        <h2 className="text-lg font-bold text-white mb-2">
-          {isSaving ? 'Saving...' : 'All Done!'}
-        </h2>
-        {saveChoice === 'video' && !isSaving && (
-          <p className="text-emerald-400 text-sm">Video saved to your library</p>
-        )}
-        {saveChoice === 'skip' && (
-          <p className="text-slate-400 text-sm">Your QR Play experience is live</p>
-        )}
+        <p className="text-slate-400 mb-2">Your QR Play experience is live.</p>
+        <p className="text-emerald-400 text-sm">Video saved to your library.</p>
       </div>
     </div>
   );
@@ -7392,13 +7332,6 @@ function MembersSandboxContent() {
       return;
     }
     if (simpleStep === 'play-save-choice') {
-      if (playSaveChoice === 'video') {
-        await savePlayToLibrary();
-      }
-      setSimpleStep('play-confirm');
-      return;
-    }
-    if (simpleStep === 'play-confirm') {
       handlePlayDone();
       return;
     }
@@ -7637,8 +7570,7 @@ function MembersSandboxContent() {
       case 'play-video-source': return playVideoUrl !== '' && !isUploadingVideo;
       case 'play-preview': return true;
       case 'play-publish': return true;
-      case 'play-save-choice': return playSaveChoice !== '';
-      case 'play-confirm': return true;
+      case 'play-save-choice': return true;
       default: return false;
     }
   };
@@ -8587,19 +8519,7 @@ function MembersSandboxContent() {
                 )}
                 
                 {simpleStep === 'play-save-choice' && (
-                  <PlaySaveChoiceStep
-                    selected={playSaveChoice}
-                    onSelect={setPlaySaveChoice}
-                  />
-                )}
-                
-                {simpleStep === 'play-confirm' && (
-                  <PlayConfirmStep
-                    saveChoice={playSaveChoice}
-                    videoUrl={playVideoUrl}
-                    isSaving={isPlaySaving}
-                    onDone={handlePlayDone}
-                  />
+                  <PlayPublishedStep />
                 )}
               </div>
 
