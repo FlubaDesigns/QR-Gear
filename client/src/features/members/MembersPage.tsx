@@ -8752,7 +8752,7 @@ function MembersSandboxContent() {
                   if (['compose-pick-items', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
                     return { label: 'QR Compose', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
                   }
-                  return null;
+                  return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
                 };
                 const tier = getTierInfo();
                 return tier ? (
