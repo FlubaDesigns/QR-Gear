@@ -957,7 +957,7 @@ function SizePickerStep({
           )}
       </div>
       
-      <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto">
+      <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
         {SHIRT_SIZES.map((size) => {
           const sizeEarnings = baseEarnings + (sizeEarningsBonuses[size] || 0);
           return (
@@ -971,7 +971,7 @@ function SizePickerStep({
                 }
                 onSelect(size);
               }}
-              className={`h-16 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
+              className={`w-16 h-20 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
                 selectedSize === size
                   ? 'border-orange-500 bg-orange-500/15 text-orange-400'
                   : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
@@ -1261,12 +1261,12 @@ function GraphicSizeStep({
         {isSleeve ? 'QR fits inside this box on the sleeve' : 'Header + QR + Footer all fit inside this box'}
       </p>
       
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto">
         {(['small', 'medium', 'large'] as GraphicSize[]).map((size) => (
           <button
             key={size}
             onClick={() => onSelect(size)}
-            className={`px-6 py-3 rounded-lg border-2 capitalize transition-all ${
+            className={`py-3 rounded-lg border-2 capitalize transition-all ${
               selectedSize === size
                 ? 'border-orange-500 bg-orange-500/15 text-orange-400'
                 : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
