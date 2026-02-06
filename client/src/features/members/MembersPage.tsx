@@ -4750,63 +4750,77 @@ function TextAskStep({
 // Simple Wizard Step: Text Layout Choice (Header/Footer/Both)
 function TextLayoutChoiceStep({ 
   selected,
-  onSelect
+  onSelect,
+  textLineEarningsBonus
 }: { 
   selected: TextLayoutChoice;
   onSelect: (choice: TextLayoutChoice) => void;
+  textLineEarningsBonus: number;
 }) {
   const options = [
     {
       id: 'header' as TextLayoutChoice,
       label: 'Header Only',
-      description: 'Text above the QR code'
+      description: 'Text above the QR code',
+      lines: 1,
     },
     {
       id: 'footer' as TextLayoutChoice,
       label: 'Footer Only', 
-      description: 'Text below the QR code'
+      description: 'Text below the QR code',
+      lines: 1,
     },
     {
       id: 'both' as TextLayoutChoice,
-      label: 'Both',
-      description: 'Text above and below'
+      label: 'Header + Footer',
+      description: 'Text above and below',
+      lines: 2,
     }
   ];
 
   return (
     <div className="text-center space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-white mb-2">Where Should the Text Go?</h2>
-        <p className="text-slate-400">Choose a layout for your text</p>
+        <h2 className="text-xl font-bold text-white mb-2">Add Text to Your Design</h2>
+        <p className="text-slate-400">Each text line earns you more per sale</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
+      <div className="grid grid-cols-1 gap-4 max-w-sm mx-auto">
         {options.map((option) => (
           <button
             key={option.id}
             onClick={() => onSelect(option.id)}
-            className={`p-4 rounded-xl border-2 transition-all ${
+            className={`p-5 rounded-xl border-2 transition-all ${
               selected === option.id
                 ? 'border-green-500 bg-green-500/20'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-layout-${option.id}`}
           >
-            <div className="w-full aspect-[9/16] bg-slate-700 rounded-lg mb-3 flex flex-col items-center justify-center p-2">
-              {(option.id === 'header' || option.id === 'both') && (
-                <div className="w-full h-4 bg-yellow-400 border-2 border-yellow-200 rounded mb-1 shadow-lg" />
-              )}
-              <div className="w-8 h-8 bg-white rounded flex items-center justify-center my-1">
-                <QrCode className="w-5 h-5 text-slate-800" />
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-24 bg-slate-700 rounded-lg flex flex-col items-center justify-center p-2 flex-shrink-0">
+                {(option.id === 'header' || option.id === 'both') && (
+                  <div className="w-full h-3 bg-yellow-400 border border-yellow-200 rounded mb-1 shadow-lg" />
+                )}
+                <div className="w-7 h-7 bg-white rounded flex items-center justify-center my-1">
+                  <QrCode className="w-4 h-4 text-slate-800" />
+                </div>
+                {(option.id === 'footer' || option.id === 'both') && (
+                  <div className="w-full h-3 bg-yellow-400 border border-yellow-200 rounded mt-1 shadow-lg" />
+                )}
               </div>
-              {(option.id === 'footer' || option.id === 'both') && (
-                <div className="w-full h-4 bg-yellow-400 border-2 border-yellow-200 rounded mt-1 shadow-lg" />
+              <div className="flex-1 text-left">
+                <p className="text-white font-semibold text-lg">{option.label}</p>
+                <p className="text-slate-400 text-sm">{option.description}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-green-400 font-bold text-lg">+${(textLineEarningsBonus * option.lines).toFixed(2)}</p>
+                <p className="text-slate-500 text-xs">per sale</p>
+              </div>
+              {selected === option.id && (
+                <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
               )}
             </div>
-            <p className="text-white font-medium text-sm">{option.label}</p>
-            {selected === option.id && (
-              <Check className="w-5 h-5 text-green-400 mx-auto mt-2" />
-            )}
           </button>
         ))}
       </div>
@@ -6020,6 +6034,7 @@ function MembersSandboxContent() {
   const { data: pricingSettings } = useQuery<{
     memberProfitShare: number;
     additionalPlacementCost: number;
+    textLineUpcharge: number;
     sizeUpcharges: Record<string, number>;
     baseRetailPrice: number;
   }>({
@@ -6029,6 +6044,7 @@ function MembersSandboxContent() {
   
   // Calculate earnings bonuses from pricing settings
   const placementEarningsBonus = (pricingSettings?.additionalPlacementCost || 4) * (pricingSettings?.memberProfitShare || 0.25);
+  const textLineEarningsBonus = (pricingSettings?.textLineUpcharge || 2) * (pricingSettings?.memberProfitShare || 0.25);
   const sizeEarningsIncrement = (pricingSettings?.sizeUpcharges?.['M'] || 2) * (pricingSettings?.memberProfitShare || 0.25);
   
   // Load publish count from localStorage
@@ -6964,6 +6980,13 @@ function MembersSandboxContent() {
     try {
       const authHeaders = await getAuthHeaders();
       
+      const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
+      const textUpcharge = textLines * (pricingSettings?.textLineUpcharge || 2);
+      const extraPlacements = Math.max(0, selectedPlacements.length - 1);
+      const placementUpcharge = extraPlacements * (pricingSettings?.additionalPlacementCost || 4);
+      const baseProductPrice = (selectedProduct as any).retailPrice || pricingSettings?.baseRetailPrice || 0;
+      const calculatedBasePrice = baseProductPrice + textUpcharge + placementUpcharge;
+
       const productRes = await fetch(`/api/members/${user.id}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -6979,7 +7002,11 @@ function MembersSandboxContent() {
           videoUrl: videoUrl || null,
           channelId: selectedChannel.id,
           name: selectedProduct.name,
-          price: 0
+          price: calculatedBasePrice,
+          textLines,
+          textUpcharge,
+          placementUpcharge,
+          memberEarnings: runningEarnings
         })
       });
       
@@ -7400,7 +7427,14 @@ function MembersSandboxContent() {
                   <div className="space-y-2">
                     <TextLayoutChoiceStep
                       selected={textLayoutChoice}
+                      textLineEarningsBonus={textLineEarningsBonus}
                       onSelect={(choice) => {
+                        const prevLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
+                        const newLines = choice === 'both' ? 2 : 1;
+                        const diff = newLines - prevLines;
+                        if (diff !== 0) {
+                          setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
+                        }
                         setTextLayoutChoice(choice);
                         setSimpleStep('text-edit');
                       }}

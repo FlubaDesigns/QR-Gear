@@ -9661,7 +9661,12 @@ ${allPages.map(page => `  <url>
         // Header/footer for productGraphic
         headerText,
         footerText,
-        videoUrl
+        videoUrl,
+        // Pricing breakdown
+        textLines,
+        textUpcharge,
+        placementUpcharge,
+        memberEarnings
       } = req.body;
 
       const auth = await verifyMemberAuth(req, memberId);
@@ -9756,6 +9761,10 @@ ${allPages.map(page => `  <url>
         channelId,
         name: name || 'My Product',
         price: price || 0,
+        textLines: textLines || 0,
+        textUpcharge: textUpcharge || 0,
+        placementUpcharge: placementUpcharge || 0,
+        memberEarnings: memberEarnings || 0,
         status: 'draft',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
