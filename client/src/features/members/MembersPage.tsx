@@ -4218,6 +4218,7 @@ function ComposePickItemsStep({
   isLoading: boolean;
 }) {
   const selectedIds = selectedItems.map(i => i.packetId);
+  const [enlargedItem, setEnlargedItem] = useState<any>(null);
   
   return (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300">
@@ -4244,21 +4245,30 @@ function ComposePickItemsStep({
         <div className="grid grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto">
           {availableItems.map((item: any) => {
             const isSelected = selectedIds.includes(item.packetId || item.id);
+            const imgSrc = item.thumbnailUrl || item.urlGraphic || item.qrCanvasMockup || item.qrPlayMockup;
             return (
-              <button
+              <div
                 key={item.packetId || item.id}
-                onClick={() => onToggleItem(item)}
-                className={`relative rounded-xl overflow-hidden border-2 transition-all ${
+                className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
                   isSelected 
                     ? 'border-amber-400 ring-2 ring-amber-400/30' 
                     : 'border-slate-600 hover:border-slate-500'
                 }`}
                 data-testid={`button-compose-item-${item.packetId || item.id}`}
               >
-                <div className="aspect-square bg-slate-800">
-                  {(item.thumbnailUrl || item.urlGraphic || item.qrCanvasMockup || item.qrPlayMockup) ? (
+                <div 
+                  className="aspect-square bg-slate-800"
+                  onClick={() => {
+                    if (imgSrc) {
+                      setEnlargedItem(item);
+                    } else {
+                      onToggleItem(item);
+                    }
+                  }}
+                >
+                  {imgSrc ? (
                     <img 
-                      src={item.thumbnailUrl || item.urlGraphic || item.qrCanvasMockup || item.qrPlayMockup} 
+                      src={imgSrc} 
                       alt={item.title || item.name || 'Item'} 
                       className="w-full h-full object-cover"
                     />
@@ -4272,20 +4282,71 @@ function ComposePickItemsStep({
                     </div>
                   )}
                 </div>
-                <div className="p-2 bg-slate-800">
+                <button
+                  className="w-full p-2 bg-slate-800 text-left"
+                  onClick={() => onToggleItem(item)}
+                  data-testid={`button-compose-toggle-${item.packetId || item.id}`}
+                >
                   <p className="text-white text-xs font-medium truncate">{item.title || item.name || 'Untitled'}</p>
                   <Badge variant="outline" className="text-[10px] mt-1">
                     {item.packetType === 'qr-play' ? 'Video' : 'Image'}
                   </Badge>
-                </div>
+                </button>
                 {isSelected && (
-                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center pointer-events-none">
                     <Check className="w-4 h-4 text-white" />
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
+        </div>
+      )}
+
+      {enlargedItem && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setEnlargedItem(null)}
+          data-testid="overlay-enlarged-item"
+        >
+          <div 
+            className="relative max-w-[85vw] max-h-[80vh] animate-in zoom-in-90 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={enlargedItem.thumbnailUrl || enlargedItem.urlGraphic || enlargedItem.qrCanvasMockup || enlargedItem.qrPlayMockup} 
+              alt={enlargedItem.title || enlargedItem.name || 'Item'} 
+              className="w-full h-auto max-h-[65vh] object-contain rounded-xl"
+            />
+            <p className="text-white text-center text-sm font-medium mt-3 mb-3">{enlargedItem.title || enlargedItem.name || 'Untitled'}</p>
+            <Button
+              onClick={() => {
+                if (!selectedIds.includes(enlargedItem.packetId || enlargedItem.id)) {
+                  onToggleItem(enlargedItem);
+                }
+                setEnlargedItem(null);
+              }}
+              className={`w-full transition-all duration-300 ${
+                selectedIds.includes(enlargedItem.packetId || enlargedItem.id)
+                  ? 'bg-amber-500 hover:bg-amber-600'
+                  : 'bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40'
+              }`}
+              style={!selectedIds.includes(enlargedItem.packetId || enlargedItem.id) ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
+              data-testid="button-enlarged-select"
+            >
+              {selectedIds.includes(enlargedItem.packetId || enlargedItem.id) ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Already Selected
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Select This Item
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       )}
     </div>
