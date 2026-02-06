@@ -708,6 +708,7 @@ function ProductPickerStep({
   selectedProduct: AllowedProduct | null;
   onSelect: (product: AllowedProduct) => void;
 }) {
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
   const { data: productsData, isLoading } = useQuery<{ products: AllowedProduct[] }>({
     queryKey: ["/api/members/allowed-products"],
   });
@@ -716,7 +717,7 @@ function ProductPickerStep({
   
   if (isLoading) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-8">
         <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-400" />
         <p className="text-slate-400 mt-2">Loading products...</p>
       </div>
@@ -725,27 +726,27 @@ function ProductPickerStep({
   
   if (products.length === 0) {
     return (
-      <div className="text-center py-12 space-y-4">
+      <div className="text-center py-8 space-y-3">
         <Package className="w-12 h-12 mx-auto text-slate-500" />
-        <h2 className="text-xl font-bold text-white">No Products Available</h2>
-        <p className="text-slate-400">Contact admin to unlock products for you.</p>
+        <h2 className="text-lg font-bold text-white">No Products Available</h2>
+        <p className="text-slate-400 text-sm">Contact admin to unlock products for you.</p>
       </div>
     );
   }
   
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
+    <div className="space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center">
-        <h2 className="text-lg font-bold text-white mb-2">Pick Your Product</h2>
-        <p className="text-slate-400">Select an item to customize</p>
+        <h2 className="text-base font-bold text-white mb-0.5">Pick Your Product</h2>
+        <p className="text-slate-400 text-xs">Tap image to zoom</p>
       </div>
       
-      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+      <div className="max-h-[45vh] overflow-y-auto pr-1 space-y-1.5">
         {products.map((product) => (
           <button
             key={product.blueprintId}
             onClick={() => onSelect(product)}
-            className={`w-full flex items-center gap-4 p-3 rounded-xl border-2 transition-all text-left ${
+            className={`w-full flex items-center gap-3 p-2 rounded-xl border-2 transition-all text-left ${
               selectedProduct?.blueprintId === product.blueprintId
                 ? 'border-orange-500 bg-orange-500/15'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
@@ -756,15 +757,20 @@ function ProductPickerStep({
               <img 
                 src={product.imageUrl} 
                 alt={product.title}
-                className="w-16 h-16 rounded-lg object-cover bg-white"
+                className="w-14 h-14 rounded-lg object-cover bg-white flex-shrink-0 cursor-zoom-in"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomedImage({ url: product.imageUrl!, title: product.title });
+                }}
+                data-testid={`img-product-${product.blueprintId}`}
               />
             ) : (
-              <div className="w-16 h-16 rounded-lg bg-slate-700 flex items-center justify-center">
-                <Package className="w-8 h-8 text-slate-500" />
+              <div className="w-14 h-14 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
+                <Package className="w-7 h-7 text-slate-500" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-white font-medium truncate">{product.title}</p>
+              <p className="text-white font-medium text-sm truncate">{product.title}</p>
               {product.brand && (
                 <p className="text-xs text-slate-400">{product.brand}</p>
               )}
@@ -778,6 +784,30 @@ function ProductPickerStep({
           </button>
         ))}
       </div>
+
+      {zoomedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setZoomedImage(null)}
+          data-testid="overlay-product-zoom"
+        >
+          <div className="relative w-[75vw] h-[75vh] flex items-center justify-center">
+            <img
+              src={zoomedImage.url}
+              alt={zoomedImage.title}
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+            />
+            <button
+              onClick={() => setZoomedImage(null)}
+              className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center"
+              data-testid="button-close-zoom"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <p className="absolute bottom-2 left-0 right-0 text-center text-white font-medium text-sm bg-black/50 rounded-lg mx-4 py-1">{zoomedImage.title}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
