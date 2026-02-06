@@ -827,7 +827,7 @@ function ProductCongratsStep({
           <div className="text-3xl font-bold text-green-400">
             ${(earnings || 0).toFixed(2)}+
           </div>
-          <p className="text-slate-500 text-xs mt-2">Actual earnings depend on size the customer picks!</p>
+          <p className="text-slate-500 text-xs mt-2">As you add options, you earn more!</p>
         </div>
       </div>
     </div>
@@ -849,12 +849,12 @@ function ColorPickerStep({
         <p className="text-slate-400">What color would you like?</p>
       </div>
       
-      <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
+      <div className="flex justify-center items-center gap-2 max-w-[280px] mx-auto">
         {SHIRT_COLORS.map((color) => (
           <button
             key={color.id}
             onClick={() => onSelect(color.id)}
-            className={`w-16 h-16 rounded-full border-4 transition-all ${
+            className={`flex-1 aspect-square max-w-[48px] rounded-full border-3 transition-all ${
               selectedColor === color.id
                 ? 'border-orange-500 scale-110'
                 : 'border-slate-600 hover:border-slate-400'
@@ -887,14 +887,17 @@ function SizePickerStep({
   selectedColor,
   baseEarnings = 0,
   sizeEarningsBonuses,
-  onSelect
+  onSelect,
+  onEarningsAnimate
 }: {
   selectedSize: string;
   selectedColor: string;
   baseEarnings?: number;
   sizeEarningsBonuses: Record<string, number>;
   onSelect: (size: string) => void;
+  onEarningsAnimate?: (amount: number) => void;
 }) {
+  const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
   // Scale shirt size based on selected size
@@ -912,11 +915,23 @@ function SizePickerStep({
   const shirtHeight = Math.round(140 * scale);
   
   return (
-    <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
+    <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300 relative">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">What Size?</h2>
         <p className="text-slate-400 text-sm">For preview - customers pick their own size</p>
       </div>
+      
+      {floatingEarning && (
+        <div
+          key={floatingEarning.key}
+          className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none z-20"
+        >
+          <div className="animate-bounce-up text-green-400 font-bold text-lg flex items-center gap-1 bg-slate-900/80 rounded-full px-3 py-1">
+            <DollarSign className="w-4 h-4" />
+            ${floatingEarning.amount.toFixed(2)}
+          </div>
+        </div>
+      )}
       
       {/* Shirt preview - scales based on selected size */}
       <div className="flex justify-center items-end h-[130px]">
@@ -941,7 +956,14 @@ function SizePickerStep({
           return (
             <button
               key={size}
-              onClick={() => onSelect(size)}
+              onClick={() => {
+                const sizeEarnings = baseEarnings + (sizeEarningsBonuses[size] || 0);
+                const prevEarnings = baseEarnings + (sizeEarningsBonuses[selectedSize] || 0);
+                if (size !== selectedSize) {
+                  setFloatingEarning({ amount: sizeEarnings, key: Date.now() });
+                }
+                onSelect(size);
+              }}
               className={`w-16 h-20 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
                 selectedSize === size
                   ? 'border-orange-500 bg-orange-500/15 text-orange-400'
@@ -974,7 +996,7 @@ function GraphicLocationStep({
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
   return (
-    <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
+    <div className="text-center space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">Where Do You Want Your Graphic?</h2>
         <p className="text-slate-400">Tap a location to select</p>
@@ -982,7 +1004,7 @@ function GraphicLocationStep({
       
       {/* Shirt with location boxes */}
       <div className="flex justify-center">
-        <svg width="140" height="165" viewBox="0 0 180 210" className="drop-shadow-lg">
+        <svg width="120" height="140" viewBox="0 0 180 210" className="drop-shadow-lg">
           {/* Shirt shape */}
           <path
             d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
@@ -1022,7 +1044,7 @@ function GraphicLocationStep({
       <div className="flex flex-wrap justify-center gap-3">
         <button
           onClick={() => onSelect('left-chest')}
-          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg border-2 transition-all ${
             selectedLocation === 'left-chest'
               ? 'border-orange-500 bg-orange-500/15 text-orange-400'
               : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
@@ -1033,7 +1055,7 @@ function GraphicLocationStep({
         </button>
         <button
           onClick={() => onSelect('front-center')}
-          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg border-2 transition-all ${
             selectedLocation === 'front-center'
               ? 'border-orange-500 bg-orange-500/15 text-orange-400'
               : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
@@ -1044,7 +1066,7 @@ function GraphicLocationStep({
         </button>
         <button
           onClick={() => onSelect('back-center')}
-          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+          className={`px-3 py-1.5 rounded-lg border-2 transition-all ${
             selectedLocation === 'back-center'
               ? 'border-orange-500 bg-orange-500/15 text-orange-400'
               : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
@@ -7674,6 +7696,29 @@ function MembersSandboxContent() {
               </p>
             </CardHeader>
             <CardContent className="p-4 pt-1">
+              {(() => {
+                const getTierInfo = () => {
+                  if (['play-upload', 'play-preview', 'play-save-choice', 'play-confirm'].includes(simpleStep)) {
+                    return { label: 'QR Play', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' };
+                  }
+                  if (['canvas-upload', 'canvas-crop', 'canvas-preview', 'canvas-save-choice', 'canvas-confirm', 'url-bg-pick', 'url-bg-crop', 'url-preview', 'url-publish'].includes(simpleStep)) {
+                    return { label: 'QR Canvas', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' };
+                  }
+                  if (['text-choice', 'text-edit-header', 'text-edit-footer', 'qr-plus-mockup', 'qr-plus-save-choice', 'qr-plus-confirm'].includes(simpleStep)) {
+                    return { label: 'QR Plus', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' };
+                  }
+                  if (['qr-basic-type', 'qr-basic-input', 'qr-basic-mockup', 'qr-basic-save-choice', 'qr-basic-confirm'].includes(simpleStep)) {
+                    return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
+                  }
+                  return null;
+                };
+                const tier = getTierInfo();
+                return tier ? (
+                  <div className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border mb-2 ${tier.color}`} data-testid="badge-tier-label">
+                    {tier.label}
+                  </div>
+                ) : null;
+              })()}
               <SimpleWizardProgressBar currentStep={simpleStep} />
               {runningEarnings > 0 && (
                 <div className="flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit animate-in fade-in duration-500">

@@ -387,3 +387,22 @@
     box-shadow: 0 0 16px 4px rgba(34, 197, 94, 0.6);
   }
 }
+
+@keyframes bounce-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-40px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px);
+  }
+}
+
+.animate-bounce-up {
+  animation: bounce-up 1.2s ease-out forwards;
+}
