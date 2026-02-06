@@ -5284,14 +5284,6 @@ function TextLayoutChoiceStep({
   textLineEarningsBonus: number;
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
-  
-  const handleSelect = (choice: TextLayoutChoice) => {
-    const option = options.find(o => o.id === choice);
-    if (option && choice !== selected) {
-      setFloatingEarning({ amount: textLineEarningsBonus * option.lines, key: Date.now() });
-    }
-    onSelect(choice);
-  };
 
   const options = [
     {
@@ -5313,6 +5305,14 @@ function TextLayoutChoiceStep({
       lines: 2,
     }
   ];
+
+  const handleSelect = (choice: TextLayoutChoice) => {
+    const option = options.find(o => o.id === choice);
+    if (option && choice !== selected) {
+      setFloatingEarning({ amount: textLineEarningsBonus * option.lines, key: Date.now() });
+    }
+    onSelect(choice);
+  };
 
   return (
     <div className="text-center space-y-6 relative">
