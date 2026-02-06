@@ -393,20 +393,24 @@
     opacity: 1;
     transform: translateY(0) scale(1);
   }
-  20% {
+  15% {
     opacity: 1;
-    transform: translateY(-20px) scale(1.1);
+    transform: translateY(-15px) scale(1.15);
   }
-  60% {
+  50% {
     opacity: 1;
-    transform: translateY(-70px) scale(1);
+    transform: translateY(-80px) scale(1.05);
+  }
+  80% {
+    opacity: 0.8;
+    transform: translateY(-140px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(-100px) scale(0.9);
+    transform: translateY(-180px) scale(0.9);
   }
 }
 
 .animate-bounce-up {
-  animation: bounce-up 1.2s ease-out forwards;
+  animation: bounce-up 2s ease-out forwards;
 }

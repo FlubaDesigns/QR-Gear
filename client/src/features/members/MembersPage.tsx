@@ -928,7 +928,7 @@ function SizePickerStep({
           key={floatingEarning.key}
           className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-20"
         >
-          <div className="animate-bounce-up text-green-300 font-bold text-xl flex items-center gap-1 bg-green-500/20 border border-green-400/40 rounded-full px-4 py-1.5 shadow-lg shadow-green-500/30">
+          <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
             <DollarSign className="w-5 h-5" />
             ${floatingEarning.amount.toFixed(2)}
           </div>
@@ -957,7 +957,7 @@ function SizePickerStep({
           )}
       </div>
       
-      <div className="grid grid-cols-3 gap-2 max-w-[280px] mx-auto">
+      <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto">
         {SHIRT_SIZES.map((size) => {
           const sizeEarnings = baseEarnings + (sizeEarningsBonuses[size] || 0);
           return (
@@ -2129,7 +2129,17 @@ function PlacementCountStep({
   placementEarningsBonus?: number;
   productPlacements?: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[];
 }) {
+  const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  
+  const handleToggleWithAnimation = (placement: PlacementOption) => {
+    const isAdding = !selected.includes(placement);
+    const willBeExtra = isAdding && selected.length >= 1;
+    if (willBeExtra) {
+      setFloatingEarning({ amount: placementEarningsBonus, key: Date.now() });
+    }
+    onToggle(placement);
+  };
   
   // Show only placements that are actually available for this specific product from Printify
   // Fall back to defaults only if no product-specific placements available
@@ -2153,7 +2163,18 @@ function PlacementCountStep({
   };
   
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
+    <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300 relative">
+      {floatingEarning && (
+        <div
+          key={floatingEarning.key}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-20"
+        >
+          <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
+            <DollarSign className="w-5 h-5" />
+            +${floatingEarning.amount.toFixed(2)}
+          </div>
+        </div>
+      )}
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Where Do You Want Graphics?</h2>
         <p className="text-slate-400 text-sm">First graphic is included! Each extra adds +${placementEarningsBonus.toFixed(2)}</p>
@@ -2209,7 +2230,7 @@ function PlacementCountStep({
           return (
             <button
               key={option.id}
-              onClick={() => onToggle(option.id as PlacementOption)}
+              onClick={() => handleToggleWithAnimation(option.id as PlacementOption)}
               className={`p-3 rounded-lg border-2 text-left transition-all ${
                 isSelected
                   ? 'border-orange-500 bg-orange-500/15'
