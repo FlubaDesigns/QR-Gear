@@ -4177,7 +4177,7 @@ function SurfacePickerStep({
           data-testid="button-surface-canvas"
         >
           <ImagePlus className="w-5 h-5 mr-2" />
-          Image with Custom Background
+          Custom Image
         </Button>
         <Button
           onClick={onPlay}
