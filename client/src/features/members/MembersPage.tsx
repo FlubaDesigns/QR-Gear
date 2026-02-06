@@ -7884,7 +7884,7 @@ function MembersSandboxContent() {
             <CardContent className="p-4 pt-1">
               {(() => {
                 const getTierInfo = () => {
-                  if (['play-upload', 'play-preview', 'play-save-choice', 'play-confirm'].includes(simpleStep)) {
+                  if (['play-upload', 'play-preview', 'play-save-choice'].includes(simpleStep)) {
                     return { label: 'QR Play', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' };
                   }
                   if (['canvas-upload', 'canvas-crop', 'canvas-preview', 'canvas-save-choice', 'canvas-confirm', 'url-bg-pick', 'url-bg-crop', 'url-preview', 'url-publish'].includes(simpleStep)) {
