@@ -2222,7 +2222,7 @@ function PlacementCountStep({
   
   const SUPPORTED_PLACEMENTS = ['front', 'back', 'left_chest', 'sleeve_left', 'sleeve_right'];
   
-  const displayPlacements = productPlacements && productPlacements.length > 0
+  const filteredPlacements = productPlacements && productPlacements.length > 0
     ? productPlacements
         .filter(p => SUPPORTED_PLACEMENTS.includes(p.id))
         .map(p => ({
@@ -2231,7 +2231,10 @@ function PlacementCountStep({
           description: 'Print area',
           sizeLabel: p.widthInches && p.heightInches ? `${p.widthInches}×${p.heightInches}` : '',
         }))
-    : PLACEMENT_OPTIONS;
+    : [];
+  const displayPlacements = filteredPlacements.length > 0
+    ? filteredPlacements
+    : [{ id: 'front' as PlacementOption, label: 'Front Center', description: 'Print area', sizeLabel: '' }];
   
   // Positions on SVG for each Printify placement - TRUE TO RATIO
   // Sleeve positions adjusted to be on actual sleeve areas of the shirt SVG
