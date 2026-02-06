@@ -1422,9 +1422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validate mime type for media
-      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "image/gif", "image/webp", "image/png", "image/jpeg"];
-      if (!allowedTypes.includes(mimeType)) {
-        return res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: ${allowedTypes.join(", ")}` });
+      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "video/3gpp", "video/3gpp2", "video/x-m4v", "video/x-matroska", "image/gif", "image/webp", "image/png", "image/jpeg"];
+      if (!allowedTypes.includes(mimeType) && !mimeType.startsWith("video/")) {
+        return res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: most video formats, GIF, WebP, PNG, JPEG` });
       }
       
       // Determine media type from mime

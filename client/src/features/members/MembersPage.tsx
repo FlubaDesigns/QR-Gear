@@ -39,7 +39,8 @@ import {
   Smartphone,
   ArrowRight,
   ShoppingBag,
-  Crop
+  Crop,
+  AlertCircle
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { auth, signInWithGoogle, signInWithEmail } from "@/lib/firebase";
@@ -3599,13 +3600,17 @@ function PlayVideoSourceStep({
   onVideoUrlChange,
   onFileUpload,
   isUploading,
-  uploadError
+  uploadError,
+  uploadProgress,
+  uploadSuccess
 }: {
   videoUrl: string;
   onVideoUrlChange: (url: string) => void;
   onFileUpload: (file: File) => void;
   isUploading: boolean;
   uploadError: string | null;
+  uploadProgress: number;
+  uploadSuccess: boolean;
 }) {
   const [sourceMode, setSourceMode] = useState<'url' | 'upload'>('upload');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -3641,33 +3646,58 @@ function PlayVideoSourceStep({
       {sourceMode === 'upload' && (
         <div className="max-w-sm mx-auto space-y-4">
           <div 
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400 transition-colors"
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              isUploading 
+                ? 'border-emerald-500 bg-emerald-500/5 cursor-wait' 
+                : uploadSuccess && videoUrl 
+                  ? 'border-emerald-400 bg-emerald-400/5 cursor-pointer hover:border-emerald-300' 
+                  : uploadError
+                    ? 'border-red-400 bg-red-400/5 cursor-pointer hover:border-red-300'
+                    : 'border-slate-600 cursor-pointer hover:border-emerald-400'
+            }`}
             data-testid="dropzone-video-upload"
           >
             {isUploading ? (
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-                <p className="text-slate-300">Uploading...</p>
+                <p className="text-emerald-400 font-medium">Uploading... {uploadProgress}%</p>
+                <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="bg-emerald-400 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">Please wait, do not close this page</p>
               </div>
-            ) : videoUrl ? (
+            ) : uploadSuccess && videoUrl ? (
               <div className="flex flex-col items-center gap-2">
-                <Check className="w-8 h-8 text-emerald-400" />
-                <p className="text-emerald-400 font-medium">Video uploaded</p>
-                <p className="text-xs text-slate-500">Click to change</p>
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Check className="w-6 h-6 text-emerald-400" />
+                </div>
+                <p className="text-emerald-400 font-bold text-lg">Video Uploaded!</p>
+                <p className="text-xs text-slate-400">Tap to pick a different video</p>
+              </div>
+            ) : uploadError ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <p className="text-red-400 font-medium">Upload Failed</p>
+                <p className="text-xs text-slate-400">Tap to try again</p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
                 <Upload className="w-8 h-8 text-slate-400" />
-                <p className="text-slate-300">Click to select a video</p>
-                <p className="text-xs text-slate-500">MP4, WebM, or MOV - up to 50MB</p>
+                <p className="text-slate-300">Tap to select a video</p>
+                <p className="text-xs text-slate-500">MP4, MOV, WebM, or most video formats</p>
               </div>
             )}
           </div>
           <input
             ref={fileInputRef}
             type="file"
-            accept="video/mp4,video/webm,video/quicktime"
+            accept="video/*"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -3676,10 +3706,12 @@ function PlayVideoSourceStep({
             data-testid="input-video-file"
           />
           {uploadError && (
-            <p className="text-red-400 text-sm text-center" data-testid="text-upload-error">{uploadError}</p>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3" data-testid="text-upload-error">
+              <p className="text-red-400 text-sm text-center">{uploadError}</p>
+            </div>
           )}
           <p className="text-xs text-slate-500 text-center">
-            50MB limit. For larger videos, save your video on another hosting service and use the "Paste URL" option to link it here.
+            50MB limit. For larger videos, use the "Paste URL" option to link it here.
           </p>
         </div>
       )}
@@ -6093,6 +6125,8 @@ function MembersSandboxContent() {
   const [playVideoUrl, setPlayVideoUrl] = useState<string>('');
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
+  const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
   const [playSaveChoice, setPlaySaveChoice] = useState<QRPlaySaveOption>('');
   const [isPlaySaving, setIsPlaySaving] = useState(false);
   
@@ -6318,50 +6352,86 @@ function MembersSandboxContent() {
   const handleVideoFileUpload = async (file: File) => {
     const MAX_SIZE = 50 * 1024 * 1024; // 50MB
     if (file.size > MAX_SIZE) {
-      setVideoUploadError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 50MB. For larger videos, save your video on another hosting service and paste the URL instead.`);
+      setVideoUploadError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 50MB. For larger videos, use the "Paste URL" option instead.`);
       return;
     }
     
-    const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-    if (!allowedTypes.includes(file.type)) {
-      setVideoUploadError('Please upload an MP4, WebM, or MOV video file.');
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp', 'video/3gpp2', 'video/x-m4v', 'video/x-matroska'];
+    const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|3gp|mkv)$/i.test(file.name);
+    if (!isVideo && !allowedTypes.includes(file.type)) {
+      setVideoUploadError('Please upload a video file (MP4, MOV, WebM, M4V, or 3GP).');
       return;
     }
     
     setVideoUploadError(null);
+    setVideoUploadSuccess(false);
     setIsUploadingVideo(true);
+    setVideoUploadProgress(0);
     
     try {
       const authHeaders = await getAuthHeaders();
+      const memberId = user?.id;
+      if (!memberId) throw new Error('Not signed in');
       
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+      const mimeType = file.type || 'video/mp4';
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('storeType', 'member');
+      formData.append('userId', memberId);
+      
+      const result = await new Promise<{ url: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            setVideoUploadProgress(pct);
+          }
+        });
+        
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data);
+            } catch {
+              reject(new Error('Invalid server response'));
+            }
+          } else {
+            let msg = 'Upload failed';
+            try {
+              const errData = JSON.parse(xhr.responseText);
+              msg = errData.error || msg;
+            } catch {}
+            reject(new Error(msg));
+          }
+        });
+        
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error - check your connection and try again'));
+        });
+        
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Upload was cancelled'));
+        });
+        
+        xhr.open('POST', '/api/test/upload-media');
+        const authHeader = (authHeaders as any)['Authorization'];
+        if (authHeader) {
+          xhr.setRequestHeader('Authorization', authHeader);
+        }
+        xhr.send(formData);
       });
-      const base64Data = await base64Promise;
       
-      const res = await fetch(`/api/members/${user?.id}/library/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
-          assetType: 'video',
-          name: file.name,
-          imageData: base64Data,
-          mimeType: file.type,
-          originalName: file.name,
-        })
-      });
-      
-      if (!res.ok) throw new Error('Upload failed');
-      
-      const result = await res.json();
-      setPlayVideoUrl(result.asset?.publicUrl || '');
-      setVideoUrl(result.asset?.publicUrl || '');
-    } catch (error) {
+      setPlayVideoUrl(result.url);
+      setVideoUrl(result.url);
+      setVideoUploadSuccess(true);
+      console.log('[QR Play] Video uploaded successfully:', result.url);
+    } catch (error: any) {
       console.error('[QR Play] Video upload error:', error);
-      setVideoUploadError('Failed to upload video. Please try again.');
+      setVideoUploadError(error?.message || 'Failed to upload video. Please try again.');
+      setVideoUploadSuccess(false);
     } finally {
       setIsUploadingVideo(false);
     }
@@ -6404,6 +6474,8 @@ function MembersSandboxContent() {
     setVideoUrl('');
     setPlaySaveChoice('');
     setVideoUploadError(null);
+    setVideoUploadProgress(0);
+    setVideoUploadSuccess(false);
   };
 
   // Handle QR Canvas done - reset wizard
@@ -7663,6 +7735,8 @@ function MembersSandboxContent() {
                     onFileUpload={handleVideoFileUpload}
                     isUploading={isUploadingVideo}
                     uploadError={videoUploadError}
+                    uploadProgress={videoUploadProgress}
+                    uploadSuccess={videoUploadSuccess}
                   />
                 )}
                 
