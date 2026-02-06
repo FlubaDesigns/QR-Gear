@@ -2220,15 +2220,17 @@ function PlacementCountStep({
     onToggle(placement);
   };
   
-  // Show only placements that are actually available for this specific product from Printify
-  // Fall back to defaults only if no product-specific placements available
+  const SUPPORTED_PLACEMENTS = ['front', 'back', 'left_chest', 'sleeve_left', 'sleeve_right'];
+  
   const displayPlacements = productPlacements && productPlacements.length > 0
-    ? productPlacements.map(p => ({
-        id: p.id as PlacementOption,
-        label: p.title,
-        description: 'Print area',
-        sizeLabel: p.widthInches && p.heightInches ? `${p.widthInches}×${p.heightInches}` : '',
-      }))
+    ? productPlacements
+        .filter(p => SUPPORTED_PLACEMENTS.includes(p.id))
+        .map(p => ({
+          id: p.id as PlacementOption,
+          label: p.title,
+          description: 'Print area',
+          sizeLabel: p.widthInches && p.heightInches ? `${p.widthInches}×${p.heightInches}` : '',
+        }))
     : PLACEMENT_OPTIONS;
   
   // Positions on SVG for each Printify placement - TRUE TO RATIO
