@@ -888,7 +888,8 @@ function SizePickerStep({
   baseEarnings = 0,
   sizeEarningsBonuses,
   onSelect,
-  onEarningsAnimate
+  onEarningsAnimate,
+  selectedPlacements = []
 }: {
   selectedSize: string;
   selectedColor: string;
@@ -896,6 +897,7 @@ function SizePickerStep({
   sizeEarningsBonuses: Record<string, number>;
   onSelect: (size: string) => void;
   onEarningsAnimate?: (amount: number) => void;
+  selectedPlacements?: string[];
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
@@ -948,9 +950,14 @@ function SizePickerStep({
             strokeWidth="2"
           />
         </svg>
+          {selectedPlacements.length > 0 && (
+            <p className="text-slate-400 text-xs mt-1">
+              {selectedPlacements.map(p => p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', ')}
+            </p>
+          )}
       </div>
       
-      <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
+      <div className="grid grid-cols-3 gap-2 max-w-[280px] mx-auto">
         {SHIRT_SIZES.map((size) => {
           const sizeEarnings = baseEarnings + (sizeEarningsBonuses[size] || 0);
           return (
@@ -964,7 +971,7 @@ function SizePickerStep({
                 }
                 onSelect(size);
               }}
-              className={`w-16 h-20 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
+              className={`h-16 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
                 selectedSize === size
                   ? 'border-orange-500 bg-orange-500/15 text-orange-400'
                   : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
@@ -2149,7 +2156,7 @@ function PlacementCountStep({
     <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Where Do You Want Graphics?</h2>
-        <p className="text-slate-400 text-sm">Each extra placement adds +${placementEarningsBonus.toFixed(2)} to your earnings</p>
+        <p className="text-slate-400 text-sm">First graphic is included! Each extra adds +${placementEarningsBonus.toFixed(2)}</p>
       </div>
       
       {/* Shirt preview with counter */}
@@ -2228,6 +2235,15 @@ function PlacementCountStep({
                   <p className="text-xs text-slate-500">{option.description}</p>
                 </div>
               </div>
+              {isSelected && (
+                <div className="mt-1 ml-6">
+                  {selected[0] === option.id ? (
+                    <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded">Included</span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded">+${placementEarningsBonus.toFixed(2)}</span>
+                  )}
+                </div>
+              )}
             </button>
           );
         })}
@@ -7005,7 +7021,13 @@ function MembersSandboxContent() {
     await createPacketForProduct(product);
   };
 
+  useEffect(() => {
+    const el = document.getElementById('wizard-step-content');
+    if (el) el.scrollTop = 0;
+  }, [simpleStep]);
+
   const handleSimpleNext = async () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     // Add earnings when leaving product-congrats step
     if (simpleStep === 'product-congrats' && selectedProductType) {
       setRunningEarnings(prev => prev + (selectedProductType.memberEarnings || 0));
@@ -7248,6 +7270,7 @@ function MembersSandboxContent() {
   };
 
   const handleSimpleBack = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     // Handle QR Basic flow back navigation
     if (simpleStep === 'qr-basic-type') {
       setSimpleStep('generate');
@@ -7729,7 +7752,7 @@ function MembersSandboxContent() {
                 </div>
               )}
 
-              <div className="min-h-[300px]">
+              <div className="min-h-[350px]" id="wizard-step-content">
                 {/* Step 0: Pick Channel */}
                 {simpleStep === 'channel' && user && (
                   <ChannelStep
@@ -7780,6 +7803,7 @@ function MembersSandboxContent() {
                       selectedColor={selectedColor}
                       baseEarnings={selectedProductType?.memberEarnings || 0}
                       sizeEarningsBonuses={sizeEarningsBonuses}
+                      selectedPlacements={selectedPlacements}
                       onSelect={(size) => {
                         // Calculate earnings difference when changing size
                         const oldBonus = sizeEarningsBonuses[selectedShirtSize] || 0;
@@ -8359,7 +8383,7 @@ function MembersSandboxContent() {
                         ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
                         : "bg-slate-600"
                     }`}
-                    style={canSimpleProceed() ? { animation: "glow 2s ease-in-out infinite" } : undefined}
+                    style={canSimpleProceed() ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
                     data-testid="button-simple-next"
                   >
                     Next
