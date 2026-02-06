@@ -1506,34 +1506,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper: Stream file from Firebase Storage with HTTP Range support (required for mobile video)
+  async function streamFirebaseFileWithRange(req: any, res: any, storagePath: string) {
+    const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
+    const file = bucket.file(storagePath);
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    const [metadata] = await file.getMetadata();
+    const contentType = metadata.contentType || "application/octet-stream";
+    const fileSize = parseInt(metadata.size as string, 10);
+    
+    res.setHeader("Accept-Ranges", "bytes");
+    res.setHeader("Cache-Control", "public, max-age=31536000");
+    
+    const rangeHeader = req.headers.range;
+    if (rangeHeader && fileSize) {
+      const parts = rangeHeader.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunkSize = end - start + 1;
+      
+      res.status(206);
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader("Content-Length", chunkSize);
+      res.setHeader("Content-Type", contentType);
+      
+      file.createReadStream({ start, end }).pipe(res);
+    } else {
+      res.setHeader("Content-Type", contentType);
+      if (fileSize) {
+        res.setHeader("Content-Length", fileSize);
+      }
+      file.createReadStream().pipe(res);
+    }
+  }
+
   // Serve library files for internal/external: /api/library-files/{storeType}/{mediaType}/{filename}
   app.get("/api/library-files/:storeType/:mediaType/:filename", async (req, res) => {
     try {
       const { storeType, mediaType, filename } = req.params;
       
-      // Skip if this looks like a member path (has 4 segments)
       if (storeType === "member") {
         return res.status(400).json({ error: "Use /api/library-files/member/:userId/:mediaType/:filename for member files" });
       }
       
       const storagePath = `library/${storeType}/${mediaType}/${filename}`;
-      
-      const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
-      const file = bucket.file(storagePath);
-      
-      const [exists] = await file.exists();
-      if (!exists) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      
-      const [metadata] = await file.getMetadata();
-      res.setHeader("Content-Type", metadata.contentType || "application/octet-stream");
-      res.setHeader("Cache-Control", "public, max-age=31536000");
-      
-      file.createReadStream().pipe(res);
+      await streamFirebaseFileWithRange(req, res, storagePath);
     } catch (error: any) {
       console.error("Library file serve error:", error);
-      res.status(500).json({ error: error.message });
+      if (!res.headersSent) res.status(500).json({ error: error.message });
     }
   });
 
@@ -1542,23 +1567,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, mediaType, filename } = req.params;
       const storagePath = `library/member/${userId}/${mediaType}/${filename}`;
-      
-      const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
-      const file = bucket.file(storagePath);
-      
-      const [exists] = await file.exists();
-      if (!exists) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      
-      const [metadata] = await file.getMetadata();
-      res.setHeader("Content-Type", metadata.contentType || "application/octet-stream");
-      res.setHeader("Cache-Control", "public, max-age=31536000");
-      
-      file.createReadStream().pipe(res);
+      await streamFirebaseFileWithRange(req, res, storagePath);
     } catch (error: any) {
       console.error("Library file serve error:", error);
-      res.status(500).json({ error: error.message });
+      if (!res.headersSent) res.status(500).json({ error: error.message });
     }
   });
 

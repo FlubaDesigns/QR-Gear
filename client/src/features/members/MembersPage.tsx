@@ -4359,10 +4359,12 @@ function PlayPreviewStep({
           <div className="w-full h-full rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
             {videoUrl ? (
               <video
+                key={videoUrl}
                 src={videoUrl}
                 className="w-full h-full object-cover"
                 controls
                 playsInline
+                preload="auto"
                 data-testid="video-preview-player"
               />
             ) : (
