@@ -739,7 +739,7 @@ function ProductPickerStep({
   selectedProduct: AllowedProduct | null;
   onSelect: (product: AllowedProduct) => void;
 }) {
-  const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
+  const [zoomedProduct, setZoomedProduct] = useState<{ product: AllowedProduct; url: string; title: string } | null>(null);
   const { data: productsData, isLoading } = useQuery<{ products: AllowedProduct[] }>({
     queryKey: ["/api/members/allowed-products"],
   });
