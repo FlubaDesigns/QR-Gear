@@ -89,7 +89,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-publish' | 'play-save-choice' | 'play-confirm';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-publish' | 'play-save-choice' | 'play-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -159,7 +159,8 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Generate', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
-  { id: 'text-edit', label: 'Edit', icon: Type },
+  { id: 'text-edit-header', label: 'Header', icon: Type },
+  { id: 'text-edit-footer', label: 'Footer', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
   { id: 'canvas-fork', label: 'Online Image', icon: Smartphone },
@@ -211,7 +212,8 @@ const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
-  { id: 'text-edit', label: 'Edit', icon: Type },
+  { id: 'text-edit-header', label: 'Header', icon: Type },
+  { id: 'text-edit-footer', label: 'Footer', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
   { id: 'canvas-fork', label: 'Online Image?', icon: Smartphone },
@@ -231,7 +233,8 @@ const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
-  { id: 'text-edit', label: 'Edit', icon: Type },
+  { id: 'text-edit-header', label: 'Header', icon: Type },
+  { id: 'text-edit-footer', label: 'Footer', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
   { id: 'canvas-fork', label: 'QR Experience', icon: Smartphone },
@@ -2215,7 +2218,457 @@ function PlacementCountStep({
   );
 }
 
-// Step 10: Text Edit - shows graphic outline with QR in center, text above/below
+function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
+  const sizeMap: Record<string, number> = { '12px': 5, '18px': 7, '24px': 9 };
+  const baseSvgSize = sizeMap[baseSize] || 7;
+  const maxCharsPerLine = 20;
+
+  if (!text) return { lines: [''], fontSize: baseSvgSize };
+
+  let lines: string[];
+  const hasNewline = text.includes('\n');
+  if (hasNewline) {
+    lines = text.split('\n').slice(0, 2);
+  } else if (text.length > maxCharsPerLine) {
+    const mid = Math.ceil(text.length / 2);
+    const spaceIdx = text.lastIndexOf(' ', mid);
+    const breakAt = spaceIdx > 0 ? spaceIdx : maxCharsPerLine;
+    lines = [text.slice(0, breakAt).trim(), text.slice(breakAt).trim()];
+  } else {
+    lines = [text];
+  }
+
+  const longestLine = Math.max(...lines.map(l => l.length), 1);
+  let effectiveSize = baseSvgSize;
+  if (longestLine > maxCharsPerLine * 0.5) {
+    effectiveSize = baseSvgSize * Math.max(0.6, maxCharsPerLine / (longestLine * 1.5));
+  }
+
+  return { lines, fontSize: Math.round(effectiveSize * 100) / 100 };
+}
+
+function HeaderTextEditStep({
+  selectedColor,
+  graphicSize,
+  graphicLocation,
+  headerStyle,
+  onHeaderChange,
+}: {
+  selectedColor: string;
+  graphicSize: GraphicSize;
+  graphicLocation: GraphicLocation;
+  headerStyle: TextStyleConfig;
+  onHeaderChange: (style: TextStyleConfig) => void;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const isLeftChest = graphicLocation === 'left-chest';
+  const graphicX = isLeftChest ? 77 : 90;
+  const graphicY = isLeftChest ? 68 : 79;
+
+  const getOutlineSize = () => {
+    const sizeKey = graphicSize || 'medium';
+    const sizes: Record<string, { w: number; h: number }> = {
+      small: { w: 22, h: 30 },
+      medium: { w: 33, h: 44 },
+      large: { w: 41, h: 52 }
+    };
+    return sizes[sizeKey] || sizes.medium;
+  };
+  const outlineSize = getOutlineSize();
+
+  const qrHeight = outlineSize.h * 0.55;
+  const qrWidth = qrHeight;
+  const qrY = graphicY - qrHeight / 2;
+  const headerZoneTop = graphicY - outlineSize.h / 2 + 2;
+  const headerZoneBottom = qrY - 2;
+
+  const updateHeader = (updates: Partial<TextStyleConfig>) => {
+    onHeaderChange({ ...headerStyle, ...updates, enabled: true });
+  };
+
+  const charCount = (headerStyle.text || '').length;
+  const autoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', outlineSize.w);
+
+  const vOffset = headerStyle.verticalOffset ?? 50;
+  const hOffset = headerStyle.horizontalOffset ?? 50;
+  const textY = headerZoneTop + ((headerZoneBottom - headerZoneTop) * (vOffset / 100));
+  const textX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (hOffset / 100));
+
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-2 p-2">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-0" data-testid="text-header-title">Header Text</h2>
+        <p className="text-slate-400 text-xs" data-testid="text-header-charcount">{charCount}/40 characters</p>
+      </div>
+
+      <div className="flex justify-center">
+        <svg
+          width="280"
+          height="160"
+          viewBox={`${graphicX - outlineSize.w / 2 - 4} ${graphicY - outlineSize.h / 2 - 4} ${outlineSize.w + 8} ${outlineSize.h + 8}`}
+          className="drop-shadow-xl bg-slate-900/30 rounded"
+          data-testid="svg-header-preview"
+        >
+          <rect
+            x={graphicX - outlineSize.w / 2}
+            y={graphicY - outlineSize.h / 2}
+            width={outlineSize.w}
+            height={outlineSize.h}
+            fill={colorHex}
+            stroke="#64748b"
+            strokeWidth="0.5"
+            strokeDasharray="3 1.5"
+            rx="2"
+          />
+          <rect
+            x={graphicX - qrWidth / 2}
+            y={qrY}
+            width={qrWidth}
+            height={qrHeight}
+            fill="white"
+            rx="1"
+          />
+          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+          <rect x={graphicX + qrWidth / 2 - 1 - qrHeight * 0.18} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + qrHeight - 1 - qrHeight * 0.18} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+          <rect x={graphicX - qrHeight * 0.12} y={qrY + qrHeight * 0.38} width={qrHeight * 0.24} height={qrHeight * 0.24} fill="#333" />
+
+          {autoText.lines.map((line, i) => (
+            <text
+              key={i}
+              x={textX}
+              y={textY + i * (autoText.fontSize + 1)}
+              textAnchor="middle"
+              fill={headerStyle.color || '#fff'}
+              fontSize={autoText.fontSize}
+              fontFamily={headerStyle.fontFamily || 'Arial'}
+              fontWeight="bold"
+            >
+              {line || (i === 0 ? 'Header' : '')}
+            </text>
+          ))}
+        </svg>
+      </div>
+
+      <textarea
+        value={headerStyle.text || ''}
+        onChange={(e) => {
+          let val = e.target.value;
+          if (val.length > 40) val = val.slice(0, 40);
+          const lineArr = val.split('\n');
+          if (lineArr.length > 2) val = lineArr.slice(0, 2).join('\n');
+          updateHeader({ text: val });
+        }}
+        placeholder="Enter header text (max 40 chars, 2 lines)"
+        maxLength={40}
+        rows={2}
+        className="w-full text-sm min-h-[40px] px-2 py-1.5 bg-slate-700 border border-slate-600 text-white rounded resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+        data-testid="textarea-header-text"
+      />
+      <div className="text-right text-xs text-slate-500" data-testid="text-header-counter">{charCount}/40</div>
+
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-xs text-slate-500">Color:</span>
+        {SHIRT_TEXT_COLORS.map((color) => (
+          <button
+            key={color}
+            onClick={() => updateHeader({ color })}
+            className={`w-5 h-5 rounded-full border-2 transition-all ${
+              headerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
+            }`}
+            style={{ backgroundColor: color }}
+            data-testid={`btn-header-color-${color.replace('#', '')}`}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-xs text-slate-500">Size:</span>
+        {SHIRT_TEXT_SIZES.map((size) => (
+          <Button
+            key={size.id}
+            size="sm"
+            variant={headerStyle.fontSize === size.value ? 'default' : 'outline'}
+            onClick={() => updateHeader({ fontSize: size.value })}
+            className="h-6 px-2 text-xs"
+            data-testid={`btn-header-size-${size.id}`}
+          >
+            {size.label}
+          </Button>
+        ))}
+        <span className="text-xs text-slate-500 ml-2">Font:</span>
+        {SHIRT_TEXT_FONTS.map((font) => (
+          <Button
+            key={font.id}
+            size="sm"
+            variant={headerStyle.fontFamily === font.family ? 'default' : 'outline'}
+            onClick={() => updateHeader({ fontFamily: font.family })}
+            style={{ fontFamily: font.family }}
+            className="h-6 px-2 text-xs"
+            data-testid={`btn-header-font-${font.id}`}
+          >
+            {font.label}
+          </Button>
+        ))}
+      </div>
+
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 w-14">Up/Down</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={vOffset}
+            onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
+            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-header-vertical"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 w-14">Left/Right</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={hOffset}
+            onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
+            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-header-horizontal"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FooterTextEditStep({
+  selectedColor,
+  graphicSize,
+  graphicLocation,
+  footerStyle,
+  onFooterChange,
+  headerStyle,
+}: {
+  selectedColor: string;
+  graphicSize: GraphicSize;
+  graphicLocation: GraphicLocation;
+  footerStyle: TextStyleConfig;
+  onFooterChange: (style: TextStyleConfig) => void;
+  headerStyle: TextStyleConfig;
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const isLeftChest = graphicLocation === 'left-chest';
+  const graphicX = isLeftChest ? 77 : 90;
+  const graphicY = isLeftChest ? 68 : 79;
+
+  const getOutlineSize = () => {
+    const sizeKey = graphicSize || 'medium';
+    const sizes: Record<string, { w: number; h: number }> = {
+      small: { w: 22, h: 30 },
+      medium: { w: 33, h: 44 },
+      large: { w: 41, h: 52 }
+    };
+    return sizes[sizeKey] || sizes.medium;
+  };
+  const outlineSize = getOutlineSize();
+
+  const qrHeight = outlineSize.h * 0.55;
+  const qrWidth = qrHeight;
+  const qrY = graphicY - qrHeight / 2;
+  const footerZoneTop = qrY + qrHeight + 2;
+  const footerZoneBottom = graphicY + outlineSize.h / 2 - 2;
+
+  const headerZoneTop = graphicY - outlineSize.h / 2 + 2;
+  const headerZoneBottom = qrY - 2;
+
+  const updateFooter = (updates: Partial<TextStyleConfig>) => {
+    onFooterChange({ ...footerStyle, ...updates, enabled: true });
+  };
+
+  const charCount = (footerStyle.text || '').length;
+  const autoText = calculateAutoTextSize(footerStyle.text || '', footerStyle.fontSize || '18px', outlineSize.w);
+  const headerAutoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', outlineSize.w);
+
+  const vOffset = footerStyle.verticalOffset ?? 50;
+  const hOffset = footerStyle.horizontalOffset ?? 50;
+  const textY = footerZoneTop + ((footerZoneBottom - footerZoneTop) * (vOffset / 100));
+  const textX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (hOffset / 100));
+
+  const headerVOffset = headerStyle.verticalOffset ?? 50;
+  const headerHOffset = headerStyle.horizontalOffset ?? 50;
+  const headerTextY = headerZoneTop + ((headerZoneBottom - headerZoneTop) * (headerVOffset / 100));
+  const headerTextX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (headerHOffset / 100));
+
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-2 p-2">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-0" data-testid="text-footer-title">Footer Text</h2>
+        <p className="text-slate-400 text-xs" data-testid="text-footer-charcount">{charCount}/40 characters</p>
+      </div>
+
+      <div className="flex justify-center">
+        <svg
+          width="280"
+          height="160"
+          viewBox={`${graphicX - outlineSize.w / 2 - 4} ${graphicY - outlineSize.h / 2 - 4} ${outlineSize.w + 8} ${outlineSize.h + 8}`}
+          className="drop-shadow-xl bg-slate-900/30 rounded"
+          data-testid="svg-footer-preview"
+        >
+          <rect
+            x={graphicX - outlineSize.w / 2}
+            y={graphicY - outlineSize.h / 2}
+            width={outlineSize.w}
+            height={outlineSize.h}
+            fill={colorHex}
+            stroke="#64748b"
+            strokeWidth="0.5"
+            strokeDasharray="3 1.5"
+            rx="2"
+          />
+          <rect
+            x={graphicX - qrWidth / 2}
+            y={qrY}
+            width={qrWidth}
+            height={qrHeight}
+            fill="white"
+            rx="1"
+          />
+          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+          <rect x={graphicX + qrWidth / 2 - 1 - qrHeight * 0.18} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + qrHeight - 1 - qrHeight * 0.18} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+          <rect x={graphicX - qrHeight * 0.12} y={qrY + qrHeight * 0.38} width={qrHeight * 0.24} height={qrHeight * 0.24} fill="#333" />
+
+          {headerStyle.text && headerAutoText.lines.map((line, i) => (
+            <text
+              key={`hdr-${i}`}
+              x={headerTextX}
+              y={headerTextY + i * (headerAutoText.fontSize + 1)}
+              textAnchor="middle"
+              fill={headerStyle.color || '#fff'}
+              fontSize={headerAutoText.fontSize}
+              fontFamily={headerStyle.fontFamily || 'Arial'}
+              fontWeight="bold"
+              opacity={0.4}
+            >
+              {line}
+            </text>
+          ))}
+
+          {autoText.lines.map((line, i) => (
+            <text
+              key={`ftr-${i}`}
+              x={textX}
+              y={textY + i * (autoText.fontSize + 1)}
+              textAnchor="middle"
+              fill={footerStyle.color || '#fff'}
+              fontSize={autoText.fontSize}
+              fontFamily={footerStyle.fontFamily || 'Arial'}
+              fontWeight="bold"
+            >
+              {line || (i === 0 ? 'Footer' : '')}
+            </text>
+          ))}
+        </svg>
+      </div>
+
+      <textarea
+        value={footerStyle.text || ''}
+        onChange={(e) => {
+          let val = e.target.value;
+          if (val.length > 40) val = val.slice(0, 40);
+          const lineArr = val.split('\n');
+          if (lineArr.length > 2) val = lineArr.slice(0, 2).join('\n');
+          updateFooter({ text: val });
+        }}
+        placeholder="Enter footer text (max 40 chars, 2 lines)"
+        maxLength={40}
+        rows={2}
+        className="w-full text-sm min-h-[40px] px-2 py-1.5 bg-slate-700 border border-slate-600 text-white rounded resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+        data-testid="textarea-footer-text"
+      />
+      <div className="text-right text-xs text-slate-500" data-testid="text-footer-counter">{charCount}/40</div>
+
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-xs text-slate-500">Color:</span>
+        {SHIRT_TEXT_COLORS.map((color) => (
+          <button
+            key={color}
+            onClick={() => updateFooter({ color })}
+            className={`w-5 h-5 rounded-full border-2 transition-all ${
+              footerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
+            }`}
+            style={{ backgroundColor: color }}
+            data-testid={`btn-footer-color-${color.replace('#', '')}`}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-xs text-slate-500">Size:</span>
+        {SHIRT_TEXT_SIZES.map((size) => (
+          <Button
+            key={size.id}
+            size="sm"
+            variant={footerStyle.fontSize === size.value ? 'default' : 'outline'}
+            onClick={() => updateFooter({ fontSize: size.value })}
+            className="h-6 px-2 text-xs"
+            data-testid={`btn-footer-size-${size.id}`}
+          >
+            {size.label}
+          </Button>
+        ))}
+        <span className="text-xs text-slate-500 ml-2">Font:</span>
+        {SHIRT_TEXT_FONTS.map((font) => (
+          <Button
+            key={font.id}
+            size="sm"
+            variant={footerStyle.fontFamily === font.family ? 'default' : 'outline'}
+            onClick={() => updateFooter({ fontFamily: font.family })}
+            style={{ fontFamily: font.family }}
+            className="h-6 px-2 text-xs"
+            data-testid={`btn-footer-font-${font.id}`}
+          >
+            {font.label}
+          </Button>
+        ))}
+      </div>
+
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 w-14">Up/Down</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={vOffset}
+            onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
+            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-footer-vertical"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 w-14">Left/Right</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={hOffset}
+            onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
+            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ touchAction: 'none' }}
+            data-testid="slider-footer-horizontal"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Step 10: Text Edit - shows graphic outline with QR in center, text above/below (LEGACY - kept for advanced wizard tiers)
 function ShirtTextEditStep({
   layout,
   selectedColor,
@@ -6705,11 +7158,22 @@ function MembersSandboxContent() {
       // All placements have sizes - proceed to generate step
     }
     
-    // After text-edit, reset placement index for the placement-config loop
-    if (simpleStep === 'text-edit') {
+    if (simpleStep === 'text-edit-header') {
+      if (textLayoutChoice === 'header') {
+        setCurrentPlacementIndex(0);
+        setPlacementGraphicChoice('');
+        setPlacementSize('');
+        const stepsArr = isQRPlusStep(simpleStep) ? QR_PLUS_STEPS : isQRPlayStep(simpleStep) ? QR_PLAY_STEPS : stepsArray;
+        const pcIdx = stepsArr.findIndex(s => s.id === 'placement-config');
+        if (pcIdx >= 0) {
+          setSimpleStep('placement-config');
+          return;
+        }
+      }
+    }
+    if (simpleStep === 'text-edit-footer') {
       setCurrentPlacementIndex(0);
       setPlacementGraphicChoice('');
-      // Reset size for first placement
       setPlacementSize('');
     }
     
@@ -6847,7 +7311,8 @@ function MembersSandboxContent() {
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
       case 'placement-count': return selectedPlacements.length > 0;
-      case 'text-edit': return true;
+      case 'text-edit-header': return true;
+      case 'text-edit-footer': return true;
       case 'placement-config': return placementGraphicChoice !== '';
       case 'shirt-preview': return true;
       case 'url-explainer': return true;
@@ -7436,7 +7901,7 @@ function MembersSandboxContent() {
                           setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
                         }
                         setTextLayoutChoice(choice);
-                        setSimpleStep('text-edit');
+                        setSimpleStep(choice === 'footer' ? 'text-edit-footer' : 'text-edit-header');
                       }}
                     />
                   </div>
@@ -7470,20 +7935,25 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step 10: Text Edit - shows graphic with text for current placement */}
-                {simpleStep === 'text-edit' && (
-                  <div className="space-y-2">
-                    <ShirtTextEditStep
-                      layout={textLayoutChoice}
-                      selectedColor={selectedColor}
-                      graphicLocation={graphicLocation}
-                      graphicSize={graphicSize}
-                      headerStyle={headerStyle}
-                      footerStyle={footerStyle}
-                      onHeaderChange={setHeaderStyle}
-                      onFooterChange={setFooterStyle}
-                    />
-                  </div>
+                {simpleStep === 'text-edit-header' && (
+                  <HeaderTextEditStep
+                    selectedColor={selectedColor}
+                    graphicSize={graphicSize}
+                    graphicLocation={graphicLocation}
+                    headerStyle={headerStyle}
+                    onHeaderChange={setHeaderStyle}
+                  />
+                )}
+
+                {simpleStep === 'text-edit-footer' && (
+                  <FooterTextEditStep
+                    selectedColor={selectedColor}
+                    graphicSize={graphicSize}
+                    graphicLocation={graphicLocation}
+                    footerStyle={footerStyle}
+                    onFooterChange={setFooterStyle}
+                    headerStyle={headerStyle}
+                  />
                 )}
                 
                 {/* Step 10: Placement Config - Full Graphic or QR Only for each placement */}
