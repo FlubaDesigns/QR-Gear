@@ -1001,7 +1001,7 @@ function SizePickerStep({
                   if (containerRect) {
                     const x = btnRect.left - containerRect.left + btnRect.width / 2 - 50;
                     const y = btnRect.top - containerRect.top - 10;
-                    setFloatingEarning({ amount: totalForSize, key: Date.now(), x, y });
+                    setFloatingEarning({ amount: bonus, key: Date.now(), x, y });
                     setTimeout(() => setFloatingEarning(null), 1500);
                   }
                 }
@@ -8004,7 +8004,7 @@ function MembersSandboxContent() {
                         };
                         
                         if (size !== selectedShirtSize) {
-                          setTimeout(doUpdate, 800);
+                          setTimeout(doUpdate, 1200);
                         } else {
                           doUpdate();
                         }
