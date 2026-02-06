@@ -391,15 +391,19 @@
 @keyframes bounce-up {
   0% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.1);
   }
   60% {
     opacity: 1;
-    transform: translateY(-40px);
+    transform: translateY(-70px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(-60px);
+    transform: translateY(-100px) scale(0.9);
   }
 }
 

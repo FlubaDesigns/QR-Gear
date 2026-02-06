@@ -924,10 +924,10 @@ function SizePickerStep({
       {floatingEarning && (
         <div
           key={floatingEarning.key}
-          className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none z-20"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-20"
         >
-          <div className="animate-bounce-up text-green-400 font-bold text-lg flex items-center gap-1 bg-slate-900/80 rounded-full px-3 py-1">
-            <DollarSign className="w-4 h-4" />
+          <div className="animate-bounce-up text-green-300 font-bold text-xl flex items-center gap-1 bg-green-500/20 border border-green-400/40 rounded-full px-4 py-1.5 shadow-lg shadow-green-500/30">
+            <DollarSign className="w-5 h-5" />
             ${floatingEarning.amount.toFixed(2)}
           </div>
         </div>
