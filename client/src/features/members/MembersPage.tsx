@@ -241,8 +241,7 @@ const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'play-video-source', label: 'Video', icon: Play },
   { id: 'play-preview', label: 'Preview', icon: Eye },
   { id: 'play-publish', label: 'Publish', icon: Send },
-  { id: 'play-save-choice', label: 'Save Options', icon: Library },
-  { id: 'play-confirm', label: 'Done', icon: Check },
+  { id: 'play-save-choice', label: 'Done', icon: Check },
 ];
 
 const isQRPlayStep = (step: SimpleWizardStep): boolean => {
@@ -7490,10 +7489,6 @@ function MembersSandboxContent() {
       return;
     }
     if (simpleStep === 'play-save-choice') {
-      return;
-    }
-    if (simpleStep === 'play-confirm') {
-      setSimpleStep('play-save-choice');
       return;
     }
     
