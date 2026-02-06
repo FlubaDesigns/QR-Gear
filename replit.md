@@ -68,12 +68,12 @@ The storefront emphasizes lifestyle mockups over flat product shots. Product pri
 - **Order Fulfillment Flow**: Integrates with Stripe for checkout, creates Firestore orders, enables admin review, and facilitates submission/status sync with Printify.
 - **Product Packet Architecture**: A `Product Packet` serves as the single source of truth for product configurations, linking to `Graphics` and `Template` entries. The system supports a "fork-on-edit" pattern where modifying an existing product creates a new packet.
 - **Store Library Architecture**: An admin interface (`/admin/library`) for managing products linked to specific stores and channels via `storeProductLinks`.
-- **QR Dynamics Architecture**: Enables creation of rotating product experiences structured as **Store → Channel → Collection**. Collections are curated playlists of items that cycle over time, scoped to the user's ID.
+- **QR Compose Architecture**: Enables members to build rotating playlists from their published Canvas/Play items. Minimum 2 items required. Creates a `qr_dynamics_instances` entry with time-based slot rotation. Resolver at `/qr/d/:instanceId` checks both `productPackets` and `memberPackets` collections. Hosting terms: 1-year, 3-year, 5-year.
 - **Members Sandbox** (`/test-members`): A simplified product builder where authenticated members can create and sell products using admin-unlocked templates. Key features:
   - **Wizard Mode**: 5-step guided flow (Product → Graphics → QR Setup → Preview → Publish)
   - **Power Mode**: Compact single-view interface with dropdowns for experienced users
   - **My Channels**: Member-scoped channels to organize products
-  - **My Collections**: Member-scoped QR Dynamics collections
+  - **My Collections**: Member-scoped QR Compose collections
   - **Earnings Dashboard**: Tracks profit share (25% of sales)
   - **API Endpoints**: `/api/members/:memberId/graphics|channels|products|earnings`
 
