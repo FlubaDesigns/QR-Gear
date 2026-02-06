@@ -105,6 +105,8 @@ Two distinct products serve different roles in the Living state:
 - Buyer can renew hosting when term expires
 - The QR is "living" from the buyer's perspective - they control it post-purchase
 
+**Prerequisites**: Member must have at least **2 published Canvas or Play packets** before QR Compose unlocks. A rotation of 1 item is just a regular QR - you need a minimum of 2 to make it a real rotation.
+
 **Summary**: Compose = backstage production tool (member creates). Dynamics = front-of-house remote control (buyer manages).
 
 ### 4. Fork Architecture
