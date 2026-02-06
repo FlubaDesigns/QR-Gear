@@ -6878,60 +6878,28 @@ function MembersSandboxContent() {
     }
   };
 
-  // Save QR Basic assets to packet
+  // Save QR Basic - now routes through unified publish
   const saveQrBasicToPacket = async () => {
-    if (!currentPacketId || !user?.id) return false;
-    
+    if (!user?.id) return false;
     setIsQrBasicSaving(true);
     try {
-      const updates: Record<string, any> = {
-        kind: 'qr_basic',
-        qrGraphic: qrGraphic || null,
-        qrBasicMockup: qrBasicMockup || null,
-        qrBasicSaveChoice: qrBasicSaveChoice,
-        status: 'saved',
-      };
-      
-      const success = await updatePacket(updates);
-      console.log('[Wizard] QR Basic saved to packet:', { success, saveChoice: qrBasicSaveChoice });
-      return success;
+      await handleSimplePublish();
+      return true;
     } finally {
       setIsQrBasicSaving(false);
     }
   };
 
-  // Save QR Plus assets to packet
+  // Save QR Plus - now routes through unified publish
   const saveQrPlusToPacket = async () => {
-    if (!currentPacketId || !user?.id) {
-      console.error('[QR Plus Save] Missing packet or user:', { currentPacketId, userId: user?.id });
+    if (!user?.id) {
+      console.error('[QR Plus Save] Missing user');
       return false;
     }
-    
     setIsQrPlusSaving(true);
     try {
-      // Log EXACTLY what we're saving
-      console.log('[QR Plus Save] Preparing to save:', {
-        packetId: currentPacketId,
-        qrGraphic: qrGraphic ? qrGraphic.substring(0, 80) + '...' : 'EMPTY!',
-        productGraphic: productGraphic ? productGraphic.substring(0, 80) + '...' : 'EMPTY!',
-        qrPlusMockup: qrPlusMockup ? qrPlusMockup.substring(0, 80) + '...' : 'EMPTY!',
-        saveChoice: qrPlusSaveChoice,
-      });
-      
-      const updates: Record<string, any> = {
-        kind: 'qr_plus',
-        qrGraphic: qrGraphic || null,
-        productGraphic: productGraphic || null,
-        qrPlusMockup: qrPlusMockup || null,
-        qrPlusSaveChoice: qrPlusSaveChoice,
-        headerStyle: headerStyle,
-        footerStyle: footerStyle,
-        status: 'saved',
-      };
-      
-      const success = await updatePacket(updates);
-      console.log('[QR Plus Save] Result:', { success, packetId: currentPacketId });
-      return success;
+      await handleSimplePublish();
+      return true;
     } finally {
       setIsQrPlusSaving(false);
     }
@@ -7179,10 +7147,9 @@ function MembersSandboxContent() {
     setPublishedProductGraphicUrl(null);
   };
 
-  // Handle product selection - creates packet immediately
+  // Handle product selection - no packet created yet, all data stays local until publish
   const handleProductSelect = async (product: AllowedProduct) => {
     setSelectedProductType(product);
-    await createPacketForProduct(product);
   };
 
   useEffect(() => {
@@ -7584,17 +7551,79 @@ function MembersSandboxContent() {
     try {
       const authHeaders = await getAuthHeaders();
       
-      // Create packet for simple wizard (canvas or play)
-      const packetData = {
+      // Calculate pricing breakdown
+      const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
+      const textUpcharge = textLines * (pricingSettings?.textLineUpcharge || 2);
+      const extraPlacements = Math.max(0, selectedPlacements.length - 1);
+      const placementUpcharge = extraPlacements * (pricingSettings?.additionalPlacementCost || 4);
+      
+      // Unified packet data — ALL wizard state for ALL QR types
+      const packetData: Record<string, any> = {
         packetType: qrType,
         title: simpleTitle,
         description: simpleDescription,
         channelId: selectedChannel.id,
-        storeId: user.id, // Member store = memberId
+        storeId: user.id,
+        status: 'published',
+        // Product info
+        boundProduct: selectedProductType ? {
+          blueprintId: selectedProductType.blueprintId,
+          printProviderId: selectedProductType.printProviderId,
+          title: selectedProductType.title,
+          imageUrl: selectedProductType.imageUrl,
+          memberEarnings: selectedProductType.memberEarnings || 0,
+          retailPrice: selectedProductType.retailPrice || 0,
+          baseCost: selectedProductType.baseCost || 0,
+        } : null,
+        selectedColor: selectedColor || null,
+        selectedShirtSize: selectedShirtSize || null,
+        // Placement info
+        selectedPlacements: selectedPlacements.length > 0 ? selectedPlacements : null,
+        perPlacementConfigs: Object.keys(perPlacementConfigs).length > 0 ? perPlacementConfigs : null,
+        perPlacementSizes: Object.keys(perPlacementSizes).length > 0 ? perPlacementSizes : null,
+        graphicSize: graphicSize || null,
+        // Text/header/footer
+        textLayoutChoice: textLayoutChoice || null,
+        headerText: headerStyle.enabled ? headerStyle.text : null,
+        footerText: footerStyle.enabled ? footerStyle.text : null,
+        headerStyle: headerStyle.enabled ? headerStyle : null,
+        footerStyle: footerStyle.enabled ? footerStyle : null,
+        // QR content
+        qrType: qrType || null,
+        qrDestination: qrDestination || null,
+        qrGraphic: qrGraphic || null,
+        productGraphic: productGraphic || null,
+        // Background/landing
         background: urlGraphic || null,
+        originalUrlGraphic: originalUrlGraphic || null,
+        // Video (QR Play)
         videoUrl: qrType === 'qr-play' ? (playVideoUrl || videoUrl) : null,
-        status: 'published'
+        // QR Basic specific
+        qrBasicInputType: qrType === 'qr-basic' ? (qrBasicInputType || null) : null,
+        qrBasicContent: qrType === 'qr-basic' ? (qrBasicContent || null) : null,
+        qrBasicMockup: qrType === 'qr-basic' ? (qrBasicMockup || null) : null,
+        qrBasicSaveChoice: qrType === 'qr-basic' ? (qrBasicSaveChoice || null) : null,
+        // QR Plus specific
+        qrPlusMockup: qrType === 'qr-plus' ? (qrPlusMockup || null) : null,
+        qrPlusSaveChoice: qrType === 'qr-plus' ? (qrPlusSaveChoice || null) : null,
+        // Pricing breakdown
+        textLines,
+        textUpcharge,
+        placementUpcharge,
+        memberEarnings: runningEarnings,
+        // Source tracking
+        source: { entryPoint: 'simple-wizard' },
       };
+      
+      console.log('[UnifiedPublish] Publishing packet:', {
+        qrType,
+        blueprintId: selectedProductType?.blueprintId,
+        color: selectedColor,
+        placements: selectedPlacements,
+        graphicSize,
+        textLayout: textLayoutChoice,
+        earnings: runningEarnings,
+      });
       
       const res = await fetch(`/api/members/${user.id}/products`, {
         method: 'POST',
@@ -7605,21 +7634,25 @@ function MembersSandboxContent() {
       if (!res.ok) throw new Error('Failed to publish');
       
       const result = await res.json();
+      const packetId = result.id || result.packetId || null;
+      setPublishedPacketId(packetId);
+      setCurrentPacketId(packetId);
       incrementPublishCount();
       
-      // For QR Play, show save-to-library choice
+      // Route to appropriate post-publish step based on QR type
       if (qrType === 'qr-play') {
-        setPublishedPacketId(result.id || result.packetId || null);
         setSimpleStep('play-save-choice');
       } else if (qrType === 'qr-canvas') {
-        setPublishedPacketId(result.id || result.packetId || null);
         setPublishedQrGraphicUrl(result.qrGraphic || null);
         setPublishedProductGraphicUrl(result.productGraphic || null);
         setSimpleStep('canvas-save-choice');
+      } else if (qrType === 'qr-basic') {
+        // QR Basic goes to confirm step (save already handled via saveQrBasicToPacket wrapper)
+      } else if (qrType === 'qr-plus') {
+        // QR Plus goes to confirm step (save already handled via saveQrPlusToPacket wrapper)
       } else {
-        // For other types, go back to channels
+        // Fallback - go back to channels
         setViewMode('channels');
-        // Reset simple wizard state for next use
         setSimpleStep('channel');
         setCurrentPacketId(null);
         setSimpleTitle('');

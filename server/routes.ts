@@ -9652,113 +9652,189 @@ ${allPages.map(page => `  <url>
   app.post("/api/members/:memberId/products", async (req: any, res) => {
     try {
       const { memberId } = req.params;
-      const { 
-        // Printful product fields
-        printfulProductId, 
+      const body = req.body;
+      const {
+        printfulProductId,
         variantId,
-        graphicUrl, 
-        qrDestination, 
+        graphicUrl,
         name,
         price,
-        // QR Canvas/Play packet fields
         packetType,
         title,
         description,
         background,
         storeId,
         status,
-        // Common fields
         qrType,
         channelId,
-        // Header/footer for productGraphic
         headerText,
         footerText,
         videoUrl,
-        // Pricing breakdown
         textLines,
         textUpcharge,
         placementUpcharge,
-        memberEarnings
-      } = req.body;
+        memberEarnings,
+        boundProduct,
+        selectedColor,
+        selectedShirtSize,
+        selectedPlacements,
+        perPlacementConfigs,
+        perPlacementSizes,
+        graphicSize,
+        textLayoutChoice,
+        headerStyle,
+        footerStyle,
+        qrDestination,
+        qrGraphic: clientQrGraphic,
+        productGraphic: clientProductGraphic,
+        originalUrlGraphic,
+        qrBasicInputType,
+        qrBasicContent,
+        qrBasicMockup,
+        qrBasicSaveChoice,
+        qrPlusMockup,
+        qrPlusSaveChoice,
+        source,
+      } = body;
 
       const auth = await verifyMemberAuth(req, memberId);
       if (!auth.authorized) {
         return res.status(401).json({ error: auth.error });
       }
 
-      const { getFirestoreDb, getStorageBucket, getStorageBucketName } = await import("./lib/firebase-admin");
+      const { getFirestoreDb, getStorageBucket } = await import("./lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
-      
-      // QR Canvas/Play packet flow
-      if (packetType === 'qr-canvas' || packetType === 'qr-play') {
-        const packetId = `pkt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-        
-        // Create destination URL for the landing page
+
+      // === UNIFIED PACKET FLOW (all 4 QR types) ===
+      if (packetType === 'qr-canvas' || packetType === 'qr-play' || packetType === 'qr-basic' || packetType === 'qr-plus') {
+
+        // --- Dedup: check for existing building packet with same member + blueprint + color + qrType ---
+        let packetId = `pkt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+        const blueprintId = boundProduct?.blueprintId || null;
+        if (blueprintId && selectedColor) {
+          try {
+            const existingSnapshot = await firestoreDb.collection('memberPackets')
+              .where('memberId', '==', memberId)
+              .where('packetType', '==', packetType)
+              .where('boundProduct.blueprintId', '==', blueprintId)
+              .where('selectedColor', '==', selectedColor)
+              .where('status', '==', 'building')
+              .limit(1)
+              .get();
+            if (!existingSnapshot.empty) {
+              const existingDoc = existingSnapshot.docs[0];
+              packetId = existingDoc.id;
+              console.log(`[UnifiedPublish] Dedup: replacing existing building packet ${packetId}`);
+            }
+          } catch (dedupErr) {
+            console.warn('[UnifiedPublish] Dedup check failed (non-fatal):', dedupErr);
+          }
+        }
+
+        // Create destination URL for QR Canvas/Play landing pages
         const baseUrl = process.env.PUBLIC_URL || 'https://qrgear-c1ffd.web.app';
         const destinationUrl = `${baseUrl}/view/${packetId}`;
-        
-        // Generate qrGraphic (bare QR code pointing to destination URL)
-        const { generateTextQRCode } = await import("./lib/qr-generator");
-        const qrGraphicDataUrl = await generateTextQRCode(destinationUrl, { color: '#000000', backgroundColor: '#FFFFFF' });
-        
-        // Upload qrGraphic to Firebase Storage
-        const bucket = getStorageBucket();
-        const qrGraphicPath = `members/${memberId}/qr-graphics/${packetId}-qr.png`;
-        const qrBuffer = Buffer.from(qrGraphicDataUrl.split(',')[1], 'base64');
-        const qrFile = bucket.file(qrGraphicPath);
-        await qrFile.save(qrBuffer, { contentType: 'image/png' });
-        await qrFile.makePublic();
-        const qrGraphicUrl = `https://storage.googleapis.com/${bucket.name}/${qrGraphicPath}`;
-        
-        // Generate productGraphic (header + QR + footer composite) if we have header/footer
-        let productGraphicUrl = qrGraphicUrl; // Default to just QR if no text
-        if (headerText || footerText) {
-          const { generateCompositeImage } = await import("./lib/composite-image-generator");
-          const productGraphicDataUrl = await generateCompositeImage({
-            width: 1200,
-            height: 1800,
-            backgroundColor: 'transparent',
-            qrUrl: destinationUrl,
-            qrSize: 600,
-            qrColor: 'black',
-            topText: headerText ? { text: headerText, fontFamily: 'Arial', fontSize: '24px', color: '#000000' } : null,
-            bottomText: footerText ? { text: footerText, fontFamily: 'Arial', fontSize: '24px', color: '#000000' } : null
-          });
-          
-          // Upload productGraphic
-          const productGraphicPath = `members/${memberId}/product-graphics/${packetId}-product.png`;
-          const productBuffer = Buffer.from(productGraphicDataUrl.split(',')[1], 'base64');
-          const productFile = bucket.file(productGraphicPath);
-          await productFile.save(productBuffer, { contentType: 'image/png' });
-          await productFile.makePublic();
-          productGraphicUrl = `https://storage.googleapis.com/${bucket.name}/${productGraphicPath}`;
+
+        // Generate server-side QR graphic for Canvas/Play (they need landing page URLs)
+        let serverQrGraphicUrl = clientQrGraphic || null;
+        let serverProductGraphicUrl = clientProductGraphic || null;
+        if (packetType === 'qr-canvas' || packetType === 'qr-play') {
+          try {
+            const { generateTextQRCode } = await import("./lib/qr-generator");
+            const qrGraphicDataUrl = await generateTextQRCode(destinationUrl, { color: '#000000', backgroundColor: '#FFFFFF' });
+            const bucket = getStorageBucket();
+            const qrGraphicPath = `members/${memberId}/qr-graphics/${packetId}-qr.png`;
+            const qrBuffer = Buffer.from(qrGraphicDataUrl.split(',')[1], 'base64');
+            const qrFile = bucket.file(qrGraphicPath);
+            await qrFile.save(qrBuffer, { contentType: 'image/png' });
+            await qrFile.makePublic();
+            serverQrGraphicUrl = `https://storage.googleapis.com/${bucket.name}/${qrGraphicPath}`;
+
+            serverProductGraphicUrl = serverQrGraphicUrl;
+            if (headerText || footerText) {
+              const { generateCompositeImage } = await import("./lib/composite-image-generator");
+              const productGraphicDataUrl = await generateCompositeImage({
+                width: 1200,
+                height: 1800,
+                backgroundColor: 'transparent',
+                qrUrl: destinationUrl,
+                qrSize: 600,
+                qrColor: 'black',
+                topText: headerText ? { text: headerText, fontFamily: 'Arial', fontSize: '24px', color: '#000000' } : null,
+                bottomText: footerText ? { text: footerText, fontFamily: 'Arial', fontSize: '24px', color: '#000000' } : null
+              });
+              const productGraphicPath = `members/${memberId}/product-graphics/${packetId}-product.png`;
+              const productBuffer = Buffer.from(productGraphicDataUrl.split(',')[1], 'base64');
+              const productFile = bucket.file(productGraphicPath);
+              await productFile.save(productBuffer, { contentType: 'image/png' });
+              await productFile.makePublic();
+              serverProductGraphicUrl = `https://storage.googleapis.com/${bucket.name}/${productGraphicPath}`;
+            }
+          } catch (qrErr) {
+            console.warn('[UnifiedPublish] QR generation failed (non-fatal):', qrErr);
+          }
         }
-        
-        const packetData = {
+
+        const now = new Date().toISOString();
+        const packetData: Record<string, any> = {
           id: packetId,
           memberId,
           storeId: storeId || memberId,
-          channelId,
+          channelId: channelId || null,
           packetType,
           title: title || 'Untitled',
           description: description || '',
-          urlGraphic: background || null,
-          videoUrl: videoUrl || null,
-          qrGraphic: qrGraphicUrl,
-          productGraphic: productGraphicUrl,
-          destinationUrl,
           status: status || 'published',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: now,
+          updatedAt: now,
+          source: source || { entryPoint: 'wizard' },
+          // Product info
+          boundProduct: boundProduct || null,
+          selectedColor: selectedColor || null,
+          selectedShirtSize: selectedShirtSize || null,
+          // Placement info
+          selectedPlacements: selectedPlacements || null,
+          perPlacementConfigs: perPlacementConfigs || null,
+          perPlacementSizes: perPlacementSizes || null,
+          graphicSize: graphicSize || null,
+          // Text/layout
+          textLayoutChoice: textLayoutChoice || null,
+          headerStyle: headerStyle || null,
+          footerStyle: footerStyle || null,
+          // QR content
+          qrType: qrType || packetType,
+          qrDestination: qrDestination || null,
+          qrGraphic: serverQrGraphicUrl || clientQrGraphic || null,
+          productGraphic: serverProductGraphicUrl || clientProductGraphic || null,
+          // Background/landing
+          urlGraphic: background || null,
+          originalUrlGraphic: originalUrlGraphic || null,
+          // Video
+          videoUrl: videoUrl || null,
+          destinationUrl: (packetType === 'qr-canvas' || packetType === 'qr-play') ? destinationUrl : null,
+          // QR Basic specific
+          qrBasicInputType: qrBasicInputType || null,
+          qrBasicContent: qrBasicContent || null,
+          qrBasicMockup: qrBasicMockup || null,
+          qrBasicSaveChoice: qrBasicSaveChoice || null,
+          // QR Plus specific
+          qrPlusMockup: qrPlusMockup || null,
+          qrPlusSaveChoice: qrPlusSaveChoice || null,
+          // Pricing
+          textLines: textLines || 0,
+          textUpcharge: textUpcharge || 0,
+          placementUpcharge: placementUpcharge || 0,
+          memberEarnings: memberEarnings || 0,
         };
 
         await firestoreDb.collection("memberPackets").doc(packetId).set(packetData);
+        console.log(`[UnifiedPublish] Saved complete ${packetType} packet ${packetId} for member ${memberId}`);
 
         res.json(packetData);
         return;
       }
       
-      // Original Printful product flow
+      // Original Printful product flow (advanced wizard)
       if (!printfulProductId) {
         return res.status(400).json({ error: "printfulProductId is required for product creation" });
       }
