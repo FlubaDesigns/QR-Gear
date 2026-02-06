@@ -1123,49 +1123,55 @@ function GraphicSizeStep({
   const isLeftChest = currentPlacement === 'left_chest';
   const isBack = currentPlacement === 'back';
   
-  // Render sleeve view
+  // Render sleeve view - straight-on view of sleeve (4"×4" Printify print area)
   const renderSleeveView = () => (
-    <svg width="140" height="140" viewBox="0 0 180 180" className="drop-shadow-xl">
-      {/* Angled sleeve shape - showing partial shirt from side */}
-      <g transform={isLeftSleeve ? "translate(90, 90) rotate(-25)" : "translate(90, 90) rotate(25) scale(-1,1)"}>
-        {/* Sleeve tube */}
-        <path
-          d="M-30,-60 L30,-60 L35,60 L-35,60 Z"
-          fill={colorHex}
-          stroke="#444"
-          strokeWidth="2"
-        />
-        {/* Shoulder seam hint */}
-        <path
-          d="M-30,-60 Q-40,-70 -50,-55"
-          fill="none"
-          stroke="#555"
-          strokeWidth="1.5"
-        />
-        {/* Partial body hint */}
-        <path
-          d="M-35,60 Q-45,80 -40,100 L40,100 Q45,80 35,60"
-          fill={colorHex}
-          stroke="#444"
-          strokeWidth="1"
-          opacity="0.5"
-        />
-      </g>
+    <svg width="140" height="160" viewBox="0 0 180 200" className="drop-shadow-xl">
+      {/* Sleeve - straight-on tube shape */}
+      <path
+        d={isLeftSleeve
+          ? "M45,20 Q90,10 110,20 L115,140 Q90,150 40,140 Z"
+          : "M70,20 Q90,10 135,20 L140,140 Q90,150 65,140 Z"
+        }
+        fill={colorHex}
+        stroke="#444"
+        strokeWidth="2"
+      />
+      {/* Shoulder seam at top */}
+      <path
+        d={isLeftSleeve
+          ? "M45,20 Q90,10 110,20"
+          : "M70,20 Q90,10 135,20"
+        }
+        fill="none"
+        stroke="#555"
+        strokeWidth="2"
+        strokeDasharray="4 2"
+      />
+      {/* Hem at bottom */}
+      <path
+        d={isLeftSleeve
+          ? "M40,140 Q90,150 115,140"
+          : "M65,140 Q90,150 140,140"
+        }
+        fill="none"
+        stroke="#555"
+        strokeWidth="1.5"
+      />
       
-      {/* Graphic outline on sleeve - positioned in center */}
-      <g transform={isLeftSleeve ? "translate(90, 85) rotate(-25)" : "translate(90, 85) rotate(25) scale(-1,1)"}>
-        <rect
-          x={-currentSize.w/2}
-          y={-currentSize.h/2}
-          width={currentSize.w}
-          height={currentSize.h}
-          fill="transparent"
-          stroke="#22c55e"
-          strokeWidth="2"
-          strokeDasharray="4 2"
-          rx="2"
-        />
-        {/* Mini QR icon */}
+      {/* Graphic outline on sleeve - centered, square (4"×4") */}
+      <rect
+        x={isLeftSleeve ? 78 - currentSize.w/2 : 103 - currentSize.w/2}
+        y={80 - currentSize.h/2}
+        width={currentSize.w}
+        height={currentSize.h}
+        fill="transparent"
+        stroke="#22c55e"
+        strokeWidth="2"
+        strokeDasharray="4 2"
+        rx="2"
+      />
+      {/* Mini QR icon */}
+      <g transform={`translate(${isLeftSleeve ? 78 : 103}, 80)`}>
         <rect x={-4} y={-4} width={8} height={8} fill="white" rx="1" />
         <rect x={-3} y={-3} width={2} height={2} fill="#374151" />
         <rect x={1} y={-3} width={2} height={2} fill="#374151" />
@@ -1173,7 +1179,7 @@ function GraphicSizeStep({
       </g>
       
       {/* Label */}
-      <text x="90" y="175" textAnchor="middle" fill="#64748b" fontSize="10">
+      <text x="90" y="190" textAnchor="middle" fill="#64748b" fontSize="10">
         {isLeftSleeve ? 'Left Sleeve' : 'Right Sleeve'}
       </text>
     </svg>
@@ -1322,13 +1328,13 @@ function GenerateGraphicStep({
   const qrSize = getQrSize();
   
   return (
-    <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
+    <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
-        <h2 className="text-lg font-bold text-white mb-2">Want a Header and/or Footer?</h2>
-        <p className="text-slate-400">Add text above or below your QR code</p>
+        <h2 className="text-base font-bold text-white mb-0.5">Add a Header or Footer</h2>
+        <p className="text-green-400 font-semibold text-sm">Make more money!</p>
       </div>
       
-      {/* Shirt with QR placeholder */}
+      {/* Shirt with $ QR $ visual cue */}
       <div className="flex justify-center">
         <svg width="140" height="165" viewBox="0 0 180 210" className="drop-shadow-lg">
           <path
@@ -1338,7 +1344,17 @@ function GenerateGraphicStep({
             strokeWidth="2"
           />
           
-          {/* QR Code - smaller with blank pattern */}
+          {/* $ above QR */}
+          <text
+            x={graphicLocation === 'left-chest' ? 77 : 90}
+            y={graphicLocation === 'left-chest' ? 56 : 64}
+            textAnchor="middle"
+            fill="#22c55e"
+            fontSize={graphicLocation === 'left-chest' ? 8 : 12}
+            fontWeight="bold"
+          >$</text>
+          
+          {/* QR Code */}
           {graphicLocation === 'left-chest' && (
             <g transform={`translate(${77 - 5}, ${68 - 5})`}>
               <rect width="10" height="10" fill="white" rx="1" />
@@ -1357,6 +1373,16 @@ function GenerateGraphicStep({
               <rect x="6" y="6" width="4" height="4" fill="#333" />
             </g>
           )}
+          
+          {/* $ below QR */}
+          <text
+            x={graphicLocation === 'left-chest' ? 77 : 90}
+            y={graphicLocation === 'left-chest' ? 84 : 100}
+            textAnchor="middle"
+            fill="#22c55e"
+            fontSize={graphicLocation === 'left-chest' ? 8 : 12}
+            fontWeight="bold"
+          >$</text>
         </svg>
       </div>
       
@@ -8049,6 +8075,9 @@ function MembersSandboxContent() {
                           setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
                         }
                         setTextLayoutChoice(choice);
+                        setTimeout(() => {
+                          setSimpleStep(choice === 'footer' ? 'text-edit-footer' : 'text-edit-header');
+                        }, 400);
                       }}
                     />
                   </div>
