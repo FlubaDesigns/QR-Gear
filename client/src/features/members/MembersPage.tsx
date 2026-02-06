@@ -89,7 +89,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-publish' | 'play-save-choice';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'canvas-mockup' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-mockup' | 'play-publish' | 'play-save-choice';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -169,6 +169,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'url-library-pick', label: 'Pick Image', icon: Library },
   { id: 'url-details', label: 'Details', icon: Type },
   { id: 'url-preview', label: 'Preview', icon: Eye },
+  { id: 'canvas-mockup', label: 'Product Preview', icon: Eye },
   { id: 'url-publish', label: 'Publish', icon: Send },
 ];
 
@@ -240,6 +241,7 @@ const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'canvas-fork', label: 'QR Experience', icon: Smartphone },
   { id: 'play-video-source', label: 'Video', icon: Play },
   { id: 'play-preview', label: 'Preview', icon: Eye },
+  { id: 'play-mockup', label: 'Product Preview', icon: Eye },
   { id: 'play-publish', label: 'Publish', icon: Send },
   { id: 'play-save-choice', label: 'Done', icon: Check },
 ];
@@ -6785,6 +6787,14 @@ function MembersSandboxContent() {
   const [qrPlusSaveChoice, setQrPlusSaveChoice] = useState<QRPlusSaveOption>('');
   const [isQrPlusSaving, setIsQrPlusSaving] = useState(false);
   
+  // QR Canvas mockup state
+  const [qrCanvasMockup, setQrCanvasMockup] = useState<string>('');
+  const [isGeneratingCanvasMockup, setIsGeneratingCanvasMockup] = useState(false);
+  
+  // QR Play mockup state
+  const [qrPlayMockup, setQrPlayMockup] = useState<string>('');
+  const [isGeneratingPlayMockup, setIsGeneratingPlayMockup] = useState(false);
+  
   // Get current placement being configured
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
 
@@ -7291,6 +7301,17 @@ function MembersSandboxContent() {
       return;
     }
     if (simpleStep === 'play-preview') {
+      // Generate product mockup before publish
+      setIsGeneratingPlayMockup(true);
+      setSimpleStep('play-mockup');
+      try {
+        await generateProductMockupForType('qr-play', setQrPlayMockup);
+      } finally {
+        setIsGeneratingPlayMockup(false);
+      }
+      return;
+    }
+    if (simpleStep === 'play-mockup') {
       setSimpleStep('play-publish');
       return;
     }
@@ -7300,6 +7321,23 @@ function MembersSandboxContent() {
     }
     if (simpleStep === 'play-save-choice') {
       handlePlayDone();
+      return;
+    }
+    
+    // Handle QR Canvas mockup flow
+    if (simpleStep === 'url-preview') {
+      // Generate product mockup before publish
+      setIsGeneratingCanvasMockup(true);
+      setSimpleStep('canvas-mockup');
+      try {
+        await generateProductMockupForType('qr-canvas', setQrCanvasMockup);
+      } finally {
+        setIsGeneratingCanvasMockup(false);
+      }
+      return;
+    }
+    if (simpleStep === 'canvas-mockup') {
+      setSimpleStep('url-publish');
       return;
     }
     
@@ -7452,8 +7490,12 @@ function MembersSandboxContent() {
       setSimpleStep('play-video-source');
       return;
     }
-    if (simpleStep === 'play-publish') {
+    if (simpleStep === 'play-mockup') {
       setSimpleStep('play-preview');
+      return;
+    }
+    if (simpleStep === 'play-publish') {
+      setSimpleStep('play-mockup');
       return;
     }
     if (simpleStep === 'play-save-choice') {
@@ -7463,6 +7505,14 @@ function MembersSandboxContent() {
     // Handle canvas-fork and QR Canvas flow back navigation
     if (simpleStep === 'canvas-fork') {
       setSimpleStep('shirt-preview');
+      return;
+    }
+    if (simpleStep === 'canvas-mockup') {
+      setSimpleStep('url-preview');
+      return;
+    }
+    if (simpleStep === 'url-publish') {
+      setSimpleStep('canvas-mockup');
       return;
     }
     if (simpleStep === 'url-explainer') {
@@ -7526,6 +7576,9 @@ function MembersSandboxContent() {
       case 'qr-plus-mockup': return true;
       case 'qr-plus-save-choice': return qrPlusSaveChoice !== '';
       case 'qr-plus-confirm': return true;
+      // Canvas/Play mockup steps
+      case 'canvas-mockup': return true;
+      case 'play-mockup': return true;
       // QR Canvas save flow
       case 'canvas-save-choice': return canvasSaveChoice !== '';
       case 'canvas-confirm': return true;
@@ -7535,6 +7588,71 @@ function MembersSandboxContent() {
       case 'play-publish': return true;
       case 'play-save-choice': return true;
       default: return false;
+    }
+  };
+
+  // Shared mockup generation for Canvas, Play, and Plus flows
+  const generateProductMockupForType = async (
+    type: string,
+    setMockup: (url: string) => void,
+  ) => {
+    try {
+      // Step 1: Generate qrGraphic (the actual QR code)
+      const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
+      const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
+      setQrGraphic(qrApiUrl);
+      console.log(`[${type}] Generated qrGraphic:`, qrApiUrl);
+      
+      // Step 2: Generate productGraphic (composite: header + QR + footer)
+      console.log(`[${type}] Generating productGraphic with textLayoutChoice:`, textLayoutChoice);
+      const productGraphicResult = await api.generateProductGraphic({
+        qrUrl: previewUrl,
+        headerStyle: headerStyle,
+        footerStyle: footerStyle,
+        textLayoutChoice: textLayoutChoice,
+        qrColor: 'black',
+      });
+      
+      let artworkForMockup = qrApiUrl;
+      if (productGraphicResult.success && productGraphicResult.productGraphic) {
+        setProductGraphic(productGraphicResult.productGraphic);
+        artworkForMockup = productGraphicResult.productGraphic;
+        console.log(`[${type}] Generated productGraphic (composite), length:`, productGraphicResult.productGraphic.length);
+      } else {
+        console.warn(`[${type}] productGraphic generation failed, using qrGraphic as fallback`);
+        setProductGraphic(qrApiUrl);
+      }
+      
+      // Step 3: Generate mockup using the productGraphic on the selected product
+      if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+        const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
+        console.log(`[${type}] Generating mockup with graphicSize:`, graphicSize, '→ effectiveQrSize:', effectiveQrSize);
+        
+        const mockupResult = await api.generateMockup({
+          blueprintId: selectedProductType.blueprintId,
+          printProviderId: selectedProductType.printProviderId,
+          colorName: selectedColor,
+          artworkUrl: artworkForMockup,
+          placement: 'FRONT_CHEST',
+          qrSize: effectiveQrSize,
+        });
+        
+        const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
+        if (mockupResult.success && bestUrl) {
+          console.log(`[${type}] SUCCESS - Setting mockup to:`, bestUrl);
+          setMockup(bestUrl);
+        } else {
+          console.warn(`[${type}] FAILED - Using QR fallback. Error:`, mockupResult.error);
+          setMockup(qrApiUrl);
+        }
+      } else {
+        console.warn(`[${type}] Missing product info for mockup`);
+        setMockup(qrApiUrl);
+      }
+    } catch (error) {
+      console.error(`[${type}] Error generating mockup:`, error);
+      const fallbackUrl = generateQRCodeUrl('placeholder', 200);
+      setMockup(fallbackUrl);
     }
   };
 
@@ -7607,6 +7725,10 @@ function MembersSandboxContent() {
         // QR Plus specific
         qrPlusMockup: qrType === 'qr-plus' ? (qrPlusMockup || null) : null,
         qrPlusSaveChoice: qrType === 'qr-plus' ? (qrPlusSaveChoice || null) : null,
+        // QR Canvas mockup
+        qrCanvasMockup: qrType === 'qr-canvas' ? (qrCanvasMockup || null) : null,
+        // QR Play mockup
+        qrPlayMockup: qrType === 'qr-play' ? (qrPlayMockup || null) : null,
         // Pricing breakdown
         textLines,
         textUpcharge,
@@ -8491,6 +8613,18 @@ function MembersSandboxContent() {
                   />
                 )}
                 
+                {/* Canvas Product Mockup - shows shirt/product with QR graphic */}
+                {simpleStep === 'canvas-mockup' && (
+                  <QRPlusMockupStep
+                    mockupUrl={qrCanvasMockup}
+                    isLoading={isGeneratingCanvasMockup}
+                    selectedColor={selectedColor}
+                    selectedSize={selectedShirtSize}
+                    headerText={headerStyle.enabled ? headerStyle.text : undefined}
+                    footerText={footerStyle.enabled ? footerStyle.text : undefined}
+                  />
+                )}
+                
                 {/* Step 16: Publish */}
                 {simpleStep === 'url-publish' && (
                   <SimplePublishStep
@@ -8552,6 +8686,18 @@ function MembersSandboxContent() {
                   <PlayPreviewStep
                     videoUrl={playVideoUrl}
                     title={simpleTitle}
+                  />
+                )}
+                
+                {/* Play Product Mockup - shows shirt/product with QR graphic */}
+                {simpleStep === 'play-mockup' && (
+                  <QRPlusMockupStep
+                    mockupUrl={qrPlayMockup}
+                    isLoading={isGeneratingPlayMockup}
+                    selectedColor={selectedColor}
+                    selectedSize={selectedShirtSize}
+                    headerText={headerStyle.enabled ? headerStyle.text : undefined}
+                    footerText={footerStyle.enabled ? footerStyle.text : undefined}
                   />
                 )}
                 

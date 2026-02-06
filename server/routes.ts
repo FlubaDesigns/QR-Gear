@@ -9694,6 +9694,8 @@ ${allPages.map(page => `  <url>
         qrBasicSaveChoice,
         qrPlusMockup,
         qrPlusSaveChoice,
+        qrCanvasMockup,
+        qrPlayMockup,
         source,
       } = body;
 
@@ -9830,6 +9832,10 @@ ${allPages.map(page => `  <url>
           // QR Plus specific
           qrPlusMockup: qrPlusMockup || null,
           qrPlusSaveChoice: qrPlusSaveChoice || null,
+          // QR Canvas mockup
+          qrCanvasMockup: qrCanvasMockup || null,
+          // QR Play mockup
+          qrPlayMockup: qrPlayMockup || null,
           // Pricing
           textLines: textLines || 0,
           textUpcharge: textUpcharge || 0,
