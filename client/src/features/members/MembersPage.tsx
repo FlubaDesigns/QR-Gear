@@ -747,7 +747,7 @@ function ProductPickerStep({
             onClick={() => onSelect(product)}
             className={`w-full flex items-center gap-4 p-3 rounded-xl border-2 transition-all text-left ${
               selectedProduct?.blueprintId === product.blueprintId
-                ? 'border-green-500 bg-green-500/20'
+                ? 'border-orange-500 bg-orange-500/15'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-product-${product.blueprintId}`}
@@ -773,7 +773,7 @@ function ProductPickerStep({
               )}
             </div>
             {selectedProduct?.blueprintId === product.blueprintId && (
-              <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+              <Check className="w-5 h-5 text-orange-500 flex-shrink-0" />
             )}
           </button>
         ))}
@@ -856,7 +856,7 @@ function ColorPickerStep({
             onClick={() => onSelect(color.id)}
             className={`w-16 h-16 rounded-full border-4 transition-all ${
               selectedColor === color.id
-                ? 'border-green-500 scale-110'
+                ? 'border-orange-500 scale-110'
                 : 'border-slate-600 hover:border-slate-400'
             }`}
             style={{ backgroundColor: color.hex }}
@@ -944,13 +944,13 @@ function SizePickerStep({
               onClick={() => onSelect(size)}
               className={`w-16 h-20 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
                 selectedSize === size
-                  ? 'border-green-500 bg-green-500/20 text-green-400'
+                  ? 'border-orange-500 bg-orange-500/15 text-orange-400'
                   : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
               }`}
               data-testid={`button-size-${size}`}
             >
               <span className="text-lg">{size}</span>
-              <span className={`text-xs ${selectedSize === size ? 'text-green-400' : 'text-slate-400'}`}>
+              <span className={`text-xs ${selectedSize === size ? 'text-orange-400' : 'text-slate-400'}`}>
                 ${sizeEarnings.toFixed(2)}
               </span>
             </button>
@@ -1024,7 +1024,7 @@ function GraphicLocationStep({
           onClick={() => onSelect('left-chest')}
           className={`px-4 py-2 rounded-lg border-2 transition-all ${
             selectedLocation === 'left-chest'
-              ? 'border-green-500 bg-green-500/20 text-green-400'
+              ? 'border-orange-500 bg-orange-500/15 text-orange-400'
               : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
           }`}
           data-testid="button-location-left-chest"
@@ -1035,7 +1035,7 @@ function GraphicLocationStep({
           onClick={() => onSelect('front-center')}
           className={`px-4 py-2 rounded-lg border-2 transition-all ${
             selectedLocation === 'front-center'
-              ? 'border-green-500 bg-green-500/20 text-green-400'
+              ? 'border-orange-500 bg-orange-500/15 text-orange-400'
               : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
           }`}
           data-testid="button-location-front-center"
@@ -1046,7 +1046,7 @@ function GraphicLocationStep({
           onClick={() => onSelect('back-center')}
           className={`px-4 py-2 rounded-lg border-2 transition-all ${
             selectedLocation === 'back-center'
-              ? 'border-green-500 bg-green-500/20 text-green-400'
+              ? 'border-orange-500 bg-orange-500/15 text-orange-400'
               : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
           }`}
           data-testid="button-location-back-center"
@@ -1239,7 +1239,7 @@ function GraphicSizeStep({
             onClick={() => onSelect(size)}
             className={`px-6 py-3 rounded-lg border-2 capitalize transition-all ${
               selectedSize === size
-                ? 'border-green-500 bg-green-500/20 text-green-400'
+                ? 'border-orange-500 bg-orange-500/15 text-orange-400'
                 : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
             }`}
             data-testid={`button-graphic-size-${size}`}
@@ -1675,13 +1675,13 @@ function QRBasicSaveChoiceStep({
             onClick={() => onSelect(option.id)}
             className={`p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${
               selected === option.id
-                ? 'border-green-500 bg-green-500/10'
+                ? 'border-orange-500 bg-orange-500/10'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-save-${option.id}`}
           >
             <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-              selected === option.id ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'
+              selected === option.id ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-300'
             }`}>
               {option.icon}
             </div>
@@ -1869,13 +1869,13 @@ function QRPlusSaveChoiceStep({
             onClick={() => onSelect(option.id)}
             className={`p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${
               selected === option.id
-                ? 'border-green-500 bg-green-500/10'
+                ? 'border-orange-500 bg-orange-500/10'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-qr-plus-save-${option.id}`}
           >
             <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-              selected === option.id ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'
+              selected === option.id ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-300'
             }`}>
               {option.icon}
             </div>
@@ -1989,13 +1989,13 @@ function QRCanvasSaveChoiceStep({
             onClick={() => onSelect(option.id)}
             className={`p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${
               selected === option.id
-                ? 'border-green-500 bg-green-500/10'
+                ? 'border-orange-500 bg-orange-500/10'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-canvas-save-${option.id}`}
           >
             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-              selected === option.id ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'
+              selected === option.id ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-300'
             }`}>
               {option.icon}
             </div>
@@ -2164,7 +2164,7 @@ function PlacementCountStep({
         <div className="flex flex-col items-center">
           <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold transition-all ${
             selected.length > 0 
-              ? 'bg-green-500 text-white' 
+              ? 'bg-orange-500 text-white' 
               : 'bg-slate-700 text-slate-400'
           }`}>
             {selected.length}
@@ -2183,20 +2183,20 @@ function PlacementCountStep({
               onClick={() => onToggle(option.id as PlacementOption)}
               className={`p-3 rounded-lg border-2 text-left transition-all ${
                 isSelected
-                  ? 'border-green-500 bg-green-500/20'
+                  ? 'border-orange-500 bg-orange-500/15'
                   : 'border-slate-600 bg-slate-800/50 hover:border-slate-400'
               }`}
               data-testid={`button-placement-${option.id}`}
             >
               <div className="flex items-center gap-2">
                 <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                  isSelected ? 'border-green-500 bg-green-500' : 'border-slate-500'
+                  isSelected ? 'border-orange-500 bg-orange-500' : 'border-slate-500'
                 }`}>
                   {isSelected && <Check className="w-3 h-3 text-white" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2">
-                    <p className={`font-medium text-sm ${isSelected ? 'text-green-400' : 'text-white'}`}>
+                    <p className={`font-medium text-sm ${isSelected ? 'text-orange-400' : 'text-white'}`}>
                       {option.label}
                     </p>
                     {option.sizeLabel && (
@@ -2219,8 +2219,8 @@ function PlacementCountStep({
 }
 
 function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 5, '18px': 7, '24px': 9 };
-  const baseSvgSize = sizeMap[baseSize] || 7;
+  const sizeMap: Record<string, number> = { '12px': 2.5, '18px': 3.5, '24px': 4.5 };
+  const baseSvgSize = sizeMap[baseSize] || 3.5;
   const maxCharsPerLine = 20;
 
   if (!text) return { lines: [''], fontSize: baseSvgSize };
@@ -2240,8 +2240,8 @@ function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number
 
   const longestLine = Math.max(...lines.map(l => l.length), 1);
   let effectiveSize = baseSvgSize;
-  if (longestLine > maxCharsPerLine * 0.5) {
-    effectiveSize = baseSvgSize * Math.max(0.6, maxCharsPerLine / (longestLine * 1.5));
+  if (longestLine > 8) {
+    effectiveSize = baseSvgSize * Math.max(0.5, 8 / longestLine);
   }
 
   return { lines, fontSize: Math.round(effectiveSize * 100) / 100 };
@@ -2276,7 +2276,7 @@ function HeaderTextEditStep({
   };
   const outlineSize = getOutlineSize();
 
-  const qrHeight = outlineSize.h * 0.55;
+  const qrHeight = outlineSize.h * 0.35;
   const qrWidth = qrHeight;
   const qrY = graphicY - qrHeight / 2;
   const headerZoneTop = graphicY - outlineSize.h / 2 + 2;
@@ -2291,7 +2291,7 @@ function HeaderTextEditStep({
 
   const vOffset = headerStyle.verticalOffset ?? 50;
   const hOffset = headerStyle.horizontalOffset ?? 50;
-  const textY = headerZoneTop + ((headerZoneBottom - headerZoneTop) * (vOffset / 100));
+  const textY = Math.max(headerZoneTop + autoText.fontSize * 0.8, Math.min(headerZoneBottom - (autoText.lines.length > 1 ? autoText.fontSize : 0), headerZoneTop + ((headerZoneBottom - headerZoneTop) * (vOffset / 100))));
   const textX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (hOffset / 100));
 
   return (
@@ -2380,10 +2380,7 @@ function HeaderTextEditStep({
             data-testid={`btn-header-color-${color.replace('#', '')}`}
           />
         ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="text-xs text-slate-500">Size:</span>
+        <span className="text-xs text-slate-500 ml-2">Size:</span>
         {SHIRT_TEXT_SIZES.map((size) => (
           <Button
             key={size.id}
@@ -2396,7 +2393,9 @@ function HeaderTextEditStep({
             {size.label}
           </Button>
         ))}
-        <span className="text-xs text-slate-500 ml-2">Font:</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-xs text-slate-500">Font:</span>
         {SHIRT_TEXT_FONTS.map((font) => (
           <Button
             key={font.id}
@@ -2412,33 +2411,29 @@ function HeaderTextEditStep({
         ))}
       </div>
 
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 w-14">Up/Down</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={vOffset}
-            onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
-            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-            style={{ touchAction: 'none' }}
-            data-testid="slider-header-vertical"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 w-14">Left/Right</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={hOffset}
-            onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
-            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-            style={{ touchAction: 'none' }}
-            data-testid="slider-header-horizontal"
-          />
-        </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">V</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={vOffset}
+          onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
+          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+          style={{ touchAction: 'none' }}
+          data-testid="slider-header-vertical"
+        />
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">H</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={hOffset}
+          onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
+          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+          style={{ touchAction: 'none' }}
+          data-testid="slider-header-horizontal"
+        />
       </div>
     </div>
   );
@@ -2475,7 +2470,7 @@ function FooterTextEditStep({
   };
   const outlineSize = getOutlineSize();
 
-  const qrHeight = outlineSize.h * 0.55;
+  const qrHeight = outlineSize.h * 0.35;
   const qrWidth = qrHeight;
   const qrY = graphicY - qrHeight / 2;
   const footerZoneTop = qrY + qrHeight + 2;
@@ -2494,7 +2489,7 @@ function FooterTextEditStep({
 
   const vOffset = footerStyle.verticalOffset ?? 50;
   const hOffset = footerStyle.horizontalOffset ?? 50;
-  const textY = footerZoneTop + ((footerZoneBottom - footerZoneTop) * (vOffset / 100));
+  const textY = Math.max(footerZoneTop + autoText.fontSize * 0.8, Math.min(footerZoneBottom - (autoText.lines.length > 1 ? autoText.fontSize : 0), footerZoneTop + ((footerZoneBottom - footerZoneTop) * (vOffset / 100))));
   const textX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (hOffset / 100));
 
   const headerVOffset = headerStyle.verticalOffset ?? 50;
@@ -2604,10 +2599,7 @@ function FooterTextEditStep({
             data-testid={`btn-footer-color-${color.replace('#', '')}`}
           />
         ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="text-xs text-slate-500">Size:</span>
+        <span className="text-xs text-slate-500 ml-2">Size:</span>
         {SHIRT_TEXT_SIZES.map((size) => (
           <Button
             key={size.id}
@@ -2620,7 +2612,9 @@ function FooterTextEditStep({
             {size.label}
           </Button>
         ))}
-        <span className="text-xs text-slate-500 ml-2">Font:</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-xs text-slate-500">Font:</span>
         {SHIRT_TEXT_FONTS.map((font) => (
           <Button
             key={font.id}
@@ -2636,33 +2630,29 @@ function FooterTextEditStep({
         ))}
       </div>
 
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 w-14">Up/Down</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={vOffset}
-            onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
-            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-            style={{ touchAction: 'none' }}
-            data-testid="slider-footer-vertical"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 w-14">Left/Right</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={hOffset}
-            onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
-            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-            style={{ touchAction: 'none' }}
-            data-testid="slider-footer-horizontal"
-          />
-        </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">V</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={vOffset}
+          onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
+          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+          style={{ touchAction: 'none' }}
+          data-testid="slider-footer-vertical"
+        />
+        <span className="text-[10px] text-slate-500 whitespace-nowrap">H</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={hOffset}
+          onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
+          className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+          style={{ touchAction: 'none' }}
+          data-testid="slider-footer-horizontal"
+        />
       </div>
     </div>
   );
@@ -3350,7 +3340,7 @@ function PlacementConfigStep({
             onClick={() => onGraphicChoiceChange('full')}
             className={`p-4 rounded-xl border-2 transition-all ${
               graphicChoice === 'full'
-                ? 'border-green-400 bg-green-500/20 shadow-lg shadow-green-500/20'
+                ? 'border-orange-400 bg-orange-500/15 shadow-lg shadow-orange-500/20'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid="button-full-graphic"
@@ -3370,7 +3360,7 @@ function PlacementConfigStep({
             onClick={() => onGraphicChoiceChange('qr-only')}
             className={`p-4 rounded-xl border-2 transition-all ${
               graphicChoice === 'qr-only'
-                ? 'border-green-400 bg-green-500/20 shadow-lg shadow-green-500/20'
+                ? 'border-orange-400 bg-orange-500/15 shadow-lg shadow-orange-500/20'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid="button-qr-only"
@@ -5245,7 +5235,7 @@ function TextLayoutChoiceStep({
             onClick={() => onSelect(option.id)}
             className={`p-5 rounded-xl border-2 transition-all ${
               selected === option.id
-                ? 'border-green-500 bg-green-500/20'
+                ? 'border-orange-500 bg-orange-500/15'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
             }`}
             data-testid={`button-layout-${option.id}`}
@@ -5271,7 +5261,7 @@ function TextLayoutChoiceStep({
                 <p className="text-slate-500 text-xs">per sale</p>
               </div>
               {selected === option.id && (
-                <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
+                <Check className="w-6 h-6 text-orange-400 flex-shrink-0" />
               )}
             </div>
           </button>
