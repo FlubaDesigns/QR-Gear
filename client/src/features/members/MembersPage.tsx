@@ -7154,6 +7154,26 @@ function MembersSandboxContent() {
       setVideoUrl(result.url);
       setVideoUploadSuccess(true);
       console.log('[QR Play] Video uploaded successfully:', result.url);
+      
+      // Auto-save video to member library on upload
+      try {
+        const saveRes = await fetch(`/api/members/${memberId}/library/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            assetType: 'video',
+            name: `${simpleTitle || 'QR Play'} - Video`,
+            imageData: 'data:text/plain;base64,' + btoa(result.url),
+            mimeType: 'text/plain',
+            originalName: `video-url-${Date.now()}.txt`,
+          })
+        });
+        if (saveRes.ok) {
+          console.log('[QR Play] Video auto-saved to member library');
+        }
+      } catch (libErr) {
+        console.warn('[QR Play] Auto-save to library failed (non-blocking):', libErr);
+      }
     } catch (error: any) {
       console.error('[QR Play] Video upload error:', error);
       setVideoUploadError(error?.message || 'Failed to upload video. Please try again.');
