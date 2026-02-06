@@ -7147,9 +7147,10 @@ function MembersSandboxContent() {
     setPublishedProductGraphicUrl(null);
   };
 
-  // Handle product selection - no packet created yet, all data stays local until publish
+  // Handle product selection - creates packet immediately for mockup handshake ID
   const handleProductSelect = async (product: AllowedProduct) => {
     setSelectedProductType(product);
+    await createPacketForProduct(product);
   };
 
   useEffect(() => {
@@ -7616,6 +7617,7 @@ function MembersSandboxContent() {
       };
       
       console.log('[UnifiedPublish] Publishing packet:', {
+        existingPacketId: currentPacketId,
         qrType,
         blueprintId: selectedProductType?.blueprintId,
         color: selectedColor,
@@ -7625,16 +7627,30 @@ function MembersSandboxContent() {
         earnings: runningEarnings,
       });
       
-      const res = await fetch(`/api/members/${user.id}/products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify(packetData)
-      });
+      let result: any;
       
-      if (!res.ok) throw new Error('Failed to publish');
+      if (currentPacketId) {
+        // Update existing packet (created at step 2 for mockup handshake) with ALL wizard data
+        packetData.existingPacketId = currentPacketId;
+        const res = await fetch(`/api/members/${user.id}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify(packetData)
+        });
+        if (!res.ok) throw new Error('Failed to publish');
+        result = await res.json();
+      } else {
+        // No existing packet — create fresh (shouldn't normally happen)
+        const res = await fetch(`/api/members/${user.id}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify(packetData)
+        });
+        if (!res.ok) throw new Error('Failed to publish');
+        result = await res.json();
+      }
       
-      const result = await res.json();
-      const packetId = result.id || result.packetId || null;
+      const packetId = result.id || result.packetId || currentPacketId || null;
       setPublishedPacketId(packetId);
       setCurrentPacketId(packetId);
       incrementPublishCount();

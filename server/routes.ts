@@ -9708,26 +9708,36 @@ ${allPages.map(page => `  <url>
       // === UNIFIED PACKET FLOW (all 4 QR types) ===
       if (packetType === 'qr-canvas' || packetType === 'qr-play' || packetType === 'qr-basic' || packetType === 'qr-plus') {
 
-        // --- Dedup: check for existing building packet with same member + blueprint + color + qrType ---
-        let packetId = `pkt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-        const blueprintId = boundProduct?.blueprintId || null;
-        if (blueprintId && selectedColor) {
-          try {
-            const existingSnapshot = await firestoreDb.collection('memberPackets')
-              .where('memberId', '==', memberId)
-              .where('packetType', '==', packetType)
-              .where('boundProduct.blueprintId', '==', blueprintId)
-              .where('selectedColor', '==', selectedColor)
-              .where('status', '==', 'building')
-              .limit(1)
-              .get();
-            if (!existingSnapshot.empty) {
-              const existingDoc = existingSnapshot.docs[0];
-              packetId = existingDoc.id;
-              console.log(`[UnifiedPublish] Dedup: replacing existing building packet ${packetId}`);
+        // Use existing packet ID if provided (created at step 2 for mockup handshake)
+        // Otherwise generate a new one, with dedup check as fallback
+        const existingPacketId = body.existingPacketId;
+        let packetId: string;
+        
+        if (existingPacketId) {
+          packetId = existingPacketId;
+          console.log(`[UnifiedPublish] Using existing packet ID from wizard: ${packetId}`);
+        } else {
+          packetId = `pkt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+          // Dedup fallback: check for existing building packet with same member + blueprint + color + qrType
+          const blueprintId = boundProduct?.blueprintId || null;
+          if (blueprintId && selectedColor) {
+            try {
+              const existingSnapshot = await firestoreDb.collection('memberPackets')
+                .where('memberId', '==', memberId)
+                .where('packetType', '==', packetType)
+                .where('boundProduct.blueprintId', '==', blueprintId)
+                .where('selectedColor', '==', selectedColor)
+                .where('status', '==', 'building')
+                .limit(1)
+                .get();
+              if (!existingSnapshot.empty) {
+                const existingDoc = existingSnapshot.docs[0];
+                packetId = existingDoc.id;
+                console.log(`[UnifiedPublish] Dedup: replacing existing building packet ${packetId}`);
+              }
+            } catch (dedupErr) {
+              console.warn('[UnifiedPublish] Dedup check failed (non-fatal):', dedupErr);
             }
-          } catch (dedupErr) {
-            console.warn('[UnifiedPublish] Dedup check failed (non-fatal):', dedupErr);
           }
         }
 
