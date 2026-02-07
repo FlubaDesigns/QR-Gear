@@ -8,6 +8,8 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-02-07 | Added Graceful Intro + Unlock Flow for Moments → Compose → Platform (Section 9) |
+| 2026-02-07 | Added Portable Moments & Multi-Product Platform concept (Section 10) |
 | 2026-02-07 | Added 5-Layer Distribution Architecture (Section 8) |
 | 2026-02-06 | Added QR States (Static, Fixed, Living) and QR Compose vs QR Dynamics distinction (Sections 3a, 3b) |
 | 2026-02-05 | Added Member Library Storage Paths (Section 7) |
@@ -239,6 +241,250 @@ Monetization happens at multiple points without conflict. The system scales out,
 #### Strategic Priority Question
 
 When choosing what to build next, the question is not "how to build more" but: **Which layer do you want to make money from first, without slowing the others?** That decision determines what to polish, what to leave rough, and what can wait.
+
+### 9. Graceful Intro + Unlock Flow — Moments → Compose → Platform
+**Established: 2026-02-07**
+
+#### Goal
+Introduce QR Compose early (so users understand the power), but make it feel natural and emotional when it becomes available, by reframing the user's progress as "building a platform" (a living QR-driven digital surface) rather than "adding features."
+
+This must work across the full QR Gear scope:
+- Members (creators/affiliates) building to SELL
+- Direct buyers building to BUY (100% house profit)
+- Owners claiming items and controlling their instance (QR Dynamic)
+- API embedded mini-stores on other sites (KC, future polling, etc.)
+- Marketplace acquisition (Etsy/eBay/Amazon traffic → owned platform)
+
+#### Key Philosophy
+- Physical product is the fixed "doorway"
+- The QR code is the doorway
+- The digital layer behind it is the living surface
+- "MOMENTS" are what the doorway can show
+- COMPOSE is how MOMENTS change over time
+- DYNAMIC is how OWNERS control MOMENTS post-purchase
+
+Therefore: Users are not "adding assets." Users are building a living platform attached to a product.
+
+#### Terminology (Locked)
+
+**User-facing:**
+- Moment = one unit of what shows when scanned (image/video/doc)
+- Compose = rotating/scheduling moments over time
+- Platform = the living QR-driven digital surface behind the product
+
+**Avoid user-facing (internal only):**
+- packet, asset, instance, channel, collection, wizard
+
+**Internal truth (do not show users):**
+- Canvas Moment = QR Canvas packet
+- Play Moment = QR Play packet
+- Doc Moment = QR Doc packet (future)
+- Compose = orchestration rules referencing existing moments
+- Dynamic = owner-controlled orchestration + storage/subscription
+
+#### Part 1 — Early Intro (Compose Is Never "Hidden")
+
+**Where:** Early in the wizard (Step 4 overview / full ladder step)
+
+**Purpose:**
+- Teach capability ceiling (what is possible)
+- Set user intention BEFORE they create moments
+- Give them a "destination" to work toward
+
+**Implementation:**
+Step 4 shows the "journey ladder":
+1. QR Basic (off-ramp)
+2. QR Plus (off-ramp)
+3. Moments (create image/video/doc moments)
+4. Compose (rotate/schedule moments)
+5. (future: Dynamic shown as "Owner Control" AFTER purchase/claim)
+
+Compose is visible on Step 4 ALWAYS. Compose is explained ALWAYS. Compose is only "actionable" when ready.
+
+**Compose tile shown in Step 4:**
+- Label: "QR Compose"
+- Subtext: "Show different moments over time"
+- Requirement badge: "Requires 2+ moments"
+- State: If momentsCount < 2: visually gray/disabled + clickable for explanation. If momentsCount >= 2: fully active
+
+#### Part 2 — "Click Compose Too Early" Education Loop (No Dead End)
+
+**Problem:** Users will see Compose and WANT it immediately. We cannot punish curiosity with a hard lock.
+
+**Solution:** If user clicks Compose before 2+ moments exist, show a dedicated Compose Explainer Card (NOT an error), then return ("bounce back") to the prior card to continue building moments.
+
+**Compose Explainer Card (triggered on early click):**
+- Title: "QR Compose — Moments Over Time"
+- Body: "QR Compose lets one QR show different moments based on: time of day, scan order, schedule/sequence. Example: Morning → Welcome image moment, Lunch → Menu document moment, Evening → Drone footage video moment. To use QR Compose, you'll need at least TWO moments."
+- Primary CTA: [ Create another moment ] — returns user to Moments selection/creation step
+- Secondary: [ Back ]
+
+**Benefits:** No confusion, no frustration. The system teaches the user what to do next. Compose feels like "the goal," not "a hidden feature."
+
+#### Part 3 — The Graceful Transition Moment (2+ Moments = Platform)
+
+When a user has 2+ moments, they are no longer "creating content." They are building a PLATFORM: a living QR-driven digital surface behind a fixed QR doorway.
+
+When momentsCount reaches 2 (or more): Do NOT silently unlock Compose. Introduce a "Platform Acknowledgement Card" ONCE. Reframe what they are doing in proud, meaningful language.
+
+**Platform Acknowledgement Card (show once when momentsCount >= 2):**
+- Title: "You're building a living QR platform"
+- Body: "Your QR can now show different moments over time. This turns your QR into a digital surface you control. With QR Compose, you can: rotate moments (each scan shows the next), schedule moments (breakfast / lunch / dinner), run sequences (12 days of Christmas, 30 days of prayer). You're not just making a shirt. You're building a living platform attached to it."
+- Status line: "You currently have: 4 moments"
+- Primary CTA: [ Continue building my platform ]
+- Secondary CTA: [ Manage moments ]
+- Optional tertiary: [ What is QR Compose? ] (opens explainer again)
+
+This card appears only once per project / per user session. It becomes the bridge between: "I made a thing" → "I control a system."
+
+#### Part 4 — Compose Unlock Behavior (Payoff)
+
+Once momentsCount >= 2: Compose tile becomes active. Clicking Compose goes to Compose Setup (no explainer).
+
+**Compose Setup should feel like "settings," not "creation."** Compose is not a new product type. Compose is orchestration rules applied to existing moments.
+
+**Compose Setup Steps:**
+1. Choose moments (select 2+)
+2. Choose how it changes: Rotate by scan (default), Rotate by time, Rotate by schedule
+3. Preview (simulate 3-5 scans or time windows)
+4. Confirm / Save (Compose becomes active behavior for the QR)
+
+**Copy rules:** Always call them "moments." Never say "packets." Never say "publish." Use: "Save rotation," "Activate schedule," "Turn on Compose."
+
+#### Part 5 — How This Supports Full Scope
+
+**A) Member (Creator/Affiliate selling):** They need Compose power explained EARLY because they're building campaigns (12 Days of Christmas, 30 Days of Prayer, restaurant daily schedule). Seeing Compose early shapes how they build moments intentionally.
+
+**B) Direct Buyer (100% house profit):** Buyer starts customizing without membership friction. When they reach 2+ moments, the platform card reframes: "This is yours; it can live and evolve."
+
+**C) Owner (Post-purchase control via QR Dynamic):** The "platform" framing prepares owners to understand Dynamic later. Compose = member control, Dynamic = owner control (after claim).
+
+**D) API / Mini-stores on other sites:** Same wizard can live embedded. The "platform" language fits everywhere.
+
+**E) Marketplaces (Etsy/eBay/Amazon):** Marketplace listing drives buyer to scan/claim → platform begins. The "platform" framing makes the product feel premium.
+
+#### Part 6 — Final UX Rules (Non-Negotiable)
+
+1. Compose is always explained early (Step 4)
+2. Compose is visible even when locked
+3. Locked Compose is clickable → explainer card (not error)
+4. Explainer card returns user to build moments (bounce-back)
+5. When momentsCount >= 2, show Platform Acknowledgement Card ONCE
+6. Compose unlock should feel like payoff, not a new confusing mode
+7. "Moments" is the only user-facing unit term
+8. Avoid technical nouns in user UI (packet/instance/channel/etc.)
+9. The whole system is framed as building a living QR platform behind a fixed QR doorway
+
+#### One-Line User Truth
+"Your product's QR can show different moments over time — you're building a living platform people can scan."
+
+#### Success Criteria
+If a first-time member or buyer: understands Compose exists early, intentionally creates multiple moments to reach it, feels "platform ownership" at 2+ moments, can enable Compose without confusion, and wants to return to update moments later — then the wizard is doing its job.
+
+### 10. Portable Moments & Multi-Product Platform
+**Established: 2026-02-07**
+
+This is the FINAL architectural and marketing concept that completes QR Gear. This is no longer "QR on products." This is a portable digital-moment platform where physical products become interchangeable doorways into an owned, living digital layer.
+
+#### Core Reframe (The Breakthrough)
+
+- Products are NOT the value
+- Moments are the value
+- Products are doorways to moments
+
+A QR code does NOT point directly to content. It points to a bridge. The bridge decides which moment to show.
+
+Moments are: Owned by the user, Portable, Reassignable, Schedulable, Chainable, Reusable across products.
+
+#### Ownership Model (Clean & Future-Proof)
+
+User owns:
+- Moments (digital)
+- Products (physical)
+- Connections between them (dynamic)
+
+Conceptual structure:
+```
+User
+ ├── Moments (owned, portable)
+ ├── Products (owned doorways)
+ │     └── QR Mount (per product)
+ │           └── Bridge → Moment (dynamic reference)
+```
+
+Key rule: A product NEVER permanently contains a moment. A product REFERENCES a moment through a bridge. Bridges can be changed anytime.
+
+#### Why This Drives More Sales
+
+Each product purchased gives the user another doorway, another surface, another mount point. But moments are reusable.
+
+Value proposition: "Buy more products. Expand your platform." NOT: "Buy the same thing again."
+
+Examples:
+- Shirt + Mug + Hat → all show the same holiday moment
+- Later → reassign moments differently
+- No reprint, no waste, no friction
+
+This naturally encourages: Multiple purchases, collecting, gifting, long-term engagement.
+
+#### Moment Bridging
+
+Internally: bridge logic. Externally: simple choice.
+
+User-facing phrasing: "Where should this product point right now?" That's it. No technical explanation needed.
+
+#### Wizard Integration
+
+**Early (Step 4 — Capability Overview):** Show that products can show moments, moments can change over time, moments can move between products. Explained, not executed.
+
+**Mid (Moment Creation):** Users create moments (image/video/doc). They are told: "These moments belong to you."
+
+**Platform Transition (2+ Moments):** Show Platform Acknowledgement Card ONCE. Reframes behavior from "creating content" to "building a platform."
+
+**Compose Unlock:** Rotate, schedule, sequence moments. Compose applies to moments, NOT products.
+
+**Connect Moments to Products (Final wizard step):**
+- Title: "Connect moments to your products"
+- Body: "Each product you own can show any moment. You can change this anytime."
+- UI: List of owned products, each with dropdown "Show this moment…" and option to follow Compose schedule or override
+- Reassurance: "Nothing is permanent. You can change this later."
+
+#### Post-Purchase / QR Dynamic (Owner App)
+
+QR Dynamic becomes the REMOTE CONTROL. From the app, owners can:
+- Move moments between products
+- Change which moment a product shows
+- Temporarily override schedules
+- Sync multiple products together
+- Chain products into experiences
+
+Example: Shirt + Mug mirror the same moment. Hat shows a different one. Later, swap all three instantly. This JUSTIFIES the app and subscription.
+
+#### Subscription Justification (Natural, Not Pushy)
+
+**Free:** Fixed moment connections, limited changes.
+
+**Paid:** Unlimited reassignment, advanced scheduling, multi-product sync, history/rollback, long-term storage.
+
+User thinks: "I'm paying to control my platform." NOT: "I'm paying for QR hosting."
+
+#### Marketplace & API Power
+
+**Marketplaces (Etsy/Amazon/eBay):** Sell physical product → QR leads to claim page → buyer becomes owner → moments + platform activate post-sale.
+
+**Embedded Stores (KC, Polling Site, Others):** Same wizard embedded → user builds moments → products attach → platform persists across sites. All roads lead back to: owned moments + owned control.
+
+#### The One-Line Pitch
+"QR Gear lets you own moments, move them between products, and control what people see when they scan — anytime."
+
+#### Final Lock Statement
+
+- Products are doorways
+- Moments are portable
+- Ownership is permanent
+- Control evolves over time
+
+QR Gear is not selling items. QR Gear is selling a living digital platform that happens to be attached to physical products.
 
 ---
 
