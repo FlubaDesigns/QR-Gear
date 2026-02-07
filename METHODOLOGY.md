@@ -8,6 +8,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-02-07 | Added 5-Layer Distribution Architecture (Section 8) |
 | 2026-02-06 | Added QR States (Static, Fixed, Living) and QR Compose vs QR Dynamics distinction (Sections 3a, 3b) |
 | 2026-02-05 | Added Member Library Storage Paths (Section 7) |
 | 2026-02-04 | Initial methodology document created |
@@ -171,6 +172,73 @@ Members should see their drafts (status: 'draft') on their main dashboard, not h
 
 ### Buyer Customizer (Future)
 A completely separate buyer-first experience. Uses different language: "Customize" not "Build", "Preview" not "Publish". See replit.md for full spec.
+
+### 8. Five-Layer Distribution Architecture
+**Established: 2026-02-07**
+
+QR Gear is not one product — it's one engine with five distribution layers. Every layer points back to the same core system (packets, instances, ownership, dynamic control).
+
+#### Layer 1 — Member / Creator (Affiliate Engine)
+- Members create products (shirts, caps, etc.)
+- They define default experiences via QR Compose
+- They distribute on their own social platforms
+- They earn 25%
+- They are the marketing force
+- **Purpose**: External reach
+
+#### Layer 2 — Direct Buyer / Buyer-Creator (House Revenue Engine)
+- A user lands directly on QR Gear
+- They customize a product themselves
+- They buy immediately
+- QR Gear keeps 100%
+- No membership required up front
+- **Purpose**: Direct monetization
+
+#### Layer 3 — Owner / QR Dynamic (Retention Engine)
+- Buyer claims the product
+- Gets an instance
+- Uses QR Dynamic to control content
+- Can rotate images/video/docs
+- Can chain owned items
+- May subscribe for ongoing control
+- **Purpose**: Long-term engagement
+
+#### Layer 4 — API / Embedded Mini-Stores (Network Engine)
+- QR Gear exposes an API + widget
+- Embed mini stores per user / per site
+- Works on Kingdom Connects, polling site, etc.
+- Creates inbound traffic
+- Cross-site discovery
+- **Purpose**: Ecosystem expansion
+
+#### Layer 5 — External Marketplaces (Acquisition Engine)
+- Sell physical products on Etsy, eBay, Amazon, etc.
+- QR routes buyers back to the QR Gear system
+- Marketplaces become lead sources
+- Ownership and Dynamic control happen on the QR Gear platform
+- **Purpose**: Borrowed traffic converted to owned relationships
+
+#### The Unifying Principle
+
+No matter where someone enters — social post, QR Gear homepage, embedded store, marketplace listing — they end up interacting with: packets, instances, ownership, and dynamic control.
+
+This works because of one critical design decision: **physical products are dumb, digital behavior is smart**. The QR code on a shirt doesn't change, but what it resolves to is controlled by the digital layer. This allows infinite entry points, consistent ownership, no reprints, no branching data models, and no platform lock-in.
+
+Everything reduces to one question: *"Which digital experience do we serve right now?"*
+
+#### Growth Flywheel
+
+The layers feed each other:
+- Buyers become owners (Layer 2 → Layer 3)
+- Owners become members (Layer 3 → Layer 1)
+- Members become distributors (Layer 1 → Layer 5)
+- Other sites become traffic sources (Layer 4 → Layer 2)
+
+Monetization happens at multiple points without conflict. The system scales out, not up.
+
+#### Strategic Priority Question
+
+When choosing what to build next, the question is not "how to build more" but: **Which layer do you want to make money from first, without slowing the others?** That decision determines what to polish, what to leave rough, and what can wait.
 
 ---
 
