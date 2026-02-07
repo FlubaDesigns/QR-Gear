@@ -479,7 +479,9 @@ function SimpleWizardProgressBar({
       ? QR_PLUS_STEPS 
       : isQRPlayStep(currentStep)
         ? QR_PLAY_STEPS
-        : SIMPLE_WIZARD_STEPS;
+        : isQRComposeStep(currentStep)
+          ? QR_COMPOSE_STEPS
+          : SIMPLE_WIZARD_STEPS;
   const currentIndex = steps.findIndex(s => s.id === currentStep);
   const progress = ((currentIndex + 1) / steps.length) * 100;
   
