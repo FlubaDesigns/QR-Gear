@@ -8,6 +8,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-02-07 | Added QR Architecture Decision: Two-Tier QR System (Section 11) |
 | 2026-02-07 | Added Graceful Intro + Unlock Flow for Moments → Compose → Platform (Section 9) |
 | 2026-02-07 | Added Portable Moments & Multi-Product Platform concept (Section 10) |
 | 2026-02-07 | Added 5-Layer Distribution Architecture (Section 8) |
@@ -485,6 +486,66 @@ User thinks: "I'm paying to control my platform." NOT: "I'm paying for QR hostin
 - Control evolves over time
 
 QR Gear is not selling items. QR Gear is selling a living digital platform that happens to be attached to physical products.
+
+### 11. QR Architecture Decision: Two-Tier QR System
+**Established: 2026-02-07**
+
+#### The Decision
+
+Every QR code in the system falls into one of two tiers. This is a locked architectural decision.
+
+#### Tier 1: QR Basic (Server-Independent)
+
+- QR encodes **plain text or a direct external URL** — NOT a QR Gear bridge URL
+- Zero server involvement from QR Gear after the product is printed
+- No hosting cost, no resolver, no bridge
+- Works offline if the content is text (phone displays it directly from the QR data)
+- **Permanently dumb** — can never be stitched into Compose, Dynamic, or the platform
+- QR Gear makes money on the product sale only — no ongoing relationship
+- This is the genuine "just put a QR on a shirt" off-ramp
+
+#### Tier 2: Platform QR (Server-Dependent, Bridge-Based)
+
+- QR encodes a **bridge URL** on QR Gear's system (e.g., `qrgear.com/qr/abc123`)
+- Bridge resolves to whatever the owner/system has configured
+- Every QR from QR Plus upward gets a bridge from the moment it's created
+- Bridge starts simple (QR Plus = just resolves header/footer text product) but can grow
+- **Always stitchable** — can be upgraded to moments, Compose, Dynamic at any time
+- Requires internet to scan (bridge URL must resolve)
+- Hosting tiers apply (1-year, 3-year, 5-year)
+- This is the entry point into the living platform
+
+#### Why Two Tiers
+
+- **Business reason:** QR Basic has zero ongoing server cost. Every bridge URL costs hosting/server resources forever. QR Basic is the free-tier product; platform QR is the revenue engine.
+- **User reason:** Some users genuinely just want a QR code on a shirt. Forcing them into a server-dependent system for a simple use case is overengineering.
+- **Architecture reason:** Clean separation. Server-independent QRs have zero system dependencies. Platform QRs have the full resolver/bridge/compose/dynamic stack.
+
+#### The Bridge (Platform QR)
+
+For every Platform QR (QR Plus and above):
+1. A bridge URL is created at product creation time
+2. The bridge initially resolves to the simplest version (QR Plus = text product, Canvas = image moment, Play = video moment)
+3. The bridge can later be upgraded: add moments, enable Compose rotation, hand control to buyer via Dynamic
+4. The physical product's QR never changes — the bridge handles everything
+5. Registration/claim page can live at the bridge level for all platform products
+
+#### Upgrade Path
+
+QR Basic creates a natural upgrade path:
+- Customer buys a QR Basic shirt → it works, it's simple, it's done
+- Customer later wants to change what the QR shows → can't, it's dumb
+- Customer buys a new platform-tier product → now they're in the ecosystem
+- QR Basic is a taste of QR that drives people toward the full platform
+
+#### Future Consideration (Parked)
+
+Down the line, the Dynamic app could potentially recognize a "dumb" QR via order history matching and offer a physical upgrade (smart QR sticker). This is not architecturally planned — just noted as a possibility for the app phase.
+
+#### Off-Ramp Placement in Wizard
+
+- **QR Basic off-ramp:** Step 6 (Capability Overview). User sees the full ladder, chooses "I just want a basic QR," branches immediately into QR Basic mini-flow. Does NOT continue through text editing or canvas-fork.
+- **QR Plus off-ramp:** Canvas-fork (after text editing, shirt preview). User says "No thanks, just the product with my text." This IS a platform QR — it gets a bridge, it's stitchable, hosting applies.
 
 ---
 
