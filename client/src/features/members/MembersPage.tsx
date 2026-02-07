@@ -8170,7 +8170,11 @@ function MembersSandboxContent() {
     
     // Handle canvas-fork and QR Canvas flow back navigation
     if (simpleStep === 'canvas-fork') {
-      setSimpleStep('shirt-preview');
+      if (wantsHeaderFooter) {
+        setSimpleStep('shirt-preview');
+      } else {
+        setSimpleStep('generate');
+      }
       return;
     }
     if (simpleStep === 'canvas-mockup') {
@@ -8884,11 +8888,7 @@ function MembersSandboxContent() {
                       }}
                       onNo={() => {
                         setWantsHeaderFooter(false);
-                        setQrType('qr-basic'); // Set type for basic QR-only flow
-                        // Fork to QR Basic flow: Step 8 = URL/Text choice
-                        setQrBasicInputType('');
-                        setQrBasicContent('');
-                        setSimpleStep('qr-basic-type');
+                        setSimpleStep('canvas-fork');
                       }}
                     />
                   </div>
