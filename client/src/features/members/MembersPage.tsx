@@ -89,7 +89,7 @@ interface GraphicSet {
 }
 
 type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
-type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'canvas-mockup' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-mockup' | 'play-publish' | 'play-save-choice' | 'compose-pick-items' | 'compose-durations' | 'compose-order' | 'compose-hosting' | 'compose-mockup' | 'compose-preview' | 'compose-publish' | 'compose-confirm';
+type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'compose-explainer' | 'platform-acknowledge' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-preview' | 'canvas-mockup' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-mockup' | 'play-publish' | 'play-save-choice' | 'compose-pick-items' | 'compose-durations' | 'compose-order' | 'compose-hosting' | 'compose-mockup' | 'compose-preview' | 'compose-publish' | 'compose-confirm';
 
 type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -147,43 +147,42 @@ const SHIRT_TEXT_FONTS = [
   { id: 'script', label: 'Script', family: 'Georgia' }
 ];
 
-// Simple Wizard - streamlined steps for first-time users
+// Simple Wizard - streamlined steps for first-time users (QR Canvas / Image Moment path)
 const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Product', icon: Package },
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'type', label: 'Overview', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
-  { id: 'generate', label: 'Generate', icon: Wand2 },
+  { id: 'generate', label: 'Text?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header', icon: Type },
   { id: 'text-edit-footer', label: 'Footer', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
-  { id: 'canvas-fork', label: 'Online Image', icon: Smartphone },
-  { id: 'url-explainer', label: 'QR Canvas', icon: QrCode },
+  { id: 'canvas-fork', label: 'Choose Moment', icon: Smartphone },
+  { id: 'url-explainer', label: 'Image Moment', icon: QrCode },
   { id: 'url-source-choice', label: 'Image Source', icon: Crop },
   { id: 'url-library-pick', label: 'Pick Image', icon: Library },
   { id: 'url-details', label: 'Details', icon: Type },
   { id: 'url-preview', label: 'Preview', icon: Eye },
   { id: 'canvas-mockup', label: 'Product Preview', icon: Eye },
-  { id: 'url-publish', label: 'Publish', icon: Send },
+  { id: 'url-publish', label: 'Go Live', icon: Send },
 ];
 
-// QR Basic fork steps (after saying No at step 7)
+// QR Basic fork steps (branches off at step 6 capability overview)
 const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Product', icon: Package },
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'type', label: 'Overview', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
-  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'qr-basic-type', label: 'URL or Text', icon: Link2 },
   { id: 'qr-basic-input', label: 'Enter Content', icon: Type },
   { id: 'qr-basic-mockup', label: 'Preview', icon: Eye },
@@ -201,23 +200,23 @@ const isQRPlusStep = (step: SimpleWizardStep): boolean => {
   return step.startsWith('qr-plus-');
 };
 
-// QR Plus fork steps (after step 12 shirt-preview for qr-plus type)
+// QR Plus fork steps (off-ramp at canvas-fork — "just the product")
 const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'channel', label: 'Channel', icon: Layers },
   { id: 'product', label: 'Product', icon: Package },
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'type', label: 'Overview', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
-  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'generate', label: 'Text?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header', icon: Type },
   { id: 'text-edit-footer', label: 'Footer', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
-  { id: 'canvas-fork', label: 'Online Image?', icon: Smartphone },
+  { id: 'canvas-fork', label: 'Choose Moment', icon: Smartphone },
   { id: 'qr-plus-mockup', label: 'Final Preview', icon: Eye },
   { id: 'qr-plus-save-choice', label: 'Save Options', icon: Library },
   { id: 'qr-plus-confirm', label: 'Done', icon: Check },
@@ -229,20 +228,20 @@ const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'type', label: 'Overview', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
-  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'generate', label: 'Text?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header', icon: Type },
   { id: 'text-edit-footer', label: 'Footer', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
-  { id: 'canvas-fork', label: 'QR Experience', icon: Smartphone },
-  { id: 'play-video-source', label: 'Video', icon: Play },
+  { id: 'canvas-fork', label: 'Choose Moment', icon: Smartphone },
+  { id: 'play-video-source', label: 'Video Moment', icon: Play },
   { id: 'play-preview', label: 'Preview', icon: Eye },
   { id: 'play-mockup', label: 'Product Preview', icon: Eye },
-  { id: 'play-publish', label: 'Publish', icon: Send },
+  { id: 'play-publish', label: 'Go Live', icon: Send },
   { id: 'play-save-choice', label: 'Done', icon: Check },
 ];
 
@@ -256,23 +255,23 @@ const QR_COMPOSE_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Type', icon: Sparkles },
+  { id: 'type', label: 'Overview', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
-  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'generate', label: 'Text?', icon: Wand2 },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header', icon: Type },
   { id: 'text-edit-footer', label: 'Footer', icon: Type },
   { id: 'placement-config', label: 'Configure', icon: Layers },
   { id: 'shirt-preview', label: 'Preview', icon: Eye },
-  { id: 'canvas-fork', label: 'QR Experience', icon: Smartphone },
-  { id: 'compose-pick-items', label: 'Pick Items', icon: Library },
-  { id: 'compose-durations', label: 'Durations', icon: Zap },
+  { id: 'canvas-fork', label: 'Choose Moment', icon: Smartphone },
+  { id: 'compose-pick-items', label: 'Pick Moments', icon: Library },
+  { id: 'compose-durations', label: 'Timing', icon: Zap },
   { id: 'compose-order', label: 'Order', icon: Layers },
   { id: 'compose-hosting', label: 'Hosting', icon: Store },
   { id: 'compose-mockup', label: 'Product Preview', icon: Eye },
   { id: 'compose-preview', label: 'Summary', icon: Eye },
-  { id: 'compose-publish', label: 'Publish', icon: Send },
+  { id: 'compose-publish', label: 'Go Live', icon: Send },
   { id: 'compose-confirm', label: 'Done', icon: Check },
 ];
 
@@ -4130,82 +4129,117 @@ function UrlCreationStep({
   );
 }
 
-function TypePickerStep({ 
-  selectedType, 
-  onSelect 
+function CapabilityOverviewStep({ 
+  onBasicOffRamp,
+  onContinue,
+  publishedMomentCount
 }: { 
-  selectedType: QRType;
-  onSelect: (type: QRType) => void;
+  onBasicOffRamp: () => void;
+  onContinue: () => void;
+  publishedMomentCount: number;
 }) {
-  const allTypes = [
+  const tiers = [
     { 
-      id: 'qr-basic' as QRType, 
       label: 'QR Basic', 
-      description: 'Just the QR code - simple and clean',
+      description: 'A simple QR code — points to a URL or shows text. No internet needed to scan. Perfect for basic links.',
       icon: QrCode,
-      color: 'bg-slate-600'
+      color: 'bg-slate-600',
+      badge: 'Server-free',
+      badgeColor: 'text-slate-300 bg-slate-500/20',
+      isOffRamp: true,
     },
     { 
-      id: 'qr-plus' as QRType, 
       label: 'QR Plus', 
-      description: 'QR code with header and footer text',
+      description: 'QR code with your custom header and footer text on the product. The QR connects to your living platform.',
       icon: Type,
-      color: 'bg-blue-600'
+      color: 'bg-blue-600',
+      badge: 'Platform',
+      badgeColor: 'text-blue-300 bg-blue-500/20',
     },
     { 
-      id: 'qr-canvas' as QRType, 
-      label: 'QR Canvas', 
-      description: 'QR code with a custom background image',
+      label: 'Image Moment', 
+      description: 'When someone scans, they see a custom landing page with your image, title, and description.',
       icon: ImagePlus,
-      color: 'bg-purple-600'
+      color: 'bg-purple-600',
+      badge: 'Platform',
+      badgeColor: 'text-purple-300 bg-purple-500/20',
     },
     { 
-      id: 'qr-play' as QRType, 
-      label: 'QR Play', 
-      description: 'QR code that opens a video',
+      label: 'Video Moment', 
+      description: 'When someone scans, they watch a video you uploaded or linked.',
       icon: Play,
-      color: 'bg-rose-600'
+      color: 'bg-rose-600',
+      badge: 'Platform',
+      badgeColor: 'text-rose-300 bg-rose-500/20',
     },
     { 
-      id: 'qr-compose' as QRType, 
-      label: 'QR Compose', 
-      description: 'Build a rotating playlist from your images & videos',
+      label: 'Compose', 
+      description: 'Rotate or schedule different moments over time. One QR, many experiences.',
       icon: Sparkles,
-      color: 'bg-amber-600'
+      color: 'bg-amber-600',
+      badge: publishedMomentCount >= 2 ? 'Ready' : `Needs ${2 - publishedMomentCount} more moment${2 - publishedMomentCount !== 1 ? 's' : ''}`,
+      badgeColor: publishedMomentCount >= 2 ? 'text-green-300 bg-green-500/20' : 'text-amber-300 bg-amber-500/20',
+      isLocked: publishedMomentCount < 2,
     },
   ];
 
   return (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300">
-      <div className="text-center mb-3">
-        <h2 className="text-lg font-bold text-white mb-2">What do you want to create?</h2>
-        <p className="text-slate-400">Choose the type of QR experience</p>
+      <div className="text-center mb-4">
+        <h2 className="text-lg font-bold text-white mb-2">What can your QR do?</h2>
+        <p className="text-slate-400 text-sm max-w-md mx-auto">
+          Here's everything that's possible. You'll choose your experience as you build.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 max-w-md mx-auto">
-        {allTypes.map((type) => (
-          <button
-            key={type.id}
-            onClick={() => onSelect(type.id)}
-            className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
-              selectedType === type.id
-                ? 'border-white bg-white/10'
-                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+      <div className="grid grid-cols-1 gap-2.5 max-w-md mx-auto mb-5">
+        {tiers.map((tier, index) => (
+          <div
+            key={tier.label}
+            className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
+              tier.isLocked 
+                ? 'border-slate-700 bg-slate-800/30 opacity-60' 
+                : 'border-slate-600 bg-slate-800/50'
             }`}
-            data-testid={`button-type-${type.id}`}
+            data-testid={`tier-${tier.label.toLowerCase().replace(/\s+/g, '-')}`}
           >
-            <div className={`w-12 h-12 rounded-full ${type.color} flex items-center justify-center flex-shrink-0`}>
-              <type.icon className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-700 text-slate-400 text-xs font-bold flex-shrink-0">
+              {index + 1}
             </div>
-            <div className="text-left flex-1">
-              <h3 className="font-bold text-white">{type.label}</h3>
-              <p className="text-slate-400 text-sm">{type.description}</p>
+            <div className={`w-10 h-10 rounded-full ${tier.color} flex items-center justify-center flex-shrink-0`}>
+              <tier.icon className="w-5 h-5 text-white" />
             </div>
-            {selectedType === type.id && (
-              <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
-            )}
-          </button>
+            <div className="text-left flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-bold text-white text-sm">{tier.label}</h3>
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${tier.badgeColor}`}>
+                  {tier.badge}
+                </span>
+              </div>
+              <p className="text-slate-400 text-xs leading-tight mt-0.5">{tier.description}</p>
+            </div>
+          </div>
         ))}
+      </div>
+      
+      <div className="flex flex-col gap-3 max-w-sm mx-auto">
+        <Button
+          onClick={onContinue}
+          className="w-full py-5 text-lg bg-gradient-to-r from-blue-600 to-purple-600"
+          data-testid="button-continue-platform"
+        >
+          <ArrowRight className="w-5 h-5 mr-2" />
+          Continue Building
+        </Button>
+        <Button
+          onClick={onBasicOffRamp}
+          variant="outline"
+          className="w-full py-4 text-slate-300 border-slate-600"
+          data-testid="button-basic-offramp"
+        >
+          <QrCode className="w-4 h-4 mr-2" />
+          I just want a basic QR code
+        </Button>
       </div>
     </div>
   );
@@ -4685,22 +4719,21 @@ function ComposeConfirmStep({
   );
 }
 
-// Step 13: Surface Picker - choose QR experience type (Canvas, Play, or Skip)
 function SurfacePickerStep({
   onCanvas,
   onPlay,
   onSkip,
   onCompose,
-  composeDisabled,
   publishedItemCount
 }: {
   onCanvas: () => void;
   onPlay: () => void;
   onSkip: () => void;
   onCompose: () => void;
-  composeDisabled?: boolean;
   publishedItemCount?: number;
 }) {
+  const composeReady = (publishedItemCount || 0) >= 2;
+  
   return (
     <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto">
@@ -4709,8 +4742,8 @@ function SurfacePickerStep({
       
       <div>
         <h2 className="text-xl font-bold text-white mb-3">What Happens When They Scan?</h2>
-        <p className="text-slate-300 text-lg max-w-md mx-auto">
-          Choose what people see when they scan your QR code
+        <p className="text-slate-300 text-sm max-w-md mx-auto">
+          Choose the moment people experience when they scan your QR code
         </p>
       </div>
       
@@ -4721,7 +4754,7 @@ function SurfacePickerStep({
           data-testid="button-surface-canvas"
         >
           <ImagePlus className="w-5 h-5 mr-2" />
-          Custom Image
+          Image Moment
         </Button>
         <Button
           onClick={onPlay}
@@ -4729,19 +4762,18 @@ function SurfacePickerStep({
           data-testid="button-surface-play"
         >
           <Play className="w-5 h-5 mr-2" />
-          Play a Video
+          Video Moment
         </Button>
         <Button
           onClick={onCompose}
-          disabled={composeDisabled}
-          className={`w-full py-6 text-lg ${composeDisabled ? 'opacity-50' : 'bg-gradient-to-r from-amber-600 to-orange-600'}`}
+          className={`w-full py-6 text-lg bg-gradient-to-r from-amber-600 to-orange-600`}
           data-testid="button-surface-compose"
         >
           <Sparkles className="w-5 h-5 mr-2" />
-          Rotating Playlist
-          {composeDisabled && publishedItemCount !== undefined && (
+          Compose
+          {!composeReady && publishedItemCount !== undefined && (
             <span className="ml-2 text-xs opacity-75">
-              (Need {2 - publishedItemCount} more items)
+              ({publishedItemCount}/2 moments)
             </span>
           )}
         </Button>
@@ -4752,6 +4784,141 @@ function SurfacePickerStep({
           data-testid="button-surface-skip"
         >
           No thanks, just the product
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ComposeExplainerCard({
+  onCreateMoment,
+  onBack,
+  publishedItemCount
+}: {
+  onCreateMoment: () => void;
+  onBack: () => void;
+  publishedItemCount: number;
+}) {
+  return (
+    <div className="text-center space-y-5 animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto">
+        <Sparkles className="w-7 h-7 text-white" />
+      </div>
+      
+      <div>
+        <h2 className="text-xl font-bold text-white mb-3">Compose — Moments Over Time</h2>
+        <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+          Compose lets one QR show different moments based on time of day, scan order, or a schedule you control.
+        </p>
+      </div>
+      
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 max-w-sm mx-auto text-left space-y-2">
+        <p className="text-slate-300 text-sm font-medium">Example: A restaurant shirt</p>
+        <div className="space-y-1.5 text-sm">
+          <div className="flex items-center gap-2 text-slate-400">
+            <span className="text-amber-400">Morning</span> — Welcome image moment
+          </div>
+          <div className="flex items-center gap-2 text-slate-400">
+            <span className="text-amber-400">Lunch</span> — Menu document moment
+          </div>
+          <div className="flex items-center gap-2 text-slate-400">
+            <span className="text-amber-400">Evening</span> — Drone footage video moment
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 max-w-sm mx-auto">
+        <p className="text-amber-300 text-sm">
+          You have <span className="font-bold">{publishedItemCount}</span> moment{publishedItemCount !== 1 ? 's' : ''}. 
+          You need at least <span className="font-bold">2</span> to use Compose.
+        </p>
+      </div>
+      
+      <div className="flex flex-col gap-3 max-w-sm mx-auto">
+        <Button
+          onClick={onCreateMoment}
+          className="w-full py-5 text-lg bg-gradient-to-r from-purple-600 to-blue-600"
+          data-testid="button-create-another-moment"
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Create another moment
+        </Button>
+        <Button
+          onClick={onBack}
+          variant="outline"
+          className="w-full py-4 text-slate-300 border-slate-600"
+          data-testid="button-compose-explainer-back"
+        >
+          <ChevronLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PlatformAcknowledgementCard({
+  momentCount,
+  onContinue,
+  onManageMoments
+}: {
+  momentCount: number;
+  onContinue: () => void;
+  onManageMoments: () => void;
+}) {
+  return (
+    <div className="text-center space-y-5 animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mx-auto">
+        <Zap className="w-8 h-8 text-white" />
+      </div>
+      
+      <div>
+        <h2 className="text-xl font-bold text-white mb-3">You're building a living QR platform</h2>
+        <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+          Your QR can now show different moments over time. This turns your QR into a digital surface you control.
+        </p>
+      </div>
+      
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 max-w-sm mx-auto text-left space-y-2">
+        <p className="text-slate-300 text-sm font-medium">With Compose, you can:</p>
+        <div className="space-y-1.5 text-sm text-slate-400">
+          <div className="flex items-start gap-2">
+            <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+            <span>Rotate moments — each scan shows the next</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+            <span>Schedule moments — breakfast / lunch / dinner</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+            <span>Run sequences — 12 days of Christmas, 30 days of prayer</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 max-w-sm mx-auto">
+        <p className="text-green-300 text-sm">
+          You currently have <span className="font-bold">{momentCount} moments</span> — Compose is ready.
+        </p>
+      </div>
+      
+      <div className="flex flex-col gap-3 max-w-sm mx-auto">
+        <Button
+          onClick={onContinue}
+          className="w-full py-5 text-lg bg-gradient-to-r from-green-600 to-emerald-600"
+          data-testid="button-continue-platform"
+        >
+          <ArrowRight className="w-5 h-5 mr-2" />
+          Continue building my platform
+        </Button>
+        <Button
+          onClick={onManageMoments}
+          variant="outline"
+          className="w-full py-4 text-slate-300 border-slate-600"
+          data-testid="button-manage-moments"
+        >
+          Manage moments
         </Button>
       </div>
     </div>
@@ -8017,7 +8184,13 @@ function MembersSandboxContent() {
         setGraphicSize(''); // Reset for next placement
         return; // Stay on graphic-size step
       }
-      // All placements have sizes - proceed to generate step
+      // All placements have sizes
+      // QR Basic skips generate/text steps — goes straight to qr-basic-type
+      if (qrType === 'qr-basic') {
+        setSimpleStep('qr-basic-type');
+        return;
+      }
+      // Other types proceed to generate step (next in array)
     }
     
     if (simpleStep === 'text-choice') {
@@ -8080,9 +8253,15 @@ function MembersSandboxContent() {
 
   const handleSimpleBack = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Handle compose-explainer and platform-acknowledge back navigation
+    if (simpleStep === 'compose-explainer' || simpleStep === 'platform-acknowledge') {
+      setSimpleStep('canvas-fork');
+      return;
+    }
+    
     // Handle QR Basic flow back navigation
     if (simpleStep === 'qr-basic-type') {
-      setSimpleStep('generate');
+      setSimpleStep('graphic-size');
       return;
     }
     if (simpleStep === 'qr-basic-input') {
@@ -8220,7 +8399,7 @@ function MembersSandboxContent() {
       case 'product-congrats': return true;
       case 'color': return selectedColor !== '';
       case 'size': return selectedShirtSize !== '';
-      case 'type': return qrType !== '';
+      case 'type': return true;
       case 'graphic-size': return graphicSize !== '';
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
@@ -8856,11 +9035,17 @@ function MembersSandboxContent() {
                   );
                 })()}
                 
-                {/* Step 1: Type */}
+                {/* Step 6: Capability Overview — shows journey ladder + QR Basic off-ramp */}
                 {simpleStep === 'type' && (
-                  <TypePickerStep 
-                    selectedType={qrType}
-                    onSelect={setQrType}
+                  <CapabilityOverviewStep 
+                    publishedMomentCount={publishedCanvasPlayItems.length}
+                    onBasicOffRamp={() => {
+                      setQrType('qr-basic');
+                      setSimpleStep('placement-count');
+                    }}
+                    onContinue={() => {
+                      setSimpleStep('placement-count');
+                    }}
                   />
                 )}
                 
@@ -9098,7 +9283,33 @@ function MembersSandboxContent() {
                   />
                 )}
                 
-                {/* Step 13: Surface Picker - QR Canvas, Play, or Skip */}
+                {/* Compose Explainer — shown when user clicks Compose without enough moments */}
+                {simpleStep === 'compose-explainer' && (
+                  <ComposeExplainerCard
+                    publishedItemCount={publishedCanvasPlayItems.length}
+                    onCreateMoment={() => {
+                      setSimpleStep('canvas-fork');
+                    }}
+                    onBack={() => {
+                      setSimpleStep('canvas-fork');
+                    }}
+                  />
+                )}
+                
+                {/* Platform Acknowledgement — shown once when 2+ moments exist */}
+                {simpleStep === 'platform-acknowledge' && (
+                  <PlatformAcknowledgementCard
+                    momentCount={publishedCanvasPlayItems.length}
+                    onContinue={() => {
+                      setSimpleStep('canvas-fork');
+                    }}
+                    onManageMoments={() => {
+                      setViewMode('channels');
+                    }}
+                  />
+                )}
+                
+                {/* Surface Picker — choose moment type or off-ramp to QR Plus */}
                 {simpleStep === 'canvas-fork' && (
                   <SurfacePickerStep
                     onCanvas={() => {
@@ -9110,11 +9321,14 @@ function MembersSandboxContent() {
                       setSimpleStep('play-video-source');
                     }}
                     onCompose={() => {
+                      if (publishedCanvasPlayItems.length < 2) {
+                        setSimpleStep('compose-explainer');
+                        return;
+                      }
                       setQrType('qr-compose');
                       fetchPublishedCanvasPlayItems();
                       setSimpleStep('compose-pick-items');
                     }}
-                    composeDisabled={publishedCanvasPlayItems.length < 2 && !isLoadingPublishedItems}
                     publishedItemCount={publishedCanvasPlayItems.length}
                     onSkip={async () => {
                       setQrType('qr-plus');
