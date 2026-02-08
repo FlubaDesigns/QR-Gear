@@ -380,7 +380,7 @@ export function ComposeHostingStep({
   onSelect: (term: '1-year' | '3-year' | '5-year') => void;
 }) {
   const terms = [
-    { id: '1-year' as const, label: '1 Year', price: '$4.99/yr', description: 'Great for trying it out' },
+    { id: '1-year' as const, label: '1 Year', price: 'Included', description: 'Included with your purchase' },
     { id: '3-year' as const, label: '3 Years', price: '$3.99/yr', description: 'Best value - save 20%', popular: true },
     { id: '5-year' as const, label: '5 Years', price: '$2.99/yr', description: 'Maximum savings - save 40%' },
   ];
