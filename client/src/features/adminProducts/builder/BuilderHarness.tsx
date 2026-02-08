@@ -5,6 +5,7 @@ import { ProductGraphicTextModule } from "./modules/ProductGraphicTextModule";
 import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
 import { BasicsContentModule } from "./modules/BasicsContentModule";
+import { ComposeContentModule } from "./modules/ComposeContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
@@ -21,7 +22,7 @@ function BuilderModules() {
         <PlacementModule />
       </InlineDebugBoundary>
       
-      {/* Step 3: Product Graphic Text (Header/Footer for Canvas, Play, Dynamics - NOT Basics) */}
+      {/* Step 3: Product Graphic Text (Header/Footer for Canvas, Play, Compose - NOT Basics) */}
       <InlineDebugBoundary label="ProductGraphicTextModule">
         <ProductGraphicTextModule />
       </InlineDebugBoundary>
@@ -31,7 +32,7 @@ function BuilderModules() {
         <BasicsContentModule />
       </InlineDebugBoundary>
       
-      {/* Step 4b: URL Settings (Background, Title, Description for Canvas/Dynamics/Plus) */}
+      {/* Step 4b: URL Settings (Background, Title, Description for Canvas/Compose/Plus) */}
       <InlineDebugBoundary label="URLContentModule">
         <URLContentModule />
       </InlineDebugBoundary>
@@ -39,6 +40,11 @@ function BuilderModules() {
       {/* Step 4c: Play Media (for QR Play mode) */}
       <InlineDebugBoundary label="PlayContentModule">
         <PlayContentModule />
+      </InlineDebugBoundary>
+      
+      {/* Step 4d: QR Compose (pick items, mode, durations, order, hosting, preview, publish) */}
+      <InlineDebugBoundary label="ComposeContentModule">
+        <ComposeContentModule />
       </InlineDebugBoundary>
       
       {/* Step 5: Create Graphics (generates QR, composite, calculates pricing, queues mockups) */}

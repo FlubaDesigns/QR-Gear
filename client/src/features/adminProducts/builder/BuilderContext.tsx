@@ -53,6 +53,13 @@ const initialContent: ContentData = {
   playMediaPreview: "",
   playMediaMimeType: "",
   playPermissionConfirmed: false,
+  // Compose-specific fields
+  composeItems: [],
+  composeMode: '',
+  composeHostingTerm: '',
+  composeStep: '',
+  composeMockup: '',
+  composeInstanceId: null,
 };
 
 const initialState: BuilderState = {

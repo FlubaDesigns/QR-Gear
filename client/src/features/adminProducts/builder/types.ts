@@ -153,6 +153,20 @@ export interface ContentData {
   playMediaPreview: string;     // Data URL or blob URL for preview
   playMediaMimeType: string;    // video/mp4, image/gif, etc.
   playPermissionConfirmed: boolean;  // Required before saving
+  // Compose-specific fields
+  composeItems: Array<{
+    packetId: string;
+    name: string;
+    thumbnailUrl: string;
+    type: 'qr-canvas' | 'qr-play';
+    durationSeconds: number;
+    order: number;
+  }>;
+  composeMode: 'auto-rotate' | 'scan-to-reveal' | '';
+  composeHostingTerm: '1-year' | '3-year' | '5-year' | '';
+  composeStep: 'pick-items' | 'mode' | 'durations' | 'order' | 'hosting' | 'preview' | 'publish' | 'confirm' | '';
+  composeMockup: string;
+  composeInstanceId: string | null;
 }
 
 export interface PricingBreakdown {
