@@ -154,7 +154,7 @@ const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] 
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Overview', icon: Sparkles },
+  { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text?', icon: Wand2 },
@@ -180,9 +180,10 @@ const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Overview', icon: Sparkles },
+  { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
+  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
   { id: 'qr-basic-type', label: 'URL or Text', icon: Link2 },
   { id: 'qr-basic-input', label: 'Enter Content', icon: Type },
   { id: 'qr-basic-mockup', label: 'Preview', icon: Eye },
@@ -207,7 +208,7 @@ const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Overview', icon: Sparkles },
+  { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text?', icon: Wand2 },
@@ -228,7 +229,7 @@ const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Overview', icon: Sparkles },
+  { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text?', icon: Wand2 },
@@ -255,7 +256,7 @@ const QR_COMPOSE_STEPS: { id: SimpleWizardStep; label: string; icon: any }[] = [
   { id: 'product-congrats', label: 'Earnings', icon: DollarSign },
   { id: 'color', label: 'Color', icon: Sparkles },
   { id: 'size', label: 'Size', icon: Package },
-  { id: 'type', label: 'Overview', icon: Sparkles },
+  { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text?', icon: Wand2 },
@@ -4124,6 +4125,87 @@ function UrlCreationStep({
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function TypePickerStep({ 
+  selectedType, 
+  onSelect 
+}: { 
+  selectedType: QRType;
+  onSelect: (type: QRType) => void;
+}) {
+  const allTypes = [
+    { 
+      id: 'qr-basic' as QRType, 
+      label: 'QR Basic', 
+      description: 'Just the QR code - simple and clean',
+      icon: QrCode,
+      color: 'bg-slate-600'
+    },
+    { 
+      id: 'qr-plus' as QRType, 
+      label: 'QR Plus', 
+      description: 'QR code with header and footer text',
+      icon: Type,
+      color: 'bg-blue-600'
+    },
+    { 
+      id: 'qr-canvas' as QRType, 
+      label: 'QR Canvas', 
+      description: 'QR code with a custom background image',
+      icon: ImagePlus,
+      color: 'bg-purple-600'
+    },
+    { 
+      id: 'qr-play' as QRType, 
+      label: 'QR Play', 
+      description: 'QR code that opens a video',
+      icon: Play,
+      color: 'bg-rose-600'
+    },
+    { 
+      id: 'qr-compose' as QRType, 
+      label: 'QR Compose', 
+      description: 'Build a rotating playlist from your images & videos',
+      icon: Sparkles,
+      color: 'bg-amber-600'
+    },
+  ];
+
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-3">
+        <h2 className="text-lg font-bold text-white mb-2">What do you want to create?</h2>
+        <p className="text-slate-400">Choose the type of QR experience</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 max-w-md mx-auto">
+        {allTypes.map((type) => (
+          <button
+            key={type.id}
+            onClick={() => onSelect(type.id)}
+            className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
+              selectedType === type.id
+                ? 'border-white bg-white/10'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            }`}
+            data-testid={`button-type-${type.id}`}
+          >
+            <div className={`w-12 h-12 rounded-full ${type.color} flex items-center justify-center flex-shrink-0`}>
+              <type.icon className="w-6 h-6 text-white" />
+            </div>
+            <div className="text-left flex-1">
+              <h3 className="font-bold text-white">{type.label}</h3>
+              <p className="text-slate-400 text-sm">{type.description}</p>
+            </div>
+            {selectedType === type.id && (
+              <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -8184,13 +8266,7 @@ function MembersSandboxContent() {
         setGraphicSize(''); // Reset for next placement
         return; // Stay on graphic-size step
       }
-      // All placements have sizes
-      // QR Basic skips generate/text steps — goes straight to qr-basic-type
-      if (qrType === 'qr-basic') {
-        setSimpleStep('qr-basic-type');
-        return;
-      }
-      // Other types proceed to generate step (next in array)
+      // All placements have sizes - proceed to generate step
     }
     
     if (simpleStep === 'text-choice') {
@@ -8261,7 +8337,7 @@ function MembersSandboxContent() {
     
     // Handle QR Basic flow back navigation
     if (simpleStep === 'qr-basic-type') {
-      setSimpleStep('graphic-size');
+      setSimpleStep('generate');
       return;
     }
     if (simpleStep === 'qr-basic-input') {
@@ -8399,7 +8475,7 @@ function MembersSandboxContent() {
       case 'product-congrats': return true;
       case 'color': return selectedColor !== '';
       case 'size': return selectedShirtSize !== '';
-      case 'type': return true;
+      case 'type': return qrType !== '';
       case 'graphic-size': return graphicSize !== '';
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return textLayoutChoice !== '';
@@ -9035,17 +9111,11 @@ function MembersSandboxContent() {
                   );
                 })()}
                 
-                {/* Step 6: Capability Overview — shows journey ladder + QR Basic off-ramp */}
+                {/* Step 6: Type Picker */}
                 {simpleStep === 'type' && (
-                  <CapabilityOverviewStep 
-                    publishedMomentCount={publishedCanvasPlayItems.length}
-                    onBasicOffRamp={() => {
-                      setQrType('qr-basic');
-                      setSimpleStep('placement-count');
-                    }}
-                    onContinue={() => {
-                      setSimpleStep('placement-count');
-                    }}
+                  <TypePickerStep 
+                    selectedType={qrType}
+                    onSelect={setQrType}
                   />
                 )}
                 
