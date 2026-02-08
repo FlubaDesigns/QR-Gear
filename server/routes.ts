@@ -3632,14 +3632,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const product = await storage.getProduct(item.productId.toString());
           const customization = item.customization as Record<string, any> || {};
           
+          const selectedSize = customization.selectedSize || customization.size || null;
+          
+          let actualPrintifyCost: number | null = null;
+          let memberEarningsActual: number | null = null;
+          let adminMarginActual: number | null = null;
+          if (customization.packetId && selectedSize) {
+            try {
+              const { getFirestoreDb: getDb } = await import("./lib/firebase-admin");
+              const packetDoc = await getDb().collection("memberPackets").doc(customization.packetId).get();
+              if (packetDoc.exists) {
+                const snap = packetDoc.data()?.pricingSnapshot;
+                if (snap?.printifyCostVariants?.[selectedSize]) {
+                  actualPrintifyCost = snap.printifyCostVariants[selectedSize];
+                  const retailPrice = parseFloat(item.price);
+                  const actualProfit = retailPrice - actualPrintifyCost;
+                  const memberShare = snap.memberProfitShare ?? 0.25;
+                  memberEarningsActual = Math.round(Math.max(0, actualProfit * memberShare) * 100) / 100;
+                  adminMarginActual = Math.round(Math.max(0, actualProfit - memberEarningsActual) * 100) / 100;
+                }
+              }
+            } catch (costErr) {
+              console.warn('[OrderCost] Failed to look up actual cost (non-fatal):', costErr);
+            }
+          }
+          
           return {
             masterProductId: customization.masterProductId || null,
             variantSku: customization.variantSku || customization.sku || `product-${item.productId}`,
             quantity: item.quantity,
             price: parseFloat(item.price),
             productTitle: product?.name || customization.productName || `Product #${item.productId}`,
-            size: customization.selectedSize || customization.size || null,
+            size: selectedSize,
             color: customization.selectedColor || customization.color || null,
+            actualPrintifyCost,
+            memberEarningsActual,
+            adminMarginActual,
           };
         }));
 
