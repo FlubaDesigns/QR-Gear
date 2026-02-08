@@ -9,6 +9,7 @@ import { insertQrDesignSchema, insertCartItemSchema, insertOrderSchema, insertOr
 import { verifyWidgetToken, signWidgetToken, widgetTokenSchema } from "./lib/widget-auth";
 import { printify, getUSAPrintProviders, syncProductPlacements, syncProductVariants, detectCategory } from "./lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "./lib/printify-cost-sync";
+import { lookupPrintifyCosts } from "./lib/printify-cost-lookup";
 import { generatePrintifyComposite } from "./lib/composite-image-generator";
 import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./lib/image-upload";
 import { downloadAndStreamFile, getFileFromFirebaseStorage, useFirebaseStorage, uploadToFirebaseStorage, listFilesInFolder } from "./lib/firebase-storage-service";
@@ -9849,6 +9850,94 @@ ${allPages.map(page => `  <url>
           memberEarnings: memberEarnings || 0,
         };
 
+        try {
+          if (boundProduct?.blueprintId && boundProduct?.printProviderId) {
+            const costData = await lookupPrintifyCosts(boundProduct.blueprintId, boundProduct.printProviderId);
+
+            const pricingDoc = await firestoreDb.collection("testSettings").doc("pricing").get();
+            const pricingSettings = pricingDoc.exists ? pricingDoc.data() : {};
+            const pMarkupPercent = pricingSettings?.markupPercent ?? 25;
+            const pMarkupFixed = pricingSettings?.markupFixed ?? 0;
+            const pAdditionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
+            const pTextLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
+            const pMemberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
+            const pSizeUpcharges: Record<string, number> = pricingSettings?.sizeUpcharges ?? { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
+            const pHostingTiers: Array<{ code: string; name: string; price: number }> = pricingSettings?.hostingTiers ?? [
+              { code: "1_year", name: "1 Year", price: 5 },
+              { code: "2_year", name: "2 Years", price: 8 },
+              { code: "3_year", name: "3 Years", price: 10 },
+            ];
+
+            const printifyCostBase = costData.baseCost;
+            const numTextLines = textLines || 0;
+            const textUpchargeTotal = numTextLines * pTextLineUpcharge;
+            const placements = selectedPlacements ? (Array.isArray(selectedPlacements) ? selectedPlacements : [selectedPlacements]) : [];
+            const extraPlacements = Math.max(0, placements.length - 1);
+            const placementUpchargeTotal = extraPlacements * pAdditionalPlacementCost;
+
+            let hostingTierCode: string | null = null;
+            let hostingCost = 0;
+            const composeHostingTerm = body.composeHostingTerm || null;
+            if (composeHostingTerm) {
+              const tier = pHostingTiers.find(t => t.code === composeHostingTerm);
+              if (tier) {
+                hostingTierCode = tier.code;
+                hostingCost = tier.price;
+              }
+            }
+
+            const totalCostBase = printifyCostBase + textUpchargeTotal + placementUpchargeTotal + hostingCost;
+            const retailPriceBase = Math.round((totalCostBase * (1 + pMarkupPercent / 100) + pMarkupFixed) * 100) / 100;
+            const profitBase = Math.round((retailPriceBase - printifyCostBase) * 100) / 100;
+            const memberEarningsBase = Math.round((profitBase * pMemberProfitShare) * 100) / 100;
+            const adminMarginBase = Math.round((profitBase - memberEarningsBase) * 100) / 100;
+
+            const earningsBySize: Record<string, number> = {};
+            const earningsValues: number[] = [];
+            for (const [size, sizeCost] of Object.entries(costData.variantCosts)) {
+              const sizeTotal = sizeCost + textUpchargeTotal + placementUpchargeTotal + hostingCost;
+              const sizeRetail = Math.round((sizeTotal * (1 + pMarkupPercent / 100) + pMarkupFixed) * 100) / 100;
+              const sizeProfit = Math.round((sizeRetail - sizeCost) * 100) / 100;
+              const sizeEarnings = Math.round((sizeProfit * pMemberProfitShare) * 100) / 100;
+              earningsBySize[size] = sizeEarnings;
+              earningsValues.push(sizeEarnings);
+            }
+
+            const memberEarningsRange = earningsValues.length > 0
+              ? { min: Math.min(...earningsValues), max: Math.max(...earningsValues) }
+              : { min: memberEarningsBase, max: memberEarningsBase };
+
+            const pricingSnapshot = {
+              printifyCostBase,
+              printifyCostVariants: costData.variantCosts,
+              printifySizeUpcharges: costData.sizeUpcharges,
+              customerPrice: retailPriceBase,
+              textLines: numTextLines,
+              textUpchargeTotal,
+              extraPlacements,
+              placementUpchargeTotal,
+              hostingTier: hostingTierCode,
+              hostingCost,
+              markupPercent: pMarkupPercent,
+              markupFixed: pMarkupFixed,
+              totalCostBase,
+              retailPriceBase,
+              profitBase,
+              memberProfitShare: pMemberProfitShare,
+              memberEarningsBase,
+              adminMarginBase,
+              earningsBySize,
+              memberEarningsRange,
+              calculatedAt: new Date().toISOString(),
+            };
+
+            packetData.pricingSnapshot = pricingSnapshot;
+            console.log(`[UnifiedPublish] Pricing snapshot attached for packet ${packetId}: base=$${printifyCostBase.toFixed(2)}, retail=$${retailPriceBase.toFixed(2)}`);
+          }
+        } catch (pricingErr: any) {
+          console.error(`[UnifiedPublish] Pricing snapshot failed (non-fatal) for packet ${packetId}:`, pricingErr.message || pricingErr);
+        }
+
         await firestoreDb.collection("memberPackets").doc(packetId).set(packetData);
         console.log(`[UnifiedPublish] Saved complete ${packetType} packet ${packetId} for member ${memberId}`);
 
@@ -12543,7 +12632,7 @@ ${allPages.map(page => `  <url>
       
       // Default size upcharges (from Printify pricing structure)
       const defaultSizeUpcharges: Record<string, number> = {
-        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10
+        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12
       };
       
       if (!doc.exists) {
@@ -12587,7 +12676,7 @@ ${allPages.map(page => `  <url>
       
       // Default size upcharges
       const defaultSizeUpcharges: Record<string, number> = {
-        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10
+        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12
       };
       
       const settings = {
