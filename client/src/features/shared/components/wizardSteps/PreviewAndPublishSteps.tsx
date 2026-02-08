@@ -39,7 +39,7 @@ const LANDING_TEXT_FONTS = [
 ];
 
 function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 2.5, '18px': 3.5, '24px': 4.5 };
+  const sizeMap: Record<string, number> = { '12px': 4, '18px': 5.5, '24px': 7 };
   const baseSvgSize = sizeMap[baseSize] || 3.5;
   const maxCharsPerLine = 20;
 
@@ -108,7 +108,7 @@ export function ShirtPreviewStep({
   const graphicX = isLeftChest ? 77 : 90;
   const graphicY = isLeftChest ? 68 : 79;
   
-  const qrHeight = graphicDims.h * 0.25;
+  const qrHeight = graphicDims.h * 0.18;
   const qrWidth = qrHeight;
   const qrY = graphicY - qrHeight / 2;
   const headerZoneTop = graphicY - graphicDims.h / 2 + 2;

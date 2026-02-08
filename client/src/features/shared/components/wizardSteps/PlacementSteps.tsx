@@ -606,7 +606,7 @@ export function PlacementConfigStep({
   const graphicX = isLeftChest ? 77 : 90;
   const graphicY = isLeftChest ? 68 : 79;
 
-  const qrHeight = graphicDims.h * 0.25;
+  const qrHeight = graphicDims.h * 0.18;
   const qrWidth = qrHeight;
   const qrY = graphicY - qrHeight / 2;
   const headerZoneTop = graphicY - graphicDims.h / 2 + 2;

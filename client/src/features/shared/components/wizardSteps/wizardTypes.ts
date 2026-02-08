@@ -357,7 +357,7 @@ export function generateQRCodeUrl(content: string, size: number = 1000): string 
 }
 
 export function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 2.5, '18px': 3.5, '24px': 4.5 };
+  const sizeMap: Record<string, number> = { '12px': 4, '18px': 5.5, '24px': 7 };
   const baseSvgSize = sizeMap[baseSize] || 3.5;
   const maxCharsPerLine = 20;
 
