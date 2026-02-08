@@ -653,11 +653,19 @@ function MembersSandboxContent() {
   const { toast } = useToast();
   const { api } = useMembersContext();
   
-  const [viewMode, setViewMode] = useState<ViewMode>('index');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('wizard') ? 'wizard' : 'index';
+  });
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
   const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('channel');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
-  const [wizardTier, setWizardTier] = useState<WizardTier>('simple');
+  const [wizardTier, setWizardTier] = useState<WizardTier>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const w = params.get('wizard');
+    if (w === 'super-simple' || w === 'simple' || w === 'advanced' || w === 'studio') return w;
+    return 'simple';
+  });
   const [publishCount, setPublishCount] = useState(0);
   const [showUnlockPrompt, setShowUnlockPrompt] = useState<'advanced' | 'studio' | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<{ id: string; name: string } | null>(null);

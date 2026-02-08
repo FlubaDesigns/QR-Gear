@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Shield, FlaskConical, Users, Sparkles, Store } from "lucide-react";
+import { Shield, FlaskConical, Users, Sparkles, Store, Wand2, Layers } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Hero from "@/components/Hero";
@@ -30,9 +30,17 @@ function AdminQuickAccess() {
         <Users className="w-4 h-4" />
         Member Area
       </Link>
-      <Link href="/member" className="admin-quick-link" data-testid="link-members-sandbox">
+      <Link href="/member?wizard=super-simple" className="admin-quick-link" data-testid="link-super-simple-wizard">
         <Sparkles className="w-4 h-4" />
-        Members
+        Super Simple
+      </Link>
+      <Link href="/member?wizard=simple" className="admin-quick-link" data-testid="link-simple-wizard">
+        <Wand2 className="w-4 h-4" />
+        Simple Wizard
+      </Link>
+      <Link href="/member?wizard=advanced" className="admin-quick-link" data-testid="link-advanced-wizard">
+        <Layers className="w-4 h-4" />
+        Advanced
       </Link>
       <Link href="/test-store-builder" className="admin-quick-link" data-testid="link-store-builder">
         <Store className="w-4 h-4" />
