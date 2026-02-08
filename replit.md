@@ -42,6 +42,14 @@ The storefront prioritizes lifestyle mockups. Product pricing is displayed to cu
 - **Admin Library Module**: A modular, tenant-aware feature set for managing backgrounds, templates, and images, located at `client/src/features/adminLibrary/`.
 - **Shared Utilities Pattern**: Employs a Viewer/View/Skin architecture for reusable UI components like `SkinGridViewer`, `CropUtility`, `ImageUploader`, and `LibraryBackgroundPicker`.
 - **Wizard Step Engines**: A set of shared, modular components (`client/src/features/shared/components/wizardSteps/`) that define the steps for product creation, graphic placement, QR setup, and publishing, used by Simple, Advanced, and Super Simple Wizards.
+- **Wizard Modular Architecture** (Feb 2026): MembersPage.tsx was refactored from 3,661 lines into a clean modular architecture:
+  - `WizardContext.tsx` (1,815 lines) - All shared wizard state (~100 useStates), pricing queries, API operations, navigation logic via React Context
+  - `SuperSimpleWizard.tsx` (186 lines) - 6-step card flow with blackboard explainers, progress dots, handoff to Simple
+  - `SimpleWizard.tsx` (934 lines) - Full guided wizard with all QR type branches (Basic/Plus/Canvas/Play/Compose), progress bar, next/back logic
+  - `AdvancedWizard.tsx` (201 lines) - Dense 8-step builder with PlacementPicker, HeaderFooterEditor, BackgroundLibraryPicker
+  - `StudioMode.tsx` (128 lines) - Quick publish interface for experienced users
+  - `MembersPage.tsx` (817 lines) - Pure routing shell: auth, nav tabs, view mode switching, delegates to wizard modules via WizardProvider
+  - All modules consume shared state via `useWizardContext()` hook - no state duplication
 - **Super Simple Wizard**: A cards-based wizard (`wizardTier: 'super-simple'`) that presents the first 6 steps (channel, product, congrats, color, size, type) as large tappable cards with progress dots. After type selection, hands off to the Simple Wizard for the remaining QR-specific flow. All wizard tiers are always visible in nav tabs (unlock system bypassed for testing).
 - **Authentication**: Exclusively uses Firebase Authentication.
 - **Nexus Self-Healing System**: Client-side self-healing with automatic retry logic, error capture, and an admin debugging console.
