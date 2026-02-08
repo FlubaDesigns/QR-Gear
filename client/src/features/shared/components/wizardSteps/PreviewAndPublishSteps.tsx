@@ -1,0 +1,860 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Package,
+  QrCode,
+  Eye,
+  Send,
+  Loader2,
+  Layers,
+} from "lucide-react";
+import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
+import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
+import {
+  type QRType,
+  type GraphicSize,
+  type PlacementOption,
+  type GraphicLocation,
+  type TextLayoutChoice,
+  type ProductItem,
+  QR_TYPES,
+  SHIRT_COLORS,
+} from "./wizardTypes";
+
+const LANDING_TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const LANDING_TEXT_SIZES = [
+  { id: 'sm', label: 'S', value: '14px' },
+  { id: 'md', label: 'M', value: '18px' },
+  { id: 'lg', label: 'L', value: '24px' },
+  { id: 'xl', label: 'XL', value: '32px' }
+];
+const LANDING_TEXT_FONTS = [
+  { id: 'sans', label: 'Clean', family: 'Arial' },
+  { id: 'serif', label: 'Classic', family: 'Georgia' },
+  { id: 'mono', label: 'Tech', family: 'Courier New' },
+  { id: 'display', label: 'Bold', family: 'Impact' }
+];
+
+function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
+  const sizeMap: Record<string, number> = { '12px': 2.5, '18px': 3.5, '24px': 4.5 };
+  const baseSvgSize = sizeMap[baseSize] || 3.5;
+  const maxCharsPerLine = 20;
+
+  if (!text) return { lines: [''], fontSize: baseSvgSize };
+
+  let lines: string[];
+  const hasNewline = text.includes('\n');
+  if (hasNewline) {
+    lines = text.split('\n').slice(0, 2);
+  } else if (text.length > maxCharsPerLine) {
+    const mid = Math.ceil(text.length / 2);
+    const spaceIdx = text.lastIndexOf(' ', mid);
+    const breakAt = spaceIdx > 0 ? spaceIdx : maxCharsPerLine;
+    lines = [text.slice(0, breakAt).trim(), text.slice(breakAt).trim()];
+  } else {
+    lines = [text];
+  }
+
+  const longestLine = Math.max(...lines.map(l => l.length), 1);
+  let effectiveSize = baseSvgSize;
+  if (longestLine > 8) {
+    effectiveSize = baseSvgSize * Math.max(0.5, 8 / longestLine);
+  }
+
+  return { lines, fontSize: Math.round(effectiveSize * 100) / 100 };
+}
+
+export function ShirtPreviewStep({
+  selectedColor,
+  graphicLocation,
+  graphicSize,
+  headerStyle,
+  footerStyle,
+  textLayoutChoice,
+  selectedPlacements = []
+}: {
+  selectedColor: string;
+  graphicLocation: GraphicLocation;
+  graphicSize: GraphicSize;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  textLayoutChoice: TextLayoutChoice;
+  selectedPlacements?: PlacementOption[];
+}) {
+  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
+  const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+  
+  const hasFrontPlacement = selectedPlacements.includes('front') || selectedPlacements.includes('left_chest');
+  const hasBackPlacement = selectedPlacements.includes('back');
+  const hasLeftSleeve = selectedPlacements.includes('sleeve_left');
+  const hasRightSleeve = selectedPlacements.includes('sleeve_right');
+  
+  const getGraphicDimensions = () => {
+    const sizeKey = graphicSize || 'medium';
+    const sizes: Record<string, { w: number; h: number }> = {
+      small: { w: 22, h: 30 },
+      medium: { w: 33, h: 44 },
+      large: { w: 41, h: 52 }
+    };
+    return sizes[sizeKey] || sizes.medium;
+  };
+  
+  const graphicDims = getGraphicDimensions();
+  const isLeftChest = graphicLocation === 'left-chest';
+  const graphicX = isLeftChest ? 77 : 90;
+  const graphicY = isLeftChest ? 68 : 79;
+  
+  const qrHeight = graphicDims.h * 0.25;
+  const qrWidth = qrHeight;
+  const qrY = graphicY - qrHeight / 2;
+  const headerZoneTop = graphicY - graphicDims.h / 2 + 2;
+  const headerZoneBottom = qrY - 2;
+  const footerZoneTop = qrY + qrHeight + 2;
+  const footerZoneBottom = graphicY + graphicDims.h / 2 - 2;
+
+  const headerAutoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', graphicDims.w);
+  const footerAutoText = calculateAutoTextSize(footerStyle.text || '', footerStyle.fontSize || '18px', graphicDims.w);
+
+  const headerVOffset = headerStyle.verticalOffset ?? 50;
+  const headerHOffset = headerStyle.horizontalOffset ?? 50;
+  const headerTextY = Math.max(headerZoneTop + headerAutoText.fontSize * 0.8, Math.min(headerZoneBottom - (headerAutoText.lines.length > 1 ? headerAutoText.fontSize : 0), headerZoneTop + ((headerZoneBottom - headerZoneTop) * (headerVOffset / 100))));
+  const headerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (headerHOffset / 100));
+
+  const footerVOffset = footerStyle.verticalOffset ?? 50;
+  const footerHOffset = footerStyle.horizontalOffset ?? 50;
+  const footerTextY = Math.max(footerZoneTop + footerAutoText.fontSize * 0.8, Math.min(footerZoneBottom - (footerAutoText.lines.length > 1 ? footerAutoText.fontSize : 0), footerZoneTop + ((footerZoneBottom - footerZoneTop) * (footerVOffset / 100))));
+  const footerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (footerHOffset / 100));
+
+  const ShirtFrontBackView = ({ view }: { view: 'front' | 'back' }) => (
+    <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
+      <path
+        d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+        fill={colorHex}
+        stroke="#444"
+        strokeWidth="2"
+      />
+      {view === 'back' && (
+        <path d="M75,37 Q90,42 105,37" fill="none" stroke="#444" strokeWidth="1.5"/>
+      )}
+      
+      {showHeader && headerAutoText.lines.map((line, i) => (
+        <text
+          key={`hdr-${i}`}
+          x={headerTextX}
+          y={headerTextY + i * (headerAutoText.fontSize + 1)}
+          textAnchor="middle"
+          fill={headerStyle.color || '#fff'}
+          fontSize={headerAutoText.fontSize}
+          fontFamily={headerStyle.fontFamily || 'Arial'}
+          fontWeight="bold"
+        >
+          {line}
+        </text>
+      ))}
+      <g transform={`translate(${graphicX - qrWidth / 2}, ${qrY})`}>
+        <rect width={qrWidth} height={qrHeight} fill="white" rx="1" />
+        <rect x={qrHeight * 0.08} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+        <rect x={qrWidth - qrHeight * 0.08 - qrHeight * 0.18} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+        <rect x={qrHeight * 0.08} y={qrHeight - qrHeight * 0.08 - qrHeight * 0.18} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
+        <rect x={qrWidth / 2 - qrHeight * 0.12} y={qrHeight * 0.38} width={qrHeight * 0.24} height={qrHeight * 0.24} fill="#333" />
+      </g>
+      {showFooter && footerAutoText.lines.map((line, i) => (
+        <text
+          key={`ftr-${i}`}
+          x={footerTextX}
+          y={footerTextY + i * (footerAutoText.fontSize + 1)}
+          textAnchor="middle"
+          fill={footerStyle.color || '#fff'}
+          fontSize={footerAutoText.fontSize}
+          fontFamily={footerStyle.fontFamily || 'Arial'}
+          fontWeight="bold"
+        >
+          {line}
+        </text>
+      ))}
+      <text x="90" y="200" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold">
+        {view === 'front' ? 'FRONT' : 'BACK'}
+      </text>
+    </svg>
+  );
+  
+  const LeftSleeveView = () => (
+    <svg viewBox="0 0 120 160" className="w-full h-full drop-shadow-xl">
+      <path d="M70,50 L70,150 L95,150 L95,50 Q82,38 70,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      <path d="M70,52 L20,65 L15,95 L22,98 L70,82" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      <path d="M70,50 Q62,42 70,35 Q82,28 95,35 Q103,42 95,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      <g transform="translate(32, 72) rotate(-10)">
+        <rect width="16" height="16" fill="white" rx="2"/>
+        <rect x="2" y="2" width="4" height="4" fill="#333"/>
+        <rect x="10" y="2" width="4" height="4" fill="#333"/>
+        <rect x="2" y="10" width="4" height="4" fill="#333"/>
+        <rect x="6" y="6" width="4" height="4" fill="#333"/>
+      </g>
+      <text x="60" y="155" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">LEFT SLEEVE</text>
+    </svg>
+  );
+  
+  const RightSleeveView = () => (
+    <svg viewBox="0 0 120 160" className="w-full h-full drop-shadow-xl">
+      <path d="M50,50 L50,150 L25,150 L25,50 Q38,38 50,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      <path d="M50,52 L100,65 L105,95 L98,98 L50,82" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      <path d="M50,50 Q58,42 50,35 Q38,28 25,35 Q17,42 25,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+      <g transform="translate(72, 72) rotate(10)">
+        <rect width="16" height="16" fill="white" rx="2"/>
+        <rect x="2" y="2" width="4" height="4" fill="#333"/>
+        <rect x="10" y="2" width="4" height="4" fill="#333"/>
+        <rect x="2" y="10" width="4" height="4" fill="#333"/>
+        <rect x="6" y="6" width="4" height="4" fill="#333"/>
+      </g>
+      <text x="60" y="155" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">RIGHT SLEEVE</text>
+    </svg>
+  );
+  
+  const views: { id: string; component: JSX.Element }[] = [];
+  if (hasFrontPlacement || (!hasBackPlacement && !hasLeftSleeve && !hasRightSleeve)) {
+    views.push({ id: 'front', component: <ShirtFrontBackView view="front" /> });
+  }
+  if (hasBackPlacement) {
+    views.push({ id: 'back', component: <ShirtFrontBackView view="back" /> });
+  }
+  if (hasLeftSleeve) {
+    views.push({ id: 'left-sleeve', component: <LeftSleeveView /> });
+  }
+  if (hasRightSleeve) {
+    views.push({ id: 'right-sleeve', component: <RightSleeveView /> });
+  }
+  
+  return (
+    <div className="text-center space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-1">Your Design Preview</h2>
+        <p className="text-slate-400 text-sm">Here's how your graphic will look</p>
+      </div>
+      
+      <div className={`flex justify-center items-start gap-2 ${views.length > 2 ? 'flex-wrap' : ''}`}>
+        {views.map(view => (
+          <div key={view.id} className={`${views.length === 1 ? 'w-56 h-64' : views.length === 2 ? 'w-44 h-52' : 'w-36 h-44'}`}>
+            {view.component}
+          </div>
+        ))}
+      </div>
+      
+      <p className="text-green-400 text-sm">Looking good! Proceed to create your URL.</p>
+    </div>
+  );
+}
+
+export function UrlCreationStep({
+  title,
+  description,
+  onTitleChange,
+  onDescriptionChange,
+  background,
+  titleVertical,
+  titleHorizontal,
+  titleColor,
+  titleSize,
+  titleFont,
+  descVertical,
+  descHorizontal,
+  descColor,
+  descSize,
+  descFont,
+  onTitleVerticalChange,
+  onTitleHorizontalChange,
+  onTitleColorChange,
+  onTitleSizeChange,
+  onTitleFontChange,
+  onDescVerticalChange,
+  onDescHorizontalChange,
+  onDescColorChange,
+  onDescSizeChange,
+  onDescFontChange
+}: {
+  title: string;
+  description: string;
+  onTitleChange: (title: string) => void;
+  onDescriptionChange: (description: string) => void;
+  background: string;
+  titleVertical: number;
+  titleHorizontal: number;
+  titleColor: string;
+  titleSize: string;
+  titleFont: string;
+  descVertical: number;
+  descHorizontal: number;
+  descColor: string;
+  descSize: string;
+  descFont: string;
+  onTitleVerticalChange: (v: number) => void;
+  onTitleHorizontalChange: (v: number) => void;
+  onTitleColorChange: (c: string) => void;
+  onTitleSizeChange: (s: string) => void;
+  onTitleFontChange: (f: string) => void;
+  onDescVerticalChange: (v: number) => void;
+  onDescHorizontalChange: (v: number) => void;
+  onDescColorChange: (c: string) => void;
+  onDescSizeChange: (s: string) => void;
+  onDescFontChange: (f: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-xl font-bold text-white mb-1">Create Your Landing Page</h2>
+        <p className="text-slate-400 text-sm">This is what people see when they scan your QR code</p>
+      </div>
+      
+      <div className="flex justify-center py-2">
+        <div className="relative w-44 h-72 rounded-3xl border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-black rounded-b-xl z-10" />
+          
+          <div className="w-full h-full relative">
+            {background ? (
+              <img 
+                src={background} 
+                alt="Landing page background" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-b from-slate-700 to-slate-900 flex items-center justify-center">
+                <span className="text-slate-500 text-xs">No background selected</span>
+              </div>
+            )}
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            
+            <div 
+              className="absolute w-full px-2 text-center"
+              style={{ 
+                bottom: `${titleVertical}%`,
+                left: `${titleHorizontal - 50}%`
+              }}
+            >
+              <h3 
+                className="font-bold truncate drop-shadow-lg"
+                style={{ 
+                  color: titleColor,
+                  fontSize: titleSize,
+                  fontFamily: titleFont
+                }}
+              >
+                {title || 'Your Title Here'}
+              </h3>
+            </div>
+            
+            <div 
+              className="absolute w-full px-2 text-center"
+              style={{ 
+                bottom: `${descVertical}%`,
+                left: `${descHorizontal - 50}%`
+              }}
+            >
+              <p 
+                className="line-clamp-2 drop-shadow-lg"
+                style={{ 
+                  color: descColor,
+                  fontSize: descSize,
+                  fontFamily: descFont
+                }}
+              >
+                {description || 'Add a description...'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="space-y-4 max-w-md mx-auto">
+        <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
+          <div>
+            <Label className="text-white text-sm font-medium">Title</Label>
+            <Input
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              placeholder="Give your creation a name..."
+              className="bg-slate-700 border-slate-600 text-white mt-1"
+              data-testid="input-url-title"
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Color:</span>
+              {LANDING_TEXT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => onTitleColorChange(color)}
+                  className={`w-5 h-5 rounded-full border-2 transition-all ${
+                    titleColor === color ? 'border-white scale-110' : 'border-slate-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  data-testid={`btn-title-color-${color}`}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Size:</span>
+              {LANDING_TEXT_SIZES.map((size) => (
+                <Button
+                  key={size.id}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onTitleSizeChange(size.value)}
+                  className={`h-5 px-2 text-xs ${titleSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
+                  data-testid={`btn-title-size-${size.id}`}
+                >
+                  {size.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Font:</span>
+              {LANDING_TEXT_FONTS.map((font) => (
+                <Button
+                  key={font.id}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onTitleFontChange(font.family)}
+                  style={{ fontFamily: font.family }}
+                  className={`h-5 px-2 text-xs ${titleFont === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
+                  data-testid={`btn-title-font-${font.id}`}
+                >
+                  {font.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Vertical: {titleVertical}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="90"
+                value={titleVertical}
+                onChange={(e) => onTitleVerticalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-title-vertical"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Horizontal: {titleHorizontal}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={titleHorizontal}
+                onChange={(e) => onTitleHorizontalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-title-horizontal"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
+          <div>
+            <Label className="text-white text-sm font-medium">Description</Label>
+            <Input
+              value={description}
+              onChange={(e) => onDescriptionChange(e.target.value)}
+              placeholder="What is this about?"
+              className="bg-slate-700 border-slate-600 text-white mt-1"
+              data-testid="input-url-description"
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Color:</span>
+              {LANDING_TEXT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => onDescColorChange(color)}
+                  className={`w-5 h-5 rounded-full border-2 transition-all ${
+                    descColor === color ? 'border-white scale-110' : 'border-slate-600'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  data-testid={`btn-desc-color-${color}`}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Size:</span>
+              {LANDING_TEXT_SIZES.map((size) => (
+                <Button
+                  key={size.id}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDescSizeChange(size.value)}
+                  className={`h-5 px-2 text-xs ${descSize === size.value ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
+                  data-testid={`btn-desc-size-${size.id}`}
+                >
+                  {size.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Font:</span>
+              {LANDING_TEXT_FONTS.map((font) => (
+                <Button
+                  key={font.id}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDescFontChange(font.family)}
+                  style={{ fontFamily: font.family }}
+                  className={`h-5 px-2 text-xs ${descFont === font.family ? 'border-orange-500 text-orange-400 font-semibold' : ''}`}
+                  data-testid={`btn-desc-font-${font.id}`}
+                >
+                  {font.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Vertical: {descVertical}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="90"
+                value={descVertical}
+                onChange={(e) => onDescVerticalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-desc-vertical"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-400 text-xs">
+                Horizontal: {descHorizontal}%
+              </Label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={descHorizontal}
+                onChange={(e) => onDescHorizontalChange(Number(e.target.value))}
+                className="w-full h-6 accent-green-500 cursor-pointer"
+                style={{ touchAction: 'none' }}
+                data-testid="slider-desc-horizontal"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PhoneMockupWithQR({ 
+  background, 
+  headerText,
+  footerText,
+  headerStyle,
+  footerStyle,
+  qrCodeUrl
+}: { 
+  background: string;
+  headerText?: string;
+  footerText?: string;
+  headerStyle?: TextStyleConfig;
+  footerStyle?: TextStyleConfig;
+  qrCodeUrl?: string;
+}) {
+  const getFontSize = (size: string) => {
+    if (size === '12px' || size === 'sm') return '12px';
+    if (size === '24px' || size === 'lg') return '20px';
+    return '16px';
+  };
+
+  return (
+    <div className="relative mx-auto" style={{ width: '180px' }}>
+      <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
+        <div className="aspect-[9/19] relative">
+          {background && (
+            <img 
+              src={background} 
+              alt="Background" 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
+            {headerText && headerStyle?.enabled && (
+              <div 
+                className="text-center mb-2 px-1 max-w-full"
+                style={{
+                  color: headerStyle.color || '#ffffff',
+                  fontSize: getFontSize(headerStyle.fontSize),
+                  fontFamily: headerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(headerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {headerText}
+              </div>
+            )}
+            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {qrCodeUrl ? (
+                <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+              ) : (
+                <QrCode className="w-12 h-12 text-slate-800" />
+              )}
+            </div>
+            {footerText && footerStyle?.enabled && (
+              <div 
+                className="text-center mt-2 px-1 max-w-full"
+                style={{
+                  color: footerStyle.color || '#ffffff',
+                  fontSize: getFontSize(footerStyle.fontSize),
+                  fontFamily: footerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(footerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {footerText}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PhoneMockup({ 
+  background, 
+  headerText,
+  footerText,
+  headerStyle,
+  footerStyle,
+  className = ""
+}: { 
+  background: string;
+  headerText?: string;
+  footerText?: string;
+  headerStyle?: TextStyleConfig;
+  footerStyle?: TextStyleConfig;
+  className?: string;
+}) {
+  const getFontSize = (size: string) => {
+    if (size === '12px' || size === 'sm') return '10px';
+    if (size === '24px' || size === 'lg') return '16px';
+    return '12px';
+  };
+
+  return (
+    <div className={`relative mx-auto ${className}`} style={{ width: '160px' }}>
+      <div className="relative rounded-[1.5rem] border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-slate-700 rounded-full z-10" />
+        <div className="aspect-[9/19] relative">
+          {background && (
+            <img 
+              src={background} 
+              alt="Background" 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
+            {headerText && headerStyle?.enabled && (
+              <div 
+                className="text-center mb-1 px-1 max-w-full"
+                style={{
+                  color: headerStyle.color || '#ffffff',
+                  fontSize: getFontSize(headerStyle.fontSize),
+                  fontFamily: headerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(headerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {headerText}
+              </div>
+            )}
+            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+              <QrCode className="w-9 h-9 text-slate-800" />
+            </div>
+            {footerText && footerStyle?.enabled && (
+              <div 
+                className="text-center mt-1 px-1 max-w-full"
+                style={{
+                  color: footerStyle.color || '#ffffff',
+                  fontSize: getFontSize(footerStyle.fontSize),
+                  fontFamily: footerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(footerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {footerText}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PreviewStep({ 
+  product, 
+  qrType,
+  headerStyle,
+  footerStyle,
+  background
+}: { 
+  product: ProductItem | null;
+  qrType: QRType;
+  headerStyle: TextStyleConfig;
+  footerStyle: TextStyleConfig;
+  background: string;
+}) {
+  const showGraphicPreview = qrType === 'qr-plus' || qrType === 'qr-canvas' || qrType === 'qr-play';
+  
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h2 className="text-lg font-bold text-white mb-2">Preview Your Creation</h2>
+        <p className="text-slate-400">Review before publishing to your store</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-slate-300">Product</p>
+          <div className="aspect-square bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700">
+            {product?.thumbnailUrl ? (
+              <img 
+                src={product.thumbnailUrl} 
+                alt={product.name}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="text-center">
+                <Package className="w-16 h-16 text-slate-600 mx-auto mb-2" />
+                <p className="text-slate-500 text-sm">{product?.name || 'No product'}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-slate-300">QR Graphic</p>
+          <div className="flex justify-center">
+            {showGraphicPreview ? (
+              <GraphicPreviewView
+                backgroundColor={background ? undefined : '#1a1a2e'}
+                backgroundImage={background || undefined}
+                headerStyle={headerStyle}
+                footerStyle={footerStyle}
+                showQRCode={true}
+                aspectRatio="square"
+              />
+            ) : (
+              <div className="w-48 h-48 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700">
+                <QrCode className="w-16 h-16 text-slate-600" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-slate-400">Product</p>
+              <p className="text-white font-medium">{product?.name || 'Not selected'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400">QR Type</p>
+              <p className="text-white font-medium">{QR_TYPES.find(t => t.id === qrType)?.label || qrType}</p>
+            </div>
+            {(headerStyle.enabled || footerStyle.enabled) && (
+              <div>
+                <p className="text-xs text-slate-400">Text Lines</p>
+                <p className="text-white font-medium">
+                  {[headerStyle.enabled && 'Header', footerStyle.enabled && 'Footer'].filter(Boolean).join(' + ')}
+                </p>
+              </div>
+            )}
+            {background && (
+              <div>
+                <p className="text-xs text-slate-400">Background</p>
+                <Badge className="bg-purple-600/20 text-purple-400">Custom Image</Badge>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function PublishStep({ 
+  isPublishing,
+  onPublish,
+  selectedChannel
+}: { 
+  isPublishing: boolean;
+  onPublish: () => void;
+  selectedChannel: { id: string; name: string } | null;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h2 className="text-xl font-bold text-white mb-2">Ready to Publish!</h2>
+        <p className="text-slate-400">Your product will be added to your channel</p>
+      </div>
+
+      <div className="max-w-md mx-auto space-y-4">
+        <div className="p-4 bg-slate-800/50 border border-slate-600 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-500">
+              <Layers className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-400">Publishing to</p>
+              <p className="text-lg font-medium text-white">{selectedChannel?.name || 'Unknown Channel'}</p>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          onClick={onPublish}
+          disabled={isPublishing || !selectedChannel}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+          data-testid="button-publish"
+        >
+          {isPublishing ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Publishing...
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4 mr-2" />
+              Publish Item
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
