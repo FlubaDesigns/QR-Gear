@@ -311,6 +311,52 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
         </CardContent>
       </Card>
 
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-white flex items-center gap-2">
+            <Wand2 className="w-5 h-5" />
+            Create a Product
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button
+              onClick={() => onStartWizard('super-simple')}
+              className="p-5 bg-gradient-to-br from-emerald-900/40 to-green-900/40 rounded-lg border border-emerald-500/30 hover:border-emerald-400/60 transition-all text-left group"
+              data-testid="launch-super-simple"
+            >
+              <div className="w-12 h-12 mb-3 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-emerald-400" />
+              </div>
+              <h3 className="font-bold text-white text-lg mb-1">Super Simple</h3>
+              <p className="text-sm text-slate-400">Tap through cards to build your product. Easiest way to start.</p>
+            </button>
+            <button
+              onClick={() => onStartWizard('simple')}
+              className="p-5 bg-gradient-to-br from-blue-900/40 to-indigo-900/40 rounded-lg border border-blue-500/30 hover:border-blue-400/60 transition-all text-left group"
+              data-testid="launch-simple"
+            >
+              <div className="w-12 h-12 mb-3 bg-blue-500/20 rounded-full flex items-center justify-center">
+                <Wand2 className="w-6 h-6 text-blue-400" />
+              </div>
+              <h3 className="font-bold text-white text-lg mb-1">Simple Wizard</h3>
+              <p className="text-sm text-slate-400">Step-by-step guided experience with all the options.</p>
+            </button>
+            <button
+              onClick={() => onStartWizard('advanced')}
+              className="p-5 bg-gradient-to-br from-purple-900/40 to-violet-900/40 rounded-lg border border-purple-500/30 hover:border-purple-400/60 transition-all text-left group"
+              data-testid="launch-advanced"
+            >
+              <div className="w-12 h-12 mb-3 bg-purple-500/20 rounded-full flex items-center justify-center">
+                <Layers className="w-6 h-6 text-purple-400" />
+              </div>
+              <h3 className="font-bold text-white text-lg mb-1">Advanced</h3>
+              <p className="text-sm text-slate-400">Dense 8-step builder with full control over every detail.</p>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
       {channelCount > 0 && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -2128,6 +2174,16 @@ function MembersSandboxContent() {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => { setViewMode('wizard'); setWizardTier('super-simple'); }}
+                data-testid="tab-super-simple"
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                Super Simple
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => { setViewMode('wizard'); setWizardTier('simple'); }}
                 data-testid="tab-simple"
                 className="text-white/70 hover:text-white hover:bg-white/10"
@@ -2135,30 +2191,26 @@ function MembersSandboxContent() {
                 <Wand2 className="w-4 h-4 mr-1" />
                 Quick Create
               </Button>
-              {unlockedTiers.advanced && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setViewMode('wizard'); setWizardTier('advanced'); }}
-                  data-testid="tab-advanced"
-                  className="text-white/70 hover:text-white hover:bg-white/10"
-                >
-                  <Layers className="w-4 h-4 mr-1" />
-                  Advanced
-                </Button>
-              )}
-              {unlockedTiers.studio && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setViewMode('wizard'); setWizardTier('studio'); }}
-                  data-testid="tab-studio"
-                  className="text-white/70 hover:text-white hover:bg-white/10"
-                >
-                  <Zap className="w-4 h-4 mr-1" />
-                  Studio
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setViewMode('wizard'); setWizardTier('advanced'); }}
+                data-testid="tab-advanced"
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                <Layers className="w-4 h-4 mr-1" />
+                Advanced
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setViewMode('wizard'); setWizardTier('studio'); }}
+                data-testid="tab-studio"
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                <Zap className="w-4 h-4 mr-1" />
+                Studio
+              </Button>
               <Button
                 variant={viewMode === 'channels' ? 'default' : 'ghost'}
                 size="sm"
@@ -3394,6 +3446,154 @@ function MembersSandboxContent() {
                   </Button>
                 </div>
               </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {viewMode === 'wizard' && wizardTier === 'super-simple' && (
+          <div className="space-y-4">
+            <Card className="bg-slate-800/50 border-slate-700 min-h-[500px] flex flex-col">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (simpleStep === 'channel') {
+                        setViewMode('index');
+                        setWizardTier('simple');
+                      } else {
+                        const steps: SimpleWizardStep[] = ['channel', 'product', 'product-congrats', 'color', 'size', 'type'];
+                        const idx = steps.indexOf(simpleStep);
+                        if (idx > 0) setSimpleStep(steps[idx - 1]);
+                      }
+                    }}
+                    className="text-white/70 hover:text-white"
+                    data-testid="super-simple-back"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                  <p className="text-sm text-emerald-400 font-medium flex items-center gap-1">
+                    <Sparkles className="w-4 h-4" />
+                    Super Simple
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setViewMode('index'); }}
+                  className="text-white/50 hover:text-white"
+                  data-testid="super-simple-close"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </CardHeader>
+
+              <div className="flex justify-center gap-1.5 px-4 pb-3">
+                {['channel', 'product', 'color', 'size', 'type'].map((step) => {
+                  const steps: SimpleWizardStep[] = ['channel', 'product', 'product-congrats', 'color', 'size', 'type'];
+                  const currentIdx = steps.indexOf(simpleStep);
+                  const stepIdx = step === 'product' ? 1 : step === 'color' ? 3 : step === 'size' ? 4 : step === 'type' ? 5 : 0;
+                  return (
+                    <div
+                      key={step}
+                      className={`h-2 rounded-full transition-all ${
+                        currentIdx >= stepIdx ? 'bg-emerald-400 w-8' : 'bg-slate-600 w-4'
+                      }`}
+                      data-testid={`dot-${step}`}
+                    />
+                  );
+                })}
+              </div>
+
+              <CardContent className="flex-1 p-6">
+                {simpleStep === 'channel' && user && (
+                  <ChannelStep
+                    selectedChannel={selectedChannel}
+                    onSelect={setSelectedChannel}
+                    memberId={user.id}
+                    isCreatingChannel={isCreatingChannel}
+                    setIsCreatingChannel={setIsCreatingChannel}
+                    newChannelName={newChannelName}
+                    setNewChannelName={setNewChannelName}
+                  />
+                )}
+                {simpleStep === 'product' && (
+                  <ProductPickerStep
+                    selectedProduct={selectedProductType}
+                    onSelect={handleProductSelect}
+                  />
+                )}
+                {simpleStep === 'product-congrats' && selectedProductType && (
+                  <ProductCongratsStep
+                    productName={selectedProductType.title}
+                    earnings={selectedProductType.memberEarnings || 0}
+                  />
+                )}
+                {simpleStep === 'color' && (
+                  <ColorPickerStep
+                    selectedColor={selectedColor}
+                    onSelect={setSelectedColor}
+                  />
+                )}
+                {simpleStep === 'size' && (() => {
+                  const sizeEarningsBonuses = calculateSizeEarningsBonuses(
+                    pricingSettings?.sizeUpcharges,
+                    pricingSettings?.memberProfitShare || 0.25
+                  );
+                  return (
+                    <SizePickerStep
+                      selectedSize={selectedShirtSize}
+                      selectedColor={selectedColor}
+                      baseEarnings={runningEarnings}
+                      sizeEarningsBonuses={sizeEarningsBonuses}
+                      selectedPlacements={selectedPlacements}
+                      onSelect={setSelectedShirtSize}
+                    />
+                  );
+                })()}
+                {simpleStep === 'type' && (
+                  <TypePickerStep
+                    selectedType={qrType}
+                    onSelect={setQrType}
+                  />
+                )}
+              </CardContent>
+
+              <div className="p-4 pt-0">
+                <Button
+                  onClick={() => {
+                    const steps: SimpleWizardStep[] = ['channel', 'product', 'product-congrats', 'color', 'size', 'type'];
+                    const idx = steps.indexOf(simpleStep);
+                    if (simpleStep === 'type' && qrType) {
+                      setWizardTier('simple');
+                    } else if (idx < steps.length - 1) {
+                      setSimpleStep(steps[idx + 1]);
+                    }
+                  }}
+                  disabled={(() => {
+                    switch (simpleStep) {
+                      case 'channel': return !selectedChannel;
+                      case 'product': return !selectedProductType;
+                      case 'product-congrats': return false;
+                      case 'color': return !selectedColor;
+                      case 'size': return !selectedShirtSize;
+                      case 'type': return !qrType;
+                      default: return true;
+                    }
+                  })()}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-6 text-lg font-semibold"
+                  data-testid="super-simple-next"
+                >
+                  {simpleStep === 'type' ? (
+                    <>Continue to Details <ArrowRight className="w-5 h-5 ml-2" /></>
+                  ) : simpleStep === 'product-congrats' ? (
+                    <>Nice! Pick a Color <ArrowRight className="w-5 h-5 ml-2" /></>
+                  ) : (
+                    <>Next <ArrowRight className="w-5 h-5 ml-2" /></>
+                  )}
+                </Button>
+              </div>
             </Card>
           </div>
         )}
