@@ -2462,7 +2462,7 @@ function HeaderTextEditStep({
   };
   const outlineSize = getOutlineSize();
 
-  const qrHeight = outlineSize.h * 0.35;
+  const qrHeight = outlineSize.h * 0.25;
   const qrWidth = qrHeight;
   const qrY = graphicY - qrHeight / 2;
   const headerZoneTop = graphicY - outlineSize.h / 2 + 2;
@@ -2672,7 +2672,7 @@ function FooterTextEditStep({
   };
   const outlineSize = getOutlineSize();
 
-  const qrHeight = outlineSize.h * 0.35;
+  const qrHeight = outlineSize.h * 0.25;
   const qrWidth = qrHeight;
   const qrY = graphicY - qrHeight / 2;
   const footerZoneTop = qrY + qrHeight + 2;
