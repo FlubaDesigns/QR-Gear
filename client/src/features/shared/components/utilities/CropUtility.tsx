@@ -270,7 +270,7 @@ export function CropUtility({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[95vw] w-auto max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>{title} {!showUploadUI && `(${aspectLabel} ratio)`}</DialogTitle>
         </DialogHeader>
