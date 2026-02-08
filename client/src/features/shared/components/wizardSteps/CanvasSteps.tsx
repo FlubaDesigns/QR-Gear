@@ -283,7 +283,12 @@ export function SimpleBackgroundStep({
       const data = await res.json();
       if (data.asset) {
         setSelectedAsset(data.asset);
-        setShowCrop(true);
+        if (isAlready916(data.asset)) {
+          onBackgroundSelected(data.asset.publicUrl, data.asset.publicUrl, false);
+          onComplete();
+        } else {
+          setSubStep('full-or-crop');
+        }
       }
     } catch (error) {
       toast({ title: "Upload failed", variant: "destructive" });
@@ -300,7 +305,14 @@ export function SimpleBackgroundStep({
       onBackgroundSelected(asset.publicUrl, asset.publicUrl, false);
       onComplete();
     } else {
-      setShowCrop(true);
+      setSubStep('full-or-crop');
+    }
+  };
+
+  const handleUseFullImage = () => {
+    if (selectedAsset) {
+      onBackgroundSelected(selectedAsset.publicUrl, selectedAsset.publicUrl, false);
+      onComplete();
     }
   };
   
@@ -661,6 +673,60 @@ export function SimpleBackgroundStep({
               Go Back
             </Button>
           </div>
+        </div>
+      )}
+
+      {subStep === 'full-or-crop' && selectedAsset && (
+        <div className="text-center space-y-6 animate-in fade-in duration-500">
+          <div>
+            <h2 className="text-lg font-bold text-white mb-2">Use Full Image or Crop?</h2>
+            <p className="text-slate-400">You can use your image as-is, or crop it to fit a 9:16 mobile screen</p>
+          </div>
+
+          <div className="max-w-xs mx-auto">
+            <div className="aspect-[9/16] max-h-48 rounded-lg overflow-hidden border-2 border-slate-600 mx-auto w-fit">
+              <img
+                src={selectedAsset.thumbnailUrl || selectedAsset.publicUrl}
+                alt={selectedAsset.name}
+                className="h-full w-auto object-contain"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-8"
+              onClick={handleUseFullImage}
+              data-testid="button-use-full-image"
+            >
+              <ImagePlus className="w-5 h-5 mr-2" />
+              Use Full Image
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-slate-500 text-slate-300 px-8"
+              onClick={() => setShowCrop(true)}
+              data-testid="button-crop-image"
+            >
+              <Crop className="w-5 h-5 mr-2" />
+              Crop It
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            className="text-slate-400"
+            onClick={() => {
+              setSelectedAsset(null);
+              setSubStep('choice');
+            }}
+            data-testid="button-full-or-crop-back"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Pick a Different Image
+          </Button>
         </div>
       )}
 
