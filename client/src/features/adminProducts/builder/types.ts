@@ -1,3 +1,5 @@
+import type { PlacementSize as _PlacementSize, PlacementConfig as _PlacementConfig, PlacementSizeConfig as _PlacementSizeConfig } from "@/features/shared/placementTypes";
+
 export type SourceType = "custom" | "product_template" | "graphic_template" | "background" | null;
 
 export interface LoadedTemplate {
@@ -185,7 +187,7 @@ export {
 // Size scaling for different placement areas
 // Front/Back have more dramatic size differences
 // Sleeve/Shoulder have more gradual/subtle differences
-export const PLACEMENT_SIZE_SCALES: Record<string, Record<PlacementSize, number>> = {
+export const PLACEMENT_SIZE_SCALES: Record<string, Record<_PlacementSize, number>> = {
   // Large areas - more dramatic differences
   "front-chest": { small: 0.6, medium: 0.8, large: 1.0 },
   "front-center": { small: 0.6, medium: 0.8, large: 1.0 },
@@ -271,6 +273,6 @@ export interface BuilderState {
   qrProductState: QRProductState;
   content: ContentData;
   selectedPlacements: string[];  // Now supports dynamic API placements
-  placementConfig: PlacementConfig;
-  placementSizes: PlacementSizeConfig;
+  placementConfig: _PlacementConfig;
+  placementSizes: _PlacementSizeConfig;
 }
