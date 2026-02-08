@@ -45,6 +45,9 @@ The storefront prioritizes lifestyle mockups. Product pricing is displayed to cu
 - **Authentication**: Exclusively uses Firebase Authentication.
 - **Nexus Self-Healing System**: Client-side self-healing with automatic retry logic, error capture, and an admin debugging console.
 - **NexusMail Email System**: A portable, self-healing, queue-first, idempotent, provider-agnostic email system.
+- **Printify Cost Lookup** (`server/lib/printify-cost-lookup.ts`): Creates a temporary product in Printify to extract real per-variant manufacturing costs, then deletes it. Used at packet publish time to build a `pricingSnapshot`.
+- **Pricing Snapshot Architecture**: At packet save time, the server looks up actual Printify costs per variant/size, calculates retail price, member earnings, admin margins, and stores the full breakdown in the packet's `pricingSnapshot` field. Admin-only fields: `printifyCostVariants`, `printifySizeUpcharges`, `adminMarginBase`, `earningsBySize`. Member-visible: `memberEarningsRange` (min/max across sizes).
+- **Order-Time Cost Tracking**: When orders are created, the actual Printify cost for the selected size is read from the packet's `pricingSnapshot` and logged on the order item as `actualPrintifyCost`, `memberEarningsActual`, and `adminMarginActual`.
 
 ### Feature Specifications
 - **Product Management**: Admins manage products, set retail prices, and control visibility.
