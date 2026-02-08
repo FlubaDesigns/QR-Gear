@@ -72,7 +72,7 @@ export type QRProductState =
   | "qr_plus"      // Permanent + Messaging - QR with header/footer text
   | "qr_canvas"    // Visual Space - Custom image your QR opens to
   | "qr_play"      // Motion - Video that plays when QR is scanned
-  | "qr_dynamics"  // Living Space - Dynamic content that changes over time
+  | "qr_compose"   // Living Space - Rotating playlist of Canvas/Play items
   | null;
 
 export const QR_PRODUCT_STATES = [
@@ -80,7 +80,7 @@ export const QR_PRODUCT_STATES = [
   { id: "qr_plus", label: "QR Plus", state: "Permanent + Messaging", description: "Add a message above and below your QR. Perfect for calls-to-action." },
   { id: "qr_canvas", label: "QR Canvas", state: "Visual Space", description: "Design a custom image your QR opens to. Your QR Space. Your visual." },
   { id: "qr_play", label: "QR Play", state: "Motion", description: "Bring your QR to life with video. Plays instantly in your QR Space." },
-  { id: "qr_dynamics", label: "QR Dynamics™", state: "Living Space", description: "Content that changes over time. Scheduled updates, rotating content." },
+  { id: "qr_compose", label: "QR Compose", state: "Living Space", description: "Build a rotating playlist from your Canvas and Play items. Your living QR experience." },
 ] as const;
 
 export interface TextStyleConfig {

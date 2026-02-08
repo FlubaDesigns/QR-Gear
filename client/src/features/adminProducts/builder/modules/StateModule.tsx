@@ -1,9 +1,6 @@
-import { useMemo } from "react";
-import { QrCode, Type, ExternalLink, Sparkles, Package, ArrowRight } from "lucide-react";
-import { Link } from "wouter";
+import { QrCode, Type, ExternalLink, Sparkles, Package } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { QR_PRODUCT_STATES } from "../types";
 import { ProductsModule } from "./ProductsModule";
@@ -14,20 +11,11 @@ const STATE_ICONS: Record<string, typeof QrCode> = {
   qr_plus: Type,
   qr_canvas: ExternalLink,
   qr_play: Sparkles,
-  qr_dynamics: Sparkles,
+  qr_compose: Sparkles,
 };
 
 export function StateModule() {
-  const { state, setQRProductState, selectedStore, selectedChannel } = useBuilderContext();
-
-  // Build dynamics URL with store/channel params if available
-  const dynamicsUrl = useMemo(() => {
-    const params = new URLSearchParams();
-    if (selectedStore?.id) params.set("storeId", selectedStore.id);
-    if (selectedChannel?.name) params.set("channel", selectedChannel.name);
-    const queryString = params.toString();
-    return queryString ? `/test-dynamics?${queryString}` : "/test-dynamics";
-  }, [selectedStore, selectedChannel]);
+  const { state, setQRProductState } = useBuilderContext();
 
   return (
     <CollapsibleModule
@@ -88,19 +76,10 @@ export function StateModule() {
               </div>
             )}
 
-            {state.qrProductState === "qr_dynamics" && (
-              <Link href={dynamicsUrl}>
-                <Button 
-                  variant="default" 
-                  size="lg" 
-                  className="w-full min-h-[48px] mt-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                  data-testid="button-dynamics-page"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Open Dynamics Builder
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-              </Link>
+            {state.qrProductState === "qr_compose" && (
+              <p className="text-sm text-muted-foreground mt-2" data-testid="text-compose-hint">
+                Compose flow will appear below after product selection.
+              </p>
             )}
           </div>
         )}

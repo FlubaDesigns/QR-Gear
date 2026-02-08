@@ -14,7 +14,7 @@ export function ProductGraphicTextModule() {
   const showGraphicText = state.qrProductState === "qr_plus" ||
                           state.qrProductState === "qr_canvas" || 
                           state.qrProductState === "qr_play" || 
-                          state.qrProductState === "qr_dynamics";
+                          state.qrProductState === "qr_compose";
 
   if (!showGraphicText || !state.selectedProduct || !state.content) {
     return null;

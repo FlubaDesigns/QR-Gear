@@ -701,7 +701,7 @@ export function CreateGraphicsModule() {
       }
 
       const baseUrl = window.location.origin;
-      const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_dynamics" || state.qrProductState === "qr_plus";
+      const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_compose" || state.qrProductState === "qr_plus";
       const finalQrContent = isLandingPageMode
         ? `${baseUrl}/m/${landingPageSlug}`
         : (state.content?.url || state.content?.title || "");
@@ -749,7 +749,7 @@ export function CreateGraphicsModule() {
 
       const mode = state.qrProductState === "qr_canvas" ? "canvas" : 
                    state.qrProductState === "qr_play" ? "play" :
-                   state.qrProductState === "qr_dynamics" ? "dynamics" : "basics";
+                   state.qrProductState === "qr_compose" ? "compose" : "basics";
       
       try {
         const uploadRes = await fetch(`${apiBase}/content/upload`, {
