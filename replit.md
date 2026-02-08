@@ -41,7 +41,7 @@ The storefront prioritizes lifestyle mockups. Product pricing is displayed to cu
 - **File Storage**: Exclusively uses Firebase Storage for all file assets, including a background image library with admin syncing and ZIP uploads.
 - **Admin Library Module**: A modular, tenant-aware feature set for managing backgrounds, templates, and images, located at `client/src/features/adminLibrary/`.
 - **Shared Utilities Pattern**: Employs a Viewer/View/Skin architecture for reusable UI components like `SkinGridViewer`, `CropUtility`, `ImageUploader`, and `LibraryBackgroundPicker`.
-- **Wizard Step Engines**: A set of shared, modular components (`client/src/features/shared/components/wizardSteps/`) that define the steps for product creation, graphic placement, QR setup, and publishing, used by Simple, Advanced, and Super Simple Wizards.
+- **Wizard Step Engines**: A set of shared, modular components (`client/src/features/shared/components/wizardSteps/`) that define the steps for product creation, graphic placement, QR setup, and publishing, used by Simple, Advanced, Super Simple Wizards, and the admin builder's ComposeContentModule.
 - **Wizard Modular Architecture** (Feb 2026): MembersPage.tsx was refactored from 3,661 lines into a clean modular architecture:
   - `WizardContext.tsx` (1,815 lines) - All shared wizard state (~100 useStates), pricing queries, API operations, navigation logic via React Context
   - `SuperSimpleWizard.tsx` (186 lines) - 6-step card flow with blackboard explainers, progress dots, handoff to Simple
@@ -65,7 +65,7 @@ The storefront prioritizes lifestyle mockups. Product pricing is displayed to cu
 - **Order Fulfillment Flow**: Integrates with Stripe for checkout, creates Firestore orders, enables admin review, and facilitates submission/status sync with Printify.
 - **Product Packet Architecture**: A `Product Packet` serves as the single source of truth for product configurations, linking to `Graphics` and `Template` entries, supporting a "fork-on-edit" pattern.
 - **Store Library Architecture**: An admin interface (`/admin/library`) for managing products linked to specific stores and channels.
-- **QR Compose Architecture**: Enables members to build rotating playlists from published Canvas/Play items, creating `qr_dynamics_instances` with time-based slot rotation and hosting terms.
+- **QR Compose Architecture**: Enables members and admins to build rotating playlists from published Canvas/Play items, creating `qr_dynamics_instances` with time-based slot rotation and hosting terms. The admin builder has an inline `ComposeContentModule` (`client/src/features/adminProducts/builder/modules/ComposeContentModule.tsx`) that uses shared `ComposeSteps` components. The type was renamed from `qr_dynamics` to `qr_compose` across the codebase (Feb 2026).
 - **Members Sandbox** (`/test-members`): A simplified product builder for authenticated members to create and sell products using admin-unlocked templates, offering Wizard and Power modes, member-scoped channels/collections, and an earnings dashboard.
 - **QR GEAR DUAL-PRODUCT ARCHITECTURE**: Comprises **QR COMPOSER** (member/creator tool for sellable QR merchandise templates) and **QR DYNAMICS** (buyer/owner app for controlling purchased instances post-sale).
 - **Three Surfaces (Resolver Engine)**: Supports IMAGE (Canvas), VIDEO (Play), and future DOCUMENT (PDF) based QR experiences.
