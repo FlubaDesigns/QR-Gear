@@ -41,7 +41,8 @@ The storefront prioritizes lifestyle mockups. Product pricing is displayed to cu
 - **File Storage**: Exclusively uses Firebase Storage for all file assets, including a background image library with admin syncing and ZIP uploads.
 - **Admin Library Module**: A modular, tenant-aware feature set for managing backgrounds, templates, and images, located at `client/src/features/adminLibrary/`.
 - **Shared Utilities Pattern**: Employs a Viewer/View/Skin architecture for reusable UI components like `SkinGridViewer`, `CropUtility`, `ImageUploader`, and `LibraryBackgroundPicker`.
-- **Wizard Step Engines**: A set of shared, modular components (`client/src/features/shared/components/wizardSteps/`) that define the steps for product creation, graphic placement, QR setup, and publishing, used by both Simple and Advanced Wizards.
+- **Wizard Step Engines**: A set of shared, modular components (`client/src/features/shared/components/wizardSteps/`) that define the steps for product creation, graphic placement, QR setup, and publishing, used by Simple, Advanced, and Super Simple Wizards.
+- **Super Simple Wizard**: A cards-based wizard (`wizardTier: 'super-simple'`) that presents the first 6 steps (channel, product, congrats, color, size, type) as large tappable cards with progress dots. After type selection, hands off to the Simple Wizard for the remaining QR-specific flow. All wizard tiers are always visible in nav tabs (unlock system bypassed for testing).
 - **Authentication**: Exclusively uses Firebase Authentication.
 - **Nexus Self-Healing System**: Client-side self-healing with automatic retry logic, error capture, and an admin debugging console.
 - **NexusMail Email System**: A portable, self-healing, queue-first, idempotent, provider-agnostic email system.
