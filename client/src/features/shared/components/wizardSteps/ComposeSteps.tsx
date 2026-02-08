@@ -17,7 +17,92 @@ import {
   Plus,
   ArrowRight,
   Zap,
+  Clock,
+  Smartphone,
 } from "lucide-react";
+
+export type ComposeMode = 'auto-rotate' | 'scan-to-reveal';
+
+export function ComposeModePicker({
+  selected,
+  onSelect,
+}: {
+  selected: ComposeMode | '';
+  onSelect: (mode: ComposeMode) => void;
+}) {
+  const modes = [
+    {
+      id: 'auto-rotate' as ComposeMode,
+      icon: Clock,
+      title: 'Auto-Rotate',
+      subtitle: 'Timed playlist',
+      description: 'Content cycles automatically on a schedule. Everyone scanning at the same moment sees the same thing.',
+      example: 'Morning = welcome image, Lunch = menu, Evening = promo video',
+      gradient: 'from-purple-500 to-blue-500',
+      borderActive: 'border-purple-400 ring-2 ring-purple-400/30 bg-purple-500/10',
+    },
+    {
+      id: 'scan-to-reveal' as ComposeMode,
+      icon: Smartphone,
+      title: 'Scan-to-Reveal',
+      subtitle: 'Sequential discovery',
+      description: 'Each person\'s scan shows the next item in your list. Tracked per device — every visitor gets their own journey.',
+      example: '1st scan = Item A, 2nd scan = Item B, 3rd scan = Item C, then loops',
+      gradient: 'from-amber-500 to-orange-500',
+      borderActive: 'border-amber-400 ring-2 ring-amber-400/30 bg-amber-500/10',
+    },
+  ];
+
+  return (
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center mb-5">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-3">
+          <Sparkles className="w-7 h-7 text-white" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-1">How should your QR rotate?</h2>
+        <p className="text-slate-400 text-sm">Choose how visitors experience your content</p>
+      </div>
+
+      <div className="flex flex-col gap-4 max-w-sm mx-auto">
+        {modes.map((mode) => {
+          const isSelected = selected === mode.id;
+          const Icon = mode.icon;
+          return (
+            <button
+              key={mode.id}
+              onClick={() => onSelect(mode.id)}
+              className={`relative p-5 rounded-xl border-2 transition-all text-left ${
+                isSelected
+                  ? mode.borderActive
+                  : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+              }`}
+              data-testid={`button-compose-mode-${mode.id}`}
+            >
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${mode.gradient} flex items-center justify-center flex-shrink-0`}>
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-white text-base">{mode.title}</h3>
+                  <p className="text-slate-400 text-xs mt-0.5">{mode.subtitle}</p>
+                  <p className="text-slate-300 text-sm mt-2 leading-relaxed">{mode.description}</p>
+                  <div className="mt-3 bg-slate-700/50 rounded-lg p-2.5">
+                    <p className="text-slate-400 text-xs italic">{mode.example}</p>
+                  </div>
+                </div>
+              </div>
+              {isSelected && (
+                <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const COMPOSE_DURATION_PRESETS = [
   { label: '1 hour', seconds: 3600 },
@@ -351,6 +436,7 @@ export function ComposePreviewStep({
   isLoadingMockup,
   selectedColor,
   selectedSize,
+  composeMode,
 }: {
   items: Array<{ packetId: string; name: string; thumbnailUrl: string; type: string; durationSeconds: number; order: number }>;
   hostingTerm: string;
@@ -358,14 +444,18 @@ export function ComposePreviewStep({
   isLoadingMockup: boolean;
   selectedColor: string;
   selectedSize: string;
+  composeMode?: ComposeMode;
 }) {
   const totalSeconds = items.reduce((acc, i) => acc + i.durationSeconds, 0);
+  const isScanMode = composeMode === 'scan-to-reveal';
   
   return (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center mb-4">
         <h2 className="text-lg font-bold text-white mb-1">QR Compose Summary</h2>
-        <p className="text-slate-400 text-sm">Review your rotating playlist</p>
+        <p className="text-slate-400 text-sm">
+          {isScanMode ? 'Review your scan-to-reveal sequence' : 'Review your rotating playlist'}
+        </p>
       </div>
 
       {isLoadingMockup ? (
@@ -381,13 +471,25 @@ export function ComposePreviewStep({
 
       <div className="space-y-2 bg-slate-800/50 rounded-xl p-3 border border-slate-700">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-400">Items in rotation</span>
-          <span className="text-white font-medium">{items.length}</span>
+          <span className="text-slate-400">Mode</span>
+          <span className="text-white font-medium flex items-center gap-1.5">
+            {isScanMode ? (
+              <><Smartphone className="w-3.5 h-3.5 text-amber-400" /> Scan-to-Reveal</>
+            ) : (
+              <><Clock className="w-3.5 h-3.5 text-purple-400" /> Auto-Rotate</>
+            )}
+          </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-400">Full cycle</span>
-          <span className="text-white font-medium">{formatComposeDuration(totalSeconds)}</span>
+          <span className="text-slate-400">{isScanMode ? 'Items in sequence' : 'Items in rotation'}</span>
+          <span className="text-white font-medium">{items.length}</span>
         </div>
+        {!isScanMode && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-400">Full cycle</span>
+            <span className="text-white font-medium">{formatComposeDuration(totalSeconds)}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between text-sm">
           <span className="text-slate-400">Product</span>
           <span className="text-white font-medium">{selectedColor} / {selectedSize}</span>
@@ -399,7 +501,9 @@ export function ComposePreviewStep({
       </div>
 
       <div className="mt-3 space-y-1">
-        <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Playlist</p>
+        <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">
+          {isScanMode ? 'Reveal Sequence' : 'Playlist'}
+        </p>
         {items.map((item, idx) => (
           <div key={item.packetId} className="flex items-center gap-2 p-2 bg-slate-800/30 rounded-lg">
             <span className="text-amber-400 text-xs font-bold w-5">{idx + 1}.</span>
@@ -407,7 +511,12 @@ export function ComposePreviewStep({
               {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
             </div>
             <span className="text-white text-sm flex-1 truncate">{item.name}</span>
-            <span className="text-slate-500 text-xs">{formatComposeDuration(item.durationSeconds)}</span>
+            {!isScanMode && (
+              <span className="text-slate-500 text-xs">{formatComposeDuration(item.durationSeconds)}</span>
+            )}
+            {isScanMode && (
+              <span className="text-slate-500 text-xs">Scan {idx + 1}</span>
+            )}
           </div>
         ))}
       </div>

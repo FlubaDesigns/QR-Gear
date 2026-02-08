@@ -9839,6 +9839,7 @@ ${allPages.map(page => `  <url>
           // QR Compose
           composeMockup: body.composeMockup || null,
           composeItems: body.composeItems || null,
+          composeMode: body.composeMode || 'auto-rotate',
           composeHostingTerm: body.composeHostingTerm || null,
           composeInstanceId: null,
           // Pricing
@@ -9861,6 +9862,7 @@ ${allPages.map(page => `  <url>
               createdAt: nowEpoch,
               startTimestamp: nowEpoch,
               mode: 'loop',
+              composeMode: body.composeMode || 'auto-rotate',
               hostingTerm: body.composeHostingTerm || '1-year',
               fallbackUrl: null,
               slots: body.composeItems.map((item: any, index: number) => ({
@@ -12256,7 +12258,47 @@ ${allPages.map(page => `  <url>
       // Sort by order
       const sortedSlots = [...slots].sort((a: any, b: any) => a.order - b.order);
 
-      // Time math
+      // SCAN-TO-REVEAL MODE: Serve a lightweight HTML page that tracks per-device progress via localStorage
+      if (instance.composeMode === 'scan-to-reveal') {
+        const slotPacketIds = sortedSlots.map((s: any) => s.packetId);
+        const packetSlugs: string[] = [];
+        
+        for (const pid of slotPacketIds) {
+          let pDoc = await firestoreDb.collection("productPackets").doc(pid).get();
+          if (!pDoc.exists) {
+            pDoc = await firestoreDb.collection("memberPackets").doc(pid).get();
+          }
+          const pData = pDoc.exists ? (pDoc.data() as any) : null;
+          packetSlugs.push(pData?.landingPageSlug || '');
+        }
+
+        const validSlugs = packetSlugs.filter(s => s !== '');
+        if (validSlugs.length === 0) {
+          if (instance.fallbackUrl) {
+            return res.redirect(302, instance.fallbackUrl);
+          }
+          return res.status(404).send("No content configured");
+        }
+
+        console.log(`[QR Dynamics] Scan-to-Reveal instance ${instanceId} with ${validSlugs.length} items`);
+
+        const slugsJson = JSON.stringify(validSlugs);
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Loading...</title></head><body><script>
+(function(){
+  var k='qr_str_'+${JSON.stringify(instanceId)};
+  var slugs=${slugsJson};
+  var idx=parseInt(localStorage.getItem(k)||'0',10);
+  if(isNaN(idx)||idx<0)idx=0;
+  var current=idx%slugs.length;
+  localStorage.setItem(k,String(idx+1));
+  window.location.replace('/p/'+slugs[current]);
+})();
+</script><noscript><p>JavaScript is required.</p></noscript></body></html>`;
+
+        return res.status(200).type('html').send(html);
+      }
+
+      // AUTO-ROTATE MODE: Time-based rotation (existing behavior)
       const nowEpoch = Math.floor(Date.now() / 1000);
       const elapsed = nowEpoch - instance.startTimestamp;
 

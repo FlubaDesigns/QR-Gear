@@ -83,7 +83,8 @@ import { QRBasicTypeStep, QRBasicInputStep, QRBasicMockupStep, QRBasicSaveChoice
 import { QRPlusMockupStep, QRPlusSaveChoiceStep, QRPlusConfirmStep } from "@/features/shared/components/wizardSteps/QRPlusSteps";
 import { QRCanvasExplainerStep, UrlSourceChoiceStep, SimpleBackgroundStep, QRCanvasSaveChoiceStep, QRCanvasConfirmStep, DetailsStep, SimplePreviewStep, SimplePublishStep } from "@/features/shared/components/wizardSteps/CanvasSteps";
 import { PlayVideoSourceStep, VideoPlayerWithFallback, PlayPreviewStep, PlayPublishStep, PlayPublishedStep } from "@/features/shared/components/wizardSteps/PlaySteps";
-import { ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
+import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
+import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import { ShirtPreviewStep, PhoneMockupWithQR, PhoneMockup, PreviewStep, PublishStep, UrlCreationStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
 
 interface MemberProduct {
@@ -789,6 +790,7 @@ function MembersSandboxContent() {
     durationSeconds: number;
     order: number;
   }>>([]);
+  const [composeMode, setComposeMode] = useState<ComposeMode | ''>('');
   const [composeHostingTerm, setComposeHostingTerm] = useState<'1-year' | '3-year' | '5-year' | ''>('');
   const [composeMockup, setComposeMockup] = useState<string>('');
   const [isGeneratingComposeMockup, setIsGeneratingComposeMockup] = useState(false);
@@ -1383,7 +1385,16 @@ function MembersSandboxContent() {
     // Handle QR Compose flow navigation
     if (simpleStep === 'compose-pick-items') {
       if (composeItems.length < 2) return;
-      setSimpleStep('compose-durations');
+      setSimpleStep('compose-mode');
+      return;
+    }
+    if (simpleStep === 'compose-mode') {
+      if (!composeMode) return;
+      if (composeMode === 'scan-to-reveal') {
+        setSimpleStep('compose-order');
+      } else {
+        setSimpleStep('compose-durations');
+      }
       return;
     }
     if (simpleStep === 'compose-durations') {
@@ -1421,6 +1432,7 @@ function MembersSandboxContent() {
       setSimpleStep('channel');
       setCurrentPacketId(null);
       setComposeItems([]);
+      setComposeMode('');
       setComposeHostingTerm('');
       setComposeMockup('');
       setComposeInstanceId(null);
@@ -1587,12 +1599,20 @@ function MembersSandboxContent() {
       setSimpleStep('canvas-fork');
       return;
     }
-    if (simpleStep === 'compose-durations') {
+    if (simpleStep === 'compose-mode') {
       setSimpleStep('compose-pick-items');
       return;
     }
+    if (simpleStep === 'compose-durations') {
+      setSimpleStep('compose-mode');
+      return;
+    }
     if (simpleStep === 'compose-order') {
-      setSimpleStep('compose-durations');
+      if (composeMode === 'scan-to-reveal') {
+        setSimpleStep('compose-mode');
+      } else {
+        setSimpleStep('compose-durations');
+      }
       return;
     }
     if (simpleStep === 'compose-hosting') {
@@ -1706,6 +1726,7 @@ function MembersSandboxContent() {
       case 'play-publish': return true;
       case 'play-save-choice': return true;
       case 'compose-pick-items': return composeItems.length >= 2;
+      case 'compose-mode': return composeMode !== '';
       case 'compose-durations': return true;
       case 'compose-order': return true;
       case 'compose-hosting': return composeHostingTerm !== '';
@@ -1858,6 +1879,7 @@ function MembersSandboxContent() {
         // QR Compose
         composeMockup: qrType === 'qr-compose' ? (composeMockup || null) : null,
         composeItems: qrType === 'qr-compose' ? composeItems : null,
+        composeMode: qrType === 'qr-compose' ? (composeMode || 'auto-rotate') : null,
         composeHostingTerm: qrType === 'qr-compose' ? (composeHostingTerm || null) : null,
         // Pricing breakdown
         textLines,
@@ -2200,7 +2222,7 @@ function MembersSandboxContent() {
                   if (['qr-basic-type', 'qr-basic-input', 'qr-basic-mockup', 'qr-basic-save-choice', 'qr-basic-confirm'].includes(simpleStep)) {
                     return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
                   }
-                  if (['compose-pick-items', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
+                  if (['compose-pick-items', 'compose-mode', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
                     return { label: 'QR Compose', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
                   }
                   return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
@@ -2880,6 +2902,13 @@ function MembersSandboxContent() {
                   <PlayPublishedStep />
                 )}
                 
+                {simpleStep === 'compose-mode' && (
+                  <ComposeModePicker
+                    selected={composeMode}
+                    onSelect={setComposeMode}
+                  />
+                )}
+
                 {simpleStep === 'compose-pick-items' && (
                   <ComposePickItemsStep
                     availableItems={publishedCanvasPlayItems}
@@ -2968,6 +2997,7 @@ function MembersSandboxContent() {
                     isLoadingMockup={isGeneratingComposeMockup}
                     selectedColor={selectedColor}
                     selectedSize={selectedShirtSize}
+                    composeMode={composeMode || 'auto-rotate'}
                   />
                 )}
 
