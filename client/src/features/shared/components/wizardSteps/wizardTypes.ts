@@ -354,3 +354,32 @@ export async function fetchProductMockup(
 export function generateQRCodeUrl(content: string, size: number = 1000): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=000000&bgcolor=ffffff`;
 }
+
+export function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
+  const sizeMap: Record<string, number> = { '12px': 2.5, '18px': 3.5, '24px': 4.5 };
+  const baseSvgSize = sizeMap[baseSize] || 3.5;
+  const maxCharsPerLine = 20;
+
+  if (!text) return { lines: [''], fontSize: baseSvgSize };
+
+  let lines: string[];
+  const hasNewline = text.includes('\n');
+  if (hasNewline) {
+    lines = text.split('\n').slice(0, 2);
+  } else if (text.length > maxCharsPerLine) {
+    const mid = Math.ceil(text.length / 2);
+    const spaceIdx = text.lastIndexOf(' ', mid);
+    const breakAt = spaceIdx > 0 ? spaceIdx : maxCharsPerLine;
+    lines = [text.slice(0, breakAt).trim(), text.slice(breakAt).trim()];
+  } else {
+    lines = [text];
+  }
+
+  const longestLine = Math.max(...lines.map(l => l.length), 1);
+  let effectiveSize = baseSvgSize;
+  if (longestLine > 8) {
+    effectiveSize = baseSvgSize * Math.max(0.5, 8 / longestLine);
+  }
+
+  return { lines, fontSize: Math.round(effectiveSize * 100) / 100 };
+}
