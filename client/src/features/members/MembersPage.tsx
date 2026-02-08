@@ -1705,7 +1705,9 @@ function MembersSandboxContent() {
       case 'qr-basic-type': return qrBasicInputType !== '';
       case 'qr-basic-input': {
         if (qrBasicContent.trim() === '') return false;
-        if (qrBasicInputType === 'url' && !isValidUrl(qrBasicContent)) return false;
+        if (qrBasicInputType === 'url') {
+          try { new URL(qrBasicContent); } catch { return false; }
+        }
         return true;
       }
       case 'qr-basic-mockup': return true;
@@ -3131,9 +3133,9 @@ function MembersSandboxContent() {
                   />
                 )}
                 {currentStep === 'product' && (
-                  <AdvancedProductPickerStep 
-                    selectedProduct={selectedProduct}
-                    onSelect={setSelectedProduct}
+                  <ProductPickerStep 
+                    selectedProduct={selectedProductType}
+                    onSelect={handleProductSelect}
                   />
                 )}
                 {currentStep === 'placement' && selectedProduct && (
