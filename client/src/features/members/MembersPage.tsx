@@ -86,6 +86,7 @@ import { PlayVideoSourceStep, VideoPlayerWithFallback, PlayPreviewStep, PlayPubl
 import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import { ShirtPreviewStep, PhoneMockupWithQR, PhoneMockup, PreviewStep, PublishStep, UrlCreationStep, UrlTitleStep, UrlDescriptionStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
+import { BlackboardPanel, DismissBlackboardsButton } from "@/features/shared/components/wizardSteps/BlackboardExplainer";
 
 interface MemberProduct {
   id: string;
@@ -3514,7 +3515,11 @@ function MembersSandboxContent() {
                 })}
               </div>
 
-              <CardContent className="flex-1 p-6">
+              <CardContent className="flex-1 p-6 pt-2">
+                {user && (
+                  <BlackboardPanel step={simpleStep} userId={user.id} />
+                )}
+
                 {simpleStep === 'channel' && user && (
                   <ChannelStep
                     selectedChannel={selectedChannel}
@@ -3565,6 +3570,12 @@ function MembersSandboxContent() {
                     selectedType={qrType}
                     onSelect={setQrType}
                   />
+                )}
+
+                {user && (
+                  <div className="flex justify-center mt-4">
+                    <DismissBlackboardsButton userId={user.id} />
+                  </div>
                 )}
               </CardContent>
 
