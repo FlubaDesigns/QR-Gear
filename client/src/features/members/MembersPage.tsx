@@ -85,7 +85,7 @@ import { QRCanvasExplainerStep, UrlSourceChoiceStep, SimpleBackgroundStep, QRCan
 import { PlayVideoSourceStep, VideoPlayerWithFallback, PlayPreviewStep, PlayPublishStep, PlayPublishedStep } from "@/features/shared/components/wizardSteps/PlaySteps";
 import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
-import { ShirtPreviewStep, PhoneMockupWithQR, PhoneMockup, PreviewStep, PublishStep, UrlCreationStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
+import { ShirtPreviewStep, PhoneMockupWithQR, PhoneMockup, PreviewStep, PublishStep, UrlCreationStep, UrlTitleStep, UrlDescriptionStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
 
 interface MemberProduct {
   id: string;
@@ -1697,7 +1697,8 @@ function MembersSandboxContent() {
       case 'url-explainer': return true;
       case 'url-source-choice': return libraryChoice !== '';
       case 'url-library-pick': return urlGraphic !== '';
-      case 'url-details': return simpleTitle.trim() !== '';
+      case 'url-title': return simpleTitle.trim() !== '';
+      case 'url-description': return true;
       case 'url-preview': return true;
       case 'url-publish': return true;
       // QR Basic flow
@@ -1938,7 +1939,40 @@ function MembersSandboxContent() {
       } else if (qrType === 'qr-canvas') {
         setPublishedQrGraphicUrl(result.qrGraphic || null);
         setPublishedProductGraphicUrl(result.productGraphic || null);
-        setSimpleStep('canvas-save-choice');
+        try {
+          const saveAuthHeaders = await getAuthHeaders();
+          const assetsToSave: { url: string; assetType: string; name: string }[] = [];
+          if (result.productGraphic) {
+            assetsToSave.push({ url: result.productGraphic, assetType: 'graphic', name: `${simpleTitle || 'Canvas'} - Product Graphic` });
+          }
+          if (urlGraphic) {
+            assetsToSave.push({ url: urlGraphic, assetType: 'background', name: `${simpleTitle || 'Canvas'} - Landing Page` });
+          }
+          if (result.qrGraphic) {
+            assetsToSave.push({ url: result.qrGraphic, assetType: 'graphic', name: `${simpleTitle || 'Canvas'} - QR Code` });
+          }
+          for (const asset of assetsToSave) {
+            try {
+              await fetch(`/api/members/${user.id}/library`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...saveAuthHeaders },
+                body: JSON.stringify({
+                  publicUrl: asset.url,
+                  storageUrl: asset.url,
+                  assetType: asset.assetType,
+                  mediaType: 'image',
+                  name: asset.name,
+                  fileName: asset.name.replace(/[^a-zA-Z0-9]/g, '_') + '.png'
+                })
+              });
+            } catch (err) {
+              console.error('[Canvas Auto-Save] Failed:', asset.assetType, err);
+            }
+          }
+        } catch (saveErr) {
+          console.error('[Canvas Auto-Save] Error:', saveErr);
+        }
+        setSimpleStep('canvas-confirm');
       } else if (qrType === 'qr-basic') {
         // QR Basic goes to confirm step (save already handled via saveQrBasicToPacket wrapper)
       } else if (qrType === 'qr-plus') {
@@ -2213,7 +2247,7 @@ function MembersSandboxContent() {
                   if (['play-upload', 'play-preview', 'play-save-choice'].includes(simpleStep)) {
                     return { label: 'QR Play', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' };
                   }
-                  if (['canvas-upload', 'canvas-crop', 'canvas-preview', 'canvas-save-choice', 'canvas-confirm', 'url-bg-pick', 'url-bg-crop', 'url-preview', 'url-publish'].includes(simpleStep)) {
+                  if (['canvas-upload', 'canvas-crop', 'canvas-preview', 'canvas-save-choice', 'canvas-confirm', 'url-bg-pick', 'url-bg-crop', 'url-title', 'url-description', 'url-preview', 'url-publish'].includes(simpleStep)) {
                     return { label: 'QR Canvas', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' };
                   }
                   if (['text-choice', 'text-edit-header', 'text-edit-footer', 'placement-config', 'shirt-preview', 'qr-plus-mockup', 'qr-plus-save-choice', 'qr-plus-confirm'].includes(simpleStep)) {
@@ -2742,7 +2776,7 @@ function MembersSandboxContent() {
                       setUrlGraphic(croppedUrl);
                       setOriginalUrlGraphic(originalUrl);
                     }}
-                    onComplete={() => setSimpleStep('url-details')}
+                    onComplete={() => setSimpleStep('url-title')}
                     initialSubStep={
                       urlSourceChoice === 'upload' ? 'upload' :
                       libraryChoice === 'personal' ? 'personal-library' :
@@ -2753,13 +2787,12 @@ function MembersSandboxContent() {
                 )}
                 
                 {/* Step 14: URL Details - title, description with visual preview */}
-                {simpleStep === 'url-details' && (
-                  <UrlCreationStep
+                {simpleStep === 'url-title' && (
+                  <UrlTitleStep
                     title={simpleTitle}
-                    description={simpleDescription}
                     onTitleChange={setSimpleTitle}
-                    onDescriptionChange={setSimpleDescription}
                     background={urlGraphic}
+                    description={simpleDescription}
                     titleVertical={titleVertical}
                     titleHorizontal={titleHorizontal}
                     titleColor={titleColor}
@@ -2775,6 +2808,25 @@ function MembersSandboxContent() {
                     onTitleColorChange={setTitleColor}
                     onTitleSizeChange={setTitleSize}
                     onTitleFontChange={setTitleFont}
+                  />
+                )}
+                
+                {simpleStep === 'url-description' && (
+                  <UrlDescriptionStep
+                    title={simpleTitle}
+                    description={simpleDescription}
+                    onDescriptionChange={setSimpleDescription}
+                    background={urlGraphic}
+                    titleVertical={titleVertical}
+                    titleHorizontal={titleHorizontal}
+                    titleColor={titleColor}
+                    titleSize={titleSize}
+                    titleFont={titleFont}
+                    descVertical={descVertical}
+                    descHorizontal={descHorizontal}
+                    descColor={descColor}
+                    descSize={descSize}
+                    descFont={descFont}
                     onDescVerticalChange={setDescVertical}
                     onDescHorizontalChange={setDescHorizontal}
                     onDescColorChange={setDescColor}
@@ -2799,7 +2851,7 @@ function MembersSandboxContent() {
                     descColor={descColor}
                     descSize={descSize}
                     descFont={descFont}
-                    onGoBack={() => setSimpleStep('url-details')}
+                    onGoBack={() => setSimpleStep('url-description')}
                   />
                 )}
                 
@@ -2848,7 +2900,7 @@ function MembersSandboxContent() {
                 {/* QR Canvas: Confirmation */}
                 {simpleStep === 'canvas-confirm' && (
                   <QRCanvasConfirmStep
-                    saveChoice={canvasSaveChoice}
+                    saveChoice={'all'}
                     productGraphicUrl={publishedProductGraphicUrl}
                     backgroundUrl={urlGraphic}
                     qrGraphicUrl={publishedQrGraphicUrl}
@@ -2922,7 +2974,7 @@ function MembersSandboxContent() {
                         setComposeItems(prev => [...prev, {
                           packetId,
                           name: item.title || item.name || 'Untitled',
-                          thumbnailUrl: item.thumbnailUrl || item.urlGraphic || item.qrCanvasMockup || item.qrPlayMockup || '',
+                          thumbnailUrl: item.qrCanvasMockup || item.qrPlayMockup || item.composeMockup || item.urlGraphic || item.thumbnailUrl || '',
                           type: item.packetType === 'qr-play' ? 'qr-play' : 'qr-canvas',
                           durationSeconds: 86400,
                           order: prev.length + 1,
