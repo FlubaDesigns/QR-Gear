@@ -337,8 +337,8 @@ export function CropUtility({
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     aspect={aspectRatio}
-                    className="max-h-[50vh]"
-                    style={{ maxHeight: '50vh' }}
+                    className="max-h-[70vh]"
+                    style={{ maxHeight: '70vh' }}
                   >
                     <img
                       ref={imgRef}
@@ -346,7 +346,7 @@ export function CropUtility({
                       alt="Crop preview"
                       onLoad={onImageLoad}
                       onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
-                      className="max-w-full max-h-[50vh] mx-auto block"
+                      className="max-w-full max-h-[70vh] mx-auto block"
                       data-testid="img-crop-preview"
                     />
                   </ReactCrop>
@@ -356,7 +356,7 @@ export function CropUtility({
                     src={imageSrc}
                     alt="Full preview"
                     onLoad={onImageLoad}
-                    className="max-w-full max-h-[50vh] mx-auto"
+                    className="max-w-full max-h-[70vh] mx-auto"
                     data-testid="img-full-preview"
                   />
                 )}
