@@ -20,6 +20,7 @@ type TutorialStep =
   | 'bb-channel-congrats'
   | 'bb-pricing'
   | 'action-product'
+  | 'bb-product-congrats'
   | 'bb-zones'
   | 'action-color'
   | 'bb-earnings'
@@ -36,6 +37,7 @@ const TUTORIAL_FLOW: TutorialStep[] = [
   'bb-channel-congrats',
   'bb-pricing',
   'action-product',
+  'bb-product-congrats',
   'bb-zones',
   'action-color',
   'bb-earnings',
@@ -497,7 +499,26 @@ export function SuperSimpleWizard() {
           />
         )}
 
-        {isBlackboard && tutorialStep !== 'bb-channel-congrats' && BLACKBOARD_CONTENT[tutorialStep] && (
+        {isBlackboard && tutorialStep === 'bb-product-congrats' && (
+          <BlackboardCard
+            data={{
+              icon: <Package className="w-8 h-8" />,
+              title: "Great Pick!",
+              lines: [
+                { text: selectedProductType
+                  ? `You chose the ${selectedProductType.title} \u2014 solid choice!`
+                  : "You've got your product locked in!" },
+                { text: "Now you've got something real to work with.", highlight: true },
+                { text: "Next we'll tailor it and make it uniquely yours \u2014 colors, size, and your own QR experience." },
+                { text: "This is where your product starts to come alive." },
+              ],
+              tip: "Every choice you make from here adds your personal touch. Let's make it yours.",
+            }}
+            onContinue={goNext}
+          />
+        )}
+
+        {isBlackboard && tutorialStep !== 'bb-channel-congrats' && tutorialStep !== 'bb-product-congrats' && BLACKBOARD_CONTENT[tutorialStep] && (
           <BlackboardCard
             data={BLACKBOARD_CONTENT[tutorialStep]}
             onContinue={tutorialStep === 'bb-finish' ? completeTutorial : goNext}
