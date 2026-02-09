@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
-import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield, Wand2, Users } from "lucide-react";
+import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield, Wand2, Users, Hammer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const actionCards = [
@@ -92,6 +92,19 @@ export function QuickLinks() {
     <section className="home-section-muted">
       <div className="container">
         <div className="quick-links-grid">
+          <div className="glass-card quick-link-card hover-elevate" data-testid="quick-link-build">
+            <div className="quick-link-icon icon-color-accent">
+              <Hammer />
+            </div>
+            <h3>Build Your Own</h3>
+            <p>Design a custom QR product and see your price instantly</p>
+            <Link href="/build">
+              <QRButton variant="ghost" size="small" data-testid="button-build-own">
+                Start Building
+              </QRButton>
+            </Link>
+          </div>
+
           <div className="glass-card quick-link-card hover-elevate" data-testid="quick-link-customize">
             <div className="quick-link-icon icon-color-accent">
               <Wand2 />

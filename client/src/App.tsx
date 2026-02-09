@@ -91,6 +91,7 @@ import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
 import RenewPage from "@/pages/renew";
 import ClaimPage from "@/pages/claim";
+import BuildPage from "@/pages/build";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function Router() {
@@ -124,6 +125,7 @@ function Router() {
       <Route path="/admin/manual">{() => <ProtectedRoute><AdminManual /></ProtectedRoute>}</Route>
       <Route path="/admin/test-images">{() => <ProtectedRoute><AdminTestImages /></ProtectedRoute>}</Route>
       <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
+      <Route path="/build" component={BuildPage} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/customize" component={Customize} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
