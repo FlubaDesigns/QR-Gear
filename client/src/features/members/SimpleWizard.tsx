@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Wand2, DollarSign } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, DollarSign, X } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
 import { ProductPickerStep, ProductCongratsStep, ColorPickerStep, SizePickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
@@ -106,13 +106,57 @@ export function SimpleWizard() {
     descFont, setDescFont,
   } = useWizardContext();
 
+  if (!user) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
+          <p className="text-xs text-slate-400 flex items-center gap-1">
+            <Wand2 className="w-3 h-3" />
+            Simple Wizard
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('index')}
+            className="text-white/50 hover:text-white"
+            aria-label="Close wizard"
+            data-testid="simple-close-unauth"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="p-4 pt-1 text-white/80">
+          <p className="text-lg font-semibold text-white mb-2">Sign in required</p>
+          <p className="text-sm text-white/70 mb-4">
+            Simple Wizard needs your account so we can load your channels and save your setup.
+          </p>
+          <Button className="bg-green-600 hover:bg-green-500" onClick={() => setViewMode('index')} data-testid="simple-back-to-home">
+            Back to Home
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const canProceed = canSimpleProceed();
+
   return (
     <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="pb-1 pt-3">
+      <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
         <p className="text-xs text-slate-400 flex items-center gap-1">
           <Wand2 className="w-3 h-3" />
           Simple Wizard
         </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setViewMode('index')}
+          className="text-white/50 hover:text-white"
+          aria-label="Close wizard"
+          data-testid="simple-close"
+        >
+          <X className="w-4 h-4" />
+        </Button>
       </CardHeader>
       <CardContent className="p-4 pt-1">
         {(() => {
@@ -152,7 +196,7 @@ export function SimpleWizard() {
         )}
 
         <div className="min-h-[350px]" id="wizard-step-content">
-          {simpleStep === 'channel' && user && (
+          {simpleStep === 'channel' && (
             <ChannelStep
               selectedChannel={selectedChannel}
               onSelect={setSelectedChannel}
@@ -914,13 +958,13 @@ export function SimpleWizard() {
           {simpleStep !== 'url-publish' && (
             <Button
               onClick={handleSimpleNext}
-              disabled={!canSimpleProceed()}
+              disabled={!canProceed}
               className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
-                canSimpleProceed() 
+                canProceed 
                   ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
                   : "bg-slate-600"
               }`}
-              style={canSimpleProceed() ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
+              style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
               data-testid="button-simple-next"
             >
               Next
