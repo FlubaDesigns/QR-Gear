@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Layers, Library, X } from "lucide-react";
 import { WizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
 import { ProductPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
-import { PlacementPicker, type PlacementConfig } from "@/features/shared/components/PlacementPicker";
+import { PlacementPicker } from "@/features/shared/components/PlacementPicker";
 import type { PlacementOption } from "@/features/shared/components/wizardSteps";
 import { HeaderFooterEditor } from "@/features/shared/components/HeaderFooterEditor";
 import { BackgroundLibraryPicker } from "@/features/shared/components/BackgroundLibraryPicker";
@@ -15,20 +15,65 @@ import { PreviewStep, PublishStep } from "@/features/shared/components/wizardSte
 export function AdvancedWizard() {
   const {
     currentStep, handleStepClick, completedSteps, selectedChannel, setSelectedChannel,
-    user, isCreatingChannel, setIsCreatingChannel, newChannelName, setNewChannelName,
+    user, setViewMode, isCreatingChannel, setIsCreatingChannel, newChannelName, setNewChannelName,
     selectedProductType, handleProductSelect, selectedProduct, selectedPlacements, setSelectedPlacements,
     placementConfigs, setPlacementConfigs, headerStyle, setHeaderStyle, footerStyle, setFooterStyle,
     urlGraphic, setUrlGraphic, originalUrlGraphic, setOriginalUrlGraphic, showBackgroundLibrary, setShowBackgroundLibrary,
     landingPage, setLandingPage, qrType, isPublishing, handleBack, handleNext, canProceed, handlePublish
   } = useWizardContext();
 
+  if (!user) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-white flex items-center gap-2">
+            <Layers className="w-5 h-5 text-blue-400" />
+            Advanced Wizard
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('index')}
+            className="text-white/50 hover:text-white"
+            aria-label="Close wizard"
+            data-testid="advanced-close-unauth"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="p-6 pt-2 text-white/80">
+          <p className="text-lg font-semibold text-white mb-2">Sign in required</p>
+          <p className="text-sm text-white/70 mb-4">
+            Advanced Wizard needs your account so we can load channels and save your setup.
+          </p>
+          <Button className="bg-blue-600 hover:bg-blue-500" onClick={() => setViewMode('index')} data-testid="advanced-back-to-home">
+            Back to Home
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const canGo = canProceed();
+  const shouldPulse = canGo && currentStep !== 'publish';
+
   return (
     <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-white flex items-center gap-2">
           <Layers className="w-5 h-5 text-blue-400" />
           Advanced Wizard
         </CardTitle>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setViewMode('index')}
+          className="text-white/50 hover:text-white"
+          aria-label="Close wizard"
+          data-testid="button-advanced-close"
+        >
+          <X className="w-4 h-4" />
+        </Button>
       </CardHeader>
       <CardContent className="p-6 pt-2">
         <WizardProgressBar 
@@ -42,7 +87,7 @@ export function AdvancedWizard() {
             <ChannelStep 
               selectedChannel={selectedChannel}
               onSelect={setSelectedChannel}
-              memberId={user?.id || ''}
+              memberId={user.id}
               isCreatingChannel={isCreatingChannel}
               setIsCreatingChannel={setIsCreatingChannel}
               newChannelName={newChannelName}
@@ -127,7 +172,7 @@ export function AdvancedWizard() {
                 </div>
               )}
               
-              {showBackgroundLibrary && user?.id && (
+              {showBackgroundLibrary && (
                 <BackgroundLibraryPicker
                   memberId={user.id}
                   selectedUrl={urlGraphic}
@@ -181,13 +226,13 @@ export function AdvancedWizard() {
           {currentStep !== 'publish' && (
             <Button
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canGo}
               className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
-                canProceed() 
+                canGo 
                   ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
                   : "bg-slate-600"
               }`}
-              style={canProceed() ? { animation: "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite" } : undefined}
+              style={shouldPulse ? { animation: "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite" } : undefined}
               data-testid="button-next"
             >
               Next
