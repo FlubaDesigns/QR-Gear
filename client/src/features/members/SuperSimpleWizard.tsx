@@ -1,64 +1,29 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Sparkles, X, ArrowRight, Store, Package, DollarSign,
   QrCode, Type, ImagePlus, Play, TrendingUp, Check,
-  Palette, Ruler, Loader2, PartyPopper, Lightbulb
+  Palette, Ruler, Loader2, PartyPopper, Lightbulb,
+  ChevronLeft, ChevronRight, Wand2
 } from "lucide-react";
+import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
-import { ProductPickerStep, ColorPickerStep, SizePickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
-import { calculateSizeEarningsBonuses } from "@/features/shared/components/wizardSteps";
+import { ProductPickerStep, ProductCongratsStep, ColorPickerStep, SizePickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
+import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
+import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
+import { TypePickerStep, SurfacePickerStep, GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
+import { QRBasicTypeStep, QRBasicInputStep, QRBasicMockupStep, QRBasicSaveChoiceStep, QRBasicConfirmStep } from "@/features/shared/components/wizardSteps/QRBasicSteps";
+import { QRPlusMockupStep, QRPlusSaveChoiceStep, QRPlusConfirmStep } from "@/features/shared/components/wizardSteps/QRPlusSteps";
+import { QRCanvasExplainerStep, UrlSourceChoiceStep, SimpleBackgroundStep, QRCanvasSaveChoiceStep, QRCanvasConfirmStep, SimplePreviewStep, SimplePublishStep } from "@/features/shared/components/wizardSteps/CanvasSteps";
+import { PlayVideoSourceStep, PlayPreviewStep, PlayPublishStep, PlayPublishedStep } from "@/features/shared/components/wizardSteps/PlaySteps";
+import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
+import { ShirtPreviewStep, UrlTitleStep, UrlDescriptionStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
+import { calculateSizeEarningsBonuses, generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
 import type { QRType } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { useWizardContext } from './WizardContext';
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-
-type TutorialStep =
-  | 'bb-welcome'
-  | 'bb-channels'
-  | 'action-channel'
-  | 'bb-channel-congrats'
-  | 'bb-pricing'
-  | 'action-product'
-  | 'bb-product-congrats'
-  | 'bb-zones'
-  | 'action-color'
-  | 'bb-color-congrats'
-  | 'bb-earnings'
-  | 'action-size'
-  | 'bb-size-congrats'
-  | 'bb-qr-intro'
-  | 'bb-qr-basic'
-  | 'bb-qr-plus'
-  | 'bb-qr-canvas'
-  | 'bb-qr-play'
-  | 'bb-qr-congrats'
-  | 'bb-whats-next'
-  | 'bb-finish';
-
-const TUTORIAL_FLOW: TutorialStep[] = [
-  'bb-welcome',
-  'bb-channels',
-  'action-channel',
-  'bb-channel-congrats',
-  'bb-pricing',
-  'action-product',
-  'bb-product-congrats',
-  'bb-zones',
-  'action-color',
-  'bb-color-congrats',
-  'bb-earnings',
-  'action-size',
-  'bb-size-congrats',
-  'bb-qr-intro',
-  'bb-qr-basic',
-  'bb-qr-plus',
-  'bb-qr-canvas',
-  'bb-qr-play',
-  'bb-qr-congrats',
-  'bb-whats-next',
-  'bb-finish',
-];
 
 interface BlackboardData {
   icon: React.ReactNode;
@@ -238,7 +203,7 @@ const QR_TYPE_CARDS: Record<string, {
   title: string;
   lines: { text: string; highlight?: boolean }[];
   tip: string;
-  nextStep: TutorialStep;
+  nextStep: string;
 }> = {
   'bb-qr-basic': {
     type: 'qr-basic',
@@ -261,7 +226,7 @@ const QR_TYPE_CARDS: Record<string, {
     title: "QR Plus",
     lines: [
       { text: "Everything in Basic, plus custom header and footer text printed right on the product." },
-      { text: "The QR code connects to your living platform \u2014 you can update where it points anytime.", highlight: true },
+      { text: "Like QR Basic, the content is baked right into the code \u2014 no server needed.", highlight: true },
       { text: "Add a tagline above, a call-to-action below. Make your merchandise say something." },
       { text: "People see your message before they even scan. That's powerful." },
     ],
@@ -303,7 +268,7 @@ function QRTypeBlackboard({
   onChoose,
   onContinue,
 }: {
-  step: TutorialStep;
+  step: string;
   onChoose: (type: QRType) => void;
   onContinue: () => void;
 }) {
@@ -384,28 +349,123 @@ function QRTypeBlackboard({
   );
 }
 
+const PRE_STEP_BLACKBOARDS: Record<string, string[]> = {
+  'channel': ['bb-welcome', 'bb-channels'],
+  'product': ['bb-pricing'],
+  'color': ['bb-zones'],
+  'size': ['bb-earnings'],
+  'type': ['bb-qr-intro'],
+};
+
+const POST_STEP_BLACKBOARDS: Record<string, string[]> = {
+  'channel': ['bb-channel-congrats'],
+  'product-congrats': ['bb-product-congrats'],
+  'color': ['bb-color-congrats'],
+  'size': ['bb-size-congrats'],
+};
+
+const FINAL_CONFIRM_STEPS = ['qr-basic-confirm', 'qr-plus-confirm', 'canvas-confirm', 'play-save-choice', 'compose-confirm'];
+
 export function SuperSimpleWizard() {
   const {
+    user,
+    api,
+    simpleStep, setSimpleStep,
     selectedChannel, setSelectedChannel,
+    isCreatingChannel, setIsCreatingChannel,
+    newChannelName, setNewChannelName,
     selectedProductType,
     selectedColor, setSelectedColor,
     selectedShirtSize, setSelectedShirtSize,
+    graphicLocation,
+    graphicSize, setGraphicSize,
+    wantsHeaderFooter, setWantsHeaderFooter,
+    currentPacketId, setCurrentPacketId,
+    runningEarnings, setRunningEarnings,
+    earningsPulse, setEarningsPulse,
     qrType, setQrType,
-    runningEarnings,
-    user,
-    setWizardTier,
-    setViewMode,
-    isCreatingChannel, setIsCreatingChannel,
-    newChannelName, setNewChannelName,
-    handleProductSelect,
+    isPublishing,
+    headerStyle, setHeaderStyle,
+    footerStyle, setFooterStyle,
+    productGraphic, setProductGraphic,
+    originalUrlGraphic, setOriginalUrlGraphic,
+    urlGraphic, setUrlGraphic,
+    videoUrl, setVideoUrl,
+    textLayoutChoice, setTextLayoutChoice,
+    selectedPlacements, setSelectedPlacements,
+    qrGraphic, setQrGraphic,
+    urlSourceChoice, setUrlSourceChoice,
+    libraryChoice, setLibraryChoice,
+    currentPlacementIndex,
+    placementGraphicChoice, setPlacementGraphicChoice,
+    currentPlacement,
+    qrBasicInputType, setQrBasicInputType,
+    qrBasicContent, setQrBasicContent,
+    qrBasicMockup, setQrBasicMockup,
+    isGeneratingBasicMockup,
+    qrBasicSaveChoice, setQrBasicSaveChoice,
+    isQrBasicSaving,
+    canvasSaveChoice, setCanvasSaveChoice,
+    isCanvasSaving,
+    publishedQrGraphicUrl,
+    publishedProductGraphicUrl,
+    playVideoUrl, setPlayVideoUrl,
+    isUploadingVideo,
+    videoUploadError,
+    videoUploadProgress,
+    videoUploadSuccess,
+    qrPlusMockup, setQrPlusMockup,
+    isGeneratingPlusMockup, setIsGeneratingPlusMockup,
+    qrPlusSaveChoice, setQrPlusSaveChoice,
+    isQrPlusSaving,
+    qrCanvasMockup,
+    isGeneratingCanvasMockup,
+    qrPlayMockup,
+    isGeneratingPlayMockup,
+    composeItems, setComposeItems,
+    composeMode, setComposeMode,
+    composeHostingTerm, setComposeHostingTerm,
+    composeMockup,
+    isGeneratingComposeMockup,
+    publishedCanvasPlayItems,
+    isLoadingPublishedItems,
+    composeInstanceId,
     pricingSettings,
-    selectedPlacements,
-    setSimpleStep,
+    placementEarningsBonus,
+    textLineEarningsBonus,
+    handleProductSelect,
+    handleVideoFileUpload,
+    handleCanvasDone,
+    handleSimplePublish,
+    handleSimpleNext,
+    handleSimpleBack,
+    canSimpleProceed,
+    fetchPublishedCanvasPlayItems,
+    setViewMode,
+    setWizardTier,
+    simpleTitle, setSimpleTitle,
+    simpleDescription, setSimpleDescription,
+    titleVertical, setTitleVertical,
+    titleHorizontal, setTitleHorizontal,
+    titleColor, setTitleColor,
+    titleSize, setTitleSize,
+    titleFont, setTitleFont,
+    descVertical, setDescVertical,
+    descHorizontal, setDescHorizontal,
+    descColor, setDescColor,
+    descSize, setDescSize,
+    descFont, setDescFont,
   } = useWizardContext();
 
-  const [tutorialStep, setTutorialStep] = useState<TutorialStep>('bb-welcome');
+  const [blackboardQueue, setBlackboardQueue] = useState<string[]>(['bb-welcome', 'bb-channels']);
+  const [qrTypeExploreStep, setQrTypeExploreStep] = useState<string>('bb-qr-basic');
+  const [showQrTypeCards, setShowQrTypeCards] = useState(false);
+  const [seenSteps, setSeenSteps] = useState<Set<string>>(new Set(['channel']));
+  const [pendingAdvance, setPendingAdvance] = useState(false);
+  const [showFinishBlackboard, setShowFinishBlackboard] = useState(false);
   const [checkingTutorial, setCheckingTutorial] = useState(true);
   const [tutorialAlreadyDone, setTutorialAlreadyDone] = useState(false);
+  const [showQrCongrats, setShowQrCongrats] = useState(false);
 
   useEffect(() => {
     if (!user?.id) {
@@ -420,31 +480,251 @@ export function SuperSimpleWizard() {
           setTutorialAlreadyDone(true);
         }
       } catch {
-        // If Firestore read fails, just show tutorial
       }
       setCheckingTutorial(false);
     };
     check();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (blackboardQueue.length === 0 && pendingAdvance) {
+      setPendingAdvance(false);
+      handleSimpleNext();
+    }
+  }, [blackboardQueue, pendingAdvance]);
+
+  useEffect(() => {
+    if (!seenSteps.has(simpleStep)) {
+      const preCards = PRE_STEP_BLACKBOARDS[simpleStep];
+      if (preCards) {
+        setBlackboardQueue([...preCards]);
+      }
+      setSeenSteps(prev => new Set(prev).add(simpleStep));
+    }
+  }, [simpleStep]);
+
+  const completeTutorial = async () => {
+    try {
+      if (user?.id) {
+        await setDoc(
+          doc(db, "member_profiles", user.id),
+          { tutorial_complete: true, tutorial_completed_at: new Date().toISOString() },
+          { merge: true }
+        );
+      }
+    } catch (e) {
+      console.error('Failed to save tutorial completion:', e);
+    }
+  };
+
+  const handleBlackboardContinue = () => {
+    if (blackboardQueue.length <= 1) {
+      setBlackboardQueue([]);
+      if (simpleStep === 'type' && blackboardQueue[0] === 'bb-qr-intro') {
+        setShowQrTypeCards(true);
+      }
+    } else {
+      setBlackboardQueue(prev => prev.slice(1));
+    }
+  };
+
+  const handleQrTypeChosen = (type: QRType) => {
+    setQrType(type);
+    setShowQrTypeCards(false);
+    setShowQrCongrats(true);
+  };
+
+  const handleQrTypeShowMore = () => {
+    const card = QR_TYPE_CARDS[qrTypeExploreStep];
+    if (card?.nextStep && QR_TYPE_CARDS[card.nextStep]) {
+      setQrTypeExploreStep(card.nextStep);
+    }
+  };
+
+  const handleSuperNext = async () => {
+    if (FINAL_CONFIRM_STEPS.includes(simpleStep) && !seenSteps.has(`finish-${simpleStep}`)) {
+      setSeenSteps(prev => new Set(prev).add(`finish-${simpleStep}`));
+      await completeTutorial();
+      setShowFinishBlackboard(true);
+      return;
+    }
+
+    const postCards = POST_STEP_BLACKBOARDS[simpleStep];
+    if (postCards && !seenSteps.has(`post-${simpleStep}`)) {
+      setBlackboardQueue([...postCards]);
+      setSeenSteps(prev => new Set(prev).add(`post-${simpleStep}`));
+      setPendingAdvance(true);
+      return;
+    }
+    await handleSimpleNext();
+  };
+
+  const getCongratsBlackboard = (stepId: string): BlackboardData | null => {
+    switch (stepId) {
+      case 'bb-channel-congrats':
+        return {
+          icon: <Check className="w-8 h-8" />,
+          title: "Nice Work!",
+          lines: [
+            { text: selectedChannel
+              ? `You picked "${selectedChannel.name}" \u2014 great choice!`
+              : "You've got your channel set up!" },
+            { text: "That's the first step in building your digital storefront.", highlight: true },
+            { text: "Everything you create will live in this channel. Customers can browse it like a mini shop." },
+            { text: "Next up: picking the product you want to sell. This is where it gets fun." },
+          ],
+          tip: "You're already ahead of most people. They're still reading the instructions.",
+        };
+      case 'bb-product-congrats':
+        return {
+          icon: <Package className="w-8 h-8" />,
+          title: "Great Pick!",
+          lines: [
+            { text: selectedProductType
+              ? `You chose the ${selectedProductType.title} \u2014 solid choice!`
+              : "You've got your product locked in!" },
+            { text: "Now you've got something real to work with.", highlight: true },
+            { text: "Next we'll tailor it and make it uniquely yours \u2014 colors, size, and your own QR experience." },
+            { text: "This is where your product starts to come alive." },
+          ],
+          tip: "Every choice you make from here adds your personal touch. Let's make it yours.",
+        };
+      case 'bb-color-congrats': {
+        const base = selectedProductType?.memberEarnings || 0;
+        return {
+          icon: <Palette className="w-8 h-8" />,
+          title: "Looking Good!",
+          lines: [
+            { text: selectedColor
+              ? `Nice color choice! That's going to look great on your mockup.`
+              : "Color is set!" },
+            { text: `Your earnings so far: $${base.toFixed(2)} per sale`, highlight: true },
+            { text: "Good news \u2014 color is free. It doesn't change the price at all." },
+            { text: "But the next step will. Let's talk about size and how it bumps your earnings up." },
+          ],
+          tip: "That $" + base.toFixed(2) + " is just the floor. It's about to go higher.",
+        };
+      }
+      case 'bb-size-congrats': {
+        const base = selectedProductType?.memberEarnings || 0;
+        const sizeBonuses = calculateSizeEarningsBonuses(
+          pricingSettings?.sizeUpcharges,
+          pricingSettings?.memberProfitShare || 0.25
+        );
+        const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
+        const newTotal = base + sizeBonus;
+        return {
+          icon: <TrendingUp className="w-8 h-8" />,
+          title: "Cha-Ching!",
+          lines: [
+            { text: `Base earnings: $${base.toFixed(2)}` },
+            { text: sizeBonus > 0
+              ? `+ Size upgrade (${selectedShirtSize}): +$${sizeBonus.toFixed(2)}`
+              : `Size (${selectedShirtSize}): no extra cost \u2014 same earnings` },
+            { text: `= New total: $${newTotal.toFixed(2)} per sale`, highlight: true },
+            { text: "See how that works? Every choice can add to your earnings." },
+            { text: "Next up: your QR type. Some of those add even more value." },
+          ],
+        };
+      }
+      default:
+        return null;
+    }
+  };
+
+  const getQrCongratsBlackboard = (): BlackboardData => {
+    const base = selectedProductType?.memberEarnings || 0;
+    const sizeBonuses = calculateSizeEarningsBonuses(
+      pricingSettings?.sizeUpcharges,
+      pricingSettings?.memberProfitShare || 0.25
+    );
+    const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
+    const currentTotal = base + sizeBonus;
+    const typeLabel = qrType === 'qr-basic' ? 'QR Basic' : qrType === 'qr-plus' ? 'QR Plus' : qrType === 'qr-canvas' ? 'QR Canvas' : qrType === 'qr-play' ? 'QR Play' : 'your QR type';
+    const isPlatformType = qrType === 'qr-canvas' || qrType === 'qr-play';
+    const isBasic = qrType === 'qr-basic';
+    const isPlus = qrType === 'qr-plus';
+
+    const getLines = () => {
+      const shared = [
+        { text: `You picked ${typeLabel} \u2014 great choice!` },
+        { text: `Your earnings per sale: $${currentTotal.toFixed(2)}`, highlight: true as boolean },
+      ];
+
+      if (isBasic) {
+        return [
+          ...shared,
+          { text: "QR Basic is simple and powerful. The QR code bakes your content right in \u2014 no server, no platform, no ongoing costs." },
+          { text: "Someone scans it, they get your link, text, or contact info instantly. Done." },
+          { text: "Want to level up later? QR Canvas and QR Play connect to a living platform where you can change what the QR shows \u2014 even after the shirt is printed." },
+        ];
+      }
+
+      if (isPlus) {
+        return [
+          ...shared,
+          { text: "QR Plus adds your custom header and footer text around the QR code \u2014 it makes the design pop and tells people what to expect when they scan." },
+          { text: "Like Basic, the QR content is baked in. No server needed, no ongoing costs." },
+          { text: "Ready for the next level? QR Canvas and QR Play connect to a living platform \u2014 you can update what the QR shows anytime, even after the shirt ships." },
+        ];
+      }
+
+      return [
+        ...shared,
+        { text: "When you save this, you're creating a \"moment\" \u2014 a unique experience tied to your QR code." },
+        { text: qrType === 'qr-canvas'
+          ? "Your image becomes a living page anyone can see when they scan."
+          : "Your video becomes a living page anyone can watch when they scan."
+        },
+        { text: "Here's the exciting part: save 2 or more moments and you unlock QR Compose.", highlight: true as boolean },
+        { text: "QR Compose lets you build a rotating playlist \u2014 one QR code, many experiences. Imagine your shirt showing something different every time someone scans it." },
+      ];
+    };
+
+    const getTip = () => {
+      if (isBasic || isPlus) {
+        return "Simple, reliable, and ready to sell. You can always explore Canvas and Play later to unlock even more possibilities.";
+      }
+      return "Every moment you save gets you closer to QR Compose. Think of it as building your collection.";
+    };
+
+    return {
+      icon: <QrCode className="w-8 h-8" />,
+      title: isPlatformType ? "Save the Moment!" : "Nice and Simple!",
+      lines: getLines(),
+      tip: getTip(),
+    };
+  };
+
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div className="w-full max-w-sm text-center space-y-4">
-          <Sparkles className="w-10 h-10 text-emerald-400 mx-auto" />
-          <h2 className="text-xl font-bold text-white">Sign In Required</h2>
-          <p className="text-slate-400 text-sm">
-            The tutorial needs your account so we can save your progress.
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
+          <p className="text-xs text-emerald-400 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            First Product Builder
           </p>
           <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setViewMode('index')}
-            className="bg-emerald-600 text-white"
-            data-testid="super-simple-back-to-home"
+            className="text-white/50 hover:text-white"
+            aria-label="Close wizard"
+            data-testid="super-simple-close-unauth"
           >
+            <X className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="p-4 pt-1 text-white/80">
+          <p className="text-lg font-semibold text-white mb-2">Sign in required</p>
+          <p className="text-sm text-white/70 mb-4">
+            The tutorial needs your account so we can save your progress.
+          </p>
+          <Button className="bg-emerald-600" onClick={() => setViewMode('index')} data-testid="super-simple-back-to-home">
             Back to Home
           </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -481,7 +761,12 @@ export function SuperSimpleWizard() {
               variant="ghost"
               onClick={() => {
                 setTutorialAlreadyDone(false);
-                setTutorialStep('bb-welcome');
+                setBlackboardQueue(['bb-welcome', 'bb-channels']);
+                setSeenSteps(new Set(['channel']));
+                setShowQrTypeCards(false);
+                setShowQrCongrats(false);
+                setShowFinishBlackboard(false);
+                setQrTypeExploreStep('bb-qr-basic');
               }}
               className="text-slate-400"
               data-testid="tutorial-replay"
@@ -494,343 +779,917 @@ export function SuperSimpleWizard() {
     );
   }
 
-  const currentIdx = TUTORIAL_FLOW.indexOf(tutorialStep);
-  const progress = ((currentIdx + 1) / TUTORIAL_FLOW.length) * 100;
+  if (showFinishBlackboard) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
+          <p className="text-xs text-emerald-400 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            First Product Builder
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('index')}
+            className="text-white/50 hover:text-white"
+            aria-label="Close wizard"
+            data-testid="super-simple-close-finish"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="p-4 pt-1">
+          <BlackboardCard
+            data={BLACKBOARD_CONTENT['bb-finish']}
+            onContinue={() => {
+              setShowFinishBlackboard(false);
+              setSimpleStep('channel');
+              setWizardTier('simple');
+            }}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const goNext = () => {
-    if (currentIdx < TUTORIAL_FLOW.length - 1) {
-      setTutorialStep(TUTORIAL_FLOW[currentIdx + 1]);
-    }
-  };
-
-  const goBack = () => {
-    if (currentIdx > 0) {
-      setTutorialStep(TUTORIAL_FLOW[currentIdx - 1]);
-    } else {
-      setViewMode('index');
-    }
-  };
-
-  const completeTutorial = async () => {
-    try {
-      await setDoc(
-        doc(db, "member_profiles", user.id),
-        { tutorial_complete: true, tutorial_completed_at: new Date().toISOString() },
-        { merge: true }
-      );
-    } catch (e) {
-      console.error('Failed to save tutorial completion:', e);
-    }
-    setSimpleStep('channel');
-    setWizardTier('simple');
-  };
-
-  const canProceed = (() => {
-    switch (tutorialStep) {
-      case 'action-channel': return !!selectedChannel;
-      case 'action-product': return !!selectedProductType;
-      case 'action-color': return !!selectedColor;
-      case 'action-size': return !!selectedShirtSize;
-      default: return true;
-    }
-  })();
-
-  const isBlackboard = tutorialStep.startsWith('bb-');
+  const canProceed = canSimpleProceed();
+  const isShowingBlackboard = blackboardQueue.length > 0;
+  const currentBlackboardId = blackboardQueue[0] || null;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <button
-          onClick={goBack}
-          className="text-white/50 hover:text-white text-sm flex items-center gap-1"
-          data-testid="tutorial-back"
-        >
-          <ArrowRight className="w-4 h-4 rotate-180" />
-          Back
-        </button>
-        <p className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+    <Card className="bg-slate-800/50 border-slate-700">
+      <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
+        <p className="text-xs text-emerald-400 flex items-center gap-1">
           <Sparkles className="w-3 h-3" />
-          Tutorial {currentIdx + 1} / {TUTORIAL_FLOW.length}
+          First Product Builder
         </p>
         <Button
           variant="ghost"
-          size="icon"
+          size="sm"
           onClick={() => setViewMode('index')}
           className="text-white/50 hover:text-white"
-          data-testid="tutorial-close"
+          aria-label="Close wizard"
+          data-testid="super-simple-close"
         >
           <X className="w-4 h-4" />
         </Button>
-      </div>
-
-      <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden mx-auto max-w-sm">
-        <div
-          className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-          style={{ width: `${progress}%` }}
-          data-testid="tutorial-progress"
-        />
-      </div>
-
-      <div className="pt-2">
-        {isBlackboard && tutorialStep === 'bb-channel-congrats' && (
-          <BlackboardCard
-            data={{
-              icon: <Check className="w-8 h-8" />,
-              title: "Nice Work!",
-              lines: [
-                { text: selectedChannel
-                  ? `You picked "${selectedChannel.name}" \u2014 great choice!`
-                  : "You've got your channel set up!" },
-                { text: "That's the first step in building your digital storefront.", highlight: true },
-                { text: "Everything you create will live in this channel. Customers can browse it like a mini shop." },
-                { text: "Next up: picking the product you want to sell. This is where it gets fun." },
-              ],
-              tip: "You're already ahead of most people. They're still reading the instructions.",
-            }}
-            onContinue={goNext}
-          />
-        )}
-
-        {isBlackboard && tutorialStep === 'bb-product-congrats' && (
-          <BlackboardCard
-            data={{
-              icon: <Package className="w-8 h-8" />,
-              title: "Great Pick!",
-              lines: [
-                { text: selectedProductType
-                  ? `You chose the ${selectedProductType.title} \u2014 solid choice!`
-                  : "You've got your product locked in!" },
-                { text: "Now you've got something real to work with.", highlight: true },
-                { text: "Next we'll tailor it and make it uniquely yours \u2014 colors, size, and your own QR experience." },
-                { text: "This is where your product starts to come alive." },
-              ],
-              tip: "Every choice you make from here adds your personal touch. Let's make it yours.",
-            }}
-            onContinue={goNext}
-          />
-        )}
-
-        {isBlackboard && tutorialStep === 'bb-color-congrats' && (() => {
-          const base = selectedProductType?.memberEarnings || 0;
-          return (
-            <BlackboardCard
-              data={{
-                icon: <Palette className="w-8 h-8" />,
-                title: "Looking Good!",
-                lines: [
-                  { text: selectedColor
-                    ? `Nice color choice! That's going to look great on your mockup.`
-                    : "Color is set!" },
-                  { text: `Your earnings so far: $${base.toFixed(2)} per sale`, highlight: true },
-                  { text: "Good news \u2014 color is free. It doesn't change the price at all." },
-                  { text: "But the next step will. Let's talk about size and how it bumps your earnings up." },
-                ],
-                tip: "That $" + base.toFixed(2) + " is just the floor. It's about to go higher.",
-              }}
-              onContinue={goNext}
-            />
-          );
-        })()}
-
-        {isBlackboard && tutorialStep === 'bb-size-congrats' && (() => {
-          const base = selectedProductType?.memberEarnings || 0;
-          const sizeBonuses = calculateSizeEarningsBonuses(
-            pricingSettings?.sizeUpcharges,
-            pricingSettings?.memberProfitShare || 0.25
-          );
-          const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
-          const newTotal = base + sizeBonus;
-          return (
-            <BlackboardCard
-              data={{
-                icon: <TrendingUp className="w-8 h-8" />,
-                title: "Cha-Ching!",
-                lines: [
-                  { text: `Base earnings: $${base.toFixed(2)}` },
-                  { text: sizeBonus > 0
-                    ? `+ Size upgrade (${selectedShirtSize}): +$${sizeBonus.toFixed(2)}`
-                    : `Size (${selectedShirtSize}): no extra cost \u2014 same earnings` },
-                  { text: `= New total: $${newTotal.toFixed(2)} per sale`, highlight: true },
-                  { text: "See how that works? Every choice can add to your earnings." },
-                  { text: "Next up: your QR type. Some of those add even more value." },
-                ],
-              }}
-              onContinue={goNext}
-            />
-          );
-        })()}
-
-        {isBlackboard && tutorialStep === 'bb-qr-congrats' && (() => {
-          const base = selectedProductType?.memberEarnings || 0;
-          const sizeBonuses = calculateSizeEarningsBonuses(
-            pricingSettings?.sizeUpcharges,
-            pricingSettings?.memberProfitShare || 0.25
-          );
-          const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
-          const currentTotal = base + sizeBonus;
-          const typeLabel = qrType === 'qr-basic' ? 'QR Basic' : qrType === 'qr-plus' ? 'QR Plus' : qrType === 'qr-canvas' ? 'QR Canvas' : qrType === 'qr-play' ? 'QR Play' : 'your QR type';
-          const isPlatformType = qrType === 'qr-canvas' || qrType === 'qr-play';
-          const isBasic = qrType === 'qr-basic';
-          const isPlus = qrType === 'qr-plus';
-
-          const getLines = () => {
-            const shared = [
-              { text: `You picked ${typeLabel} \u2014 great choice!` },
-              { text: `Your earnings per sale: $${currentTotal.toFixed(2)}`, highlight: true },
-            ];
-
-            if (isBasic) {
-              return [
-                ...shared,
-                { text: "QR Basic is simple and powerful. The QR code bakes your content right in \u2014 no server, no platform, no ongoing costs." },
-                { text: "Someone scans it, they get your link, text, or contact info instantly. Done." },
-                { text: "Want to level up later? QR Canvas and QR Play connect to a living platform where you can change what the QR shows \u2014 even after the shirt is printed." },
-              ];
+      </CardHeader>
+      <CardContent className="p-4 pt-1">
+        {(() => {
+          const getTierInfo = () => {
+            if (['play-upload', 'play-preview', 'play-save-choice'].includes(simpleStep)) {
+              return { label: 'QR Play', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' };
             }
-
-            if (isPlus) {
-              return [
-                ...shared,
-                { text: "QR Plus adds your custom header and footer text around the QR code \u2014 it makes the design pop and tells people what to expect when they scan." },
-                { text: "Like Basic, the QR content is baked in. No server needed, no ongoing costs." },
-                { text: "Ready for the next level? QR Canvas and QR Play connect to a living platform \u2014 you can update what the QR shows anytime, even after the shirt ships." },
-              ];
+            if (['canvas-upload', 'canvas-crop', 'canvas-preview', 'canvas-save-choice', 'canvas-confirm', 'url-bg-pick', 'url-bg-crop', 'url-title', 'url-description', 'url-preview', 'url-publish'].includes(simpleStep)) {
+              return { label: 'QR Canvas', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' };
             }
-
-            return [
-              ...shared,
-              { text: "When you save this, you're creating a \"moment\" \u2014 a unique experience tied to your QR code." },
-              { text: qrType === 'qr-canvas'
-                ? "Your image becomes a living page anyone can see when they scan."
-                : "Your video becomes a living page anyone can watch when they scan."
-              },
-              { text: "Here's the exciting part: save 2 or more moments and you unlock QR Compose.", highlight: true },
-              { text: "QR Compose lets you build a rotating playlist \u2014 one QR code, many experiences. Imagine your shirt showing something different every time someone scans it." },
-            ];
+            if (['text-choice', 'text-edit-header', 'text-edit-footer', 'placement-config', 'shirt-preview', 'qr-plus-mockup', 'qr-plus-save-choice', 'qr-plus-confirm'].includes(simpleStep)) {
+              return { label: 'QR Plus', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' };
+            }
+            if (['qr-basic-type', 'qr-basic-input', 'qr-basic-mockup', 'qr-basic-save-choice', 'qr-basic-confirm'].includes(simpleStep)) {
+              return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
+            }
+            if (['compose-pick-items', 'compose-mode', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
+              return { label: 'QR Compose', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
+            }
+            return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
           };
-
-          const getTip = () => {
-            if (isBasic || isPlus) {
-              return "Simple, reliable, and ready to sell. You can always explore Canvas and Play later to unlock even more possibilities.";
-            }
-            return "Every moment you save gets you closer to QR Compose. Think of it as building your collection.";
-          };
-
-          return (
-            <BlackboardCard
-              data={{
-                icon: <QrCode className="w-8 h-8" />,
-                title: isPlatformType ? "Save the Moment!" : "Nice and Simple!",
-                lines: getLines(),
-                tip: getTip(),
-              }}
-              onContinue={goNext}
-            />
-          );
-        })()}
-
-        {isBlackboard && ['bb-qr-basic', 'bb-qr-plus', 'bb-qr-canvas', 'bb-qr-play'].includes(tutorialStep) && (
-          <QRTypeBlackboard
-            step={tutorialStep}
-            onChoose={(type) => {
-              setQrType(type);
-              setTutorialStep('bb-qr-congrats');
-            }}
-            onContinue={goNext}
-          />
-        )}
-
-        {isBlackboard && !['bb-channel-congrats', 'bb-product-congrats', 'bb-color-congrats', 'bb-size-congrats', 'bb-qr-congrats', 'bb-qr-basic', 'bb-qr-plus', 'bb-qr-canvas', 'bb-qr-play'].includes(tutorialStep) && BLACKBOARD_CONTENT[tutorialStep] && (
-          <BlackboardCard
-            data={BLACKBOARD_CONTENT[tutorialStep]}
-            onContinue={tutorialStep === 'bb-finish' ? completeTutorial : goNext}
-          />
-        )}
-
-        {tutorialStep === 'action-channel' && (
-          <div className="max-w-sm mx-auto space-y-4 animate-in fade-in duration-300">
-            <ChannelStep
-              selectedChannel={selectedChannel}
-              onSelect={setSelectedChannel}
-              memberId={user.id}
-              isCreatingChannel={isCreatingChannel}
-              setIsCreatingChannel={setIsCreatingChannel}
-              newChannelName={newChannelName}
-              setNewChannelName={setNewChannelName}
-            />
-            <Button
-              onClick={goNext}
-              disabled={!canProceed}
-              className="w-full bg-emerald-600 text-white py-5 text-base font-semibold"
-              data-testid="tutorial-next"
-            >
-              Next <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-        )}
-
-        {tutorialStep === 'action-product' && (
-          <div className="max-w-sm mx-auto space-y-4 animate-in fade-in duration-300">
-            <ProductPickerStep
-              selectedProduct={selectedProductType}
-              onSelect={handleProductSelect}
-            />
-            <Button
-              onClick={goNext}
-              disabled={!canProceed}
-              className="w-full bg-emerald-600 text-white py-5 text-base font-semibold"
-              data-testid="tutorial-next"
-            >
-              Next <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-        )}
-
-        {tutorialStep === 'action-color' && (
-          <div className="max-w-sm mx-auto space-y-4 animate-in fade-in duration-300">
-            <ColorPickerStep
-              selectedColor={selectedColor}
-              onSelect={setSelectedColor}
-            />
-            <Button
-              onClick={goNext}
-              disabled={!canProceed}
-              className="w-full bg-emerald-600 text-white py-5 text-base font-semibold"
-              data-testid="tutorial-next"
-            >
-              Next <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-        )}
-
-        {tutorialStep === 'action-size' && (() => {
-          const sizeEarningsBonuses = calculateSizeEarningsBonuses(
-            pricingSettings?.sizeUpcharges,
-            pricingSettings?.memberProfitShare || 0.25
-          );
-          return (
-            <div className="max-w-sm mx-auto space-y-4 animate-in fade-in duration-300">
-              <SizePickerStep
-                selectedSize={selectedShirtSize}
-                selectedColor={selectedColor}
-                baseEarnings={runningEarnings}
-                sizeEarningsBonuses={sizeEarningsBonuses}
-                selectedPlacements={selectedPlacements}
-                onSelect={setSelectedShirtSize}
-              />
-              <Button
-                onClick={goNext}
-                disabled={!canProceed}
-                className="w-full bg-emerald-600 text-white py-5 text-base font-semibold"
-                data-testid="tutorial-next"
-              >
-                Next <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+          const tier = getTierInfo();
+          return !isShowingBlackboard && !showQrTypeCards && !showQrCongrats && tier ? (
+            <div className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border mb-2 ${tier.color}`} data-testid="badge-tier-label">
+              {tier.label}
             </div>
-          );
+          ) : null;
         })()}
 
-      </div>
-    </div>
+        {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && (
+          <SimpleWizardProgressBar currentStep={simpleStep} />
+        )}
+
+        {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && runningEarnings > 0 && (
+          <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 mx-auto w-fit animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-emerald-400/60 bg-emerald-500/20' : ''}`} data-testid="badge-potential-earnings">
+            <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-emerald-400 font-bold text-sm">
+              ${runningEarnings.toFixed(2)} potential earnings
+            </span>
+          </div>
+        )}
+
+        <div className="min-h-[350px]" id="wizard-step-content">
+          {isShowingBlackboard && currentBlackboardId && (() => {
+            const congratsData = getCongratsBlackboard(currentBlackboardId);
+            if (congratsData) {
+              return <BlackboardCard data={congratsData} onContinue={handleBlackboardContinue} />;
+            }
+            const staticData = BLACKBOARD_CONTENT[currentBlackboardId];
+            if (staticData) {
+              return <BlackboardCard data={staticData} onContinue={handleBlackboardContinue} />;
+            }
+            return null;
+          })()}
+
+          {showQrCongrats && !isShowingBlackboard && (
+            <BlackboardCard
+              data={getQrCongratsBlackboard()}
+              onContinue={() => {
+                setShowQrCongrats(false);
+                setBlackboardQueue(['bb-whats-next']);
+                setPendingAdvance(true);
+              }}
+            />
+          )}
+
+          {showQrTypeCards && !isShowingBlackboard && !showQrCongrats && (
+            <QRTypeBlackboard
+              step={qrTypeExploreStep}
+              onChoose={handleQrTypeChosen}
+              onContinue={handleQrTypeShowMore}
+            />
+          )}
+
+          {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && (
+            <>
+              {simpleStep === 'channel' && (
+                <ChannelStep
+                  selectedChannel={selectedChannel}
+                  onSelect={setSelectedChannel}
+                  memberId={user.id}
+                  isCreatingChannel={isCreatingChannel}
+                  setIsCreatingChannel={setIsCreatingChannel}
+                  newChannelName={newChannelName}
+                  setNewChannelName={setNewChannelName}
+                />
+              )}
+
+              {simpleStep === 'product' && (
+                <ProductPickerStep
+                  selectedProduct={selectedProductType}
+                  onSelect={handleProductSelect}
+                />
+              )}
+
+              {simpleStep === 'product-congrats' && selectedProductType && (
+                <ProductCongratsStep
+                  productName={selectedProductType.title}
+                  earnings={selectedProductType.memberEarnings || 0}
+                />
+              )}
+
+              {simpleStep === 'color' && (
+                <ColorPickerStep
+                  selectedColor={selectedColor}
+                  onSelect={setSelectedColor}
+                />
+              )}
+
+              {simpleStep === 'size' && (() => {
+                const sizeEarningsBonuses = calculateSizeEarningsBonuses(
+                  pricingSettings?.sizeUpcharges,
+                  pricingSettings?.memberProfitShare || 0.25
+                );
+                return (
+                  <SizePickerStep
+                    selectedSize={selectedShirtSize}
+                    selectedColor={selectedColor}
+                    baseEarnings={runningEarnings}
+                    sizeEarningsBonuses={sizeEarningsBonuses}
+                    selectedPlacements={selectedPlacements}
+                    onSelect={(size) => {
+                      const oldBonus = sizeEarningsBonuses[selectedShirtSize] || 0;
+                      const newBonus = sizeEarningsBonuses[size] || 0;
+                      const earningsDiff = newBonus - oldBonus;
+
+                      setSelectedShirtSize(size);
+
+                      const doUpdate = () => {
+                        if (selectedShirtSize && earningsDiff !== 0) {
+                          setRunningEarnings(prev => prev + earningsDiff);
+                        } else if (!selectedShirtSize) {
+                          setRunningEarnings(prev => prev + newBonus);
+                        }
+                        setEarningsPulse(true);
+                        setTimeout(() => setEarningsPulse(false), 600);
+                      };
+
+                      if (size !== selectedShirtSize) {
+                        setTimeout(doUpdate, 1200);
+                      } else {
+                        doUpdate();
+                      }
+                    }}
+                  />
+                );
+              })()}
+
+              {simpleStep === 'type' && (
+                <TypePickerStep
+                  selectedType={qrType}
+                  onSelect={setQrType}
+                />
+              )}
+
+              {simpleStep === 'graphic-size' && (
+                <div className="space-y-2">
+                  <GraphicSizeStep
+                    selectedSize={graphicSize}
+                    selectedColor={selectedColor}
+                    currentPlacement={currentPlacement}
+                    onSelect={setGraphicSize}
+                  />
+                </div>
+              )}
+
+              {simpleStep === 'generate' && (
+                <div className="space-y-2">
+                  <GenerateGraphicStep
+                    selectedColor={selectedColor}
+                    graphicLocation={graphicLocation}
+                    graphicSize={graphicSize}
+                    onYes={() => {
+                      setWantsHeaderFooter(true);
+                      setQrType('qr-plus');
+                      setSimpleStep('text-choice');
+                    }}
+                    onNo={() => {
+                      setWantsHeaderFooter(false);
+                      setSimpleStep('canvas-fork');
+                    }}
+                  />
+                </div>
+              )}
+
+              {simpleStep === 'qr-basic-type' && (
+                <QRBasicTypeStep
+                  selectedType={qrBasicInputType}
+                  onSelect={(type) => {
+                    setQrBasicInputType(type);
+                    setSimpleStep('qr-basic-input');
+                  }}
+                  selectedColor={selectedColor}
+                  graphicSize={graphicSize}
+                />
+              )}
+
+              {simpleStep === 'qr-basic-input' && (
+                <QRBasicInputStep
+                  inputType={qrBasicInputType}
+                  content={qrBasicContent}
+                  onContentChange={setQrBasicContent}
+                  selectedColor={selectedColor}
+                  graphicSize={graphicSize}
+                />
+              )}
+
+              {simpleStep === 'qr-basic-mockup' && (
+                <QRBasicMockupStep
+                  mockupUrl={qrBasicMockup}
+                  isLoading={isGeneratingBasicMockup}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  inputType={qrBasicInputType}
+                  content={qrBasicContent}
+                />
+              )}
+
+              {simpleStep === 'qr-basic-save-choice' && (
+                <QRBasicSaveChoiceStep
+                  selected={qrBasicSaveChoice}
+                  onSelect={(choice) => setQrBasicSaveChoice(choice)}
+                />
+              )}
+
+              {simpleStep === 'qr-basic-confirm' && (
+                <QRBasicConfirmStep
+                  saveChoice={qrBasicSaveChoice}
+                  mockupUrl={qrBasicMockup}
+                  qrContent={qrBasicContent}
+                  isSaving={isQrBasicSaving}
+                  onDone={() => {
+                    setSimpleStep('channel');
+                    setCurrentPacketId(null);
+                    setQrBasicInputType('');
+                    setQrBasicContent('');
+                    setQrBasicMockup('');
+                    setQrBasicSaveChoice('');
+                  }}
+                />
+              )}
+
+              {simpleStep === 'qr-plus-mockup' && (
+                <QRPlusMockupStep
+                  mockupUrl={qrPlusMockup}
+                  isLoading={isGeneratingPlusMockup}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  headerText={headerStyle.text}
+                  footerText={footerStyle.text}
+                />
+              )}
+
+              {simpleStep === 'qr-plus-save-choice' && (
+                <QRPlusSaveChoiceStep
+                  selected={qrPlusSaveChoice}
+                  onSelect={(choice) => setQrPlusSaveChoice(choice)}
+                />
+              )}
+
+              {simpleStep === 'qr-plus-confirm' && (
+                <QRPlusConfirmStep
+                  saveChoice={qrPlusSaveChoice}
+                  mockupUrl={qrPlusMockup}
+                  productGraphicUrl={productGraphic}
+                  qrGraphicUrl={qrGraphic}
+                  isSaving={isQrPlusSaving}
+                  onDone={() => {
+                    setSimpleStep('channel');
+                    setCurrentPacketId(null);
+                    setQrPlusMockup('');
+                    setQrPlusSaveChoice('');
+                    setQrGraphic('');
+                    setProductGraphic('');
+                  }}
+                />
+              )}
+
+              {simpleStep === 'text-choice' && (
+                <div className="space-y-2">
+                  <TextLayoutChoiceStep
+                    selected={textLayoutChoice}
+                    textLineEarningsBonus={textLineEarningsBonus}
+                    onSelect={(choice) => {
+                      const prevLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
+                      const newLines = choice === 'both' ? 2 : 1;
+                      const diff = newLines - prevLines;
+                      if (diff !== 0) {
+                        setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
+                      }
+                      setTextLayoutChoice(choice);
+                    }}
+                  />
+                </div>
+              )}
+
+              {simpleStep === 'placement-count' && (
+                <PlacementCountStep
+                  selected={selectedPlacements}
+                  onToggle={(placement) => {
+                    const isRemoving = selectedPlacements.includes(placement);
+                    const currentCount = selectedPlacements.length;
+
+                    if (isRemoving) {
+                      if (currentCount > 1) {
+                        setRunningEarnings(prev => prev - placementEarningsBonus);
+                      }
+                      setSelectedPlacements(prev => prev.filter(p => p !== placement));
+                    } else {
+                      if (currentCount >= 1) {
+                        setRunningEarnings(prev => prev + placementEarningsBonus);
+                      }
+                      setSelectedPlacements(prev => [...prev, placement]);
+                    }
+                  }}
+                  selectedColor={selectedColor}
+                  placementEarningsBonus={placementEarningsBonus}
+                  productPlacements={selectedProductType?.placements}
+                />
+              )}
+
+              {simpleStep === 'text-edit-header' && (
+                <HeaderTextEditStep
+                  selectedColor={selectedColor}
+                  graphicSize={graphicSize}
+                  graphicLocation={graphicLocation}
+                  headerStyle={headerStyle}
+                  onHeaderChange={setHeaderStyle}
+                  earningsPerLine={textLineEarningsBonus}
+                />
+              )}
+
+              {simpleStep === 'text-edit-footer' && (
+                <FooterTextEditStep
+                  selectedColor={selectedColor}
+                  graphicSize={graphicSize}
+                  graphicLocation={graphicLocation}
+                  footerStyle={footerStyle}
+                  onFooterChange={setFooterStyle}
+                  headerStyle={headerStyle}
+                  earningsPerLine={textLineEarningsBonus}
+                />
+              )}
+
+              {simpleStep === 'placement-config' && (
+                <PlacementConfigStep
+                  currentPlacement={currentPlacement}
+                  currentIndex={currentPlacementIndex}
+                  totalPlacements={selectedPlacements.length}
+                  graphicChoice={placementGraphicChoice}
+                  onGraphicChoiceChange={setPlacementGraphicChoice}
+                  headerStyle={headerStyle}
+                  footerStyle={footerStyle}
+                  textLayoutChoice={textLayoutChoice}
+                  selectedColor={selectedColor}
+                  graphicSize={graphicSize}
+                />
+              )}
+
+              {simpleStep === 'shirt-preview' && (
+                <ShirtPreviewStep
+                  selectedColor={selectedColor}
+                  graphicLocation={graphicLocation}
+                  graphicSize={graphicSize}
+                  headerStyle={headerStyle}
+                  footerStyle={footerStyle}
+                  textLayoutChoice={textLayoutChoice}
+                  selectedPlacements={selectedPlacements}
+                />
+              )}
+
+              {simpleStep === 'compose-explainer' && (
+                <ComposeExplainerCard
+                  publishedItemCount={publishedCanvasPlayItems.length}
+                  onCreateMoment={() => {
+                    setSimpleStep('canvas-fork');
+                  }}
+                  onBack={() => {
+                    setSimpleStep('canvas-fork');
+                  }}
+                />
+              )}
+
+              {simpleStep === 'platform-acknowledge' && (
+                <PlatformAcknowledgementCard
+                  momentCount={publishedCanvasPlayItems.length}
+                  onContinue={() => {
+                    setSimpleStep('canvas-fork');
+                  }}
+                  onManageMoments={() => {
+                    setViewMode('channels');
+                  }}
+                />
+              )}
+
+              {simpleStep === 'canvas-fork' && (
+                <SurfacePickerStep
+                  onCanvas={() => {
+                    setQrType('qr-canvas');
+                    setSimpleStep('url-explainer');
+                  }}
+                  onPlay={() => {
+                    setQrType('qr-play');
+                    setSimpleStep('play-video-source');
+                  }}
+                  onCompose={() => {
+                    if (publishedCanvasPlayItems.length < 2) {
+                      setSimpleStep('compose-explainer');
+                      return;
+                    }
+                    setQrType('qr-compose');
+                    fetchPublishedCanvasPlayItems();
+                    setSimpleStep('compose-pick-items');
+                  }}
+                  publishedItemCount={publishedCanvasPlayItems.length}
+                  onSkip={async () => {
+                    setQrType('qr-plus');
+                    setIsGeneratingPlusMockup(true);
+                    setSimpleStep('qr-plus-mockup');
+
+                    try {
+                      const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
+                      const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
+                      setQrGraphic(qrApiUrl);
+                      console.log('[QR Plus] Generated qrGraphic:', qrApiUrl);
+
+                      console.log('[QR Plus] Generating productGraphic with:');
+                      console.log('[QR Plus]   textLayoutChoice:', textLayoutChoice);
+                      console.log('[QR Plus]   headerStyle:', JSON.stringify({
+                        text: headerStyle.text,
+                        enabled: headerStyle.enabled,
+                        color: headerStyle.color,
+                        fontFamily: headerStyle.fontFamily,
+                        fontSize: headerStyle.fontSize,
+                      }));
+                      console.log('[QR Plus]   footerStyle:', JSON.stringify({
+                        text: footerStyle.text,
+                        enabled: footerStyle.enabled,
+                        color: footerStyle.color,
+                        fontFamily: footerStyle.fontFamily,
+                        fontSize: footerStyle.fontSize,
+                      }));
+                      const productGraphicResult = await api.generateProductGraphic({
+                        qrUrl: previewUrl,
+                        headerStyle: headerStyle,
+                        footerStyle: footerStyle,
+                        textLayoutChoice: textLayoutChoice,
+                        qrColor: 'black',
+                      });
+
+                      console.log('[QR Plus] productGraphicResult:', JSON.stringify({
+                        success: productGraphicResult.success,
+                        hasProductGraphic: !!productGraphicResult.productGraphic,
+                        productGraphicLength: productGraphicResult.productGraphic?.length || 0,
+                        error: productGraphicResult.error,
+                      }));
+
+                      if (productGraphicResult.success && productGraphicResult.productGraphic) {
+                        setProductGraphic(productGraphicResult.productGraphic);
+                        console.log('[QR Plus] Generated productGraphic (composite), length:', productGraphicResult.productGraphic.length);
+                      } else {
+                        console.warn('[QR Plus] productGraphic generation failed, using qrGraphic as fallback');
+                        console.warn('[QR Plus] Fallback reason - success:', productGraphicResult.success, 'hasGraphic:', !!productGraphicResult.productGraphic);
+                        setProductGraphic(qrApiUrl);
+                      }
+
+                      if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+                        const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
+                        console.log('[QR Plus] Generating mockup with graphicSize:', graphicSize, '\u2192 effectiveQrSize:', effectiveQrSize);
+
+                        const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic
+                          ? productGraphicResult.productGraphic
+                          : qrApiUrl;
+
+                        const mockupResult = await api.generateMockup({
+                          blueprintId: selectedProductType.blueprintId,
+                          printProviderId: selectedProductType.printProviderId,
+                          colorName: selectedColor,
+                          artworkUrl: artworkForMockup,
+                          placement: 'FRONT_CHEST',
+                          qrSize: effectiveQrSize,
+                        });
+
+                        console.log('[QR Plus] Mockup API Response:', JSON.stringify(mockupResult, null, 2));
+
+                        const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
+
+                        if (mockupResult.success && bestUrl) {
+                          console.log('[QR Plus] SUCCESS - Setting qrPlusMockup to:', bestUrl);
+                          setQrPlusMockup(bestUrl);
+                        } else {
+                          console.warn('[QR Plus] FAILED - Using QR fallback. Error:', mockupResult.error);
+                          setQrPlusMockup(qrApiUrl);
+                        }
+                      } else {
+                        console.warn('[QR Plus] Missing product info for mockup');
+                        setQrPlusMockup(qrApiUrl);
+                      }
+                    } catch (error) {
+                      console.error('[QR Plus] Error generating mockup:', error);
+                      const fallbackUrl = generateQRCodeUrl('placeholder', 200);
+                      setQrPlusMockup(fallbackUrl);
+                    } finally {
+                      setIsGeneratingPlusMockup(false);
+                    }
+                  }}
+                />
+              )}
+
+              {simpleStep === 'url-explainer' && (
+                <QRCanvasExplainerStep
+                  onUploadClick={() => {
+                    setUrlSourceChoice('upload');
+                    setSimpleStep('url-library-pick');
+                  }}
+                  onLibraryClick={() => {
+                    setUrlSourceChoice('library');
+                    setSimpleStep('url-source-choice');
+                  }}
+                />
+              )}
+
+              {simpleStep === 'url-source-choice' && (
+                <UrlSourceChoiceStep
+                  choice={libraryChoice}
+                  onChoiceChange={setLibraryChoice}
+                />
+              )}
+
+              {simpleStep === 'url-library-pick' && user?.id && (
+                <SimpleBackgroundStep
+                  memberId={user.id}
+                  background={urlGraphic}
+                  onBackgroundSelected={(croppedUrl, originalUrl, needsCrop) => {
+                    setUrlGraphic(croppedUrl);
+                    setOriginalUrlGraphic(originalUrl);
+                  }}
+                  onComplete={() => setSimpleStep('url-title')}
+                  initialSubStep={
+                    urlSourceChoice === 'upload' ? 'upload' :
+                    libraryChoice === 'personal' ? 'personal-library' :
+                    libraryChoice === 'common' ? 'common-library' : 'choice'
+                  }
+                  croppedOnly={libraryChoice === 'personal'}
+                />
+              )}
+
+              {simpleStep === 'url-title' && (
+                <UrlTitleStep
+                  title={simpleTitle}
+                  onTitleChange={setSimpleTitle}
+                  background={urlGraphic}
+                  description={simpleDescription}
+                  titleVertical={titleVertical}
+                  titleHorizontal={titleHorizontal}
+                  titleColor={titleColor}
+                  titleSize={titleSize}
+                  titleFont={titleFont}
+                  descVertical={descVertical}
+                  descHorizontal={descHorizontal}
+                  descColor={descColor}
+                  descSize={descSize}
+                  descFont={descFont}
+                  onTitleVerticalChange={setTitleVertical}
+                  onTitleHorizontalChange={setTitleHorizontal}
+                  onTitleColorChange={setTitleColor}
+                  onTitleSizeChange={setTitleSize}
+                  onTitleFontChange={setTitleFont}
+                />
+              )}
+
+              {simpleStep === 'url-description' && (
+                <UrlDescriptionStep
+                  title={simpleTitle}
+                  description={simpleDescription}
+                  onDescriptionChange={setSimpleDescription}
+                  background={urlGraphic}
+                  titleVertical={titleVertical}
+                  titleHorizontal={titleHorizontal}
+                  titleColor={titleColor}
+                  titleSize={titleSize}
+                  titleFont={titleFont}
+                  descVertical={descVertical}
+                  descHorizontal={descHorizontal}
+                  descColor={descColor}
+                  descSize={descSize}
+                  descFont={descFont}
+                  onDescVerticalChange={setDescVertical}
+                  onDescHorizontalChange={setDescHorizontal}
+                  onDescColorChange={setDescColor}
+                  onDescSizeChange={setDescSize}
+                  onDescFontChange={setDescFont}
+                />
+              )}
+
+              {simpleStep === 'url-preview' && (
+                <SimplePreviewStep
+                  background={urlGraphic}
+                  title={simpleTitle}
+                  description={simpleDescription}
+                  titleVertical={titleVertical}
+                  titleHorizontal={titleHorizontal}
+                  titleColor={titleColor}
+                  titleSize={titleSize}
+                  titleFont={titleFont}
+                  descVertical={descVertical}
+                  descHorizontal={descHorizontal}
+                  descColor={descColor}
+                  descSize={descSize}
+                  descFont={descFont}
+                  onGoBack={() => setSimpleStep('url-description')}
+                />
+              )}
+
+              {simpleStep === 'canvas-mockup' && (
+                <QRPlusMockupStep
+                  mockupUrl={qrCanvasMockup}
+                  isLoading={isGeneratingCanvasMockup}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  headerText={headerStyle.enabled ? headerStyle.text : undefined}
+                  footerText={footerStyle.enabled ? footerStyle.text : undefined}
+                />
+              )}
+
+              {simpleStep === 'url-publish' && (
+                <SimplePublishStep
+                  isPublishing={isPublishing}
+                  onPublish={handleSimplePublish}
+                  title={simpleTitle}
+                  description={simpleDescription}
+                  qrType={qrType}
+                  background={urlGraphic}
+                  titleVertical={titleVertical}
+                  titleHorizontal={titleHorizontal}
+                  titleColor={titleColor}
+                  titleSize={titleSize}
+                  titleFont={titleFont}
+                  descVertical={descVertical}
+                  descHorizontal={descHorizontal}
+                  descColor={descColor}
+                  descSize={descSize}
+                  descFont={descFont}
+                />
+              )}
+
+              {simpleStep === 'canvas-save-choice' && (
+                <QRCanvasSaveChoiceStep
+                  selected={canvasSaveChoice}
+                  onSelect={setCanvasSaveChoice}
+                />
+              )}
+
+              {simpleStep === 'canvas-confirm' && (
+                <QRCanvasConfirmStep
+                  saveChoice={'all'}
+                  productGraphicUrl={publishedProductGraphicUrl}
+                  backgroundUrl={urlGraphic}
+                  qrGraphicUrl={publishedQrGraphicUrl}
+                  isSaving={isCanvasSaving}
+                  onDone={handleCanvasDone}
+                />
+              )}
+
+              {simpleStep === 'play-video-source' && (
+                <PlayVideoSourceStep
+                  videoUrl={playVideoUrl}
+                  onVideoUrlChange={(url) => {
+                    setPlayVideoUrl(url);
+                    setVideoUrl(url);
+                  }}
+                  onFileUpload={handleVideoFileUpload}
+                  isUploading={isUploadingVideo}
+                  uploadError={videoUploadError}
+                  uploadProgress={videoUploadProgress}
+                  uploadSuccess={videoUploadSuccess}
+                />
+              )}
+
+              {simpleStep === 'play-preview' && (
+                <PlayPreviewStep
+                  videoUrl={playVideoUrl}
+                  title={simpleTitle}
+                />
+              )}
+
+              {simpleStep === 'play-mockup' && (
+                <QRPlusMockupStep
+                  mockupUrl={qrPlayMockup}
+                  isLoading={isGeneratingPlayMockup}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  headerText={headerStyle.enabled ? headerStyle.text : undefined}
+                  footerText={footerStyle.enabled ? footerStyle.text : undefined}
+                />
+              )}
+
+              {simpleStep === 'play-publish' && (
+                <PlayPublishStep
+                  videoUrl={playVideoUrl}
+                  isPublishing={isPublishing}
+                />
+              )}
+
+              {simpleStep === 'play-save-choice' && (
+                <PlayPublishedStep />
+              )}
+
+              {simpleStep === 'compose-mode' && (
+                <ComposeModePicker
+                  selected={composeMode}
+                  onSelect={setComposeMode}
+                />
+              )}
+
+              {simpleStep === 'compose-pick-items' && (
+                <ComposePickItemsStep
+                  availableItems={publishedCanvasPlayItems}
+                  selectedItems={composeItems}
+                  onToggleItem={(item: any) => {
+                    const packetId = item.packetId || item.id;
+                    const existing = composeItems.find(i => i.packetId === packetId);
+                    if (existing) {
+                      setComposeItems(prev => prev.filter(i => i.packetId !== packetId));
+                    } else {
+                      setComposeItems(prev => [...prev, {
+                        packetId,
+                        name: item.title || item.name || 'Untitled',
+                        thumbnailUrl: item.qrCanvasMockup || item.qrPlayMockup || item.composeMockup || item.urlGraphic || item.thumbnailUrl || '',
+                        type: item.packetType === 'qr-play' ? 'qr-play' : 'qr-canvas',
+                        durationSeconds: 86400,
+                        order: prev.length + 1,
+                      }]);
+                    }
+                  }}
+                  isLoading={isLoadingPublishedItems}
+                />
+              )}
+
+              {simpleStep === 'compose-durations' && (
+                <ComposeDurationsStep
+                  items={composeItems}
+                  onUpdateDuration={(packetId, seconds) => {
+                    setComposeItems(prev => prev.map(i =>
+                      i.packetId === packetId ? { ...i, durationSeconds: seconds } : i
+                    ));
+                  }}
+                />
+              )}
+
+              {simpleStep === 'compose-order' && (
+                <ComposeOrderStep
+                  items={composeItems}
+                  onMoveUp={(packetId) => {
+                    setComposeItems(prev => {
+                      const idx = prev.findIndex(i => i.packetId === packetId);
+                      if (idx <= 0) return prev;
+                      const next = [...prev];
+                      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                      return next.map((i, j) => ({ ...i, order: j + 1 }));
+                    });
+                  }}
+                  onMoveDown={(packetId) => {
+                    setComposeItems(prev => {
+                      const idx = prev.findIndex(i => i.packetId === packetId);
+                      if (idx < 0 || idx >= prev.length - 1) return prev;
+                      const next = [...prev];
+                      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                      return next.map((i, j) => ({ ...i, order: j + 1 }));
+                    });
+                  }}
+                  onRemove={(packetId) => {
+                    setComposeItems(prev => prev.filter(i => i.packetId !== packetId).map((i, j) => ({ ...i, order: j + 1 })));
+                  }}
+                />
+              )}
+
+              {simpleStep === 'compose-hosting' && (
+                <ComposeHostingStep
+                  selected={composeHostingTerm}
+                  onSelect={setComposeHostingTerm}
+                />
+              )}
+
+              {simpleStep === 'compose-mockup' && (
+                <QRPlusMockupStep
+                  mockupUrl={composeMockup}
+                  isLoading={isGeneratingComposeMockup}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  headerText={headerStyle.enabled ? headerStyle.text : undefined}
+                  footerText={footerStyle.enabled ? footerStyle.text : undefined}
+                />
+              )}
+
+              {simpleStep === 'compose-preview' && (
+                <ComposePreviewStep
+                  items={composeItems}
+                  hostingTerm={composeHostingTerm}
+                  mockupUrl={composeMockup}
+                  isLoadingMockup={isGeneratingComposeMockup}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  composeMode={composeMode || 'auto-rotate'}
+                />
+              )}
+
+              {simpleStep === 'compose-publish' && (
+                <ComposePublishStep
+                  isPublishing={isPublishing}
+                  itemCount={composeItems.length}
+                />
+              )}
+
+              {simpleStep === 'compose-confirm' && (
+                <ComposeConfirmStep
+                  instanceId={composeInstanceId}
+                  resolverUrl={composeInstanceId ? `/qr/d/${composeInstanceId}` : null}
+                  itemCount={composeItems.length}
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && (
+          <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
+            <Button
+              variant="outline"
+              onClick={handleSimpleBack}
+              disabled={simpleStep === 'channel'}
+              className="flex-1 min-w-[100px] sm:flex-none"
+              data-testid="button-simple-back"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back
+            </Button>
+
+            {simpleStep !== 'url-publish' && (
+              <Button
+                onClick={handleSuperNext}
+                disabled={!canProceed}
+                className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
+                  canProceed
+                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/40"
+                    : "bg-slate-600"
+                }`}
+                style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
+                data-testid="button-simple-next"
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
