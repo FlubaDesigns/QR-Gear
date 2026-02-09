@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembersContext } from "@/features/members/MembersContext";
+import { useMemberAuth } from "@/features/members/MemberAuthContext";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { type PlacementConfig } from "@/features/shared/components/PlacementPicker";
 import { type LandingPageConfig, defaultLandingPage } from "@/features/shared/components/LandingPageEditor";
@@ -15,7 +16,7 @@ import {
   type AllowedProduct, type ProductItem,
   SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS, QR_PLAY_STEPS, QR_COMPOSE_STEPS, WIZARD_STEPS,
   isQRBasicStep, isQRPlusStep, isQRPlayStep, isQRComposeStep,
-  getAuthHeaders, generateQRCodeUrl,
+  generateQRCodeUrl,
 } from "@/features/shared/components/wizardSteps";
 import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
 
@@ -292,6 +293,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const { api } = useMembersContext();
+  const { apiBase, getAuthHeaders: getMemberAuthHeaders } = useMemberAuth();
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -484,7 +486,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         baseCost: product.baseCost,
       });
 
-      const authHeaders = await getAuthHeaders();
+      const authHeaders = await getMemberAuthHeaders();
       const placeholderQrUrl = generateQRCodeUrl('placeholder', 200);
 
       const packetPayload = {
@@ -505,7 +507,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         status: 'building',
       };
 
-      const res = await fetch('/api/member/packets', {
+      const res = await fetch(`${apiBase}/${user?.id}/packets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(packetPayload),
@@ -532,8 +534,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
     try {
-      const authHeaders = await getAuthHeaders();
-      const res = await fetch(`/api/members/${user.id}/packets/${currentPacketId}`, {
+      const authHeaders = await getMemberAuthHeaders();
+      const res = await fetch(`${apiBase}/${user.id}/packets/${currentPacketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(updates),
@@ -552,17 +554,17 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const handleSimplePublish = async () => {
     if (!user?.id) {
-      alert('You must be logged in to publish.');
+      toast({ title: 'Login required', description: 'You must be logged in to publish.', variant: 'destructive' });
       return;
     }
     if (!selectedChannel) {
-      alert('Please select a channel first. Go to My Channels and select or create one.');
+      toast({ title: 'Select a channel', description: 'Go to My Channels and select or create one first.', variant: 'destructive' });
       return;
     }
 
     setIsPublishing(true);
     try {
-      const authHeaders = await getAuthHeaders();
+      const authHeaders = await getMemberAuthHeaders();
 
       const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
       const textUpcharge = textLines * (pricingSettings?.textLineUpcharge || 2);
@@ -668,7 +670,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         setPublishedQrGraphicUrl(result.qrGraphic || null);
         setPublishedProductGraphicUrl(result.productGraphic || null);
         try {
-          const saveAuthHeaders = await getAuthHeaders();
+          const saveAuthHeaders = await getMemberAuthHeaders();
           const assetsToSave: { url: string; assetType: string; name: string }[] = [];
           if (result.productGraphic) {
             assetsToSave.push({ url: result.productGraphic, assetType: 'graphic', name: `${simpleTitle || 'Canvas'} - Product Graphic` });
@@ -717,7 +719,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Simple publish error:', error);
-      alert('Failed to publish. Please try again.');
+      toast({ title: 'Publish failed', description: 'Failed to publish. Please try again.', variant: 'destructive' });
     } finally {
       setIsPublishing(false);
     }
@@ -753,7 +755,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
     setIsCanvasSaving(true);
     try {
-      const authHeaders = await getAuthHeaders();
+      const authHeaders = await getMemberAuthHeaders();
       const assetsToSave: { url: string; assetType: string; name: string }[] = [];
 
       if ((canvasSaveChoice === 'item' || canvasSaveChoice === 'all') && publishedProductGraphicUrl) {
@@ -842,7 +844,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     setVideoUploadProgress(0);
 
     try {
-      const authHeaders = await getAuthHeaders();
+      const authHeaders = await getMemberAuthHeaders();
       const memberId = user?.id;
       if (!memberId) throw new Error('Not signed in');
 
@@ -851,7 +853,6 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('storeType', 'member');
-      formData.append('userId', memberId);
 
       const result = await new Promise<{ url: string }>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -889,7 +890,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
           reject(new Error('Upload was cancelled'));
         });
 
-        xhr.open('POST', '/api/test/upload-media');
+        xhr.open('POST', `${apiBase}/${user.id}/media`);
         const authHeader = (authHeaders as any)['Authorization'];
         if (authHeader) {
           xhr.setRequestHeader('Authorization', authHeader);
@@ -935,7 +936,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     setIsPlaySaving(true);
     try {
       if (playVideoUrl && !playVideoUrl.startsWith('/api/member-files/')) {
-        const authHeaders = await getAuthHeaders();
+        const authHeaders = await getMemberAuthHeaders();
         const res = await fetch(`/api/members/${user.id}/library/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -959,7 +960,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     if (!user?.id) return;
     setIsLoadingPublishedItems(true);
     try {
-      const authHeaders = await getAuthHeaders();
+      const authHeaders = await getMemberAuthHeaders();
       const res = await fetch(`/api/members/${user.id}/published-items?types=qr-canvas,qr-play`, {
         headers: authHeaders
       });
@@ -1099,7 +1100,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     if (simpleStep === 'qr-basic-input') {
       setIsGeneratingBasicMockup(true);
       try {
-        const authHeaders = await getAuthHeaders();
+        const authHeaders = await getMemberAuthHeaders();
 
         const qrContent = qrBasicContent;
         const qrApiUrl = generateQRCodeUrl(qrContent, 1000);
@@ -1603,7 +1604,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
     setIsPublishing(true);
     try {
-      const authHeaders = await getAuthHeaders();
+      const authHeaders = await getMemberAuthHeaders();
 
       const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
       const textUpcharge = textLines * (pricingSettings?.textLineUpcharge || 2);
@@ -1642,7 +1643,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       setViewMode('channels');
     } catch (error) {
       console.error('Publish error:', error);
-      alert('Failed to publish. Please try again.');
+      toast({ title: 'Publish failed', description: 'Failed to publish. Please try again.', variant: 'destructive' });
     } finally {
       setIsPublishing(false);
     }
