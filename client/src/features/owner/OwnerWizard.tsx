@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ProductPickerStep, ColorPickerStep, SizePickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
@@ -206,6 +206,7 @@ export function OwnerWizard() {
       case 'qr-basic-input': return !!qrBasicContent.trim();
       case 'qr-basic-mockup': return true;
       case 'qr-plus-mockup': return true;
+      case 'compose-explain' as SimpleWizardStep: return true;
       default: return false;
     }
   })();
@@ -236,7 +237,14 @@ export function OwnerWizard() {
       return;
     }
     if (simpleStep === 'type') {
+      if (qrType === 'qr-compose') {
+        setSimpleStep('compose-explain' as SimpleWizardStep);
+        return;
+      }
       setSimpleStep('placement-count');
+      return;
+    }
+    if (simpleStep === ('compose-explain' as SimpleWizardStep)) {
       return;
     }
     if (simpleStep === 'placement-count') {
@@ -349,6 +357,7 @@ export function OwnerWizard() {
       'color': 'product-congrats',
       'size': 'color',
       'type': 'size',
+      'compose-explain': 'type',
       'placement-count': 'type',
       'graphic-size': 'placement-count',
       'generate': 'graphic-size',
@@ -543,20 +552,14 @@ export function OwnerWizard() {
                 {allTypeDefinitions
                   .filter(t => allowedTypes.includes(t.id))
                   .map((type) => {
-                    const isDisabled = type.requiresMember;
                     return (
                       <button
                         key={type.id}
-                        onClick={() => {
-                          if (!isDisabled) setQrType(type.id);
-                        }}
-                        disabled={isDisabled}
+                        onClick={() => setQrType(type.id)}
                         className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
-                          isDisabled
-                            ? 'border-slate-700 bg-slate-800/30 opacity-50 cursor-not-allowed'
-                            : qrType === type.id
-                              ? 'border-white bg-white/10'
-                              : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+                          qrType === type.id
+                            ? 'border-white bg-white/10'
+                            : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
                         }`}
                         data-testid={`button-type-${type.id}`}
                       >
@@ -566,20 +569,58 @@ export function OwnerWizard() {
                         <div className="text-left flex-1">
                           <h3 className="font-bold text-white">{type.label}</h3>
                           <p className="text-slate-400 text-sm">{type.description}</p>
-                          {isDisabled && (
-                            <span className="inline-flex items-center gap-1 text-xs text-amber-400 mt-1">
-                              <Lock className="w-3 h-3" />
-                              Member required
-                            </span>
-                          )}
                         </div>
-                        {!isDisabled && qrType === type.id && (
+                        {qrType === type.id && (
                           <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
                         )}
                       </button>
                     );
                   })}
               </div>
+            </div>
+          )}
+
+          {simpleStep === ('compose-explain' as SimpleWizardStep) && (
+            <div className="animate-in fade-in slide-in-from-right-5 duration-300 text-center space-y-4 py-4">
+              <div className="relative mx-auto w-fit">
+                <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-3xl animate-pulse" />
+                <div className="relative bg-gradient-to-br from-amber-500 to-orange-600 rounded-full p-4">
+                  <Layers className="w-12 h-12 text-white" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-lg font-bold text-white">QR Compose</h2>
+                <p className="text-slate-300 text-sm max-w-sm mx-auto">
+                  QR Compose lets you build a rotating playlist from multiple QR experiences. Your customers scan one code and see different content on a schedule you control.
+                </p>
+              </div>
+              <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-600 text-left space-y-3 max-w-sm mx-auto">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300 text-sm">Combine Canvas, Play, and Basic QR items into one rotating playlist</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <QrCode className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300 text-sm">One QR code shows different content based on your time slots</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Crown className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300 text-sm">To use Compose, first create Canvas or Play items, then combine them</p>
+                </div>
+              </div>
+              <p className="text-slate-400 text-xs">Start with QR Basic, Plus, Canvas, or Play first, then upgrade to Compose later</p>
+              <Button
+                onClick={() => {
+                  setQrType('');
+                  setSimpleStep('type');
+                }}
+                variant="outline"
+                className="mt-2"
+                data-testid="button-compose-back-to-types"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Pick a different type
+              </Button>
             </div>
           )}
 
@@ -787,7 +828,7 @@ export function OwnerWizard() {
             Back
           </Button>
 
-          {simpleStep !== 'generate' && simpleStep !== 'qr-basic-type' && (
+          {simpleStep !== 'generate' && simpleStep !== 'qr-basic-type' && simpleStep !== ('compose-explain' as SimpleWizardStep) && (
             <Button
               onClick={handleNext}
               disabled={!canProceed}
