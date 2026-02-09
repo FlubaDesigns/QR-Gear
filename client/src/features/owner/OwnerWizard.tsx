@@ -610,49 +610,54 @@ export function OwnerWizard() {
               </div>
 
               <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 rounded-xl p-4 border border-amber-500/30 space-y-3 max-w-sm mx-auto">
-                <h3 className="text-white font-bold text-sm">How to unlock Compose</h3>
+                <h3 className="text-white font-bold text-sm">How to get started</h3>
                 <div className="space-y-2 text-left">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                       <span className="text-amber-400 font-bold text-xs">1</span>
                     </div>
-                    <p className="text-slate-300 text-sm">Become a member (free to join)</p>
+                    <p className="text-slate-300 text-sm">Build your first product using Basic, Plus, Canvas, or Play</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                       <span className="text-amber-400 font-bold text-xs">2</span>
                     </div>
-                    <p className="text-slate-300 text-sm">Create and publish at least 2 moments</p>
+                    <p className="text-slate-300 text-sm">Build at least one more - you need 2 moments minimum</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                       <span className="text-amber-400 font-bold text-xs">3</span>
                     </div>
-                    <p className="text-slate-300 text-sm">Compose them into a rotating playlist</p>
+                    <p className="text-slate-300 text-sm">Come back and compose them into a rotating playlist</p>
                   </div>
                 </div>
-                <Button
-                  onClick={() => navigate('/register')}
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold mt-2"
-                  data-testid="button-compose-become-member"
-                >
-                  <Crown className="w-4 h-4 mr-2" />
-                  Become a Member
-                </Button>
               </div>
 
-              <Button
-                onClick={() => {
-                  setQrType('');
-                  setSimpleStep('type');
-                }}
-                variant="ghost"
-                className="text-slate-400"
-                data-testid="button-compose-back-to-types"
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Pick a different type instead
-              </Button>
+              <div className="flex flex-col items-center gap-2 max-w-sm mx-auto">
+                <Button
+                  onClick={() => {
+                    setQrType('');
+                    setSimpleStep('type');
+                  }}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                  data-testid="button-compose-build-first"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Build Your First Moment
+                </Button>
+                <Button
+                  onClick={() => {
+                    setQrType('');
+                    setSimpleStep('type');
+                  }}
+                  variant="ghost"
+                  className="text-slate-400"
+                  data-testid="button-compose-back-to-types"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Pick a different type
+                </Button>
+              </div>
             </div>
           )}
 
