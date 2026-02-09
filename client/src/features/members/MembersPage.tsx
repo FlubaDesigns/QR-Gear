@@ -59,7 +59,7 @@ interface MemberIndexViewProps {
 }
 
 function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: MemberIndexViewProps) {
-  const [hasSeenIntro, setHasSeenIntro] = useState(false);
+  const [hasSeenIntro, setHasSeenIntro] = useState(true);
 
   const { data: channels } = useQuery<MemberChannel[]>({
     queryKey: ['/api/members', memberId, 'channels'],
@@ -257,7 +257,7 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <button
               onClick={() => onStartWizard('super-simple')}
               className="p-5 bg-gradient-to-br from-emerald-900/40 to-green-900/40 rounded-lg border border-emerald-500/30 hover:border-emerald-400/60 transition-all text-left group"
@@ -290,6 +290,17 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
               </div>
               <h3 className="font-bold text-white text-lg mb-1">Advanced</h3>
               <p className="text-sm text-slate-400">Dense 8-step builder with full control over every detail.</p>
+            </button>
+            <button
+              onClick={() => onStartWizard('studio')}
+              className="p-5 bg-gradient-to-br from-amber-900/40 to-orange-900/40 rounded-lg border border-amber-500/30 hover:border-amber-400/60 transition-all text-left group"
+              data-testid="launch-studio"
+            >
+              <div className="w-12 h-12 mb-3 bg-amber-500/20 rounded-full flex items-center justify-center">
+                <Zap className="w-6 h-6 text-amber-400" />
+              </div>
+              <h3 className="font-bold text-white text-lg mb-1">Studio</h3>
+              <p className="text-sm text-slate-400">Quick publish for experienced creators. Minimal steps, maximum speed.</p>
             </button>
           </div>
         </CardContent>
