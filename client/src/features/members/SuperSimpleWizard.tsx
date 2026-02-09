@@ -23,10 +23,13 @@ type TutorialStep =
   | 'bb-product-congrats'
   | 'bb-zones'
   | 'action-color'
+  | 'bb-color-congrats'
   | 'bb-earnings'
   | 'action-size'
+  | 'bb-size-congrats'
   | 'bb-qr-types'
   | 'action-qr-type'
+  | 'bb-qr-congrats'
   | 'bb-whats-next'
   | 'bb-finish';
 
@@ -40,10 +43,13 @@ const TUTORIAL_FLOW: TutorialStep[] = [
   'bb-product-congrats',
   'bb-zones',
   'action-color',
+  'bb-color-congrats',
   'bb-earnings',
   'action-size',
+  'bb-size-congrats',
   'bb-qr-types',
   'action-qr-type',
+  'bb-qr-congrats',
   'bb-whats-next',
   'bb-finish',
 ];
@@ -82,14 +88,16 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
   },
   'bb-pricing': {
     icon: <DollarSign className="w-8 h-8" />,
-    title: "How Pricing Works",
+    title: "Let's Talk Earnings",
     lines: [
-      { text: "Every product shows exactly what you'll earn." },
-      { text: "Printify handles all manufacturing and shipping. You handle being awesome." },
-      { text: "You get 25% of every sale. Real money, real payouts.", highlight: true },
-      { text: "No hidden fees. We don't do surprises (the bad kind)." },
+      { text: "On the next page, you'll pick a product. Each one shows an earnings amount \u2014 that's your starting number." },
+      { text: "That number only goes up from here.", highlight: true },
+      { text: "1. Pick a bigger size \u2014 your earnings go up." },
+      { text: "2. Add text or graphics \u2014 your earnings go up." },
+      { text: "3. Choose a premium QR type \u2014 your earnings go up." },
+      { text: "We handle manufacturing and shipping. You just design and collect." },
     ],
-    tip: "Bigger products and premium sizes earn you even more.",
+    tip: "Think of the product price as your starting line. Every customization is a bonus.",
   },
   'bb-zones': {
     icon: <Palette className="w-8 h-8" />,
@@ -518,7 +526,85 @@ export function SuperSimpleWizard() {
           />
         )}
 
-        {isBlackboard && tutorialStep !== 'bb-channel-congrats' && tutorialStep !== 'bb-product-congrats' && BLACKBOARD_CONTENT[tutorialStep] && (
+        {isBlackboard && tutorialStep === 'bb-color-congrats' && (() => {
+          const base = selectedProductType?.memberEarnings || 0;
+          return (
+            <BlackboardCard
+              data={{
+                icon: <Palette className="w-8 h-8" />,
+                title: "Looking Good!",
+                lines: [
+                  { text: selectedColor
+                    ? `Nice color choice! That's going to look great on your mockup.`
+                    : "Color is set!" },
+                  { text: `Your earnings so far: $${base.toFixed(2)} per sale`, highlight: true },
+                  { text: "Good news \u2014 color is free. It doesn't change the price at all." },
+                  { text: "But the next step will. Let's talk about size and how it bumps your earnings up." },
+                ],
+                tip: "That $" + base.toFixed(2) + " is just the floor. It's about to go higher.",
+              }}
+              onContinue={goNext}
+            />
+          );
+        })()}
+
+        {isBlackboard && tutorialStep === 'bb-size-congrats' && (() => {
+          const base = selectedProductType?.memberEarnings || 0;
+          const sizeBonuses = calculateSizeEarningsBonuses(
+            pricingSettings?.sizeUpcharges,
+            pricingSettings?.memberProfitShare || 0.25
+          );
+          const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
+          const newTotal = base + sizeBonus;
+          return (
+            <BlackboardCard
+              data={{
+                icon: <TrendingUp className="w-8 h-8" />,
+                title: "Cha-Ching!",
+                lines: [
+                  { text: `Base earnings: $${base.toFixed(2)}` },
+                  { text: sizeBonus > 0
+                    ? `+ Size upgrade (${selectedShirtSize}): +$${sizeBonus.toFixed(2)}`
+                    : `Size (${selectedShirtSize}): no extra cost \u2014 same earnings` },
+                  { text: `= New total: $${newTotal.toFixed(2)} per sale`, highlight: true },
+                  { text: "See how that works? Every choice can add to your earnings." },
+                  { text: "Next up: your QR type. Some of those add even more value." },
+                ],
+              }}
+              onContinue={goNext}
+            />
+          );
+        })()}
+
+        {isBlackboard && tutorialStep === 'bb-qr-congrats' && (() => {
+          const base = selectedProductType?.memberEarnings || 0;
+          const sizeBonuses = calculateSizeEarningsBonuses(
+            pricingSettings?.sizeUpcharges,
+            pricingSettings?.memberProfitShare || 0.25
+          );
+          const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
+          const currentTotal = base + sizeBonus;
+          const typeLabel = qrType === 'qr-basic' ? 'QR Basic' : qrType === 'qr-plus' ? 'QR Plus' : qrType === 'qr-canvas' ? 'QR Canvas' : qrType === 'qr-play' ? 'QR Play' : 'your QR type';
+          return (
+            <BlackboardCard
+              data={{
+                icon: <QrCode className="w-8 h-8" />,
+                title: "You're On Fire!",
+                lines: [
+                  { text: `You picked ${typeLabel} \u2014 great choice!` },
+                  { text: `Product base: $${base.toFixed(2)}` },
+                  ...(sizeBonus > 0 ? [{ text: `+ Size bonus: +$${sizeBonus.toFixed(2)}` }] : []),
+                  { text: `Your earnings per sale: $${currentTotal.toFixed(2)}`, highlight: true },
+                  { text: "In the full builder, adding text, graphics, and extras can push that number even higher." },
+                ],
+                tip: "You've gone from zero to a real product with real earnings. Not bad for a tutorial!",
+              }}
+              onContinue={goNext}
+            />
+          );
+        })()}
+
+        {isBlackboard && !['bb-channel-congrats', 'bb-product-congrats', 'bb-color-congrats', 'bb-size-congrats', 'bb-qr-congrats'].includes(tutorialStep) && BLACKBOARD_CONTENT[tutorialStep] && (
           <BlackboardCard
             data={BLACKBOARD_CONTENT[tutorialStep]}
             onContinue={tutorialStep === 'bb-finish' ? completeTutorial : goNext}
