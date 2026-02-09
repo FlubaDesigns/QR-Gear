@@ -102,7 +102,12 @@ function MemberConversionPitch({ earnings, onSignUp, onSkip }: {
 
 export function OwnerWizard() {
   const params = new URLSearchParams(window.location.search);
-  const minTier = params.get('type') || '';
+  const rawType = params.get('type') || '';
+  const TYPE_ALIASES: Record<string, string> = {
+    'basic': 'qr-basic', 'plus': 'qr-plus', 'canvas': 'qr-canvas',
+    'play': 'qr-play', 'compose': 'qr-compose',
+  };
+  const minTier = TYPE_ALIASES[rawType] || rawType;
   const [, navigate] = useLocation();
 
   const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('product');
