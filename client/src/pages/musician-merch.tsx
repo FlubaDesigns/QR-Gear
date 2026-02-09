@@ -132,13 +132,13 @@ export default function MusicianMerch() {
           </div>
 
           <div className="vanity-cta-group">
-            <Link href="/creator?line=url">
+            <Link href="/build?type=canvas">
               <button className="vanity-cta" data-testid="button-create-album-art">
                 Create Album Art Merch (QR Canvas)
                 <ArrowRight />
               </button>
             </Link>
-            <Link href="/creator?line=video">
+            <Link href="/build?type=play">
               <button className="vanity-cta-secondary" data-testid="button-create-video-merch">
                 Create Video Merch (QR Play)
                 <ArrowRight />

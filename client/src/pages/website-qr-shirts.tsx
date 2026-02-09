@@ -107,7 +107,7 @@ export default function WebsiteQRShirts() {
             </div>
           </div>
 
-          <Link href="/creator?line=static">
+          <Link href="/build?type=basic">
             <button className="vanity-cta" data-testid="button-create-website">
               Create Your Website Shirt
               <ArrowRight />

@@ -108,7 +108,7 @@ export default function MemorialQRGifts() {
             </div>
           </div>
 
-          <Link href="/creator?line=url">
+          <Link href="/build?type=canvas">
             <button className="vanity-cta" data-testid="button-create-memorial">
               Create Your Memorial Shirt
               <ArrowRight />

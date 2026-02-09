@@ -119,7 +119,7 @@ export default function EventQRShirts() {
             </div>
           </div>
 
-          <Link href="/creator?line=static-plus">
+          <Link href="/build?type=plus">
             <button className="vanity-cta" data-testid="button-create-event">
               Create Your Event Shirts
               <ArrowRight />

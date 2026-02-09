@@ -114,7 +114,7 @@ export default function AdventQRShirts() {
             </div>
           </div>
 
-          <Link href="/creator?line=dynamics">
+          <Link href="/build?type=compose">
             <button className="vanity-cta" data-testid="button-create-advent">
               Create Your Advent Shirt
               <ArrowRight />

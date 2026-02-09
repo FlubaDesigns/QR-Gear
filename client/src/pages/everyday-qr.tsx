@@ -110,7 +110,7 @@ export default function EverydayQR() {
             </div>
           </div>
 
-          <Link href="/creator?line=static-plus">
+          <Link href="/build?type=plus">
             <button className="vanity-cta" data-testid="button-create-everyday">
               Create Your Everyday QR
               <ArrowRight />

@@ -118,7 +118,7 @@ export default function QRStaticLanding() {
             </div>
           </div>
 
-          <Link href="/creator?line=static">
+          <Link href="/build?type=basic">
             <button className="vanity-cta" data-testid="button-create-static">
               Create Your QR Basics
               <ArrowRight />

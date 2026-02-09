@@ -114,7 +114,7 @@ export default function VideoTimeCapsule() {
             </div>
           </div>
 
-          <Link href="/creator?line=video">
+          <Link href="/build?type=play">
             <button className="vanity-cta" data-testid="button-create-time-capsule">
               Create Your Time Capsule
               <ArrowRight />

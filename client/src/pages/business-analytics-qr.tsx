@@ -114,7 +114,7 @@ export default function BusinessAnalyticsQR() {
             </div>
           </div>
 
-          <Link href="/creator?line=dynamics">
+          <Link href="/build?type=compose">
             <button className="vanity-cta" data-testid="button-create-analytics">
               Create Your Analytics Shirt
               <ArrowRight />

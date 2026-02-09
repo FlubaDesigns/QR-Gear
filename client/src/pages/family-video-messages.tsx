@@ -107,7 +107,7 @@ export default function FamilyVideoMessages() {
             </div>
           </div>
 
-          <Link href="/creator?line=video">
+          <Link href="/build?type=play">
             <button className="vanity-cta" data-testid="button-create-family-video">
               Create Your Family Message Shirt
               <ArrowRight />

@@ -114,7 +114,7 @@ export default function RealtorQRShirts() {
             </div>
           </div>
 
-          <Link href="/creator?line=dynamics">
+          <Link href="/build?type=compose">
             <button className="vanity-cta" data-testid="button-create-realtor">
               Create Your Realtor Shirt
               <ArrowRight />

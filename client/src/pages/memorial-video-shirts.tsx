@@ -107,7 +107,7 @@ export default function MemorialVideoShirts() {
             </div>
           </div>
 
-          <Link href="/creator?line=video">
+          <Link href="/build?type=play">
             <button className="vanity-cta" data-testid="button-create-memorial-video">
               Create Your Memorial Shirt
               <ArrowRight />

@@ -126,7 +126,7 @@ export default function QRVideoLanding() {
             </div>
           </div>
 
-          <Link href="/creator?line=video">
+          <Link href="/build?type=play">
             <button className="vanity-cta" data-testid="button-create-video">
               Create Your QR Play
               <ArrowRight />

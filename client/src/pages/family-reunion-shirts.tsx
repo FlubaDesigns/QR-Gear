@@ -108,7 +108,7 @@ export default function FamilyReunionShirts() {
             </div>
           </div>
 
-          <Link href="/creator?line=url">
+          <Link href="/build?type=canvas">
             <button className="vanity-cta" data-testid="button-create-family">
               Create Your Family Shirts
               <ArrowRight />

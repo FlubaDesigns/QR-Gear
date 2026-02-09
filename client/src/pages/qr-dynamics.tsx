@@ -119,7 +119,7 @@ export default function QRDynamicsLanding() {
             <p className="vanity-title-accent">It's space.</p>
           </div>
 
-          <Link href="/creator?line=dynamics">
+          <Link href="/build?type=compose">
             <button className="vanity-cta" data-testid="button-create-dynamics">
               Create Your QR Dynamics
               <ArrowRight />

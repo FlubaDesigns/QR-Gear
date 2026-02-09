@@ -114,7 +114,7 @@ export default function LostFoundQR() {
             </div>
           </div>
 
-          <Link href="/creator?line=static">
+          <Link href="/build?type=basic">
             <button className="vanity-cta" data-testid="button-create-lost-found">
               Create Your Lost & Found Gear
               <ArrowRight />

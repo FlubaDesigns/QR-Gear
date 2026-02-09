@@ -108,7 +108,7 @@ export default function NetworkingQRShirts() {
             </div>
           </div>
 
-          <Link href="/creator?line=static">
+          <Link href="/build?type=basic">
             <button className="vanity-cta" data-testid="button-create-networking">
               Create Your Networking Shirt
               <ArrowRight />

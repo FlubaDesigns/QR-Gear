@@ -115,7 +115,7 @@ export default function MedicalAlertQR() {
             </div>
           </div>
 
-          <Link href="/creator?line=static">
+          <Link href="/build?type=basic">
             <button className="vanity-cta" data-testid="button-create-medical">
               Create Your Medical Alert
               <ArrowRight />
