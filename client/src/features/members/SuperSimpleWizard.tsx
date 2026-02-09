@@ -15,6 +15,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 type TutorialStep =
   | 'bb-welcome'
+  | 'bb-channels'
   | 'action-channel'
   | 'bb-pricing'
   | 'action-product'
@@ -29,6 +30,7 @@ type TutorialStep =
 
 const TUTORIAL_FLOW: TutorialStep[] = [
   'bb-welcome',
+  'bb-channels',
   'action-channel',
   'bb-pricing',
   'action-product',
@@ -62,6 +64,17 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
     ],
     tip: "Seriously, this is going to be fun. We promise.",
     buttonText: "Let's Go!",
+  },
+  'bb-channels': {
+    icon: <Store className="w-8 h-8" />,
+    title: "First Up: Channels",
+    lines: [
+      { text: "A channel is your personal storefront \u2014 like having your own little shop inside QR Gear." },
+      { text: "You can create channels for different themes, events, or brands.", highlight: true },
+      { text: "All of your products live inside a channel. Customers browse your channel to see what you've made." },
+      { text: "Think: \"Summer Promo,\" \"Tech Events,\" or just \"My Cool Stuff.\"" },
+    ],
+    tip: "You can have as many channels as you want. Start with one \u2014 you can always add more later.",
   },
   'bb-pricing': {
     icon: <DollarSign className="w-8 h-8" />,
