@@ -10896,7 +10896,165 @@ ${allPages.map(page => `  <url>
   // ============== MEMBER CANVAS PACKET SYSTEM ==============
   // Packet-first lifecycle: create packet → graphics → template → library link
 
-  // Create member packet (canonical anchor)
+  // Create member packet (proper /api/members/:memberId/packets pattern)
+  app.post("/api/members/:memberId/packets", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;
+      
+      if (!memberId) {
+        return res.status(400).json({ error: "memberId is required" });
+      }
+      if (!background?.url) {
+        return res.status(400).json({ error: "background.url is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      const packetData = {
+        packetId,
+        memberId,
+        kind: kind || 'qr_canvas',
+        urlContent: urlContent || null,
+        background: {
+          url: background.url,
+          crop: background.crop || null,
+          assetId: background.assetId || null,
+        },
+        textLayers: textLayers || [],
+        boundProduct: boundProduct || null,
+        metadata: metadata || null,
+        source: source || { entryPoint: 'wizard' },
+        status: status || 'draft',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await firestoreDb.collection('memberPackets').doc(packetId).set(packetData);
+      
+      console.log(`[MemberPackets] Created packet ${packetId} for member ${memberId}`);
+      res.json({ packetId, success: true });
+    } catch (error: any) {
+      console.error('[MemberPackets] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Member media upload (proper /api/members/:memberId/media pattern)
+  app.post("/api/members/:memberId/media", async (req: any, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const idToken = authHeader.substring(7);
+      const decodedToken = await verifyFirebaseToken(idToken);
+      if (!decodedToken) {
+        return res.status(401).json({ error: "Invalid authentication token" });
+      }
+      
+      const userId = decodedToken.uid;
+      console.log(`[MemberMedia] Starting media upload for member: ${userId}`);
+      
+      const contentType = req.headers["content-type"] || "";
+      const boundaryMatch = contentType.match(/boundary=(.+)/);
+      
+      if (!boundaryMatch) {
+        return res.status(400).json({ error: "Invalid content type - expected multipart/form-data" });
+      }
+      
+      const boundary = boundaryMatch[1];
+      
+      const rawBody = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+        req.on("error", reject);
+      });
+      
+      console.log(`[MemberMedia] Received ${rawBody.length} bytes`);
+      
+      const boundaryBuffer = Buffer.from(`--${boundary}`);
+      const parts: Buffer[] = [];
+      let start = 0;
+      
+      while (true) {
+        const boundaryIndex = rawBody.indexOf(boundaryBuffer, start);
+        if (boundaryIndex === -1) break;
+        
+        if (start > 0) {
+          parts.push(rawBody.slice(start, boundaryIndex - 2));
+        }
+        start = boundaryIndex + boundaryBuffer.length + 2;
+      }
+      
+      let fileBuffer: Buffer | null = null;
+      let fileName = `media-${Date.now()}`;
+      let mimeType = "video/mp4";
+      
+      for (const part of parts) {
+        const headerEnd = part.indexOf("\r\n\r\n");
+        if (headerEnd === -1) continue;
+        
+        const headers = part.slice(0, headerEnd).toString();
+        const body = part.slice(headerEnd + 4);
+        
+        const filenameMatch = headers.match(/filename="([^"]+)"/);
+        const contentTypeMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+        
+        if (filenameMatch) {
+          fileName = filenameMatch[1];
+          if (contentTypeMatch) {
+            mimeType = contentTypeMatch[1].trim();
+          }
+          fileBuffer = body;
+        }
+      }
+      
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "video/3gpp", "video/3gpp2", "video/x-m4v", "video/x-matroska", "image/gif", "image/webp", "image/png", "image/jpeg"];
+      if (!allowedTypes.includes(mimeType) && !mimeType.startsWith("video/")) {
+        return res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: most video formats, GIF, WebP, PNG, JPEG` });
+      }
+      
+      const mediaType = mimeType.startsWith("video/") ? "video" : "image";
+      const uniqueFilename = `${Date.now()}-${fileName}`;
+      const storagePath = `library/member/${userId}/${mediaType}/${uniqueFilename}`;
+      const mediaUrl = `/api/library-files/member/${userId}/${mediaType}/${uniqueFilename}`;
+      
+      console.log(`[MemberMedia] Uploading ${fileName} (${mimeType}, ${fileBuffer.length} bytes) to ${storagePath}`);
+      
+      const bucket = (await import("./lib/firebase-admin")).getStorageBucket();
+      const file = bucket.file(storagePath);
+      
+      await file.save(fileBuffer, {
+        metadata: { contentType: mimeType },
+      });
+      
+      console.log(`[MemberMedia] Upload complete: ${mediaUrl}`);
+      
+      res.json({
+        url: mediaUrl,
+        mimeType: mimeType,
+        fileName: fileName,
+        size: fileBuffer.length,
+        storagePath: storagePath
+      });
+      
+    } catch (error: any) {
+      console.error("[MemberMedia] Error:", error);
+      res.status(500).json({ error: error.message || "Upload failed" });
+    }
+  });
+
+  // Legacy: Create member packet (old singular path - kept for test products)
   app.post("/api/member/packets", async (req: any, res) => {
     try {
       const { memberId, kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;
