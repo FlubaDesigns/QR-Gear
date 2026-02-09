@@ -27,8 +27,11 @@ type TutorialStep =
   | 'bb-earnings'
   | 'action-size'
   | 'bb-size-congrats'
-  | 'bb-qr-types'
-  | 'action-qr-type'
+  | 'bb-qr-intro'
+  | 'bb-qr-basic'
+  | 'bb-qr-plus'
+  | 'bb-qr-canvas'
+  | 'bb-qr-play'
   | 'bb-qr-congrats'
   | 'bb-whats-next'
   | 'bb-finish';
@@ -47,8 +50,11 @@ const TUTORIAL_FLOW: TutorialStep[] = [
   'bb-earnings',
   'action-size',
   'bb-size-congrats',
-  'bb-qr-types',
-  'action-qr-type',
+  'bb-qr-intro',
+  'bb-qr-basic',
+  'bb-qr-plus',
+  'bb-qr-canvas',
+  'bb-qr-play',
   'bb-qr-congrats',
   'bb-whats-next',
   'bb-finish',
@@ -120,17 +126,16 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
     ],
     tip: "Watch the +$ bonus on each size button \u2014 that's your extra earnings.",
   },
-  'bb-qr-types': {
+  'bb-qr-intro': {
     icon: <QrCode className="w-8 h-8" />,
     title: "The Secret Sauce",
     lines: [
       { text: "This is what makes QR Gear different from everything else." },
-      { text: "QR Basic: A clean code that links anywhere you want." },
-      { text: "QR Plus: Add custom header and footer text." },
-      { text: "QR Canvas: A background image behind your QR code.", highlight: true },
-      { text: "QR Play: Your QR code opens a video. Yeah, a video." },
+      { text: "There are four QR types, and each one adds more to the experience." },
+      { text: "We're going to walk through each one so you can pick the right fit.", highlight: true },
+      { text: "You can off-ramp at any point \u2014 or keep going to see what's next." },
     ],
-    tip: "Start with Basic or Plus. You can always level up later.",
+    tip: "No pressure. You can always upgrade your QR type later.",
   },
   'bb-whats-next': {
     icon: <Lightbulb className="w-8 h-8" />,
@@ -226,74 +231,154 @@ function BlackboardCard({
   );
 }
 
-function TutorialTypePicker({
-  selectedType,
-  onSelect,
+const QR_TYPE_CARDS: Record<string, {
+  type: QRType;
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  lines: { text: string; highlight?: boolean }[];
+  tip: string;
+  nextStep: TutorialStep;
+}> = {
+  'bb-qr-basic': {
+    type: 'qr-basic',
+    icon: <QrCode className="w-8 h-8" />,
+    iconBg: 'bg-slate-600',
+    title: "QR Basic",
+    lines: [
+      { text: "The simplest option. A clean QR code that links anywhere you want." },
+      { text: "No internet connection needed to scan \u2014 the destination is baked right into the code." },
+      { text: "Perfect for linking to a website, menu, social profile, or contact info.", highlight: true },
+      { text: "It's free of platform fees and works forever. Simple, reliable, done." },
+    ],
+    tip: "Great for getting started. You can always upgrade to a fancier type later.",
+    nextStep: 'bb-qr-plus',
+  },
+  'bb-qr-plus': {
+    type: 'qr-plus',
+    icon: <Type className="w-8 h-8" />,
+    iconBg: 'bg-blue-600',
+    title: "QR Plus",
+    lines: [
+      { text: "Everything in Basic, plus custom header and footer text printed right on the product." },
+      { text: "The QR code connects to your living platform \u2014 you can update where it points anytime.", highlight: true },
+      { text: "Add a tagline above, a call-to-action below. Make your merchandise say something." },
+      { text: "People see your message before they even scan. That's powerful." },
+    ],
+    tip: "This is the sweet spot for most creators. Professional look, easy setup.",
+    nextStep: 'bb-qr-canvas',
+  },
+  'bb-qr-canvas': {
+    type: 'qr-canvas',
+    icon: <ImagePlus className="w-8 h-8" />,
+    iconBg: 'bg-purple-600',
+    title: "QR Canvas",
+    lines: [
+      { text: "Now we're cooking. When someone scans, they see a full-screen image moment." },
+      { text: "Upload a photo, design, or artwork \u2014 it becomes the landing experience.", highlight: true },
+      { text: "Think product launches, event flyers, portfolio pieces, or promotional images." },
+      { text: "Your QR code becomes a window into something visual and memorable." },
+    ],
+    tip: "Canvas moments are great for visual storytelling. Show, don't just link.",
+    nextStep: 'bb-qr-play',
+  },
+  'bb-qr-play': {
+    type: 'qr-play',
+    icon: <Play className="w-8 h-8" />,
+    iconBg: 'bg-rose-600',
+    title: "QR Play",
+    lines: [
+      { text: "The showstopper. When someone scans, they watch a video." },
+      { text: "Upload your own video or link one \u2014 it plays right on the landing page.", highlight: true },
+      { text: "Perfect for tutorials, behind-the-scenes, music videos, product demos, or personal messages." },
+      { text: "Imagine handing someone a t-shirt that plays a video. That's QR Play." },
+    ],
+    tip: "Video gets 10x more engagement than static content. Just saying.",
+    nextStep: 'bb-qr-congrats',
+  },
+};
+
+function QRTypeBlackboard({
+  step,
+  onChoose,
+  onContinue,
 }: {
-  selectedType: QRType;
-  onSelect: (type: QRType) => void;
+  step: TutorialStep;
+  onChoose: (type: QRType) => void;
+  onContinue: () => void;
 }) {
-  const types = [
-    {
-      id: 'qr-basic' as QRType,
-      label: 'QR Basic',
-      description: 'Just the QR code \u2014 simple and clean',
-      icon: QrCode,
-      color: 'bg-slate-600',
-    },
-    {
-      id: 'qr-plus' as QRType,
-      label: 'QR Plus',
-      description: 'QR code with header and footer text',
-      icon: Type,
-      color: 'bg-blue-600',
-    },
-    {
-      id: 'qr-canvas' as QRType,
-      label: 'QR Canvas',
-      description: 'QR code with a custom background image',
-      icon: ImagePlus,
-      color: 'bg-purple-600',
-    },
-    {
-      id: 'qr-play' as QRType,
-      label: 'QR Play',
-      description: 'QR code that opens a video',
-      icon: Play,
-      color: 'bg-rose-600',
-    },
-  ];
+  const card = QR_TYPE_CARDS[step];
+  if (!card) return null;
+  const isLast = step === 'bb-qr-play';
 
   return (
-    <div className="animate-in fade-in slide-in-from-right-5 duration-300">
-      <div className="text-center mb-3">
-        <h2 className="text-lg font-bold text-white mb-2">Pick Your QR Type</h2>
-        <p className="text-slate-400">You can always change this later</p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 max-w-md mx-auto">
-        {types.map((type) => (
-          <button
-            key={type.id}
-            onClick={() => onSelect(type.id)}
-            className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
-              selectedType === type.id
-                ? 'border-white bg-white/10'
-                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-            }`}
-            data-testid={`button-type-${type.id}`}
+    <div
+      className="flex flex-col items-center justify-center px-2 animate-in fade-in duration-500"
+      style={{ minHeight: 'calc(70vh - 80px)' }}
+      data-testid={`tutorial-qr-${card.type}`}
+    >
+      <div className="w-full max-w-sm">
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-emerald-950/30 to-slate-900" />
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+
+          <div className="relative p-6 space-y-5">
+            <div className="flex justify-center">
+              <div className={`p-3 rounded-full ${card.iconBg} text-white`}>
+                {card.icon}
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-white text-center">{card.title}</h2>
+
+            <div className="space-y-3">
+              {card.lines.map((line, i) => (
+                <p
+                  key={i}
+                  className={`text-sm leading-relaxed text-center ${
+                    line.highlight
+                      ? 'text-emerald-200 font-medium'
+                      : 'text-slate-300'
+                  }`}
+                >
+                  {line.text}
+                </p>
+              ))}
+            </div>
+
+            <div className="bg-emerald-500/10 rounded-lg p-3 flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-200/80 leading-relaxed">{card.tip}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <Button
+            onClick={() => onChoose(card.type)}
+            className="w-full bg-emerald-600 text-white py-6 text-lg font-semibold"
+            data-testid={`tutorial-choose-${card.type}`}
           >
-            <div className={`w-12 h-12 rounded-full ${type.color} flex items-center justify-center flex-shrink-0`}>
-              <type.icon className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-left flex-1">
-              <h3 className="font-bold text-white">{type.label}</h3>
-              <p className="text-slate-400 text-sm">{type.description}</p>
-            </div>
-            {selectedType === type.id && (
-              <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
-            )}
-          </button>
-        ))}
+            <Check className="w-5 h-5 mr-2" />
+            Choose {card.title}
+          </Button>
+          {!isLast && (
+            <Button
+              onClick={onContinue}
+              variant="outline"
+              className="w-full py-5 text-base text-slate-300 border-slate-600"
+              data-testid={`tutorial-show-more-${card.type}`}
+            >
+              Show Me More
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -446,7 +531,6 @@ export function SuperSimpleWizard() {
       case 'action-product': return !!selectedProductType;
       case 'action-color': return !!selectedColor;
       case 'action-size': return !!selectedShirtSize;
-      case 'action-qr-type': return !!qrType;
       default: return true;
     }
   })();
@@ -604,7 +688,18 @@ export function SuperSimpleWizard() {
           );
         })()}
 
-        {isBlackboard && !['bb-channel-congrats', 'bb-product-congrats', 'bb-color-congrats', 'bb-size-congrats', 'bb-qr-congrats'].includes(tutorialStep) && BLACKBOARD_CONTENT[tutorialStep] && (
+        {isBlackboard && ['bb-qr-basic', 'bb-qr-plus', 'bb-qr-canvas', 'bb-qr-play'].includes(tutorialStep) && (
+          <QRTypeBlackboard
+            step={tutorialStep}
+            onChoose={(type) => {
+              setQrType(type);
+              setTutorialStep('bb-qr-congrats');
+            }}
+            onContinue={goNext}
+          />
+        )}
+
+        {isBlackboard && !['bb-channel-congrats', 'bb-product-congrats', 'bb-color-congrats', 'bb-size-congrats', 'bb-qr-congrats', 'bb-qr-basic', 'bb-qr-plus', 'bb-qr-canvas', 'bb-qr-play'].includes(tutorialStep) && BLACKBOARD_CONTENT[tutorialStep] && (
           <BlackboardCard
             data={BLACKBOARD_CONTENT[tutorialStep]}
             onContinue={tutorialStep === 'bb-finish' ? completeTutorial : goNext}
@@ -694,22 +789,6 @@ export function SuperSimpleWizard() {
           );
         })()}
 
-        {tutorialStep === 'action-qr-type' && (
-          <div className="max-w-sm mx-auto space-y-4 animate-in fade-in duration-300">
-            <TutorialTypePicker
-              selectedType={qrType}
-              onSelect={setQrType}
-            />
-            <Button
-              onClick={goNext}
-              disabled={!canProceed}
-              className="w-full bg-emerald-600 text-white py-5 text-base font-semibold"
-              data-testid="tutorial-next"
-            >
-              Next <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
