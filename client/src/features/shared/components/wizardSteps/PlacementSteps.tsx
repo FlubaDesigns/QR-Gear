@@ -742,7 +742,12 @@ export function PlacementConfigStep({
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center mb-1">
-        <h2 className="text-xl font-bold text-white">Configure Graphic</h2>
+        <h2 className="text-xl font-bold text-white">
+          What do you want on the {placementLabel.toLowerCase()}?
+        </h2>
+        {totalPlacements > 1 && (
+          <p className="text-sm text-slate-400 mt-1">Placement {currentIndex + 1} of {totalPlacements}</p>
+        )}
       </div>
       
       <div className="flex items-center justify-center gap-3">
@@ -753,11 +758,12 @@ export function PlacementConfigStep({
             <ShirtPreviewWithGraphic />
           )}
         </div>
-        <span className="text-slate-400 text-sm">{placementLabel}{totalPlacements > 1 ? ` (${currentIndex + 1}/${totalPlacements})` : ''}</span>
+        <div className="bg-amber-500/15 border border-amber-500/30 rounded-lg px-3 py-1.5">
+          <span className="text-amber-300 font-bold text-sm">{placementLabel}</span>
+        </div>
       </div>
       
       <div className="space-y-3">
-        <p className="text-sm text-slate-300 text-center">What do you want on this placement?</p>
         <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
           <button
             onClick={() => onGraphicChoiceChange('full')}
