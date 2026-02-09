@@ -470,6 +470,7 @@ export function OwnerWizard() {
             <ProductPickerStep
               selectedProduct={selectedProductType}
               onSelect={handleProductSelect}
+              context="owner"
             />
           )}
 
@@ -501,6 +502,7 @@ export function OwnerWizard() {
             <ColorPickerStep
               selectedColor={selectedColor}
               onSelect={setSelectedColor}
+              context="owner"
             />
           )}
 
@@ -511,6 +513,7 @@ export function OwnerWizard() {
               baseEarnings={runningCost}
               sizeEarningsBonuses={sizeCostBonuses}
               selectedPlacements={selectedPlacements}
+              context="owner"
               onSelect={(size) => {
                 const oldBonus = sizeCostBonuses[selectedShirtSize] || 0;
                 const newBonus = sizeCostBonuses[size] || 0;
@@ -600,6 +603,7 @@ export function OwnerWizard() {
               selectedColor={selectedColor}
               placementEarningsBonus={placementCostExtra}
               productPlacements={selectedProductType?.placements}
+              context="owner"
             />
           )}
 
@@ -620,6 +624,7 @@ export function OwnerWizard() {
                 selectedColor={selectedColor}
                 graphicLocation={graphicLocation}
                 graphicSize={graphicSize}
+                context="owner"
                 onYes={() => {
                   setWantsHeaderFooter(true);
                   setQrType('qr-plus');
@@ -641,6 +646,7 @@ export function OwnerWizard() {
               <TextLayoutChoiceStep
                 selected={textLayoutChoice}
                 textLineEarningsBonus={textLineCost}
+                context="owner"
                 onSelect={(choice) => {
                   const prevLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
                   const newLines = choice === 'both' ? 2 : 1;
@@ -662,6 +668,7 @@ export function OwnerWizard() {
               headerStyle={headerStyle}
               onHeaderChange={setHeaderStyle}
               earningsPerLine={textLineCost}
+              context="owner"
             />
           )}
 
@@ -674,6 +681,7 @@ export function OwnerWizard() {
               onFooterChange={setFooterStyle}
               headerStyle={headerStyle}
               earningsPerLine={textLineCost}
+              context="owner"
             />
           )}
 
