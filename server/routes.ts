@@ -9603,6 +9603,82 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  app.post("/api/public/generate-product-graphic", async (req: any, res) => {
+    try {
+      const { 
+        qrUrl,
+        headerStyle,
+        footerStyle,
+        textLayoutChoice,
+        qrColor = 'black'
+      } = req.body;
+
+      if (!qrUrl) {
+        return res.status(400).json({ error: "Missing required field: qrUrl" });
+      }
+
+      console.log(`[PublicProductGraphic] Generating composite with layout: ${textLayoutChoice}`);
+
+      const { generatePrintifyComposite } = await import("./lib/composite-image-generator");
+      
+      const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
+      const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+      
+      const topText = showHeader && headerStyle?.text ? {
+        text: headerStyle.text,
+        fontFamily: headerStyle.fontFamily || 'Arial',
+        fontSize: headerStyle.fontSize || '48',
+        color: headerStyle.color || '#000000',
+        letterSpacing: headerStyle.letterSpacing || 0,
+        warpPreset: headerStyle.warpPreset || 'straight',
+        strokeColor: headerStyle.strokeColor,
+        strokeWidth: headerStyle.strokeWidth,
+      } : null;
+      
+      const bottomText = showFooter && footerStyle?.text ? {
+        text: footerStyle.text,
+        fontFamily: footerStyle.fontFamily || 'Arial',
+        fontSize: footerStyle.fontSize || '48',
+        color: footerStyle.color || '#000000',
+        letterSpacing: footerStyle.letterSpacing || 0,
+        warpPreset: footerStyle.warpPreset || 'straight',
+        strokeColor: footerStyle.strokeColor,
+        strokeWidth: footerStyle.strokeWidth,
+      } : null;
+
+      const productGraphicDataUrl = await generatePrintifyComposite(
+        qrUrl,
+        topText,
+        bottomText,
+        1200,
+        1800,
+        qrColor as 'black' | 'white'
+      );
+
+      const { uploadToFirebasePublic } = await import("./lib/firebase-storage-service");
+      const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        throw new Error("Invalid data URL format from composite generator");
+      }
+      
+      const buffer = Buffer.from(match[2], 'base64');
+      const uploadResult = await uploadToFirebasePublic(buffer, match[1], 'public-graphics');
+      
+      console.log(`[PublicProductGraphic] Uploaded to Firebase: ${uploadResult.publicUrl}`);
+
+      res.json({
+        success: true,
+        productGraphic: uploadResult.publicUrl,
+      });
+    } catch (error: any) {
+      console.error("[PublicProductGraphic] Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
+
   // Create a new channel for member
   app.post("/api/members/:memberId/channels", async (req: any, res) => {
     try {
