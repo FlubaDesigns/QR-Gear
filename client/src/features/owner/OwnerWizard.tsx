@@ -110,6 +110,10 @@ export function OwnerWizard() {
   const minTier = TYPE_ALIASES[rawType] || rawType;
   const [, navigate] = useLocation();
 
+  const TIER_ORDER: QRType[] = ['qr-basic', 'qr-plus', 'qr-canvas', 'qr-play', 'qr-compose'];
+  const minTierIndex = TIER_ORDER.indexOf(minTier as QRType);
+  const preSelectedType = (minTierIndex >= 0 ? minTier : '') as QRType;
+
   const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('product');
   const [selectedProductType, setSelectedProductType] = useState<AllowedProduct | null>(null);
   const [selectedColor, setSelectedColor] = useState('');
@@ -117,7 +121,7 @@ export function OwnerWizard() {
   const [graphicLocation, setGraphicLocation] = useState<GraphicLocation>('');
   const [graphicSize, setGraphicSize] = useState<GraphicSize>('');
   const [wantsHeaderFooter, setWantsHeaderFooter] = useState<boolean | null>(null);
-  const [qrType, setQrType] = useState<QRType>('');
+  const [qrType, setQrType] = useState<QRType>(preSelectedType);
   const [runningCost, setRunningCost] = useState(0);
   const [costPulse, setCostPulse] = useState(false);
   const [selectedPlacements, setSelectedPlacements] = useState<PlacementOption[]>([]);
@@ -163,8 +167,6 @@ export function OwnerWizard() {
     return bonuses;
   }, [pricingSettings]);
 
-  const TIER_ORDER: QRType[] = ['qr-basic', 'qr-plus', 'qr-canvas', 'qr-play', 'qr-compose'];
-  const minTierIndex = TIER_ORDER.indexOf(minTier as QRType);
   const allowedTypes = minTierIndex >= 0
     ? TIER_ORDER.slice(minTierIndex)
     : TIER_ORDER;
@@ -233,7 +235,15 @@ export function OwnerWizard() {
       return;
     }
     if (simpleStep === 'size') {
-      setSimpleStep('type');
+      if (preSelectedType) {
+        if (qrType === 'qr-compose') {
+          setSimpleStep('compose-explain' as SimpleWizardStep);
+        } else {
+          setSimpleStep('placement-count');
+        }
+      } else {
+        setSimpleStep('type');
+      }
       return;
     }
     if (simpleStep === 'type') {
@@ -358,7 +368,7 @@ export function OwnerWizard() {
       'size': 'color',
       'type': 'size',
       'compose-explain': 'type',
-      'placement-count': 'type',
+      'placement-count': preSelectedType ? 'size' : 'type',
       'graphic-size': 'placement-count',
       'generate': 'graphic-size',
       'text-edit-header': 'text-choice',
@@ -734,15 +744,21 @@ export function OwnerWizard() {
                 context="owner"
                 onYes={() => {
                   setWantsHeaderFooter(true);
-                  setQrType('qr-plus');
+                  if (!preSelectedType || preSelectedType === 'qr-basic' || preSelectedType === 'qr-plus') {
+                    setQrType('qr-plus');
+                  }
                   setSimpleStep('text-choice');
                 }}
                 onNo={() => {
                   setWantsHeaderFooter(false);
-                  if (qrType !== 'qr-plus') {
-                    setQrType('qr-basic');
+                  if (!preSelectedType || preSelectedType === 'qr-basic' || preSelectedType === 'qr-plus') {
+                    if (qrType !== 'qr-plus') {
+                      setQrType('qr-basic');
+                    }
+                    setSimpleStep('qr-basic-type');
+                  } else {
+                    setSimpleStep('shirt-preview');
                   }
-                  setSimpleStep('qr-basic-type');
                 }}
               />
             </div>
