@@ -669,25 +669,60 @@ export function SuperSimpleWizard() {
           const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
           const currentTotal = base + sizeBonus;
           const typeLabel = qrType === 'qr-basic' ? 'QR Basic' : qrType === 'qr-plus' ? 'QR Plus' : qrType === 'qr-canvas' ? 'QR Canvas' : qrType === 'qr-play' ? 'QR Play' : 'your QR type';
-          const isImageOrVideo = qrType === 'qr-canvas' || qrType === 'qr-play';
+          const isPlatformType = qrType === 'qr-canvas' || qrType === 'qr-play';
+          const isBasic = qrType === 'qr-basic';
+          const isPlus = qrType === 'qr-plus';
+
+          const getLines = () => {
+            const shared = [
+              { text: `You picked ${typeLabel} \u2014 great choice!` },
+              { text: `Your earnings per sale: $${currentTotal.toFixed(2)}`, highlight: true },
+            ];
+
+            if (isBasic) {
+              return [
+                ...shared,
+                { text: "QR Basic is simple and powerful. The QR code bakes your content right in \u2014 no server, no platform, no ongoing costs." },
+                { text: "Someone scans it, they get your link, text, or contact info instantly. Done." },
+                { text: "Want to level up later? QR Canvas and QR Play connect to a living platform where you can change what the QR shows \u2014 even after the shirt is printed." },
+              ];
+            }
+
+            if (isPlus) {
+              return [
+                ...shared,
+                { text: "QR Plus adds your custom header and footer text around the QR code \u2014 it makes the design pop and tells people what to expect when they scan." },
+                { text: "Like Basic, the QR content is baked in. No server needed, no ongoing costs." },
+                { text: "Ready for the next level? QR Canvas and QR Play connect to a living platform \u2014 you can update what the QR shows anytime, even after the shirt ships." },
+              ];
+            }
+
+            return [
+              ...shared,
+              { text: "When you save this, you're creating a \"moment\" \u2014 a unique experience tied to your QR code." },
+              { text: qrType === 'qr-canvas'
+                ? "Your image becomes a living page anyone can see when they scan."
+                : "Your video becomes a living page anyone can watch when they scan."
+              },
+              { text: "Here's the exciting part: save 2 or more moments and you unlock QR Compose.", highlight: true },
+              { text: "QR Compose lets you build a rotating playlist \u2014 one QR code, many experiences. Imagine your shirt showing something different every time someone scans it." },
+            ];
+          };
+
+          const getTip = () => {
+            if (isBasic || isPlus) {
+              return "Simple, reliable, and ready to sell. You can always explore Canvas and Play later to unlock even more possibilities.";
+            }
+            return "Every moment you save gets you closer to QR Compose. Think of it as building your collection.";
+          };
+
           return (
             <BlackboardCard
               data={{
                 icon: <QrCode className="w-8 h-8" />,
-                title: "Save the Moment!",
-                lines: [
-                  { text: `You picked ${typeLabel} \u2014 great choice!` },
-                  { text: `Your earnings per sale: $${currentTotal.toFixed(2)}`, highlight: true },
-                  { text: "When you finish building in the real wizard, you'll save your creation as a \"moment.\"" },
-                  { text: "Each moment is a unique experience \u2014 an image, a video, a link \u2014 tied to your QR code." },
-                  ...(isImageOrVideo
-                    ? [{ text: "Here's the exciting part: once you save 2 or more moments, you unlock QR Compose.", highlight: true },
-                       { text: "QR Compose lets you build a rotating playlist \u2014 one QR code, many experiences. Imagine your shirt showing a different moment every time someone scans it." }]
-                    : [{ text: "As you create more moments (images, videos), you'll unlock QR Compose \u2014 a rotating playlist behind a single QR code.", highlight: true },
-                       { text: "One shirt, many experiences. That's the endgame." }]
-                  ),
-                ],
-                tip: "Every moment you save gets you closer to QR Compose. Think of it as building your collection.",
+                title: isPlatformType ? "Save the Moment!" : "Nice and Simple!",
+                lines: getLines(),
+                tip: getTip(),
               }}
               onContinue={goNext}
             />
