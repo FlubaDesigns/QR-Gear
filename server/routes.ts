@@ -9679,6 +9679,282 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ===== TEMP PACKET SYSTEM (Public Wizard) =====
+  // Create a temporary packet for public/owner wizard builds
+  app.post("/api/public/packets", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours TTL
+
+      const packetData = {
+        status: 'building',
+        ...req.body,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      };
+
+      const docRef = await db.collection('temp_packets').add(packetData);
+      console.log(`[TempPacket] Created: ${docRef.id}`);
+
+      res.json({
+        success: true,
+        tempPacketId: docRef.id,
+        expiresAt: expiresAt.toISOString(),
+      });
+    } catch (error: any) {
+      console.error("[TempPacket] Create error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Update a temporary packet as user progresses through wizard
+  app.patch("/api/public/packets/:tempPacketId", async (req: any, res) => {
+    try {
+      const { tempPacketId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const docRef = db.collection('temp_packets').doc(tempPacketId);
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        return res.status(404).json({ success: false, error: "Temp packet not found" });
+      }
+
+      const existing = doc.data();
+      if (existing?.status === 'completed') {
+        return res.status(400).json({ success: false, error: "Packet already completed" });
+      }
+
+      await docRef.update({
+        ...req.body,
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log(`[TempPacket] Updated: ${tempPacketId}`);
+      res.json({ success: true, tempPacketId });
+    } catch (error: any) {
+      console.error("[TempPacket] Update error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Get a temporary packet
+  app.get("/api/public/packets/:tempPacketId", async (req: any, res) => {
+    try {
+      const { tempPacketId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const doc = await db.collection('temp_packets').doc(tempPacketId).get();
+      if (!doc.exists) {
+        return res.status(404).json({ success: false, error: "Temp packet not found" });
+      }
+
+      res.json({ success: true, packet: { id: doc.id, ...doc.data() } });
+    } catch (error: any) {
+      console.error("[TempPacket] Get error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Mark a temp packet as completed (after successful sale)
+  app.post("/api/public/packets/:tempPacketId/complete", async (req: any, res) => {
+    try {
+      const { tempPacketId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const docRef = db.collection('temp_packets').doc(tempPacketId);
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        return res.status(404).json({ success: false, error: "Temp packet not found" });
+      }
+
+      await docRef.update({
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log(`[TempPacket] Completed: ${tempPacketId}`);
+      res.json({ success: true, tempPacketId });
+    } catch (error: any) {
+      console.error("[TempPacket] Complete error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Cleanup expired temp packets (can be called by cron or admin)
+  app.delete("/api/public/packets/cleanup/expired", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      const now = new Date().toISOString();
+
+      const expiredQuery = await db.collection('temp_packets')
+        .where('status', '==', 'building')
+        .where('expiresAt', '<', now)
+        .limit(100)
+        .get();
+
+      let deletedCount = 0;
+      const batch = db.batch();
+      expiredQuery.docs.forEach(doc => {
+        batch.delete(doc.ref);
+        deletedCount++;
+      });
+
+      if (deletedCount > 0) {
+        await batch.commit();
+      }
+
+      console.log(`[TempPacket] Cleanup: deleted ${deletedCount} expired packets`);
+      res.json({ success: true, deletedCount });
+    } catch (error: any) {
+      console.error("[TempPacket] Cleanup error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Generate real Printful mockup for public wizard (combines graphic gen + mockup)
+  app.post("/api/public/generate-mockup", async (req: any, res) => {
+    try {
+      const {
+        tempPacketId,
+        blueprintId,
+        printProviderId,
+        colorName,
+        colorHex,
+        placement = 'FRONT_CHEST',
+        qrSize = 'medium',
+        fulfillmentProvider = 'printify',
+        qrUrl,
+        headerStyle,
+        footerStyle,
+        textLayoutChoice,
+        qrColor = 'black',
+      } = req.body;
+
+      if (!blueprintId || !colorName) {
+        return res.status(400).json({ error: "Missing required fields: blueprintId, colorName" });
+      }
+
+      console.log(`[PublicMockup] Starting for packet: ${tempPacketId || 'none'}, color: ${colorName}`);
+
+      let artworkUrl: string;
+
+      // Step 1: Generate composite artwork if there's text, otherwise use raw QR
+      if (textLayoutChoice && textLayoutChoice !== '' && (headerStyle?.text || footerStyle?.text)) {
+        console.log(`[PublicMockup] Generating composite artwork with text layout: ${textLayoutChoice}`);
+        const { generatePrintifyComposite } = await import("./lib/composite-image-generator");
+
+        const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
+        const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
+
+        const topText = showHeader && headerStyle?.text ? {
+          text: headerStyle.text,
+          fontFamily: headerStyle.fontFamily || 'Arial',
+          fontSize: headerStyle.fontSize || '48',
+          color: headerStyle.color || '#000000',
+          letterSpacing: headerStyle.letterSpacing || 0,
+          warpPreset: headerStyle.warpPreset || 'straight',
+          strokeColor: headerStyle.strokeColor,
+          strokeWidth: headerStyle.strokeWidth,
+        } : null;
+
+        const bottomText = showFooter && footerStyle?.text ? {
+          text: footerStyle.text,
+          fontFamily: footerStyle.fontFamily || 'Arial',
+          fontSize: footerStyle.fontSize || '48',
+          color: footerStyle.color || '#000000',
+          letterSpacing: footerStyle.letterSpacing || 0,
+          warpPreset: footerStyle.warpPreset || 'straight',
+          strokeColor: footerStyle.strokeColor,
+          strokeWidth: footerStyle.strokeWidth,
+        } : null;
+
+        const compositeDataUrl = await generatePrintifyComposite(
+          qrUrl || 'https://example.com',
+          topText,
+          bottomText,
+          1200,
+          1800,
+          qrColor as 'black' | 'white'
+        );
+
+        const { uploadToFirebasePublic } = await import("./lib/firebase-storage-service");
+        const match = compositeDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) {
+          throw new Error("Invalid data URL format from composite generator");
+        }
+
+        const buffer = Buffer.from(match[2], 'base64');
+        const uploadResult = await uploadToFirebasePublic(buffer, match[1], 'public-graphics');
+        artworkUrl = uploadResult.publicUrl;
+        console.log(`[PublicMockup] Composite uploaded: ${artworkUrl}`);
+      } else {
+        // QR Basic - just use a QR code image directly from qrserver.com
+        const qrContent = qrUrl || 'https://example.com';
+        artworkUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(qrContent)}&format=png&qzone=2&ecc=H&color=000000&bgcolor=ffffff`;
+        console.log(`[PublicMockup] Using raw QR artwork: ${artworkUrl}`);
+      }
+
+      // Step 2: Generate Printful mockup
+      const { getMockupWithFallback } = await import("./lib/mockup-service");
+      const storage = (await import("./storage")).storage;
+
+      const result = await getMockupWithFallback({
+        blueprintId: parseInt(blueprintId),
+        printProviderId: parseInt(printProviderId) || 99,
+        colorName,
+        colorHex: colorHex || '#000000',
+        canonicalPlacementId: placement,
+        artworkUrl,
+        artworkVariant: qrColor === 'white' ? 'white' : 'black',
+        qrSize: qrSize as 'small' | 'medium' | 'large',
+        fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
+      }, storage);
+
+      console.log(`[PublicMockup] Mockup generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+
+      // Step 3: Update temp packet with mockup data if we have a packet ID
+      if (tempPacketId) {
+        try {
+          const { getFirestoreDb } = await import("./lib/firebase-admin");
+          const db = getFirestoreDb();
+          await db.collection('temp_packets').doc(tempPacketId).update({
+            mockupUrl: result.mockupUrl,
+            lifestyleMockupUrl: result.lifestyleMockupUrl,
+            artworkUrl,
+            updatedAt: new Date().toISOString(),
+          });
+          console.log(`[PublicMockup] Packet ${tempPacketId} updated with mockup`);
+        } catch (pktErr: any) {
+          console.warn(`[PublicMockup] Failed to update packet: ${pktErr.message}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        mockupUrl: result.mockupUrl,
+        lifestyleMockupUrl: result.lifestyleMockupUrl,
+        artworkUrl,
+        fromCache: result.fromCache,
+      });
+    } catch (error: any) {
+      console.error("[PublicMockup] Error:", error);
+      res.json({
+        success: false,
+        error: error.message,
+        mockupUrl: null,
+        message: "Mockup generation in progress - check back shortly",
+      });
+    }
+  });
+
   // Create a new channel for member
   app.post("/api/members/:memberId/channels", async (req: any, res) => {
     try {
