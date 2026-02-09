@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2 } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ProductPickerStep, ColorPickerStep, SizePickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
@@ -15,7 +15,7 @@ import { ShirtPreviewStep } from "@/features/shared/components/wizardSteps/Previ
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import type { AllowedProduct, SimpleWizardStep, QRType, GraphicLocation, GraphicSize, PlacementOption, TextLayoutChoice, QRBasicInputType, PlacementGraphicChoice } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { SHIRT_SIZES, SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS } from "@/features/shared/components/wizardSteps/wizardTypes";
+import { SHIRT_SIZES, SHIRT_COLORS, SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS } from "@/features/shared/components/wizardSteps/wizardTypes";
 
 const OWNER_WIZARD_STEPS = SIMPLE_WIZARD_STEPS.filter(s => s.id !== 'channel');
 const OWNER_BASIC_STEPS = QR_BASIC_STEPS.filter(s => s.id !== 'channel');
@@ -141,6 +141,94 @@ export function OwnerWizard() {
 
   const [showMemberPitch, setShowMemberPitch] = useState(false);
 
+  const [tempPacketId, setTempPacketId] = useState<string | null>(null);
+  const [realMockupUrl, setRealMockupUrl] = useState<string | null>(null);
+  const [lifestyleMockupUrl, setLifestyleMockupUrl] = useState<string | null>(null);
+  const [isGeneratingRealMockup, setIsGeneratingRealMockup] = useState(false);
+  const packetCreating = useRef(false);
+
+  const createTempPacket = useCallback(async (product: AllowedProduct) => {
+    if (packetCreating.current || tempPacketId) return;
+    packetCreating.current = true;
+    try {
+      const res = await fetch('/api/public/packets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wizardType: 'owner',
+          blueprintId: product.blueprintId,
+          printProviderId: product.printProviderId,
+          productTitle: product.title,
+          retailPrice: product.retailPrice,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTempPacketId(data.tempPacketId);
+        console.log('[OwnerWizard] Temp packet created:', data.tempPacketId);
+      }
+    } catch (err) {
+      console.warn('[OwnerWizard] Failed to create temp packet:', err);
+    } finally {
+      packetCreating.current = false;
+    }
+  }, [tempPacketId]);
+
+  const updateTempPacket = useCallback(async (updates: Record<string, any>) => {
+    if (!tempPacketId) return;
+    try {
+      await fetch(`/api/public/packets/${tempPacketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+    } catch (err) {
+      console.warn('[OwnerWizard] Failed to update temp packet:', err);
+    }
+  }, [tempPacketId]);
+
+  const generateRealMockup = useCallback(async () => {
+    if (!selectedProductType) return;
+    setIsGeneratingRealMockup(true);
+    try {
+      const colorInfo = SHIRT_COLORS.find(c => c.id === selectedColor);
+      const qrContent = qrType === 'qr-basic'
+        ? qrBasicContent || 'https://example.com'
+        : `${window.location.origin}/preview/${Date.now()}`;
+
+      const res = await fetch('/api/public/generate-mockup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tempPacketId,
+          blueprintId: selectedProductType.blueprintId,
+          printProviderId: selectedProductType.printProviderId || 99,
+          colorName: colorInfo?.name || selectedColor,
+          colorHex: colorInfo?.hex || '#1a1a1a',
+          placement: selectedPlacements[0] === 'front' ? 'FRONT_CHEST' : selectedPlacements[0] === 'back' ? 'BACK' : 'FRONT_CHEST',
+          qrSize: graphicSize || 'medium',
+          qrUrl: qrContent,
+          headerStyle: headerStyle,
+          footerStyle: footerStyle,
+          textLayoutChoice: textLayoutChoice,
+          qrColor: (colorInfo?.textColor === '#FFFFFF') ? 'white' : 'black',
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.mockupUrl) {
+        setRealMockupUrl(data.mockupUrl);
+        setLifestyleMockupUrl(data.lifestyleMockupUrl || null);
+        console.log('[OwnerWizard] Real mockup generated:', data.mockupUrl);
+      } else {
+        console.warn('[OwnerWizard] Mockup generation returned:', data);
+      }
+    } catch (err) {
+      console.warn('[OwnerWizard] Mockup generation failed:', err);
+    } finally {
+      setIsGeneratingRealMockup(false);
+    }
+  }, [selectedProductType, selectedColor, qrType, qrBasicContent, selectedPlacements, graphicSize, headerStyle, footerStyle, textLayoutChoice, tempPacketId]);
+
   const { data: pricingSettings } = useQuery<{
     memberProfitShare: number;
     additionalPlacementCost: number;
@@ -185,6 +273,7 @@ export function OwnerWizard() {
     setRunningCost(basePrice);
     setCostPulse(true);
     setTimeout(() => setCostPulse(false), 600);
+    createTempPacket(product);
   };
 
   const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
@@ -231,10 +320,12 @@ export function OwnerWizard() {
       return;
     }
     if (simpleStep === 'color') {
+      updateTempPacket({ selectedColor, colorHex: SHIRT_COLORS.find(c => c.id === selectedColor)?.hex });
       setSimpleStep('size');
       return;
     }
     if (simpleStep === 'size') {
+      updateTempPacket({ selectedShirtSize, sizeCost: sizeCostBonuses[selectedShirtSize] || 0 });
       if (preSelectedType) {
         if (qrType === 'qr-compose') {
           setSimpleStep('compose-explain' as SimpleWizardStep);
@@ -247,6 +338,7 @@ export function OwnerWizard() {
       return;
     }
     if (simpleStep === 'type') {
+      updateTempPacket({ qrType });
       if (qrType === 'qr-compose') {
         setSimpleStep('compose-explain' as SimpleWizardStep);
         return;
@@ -258,10 +350,12 @@ export function OwnerWizard() {
       return;
     }
     if (simpleStep === 'placement-count') {
+      updateTempPacket({ selectedPlacements });
       setSimpleStep('graphic-size');
       return;
     }
     if (simpleStep === 'graphic-size') {
+      updateTempPacket({ graphicSize });
       setSimpleStep('generate');
       return;
     }
@@ -305,26 +399,39 @@ export function OwnerWizard() {
       return;
     }
     if (simpleStep === 'shirt-preview') {
+      updateTempPacket({ headerStyle, footerStyle, textLayoutChoice });
       setIsGeneratingPlusMockup(true);
-      const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-      const qrApiUrl = generateQRCodeUrl(previewUrl, 1000);
-      setQrPlusMockup(qrApiUrl);
-      setIsGeneratingPlusMockup(false);
       setSimpleStep('qr-plus-mockup');
+      generateRealMockup().then((result) => {
+        setIsGeneratingPlusMockup(false);
+      }).catch(() => {
+        const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
+        const qrApiUrl = generateQRCodeUrl(previewUrl, 1000);
+        setQrPlusMockup(qrApiUrl);
+        setIsGeneratingPlusMockup(false);
+      });
       return;
     }
     if (simpleStep === 'qr-basic-input') {
+      updateTempPacket({ qrBasicInputType, qrBasicContent });
       setIsGeneratingBasicMockup(true);
-      try {
+      setSimpleStep('qr-basic-mockup');
+      generateRealMockup().then(() => {
+        setIsGeneratingBasicMockup(false);
+      }).catch(() => {
         const qrApiUrl = generateQRCodeUrl(qrBasicContent, 1000);
         setQrBasicMockup(qrApiUrl);
-      } finally {
         setIsGeneratingBasicMockup(false);
-      }
-      setSimpleStep('qr-basic-mockup');
+      });
       return;
     }
     if (simpleStep === 'qr-basic-mockup' || simpleStep === 'qr-plus-mockup') {
+      updateTempPacket({
+        totalCost: runningCost,
+        mockupUrl: realMockupUrl,
+        lifestyleMockupUrl,
+        readyForCheckout: true,
+      });
       setShowMemberPitch(true);
       return;
     }
@@ -429,7 +536,7 @@ export function OwnerWizard() {
           <MemberConversionPitch
             earnings={memberEarnings}
             onSignUp={() => navigate('/register')}
-            onSkip={() => navigate('/checkout')}
+            onSkip={() => navigate(tempPacketId ? `/checkout?packet=${tempPacketId}` : '/checkout')}
           />
           <div className="flex gap-3 flex-wrap justify-between pt-2 border-t border-slate-700">
             <Button variant="outline" onClick={() => setShowMemberPitch(false)} data-testid="button-back-from-pitch">
@@ -437,7 +544,7 @@ export function OwnerWizard() {
               Back
             </Button>
             <Button
-              onClick={() => navigate('/checkout')}
+              onClick={() => navigate(tempPacketId ? `/checkout?packet=${tempPacketId}` : '/checkout')}
               className="bg-blue-500 hover:bg-blue-600"
               data-testid="button-add-to-cart"
             >
@@ -859,14 +966,42 @@ export function OwnerWizard() {
 
           {simpleStep === 'qr-basic-mockup' && (
             <div className="space-y-4">
-              <QRBasicMockupStep
-                mockupUrl={qrBasicMockup || generateQRCodeUrl(qrBasicContent, 300)}
-                isLoading={isGeneratingBasicMockup}
-                selectedColor={selectedColor}
-                selectedSize={selectedShirtSize}
-                inputType={qrBasicInputType}
-                content={qrBasicContent}
-              />
+              {isGeneratingBasicMockup || isGeneratingRealMockup ? (
+                <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-300">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
+                    <Loader2 className="w-16 h-16 text-blue-400 animate-spin relative" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-white font-bold">Generating Your Product Mockup</h3>
+                    <p className="text-slate-400 text-sm">Creating a realistic preview of your design on the actual product...</p>
+                    <p className="text-slate-500 text-xs">This may take 10-20 seconds</p>
+                  </div>
+                </div>
+              ) : realMockupUrl ? (
+                <div className="space-y-3 animate-in fade-in duration-300">
+                  <h2 className="text-lg font-bold text-white text-center">Your Product Mockup</h2>
+                  <p className="text-slate-400 text-sm text-center">Here's how your design will look on the actual product</p>
+                  <div className="flex justify-center gap-3 flex-wrap">
+                    <img src={realMockupUrl} alt="Product mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-real-mockup-basic" />
+                    {lifestyleMockupUrl && (
+                      <img src={lifestyleMockupUrl} alt="Lifestyle mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-lifestyle-mockup-basic" />
+                    )}
+                  </div>
+                  {tempPacketId && (
+                    <p className="text-center text-xs text-slate-500">Packet ID: {tempPacketId}</p>
+                  )}
+                </div>
+              ) : (
+                <QRBasicMockupStep
+                  mockupUrl={qrBasicMockup || generateQRCodeUrl(qrBasicContent, 300)}
+                  isLoading={false}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  inputType={qrBasicInputType}
+                  content={qrBasicContent}
+                />
+              )}
               <OwnerCostSummary
                 basePrice={selectedProductType?.retailPrice || 0}
                 sizeCost={sizeCostBonuses[selectedShirtSize] || 0}
@@ -879,14 +1014,42 @@ export function OwnerWizard() {
 
           {simpleStep === 'qr-plus-mockup' && (
             <div className="space-y-4">
-              <QRPlusMockupStep
-                mockupUrl={qrPlusMockup}
-                isLoading={isGeneratingPlusMockup}
-                selectedColor={selectedColor}
-                selectedSize={selectedShirtSize}
-                headerText={headerStyle.text}
-                footerText={footerStyle.text}
-              />
+              {isGeneratingPlusMockup || isGeneratingRealMockup ? (
+                <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-300">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
+                    <Loader2 className="w-16 h-16 text-blue-400 animate-spin relative" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-white font-bold">Generating Your Product Mockup</h3>
+                    <p className="text-slate-400 text-sm">Creating a realistic preview with your text and QR design...</p>
+                    <p className="text-slate-500 text-xs">This may take 10-20 seconds</p>
+                  </div>
+                </div>
+              ) : realMockupUrl ? (
+                <div className="space-y-3 animate-in fade-in duration-300">
+                  <h2 className="text-lg font-bold text-white text-center">Your Product Mockup</h2>
+                  <p className="text-slate-400 text-sm text-center">Here's how your design will look on the actual product</p>
+                  <div className="flex justify-center gap-3 flex-wrap">
+                    <img src={realMockupUrl} alt="Product mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-real-mockup-plus" />
+                    {lifestyleMockupUrl && (
+                      <img src={lifestyleMockupUrl} alt="Lifestyle mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-lifestyle-mockup-plus" />
+                    )}
+                  </div>
+                  {tempPacketId && (
+                    <p className="text-center text-xs text-slate-500">Packet ID: {tempPacketId}</p>
+                  )}
+                </div>
+              ) : (
+                <QRPlusMockupStep
+                  mockupUrl={qrPlusMockup}
+                  isLoading={false}
+                  selectedColor={selectedColor}
+                  selectedSize={selectedShirtSize}
+                  headerText={headerStyle.text}
+                  footerText={footerStyle.text}
+                />
+              )}
               <OwnerCostSummary
                 basePrice={selectedProductType?.retailPrice || 0}
                 sizeCost={sizeCostBonuses[selectedShirtSize] || 0}
