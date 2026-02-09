@@ -8,6 +8,10 @@ import { BlackboardPanel, DismissBlackboardsButton } from "@/features/shared/com
 import { type SimpleWizardStep, calculateSizeEarningsBonuses } from "@/features/shared/components/wizardSteps";
 import { useWizardContext } from './WizardContext';
 
+const ALL_STEPS: SimpleWizardStep[] = ['channel', 'product', 'product-congrats', 'color', 'size', 'type'];
+
+const DOT_STEPS: SimpleWizardStep[] = ['channel', 'product', 'color', 'size', 'type'];
+
 export function SuperSimpleWizard() {
   const {
     simpleStep, setSimpleStep,
@@ -27,6 +31,48 @@ export function SuperSimpleWizard() {
     selectedPlacements,
   } = useWizardContext();
 
+  if (!user) {
+    return (
+      <div className="space-y-4">
+        <Card className="bg-slate-800/50 border-slate-700 min-h-[300px] flex flex-col">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+            <p className="text-sm text-emerald-400 font-medium flex items-center gap-1">
+              <Sparkles className="w-4 h-4" />
+              Super Simple
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('index')}
+              className="text-white/50 hover:text-white"
+              aria-label="Close"
+              data-testid="super-simple-close-unauth"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="flex-1 p-6 pt-2 text-white/80">
+            <p className="text-lg font-semibold text-white mb-2">
+              Sign in required
+            </p>
+            <p className="text-sm text-white/70 mb-4">
+              Super Simple needs your account so we can load your channels and save your setup.
+            </p>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-500"
+              onClick={() => setViewMode('index')}
+              data-testid="super-simple-back-to-home"
+            >
+              Back to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const currentIdx = ALL_STEPS.indexOf(simpleStep);
+
   return (
     <div className="space-y-4">
       <Card className="bg-slate-800/50 border-slate-700 min-h-[500px] flex flex-col">
@@ -38,11 +84,8 @@ export function SuperSimpleWizard() {
               onClick={() => {
                 if (simpleStep === 'channel') {
                   setViewMode('index');
-                  setWizardTier('simple');
-                } else {
-                  const steps: SimpleWizardStep[] = ['channel', 'product', 'product-congrats', 'color', 'size', 'type'];
-                  const idx = steps.indexOf(simpleStep);
-                  if (idx > 0) setSimpleStep(steps[idx - 1]);
+                } else if (currentIdx > 0) {
+                  setSimpleStep(ALL_STEPS[currentIdx - 1]);
                 }
               }}
               className="text-white/70 hover:text-white"
@@ -67,28 +110,24 @@ export function SuperSimpleWizard() {
         </CardHeader>
 
         <div className="flex justify-center gap-1.5 px-4 pb-3">
-          {['channel', 'product', 'color', 'size', 'type'].map((step) => {
-            const steps: SimpleWizardStep[] = ['channel', 'product', 'product-congrats', 'color', 'size', 'type'];
-            const currentIdx = steps.indexOf(simpleStep);
-            const stepIdx = step === 'product' ? 1 : step === 'color' ? 3 : step === 'size' ? 4 : step === 'type' ? 5 : 0;
+          {DOT_STEPS.map((dotStep) => {
+            const dotIdx = ALL_STEPS.indexOf(dotStep);
             return (
               <div
-                key={step}
+                key={dotStep}
                 className={`h-2 rounded-full transition-all ${
-                  currentIdx >= stepIdx ? 'bg-emerald-400 w-8' : 'bg-slate-600 w-4'
+                  currentIdx >= dotIdx ? 'bg-emerald-400 w-8' : 'bg-slate-600 w-4'
                 }`}
-                data-testid={`dot-${step}`}
+                data-testid={`dot-${dotStep}`}
               />
             );
           })}
         </div>
 
         <CardContent className="flex-1 p-6 pt-2">
-          {user && (
-            <BlackboardPanel step={simpleStep} userId={user.id} />
-          )}
+          <BlackboardPanel step={simpleStep} userId={user.id} />
 
-          {simpleStep === 'channel' && user && (
+          {simpleStep === 'channel' && (
             <ChannelStep
               selectedChannel={selectedChannel}
               onSelect={setSelectedChannel}
@@ -140,22 +179,18 @@ export function SuperSimpleWizard() {
             />
           )}
 
-          {user && (
-            <div className="flex justify-center mt-4">
-              <DismissBlackboardsButton userId={user.id} />
-            </div>
-          )}
+          <div className="flex justify-center mt-4">
+            <DismissBlackboardsButton userId={user.id} />
+          </div>
         </CardContent>
 
         <div className="p-4 pt-0">
           <Button
             onClick={() => {
-              const steps: SimpleWizardStep[] = ['channel', 'product', 'product-congrats', 'color', 'size', 'type'];
-              const idx = steps.indexOf(simpleStep);
               if (simpleStep === 'type' && qrType) {
                 setWizardTier('simple');
-              } else if (idx < steps.length - 1) {
-                setSimpleStep(steps[idx + 1]);
+              } else if (currentIdx < ALL_STEPS.length - 1) {
+                setSimpleStep(ALL_STEPS[currentIdx + 1]);
               }
             }}
             disabled={(() => {
