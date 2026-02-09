@@ -609,26 +609,46 @@ export function OwnerWizard() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 rounded-xl p-4 border border-amber-500/30 space-y-3 max-w-sm mx-auto">
-                <h3 className="text-white font-bold text-sm">How to get started</h3>
-                <div className="space-y-2 text-left">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-amber-400 font-bold text-xs">1</span>
-                    </div>
-                    <p className="text-slate-300 text-sm">Build your first product using Basic, Plus, Canvas, or Play</p>
+              <div className="text-left max-w-sm mx-auto space-y-3">
+                <h3 className="text-white font-bold text-sm text-center">Two ways to get there</h3>
+
+                <div className="bg-blue-500/10 rounded-xl p-4 border border-blue-500/20 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <ShoppingCart className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                    <h4 className="text-blue-400 font-bold text-sm">Keep buying</h4>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-amber-400 font-bold text-xs">2</span>
-                    </div>
-                    <p className="text-slate-300 text-sm">Build at least one more - you need 2 moments minimum</p>
+                  <p className="text-slate-300 text-sm">
+                    Build and purchase at least 2 products. Each one becomes a moment. Once you have 2, you can compose them into a rotating playlist.
+                  </p>
+                </div>
+
+                <div className="text-center text-slate-500 text-xs font-medium">or</div>
+
+                <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 rounded-xl p-4 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Crown className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <h4 className="text-amber-400 font-bold text-sm">Become a member</h4>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-amber-400 font-bold text-xs">3</span>
+                  <p className="text-slate-300 text-sm mb-2">
+                    Members get everything owners get, plus:
+                  </p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                      <span className="text-slate-300 text-xs">Earn money every time someone buys your design</span>
                     </div>
-                    <p className="text-slate-300 text-sm">Come back and compose them into a rotating playlist</p>
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                      <span className="text-slate-300 text-xs">Save designs to your personal library</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                      <span className="text-slate-300 text-xs">Share products on social media with built-in tools</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                      <span className="text-slate-300 text-xs">Access advanced builder tools and templates</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -639,11 +659,20 @@ export function OwnerWizard() {
                     setQrType('');
                     setSimpleStep('type');
                   }}
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                  className="w-full bg-blue-500 hover:bg-blue-600 font-bold"
                   data-testid="button-compose-build-first"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
                   Build Your First Moment
+                </Button>
+                <Button
+                  onClick={() => navigate('/register')}
+                  variant="outline"
+                  className="w-full border-amber-500/40 text-amber-400"
+                  data-testid="button-compose-become-member"
+                >
+                  <Crown className="w-4 h-4 mr-2" />
+                  Become a Member
                 </Button>
                 <Button
                   onClick={() => {
