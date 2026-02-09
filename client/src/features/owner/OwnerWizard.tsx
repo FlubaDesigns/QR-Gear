@@ -591,7 +591,7 @@ export function OwnerWizard() {
               <div className="space-y-2">
                 <h2 className="text-lg font-bold text-white">QR Compose</h2>
                 <p className="text-slate-300 text-sm max-w-sm mx-auto">
-                  QR Compose lets you build a rotating playlist from multiple QR experiences. Your customers scan one code and see different content on a schedule you control.
+                  QR Compose lets you build a rotating playlist from multiple QR experiences. One scan, many moments - on a schedule you control.
                 </p>
               </div>
               <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-600 text-left space-y-3 max-w-sm mx-auto">
@@ -601,25 +601,57 @@ export function OwnerWizard() {
                 </div>
                 <div className="flex items-start gap-3">
                   <QrCode className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-slate-300 text-sm">One QR code shows different content based on your time slots</p>
+                  <p className="text-slate-300 text-sm">One QR code shows different content at different times</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Crown className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-slate-300 text-sm">To use Compose, first create Canvas or Play items, then combine them</p>
+                  <Layers className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300 text-sm">You need at least 2 published moments to start composing</p>
                 </div>
               </div>
-              <p className="text-slate-400 text-xs">Start with QR Basic, Plus, Canvas, or Play first, then upgrade to Compose later</p>
+
+              <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 rounded-xl p-4 border border-amber-500/30 space-y-3 max-w-sm mx-auto">
+                <h3 className="text-white font-bold text-sm">How to unlock Compose</h3>
+                <div className="space-y-2 text-left">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-amber-400 font-bold text-xs">1</span>
+                    </div>
+                    <p className="text-slate-300 text-sm">Become a member (free to join)</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-amber-400 font-bold text-xs">2</span>
+                    </div>
+                    <p className="text-slate-300 text-sm">Create and publish at least 2 moments</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-amber-400 font-bold text-xs">3</span>
+                    </div>
+                    <p className="text-slate-300 text-sm">Compose them into a rotating playlist</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => navigate('/register')}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold mt-2"
+                  data-testid="button-compose-become-member"
+                >
+                  <Crown className="w-4 h-4 mr-2" />
+                  Become a Member
+                </Button>
+              </div>
+
               <Button
                 onClick={() => {
                   setQrType('');
                   setSimpleStep('type');
                 }}
-                variant="outline"
-                className="mt-2"
+                variant="ghost"
+                className="text-slate-400"
                 data-testid="button-compose-back-to-types"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
-                Pick a different type
+                Pick a different type instead
               </Button>
             </div>
           )}
