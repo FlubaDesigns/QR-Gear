@@ -17,6 +17,7 @@ type TutorialStep =
   | 'bb-welcome'
   | 'bb-channels'
   | 'action-channel'
+  | 'bb-channel-congrats'
   | 'bb-pricing'
   | 'action-product'
   | 'bb-zones'
@@ -32,6 +33,7 @@ const TUTORIAL_FLOW: TutorialStep[] = [
   'bb-welcome',
   'bb-channels',
   'action-channel',
+  'bb-channel-congrats',
   'bb-pricing',
   'action-product',
   'bb-zones',
@@ -476,7 +478,26 @@ export function SuperSimpleWizard() {
       </div>
 
       <div className="pt-2">
-        {isBlackboard && BLACKBOARD_CONTENT[tutorialStep] && (
+        {isBlackboard && tutorialStep === 'bb-channel-congrats' && (
+          <BlackboardCard
+            data={{
+              icon: <Check className="w-8 h-8" />,
+              title: "Nice Work!",
+              lines: [
+                { text: selectedChannel
+                  ? `You picked "${selectedChannel.name}" \u2014 great choice!`
+                  : "You've got your channel set up!" },
+                { text: "That's the first step in building your digital storefront.", highlight: true },
+                { text: "Everything you create will live in this channel. Customers can browse it like a mini shop." },
+                { text: "Next up: picking the product you want to sell. This is where it gets fun." },
+              ],
+              tip: "You're already ahead of most people. They're still reading the instructions.",
+            }}
+            onContinue={goNext}
+          />
+        )}
+
+        {isBlackboard && tutorialStep !== 'bb-channel-congrats' && BLACKBOARD_CONTENT[tutorialStep] && (
           <BlackboardCard
             data={BLACKBOARD_CONTENT[tutorialStep]}
             onContinue={tutorialStep === 'bb-finish' ? completeTutorial : goNext}
