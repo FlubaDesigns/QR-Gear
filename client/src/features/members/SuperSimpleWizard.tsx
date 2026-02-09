@@ -669,19 +669,25 @@ export function SuperSimpleWizard() {
           const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
           const currentTotal = base + sizeBonus;
           const typeLabel = qrType === 'qr-basic' ? 'QR Basic' : qrType === 'qr-plus' ? 'QR Plus' : qrType === 'qr-canvas' ? 'QR Canvas' : qrType === 'qr-play' ? 'QR Play' : 'your QR type';
+          const isImageOrVideo = qrType === 'qr-canvas' || qrType === 'qr-play';
           return (
             <BlackboardCard
               data={{
                 icon: <QrCode className="w-8 h-8" />,
-                title: "You're On Fire!",
+                title: "Save the Moment!",
                 lines: [
                   { text: `You picked ${typeLabel} \u2014 great choice!` },
-                  { text: `Product base: $${base.toFixed(2)}` },
-                  ...(sizeBonus > 0 ? [{ text: `+ Size bonus: +$${sizeBonus.toFixed(2)}` }] : []),
                   { text: `Your earnings per sale: $${currentTotal.toFixed(2)}`, highlight: true },
-                  { text: "In the full builder, adding text, graphics, and extras can push that number even higher." },
+                  { text: "When you finish building in the real wizard, you'll save your creation as a \"moment.\"" },
+                  { text: "Each moment is a unique experience \u2014 an image, a video, a link \u2014 tied to your QR code." },
+                  ...(isImageOrVideo
+                    ? [{ text: "Here's the exciting part: once you save 2 or more moments, you unlock QR Compose.", highlight: true },
+                       { text: "QR Compose lets you build a rotating playlist \u2014 one QR code, many experiences. Imagine your shirt showing a different moment every time someone scans it." }]
+                    : [{ text: "As you create more moments (images, videos), you'll unlock QR Compose \u2014 a rotating playlist behind a single QR code.", highlight: true },
+                       { text: "One shirt, many experiences. That's the endgame." }]
+                  ),
                 ],
-                tip: "You've gone from zero to a real product with real earnings. Not bad for a tutorial!",
+                tip: "Every moment you save gets you closer to QR Compose. Think of it as building your collection.",
               }}
               onContinue={goNext}
             />
