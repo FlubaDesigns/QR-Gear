@@ -213,13 +213,15 @@ export function PlacementCountStep({
   onToggle,
   selectedColor,
   placementEarningsBonus = 1.00,
-  productPlacements
+  productPlacements,
+  context = 'member'
 }: {
   selected: PlacementOption[];
   onToggle: (placement: PlacementOption) => void;
   selectedColor: string;
   placementEarningsBonus?: number;
   productPlacements?: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[];
+  context?: 'member' | 'owner';
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
@@ -264,7 +266,11 @@ export function PlacementCountStep({
           key={floatingEarning.key}
           className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-20"
         >
-          <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
+          <div className={`animate-bounce-up font-bold text-2xl flex items-center gap-1 rounded-full px-5 py-2 shadow-xl ${
+            context === 'owner'
+              ? 'text-blue-200 bg-blue-500/30 border-2 border-blue-400/60 shadow-blue-400/40'
+              : 'text-green-200 bg-green-500/30 border-2 border-green-400/60 shadow-green-400/40'
+          }`}>
             <DollarSign className="w-5 h-5" />
             +${floatingEarning.amount.toFixed(2)}
           </div>
@@ -272,7 +278,11 @@ export function PlacementCountStep({
       )}
       <div className="text-center">
         <h2 className="text-xl font-bold text-white mb-1">Where Do You Want Graphics?</h2>
-        <p className="text-slate-400 text-sm">First graphic is included! Each extra adds +${placementEarningsBonus.toFixed(2)}</p>
+        <p className="text-slate-400 text-sm">
+          {context === 'owner'
+            ? `First graphic is included! Each extra adds +$${placementEarningsBonus.toFixed(2)} to your cost`
+            : `First graphic is included! Each extra adds +$${placementEarningsBonus.toFixed(2)}`}
+        </p>
       </div>
       
       <div className="flex justify-center items-center gap-4 py-2">
@@ -349,9 +359,9 @@ export function PlacementCountStep({
               {isSelected && (
                 <div className="mt-1 ml-6">
                   {selected[0] === option.id ? (
-                    <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded">Included</span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${context === 'owner' ? 'text-blue-400 bg-blue-500/15' : 'text-green-400 bg-green-500/15'}`}>Included</span>
                   ) : (
-                    <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded">+${placementEarningsBonus.toFixed(2)}</span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${context === 'owner' ? 'text-blue-400 bg-blue-500/15' : 'text-green-400 bg-green-500/15'}`}>+${placementEarningsBonus.toFixed(2)}</span>
                   )}
                 </div>
               )}

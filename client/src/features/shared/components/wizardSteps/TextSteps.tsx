@@ -181,11 +181,13 @@ export function TextAskStep({
 export function TextLayoutChoiceStep({ 
   selected,
   onSelect,
-  textLineEarningsBonus
+  textLineEarningsBonus,
+  context = 'member'
 }: { 
   selected: TextLayoutChoice;
   onSelect: (choice: TextLayoutChoice) => void;
   textLineEarningsBonus: number;
+  context?: 'member' | 'owner';
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number; buttonId: string } | null>(null);
 
@@ -222,7 +224,9 @@ export function TextLayoutChoiceStep({
     <div className="text-center space-y-2">
       <div>
         <h2 className="text-base font-bold text-white mb-0.5">Add Text to Your Design</h2>
-        <p className="text-slate-400 text-xs">Each text line earns you more per sale</p>
+        <p className="text-slate-400 text-xs">
+          {context === 'member' ? 'Each text line earns you more per sale' : 'Add custom text to personalize your product'}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-2 max-w-sm mx-auto">
@@ -242,7 +246,11 @@ export function TextLayoutChoiceStep({
                 key={floatingEarning.key}
                 className="absolute -top-2 left-1/2 -translate-x-1/2 pointer-events-none z-20"
               >
-                <div className="animate-bounce-up text-green-200 font-bold text-2xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-5 py-2 shadow-xl shadow-green-400/40">
+                <div className={`animate-bounce-up font-bold text-2xl flex items-center gap-1 rounded-full px-5 py-2 shadow-xl ${
+                  context === 'owner'
+                    ? 'text-blue-200 bg-blue-500/30 border-2 border-blue-400/60 shadow-blue-400/40'
+                    : 'text-green-200 bg-green-500/30 border-2 border-green-400/60 shadow-green-400/40'
+                }`}>
                   <DollarSign className="w-5 h-5" />
                   +${floatingEarning.amount.toFixed(2)}
                 </div>
@@ -267,8 +275,8 @@ export function TextLayoutChoiceStep({
                 <p className={`text-xs ${selected === option.id ? 'text-orange-300/70' : 'text-slate-400'}`}>{option.description}</p>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-green-400 font-bold text-sm">+${(textLineEarningsBonus * option.lines).toFixed(2)}</p>
-                <p className="text-slate-500 text-[10px]">per sale</p>
+                <p className={`font-bold text-sm ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`}>+${(textLineEarningsBonus * option.lines).toFixed(2)}</p>
+                <p className="text-slate-500 text-[10px]">{context === 'owner' ? 'added' : 'per sale'}</p>
               </div>
               {selected === option.id && (
                 <Check className="w-5 h-5 text-orange-400 flex-shrink-0" />
@@ -443,6 +451,7 @@ export function HeaderTextEditStep({
   headerStyle,
   onHeaderChange,
   earningsPerLine,
+  context = 'member',
 }: {
   selectedColor: string;
   graphicSize: GraphicSize;
@@ -450,6 +459,7 @@ export function HeaderTextEditStep({
   headerStyle: TextStyleConfig;
   onHeaderChange: (style: TextStyleConfig) => void;
   earningsPerLine: number;
+  context?: 'member' | 'owner';
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const isLeftChest = graphicLocation === 'left-chest';
@@ -559,9 +569,13 @@ export function HeaderTextEditStep({
       <div className="flex items-center justify-between">
         <div className="text-xs text-slate-500">{charCount}/40</div>
         {earningsPerLine > 0 && (
-          <div className="flex items-center gap-1 py-0.5 px-2 rounded-full bg-green-500/15 border border-green-500/25 animate-in fade-in duration-500" data-testid="badge-header-earnings">
-            <DollarSign className="w-3 h-3 text-green-400" />
-            <span className="text-green-400 font-bold text-xs">+${earningsPerLine.toFixed(2)} for this line</span>
+          <div className={`flex items-center gap-1 py-0.5 px-2 rounded-full animate-in fade-in duration-500 ${
+            context === 'owner' ? 'bg-blue-500/15 border border-blue-500/25' : 'bg-green-500/15 border border-green-500/25'
+          }`} data-testid="badge-header-earnings">
+            <DollarSign className={`w-3 h-3 ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`} />
+            <span className={`font-bold text-xs ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`}>
+              +${earningsPerLine.toFixed(2)} {context === 'owner' ? 'for this line' : 'for this line'}
+            </span>
           </div>
         )}
       </div>
@@ -652,6 +666,7 @@ export function FooterTextEditStep({
   onFooterChange,
   headerStyle,
   earningsPerLine,
+  context = 'member',
 }: {
   selectedColor: string;
   graphicSize: GraphicSize;
@@ -660,6 +675,7 @@ export function FooterTextEditStep({
   onFooterChange: (style: TextStyleConfig) => void;
   headerStyle: TextStyleConfig;
   earningsPerLine: number;
+  context?: 'member' | 'owner';
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const isLeftChest = graphicLocation === 'left-chest';
@@ -794,9 +810,13 @@ export function FooterTextEditStep({
       <div className="flex items-center justify-between">
         <div className="text-xs text-slate-500">{charCount}/40</div>
         {earningsPerLine > 0 && (
-          <div className="flex items-center gap-1 py-0.5 px-2 rounded-full bg-green-500/15 border border-green-500/25 animate-in fade-in duration-500" data-testid="badge-footer-earnings">
-            <DollarSign className="w-3 h-3 text-green-400" />
-            <span className="text-green-400 font-bold text-xs">+${earningsPerLine.toFixed(2)} for this line</span>
+          <div className={`flex items-center gap-1 py-0.5 px-2 rounded-full animate-in fade-in duration-500 ${
+            context === 'owner' ? 'bg-blue-500/15 border border-blue-500/25' : 'bg-green-500/15 border border-green-500/25'
+          }`} data-testid="badge-footer-earnings">
+            <DollarSign className={`w-3 h-3 ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`} />
+            <span className={`font-bold text-xs ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`}>
+              +${earningsPerLine.toFixed(2)} for this line
+            </span>
           </div>
         )}
       </div>

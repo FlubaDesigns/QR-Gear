@@ -286,13 +286,15 @@ export function GenerateGraphicStep({
   graphicLocation,
   graphicSize,
   onYes,
-  onNo
+  onNo,
+  context = 'member'
 }: {
   selectedColor: string;
   graphicLocation: GraphicLocation;
   graphicSize: GraphicSize;
   onYes: () => void;
   onNo: () => void;
+  context?: 'member' | 'owner';
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
@@ -312,7 +314,9 @@ export function GenerateGraphicStep({
     <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-base font-bold text-white mb-0.5">Add a Header or Footer</h2>
-        <p className="text-green-400 font-semibold text-sm">Make more money!</p>
+        <p className={`font-semibold text-sm ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`}>
+          {context === 'owner' ? 'Customize your product!' : 'Make more money!'}
+        </p>
       </div>
       
       {/* Shirt with $ QR $ visual cue */}
@@ -329,12 +333,12 @@ export function GenerateGraphicStep({
           {graphicLocation === 'left-chest' ? (
             <>
               <rect x={67} y={56} width={20} height={8} rx="1" fill="none" stroke="white" strokeWidth="0.8" strokeDasharray="2 1" />
-              <text x={77} y={62} textAnchor="middle" fill="#22c55e" fontSize={6} fontWeight="bold">$</text>
+              <text x={77} y={62} textAnchor="middle" fill={context === 'owner' ? '#60a5fa' : '#22c55e'} fontSize={6} fontWeight="bold">{context === 'owner' ? 'Aa' : '$'}</text>
             </>
           ) : (
             <>
               <rect x={72} y={56} width={36} height={14} rx="1" fill="none" stroke="white" strokeWidth="1" strokeDasharray="3 1.5" />
-              <text x={90} y={67} textAnchor="middle" fill="#22c55e" fontSize={10} fontWeight="bold">$</text>
+              <text x={90} y={67} textAnchor="middle" fill={context === 'owner' ? '#60a5fa' : '#22c55e'} fontSize={10} fontWeight="bold">{context === 'owner' ? 'Aa' : '$'}</text>
             </>
           )}
           
@@ -363,12 +367,12 @@ export function GenerateGraphicStep({
           {graphicLocation === 'left-chest' ? (
             <>
               <rect x={67} y={78} width={20} height={8} rx="1" fill="none" stroke="white" strokeWidth="0.8" strokeDasharray="2 1" />
-              <text x={77} y={84} textAnchor="middle" fill="#22c55e" fontSize={6} fontWeight="bold">$</text>
+              <text x={77} y={84} textAnchor="middle" fill={context === 'owner' ? '#60a5fa' : '#22c55e'} fontSize={6} fontWeight="bold">{context === 'owner' ? 'Aa' : '$'}</text>
             </>
           ) : (
             <>
               <rect x={72} y={96} width={36} height={14} rx="1" fill="none" stroke="white" strokeWidth="1" strokeDasharray="3 1.5" />
-              <text x={90} y={107} textAnchor="middle" fill="#22c55e" fontSize={10} fontWeight="bold">$</text>
+              <text x={90} y={107} textAnchor="middle" fill={context === 'owner' ? '#60a5fa' : '#22c55e'} fontSize={10} fontWeight="bold">{context === 'owner' ? 'Aa' : '$'}</text>
             </>
           )}
         </svg>

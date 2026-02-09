@@ -5,12 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, Check, DollarSign } from "lucide-react";
 import { type AllowedProduct, SHIRT_COLORS, SHIRT_SIZES, type PlacementOption } from "./wizardTypes";
 
+export type WizardContextType = 'member' | 'owner';
+
 export function ProductPickerStep({
   selectedProduct,
-  onSelect
+  onSelect,
+  context = 'member'
 }: {
   selectedProduct: AllowedProduct | null;
   onSelect: (product: AllowedProduct) => void;
+  context?: WizardContextType;
 }) {
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string; product: AllowedProduct } | null>(null);
   const { data: productsData, isLoading } = useQuery<{ products: AllowedProduct[] }>({
@@ -78,8 +82,11 @@ export function ProductPickerStep({
               {product.brand && (
                 <p className="text-xs text-slate-400">{product.brand}</p>
               )}
-              {product.memberEarnings && (
+              {context === 'member' && product.memberEarnings && (
                 <p className="text-xs text-green-400">Earn ${product.memberEarnings.toFixed(2)}</p>
+              )}
+              {context === 'owner' && product.retailPrice && (
+                <p className="text-xs text-blue-400">${product.retailPrice.toFixed(2)}</p>
               )}
             </div>
             {selectedProduct?.blueprintId === product.blueprintId && (
@@ -171,10 +178,12 @@ export function ProductCongratsStep({
 
 export function ColorPickerStep({
   selectedColor,
-  onSelect
+  onSelect,
+  context = 'member'
 }: {
   selectedColor: string;
   onSelect: (color: string) => void;
+  context?: WizardContextType;
 }) {
   return (
     <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-5 duration-300">
@@ -208,7 +217,9 @@ export function ColorPickerStep({
       
       <div className="mt-4 p-4 bg-slate-800/50 rounded-lg max-w-md mx-auto">
         <p className="text-slate-400 text-sm">
-          This color creates your product's display image. Your customers can still choose their own color and size when they order.
+          {context === 'member'
+            ? "This color creates your product's display image. Your customers can still choose their own color and size when they order."
+            : "This is your product's display color. You can pick a different color and size at checkout."}
         </p>
       </div>
     </div>
@@ -222,7 +233,8 @@ export function SizePickerStep({
   sizeEarningsBonuses,
   onSelect,
   onEarningsAnimate,
-  selectedPlacements = []
+  selectedPlacements = [],
+  context = 'member'
 }: {
   selectedSize: string;
   selectedColor: string;
@@ -231,6 +243,7 @@ export function SizePickerStep({
   onSelect: (size: string) => void;
   onEarningsAnimate?: (amount: number) => void;
   selectedPlacements?: string[];
+  context?: WizardContextType;
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -253,7 +266,9 @@ export function SizePickerStep({
     <div ref={containerRef} className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300 relative">
       <div>
         <h2 className="text-xl font-bold text-white mb-1">What Size?</h2>
-        <p className="text-slate-400 text-sm">For preview - customers pick their own size</p>
+        <p className="text-slate-400 text-sm">
+          {context === 'member' ? 'For preview - customers pick their own size' : 'Pick your size'}
+        </p>
       </div>
       
       {floatingEarning && (
@@ -262,7 +277,11 @@ export function SizePickerStep({
           className="absolute pointer-events-none z-20"
           style={{ left: floatingEarning.x, top: floatingEarning.y }}
         >
-          <div className="animate-cash-to-top text-green-200 font-bold text-xl flex items-center gap-1 bg-green-500/30 border-2 border-green-400/60 rounded-full px-4 py-1.5 shadow-xl shadow-green-400/40 whitespace-nowrap">
+          <div className={`animate-cash-to-top font-bold text-xl flex items-center gap-1 rounded-full px-4 py-1.5 shadow-xl whitespace-nowrap ${
+            context === 'owner'
+              ? 'text-blue-200 bg-blue-500/30 border-2 border-blue-400/60 shadow-blue-400/40'
+              : 'text-green-200 bg-green-500/30 border-2 border-green-400/60 shadow-green-400/40'
+          }`}>
             <DollarSign className="w-4 h-4" />
             +${floatingEarning.amount.toFixed(2)}
           </div>
@@ -318,7 +337,7 @@ export function SizePickerStep({
               data-testid={`button-size-${size}`}
             >
               <span className="text-lg">{size}</span>
-              <span className={`text-[10px] ${selectedSize === size ? 'text-orange-400' : 'text-green-400/70'}`}>
+              <span className={`text-[10px] ${selectedSize === size ? 'text-orange-400' : context === 'owner' ? 'text-blue-400/70' : 'text-green-400/70'}`}>
                 +${bonus.toFixed(2)}
               </span>
             </button>
