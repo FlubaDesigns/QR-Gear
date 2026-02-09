@@ -185,7 +185,7 @@ export function SimpleWizard() {
             </div>
           ) : null;
         })()}
-        <SimpleWizardProgressBar currentStep={simpleStep} />
+        <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
         {runningEarnings > 0 && (
           <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-green-400/60 bg-green-500/20' : ''}`} data-testid="badge-potential-earnings">
             <DollarSign className="w-3.5 h-3.5 text-green-400" />

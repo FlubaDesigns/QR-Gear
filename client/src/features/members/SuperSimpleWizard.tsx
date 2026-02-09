@@ -863,7 +863,7 @@ export function SuperSimpleWizard() {
         })()}
 
         {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && (
-          <SimpleWizardProgressBar currentStep={simpleStep} />
+          <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
         )}
 
         {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && runningEarnings > 0 && (

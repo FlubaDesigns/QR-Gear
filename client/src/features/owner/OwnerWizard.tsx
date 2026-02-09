@@ -474,7 +474,7 @@ export function OwnerWizard() {
             {tier.label}
           </div>
         )}
-        <SimpleWizardProgressBar currentStep={simpleStep} />
+        <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
         {runningCost > 0 && (
           <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-blue-500/10 border border-blue-500/20 mx-auto w-fit transition-all ${costPulse ? 'scale-110 border-blue-400/60 bg-blue-500/20' : ''}`} data-testid="badge-running-cost">
             <Tag className="w-3.5 h-3.5 text-blue-400" />
