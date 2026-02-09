@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
+import { Sparkles } from "lucide-react";
 import { QRButton } from "@/components/QRButton";
 import blueShirtImage from "@assets/generated_images/blue_shirt_qr_lifestyle_flat_lay.png";
 import hoodieImage from "@assets/generated_images/navy_hoodie_with_qr_code.png";
@@ -68,6 +69,15 @@ export default function Hero() {
               <QRButton variant="ghost" data-testid="button-view-examples">
                 View Examples
               </QRButton>
+            </Link>
+          </div>
+          <div className="mt-4">
+            <Link href="/earn">
+              <button className="group inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500/15 to-green-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium transition-all hover:from-amber-500/25 hover:to-green-500/25 hover:border-amber-400/50 hover:text-amber-200" data-testid="button-earn-hero">
+                <Sparkles className="w-4 h-4" />
+                Want to make money from your ideas?
+                <span className="text-xs opacity-60 group-hover:opacity-100 transition-opacity">&rarr;</span>
+              </button>
             </Link>
           </div>
         </div>
