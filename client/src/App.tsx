@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NexusConsole from "@/components/NexusConsole";
 import Home from "@/pages/home";
-import Creator from "@/pages/creator";
 import Store from "@/pages/store";
 import Gallery from "@/pages/gallery";
 import Cart from "@/pages/cart";
@@ -98,7 +97,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/creator" component={Creator} />
+      <Route path="/creator" component={BuildPage} />
       <Route path="/store" component={Store} />
       <Route path="/gallery" component={Gallery} />
       <Route path="/cart" component={Cart} />
