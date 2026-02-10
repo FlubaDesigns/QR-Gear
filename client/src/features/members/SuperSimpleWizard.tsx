@@ -115,15 +115,15 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
   },
   'bb-finish': {
     icon: <PartyPopper className="w-8 h-8" />,
-    title: "You Nailed It!",
+    title: "You Did It!",
     lines: [
-      { text: "Look at you \u2014 your product is all set up." },
-      { text: "You picked a channel, a product, colors, size, and QR type." },
-      { text: "Now the builder will let you fine-tune everything.", highlight: true },
-      { text: "Go make something amazing. We'll be right here if you need us." },
+      { text: "You just completed the guided walkthrough." },
+      { text: "From here on out, things get faster and quieter.", highlight: true },
+      { text: "You're graduating to the Simple Wizard \u2014 same steps, fewer explanations." },
+      { text: "The training wheels are coming off. You've got this." },
     ],
-    tip: "Pro tip: After your first publish, Advanced and Studio modes unlock.",
-    buttonText: "Start Building!",
+    tip: "After your first publish, Advanced and Studio modes unlock too.",
+    buttonText: "Enter Simple Wizard",
   },
 };
 
@@ -741,9 +741,9 @@ export function SuperSimpleWizard() {
       <div className="flex flex-col items-center justify-center py-12 px-4">
         <div className="w-full max-w-sm text-center space-y-4">
           <Check className="w-10 h-10 text-emerald-400 mx-auto" />
-          <h2 className="text-xl font-bold text-white">Tutorial Complete</h2>
+          <h2 className="text-xl font-bold text-white">Walkthrough Complete</h2>
           <p className="text-slate-400 text-sm">
-            You've already finished the tutorial. Jump into the builder to create your next product!
+            You've already completed the guided walkthrough. Jump into the Simple Wizard to create your next product!
           </p>
           <div className="flex flex-col gap-2">
             <Button

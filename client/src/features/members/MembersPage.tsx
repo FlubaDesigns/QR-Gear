@@ -34,6 +34,7 @@ import { SuperSimpleWizard } from "./SuperSimpleWizard";
 import { SimpleWizard } from "./SimpleWizard";
 import { AdvancedWizard } from "./AdvancedWizard";
 import { StudioMode } from "./StudioMode";
+import { MemberOnboarding } from "./MemberOnboarding";
 
 interface MemberProduct {
   id: string;
@@ -636,6 +637,33 @@ function MembersSandboxInner() {
     publishCount,
     showUnlockPrompt, setShowUnlockPrompt,
   } = useWizardContext();
+
+  const userId = user?.id || user?.uid || '';
+  const onboardingKey = `member_onboarding_complete_${userId}`;
+  const [onboardingComplete, setOnboardingComplete] = useState(() => {
+    if (!userId) return false;
+    return localStorage.getItem(onboardingKey) === 'true';
+  });
+
+  const handleOnboardingComplete = (data: any) => {
+    localStorage.setItem(onboardingKey, 'true');
+    localStorage.setItem(`member_onboarding_data_${userId}`, JSON.stringify({
+      ...data,
+      onboarding_completed_at: new Date().toISOString(),
+      onboarding_version: 'v1',
+    }));
+    setOnboardingComplete(true);
+    setWizardTier('super-simple');
+    setViewMode('wizard');
+  };
+
+  if (!onboardingComplete && userId) {
+    return (
+      <div className="min-h-screen py-8" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+        <MemberOnboarding onComplete={handleOnboardingComplete} userId={userId} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
