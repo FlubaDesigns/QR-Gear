@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Trash2, Plus, Minus, Loader2, ShoppingBag, ArrowRight, LogIn } from "lucide-react";
+import { ShoppingCart, Trash2, Plus, Minus, Loader2, ShoppingBag, ArrowRight, LogIn, Tag } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
@@ -25,6 +26,14 @@ export default function Cart() {
     queryKey: ["/api/cart"],
     enabled: isAuthenticated,
   });
+
+  const { data: memberStatus } = useQuery<{ isMember: boolean }>({
+    queryKey: ["/api/members/check-status"],
+    enabled: isAuthenticated,
+  });
+
+  const isMember = memberStatus?.isMember === true;
+  const MEMBER_DISCOUNT = 0.25;
 
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
@@ -244,10 +253,22 @@ export default function Cart() {
                   <CardTitle>Order Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {isMember && (
+                    <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800" data-testid="badge-member-discount">
+                      <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">25% Member Discount applied</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span>${total.toFixed(2)}</span>
                   </div>
+                  {isMember && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Member Discount (25%)</span>
+                      <span data-testid="text-member-savings">-${(total * MEMBER_DISCOUNT).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Shipping</span>
                     <span>Calculated at checkout</span>
@@ -255,7 +276,7 @@ export default function Cart() {
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span data-testid="text-cart-total">${total.toFixed(2)}</span>
+                    <span data-testid="text-cart-total">${isMember ? (total * (1 - MEMBER_DISCOUNT)).toFixed(2) : total.toFixed(2)}</span>
                   </div>
                   
                   {!isAuthenticated && (

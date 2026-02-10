@@ -3531,21 +3531,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getUncachableStripeClient } = await import('./stripeClient');
       const stripe = await getUncachableStripeClient();
 
+      // Check if user is a member for 25% discount
+      let isMember = false;
+      try {
+        const { getFirestoreDb } = await import("./lib/firebase-admin");
+        const fsDb = getFirestoreDb();
+        const memberDoc = await fsDb.collection('member_profiles').doc(userId).get();
+        isMember = memberDoc.exists && memberDoc.data()?.isMember === true;
+      } catch (e) {
+        console.error('[Checkout] Member check failed, proceeding without discount:', e);
+      }
+
+      const MEMBER_DISCOUNT = 0.25;
+
       // Build line items from cart - customization contains product details
       const lineItems = cartItems.map((item) => {
         const customization = item.customization as any || {};
+        const originalPrice = parseFloat(item.price || '0');
+        const finalPrice = isMember ? originalPrice * (1 - MEMBER_DISCOUNT) : originalPrice;
+        const description = isMember
+          ? `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'} (25% Member Discount applied)`
+          : `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'}`;
         return {
           price_data: {
             currency: 'usd',
             product_data: {
               name: customization.productName || 'QR Gear Product',
-              description: `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'}`,
+              description,
             },
-            unit_amount: Math.round(parseFloat(item.price || '0') * 100),
+            unit_amount: Math.round(finalPrice * 100),
           },
           quantity: item.quantity || 1,
         };
       });
+
+      if (isMember) {
+        console.log(`[Checkout] Member discount applied for user ${userId} — 25% off all items`);
+      }
 
       const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
       
@@ -3557,10 +3579,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cancel_url: `${baseUrl}/cart`,
         metadata: {
           userId,
+          memberDiscount: isMember ? 'true' : 'false',
         },
       });
 
-      res.json({ url: session.url, sessionId: session.id });
+      res.json({ url: session.url, sessionId: session.id, memberDiscount: isMember });
     } catch (error: any) {
       console.error('Checkout error:', error);
       res.status(500).json({ error: error.message });
@@ -9355,6 +9378,75 @@ ${allPages.map(page => `  <url>
   });
 
   // ============== MEMBER SANDBOX API ==============
+
+  // Save member profile on onboarding completion
+  app.post("/api/members/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { fullName, storeName, creatorSlug, country, useCase, productInterests, socialSurfaces, primarySocial, socialHandle, attributionSource } = req.body;
+
+      if (!fullName || !storeName || !creatorSlug) {
+        return res.status(400).json({ error: "fullName, storeName, and creatorSlug are required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const profileData = {
+        userId,
+        fullName,
+        storeName,
+        creatorSlug,
+        country: country || '',
+        useCase: useCase || '',
+        productInterests: productInterests || [],
+        socialSurfaces: socialSurfaces || [],
+        primarySocial: primarySocial || '',
+        socialHandle: socialHandle || '',
+        attributionSource: attributionSource || '',
+        isMember: true,
+        memberSince: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await db.collection('member_profiles').doc(userId).set(profileData, { merge: true });
+      console.log(`[MemberProfile] Created/updated profile for ${userId}: ${storeName}`);
+      res.json({ success: true, profile: profileData });
+    } catch (error: any) {
+      console.error('[MemberProfile] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get member profile
+  app.get("/api/members/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      const doc = await db.collection('member_profiles').doc(userId).get();
+      if (!doc.exists) {
+        return res.json({ isMember: false });
+      }
+      res.json({ isMember: true, profile: doc.data() });
+    } catch (error: any) {
+      console.error('[MemberProfile] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check if user is a member (used by checkout for discount)
+  app.get("/api/members/check-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+      const doc = await db.collection('member_profiles').doc(userId).get();
+      res.json({ isMember: doc.exists && doc.data()?.isMember === true });
+    } catch (error: any) {
+      res.json({ isMember: false });
+    }
+  });
 
   // Helper: verify Firebase auth for member endpoints
   async function verifyMemberAuth(req: any, memberId: string): Promise<{ authorized: boolean; userId?: string; error?: string }> {

@@ -10,10 +10,11 @@ import {
   UserCircle, Share2, DollarSign, Rocket, Heart,
   Smartphone, ShoppingBag, Package, Coffee, HardHat,
   Megaphone, Users, Globe, Search, MessageSquare,
-  Shirt, CupSoda, BaggageClaim,
+  Shirt, CupSoda, BaggageClaim, Tag, Loader2,
   Instagram, Facebook, Youtube, Mail, QrCode, Check,
 } from "lucide-react";
 import { SiTiktok } from "react-icons/si";
+import { auth } from "@/lib/firebase";
 
 interface OnboardingData {
   useCase: string;
@@ -80,6 +81,7 @@ function slugify(text: string): string {
 
 export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) {
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [data, setData] = useState<OnboardingData>({
     useCase: "",
     productInterests: [],
@@ -94,7 +96,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
     termsAccepted: false,
   });
 
-  const totalSteps = 10;
+  const totalSteps = 11;
   const progress = ((step + 1) / totalSteps) * 100;
 
   const canProceed = (): boolean => {
@@ -110,14 +112,32 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
       case 7: return data.termsAccepted;
       case 8: return true;
       case 9: return true;
+      case 10: return true;
       default: return true;
     }
   };
 
-  const handleNext = () => {
+  const saveProfileToServer = async () => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+      await fetch('/api/members/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(data),
+      });
+    } catch (e) {
+      console.error('Failed to save member profile:', e);
+    }
+  };
+
+  const handleNext = async () => {
     if (step < totalSteps - 1) {
       setStep(step + 1);
     } else {
+      setSaving(true);
+      await saveProfileToServer();
+      setSaving(false);
       onComplete(data);
     }
   };
@@ -510,6 +530,33 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
       case 9:
         return (
           <div className="text-center space-y-6">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-500 to-yellow-600 rounded-full flex items-center justify-center">
+              <Tag className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-white" data-testid="text-member-perk-title">Your Member Perk: 25% Off Everything</h2>
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="p-5 bg-gradient-to-br from-amber-900/30 to-yellow-900/20 rounded-xl border border-amber-500/30">
+                <p className="text-lg text-white font-medium mb-2">As a member, you get 25% off every product you buy from QR Gear.</p>
+                <p className="text-slate-300 text-sm">That includes products you create, and products other members create. Every. Single. Time.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 bg-white/5 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-amber-400" data-testid="text-example-retail">$29.99</p>
+                  <p className="text-xs text-slate-500 line-through">Retail price</p>
+                </div>
+                <div className="p-4 bg-emerald-900/20 rounded-lg text-center border border-emerald-500/30">
+                  <p className="text-2xl font-bold text-emerald-400" data-testid="text-example-member">$22.49</p>
+                  <p className="text-xs text-emerald-300">Your price</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-400">This is our way of saying thanks for being part of the platform. Win-win.</p>
+            </div>
+          </div>
+        );
+
+      case 10:
+        return (
+          <div className="text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
               <Rocket className="w-10 h-10 text-white" />
             </div>
@@ -532,11 +579,11 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
   const stepLabels = [
     "Welcome", "How It Works", "About You", "Products",
     "Identity", "Sharing", "Inspiration", "Earnings",
-    "Attribution", "Launch",
+    "Attribution", "Member Perk", "Launch",
   ];
 
   const ctaLabels: Record<number, string> = {
-    9: "Start Super Simple",
+    10: "Start Super Simple",
   };
 
   return (
@@ -575,12 +622,18 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
             <Button
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canProceed() || saving}
               className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6"
               data-testid="button-onboarding-next"
             >
-              {ctaLabels[step] || "Continue"}
-              {step === 9 ? <Wand2 className="w-4 h-4 ml-2" /> : <ArrowRight className="w-4 h-4 ml-2" />}
+              {saving ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Setting up...</>
+              ) : (
+                <>
+                  {ctaLabels[step] || "Continue"}
+                  {step === 10 ? <Wand2 className="w-4 h-4 ml-2" /> : <ArrowRight className="w-4 h-4 ml-2" />}
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
