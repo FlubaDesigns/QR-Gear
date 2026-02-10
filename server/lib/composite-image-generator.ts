@@ -126,24 +126,26 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const qrDark = qrColor === 'white' ? "#FFFFFF" : "#000000";
   const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF";
   
+  const qrMarginY = qrZoneHeight * 0.10;
+  const qrActualSize = qrZoneHeight * 0.80;
   const qrDataUrl = await QRCode.toDataURL(qrUrl, {
-    width: qrSize,
+    width: qrActualSize,
     margin: 2,
     color: { dark: qrDark, light: qrLight },
   });
   
   const qrImage = await loadImage(qrDataUrl);
-  const qrX = (width - qrSize) / 2;
-  const qrY = qrZoneTop + (qrZoneHeight - qrSize) / 2;
+  const qrX = (width - qrActualSize) / 2;
+  const qrY = qrZoneTop + qrMarginY;
   
   const bgPadding = 20;
   const bgRadius = 16;
   ctx.fillStyle = qrLight;
   ctx.beginPath();
-  ctx.roundRect(qrX - bgPadding, qrY - bgPadding, qrSize + bgPadding * 2, qrSize + bgPadding * 2, bgRadius);
+  ctx.roundRect(qrX - bgPadding, qrY - bgPadding, qrActualSize + bgPadding * 2, qrActualSize + bgPadding * 2, bgRadius);
   ctx.fill();
   
-  ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+  ctx.drawImage(qrImage, qrX, qrY, qrActualSize, qrActualSize);
 
   if (bottomText && bottomText.text) {
     const previewFontSize = getPreviewFontSize(bottomText.fontSize);

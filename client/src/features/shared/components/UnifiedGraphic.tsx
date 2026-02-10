@@ -223,8 +223,10 @@ export function UnifiedGraphic({
     ? renderTextInZone(footerStyle, FOOTER_ZONE_TOP, FOOTER_ZONE_HEIGHT, footerFontSize, footerOpacity, 'footer')
     : [];
 
-  const qrX = (CANVAS_W - QR_SIZE) / 2;
-  const qrY = QR_ZONE_TOP + (QR_ZONE_HEIGHT - QR_SIZE) / 2;
+  const qrMarginY = QR_ZONE_HEIGHT * 0.10;
+  const qrActualSize = QR_ZONE_HEIGHT * 0.80;
+  const qrX = (CANVAS_W - qrActualSize) / 2;
+  const qrY = QR_ZONE_TOP + qrMarginY;
 
   const qrFill = qrColor === 'white' ? '#FFFFFF' : '#000000';
   const qrBg = qrColor === 'white' ? '#000000' : '#FFFFFF';
@@ -254,13 +256,13 @@ export function UnifiedGraphic({
           <rect
             x={qrX - BG_PADDING}
             y={qrY - BG_PADDING}
-            width={QR_SIZE + BG_PADDING * 2}
-            height={QR_SIZE + BG_PADDING * 2}
+            width={qrActualSize + BG_PADDING * 2}
+            height={qrActualSize + BG_PADDING * 2}
             rx={BG_RADIUS}
             ry={BG_RADIUS}
             fill={qrBg}
           />
-          <StylizedQRCode x={qrX} y={qrY} size={QR_SIZE} color={qrFill} />
+          <StylizedQRCode x={qrX} y={qrY} size={qrActualSize} color={qrFill} />
         </g>
       )}
 
