@@ -59,6 +59,18 @@ The storefront prioritizes lifestyle mockups. Product pricing is displayed to cu
 - **Pricing Snapshot Architecture**: At packet save time, the server looks up actual Printify costs per variant/size, calculates retail price, member earnings, admin margins, and stores the full breakdown in the packet's `pricingSnapshot` field. Admin-only fields: `printifyCostVariants`, `printifySizeUpcharges`, `adminMarginBase`, `earningsBySize`. Member-visible: `memberEarningsRange` (min/max across sizes).
 - **Order-Time Cost Tracking**: When orders are created, the actual Printify cost for the selected size is read from the packet's `pricingSnapshot` and logged on the order item as `actualPrintifyCost`, `memberEarningsActual`, and `adminMarginActual`.
 
+- **Public Wizard Stripe Checkout & Post-Sale Flow** (Feb 2026 — Planned):
+  - **Temp Packet System**: Public wizard creates a `temp_packets` Firestore document on product selection, updates it at each wizard step (color, size, type, placements, graphic size, text), and generates real Printful mockups at preview steps. Packets have 24-hour TTL and `building` → `completed` status.
+  - **Guest Checkout (Option B)**: No account required to purchase. Stripe collects buyer email on checkout page. Flow: Public Wizard → member pitch → Stripe guest checkout → order confirmation.
+  - **Public Checkout Endpoints**: `POST /api/public/checkout` (creates Stripe session from temp packet, no auth), `GET /api/public/checkout/verify/:sessionId` (verifies payment, converts temp packet to real packet, creates order).
+  - **Temp-to-Real Packet Conversion**: On successful payment, temp packet converts to a permanent product packet in the `product_packets` collection.
+  - **Claim Code System**: At purchase time, a unique claim code (e.g. `QR-7X4M-9K2P`) is generated and stored on the order. Sent in confirmation email. Required when buyer scans QR on received product to register/activate the item — prevents unauthorized registration of someone else's item.
+  - **Item Registration on First Scan**: When buyer scans QR on their physical product, they enter their claim code to create a `buyer_instance` record in QR Dynamics, linking the physical product to their account.
+  - **Post-Sale Member Push**: After payment, two-path confirmation screen:
+    - Path A "Become a Member": Track shipping, keep custom graphic permanently, turn design into income, manage QR destination → leads to account creation
+    - Path B "No thanks": Order confirmation, claim code info, scan instructions, clean goodbye. Custom graphic retained for limited time (30 days) as incentive to sign up.
+  - **Pricing Validation**: Server-side re-calculation from product data at checkout time — never trust client-side price.
+
 ### Feature Specifications
 - **Product Management**: Admins manage products, set retail prices, and control visibility.
 - **Custom QR Code Integration**: Products can be customized with QR codes.

@@ -456,6 +456,49 @@ After deploying NexusMail for the first time:
 
 ---
 
+## Public Wizard Checkout & Post-Sale Flow
+
+The Public Wizard (`/build` and `/creator`) lets visitors build custom QR products without an account and purchase them through guest checkout.
+
+### How It Works — Step by Step
+
+**Building Phase:**
+1. Visitor arrives at `/build` (or `/creator`) and selects a product
+2. System creates a temporary packet in Firestore to track their build
+3. As they go through each step (color, size, QR type, placements, text), the packet is updated
+4. At the preview step, real Printful mockups are generated showing the actual product
+5. Visitor sees a cost summary and member conversion pitch ("Turn This Into Income")
+
+**Checkout Phase:**
+6. Visitor clicks "Add to Cart" — no account required
+7. System creates a Stripe checkout session from the temp packet data
+8. Price is re-calculated server-side from product data (never trusts client-side price)
+9. Stripe collects payment and buyer's email on the checkout page
+10. On successful payment, temp packet converts to a permanent product packet
+
+**Post-Sale Phase:**
+11. A unique **claim code** (e.g. `QR-7X4M-9K2P`) is generated and stored on the order
+12. Confirmation email is sent with the claim code
+13. Buyer sees a two-path confirmation screen:
+    - **"Become a Member"**: Track shipping, keep custom graphic permanently, turn design into income, manage QR destination
+    - **"No thanks"**: Clean goodbye with order number, claim code info, and scan instructions
+14. If buyer doesn't become a member, their custom graphic is retained for 30 days as incentive
+
+**Item Registration (When Product Arrives):**
+15. Buyer receives their physical product (e.g. shirt) and scans the QR code
+16. System prompts them to enter their **claim code** to register the item
+17. This creates a `buyer_instance` record in QR Dynamics, linking the physical product to their account
+18. Without the claim code, nobody can register someone else's item
+19. Buyer can now control where the QR points, see scan analytics, etc.
+
+### Admin Notes
+- Temp packets have a 24-hour expiration if not purchased
+- Claim codes are visible on order records in the admin panel
+- The pricing validation step ensures no price manipulation by the buyer
+- Expired temp packets are automatically cleaned up
+
+---
+
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.

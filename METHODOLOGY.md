@@ -8,6 +8,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-02-10 | Added Public Wizard Stripe Checkout & Post-Sale Flow (Section 12) |
 | 2026-02-07 | Added QR Architecture Decision: Two-Tier QR System (Section 11) |
 | 2026-02-07 | Added Graceful Intro + Unlock Flow for Moments → Compose → Platform (Section 9) |
 | 2026-02-07 | Added Portable Moments & Multi-Product Platform concept (Section 10) |
@@ -546,6 +547,127 @@ Down the line, the Dynamic app could potentially recognize a "dumb" QR via order
 
 - **QR Basic off-ramp:** Step 6 (Capability Overview). User sees the full ladder, chooses "I just want a basic QR," branches immediately into QR Basic mini-flow. Does NOT continue through text editing or canvas-fork.
 - **QR Plus off-ramp:** Canvas-fork (after text editing, shirt preview). User says "No thanks, just the product with my text." This IS a platform QR — it gets a bridge, it's stitchable, hosting applies.
+
+### 12. Public Wizard Stripe Checkout & Post-Sale Flow
+**Established: 2026-02-10**
+
+#### Overview
+
+The Public Wizard (`/build`, `/creator`) is a conversion funnel where visitors build custom QR products without authentication. This section documents the full purchase lifecycle from product creation through item registration.
+
+#### Phase 1 — Building (Temp Packet System)
+
+1. Visitor arrives at `/build` (or `/creator`) and selects a product
+2. System creates a `temp_packets` Firestore document to track their build
+3. Each wizard step updates the packet: color, size, QR type, placements, graphic size, text
+4. At preview steps, real Printful mockups are generated (composite artwork + Printful API)
+5. Visitor sees running cost badge, cost summary breakdown, and real product mockups
+6. Temp packets have a 24-hour TTL and `building` → `completed` status lifecycle
+
+#### Phase 2 — Member Pitch (Pre-Checkout)
+
+7. After the final mockup step, the Member Conversion Pitch is shown
+8. Pitch message: "Turn This Into Income" — explains earning potential as a member
+9. Two paths forward: "Become a Member" (sign up) or "Continue as Guest" (proceed to checkout)
+10. Whether they sign up or skip, the purchase flow continues
+
+#### Phase 3 — Guest Checkout (Option B — No Account Required)
+
+11. `POST /api/public/checkout` — Creates Stripe checkout session from temp packet data (no auth)
+12. Server reads temp packet from Firestore, extracts product details (name, color, size, price)
+13. **Server-side price re-calculation** — Never trust client-side price. Server looks up the product's admin-configured retail price, applies size upcharges, placement costs, text line costs, and calculates the true total
+14. Stripe session metadata includes `tempPacketId` for post-payment lookup
+15. Stripe's checkout page collects buyer email (no pre-registration needed)
+16. On cancellation/abandonment, temp packet remains with its 24-hour TTL
+
+#### Phase 4 — Payment Verification & Order Creation
+
+17. On successful payment, Stripe redirects to success page with `session_id`
+18. `GET /api/public/checkout/verify/:sessionId` — Verifies payment (no auth)
+19. Server retrieves Stripe session, confirms `payment_status === 'paid'`
+20. **Temp-to-Real Packet Conversion**: Temp packet data is written to `product_packets` collection as a permanent record
+21. Order is created in Firestore with line items, Stripe session ID, buyer email
+22. **Claim Code Generation**: Unique claim code (format: `QR-XXXX-XXXX`, e.g. `QR-7X4M-9K2P`) is generated and stored on the order
+23. Confirmation email sent via NexusMail with: order details, claim code, scan instructions
+24. Temp packet status set to `completed`
+
+#### Phase 5 — Post-Sale Member Push (Two-Path Confirmation Screen)
+
+25. After payment, buyer sees a two-path confirmation screen:
+
+**Path A — "Become a Member":**
+- Track your order's shipping status
+- Keep your custom graphic permanently (stored on your account)
+- Turn your design into income — sell it to others and earn 25%
+- Manage your QR code destination (for Platform QR tiers)
+- Leads to account creation → account linked to order via email match
+
+**Path B — "No thanks, just my shirt":**
+- Order confirmation with order number
+- Claim code displayed prominently
+- Instructions: "When your shirt arrives, scan the QR code and enter your claim code to activate it"
+- Clean goodbye: "Your shirt is on its way! Check your email for your order details."
+- Custom graphic retained for 30 days as incentive to sign up later
+- After 30 days without account creation, graphic storage may be reclaimed
+
+#### Phase 6 — Item Registration on First Scan (Claim Code System)
+
+26. Buyer receives their physical product and scans the QR code
+27. System detects this is tied to an order but no registered owner yet
+28. "Register this item" screen appears, prompting for claim code
+29. Buyer enters their claim code (from email or packing slip)
+30. System validates: code matches order, code hasn't been used, order is paid
+31. `buyer_instance` record is created in QR Dynamics, linking physical product to buyer's account
+32. If buyer already has a QR Gear account (from Path A), instance links automatically
+33. If buyer doesn't have an account, registration flow is triggered (email pre-filled from Stripe)
+34. **Security**: Without the correct claim code, nobody can register someone else's item
+
+#### Design Decisions
+
+**Why Guest Checkout (Option B)?**
+- Lowest friction to purchase — don't lose buyers by requiring account creation before they can pay
+- Stripe handles email collection on the checkout page
+- Account creation happens organically: either from the member pitch, the post-sale push, or at first-scan registration
+- Even if they never create an account, we have their email from Stripe for follow-up
+
+**Why Server-Side Price Validation?**
+- Client-side prices can be manipulated via browser dev tools
+- Server reads product configuration directly from the database at checkout time
+- Applies same pricing logic as the admin pricing system: base price + size upcharge + placement costs + text line costs
+- If client-side total doesn't match server calculation, server total wins
+
+**Why Claim Codes?**
+- Physical products can be gifted, resold, or shared — the person scanning may not be the buyer
+- Claim code ensures only the legitimate purchaser (or someone they give the code to) can register the item
+- Code is short and memorable (8 characters) for easy entry on mobile
+- Code travels with the buyer via email — always recoverable
+
+**Why Temp-to-Real Packet Conversion?**
+- Temp packets are ephemeral (24-hour TTL) — not suitable for permanent product records
+- On purchase, the packet becomes a real `product_packet` that persists indefinitely
+- Real packet supports future features: fork-on-edit, library management, resale by members
+- Clean separation: temp = building, real = owned
+
+#### Technical Endpoints
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/public/packets` | POST | None | Create temp packet |
+| `/api/public/packets/:id` | PUT | None | Update temp packet |
+| `/api/public/packets/:id` | GET | None | Read temp packet |
+| `/api/public/generate-mockup` | POST | None | Generate Printful mockup |
+| `/api/public/checkout` | POST | None | Create Stripe checkout session from temp packet |
+| `/api/public/checkout/verify/:sessionId` | GET | None | Verify payment, convert packet, create order |
+
+#### Relationship to Five-Layer Architecture
+
+This flow primarily serves **Layer 2 (Direct Buyer / Buyer-Creator)** — the house revenue engine where QR Gear keeps 100%. But it feeds the other layers:
+
+- **Layer 2 → Layer 3**: Buyer claims item at first scan → becomes owner in QR Dynamics
+- **Layer 2 → Layer 1**: Post-sale member push → buyer becomes member/creator/affiliate
+- **Layer 3 → Revenue**: Owner may subscribe for advanced QR Dynamic features
+
+The Growth Flywheel in action: visitor → builder → buyer → owner → member → distributor.
 
 ---
 
