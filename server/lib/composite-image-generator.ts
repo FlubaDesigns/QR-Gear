@@ -106,9 +106,13 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = topText.verticalOffset ?? 50;
     const hOff = topText.horizontalOffset ?? 50;
-    let currentY = headerZoneTop + (vOff / 100) * (headerZoneHeight - totalTextHeight);
-    const xMargin = width * 0.2;
-    const textX = xMargin + (width - 2 * xMargin) * (hOff / 100);
+    const marginPct = 0.01;
+    const marginY = headerZoneHeight * marginPct;
+    const marginX = width * marginPct;
+    const usableH = headerZoneHeight - 2 * marginY;
+    const usableW = width - 2 * marginX;
+    let currentY = headerZoneTop + marginY + (vOff / 100) * (usableH - totalTextHeight);
+    const textX = marginX + (hOff / 100) * usableW;
 
     for (const line of lines) {
       if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
@@ -161,9 +165,13 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = bottomText.verticalOffset ?? 50;
     const hOff = bottomText.horizontalOffset ?? 50;
-    let currentY = footerZoneTop + (vOff / 100) * (footerZoneHeight - totalTextHeight);
-    const xMargin = width * 0.2;
-    const textX = xMargin + (width - 2 * xMargin) * (hOff / 100);
+    const marginPct = 0.01;
+    const marginY = footerZoneHeight * marginPct;
+    const marginX = width * marginPct;
+    const usableH = footerZoneHeight - 2 * marginY;
+    const usableW = width - 2 * marginX;
+    let currentY = footerZoneTop + marginY + (vOff / 100) * (usableH - totalTextHeight);
+    const textX = marginX + (hOff / 100) * usableW;
 
     for (const line of lines) {
       if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
