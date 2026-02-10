@@ -987,7 +987,7 @@ export function SimplePreviewStep({
                   className="absolute w-full px-2 text-center"
                   style={{
                     bottom: `${titleVertical}%`,
-                    left: `${titleHorizontal - 50}%`
+                    left: `${(titleHorizontal - 50) * 0.2}%`
                   }}
                 >
                   <h3
@@ -1007,7 +1007,7 @@ export function SimplePreviewStep({
                   className="absolute w-full px-2 text-center"
                   style={{
                     bottom: `${descVertical}%`,
-                    left: `${descHorizontal - 50}%`
+                    left: `${(descHorizontal - 50) * 0.2}%`
                   }}
                 >
                   <p
@@ -1110,7 +1110,7 @@ export function SimplePublishStep({
                 className="absolute w-full px-2 text-center"
                 style={{
                   bottom: `${titleVertical}%`,
-                  left: `${titleHorizontal - 50}%`
+                  left: `${(titleHorizontal - 50) * 0.2}%`
                 }}
               >
                 <h3
@@ -1131,7 +1131,7 @@ export function SimplePublishStep({
                 className="absolute w-full px-2 text-center"
                 style={{
                   bottom: `${descVertical}%`,
-                  left: `${descHorizontal - 50}%`
+                  left: `${(descHorizontal - 50) * 0.2}%`
                 }}
               >
                 <p

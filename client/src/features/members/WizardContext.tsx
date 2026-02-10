@@ -319,12 +319,12 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const [simpleTitle, setSimpleTitle] = useState('');
   const [simpleDescription, setSimpleDescription] = useState('');
-  const [titleVertical, setTitleVertical] = useState(15);
+  const [titleVertical, setTitleVertical] = useState(30);
   const [titleHorizontal, setTitleHorizontal] = useState(50);
   const [titleColor, setTitleColor] = useState('#ffffff');
   const [titleSize, setTitleSize] = useState('18px');
   const [titleFont, setTitleFont] = useState('Arial');
-  const [descVertical, setDescVertical] = useState(8);
+  const [descVertical, setDescVertical] = useState(20);
   const [descHorizontal, setDescHorizontal] = useState(50);
   const [descColor, setDescColor] = useState('#e2e8f0');
   const [descSize, setDescSize] = useState('14px');

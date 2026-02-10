@@ -296,7 +296,7 @@ function LandingPagePhoneMockup({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           <div 
             className="absolute w-full px-2 text-center"
-            style={{ bottom: `${titleVertical}%`, left: `${titleHorizontal - 50}%` }}
+            style={{ bottom: `${titleVertical}%`, left: `${(titleHorizontal - 50) * 0.2}%` }}
           >
             <h3 
               className="font-bold truncate drop-shadow-lg"
@@ -307,7 +307,7 @@ function LandingPagePhoneMockup({
           </div>
           <div 
             className="absolute w-full px-2 text-center"
-            style={{ bottom: `${descVertical}%`, left: `${descHorizontal - 50}%` }}
+            style={{ bottom: `${descVertical}%`, left: `${(descHorizontal - 50) * 0.2}%` }}
           >
             <p 
               className="line-clamp-2 drop-shadow-lg"
@@ -731,7 +731,7 @@ export function UrlCreationStep({
               className="absolute w-full px-2 text-center"
               style={{ 
                 bottom: `${titleVertical}%`,
-                left: `${titleHorizontal - 50}%`
+                left: `${(titleHorizontal - 50) * 0.2}%`
               }}
             >
               <h3 
@@ -750,7 +750,7 @@ export function UrlCreationStep({
               className="absolute w-full px-2 text-center"
               style={{ 
                 bottom: `${descVertical}%`,
-                left: `${descHorizontal - 50}%`
+                left: `${(descHorizontal - 50) * 0.2}%`
               }}
             >
               <p 
