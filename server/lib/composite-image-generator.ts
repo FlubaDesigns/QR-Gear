@@ -106,8 +106,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = topText.verticalOffset ?? 50;
     const hOff = topText.horizontalOffset ?? 50;
-    const yPad = 60;
-    let currentY = headerZoneTop + yPad + (headerZoneHeight - 2 * yPad - totalTextHeight) * (vOff / 100);
+    let currentY = headerZoneTop + (headerZoneHeight - totalTextHeight) * (vOff / 100);
     const xMargin = width * 0.2;
     const textX = xMargin + (width - 2 * xMargin) * (hOff / 100);
 
@@ -162,8 +161,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = bottomText.verticalOffset ?? 50;
     const hOff = bottomText.horizontalOffset ?? 50;
-    const yPad = 60;
-    let currentY = footerZoneTop + yPad + (footerZoneHeight - 2 * yPad - totalTextHeight) * (vOff / 100);
+    let currentY = footerZoneTop + (footerZoneHeight - totalTextHeight) * (vOff / 100);
     const xMargin = width * 0.2;
     const textX = xMargin + (width - 2 * xMargin) * (hOff / 100);
 

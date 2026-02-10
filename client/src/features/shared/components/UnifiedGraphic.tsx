@@ -145,8 +145,7 @@ function renderTextInZone(
   const hOffset = style.horizontalOffset ?? 50;
 
   const totalTextHeight = lines.length * fontSize * 1.3;
-  const Y_PAD = PADDING;
-  const startY = zoneTop + Y_PAD + (zoneHeight - 2 * Y_PAD - totalTextHeight) * (vOffset / 100);
+  const startY = zoneTop + (zoneHeight - totalTextHeight) * (vOffset / 100);
   const X_MARGIN = CANVAS_W * 0.2;
   const textXPos = X_MARGIN + (CANVAS_W - 2 * X_MARGIN) * (hOffset / 100);
 
