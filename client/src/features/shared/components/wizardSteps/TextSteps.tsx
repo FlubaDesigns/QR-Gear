@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
 import { UnifiedGraphic } from "@/features/shared/components/UnifiedGraphic";
+import { ZoneThumbnail } from "@/features/shared/components/ZonePreview";
 import {
   type TextLayoutChoice,
   type GraphicSize,
@@ -84,50 +85,40 @@ function PhoneMockup({
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}
-          <div className="absolute inset-0 flex flex-col">
-            <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
-              {headerText && headerStyle?.enabled && (
-                <div 
-                  className="absolute text-center px-1 max-w-full"
-                  style={{
-                    color: headerStyle.color || '#ffffff',
-                    fontSize: getFontSize(headerStyle.fontSize),
-                    fontFamily: headerStyle.fontFamily || 'sans-serif',
-                    fontWeight: 'bold',
-                    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                    top: `${headerStyle.verticalOffset ?? 50}%`,
-                    left: `${1 + (headerStyle.horizontalOffset ?? 50) * 0.98}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
-                  {headerText}
-                </div>
-              )}
-            </div>
-            <div className="relative flex items-center justify-center" style={{ height: '50%' }}>
-              <div style={{ width: '80%', height: '80%', margin: '10% 0' }} className="bg-white rounded-lg flex items-center justify-center">
-                <QrCode className="w-2/3 h-2/3 text-slate-800" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
+            {headerText && headerStyle?.enabled && (
+              <div 
+                className="text-center mb-1 px-1 max-w-full"
+                style={{
+                  color: headerStyle.color || '#ffffff',
+                  fontSize: getFontSize(headerStyle.fontSize),
+                  fontFamily: headerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(headerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {headerText}
               </div>
+            )}
+            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+              <QrCode className="w-9 h-9 text-slate-800" />
             </div>
-            <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
-              {footerText && footerStyle?.enabled && (
-                <div 
-                  className="absolute text-center px-1 max-w-full"
-                  style={{
-                    color: footerStyle.color || '#ffffff',
-                    fontSize: getFontSize(footerStyle.fontSize),
-                    fontFamily: footerStyle.fontFamily || 'sans-serif',
-                    fontWeight: 'bold',
-                    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                    top: `${footerStyle.verticalOffset ?? 50}%`,
-                    left: `${1 + (footerStyle.horizontalOffset ?? 50) * 0.98}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
-                  {footerText}
-                </div>
-              )}
-            </div>
+            {footerText && footerStyle?.enabled && (
+              <div 
+                className="text-center mt-1 px-1 max-w-full"
+                style={{
+                  color: footerStyle.color || '#ffffff',
+                  fontSize: getFontSize(footerStyle.fontSize),
+                  fontFamily: footerStyle.fontFamily || 'sans-serif',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  transform: `translateY(${(footerStyle.verticalOffset || 0) * 0.5}px)`
+                }}
+              >
+                {footerText}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -270,25 +261,12 @@ export function TextLayoutChoiceStep({
               </div>
             )}
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-12 rounded flex flex-col p-0.5 flex-shrink-0 ${
-                selected === option.id ? 'bg-orange-900/40' : 'bg-slate-700'
-              }`}>
-                <div className="flex items-center justify-center" style={{ height: '25%' }}>
-                  {(option.id === 'header' || option.id === 'both') && (
-                    <div className="w-full h-1.5 bg-yellow-400 border border-yellow-200 rounded shadow-lg" />
-                  )}
-                </div>
-                <div className="flex items-center justify-center" style={{ height: '50%' }}>
-                  <div className="bg-white rounded flex items-center justify-center" style={{ width: '80%', height: '80%' }}>
-                    <QrCode className="w-3 h-3 text-slate-800" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-center" style={{ height: '25%' }}>
-                  {(option.id === 'footer' || option.id === 'both') && (
-                    <div className="w-full h-1.5 bg-yellow-400 border border-yellow-200 rounded shadow-lg" />
-                  )}
-                </div>
-              </div>
+              <ZoneThumbnail
+                showHeader={option.id === 'header' || option.id === 'both'}
+                showFooter={option.id === 'footer' || option.id === 'both'}
+                isSelected={selected === option.id}
+                size="sm"
+              />
               <div className="flex-1 text-left min-w-0">
                 <p className={`font-semibold text-sm ${selected === option.id ? 'text-orange-400' : 'text-white'}`}>{option.label}</p>
                 <p className={`text-xs ${selected === option.id ? 'text-orange-300/70' : 'text-slate-400'}`}>{option.description}</p>

@@ -105,8 +105,16 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   const CANVAS_WIDTH = placementDims.width;
   const CANVAS_HEIGHT = placementDims.height;
   
-  // Scale QR size proportionally to canvas (about 40% of smaller dimension)
-  const QR_SIZE = Math.round(Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.4);
+  const HEADER_ZONE_TOP = 0;
+  const HEADER_ZONE_HEIGHT = CANVAS_HEIGHT * 0.25;
+  const QR_ZONE_TOP = HEADER_ZONE_HEIGHT;
+  const QR_ZONE_HEIGHT = CANVAS_HEIGHT * 0.50;
+  const FOOTER_ZONE_TOP = QR_ZONE_TOP + QR_ZONE_HEIGHT;
+  const FOOTER_ZONE_HEIGHT = CANVAS_HEIGHT * 0.25;
+
+  const QR_MARGIN_Y = QR_ZONE_HEIGHT * 0.10;
+  const QR_AREA_SIZE = QR_ZONE_HEIGHT * 0.80;
+  const BG_PADDING = 20;
   
   console.log('[generateProductGraphic] GENERATING TRANSPARENT PRODUCT GRAPHIC');
   console.log('[generateProductGraphic] Options:', { 
@@ -116,7 +124,6 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
     hasHeader: !!headerStyle?.enabled,
     hasFooter: !!footerStyle?.enabled 
   });
-  console.log('[generateProductGraphic] NO BACKGROUND IMAGE WILL BE USED');
   
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_WIDTH;
@@ -124,126 +131,98 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) throw new Error('Canvas not supported');
 
-  // ALWAYS start with a transparent canvas - no background image, no solid fill
-  console.log('[generateProductGraphic] Clearing canvas to TRANSPARENT');
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   
-  // Only fill with color if NOT using transparent background (but we always use transparent now)
   if (!useTransparentBackground && productColorHex) {
-    console.log('[generateProductGraphic] WARNING: Filling with product color (not transparent)');
     ctx.fillStyle = productColorHex;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   } else if (!useTransparentBackground) {
-    console.log('[generateProductGraphic] WARNING: Filling with white (not transparent)');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   }
 
   try {
-    // Fetch QR as data URL to avoid CORS issues with external QR API
     const qrDataUrl = await fetchImageAsDataUrl(qrUrl);
     const qrImg = await loadImage(qrDataUrl);
-    const qrX = (CANVAS_WIDTH - QR_SIZE) / 2;
-    const qrY = (CANVAS_HEIGHT - QR_SIZE) / 2;
-    // Only add white background behind QR if NOT using transparent background
+    const qrActualSize = QR_AREA_SIZE - BG_PADDING * 2;
+    const qrBgX = (CANVAS_WIDTH - QR_AREA_SIZE) / 2;
+    const qrBgY = QR_ZONE_TOP + QR_MARGIN_Y;
+    const qrX = (CANVAS_WIDTH - qrActualSize) / 2;
+    const qrY = QR_ZONE_TOP + QR_MARGIN_Y + BG_PADDING;
     if (!useTransparentBackground) {
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(qrX - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
+      ctx.beginPath();
+      ctx.roundRect(qrBgX, qrBgY, QR_AREA_SIZE, QR_AREA_SIZE, 16);
+      ctx.fill();
     }
-    ctx.drawImage(qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
-    console.log('[generateProductGraphic] QR drawn successfully');
+    ctx.drawImage(qrImg, qrX, qrY, qrActualSize, qrActualSize);
+    console.log('[generateProductGraphic] QR drawn in zone (25/50/25)');
   } catch (e) {
     console.warn('[generateProductGraphic] Failed to load QR image:', e);
   }
 
-  // Calculate QR code boundaries once for both header and footer
-  const qrCenterY = CANVAS_HEIGHT / 2;
-  const qrTopEdge = qrCenterY - (QR_SIZE / 2);
-  const qrBottomEdge = qrCenterY + (QR_SIZE / 2);
-  const QR_MARGIN = 40; // Minimum gap between text and QR code
+  const MARGIN_PCT = 0.01;
 
   if (headerStyle?.enabled && headerStyle.text) {
     const fontSize = parseInt(headerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const verticalOffset = headerStyle.verticalOffset ?? 20;
-    const horizontalOffset = headerStyle.horizontalOffset ?? 0;
-    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    const maxWidth = CANVAS_WIDTH * 0.9;
+    const vOff = headerStyle.verticalOffset ?? 50;
+    const hOff = headerStyle.horizontalOffset ?? 50;
+    const marginY = HEADER_ZONE_HEIGHT * MARGIN_PCT;
+    const marginX = CANVAS_WIDTH * MARGIN_PCT;
+    const usableH = HEADER_ZONE_HEIGHT - 2 * marginY;
+    const usableW = CANVAS_WIDTH - 2 * marginX;
+    const maxWidth = CANVAS_WIDTH * 0.98;
     
-    // Calculate requested Y position (moving up from QR top edge)
-    let textY = qrTopEdge - QR_MARGIN - (verticalOffset * 4);
-    
-    // Estimate text height (for wrapped text, assume up to 2 lines)
-    const estimatedLineHeight = scaledFontSize * 1.2;
-    const maxLines = 2;
-    const textBlockHeight = estimatedLineHeight * maxLines;
-    
-    // Ensure text bottom edge stays above QR top edge with margin
-    const textBottomEdge = textY + (textBlockHeight / 2);
-    if (textBottomEdge > qrTopEdge - QR_MARGIN) {
-      textY = qrTopEdge - QR_MARGIN - (textBlockHeight / 2);
+    ctx.font = `bold ${scaledFontSize}px ${headerStyle.fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const lines = wrapCanvasText(ctx, headerStyle.text, maxWidth);
+    const totalTextHeight = lines.length * scaledFontSize * 1.3;
+    let currentY = HEADER_ZONE_TOP + marginY + (vOff / 100) * (usableH - totalTextHeight);
+    const textX = marginX + (hOff / 100) * usableW;
+
+    for (const line of lines) {
+      if (headerStyle.strokeColor && headerStyle.strokeWidth && headerStyle.strokeWidth > 0) {
+        ctx.strokeStyle = headerStyle.strokeColor;
+        ctx.lineWidth = headerStyle.strokeWidth * 2;
+        ctx.strokeText(line, textX, currentY);
+      }
+      ctx.fillStyle = headerStyle.color;
+      ctx.fillText(line, textX, currentY);
+      currentY += scaledFontSize * 1.3;
     }
-    
-    // Also ensure text doesn't go off the top of the canvas
-    const textTopEdge = textY - (textBlockHeight / 2);
-    if (textTopEdge < 20) {
-      textY = 20 + (textBlockHeight / 2);
-    }
-    
-    drawAutoFitText(
-      ctx,
-      headerStyle.text,
-      textX,
-      textY,
-      maxWidth,
-      scaledFontSize,
-      headerStyle.fontFamily,
-      headerStyle.color,
-      headerStyle.strokeColor,
-      headerStyle.strokeWidth
-    );
   }
 
   if (footerStyle?.enabled && footerStyle.text) {
     const fontSize = parseInt(footerStyle.fontSize) || 144;
     const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const verticalOffset = footerStyle.verticalOffset ?? 20;
-    const horizontalOffset = footerStyle.horizontalOffset ?? 0;
-    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    const maxWidth = CANVAS_WIDTH * 0.9;
+    const vOff = footerStyle.verticalOffset ?? 50;
+    const hOff = footerStyle.horizontalOffset ?? 50;
+    const marginY = FOOTER_ZONE_HEIGHT * MARGIN_PCT;
+    const marginX = CANVAS_WIDTH * MARGIN_PCT;
+    const usableH = FOOTER_ZONE_HEIGHT - 2 * marginY;
+    const usableW = CANVAS_WIDTH - 2 * marginX;
+    const maxWidth = CANVAS_WIDTH * 0.98;
     
-    // Calculate requested Y position (moving down from QR bottom edge)
-    let textY = qrBottomEdge + QR_MARGIN + (verticalOffset * 4);
-    
-    // Estimate text height (for wrapped text, assume up to 2 lines)
-    const estimatedLineHeight = scaledFontSize * 1.2;
-    const maxLines = 2;
-    const textBlockHeight = estimatedLineHeight * maxLines;
-    
-    // Ensure text top edge stays below QR bottom edge with margin
-    const textTopEdge = textY - (textBlockHeight / 2);
-    if (textTopEdge < qrBottomEdge + QR_MARGIN) {
-      textY = qrBottomEdge + QR_MARGIN + (textBlockHeight / 2);
+    ctx.font = `bold ${scaledFontSize}px ${footerStyle.fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const lines = wrapCanvasText(ctx, footerStyle.text, maxWidth);
+    const totalTextHeight = lines.length * scaledFontSize * 1.3;
+    let currentY = FOOTER_ZONE_TOP + marginY + (vOff / 100) * (usableH - totalTextHeight);
+    const textX = marginX + (hOff / 100) * usableW;
+
+    for (const line of lines) {
+      if (footerStyle.strokeColor && footerStyle.strokeWidth && footerStyle.strokeWidth > 0) {
+        ctx.strokeStyle = footerStyle.strokeColor;
+        ctx.lineWidth = footerStyle.strokeWidth * 2;
+        ctx.strokeText(line, textX, currentY);
+      }
+      ctx.fillStyle = footerStyle.color;
+      ctx.fillText(line, textX, currentY);
+      currentY += scaledFontSize * 1.3;
     }
-    
-    // Also ensure text doesn't go off the bottom of the canvas
-    const textBottomEdge = textY + (textBlockHeight / 2);
-    if (textBottomEdge > CANVAS_HEIGHT - 20) {
-      textY = CANVAS_HEIGHT - 20 - (textBlockHeight / 2);
-    }
-    
-    drawAutoFitText(
-      ctx,
-      footerStyle.text,
-      textX,
-      textY,
-      maxWidth,
-      scaledFontSize,
-      footerStyle.fontFamily,
-      footerStyle.color,
-      footerStyle.strokeColor,
-      footerStyle.strokeWidth
-    );
   }
 
   return canvas.toDataURL('image/png');
@@ -265,10 +244,23 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// Helper: Draw text with auto-shrink and wrap fallback
-// 1. Use user's chosen font size
-// 2. If too wide, shrink down to minScale (65%)
-// 3. If still too wide, wrap to multiple lines
+function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines.length > 0 ? lines : [''];
+}
+
 function drawAutoFitText(
   ctx: CanvasRenderingContext2D,
   text: string,

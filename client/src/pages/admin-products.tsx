@@ -77,6 +77,7 @@ import { AccessibleIconButton } from "@/components/ui/accessible-icon-button";
 import { FontPicker } from "@/components/ui/font-picker";
 import { getSwatchColor } from "@/lib/admin-utils";
 import UsaFlag from "@/components/UsaFlag";
+import { DesignPreview } from "@/features/shared/components/ZonePreview";
 
 interface CatalogSyncStatus {
   latestSync: {
@@ -3411,53 +3412,16 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                       <p className="text-xs text-muted-foreground">
                         This shows what will be printed on the physical product (header + QR code + footer on white background).
                       </p>
-                      <div 
-                        className="border-2 border-dashed rounded-lg bg-white p-6 mx-auto max-w-xs"
-                        style={{ aspectRatio: "2/3" }}
-                        data-testid="design-preview"
-                      >
-                        <div className="h-full flex flex-col">
-                          <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
-                            {headerEnabled && headerText && (
-                              <div 
-                                className="text-center text-black font-bold px-2"
-                                style={{ 
-                                  fontFamily: headerFontFamily, 
-                                  fontSize: `${Math.min(parseInt(headerFontSize), 24)}px` 
-                                }}
-                              >
-                                {headerText}
-                              </div>
-                            )}
-                          </div>
-                          <div className="relative flex items-center justify-center" style={{ height: '50%' }}>
-                            <div className="bg-gray-200 border-2 border-gray-300 rounded flex items-center justify-center" style={{ width: '80%', height: '80%' }}>
-                              <div className="text-center text-gray-500 text-xs">
-                                <QrCode className="h-12 w-12 mx-auto mb-1 text-gray-400" />
-                                QR Code
-                              </div>
-                            </div>
-                          </div>
-                          <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
-                            {footerEnabled && footerText && (
-                              <div 
-                                className="text-center text-black font-bold px-2"
-                                style={{ 
-                                  fontFamily: footerFontFamily, 
-                                  fontSize: `${Math.min(parseInt(footerFontSize), 20)}px` 
-                                }}
-                              >
-                                {footerText}
-                              </div>
-                            )}
-                            {!headerEnabled && !footerEnabled && (
-                              <p className="text-xs text-gray-400 text-center">
-                                Enable text above to see preview
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                      <DesignPreview
+                        headerEnabled={headerEnabled}
+                        footerEnabled={footerEnabled}
+                        headerText={headerText}
+                        footerText={footerText}
+                        headerFontFamily={headerFontFamily}
+                        footerFontFamily={footerFontFamily}
+                        headerFontSize={headerFontSize}
+                        footerFontSize={footerFontSize}
+                      />
                       {backgroundPreview && (
                         <div className="space-y-2">
                           <Label className="text-sm text-muted-foreground">Background (shown on webpage only, not printed):</Label>

@@ -4,6 +4,7 @@ import {
   DollarSign,
   QrCode,
 } from "lucide-react";
+import { ZoneThumbnail } from "@/features/shared/components/ZonePreview";
 import {
   PlacementOption,
   PlacementGraphicChoice,
@@ -764,19 +765,12 @@ export function PlacementConfigStep({
             data-testid="button-full-graphic"
           >
             <div className="flex flex-col items-center gap-2">
-              <div className="w-16 h-20 bg-slate-700 rounded-lg flex flex-col p-1">
-                <div className="flex items-center justify-center" style={{ height: '25%' }}>
-                  {(textLayoutChoice === 'header' || textLayoutChoice === 'both') && <div className="w-10 h-1.5 bg-white/60 rounded-sm" />}
-                </div>
-                <div className="flex items-center justify-center" style={{ height: '50%' }}>
-                  <div className="bg-white/90 rounded flex items-center justify-center" style={{ width: '80%', height: '80%' }}>
-                    <QrCode className="w-5 h-5 text-slate-800" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-center" style={{ height: '25%' }}>
-                  {(textLayoutChoice === 'footer' || textLayoutChoice === 'both') && <div className="w-10 h-1.5 bg-white/60 rounded-sm" />}
-                </div>
-              </div>
+              <ZoneThumbnail
+                showHeader={textLayoutChoice === 'header' || textLayoutChoice === 'both'}
+                showFooter={textLayoutChoice === 'footer' || textLayoutChoice === 'both'}
+                isSelected={graphicChoice === 'full'}
+                size="md"
+              />
               <span className="font-medium text-white text-sm">Full Graphic</span>
               <span className="text-xs text-slate-400">Header + QR + Footer</span>
             </div>
@@ -792,15 +786,12 @@ export function PlacementConfigStep({
             data-testid="button-qr-only"
           >
             <div className="flex flex-col items-center gap-2">
-              <div className="w-16 h-20 bg-slate-700 rounded-lg flex flex-col p-1">
-                <div style={{ height: '25%' }} />
-                <div className="flex items-center justify-center" style={{ height: '50%' }}>
-                  <div className="bg-white/90 rounded flex items-center justify-center" style={{ width: '80%', height: '80%' }}>
-                    <QrCode className="w-5 h-5 text-slate-800" />
-                  </div>
-                </div>
-                <div style={{ height: '25%' }} />
-              </div>
+              <ZoneThumbnail
+                showHeader={false}
+                showFooter={false}
+                isSelected={graphicChoice === 'qr-only'}
+                size="md"
+              />
               <span className="font-medium text-white text-sm">QR Only</span>
               <span className="text-xs text-slate-400">Just the QR code</span>
             </div>
