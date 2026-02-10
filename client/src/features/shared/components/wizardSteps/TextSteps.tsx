@@ -372,17 +372,30 @@ export function TextStyleSection({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 w-12">Position</span>
+          <span className="text-xs text-slate-400 w-12">Y Pos</span>
           <input
             type="range"
-            min="-50"
-            max="50"
-            value={style.verticalOffset || 0}
+            min="0"
+            max="100"
+            value={style.verticalOffset ?? 50}
             onChange={(e) => updateStyle({ verticalOffset: parseInt(e.target.value) })}
             className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
             data-testid={`slider-${testIdPrefix}-position`}
           />
-          <span className="text-xs text-slate-500 w-8">{style.verticalOffset || 0}</span>
+          <span className="text-xs text-slate-500 w-8">{style.verticalOffset ?? 50}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 w-12">X Pos</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={style.horizontalOffset ?? 50}
+            onChange={(e) => updateStyle({ horizontalOffset: parseInt(e.target.value) })}
+            className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+            data-testid={`slider-${testIdPrefix}-xposition`}
+          />
+          <span className="text-xs text-slate-500 w-8">{style.horizontalOffset ?? 50}</span>
         </div>
       </div>
     </div>

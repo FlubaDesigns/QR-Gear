@@ -297,7 +297,7 @@ export function TextStyleEditor({
                   <div className="space-y-4">
                     <div>
                       <Label className="text-sm mb-1.5 block text-muted-foreground">
-                        Y Position: {style.verticalOffset ?? 50}% <span className="text-xs">(0=bottom, 100=top)</span>
+                        Y Position: {style.verticalOffset ?? 50}% <span className="text-xs">(0=top, 100=bottom)</span>
                       </Label>
                       <div className="min-h-[48px] flex items-center py-2">
                         <input

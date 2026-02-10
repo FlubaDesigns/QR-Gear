@@ -10,6 +10,8 @@ export interface TextStyle {
   warpPreset?: string;
   strokeColor?: string;
   strokeWidth?: number;
+  verticalOffset?: number;
+  horizontalOffset?: number;
 }
 
 export interface CompositeImageOptions {
@@ -102,13 +104,18 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     
     const lines = wrapText(ctx, topText.text, width - 120);
     const totalTextHeight = lines.length * fontSize * 1.3;
-    let currentY = headerZoneTop + (headerZoneHeight - totalTextHeight) / 2;
+    const vOff = topText.verticalOffset ?? 50;
+    const hOff = topText.horizontalOffset ?? 50;
+    const yPad = 60;
+    let currentY = headerZoneTop + yPad + (headerZoneHeight - 2 * yPad - totalTextHeight) * (vOff / 100);
+    const xMargin = width * 0.2;
+    const textX = xMargin + (width - 2 * xMargin) * (hOff / 100);
 
     for (const line of lines) {
       if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
-        ctx.strokeText(line, width / 2, currentY);
+        ctx.strokeText(line, textX, currentY);
       }
-      ctx.fillText(line, width / 2, currentY);
+      ctx.fillText(line, textX, currentY);
       currentY += fontSize * 1.3;
     }
   }
@@ -153,13 +160,18 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     
     const lines = wrapText(ctx, bottomText.text, width - 120);
     const totalTextHeight = lines.length * fontSize * 1.3;
-    let currentY = footerZoneTop + (footerZoneHeight - totalTextHeight) / 2;
+    const vOff = bottomText.verticalOffset ?? 50;
+    const hOff = bottomText.horizontalOffset ?? 50;
+    const yPad = 60;
+    let currentY = footerZoneTop + yPad + (footerZoneHeight - 2 * yPad - totalTextHeight) * (vOff / 100);
+    const xMargin = width * 0.2;
+    const textX = xMargin + (width - 2 * xMargin) * (hOff / 100);
 
     for (const line of lines) {
       if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
-        ctx.strokeText(line, width / 2, currentY);
+        ctx.strokeText(line, textX, currentY);
       }
-      ctx.fillText(line, width / 2, currentY);
+      ctx.fillText(line, textX, currentY);
       currentY += fontSize * 1.3;
     }
   }
