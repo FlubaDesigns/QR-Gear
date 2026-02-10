@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Link2, Play, Loader2, AlertCircle, Check } from "lucide-react";
 import type { PlayVideoSource } from "./wizardTypes";
+import { ContentRightsCheckbox } from "@/features/shared/components/ContentRightsCheckbox";
 
 export function PlayVideoSourceStep({
   videoUrl,
@@ -10,7 +11,9 @@ export function PlayVideoSourceStep({
   isUploading,
   uploadError,
   uploadProgress,
-  uploadSuccess
+  uploadSuccess,
+  contentRightsConfirmed,
+  onContentRightsToggle
 }: {
   videoUrl: string;
   onVideoUrlChange: (url: string) => void;
@@ -19,6 +22,8 @@ export function PlayVideoSourceStep({
   uploadError: string | null;
   uploadProgress: number;
   uploadSuccess: boolean;
+  contentRightsConfirmed?: boolean;
+  onContentRightsToggle?: () => void;
 }) {
   const [sourceMode, setSourceMode] = useState<'url' | 'upload'>('upload');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,6 +142,16 @@ export function PlayVideoSourceStep({
           <p className="text-xs text-slate-500 text-center">
             Paste a direct link to your video file (MP4, WebM, or MOV)
           </p>
+        </div>
+      )}
+
+      {(videoUrl || uploadSuccess) && onContentRightsToggle && (
+        <div className="max-w-sm mx-auto">
+          <ContentRightsCheckbox
+            confirmed={contentRightsConfirmed ?? false}
+            onToggle={onContentRightsToggle}
+            contentType="video"
+          />
         </div>
       )}
     </div>

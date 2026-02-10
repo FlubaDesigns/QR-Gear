@@ -272,6 +272,9 @@ export interface WizardContextType {
 
   handleSimpleNext: () => Promise<void>;
   handleSimpleBack: () => void;
+  contentRightsConfirmed: boolean;
+  setContentRightsConfirmed: (v: boolean) => void;
+
   canSimpleProceed: () => boolean;
 
   handleStepClick: (step: WizardStep) => void;
@@ -464,6 +467,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [publishedCanvasPlayItems, setPublishedCanvasPlayItems] = useState<any[]>([]);
   const [isLoadingPublishedItems, setIsLoadingPublishedItems] = useState(false);
   const [composeInstanceId, setComposeInstanceId] = useState<string | null>(null);
+  const [contentRightsConfirmed, setContentRightsConfirmed] = useState(false);
 
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front' as PlacementOption;
 
@@ -714,6 +718,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         setSimpleTitle('');
         setSimpleDescription('');
         setQrType('');
+        setContentRightsConfirmed(false);
         setUrlGraphic('');
         setProductGraphic('');
       }
@@ -981,6 +986,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     setSimpleTitle('');
     setSimpleDescription('');
     setQrType('');
+    setContentRightsConfirmed(false);
     setPlayVideoUrl('');
     setPlayVideoSource('');
     setVideoUrl('');
@@ -997,6 +1003,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     setSimpleTitle('');
     setSimpleDescription('');
     setQrType('');
+    setContentRightsConfirmed(false);
     setUrlGraphic('');
     setProductGraphic('');
     setCanvasSaveChoice('');
@@ -1555,11 +1562,11 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       case 'qr-plus-mockup': return true;
       case 'qr-plus-save-choice': return qrPlusSaveChoice !== '';
       case 'qr-plus-confirm': return true;
-      case 'canvas-mockup': return true;
+      case 'canvas-mockup': return contentRightsConfirmed;
       case 'play-mockup': return true;
       case 'canvas-save-choice': return canvasSaveChoice !== '';
       case 'canvas-confirm': return true;
-      case 'play-video-source': return playVideoUrl !== '' && !isUploadingVideo;
+      case 'play-video-source': return playVideoUrl !== '' && !isUploadingVideo && contentRightsConfirmed;
       case 'play-preview': return true;
       case 'play-publish': return true;
       case 'play-save-choice': return true;
@@ -1775,6 +1782,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     publishedCanvasPlayItems, setPublishedCanvasPlayItems,
     isLoadingPublishedItems, setIsLoadingPublishedItems,
     composeInstanceId, setComposeInstanceId,
+
+    contentRightsConfirmed,
+    setContentRightsConfirmed,
 
     currentPlacement,
 

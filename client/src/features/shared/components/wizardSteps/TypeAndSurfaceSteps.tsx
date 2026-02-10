@@ -131,7 +131,7 @@ export function CapabilityOverviewStep({
     },
     { 
       label: 'Video Moment', 
-      description: 'When someone scans, they watch a video you uploaded or linked.',
+      description: 'Upload a video or point to your favorite video URL. Plays instantly when scanned.',
       icon: Play,
       color: 'bg-rose-600',
       badge: 'Platform',

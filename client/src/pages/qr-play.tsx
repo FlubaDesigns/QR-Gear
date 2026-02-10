@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
-  "Upload any video file",
+  "Upload a video or point to your favorite video URL",
   "Plays instantly when the QR is scanned",
   "Cloud-hosted for fast, reliable playback",
   "Perfect for personal messages and storytelling",
@@ -72,7 +72,7 @@ export default function QRVideoLanding() {
           
           <p className="vanity-tagline">Bring your QR to life with video.</p>
           <p className="vanity-description">
-            Upload a video that plays instantly in your hosted QR Space when scanned. 
+            Upload a video or point it at your favorite video URL — it plays instantly in your hosted QR Space when scanned. 
             QR Play is built for real moments — messages, memories, and stories meant to be seen, heard, and felt.
           </p>
 

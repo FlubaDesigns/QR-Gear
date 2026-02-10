@@ -14,6 +14,7 @@ import { PlayVideoSourceStep, PlayPreviewStep, PlayPublishStep, PlayPublishedSte
 import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import { ShirtPreviewStep, UrlTitleStep, UrlDescriptionStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
 import { calculateSizeEarningsBonuses, generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
+import { ContentRightsCheckbox } from "@/features/shared/components/ContentRightsCheckbox";
 import { useWizardContext } from './WizardContext';
 
 export function SimpleWizard() {
@@ -80,6 +81,8 @@ export function SimpleWizard() {
     publishedCanvasPlayItems,
     isLoadingPublishedItems,
     composeInstanceId,
+    contentRightsConfirmed,
+    setContentRightsConfirmed,
     pricingSettings,
     placementEarningsBonus,
     textLineEarningsBonus,
@@ -737,14 +740,23 @@ export function SimpleWizard() {
           )}
           
           {simpleStep === 'canvas-mockup' && (
-            <QRPlusMockupStep
-              mockupUrl={qrCanvasMockup}
-              isLoading={isGeneratingCanvasMockup}
-              selectedColor={selectedColor}
-              selectedSize={selectedShirtSize}
-              headerText={headerStyle.enabled ? headerStyle.text : undefined}
-              footerText={footerStyle.enabled ? footerStyle.text : undefined}
-            />
+            <>
+              <QRPlusMockupStep
+                mockupUrl={qrCanvasMockup}
+                isLoading={isGeneratingCanvasMockup}
+                selectedColor={selectedColor}
+                selectedSize={selectedShirtSize}
+                headerText={headerStyle.enabled ? headerStyle.text : undefined}
+                footerText={footerStyle.enabled ? footerStyle.text : undefined}
+              />
+              <div className="max-w-sm mx-auto mt-4">
+                <ContentRightsCheckbox
+                  confirmed={contentRightsConfirmed}
+                  onToggle={() => setContentRightsConfirmed(!contentRightsConfirmed)}
+                  contentType="image"
+                />
+              </div>
+            </>
           )}
           
           {simpleStep === 'url-publish' && (
@@ -798,6 +810,8 @@ export function SimpleWizard() {
               uploadError={videoUploadError}
               uploadProgress={videoUploadProgress}
               uploadSuccess={videoUploadSuccess}
+              contentRightsConfirmed={contentRightsConfirmed}
+              onContentRightsToggle={() => setContentRightsConfirmed(!contentRightsConfirmed)}
             />
           )}
           
