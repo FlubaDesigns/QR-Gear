@@ -140,6 +140,7 @@ export function OwnerWizard() {
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
 
   const [showMemberPitch, setShowMemberPitch] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const [tempPacketId, setTempPacketId] = useState<string | null>(null);
   const [realMockupUrl, setRealMockupUrl] = useState<string | null>(null);
@@ -505,6 +506,30 @@ export function OwnerWizard() {
 
   const tier = getTierInfo();
 
+  const handlePublicCheckout = async () => {
+    if (!tempPacketId || isCheckingOut) return;
+    setIsCheckingOut(true);
+    try {
+      const resp = await fetch('/api/public/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempPacketId }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        console.error('[OwnerWizard] Checkout error:', data.error);
+        setIsCheckingOut(false);
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('[OwnerWizard] Checkout failed:', err);
+      setIsCheckingOut(false);
+    }
+  };
+
   if (showMemberPitch) {
     const memberEarnings = (selectedProductType?.memberEarnings || 5);
     return (
@@ -536,7 +561,7 @@ export function OwnerWizard() {
           <MemberConversionPitch
             earnings={memberEarnings}
             onSignUp={() => navigate('/register')}
-            onSkip={() => navigate(tempPacketId ? `/checkout?packet=${tempPacketId}` : '/checkout')}
+            onSkip={handlePublicCheckout}
           />
           <div className="flex gap-3 flex-wrap justify-between pt-2 border-t border-slate-700">
             <Button variant="outline" onClick={() => setShowMemberPitch(false)} data-testid="button-back-from-pitch">
@@ -544,12 +569,22 @@ export function OwnerWizard() {
               Back
             </Button>
             <Button
-              onClick={() => navigate(tempPacketId ? `/checkout?packet=${tempPacketId}` : '/checkout')}
+              onClick={handlePublicCheckout}
+              disabled={isCheckingOut || !tempPacketId}
               className="bg-blue-500 hover:bg-blue-600"
               data-testid="button-add-to-cart"
             >
-              <ShoppingCart className="w-4 h-4 mr-1" />
-              Add to Cart
+              {isCheckingOut ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  Buy Now — ${runningCost.toFixed(2)}
+                </>
+              )}
             </Button>
           </div>
         </CardContent>

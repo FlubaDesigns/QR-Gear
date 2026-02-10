@@ -25,6 +25,7 @@ import AdminOrders from "@/pages/admin-orders";
 import StoreBuild from "@/pages/store-build";
 import Checkout from "@/pages/checkout";
 import CheckoutSuccess from "@/pages/checkout-success";
+import BuildSuccess from "@/pages/build-success";
 import Customs from "@/pages/customs";
 import Packet from "@/pages/packet";
 import GiftShop from "@/pages/gift-shop";
@@ -125,6 +126,7 @@ function Router() {
       <Route path="/admin/manual">{() => <ProtectedRoute><AdminManual /></ProtectedRoute>}</Route>
       <Route path="/admin/test-images">{() => <ProtectedRoute><AdminTestImages /></ProtectedRoute>}</Route>
       <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
+      <Route path="/build/success" component={BuildSuccess} />
       <Route path="/build" component={BuildPage} />
       <Route path="/earn" component={EarnPage} />
       <Route path="/checkout" component={Checkout} />
