@@ -994,44 +994,54 @@ export function PhoneMockupWithQR({
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
-            {headerText && headerStyle?.enabled && (
-              <div 
-                className="text-center mb-2 px-1 max-w-full"
-                style={{
-                  color: headerStyle.color || '#ffffff',
-                  fontSize: getFontSize(headerStyle.fontSize),
-                  fontFamily: headerStyle.fontFamily || 'sans-serif',
-                  fontWeight: 'bold',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                  transform: `translateY(${(headerStyle.verticalOffset || 0) * 0.5}px)`
-                }}
-              >
-                {headerText}
-              </div>
-            )}
-            <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-              {qrCodeUrl ? (
-                <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
-              ) : (
-                <QrCode className="w-12 h-12 text-slate-800" />
+          <div className="absolute inset-0 flex flex-col">
+            <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
+              {headerText && headerStyle?.enabled && (
+                <div 
+                  className="absolute text-center px-1 max-w-full"
+                  style={{
+                    color: headerStyle.color || '#ffffff',
+                    fontSize: getFontSize(headerStyle.fontSize),
+                    fontFamily: headerStyle.fontFamily || 'sans-serif',
+                    fontWeight: 'bold',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                    top: `${headerStyle.verticalOffset ?? 50}%`,
+                    left: `${1 + (headerStyle.horizontalOffset ?? 50) * 0.98}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  {headerText}
+                </div>
               )}
             </div>
-            {footerText && footerStyle?.enabled && (
-              <div 
-                className="text-center mt-2 px-1 max-w-full"
-                style={{
-                  color: footerStyle.color || '#ffffff',
-                  fontSize: getFontSize(footerStyle.fontSize),
-                  fontFamily: footerStyle.fontFamily || 'sans-serif',
-                  fontWeight: 'bold',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                  transform: `translateY(${(footerStyle.verticalOffset || 0) * 0.5}px)`
-                }}
-              >
-                {footerText}
+            <div className="relative flex items-center justify-center" style={{ height: '50%' }}>
+              <div style={{ width: '80%', height: '80%' }} className="bg-white rounded-lg flex items-center justify-center overflow-hidden">
+                {qrCodeUrl ? (
+                  <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                ) : (
+                  <QrCode className="w-2/3 h-2/3 text-slate-800" />
+                )}
               </div>
-            )}
+            </div>
+            <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
+              {footerText && footerStyle?.enabled && (
+                <div 
+                  className="absolute text-center px-1 max-w-full"
+                  style={{
+                    color: footerStyle.color || '#ffffff',
+                    fontSize: getFontSize(footerStyle.fontSize),
+                    fontFamily: footerStyle.fontFamily || 'sans-serif',
+                    fontWeight: 'bold',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                    top: `${footerStyle.verticalOffset ?? 50}%`,
+                    left: `${1 + (footerStyle.horizontalOffset ?? 50) * 0.98}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  {footerText}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1072,40 +1082,50 @@ export function PhoneMockup({
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
-            {headerText && headerStyle?.enabled && (
-              <div 
-                className="text-center mb-1 px-1 max-w-full"
-                style={{
-                  color: headerStyle.color || '#ffffff',
-                  fontSize: getFontSize(headerStyle.fontSize),
-                  fontFamily: headerStyle.fontFamily || 'sans-serif',
-                  fontWeight: 'bold',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                  transform: `translateY(${(headerStyle.verticalOffset || 0) * 0.5}px)`
-                }}
-              >
-                {headerText}
-              </div>
-            )}
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-              <QrCode className="w-9 h-9 text-slate-800" />
+          <div className="absolute inset-0 flex flex-col">
+            <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
+              {headerText && headerStyle?.enabled && (
+                <div 
+                  className="absolute text-center px-1 max-w-full"
+                  style={{
+                    color: headerStyle.color || '#ffffff',
+                    fontSize: getFontSize(headerStyle.fontSize),
+                    fontFamily: headerStyle.fontFamily || 'sans-serif',
+                    fontWeight: 'bold',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                    top: `${headerStyle.verticalOffset ?? 50}%`,
+                    left: `${1 + (headerStyle.horizontalOffset ?? 50) * 0.98}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  {headerText}
+                </div>
+              )}
             </div>
-            {footerText && footerStyle?.enabled && (
-              <div 
-                className="text-center mt-1 px-1 max-w-full"
-                style={{
-                  color: footerStyle.color || '#ffffff',
-                  fontSize: getFontSize(footerStyle.fontSize),
-                  fontFamily: footerStyle.fontFamily || 'sans-serif',
-                  fontWeight: 'bold',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                  transform: `translateY(${(footerStyle.verticalOffset || 0) * 0.5}px)`
-                }}
-              >
-                {footerText}
+            <div className="relative flex items-center justify-center" style={{ height: '50%' }}>
+              <div style={{ width: '80%', height: '80%' }} className="bg-white rounded-lg flex items-center justify-center">
+                <QrCode className="w-2/3 h-2/3 text-slate-800" />
               </div>
-            )}
+            </div>
+            <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
+              {footerText && footerStyle?.enabled && (
+                <div 
+                  className="absolute text-center px-1 max-w-full"
+                  style={{
+                    color: footerStyle.color || '#ffffff',
+                    fontSize: getFontSize(footerStyle.fontSize),
+                    fontFamily: footerStyle.fontFamily || 'sans-serif',
+                    fontWeight: 'bold',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                    top: `${footerStyle.verticalOffset ?? 50}%`,
+                    left: `${1 + (footerStyle.horizontalOffset ?? 50) * 0.98}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  {footerText}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

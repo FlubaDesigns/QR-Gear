@@ -3416,40 +3416,46 @@ function AddFromPrintifyPanel({ onSuccess, onFilterChange, editDesignId, onEditC
                         style={{ aspectRatio: "2/3" }}
                         data-testid="design-preview"
                       >
-                        <div className="h-full flex flex-col items-center justify-center gap-4">
-                          {headerEnabled && headerText && (
-                            <div 
-                              className="text-center text-black font-bold px-2"
-                              style={{ 
-                                fontFamily: headerFontFamily, 
-                                fontSize: `${Math.min(parseInt(headerFontSize), 24)}px` 
-                              }}
-                            >
-                              {headerText}
-                            </div>
-                          )}
-                          <div className="flex-shrink-0 w-24 h-24 bg-gray-200 border-2 border-gray-300 rounded flex items-center justify-center">
-                            <div className="text-center text-gray-500 text-xs">
-                              <QrCode className="h-12 w-12 mx-auto mb-1 text-gray-400" />
-                              QR Code
+                        <div className="h-full flex flex-col">
+                          <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
+                            {headerEnabled && headerText && (
+                              <div 
+                                className="text-center text-black font-bold px-2"
+                                style={{ 
+                                  fontFamily: headerFontFamily, 
+                                  fontSize: `${Math.min(parseInt(headerFontSize), 24)}px` 
+                                }}
+                              >
+                                {headerText}
+                              </div>
+                            )}
+                          </div>
+                          <div className="relative flex items-center justify-center" style={{ height: '50%' }}>
+                            <div className="bg-gray-200 border-2 border-gray-300 rounded flex items-center justify-center" style={{ width: '80%', height: '80%' }}>
+                              <div className="text-center text-gray-500 text-xs">
+                                <QrCode className="h-12 w-12 mx-auto mb-1 text-gray-400" />
+                                QR Code
+                              </div>
                             </div>
                           </div>
-                          {footerEnabled && footerText && (
-                            <div 
-                              className="text-center text-black font-bold px-2"
-                              style={{ 
-                                fontFamily: footerFontFamily, 
-                                fontSize: `${Math.min(parseInt(footerFontSize), 20)}px` 
-                              }}
-                            >
-                              {footerText}
-                            </div>
-                          )}
-                          {!headerEnabled && !footerEnabled && (
-                            <p className="text-xs text-gray-400 text-center mt-2">
-                              Enable text above to see preview
-                            </p>
-                          )}
+                          <div className="relative flex items-center justify-center overflow-hidden" style={{ height: '25%' }}>
+                            {footerEnabled && footerText && (
+                              <div 
+                                className="text-center text-black font-bold px-2"
+                                style={{ 
+                                  fontFamily: footerFontFamily, 
+                                  fontSize: `${Math.min(parseInt(footerFontSize), 20)}px` 
+                                }}
+                              >
+                                {footerText}
+                              </div>
+                            )}
+                            {!headerEnabled && !footerEnabled && (
+                              <p className="text-xs text-gray-400 text-center">
+                                Enable text above to see preview
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                       {backgroundPreview && (

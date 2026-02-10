@@ -285,8 +285,14 @@ export function QRBasicMockupStep({
         </div>
       ) : (
         <div className="max-w-sm mx-auto bg-slate-800 rounded-xl p-8 border border-slate-700">
-          <div className="w-32 h-40 mx-auto bg-slate-700 rounded-lg flex items-center justify-center mb-4">
-            <QrCode className="w-12 h-12 text-slate-500" />
+          <div className="w-32 h-40 mx-auto bg-slate-700 rounded-lg flex flex-col mb-4">
+            <div style={{ height: '25%' }} />
+            <div className="flex items-center justify-center" style={{ height: '50%' }}>
+              <div className="bg-white/20 rounded flex items-center justify-center" style={{ width: '80%', height: '80%' }}>
+                <QrCode className="w-10 h-10 text-slate-500" />
+              </div>
+            </div>
+            <div style={{ height: '25%' }} />
           </div>
           <p className="text-slate-400 text-sm">
             {inputType === 'url' ? 'QR links to: ' : 'QR contains: '}
