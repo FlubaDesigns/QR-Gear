@@ -9898,7 +9898,11 @@ ${allPages.map(page => `  <url>
             product_data: {
               name: productTitle,
               description,
-              images: packet.mockupUrl ? [packet.mockupUrl] : [],
+              images: packet.mockupUrl ? [
+                packet.mockupUrl.startsWith('http') 
+                  ? packet.mockupUrl 
+                  : `${baseUrl}${packet.mockupUrl}`
+              ] : [],
             },
             unit_amount: Math.round(serverTotal * 100),
           },
