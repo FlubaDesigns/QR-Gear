@@ -7,6 +7,50 @@ import { type AllowedProduct, SHIRT_COLORS, SHIRT_SIZES, type PlacementOption } 
 
 export type WizardContextType = 'member' | 'owner';
 
+export function getProductFriendlyName(title?: string | null): string {
+  if (!title) return 'product';
+  const lower = title.toLowerCase();
+  const keywords: [string, string][] = [
+    ['hoodie', 'hoodie'],
+    ['sweatshirt', 'sweatshirt'],
+    ['tank top', 'tank top'],
+    ['tank', 'tank top'],
+    ['long sleeve', 'long sleeve'],
+    ['polo', 'polo'],
+    ['jersey', 'jersey'],
+    ['jacket', 'jacket'],
+    ['cap', 'cap'],
+    ['hat', 'hat'],
+    ['beanie', 'beanie'],
+    ['tote', 'tote bag'],
+    ['bag', 'bag'],
+    ['mug', 'mug'],
+    ['tumbler', 'tumbler'],
+    ['bottle', 'bottle'],
+    ['phone case', 'phone case'],
+    ['case', 'case'],
+    ['sticker', 'sticker'],
+    ['poster', 'poster'],
+    ['canvas', 'canvas'],
+    ['pillow', 'pillow'],
+    ['blanket', 'blanket'],
+    ['towel', 'towel'],
+    ['apron', 'apron'],
+    ['onesie', 'onesie'],
+    ['dress', 'dress'],
+    ['shorts', 'shorts'],
+    ['jogger', 'joggers'],
+    ['legging', 'leggings'],
+    ['t-shirt', 'shirt'],
+    ['tee', 'shirt'],
+    ['shirt', 'shirt'],
+  ];
+  for (const [keyword, friendly] of keywords) {
+    if (lower.includes(keyword)) return friendly;
+  }
+  return 'product';
+}
+
 export function ProductPickerStep({
   selectedProduct,
   onSelect,
@@ -179,17 +223,20 @@ export function ProductCongratsStep({
 export function ColorPickerStep({
   selectedColor,
   onSelect,
-  context = 'member'
+  context = 'member',
+  productName
 }: {
   selectedColor: string;
   onSelect: (color: string) => void;
   context?: WizardContextType;
+  productName?: string;
 }) {
+  const itemName = productName || 'product';
   return (
     <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
         <h2 className="text-lg font-bold text-white mb-2">Choose Your Color</h2>
-        <p className="text-slate-400">What color would you like?</p>
+        <p className="text-slate-400">What color {itemName} would you like?</p>
       </div>
       
       <div className="flex justify-center items-center gap-2 max-w-[280px] mx-auto">
@@ -218,8 +265,8 @@ export function ColorPickerStep({
       <div className="mt-4 p-4 bg-slate-800/50 rounded-lg max-w-md mx-auto">
         <p className="text-slate-400 text-sm">
           {context === 'member'
-            ? "This color creates your product's display image. Your customers can still choose their own color and size when they order."
-            : "Pick the color you want for your product. This is what you'll receive!"}
+            ? `This color creates your ${itemName}'s display image. Your customers can still choose their own color and size when they order.`
+            : `Pick the color you want for your ${itemName}. This is what you'll receive!`}
         </p>
       </div>
     </div>
@@ -234,7 +281,8 @@ export function SizePickerStep({
   onSelect,
   onEarningsAnimate,
   selectedPlacements = [],
-  context = 'member'
+  context = 'member',
+  productName
 }: {
   selectedSize: string;
   selectedColor: string;
@@ -244,6 +292,7 @@ export function SizePickerStep({
   onEarningsAnimate?: (amount: number) => void;
   selectedPlacements?: string[];
   context?: WizardContextType;
+  productName?: string;
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -267,7 +316,7 @@ export function SizePickerStep({
       <div>
         <h2 className="text-xl font-bold text-white mb-1">What Size?</h2>
         <p className="text-slate-400 text-sm">
-          {context === 'member' ? 'For preview - customers pick their own size' : 'Pick your size'}
+          {context === 'member' ? `For preview - customers pick their own ${productName || 'product'} size` : `Pick your ${productName || 'product'} size`}
         </p>
       </div>
       

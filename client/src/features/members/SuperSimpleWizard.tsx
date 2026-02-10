@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
-import { ProductPickerStep, ProductCongratsStep, ColorPickerStep, SizePickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
+import { ProductPickerStep, ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
 import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
 import { TypePickerStep, SurfacePickerStep, GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
@@ -939,6 +939,7 @@ export function SuperSimpleWizard() {
                 <ColorPickerStep
                   selectedColor={selectedColor}
                   onSelect={setSelectedColor}
+                  productName={getProductFriendlyName(selectedProductType?.title)}
                 />
               )}
 
@@ -954,6 +955,7 @@ export function SuperSimpleWizard() {
                     baseEarnings={runningEarnings}
                     sizeEarningsBonuses={sizeEarningsBonuses}
                     selectedPlacements={selectedPlacements}
+                    productName={getProductFriendlyName(selectedProductType?.title)}
                     onSelect={(size) => {
                       const oldBonus = sizeEarningsBonuses[selectedShirtSize] || 0;
                       const newBonus = sizeEarningsBonuses[size] || 0;

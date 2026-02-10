@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2 } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
-import { ProductPickerStep, ColorPickerStep, SizePickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
+import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
 import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
 import { GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
@@ -664,6 +664,7 @@ export function OwnerWizard() {
               selectedColor={selectedColor}
               onSelect={setSelectedColor}
               context="owner"
+              productName={getProductFriendlyName(selectedProductType?.title)}
             />
           )}
 
@@ -675,6 +676,7 @@ export function OwnerWizard() {
               sizeEarningsBonuses={sizeCostBonuses}
               selectedPlacements={selectedPlacements}
               context="owner"
+              productName={getProductFriendlyName(selectedProductType?.title)}
               onSelect={(size) => {
                 const oldBonus = sizeCostBonuses[selectedShirtSize] || 0;
                 const newBonus = sizeCostBonuses[size] || 0;
