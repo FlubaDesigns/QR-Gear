@@ -9819,6 +9819,296 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ============ PUBLIC WIZARD STRIPE CHECKOUT ============
+
+  // Create Stripe checkout session from a temp packet (no auth required)
+  app.post("/api/public/checkout", async (req: any, res) => {
+    try {
+      const { tempPacketId } = req.body;
+      if (!tempPacketId) {
+        return res.status(400).json({ error: "Missing tempPacketId" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const packetDoc = await db.collection('temp_packets').doc(tempPacketId).get();
+      if (!packetDoc.exists) {
+        return res.status(404).json({ error: "Temp packet not found" });
+      }
+
+      const packet = packetDoc.data()!;
+      if (packet.status === 'completed') {
+        return res.status(400).json({ error: "This packet has already been purchased" });
+      }
+
+      // Server-side price re-calculation — never trust client-side price
+      const pricingDoc = await db.collection("testSettings").doc("pricing").get();
+      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+
+      const defaultSizeUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
+      const sizeUpcharges = pricingSettings?.sizeUpcharges || defaultSizeUpcharges;
+      const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
+      const textLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
+
+      // Get base retail price from the product data stored on the packet
+      const basePrice = parseFloat(packet.retailPrice) || pricingSettings?.baseRetailPrice || 29.99;
+
+      // Calculate size upcharge
+      const selectedSize = packet.selectedShirtSize || packet.selectedSize || 'M';
+      const sizeUpcharge = sizeUpcharges[selectedSize] || 0;
+
+      // Calculate placement cost (first placement is free)
+      const placements = packet.selectedPlacements || ['front'];
+      const placementCost = Math.max(0, placements.length - 1) * additionalPlacementCost;
+
+      // Calculate text line cost
+      const textLayout = packet.textLayoutChoice || '';
+      let textLines = 0;
+      if (textLayout === 'both') textLines = 2;
+      else if (textLayout === 'header' || textLayout === 'footer') textLines = 1;
+      const textCost = textLines * textLineUpcharge;
+
+      // Total server-calculated price
+      const serverTotal = Math.round((basePrice + sizeUpcharge + placementCost + textCost) * 100) / 100;
+
+      console.log(`[PublicCheckout] Price validation — base: $${basePrice}, size: +$${sizeUpcharge}, placement: +$${placementCost}, text: +$${textCost}, total: $${serverTotal}`);
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      const productTitle = packet.productTitle || 'QR Gear Custom Product';
+      const colorName = packet.selectedColor || packet.colorHex || '';
+      const qrType = packet.qrType || 'qr-basic';
+
+      const description = [
+        `${qrType.replace('qr-', 'QR ').replace(/^\w/, (c: string) => c.toUpperCase())}`,
+        colorName ? `Color: ${colorName}` : '',
+        `Size: ${selectedSize}`,
+      ].filter(Boolean).join(' | ');
+
+      // Use Firebase hosting URL or Replit domain for success/cancel URLs
+      const baseUrl = process.env.FIREBASE_HOSTING_URL || `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: productTitle,
+              description,
+              images: packet.mockupUrl ? [packet.mockupUrl] : [],
+            },
+            unit_amount: Math.round(serverTotal * 100),
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${baseUrl}/build/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/build`,
+        metadata: {
+          tempPacketId,
+          source: 'public_wizard',
+          serverTotal: serverTotal.toString(),
+        },
+        // Stripe will collect email on checkout page
+        customer_creation: 'if_required',
+      });
+
+      // Update temp packet with checkout session info
+      await packetDoc.ref.update({
+        stripeSessionId: session.id,
+        serverCalculatedTotal: serverTotal,
+        checkoutCreatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log(`[PublicCheckout] Session created: ${session.id} for packet ${tempPacketId}, total: $${serverTotal}`);
+      res.json({ url: session.url, sessionId: session.id, total: serverTotal });
+    } catch (error: any) {
+      console.error('[PublicCheckout] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Verify public checkout and create order (no auth required)
+  app.get("/api/public/checkout/verify/:sessionId", async (req: any, res) => {
+    try {
+      const { sessionId } = req.params;
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      const tempPacketId = session.metadata?.tempPacketId;
+      if (!tempPacketId) {
+        return res.status(400).json({ error: "No packet linked to this session" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      // Check if order already exists for this session (idempotency)
+      const existingOrderQuery = await db.collection('orders_public')
+        .where('stripeSessionId', '==', sessionId)
+        .limit(1)
+        .get();
+
+      if (!existingOrderQuery.empty) {
+        const existingOrder = existingOrderQuery.docs[0].data();
+        return res.json({
+          success: true,
+          alreadyProcessed: true,
+          order: { id: existingOrderQuery.docs[0].id, ...existingOrder },
+        });
+      }
+
+      // Get the temp packet
+      const packetDoc = await db.collection('temp_packets').doc(tempPacketId).get();
+      if (!packetDoc.exists) {
+        return res.status(404).json({ error: "Temp packet not found" });
+      }
+      const packet = packetDoc.data()!;
+
+      // Generate unique claim code
+      const { generateUniqueClaimCode } = await import('./lib/claimCodeGenerator');
+      const claimCode = await generateUniqueClaimCode(db);
+
+      const buyerEmail = (session.customer_details as any)?.email || '';
+      const buyerName = (session.customer_details as any)?.name || '';
+      const now = new Date();
+
+      // Convert temp packet to real product packet
+      const realPacketData = {
+        ...packet,
+        status: 'purchased',
+        source: 'public_wizard',
+        buyerEmail,
+        buyerName,
+        stripeSessionId: sessionId,
+        stripePaymentIntentId: session.payment_intent as string,
+        purchasedAt: now.toISOString(),
+        createdAt: packet.createdAt || now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
+      // Remove temp-specific fields
+      delete realPacketData.expiresAt;
+      delete realPacketData.checkoutCreatedAt;
+      delete realPacketData.serverCalculatedTotal;
+
+      const realPacketRef = await db.collection('product_packets').add(realPacketData);
+      console.log(`[PublicCheckout] Real packet created: ${realPacketRef.id} from temp ${tempPacketId}`);
+
+      // Create public order record
+      const serverTotal = parseFloat(packet.serverCalculatedTotal || session.amount_total! / 100);
+      const orderData = {
+        tempPacketId,
+        realPacketId: realPacketRef.id,
+        stripeSessionId: sessionId,
+        stripePaymentIntentId: session.payment_intent as string,
+        buyerEmail,
+        buyerName,
+        claimCode,
+        productTitle: packet.productTitle || 'QR Gear Product',
+        qrType: packet.qrType || 'qr-basic',
+        selectedColor: packet.selectedColor || '',
+        selectedSize: packet.selectedShirtSize || packet.selectedSize || 'M',
+        totalAmount: serverTotal,
+        mockupUrl: packet.mockupUrl || null,
+        lifestyleMockupUrl: packet.lifestyleMockupUrl || null,
+        status: 'paid',
+        graphicRetainedUntil: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
+
+      const orderRef = await db.collection('orders_public').add(orderData);
+      console.log(`[PublicCheckout] Order created: ${orderRef.id}, claim code: ${claimCode}`);
+
+      // Mark temp packet as completed
+      await packetDoc.ref.update({
+        status: 'completed',
+        completedAt: now.toISOString(),
+        realPacketId: realPacketRef.id,
+        orderId: orderRef.id,
+        updatedAt: now.toISOString(),
+      });
+
+      // Also create a unified order for admin tracking
+      try {
+        await storage.createOrderUnified({
+          sourceChannel: "public_wizard",
+          externalOrderId: orderRef.id,
+          customerEmail: buyerEmail,
+          customerName: buyerName || null,
+          shippingAddress: null,
+          items: [{
+            masterProductId: packet.blueprintId?.toString() || null,
+            variantSku: `public-${packet.qrType || 'basic'}`,
+            quantity: 1,
+            price: serverTotal,
+            productTitle: packet.productTitle || 'QR Gear Product',
+            size: packet.selectedShirtSize || packet.selectedSize || null,
+            color: packet.selectedColor || null,
+            actualPrintifyCost: null,
+            memberEarningsActual: null,
+            adminMarginActual: null,
+          }],
+          subtotal: serverTotal.toFixed(2),
+          total: serverTotal.toFixed(2),
+          status: "pending",
+          statusHistory: [
+            { status: "paid", timestamp: now.toISOString(), note: "Payment received via Stripe (public wizard)" },
+            { status: "pending", timestamp: now.toISOString(), note: "Awaiting fulfillment routing" },
+          ],
+        });
+      } catch (unifiedErr) {
+        console.error("[PublicCheckout] Failed to create unified order (non-fatal):", unifiedErr);
+      }
+
+      // Send confirmation email
+      try {
+        const { sendOrderConfirmationEmail } = await import('./lib/email');
+        if (buyerEmail) {
+          await sendOrderConfirmationEmail({
+            orderId: orderRef.id,
+            customerEmail: buyerEmail,
+            customerName: buyerName || 'Customer',
+            items: [{
+              productId: realPacketRef.id,
+              quantity: 1,
+              price: serverTotal,
+            }],
+            totalAmount: serverTotal,
+            orderDate: now,
+          });
+          console.log(`[PublicCheckout] Confirmation email sent to ${buyerEmail}`);
+        }
+      } catch (emailErr) {
+        console.error("[PublicCheckout] Failed to send confirmation email (non-fatal):", emailErr);
+      }
+
+      res.json({
+        success: true,
+        order: {
+          id: orderRef.id,
+          ...orderData,
+        },
+        realPacketId: realPacketRef.id,
+        claimCode,
+      });
+    } catch (error: any) {
+      console.error('[PublicCheckout] Verify error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Generate real Printful mockup for public wizard (combines graphic gen + mockup)
   app.post("/api/public/generate-mockup", async (req: any, res) => {
     try {
