@@ -51,11 +51,18 @@ export interface RenderResult {
 const CANVAS_WIDTH = 4500;
 const CANVAS_HEIGHT = 5400;
 
-const HEADER_CENTER_Y = 800;
-const QR_CENTER_Y = 2700;
-const FOOTER_CENTER_Y = 4600;
+const HEADER_ZONE_TOP = 0;
+const HEADER_ZONE_HEIGHT = CANVAS_HEIGHT * 0.25;
+const QR_ZONE_TOP = HEADER_ZONE_HEIGHT;
+const QR_ZONE_HEIGHT = CANVAS_HEIGHT * 0.50;
+const FOOTER_ZONE_TOP = QR_ZONE_TOP + QR_ZONE_HEIGHT;
+const FOOTER_ZONE_HEIGHT = CANVAS_HEIGHT * 0.25;
 
-const QR_SIZE = 1200;
+const HEADER_CENTER_Y = HEADER_ZONE_TOP + HEADER_ZONE_HEIGHT / 2;
+const QR_CENTER_Y = QR_ZONE_TOP + QR_ZONE_HEIGHT / 2;
+const FOOTER_CENTER_Y = FOOTER_ZONE_TOP + FOOTER_ZONE_HEIGHT / 2;
+
+const QR_SIZE = Math.round(QR_ZONE_HEIGHT * 0.80);
 
 const FONT_ALLOWLIST = [
   'Arial',
@@ -296,8 +303,9 @@ function buildTextElementResult(style: TextStyle, centerY: number, pathWidth: nu
 
 export function buildDesignSvg(request: RenderRequest): string {
   const qrSize = request.qrSize || QR_SIZE;
+  const qrMarginY = QR_ZONE_HEIGHT * 0.10;
   const qrX = (CANVAS_WIDTH - qrSize) / 2;
-  const qrY = QR_CENTER_Y - qrSize / 2;
+  const qrY = QR_ZONE_TOP + qrMarginY;
   
   const textPathWidth = 3600;
   
