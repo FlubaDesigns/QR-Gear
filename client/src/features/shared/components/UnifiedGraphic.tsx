@@ -225,9 +225,12 @@ export function UnifiedGraphic({
     : [];
 
   const qrMarginY = QR_ZONE_HEIGHT * 0.10;
-  const qrActualSize = QR_ZONE_HEIGHT * 0.80;
+  const qrAreaSize = QR_ZONE_HEIGHT * 0.80;
+  const qrActualSize = qrAreaSize - BG_PADDING * 2;
   const qrX = (CANVAS_W - qrActualSize) / 2;
-  const qrY = QR_ZONE_TOP + qrMarginY;
+  const qrY = QR_ZONE_TOP + qrMarginY + BG_PADDING;
+  const qrBgX = (CANVAS_W - qrAreaSize) / 2;
+  const qrBgY = QR_ZONE_TOP + qrMarginY;
 
   const qrFill = qrColor === 'white' ? '#FFFFFF' : '#000000';
   const qrBg = qrColor === 'white' ? '#000000' : '#FFFFFF';
@@ -255,10 +258,10 @@ export function UnifiedGraphic({
       {showQRCode && (
         <g>
           <rect
-            x={qrX - BG_PADDING}
-            y={qrY - BG_PADDING}
-            width={qrActualSize + BG_PADDING * 2}
-            height={qrActualSize + BG_PADDING * 2}
+            x={qrBgX}
+            y={qrBgY}
+            width={qrAreaSize}
+            height={qrAreaSize}
             rx={BG_RADIUS}
             ry={BG_RADIUS}
             fill={qrBg}

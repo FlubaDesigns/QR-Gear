@@ -128,7 +128,10 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF";
   
   const qrMarginY = qrZoneHeight * 0.10;
-  const qrActualSize = qrZoneHeight * 0.80;
+  const qrAreaSize = qrZoneHeight * 0.80;
+  const bgPadding = 20;
+  const bgRadius = 16;
+  const qrActualSize = qrAreaSize - bgPadding * 2;
   const qrDataUrl = await QRCode.toDataURL(qrUrl, {
     width: qrActualSize,
     margin: 2,
@@ -136,14 +139,14 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   });
   
   const qrImage = await loadImage(qrDataUrl);
+  const qrBgX = (width - qrAreaSize) / 2;
+  const qrBgY = qrZoneTop + qrMarginY;
   const qrX = (width - qrActualSize) / 2;
-  const qrY = qrZoneTop + qrMarginY;
+  const qrY = qrZoneTop + qrMarginY + bgPadding;
   
-  const bgPadding = 20;
-  const bgRadius = 16;
   ctx.fillStyle = qrLight;
   ctx.beginPath();
-  ctx.roundRect(qrX - bgPadding, qrY - bgPadding, qrActualSize + bgPadding * 2, qrActualSize + bgPadding * 2, bgRadius);
+  ctx.roundRect(qrBgX, qrBgY, qrAreaSize, qrAreaSize, bgRadius);
   ctx.fill();
   
   ctx.drawImage(qrImage, qrX, qrY, qrActualSize, qrActualSize);
