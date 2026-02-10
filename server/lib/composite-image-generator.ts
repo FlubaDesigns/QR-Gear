@@ -128,28 +128,30 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF";
   
   const qrMarginY = qrZoneHeight * 0.10;
-  const qrAreaSize = qrZoneHeight * 0.80;
+  const qrAreaHeight = qrZoneHeight * 0.80;
   const bgPadding = 20;
   const bgRadius = 16;
-  const qrActualSize = qrAreaSize - bgPadding * 2;
+  const qrContentHeight = qrAreaHeight - bgPadding * 2;
+  const qrContentWidth = qrContentHeight;
   const qrDataUrl = await QRCode.toDataURL(qrUrl, {
-    width: qrActualSize,
+    width: qrContentWidth,
     margin: 2,
     color: { dark: qrDark, light: qrLight },
   });
   
   const qrImage = await loadImage(qrDataUrl);
-  const qrBgX = (width - qrAreaSize) / 2;
+  const qrBgWidth = qrContentWidth + bgPadding * 2;
+  const qrBgX = (width - qrBgWidth) / 2;
   const qrBgY = qrZoneTop + qrMarginY;
-  const qrX = (width - qrActualSize) / 2;
-  const qrY = qrZoneTop + qrMarginY + bgPadding;
+  const qrX = (width - qrContentWidth) / 2;
+  const qrY = qrBgY + bgPadding;
   
   ctx.fillStyle = qrLight;
   ctx.beginPath();
-  ctx.roundRect(qrBgX, qrBgY, qrAreaSize, qrAreaSize, bgRadius);
+  ctx.roundRect(qrBgX, qrBgY, qrBgWidth, qrAreaHeight, bgRadius);
   ctx.fill();
   
-  ctx.drawImage(qrImage, qrX, qrY, qrActualSize, qrActualSize);
+  ctx.drawImage(qrImage, qrX, qrY, qrContentWidth, qrContentHeight);
 
   if (bottomText && bottomText.text) {
     const previewFontSize = getPreviewFontSize(bottomText.fontSize);

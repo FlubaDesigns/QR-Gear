@@ -225,12 +225,14 @@ export function UnifiedGraphic({
     : [];
 
   const qrMarginY = QR_ZONE_HEIGHT * 0.10;
-  const qrAreaSize = QR_ZONE_HEIGHT * 0.80;
-  const qrActualSize = qrAreaSize - BG_PADDING * 2;
-  const qrX = (CANVAS_W - qrActualSize) / 2;
-  const qrY = QR_ZONE_TOP + qrMarginY + BG_PADDING;
-  const qrBgX = (CANVAS_W - qrAreaSize) / 2;
+  const qrAreaHeight = QR_ZONE_HEIGHT * 0.80;
   const qrBgY = QR_ZONE_TOP + qrMarginY;
+  const qrContentHeight = qrAreaHeight - BG_PADDING * 2;
+  const qrContentWidth = qrContentHeight;
+  const qrBgWidth = qrContentWidth + BG_PADDING * 2;
+  const qrX = (CANVAS_W - qrContentWidth) / 2;
+  const qrY = qrBgY + BG_PADDING;
+  const qrBgX = (CANVAS_W - qrBgWidth) / 2;
 
   const qrFill = qrColor === 'white' ? '#FFFFFF' : '#000000';
   const qrBg = qrColor === 'white' ? '#000000' : '#FFFFFF';
@@ -260,13 +262,13 @@ export function UnifiedGraphic({
           <rect
             x={qrBgX}
             y={qrBgY}
-            width={qrAreaSize}
-            height={qrAreaSize}
+            width={qrBgWidth}
+            height={qrAreaHeight}
             rx={BG_RADIUS}
             ry={BG_RADIUS}
             fill={qrBg}
           />
-          <StylizedQRCode x={qrX} y={qrY} size={qrActualSize} color={qrFill} />
+          <StylizedQRCode x={qrX} y={qrY} size={qrContentWidth} color={qrFill} />
         </g>
       )}
 

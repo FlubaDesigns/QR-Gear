@@ -113,7 +113,7 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   const FOOTER_ZONE_HEIGHT = CANVAS_HEIGHT * 0.25;
 
   const QR_MARGIN_Y = QR_ZONE_HEIGHT * 0.10;
-  const QR_AREA_SIZE = QR_ZONE_HEIGHT * 0.80;
+  const QR_AREA_HEIGHT = QR_ZONE_HEIGHT * 0.80;
   const BG_PADDING = 20;
   
   console.log('[generateProductGraphic] GENERATING TRANSPARENT PRODUCT GRAPHIC');
@@ -144,19 +144,21 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   try {
     const qrDataUrl = await fetchImageAsDataUrl(qrUrl);
     const qrImg = await loadImage(qrDataUrl);
-    const qrActualSize = QR_AREA_SIZE - BG_PADDING * 2;
-    const qrBgX = (CANVAS_WIDTH - QR_AREA_SIZE) / 2;
+    const qrContentHeight = QR_AREA_HEIGHT - BG_PADDING * 2;
+    const qrContentWidth = qrContentHeight;
+    const qrBgWidth = qrContentWidth + BG_PADDING * 2;
+    const qrBgX = (CANVAS_WIDTH - qrBgWidth) / 2;
     const qrBgY = QR_ZONE_TOP + QR_MARGIN_Y;
-    const qrX = (CANVAS_WIDTH - qrActualSize) / 2;
-    const qrY = QR_ZONE_TOP + QR_MARGIN_Y + BG_PADDING;
+    const qrX = (CANVAS_WIDTH - qrContentWidth) / 2;
+    const qrY = qrBgY + BG_PADDING;
     if (!useTransparentBackground) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.roundRect(qrBgX, qrBgY, QR_AREA_SIZE, QR_AREA_SIZE, 16);
+      ctx.roundRect(qrBgX, qrBgY, qrBgWidth, QR_AREA_HEIGHT, 16);
       ctx.fill();
     }
-    ctx.drawImage(qrImg, qrX, qrY, qrActualSize, qrActualSize);
-    console.log('[generateProductGraphic] QR drawn in zone (25/50/25)');
+    ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
+    console.log('[generateProductGraphic] QR drawn in zone (25/50/25) with 10/80/10 margins');
   } catch (e) {
     console.warn('[generateProductGraphic] Failed to load QR image:', e);
   }

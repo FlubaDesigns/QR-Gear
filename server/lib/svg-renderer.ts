@@ -303,13 +303,15 @@ function buildTextElementResult(style: TextStyle, centerY: number, pathWidth: nu
 
 export function buildDesignSvg(request: RenderRequest): string {
   const qrMarginY = QR_ZONE_HEIGHT * 0.10;
-  const qrAreaSize = request.qrSize || QR_SIZE;
+  const qrAreaHeight = QR_ZONE_HEIGHT * 0.80;
   const bgPadding = 20;
-  const qrSize = qrAreaSize - bgPadding * 2;
-  const qrBgX = (CANVAS_WIDTH - qrAreaSize) / 2;
+  const qrContentHeight = qrAreaHeight - bgPadding * 2;
+  const qrSize = request.qrSize || qrContentHeight;
+  const qrBgWidth = qrSize + bgPadding * 2;
+  const qrBgX = (CANVAS_WIDTH - qrBgWidth) / 2;
   const qrBgY = QR_ZONE_TOP + qrMarginY;
   const qrX = (CANVAS_WIDTH - qrSize) / 2;
-  const qrY = QR_ZONE_TOP + qrMarginY + bgPadding;
+  const qrY = qrBgY + bgPadding;
   
   const textPathWidth = 3600;
   
