@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { SiTiktok } from "react-icons/si";
 import { auth } from "@/lib/firebase";
+import { useQuery } from "@tanstack/react-query";
+import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 
 interface OnboardingData {
   useCase: string;
@@ -80,6 +82,12 @@ function slugify(text: string): string {
 }
 
 export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) {
+  const { data: pricingSettings } = useQuery<{ memberProfitShare?: number }>({
+    queryKey: ['/api/test/pricing-settings'],
+  });
+  const profitShare = pricingSettings?.memberProfitShare ?? DEFAULT_MEMBER_PROFIT_SHARE;
+  const shareLabel = formatProfitSharePercent(profitShare);
+
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<OnboardingData>({
@@ -479,7 +487,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
             <h2 className="text-2xl font-bold text-white">How you get paid (later)</h2>
             <div className="max-w-md mx-auto space-y-4 text-left">
               <div className="p-4 bg-white/5 rounded-lg">
-                <p className="text-slate-300">When products you create sell through our platform, you earn <span className="text-emerald-400 font-bold">at least 25%</span> of the profit.</p>
+                <p className="text-slate-300">When products you create sell through our platform, you earn <span className="text-emerald-400 font-bold">at least {shareLabel}</span> of the profit.</p>
               </div>
               <div className="p-4 bg-white/5 rounded-lg">
                 <p className="text-slate-300">You don't need to set up payouts right now. We'll prompt you later only if you need it — for example, after you start getting sales.</p>
@@ -533,11 +541,11 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-500 to-yellow-600 rounded-full flex items-center justify-center">
               <Tag className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-white" data-testid="text-member-perk-title">Your Member Perk: 25% Off Everything</h2>
+            <h2 className="text-2xl font-bold text-white" data-testid="text-member-perk-title">Creator Perk: {shareLabel} Off Your Own Creations</h2>
             <div className="max-w-md mx-auto space-y-4">
               <div className="p-5 bg-gradient-to-br from-amber-900/30 to-yellow-900/20 rounded-xl border border-amber-500/30">
-                <p className="text-lg text-white font-medium mb-2">As a member, you get 25% off every product you buy from QR Gear.</p>
-                <p className="text-slate-300 text-sm">That includes products you create, and products other members create. Every. Single. Time.</p>
+                <p className="text-lg text-white font-medium mb-2">Get your own creations at {shareLabel} off — order a sample, build personal inventory, or just get one for yourself.</p>
+                <p className="text-slate-300 text-sm">This creator discount mirrors your profit share. One constant, zero confusion.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-4 bg-white/5 rounded-lg text-center">
@@ -545,11 +553,11 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                   <p className="text-xs text-slate-500 line-through">Retail price</p>
                 </div>
                 <div className="p-4 bg-emerald-900/20 rounded-lg text-center border border-emerald-500/30">
-                  <p className="text-2xl font-bold text-emerald-400" data-testid="text-example-member">$22.49</p>
+                  <p className="text-2xl font-bold text-emerald-400" data-testid="text-example-member">${(29.99 * (1 - profitShare)).toFixed(2)}</p>
                   <p className="text-xs text-emerald-300">Your price</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400">This is our way of saying thanks for being part of the platform. Win-win.</p>
+              <p className="text-sm text-slate-400">Same percentage you earn on sales. Win-win by design.</p>
             </div>
           </div>
         );

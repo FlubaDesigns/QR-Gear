@@ -158,7 +158,7 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">Earn Money</h3>
-                  <p className="text-sm text-slate-300">You keep 25% of every sale. We track your earnings and handle payments automatically.</p>
+                  <p className="text-sm text-slate-300">You keep a share of every sale. We track your earnings and handle payments automatically.</p>
                 </div>
               </div>
             </div>

@@ -32,8 +32,14 @@ export default function Cart() {
     enabled: isAuthenticated,
   });
 
+  const { data: pricingSettings } = useQuery<{ memberProfitShare?: number }>({
+    queryKey: ["/api/test/pricing-settings"],
+    enabled: isAuthenticated,
+  });
+
   const isMember = memberStatus?.isMember === true;
-  const MEMBER_DISCOUNT = 0.25;
+  const CREATOR_DISCOUNT = pricingSettings?.memberProfitShare ?? 0.25;
+  const discountLabel = `${Math.round(CREATOR_DISCOUNT * 100)}%`;
 
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
@@ -256,7 +262,7 @@ export default function Cart() {
                   {isMember && (
                     <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800" data-testid="badge-member-discount">
                       <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">25% Member Discount applied</span>
+                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{discountLabel} Creator Discount applied</span>
                     </div>
                   )}
                   <div className="flex justify-between">
@@ -265,8 +271,8 @@ export default function Cart() {
                   </div>
                   {isMember && (
                     <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                      <span>Member Discount (25%)</span>
-                      <span data-testid="text-member-savings">-${(total * MEMBER_DISCOUNT).toFixed(2)}</span>
+                      <span>Creator Discount ({discountLabel})</span>
+                      <span data-testid="text-member-savings">-${(total * CREATOR_DISCOUNT).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm text-muted-foreground">
@@ -276,7 +282,7 @@ export default function Cart() {
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span data-testid="text-cart-total">${isMember ? (total * (1 - MEMBER_DISCOUNT)).toFixed(2) : total.toFixed(2)}</span>
+                    <span data-testid="text-cart-total">${isMember ? (total * (1 - CREATOR_DISCOUNT)).toFixed(2) : total.toFixed(2)}</span>
                   </div>
                   
                   {!isAuthenticated && (

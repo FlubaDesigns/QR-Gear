@@ -87,7 +87,7 @@ export function AllowedProductDetailSkin({
           <span className="text-white font-medium">${retailPrice.toFixed(2)}</span>
         </div>
         <div className="border-t border-slate-700 pt-2 flex justify-between text-sm">
-          <span className="text-slate-400">Your Profit (25%)</span>
+          <span className="text-slate-400">Your Profit ({Math.round((item.metadata as any)?.profitSharePercent * 100 || 25)}%)</span>
           <span className="text-green-400 font-bold">${earnings.toFixed(2)}</span>
         </div>
       </div>

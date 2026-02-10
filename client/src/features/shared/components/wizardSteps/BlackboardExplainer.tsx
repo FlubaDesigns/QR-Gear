@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SimpleWizardStep } from "./wizardTypes";
+import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 
 interface BlackboardContent {
   icon: React.ReactNode;
@@ -14,7 +15,9 @@ interface BlackboardContent {
   tip?: string;
 }
 
-const BLACKBOARD_CONTENT: Partial<Record<SimpleWizardStep, BlackboardContent>> = {
+function getBlackboardContent(profitShare: number): Partial<Record<SimpleWizardStep, BlackboardContent>> {
+  const shareLabel = formatProfitSharePercent(profitShare);
+  return {
   'channel': {
     icon: <Store className="w-6 h-6" />,
     title: "What's a Channel?",
@@ -32,7 +35,7 @@ const BLACKBOARD_CONTENT: Partial<Record<SimpleWizardStep, BlackboardContent>> =
     lines: [
       { text: "Every product shows exactly what you'll earn.", icon: <DollarSign className="w-4 h-4" /> },
       { text: "Printify manufactures and ships for us.", icon: <Package className="w-4 h-4" /> },
-      { text: "You get 25% of profit on every sale.", highlight: true, icon: <TrendingUp className="w-4 h-4" /> },
+      { text: `You get ${shareLabel} of profit on every sale.`, highlight: true, icon: <TrendingUp className="w-4 h-4" /> },
       { text: "No hidden fees. No surprises.", icon: <Shield className="w-4 h-4" /> },
     ],
     tip: "Bigger products and premium sizes earn you even more.",
@@ -43,7 +46,7 @@ const BLACKBOARD_CONTENT: Partial<Record<SimpleWizardStep, BlackboardContent>> =
     lines: [
       { text: "Customer pays the retail price.", icon: <DollarSign className="w-4 h-4" /> },
       { text: "Printify's manufacturing cost is deducted.", icon: <Package className="w-4 h-4" /> },
-      { text: "You earn 25% of the remaining profit.", highlight: true, icon: <TrendingUp className="w-4 h-4" /> },
+      { text: `You earn ${shareLabel} of the remaining profit.`, highlight: true, icon: <TrendingUp className="w-4 h-4" /> },
       { text: "Earnings grow as you add extras.", icon: <Sparkles className="w-4 h-4" /> },
     ],
     tip: "Text, extra placements, and bigger sizes all boost your earnings.",
@@ -80,7 +83,8 @@ const BLACKBOARD_CONTENT: Partial<Record<SimpleWizardStep, BlackboardContent>> =
     ],
     tip: "Start simple with QR Basic, then explore Canvas and Play as you grow.",
   },
-};
+  };
+}
 
 function hasSeenBlackboards(userId: string): boolean {
   return localStorage.getItem(`bb_seen_${userId}`) === 'true';
@@ -93,11 +97,13 @@ function markBlackboardsSeen(userId: string): void {
 export function BlackboardPanel({ 
   step, 
   userId,
-  forceShow = false
+  forceShow = false,
+  profitShare
 }: { 
   step: SimpleWizardStep;
   userId: string;
   forceShow?: boolean;
+  profitShare?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [seen, setSeen] = useState(false);
@@ -108,7 +114,7 @@ export function BlackboardPanel({
     }
   }, [userId]);
 
-  const content = BLACKBOARD_CONTENT[step];
+  const content = getBlackboardContent(profitShare ?? DEFAULT_MEMBER_PROFIT_SHARE)[step];
   if (!content) return null;
   if (seen && !forceShow) return null;
 

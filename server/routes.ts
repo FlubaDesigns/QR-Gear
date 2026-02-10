@@ -3531,26 +3531,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getUncachableStripeClient } = await import('./stripeClient');
       const stripe = await getUncachableStripeClient();
 
-      // Check if user is a member for 25% discount
+      const { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } = await import("@shared/constants");
+
       let isMember = false;
+      let memberDiscount = DEFAULT_MEMBER_PROFIT_SHARE;
       try {
         const { getFirestoreDb } = await import("./lib/firebase-admin");
         const fsDb = getFirestoreDb();
         const memberDoc = await fsDb.collection('member_profiles').doc(userId).get();
         isMember = memberDoc.exists && memberDoc.data()?.isMember === true;
+
+        const pricingDoc = await fsDb.collection('testSettings').doc('pricing').get();
+        if (pricingDoc.exists) {
+          memberDiscount = pricingDoc.data()?.memberProfitShare ?? DEFAULT_MEMBER_PROFIT_SHARE;
+        }
       } catch (e) {
-        console.error('[Checkout] Member check failed, proceeding without discount:', e);
+        console.error('[Checkout] Member/pricing check failed, proceeding with defaults:', e);
       }
 
-      const MEMBER_DISCOUNT = 0.25;
+      const discountLabel = formatProfitSharePercent(memberDiscount);
 
-      // Build line items from cart - customization contains product details
       const lineItems = cartItems.map((item) => {
         const customization = item.customization as any || {};
         const originalPrice = parseFloat(item.price || '0');
-        const finalPrice = isMember ? originalPrice * (1 - MEMBER_DISCOUNT) : originalPrice;
+        const finalPrice = isMember ? originalPrice * (1 - memberDiscount) : originalPrice;
         const description = isMember
-          ? `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'} (25% Member Discount applied)`
+          ? `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'} (${discountLabel} Creator Discount applied)`
           : `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'}`;
         return {
           price_data: {
@@ -3566,7 +3572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (isMember) {
-        console.log(`[Checkout] Member discount applied for user ${userId} — 25% off all items`);
+        console.log(`[Checkout] Creator discount applied for user ${userId} — ${discountLabel} off all items`);
       }
 
       const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
