@@ -45,8 +45,8 @@ The storefront prioritizes lifestyle mockups. Product pricing is displayed to cu
 - **Wizard Modular Architecture** (Feb 2026): MembersPage.tsx was refactored from 3,661 lines into a clean modular architecture:
   - `WizardContext.tsx` (1,815 lines) - All shared wizard state (~100 useStates), pricing queries, API operations, navigation logic via React Context
   - `SuperSimpleWizard.tsx` (186 lines) - 6-step card flow with blackboard explainers, progress dots, handoff to Simple
-  - `SimpleWizard.tsx` (934 lines) - Full guided wizard with all QR type branches (Basic/Plus/Canvas/Play/Compose), progress bar, next/back logic
-  - `AdvancedWizard.tsx` (201 lines) - Dense 8-step builder with PlacementPicker, HeaderFooterEditor, BackgroundLibraryPicker
+  - `SimpleWizard.tsx` (981 lines) - Full guided wizard with all QR type branches (Basic/Plus/Canvas/Play/Compose), progress bar, next/back logic, green branding
+  - `AdvancedWizard.tsx` (~580 lines) - **Rebuilt Feb 2026** to use same `simpleStep` navigation and all shared step components as Simple Wizard. Full ~40+ step coverage across all QR branches (Basic/Plus/Canvas/Play/Compose). Blue branding (text-blue-400, bg-blue-500), Layers icon. Uses `handleSimpleNext`/`handleSimpleBack`/`canSimpleProceed` from WizardContext. data-testid attributes prefixed with "advanced" (e.g., `button-advanced-next`, `button-advanced-back`).
   - `StudioMode.tsx` (128 lines) - Quick publish interface for experienced users
   - `MembersPage.tsx` (817 lines) - Pure routing shell: auth, nav tabs, view mode switching, delegates to wizard modules via WizardProvider
   - All modules consume shared state via `useWizardContext()` hook - no state duplication
