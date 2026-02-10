@@ -80,7 +80,7 @@ function MemberConversionPitch({ earnings, onSignUp, onSkip }: {
         </div>
         <div className="flex items-center gap-2">
           <DollarSign className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-sm">Earn up to ${earnings.toFixed(2)} per sale</span>
+          <span className="text-slate-300 text-sm">Earnings start at ${earnings.toFixed(2)} per sale — and only go up from there</span>
         </div>
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-green-400" />
