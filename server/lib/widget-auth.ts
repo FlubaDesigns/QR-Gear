@@ -50,21 +50,34 @@ function getKeyByKid(kid: string): string | null {
   return keys[kid] || null;
 }
 
+export type ViewType = 'channel_products' | 'program_series' | 'create_product';
+
+export interface StoreOwner {
+  ownerType: string;
+  ownerId: string;
+}
+
 export interface WidgetTokenPayload {
-  // ============ KC CANONICAL CONTRACT FIELDS ============
-  // JWT standard fields
-  iss?: string;  // Should be "kingdom_connects"
-  aud?: string;  // Should be "qrgear_widget"
+  // ============ CANONICAL CONTRACT FIELDS ============
+  iss?: string;
+  aud?: string;
   iat?: number;
   exp?: number;
   
-  // KC Required fields
-  storeId?: string;  // "kingdom_connects"
-  channelId?: string;  // Entity-scoped channel
+  storeId?: string;
+  channelId?: string;
   entityType?: 'business' | 'church' | 'member';
-  entityId?: string;  // Original KC ID
+  entityId?: string;
   
-  // KC Recommended fields
+  viewType?: ViewType;
+  
+  storeOwner?: StoreOwner;
+  
+  target?: {
+    channelId?: string;
+    programId?: string;
+  };
+  
   entityName?: string;
   entityLogoUrl?: string | null;
   placement?: 'homepage' | 'church' | 'business' | 'member' | 'dashboard' | 'listing' | 'profile' | 'admin';
@@ -103,6 +116,15 @@ export const mintTokenInputSchema = z.object({
   mode: z.enum(['public', 'admin']).optional().default('public'),
   returnUrl: z.string().url().optional(),
   theme: z.string().optional(),
+  viewType: z.enum(['channel_products', 'program_series', 'create_product']).optional().default('channel_products'),
+  storeOwner: z.object({
+    ownerType: z.string().min(1),
+    ownerId: z.string().min(1),
+  }).optional(),
+  target: z.object({
+    channelId: z.string().optional(),
+    programId: z.string().optional(),
+  }).optional(),
   capabilities: z.object({
     canCreate: z.boolean().optional(),
     canManage: z.boolean().optional(),
@@ -112,7 +134,6 @@ export const mintTokenInputSchema = z.object({
 export type MintTokenInput = z.infer<typeof mintTokenInputSchema>;
 
 export const widgetTokenSchema = z.object({
-  // KC Canonical Contract
   iss: z.string().optional(),
   aud: z.string().optional(),
   storeId: z.string().optional(),
@@ -124,6 +145,15 @@ export const widgetTokenSchema = z.object({
   mode: z.enum(['public', 'admin']).optional(),
   theme: z.string().optional(),
   returnUrl: z.string().url().optional(),
+  viewType: z.enum(['channel_products', 'program_series', 'create_product']).optional(),
+  storeOwner: z.object({
+    ownerType: z.string(),
+    ownerId: z.string(),
+  }).optional(),
+  target: z.object({
+    channelId: z.string().optional(),
+    programId: z.string().optional(),
+  }).optional(),
   capabilities: z.object({
     canCreate: z.boolean().optional(),
     canManage: z.boolean().optional(),
@@ -147,23 +177,31 @@ export const widgetTokenSchema = z.object({
 });
 
 /**
- * Mint a new widget token for KC entities
+ * Mint a new widget token for external sites
  * This is the ONLY place tokens should be signed
  */
 export function mintWidgetToken(input: MintTokenInput): { token: string; expiresIn: string } {
   const { kid, secret } = getSigningKey();
   
-  // Derive channelId from entity
-  const channelId = `${input.entityType}_${input.entityId}`;
+  const storeId = input.storeOwner
+    ? `${input.storeOwner.ownerType}:${input.storeOwner.ownerId}`
+    : `${input.entityType}_${input.entityId}`;
+  
+  const channelId = input.target?.channelId || `${input.entityType}_${input.entityId}`;
   
   const payload: Partial<WidgetTokenPayload> = {
-    // KC Canonical Contract - always set
     iss: KC_ISSUER,
     aud: QR_GEAR_AUDIENCE,
-    storeId: 'kingdom_connects',
+    storeId,
     channelId,
     entityType: input.entityType,
     entityId: input.entityId,
+    viewType: input.viewType || 'channel_products',
+    storeOwner: input.storeOwner,
+    target: input.target ? {
+      channelId: input.target.channelId,
+      programId: input.target.programId,
+    } : undefined,
     entityName: input.entityName,
     entityLogoUrl: input.entityLogoUrl,
     placement: input.placement,
@@ -251,8 +289,7 @@ export function verifyWidgetToken(token: string): WidgetTokenPayload | null {
   }
 }
 
-// Normalize token payload to unified format
-export function normalizeWidgetPayload(payload: WidgetTokenPayload): {
+export interface NormalizedWidgetPayload {
   channelId: string;
   storeId: string;
   entityType: 'business' | 'church' | 'member';
@@ -260,18 +297,29 @@ export function normalizeWidgetPayload(payload: WidgetTokenPayload): {
   entityName?: string;
   entityLogoUrl?: string | null;
   mode: 'public' | 'admin';
+  viewType: ViewType;
+  storeOwner?: StoreOwner;
+  programId?: string;
   capabilities: { canCreate: boolean; canManage: boolean };
-} {
-  // KC Canonical format takes priority
-  if (payload.storeId === 'kingdom_connects' && payload.channelId && payload.entityType && payload.entityId) {
+}
+
+export function normalizeWidgetPayload(payload: WidgetTokenPayload): NormalizedWidgetPayload {
+  const viewType: ViewType = payload.viewType || 'channel_products';
+  const storeOwner = payload.storeOwner;
+  const programId = payload.target?.programId;
+
+  if (payload.storeId && payload.channelId && payload.entityType && payload.entityId) {
     return {
-      channelId: payload.channelId,
+      channelId: payload.target?.channelId || payload.channelId,
       storeId: payload.storeId,
       entityType: payload.entityType,
       entityId: payload.entityId,
       entityName: payload.entityName,
       entityLogoUrl: payload.entityLogoUrl,
       mode: payload.mode || 'public',
+      viewType,
+      storeOwner,
+      programId,
       capabilities: {
         canCreate: payload.capabilities?.canCreate || false,
         canManage: payload.capabilities?.canManage || false,
@@ -279,7 +327,6 @@ export function normalizeWidgetPayload(payload: WidgetTokenPayload): {
     };
   }
   
-  // Legacy format - derive channelId from entity fields
   let entityType: 'business' | 'church' | 'member' = 'business';
   let entityId = '';
   let channelId = '';
@@ -303,14 +350,21 @@ export function normalizeWidgetPayload(payload: WidgetTokenPayload): {
     channelId = `member_${entityId}`;
   }
   
+  const storeId = storeOwner
+    ? `${storeOwner.ownerType}:${storeOwner.ownerId}`
+    : 'kingdom_connects';
+  
   return {
     channelId,
-    storeId: 'kingdom_connects',
+    storeId,
     entityType,
     entityId,
     entityName: entityName || undefined,
     entityLogoUrl,
     mode: payload.mode || (payload.placement === 'admin' || payload.placement === 'dashboard' ? 'admin' : 'public'),
+    viewType,
+    storeOwner,
+    programId,
     capabilities: {
       canCreate: payload.capabilities?.canCreate || false,
       canManage: payload.capabilities?.canManage || false,

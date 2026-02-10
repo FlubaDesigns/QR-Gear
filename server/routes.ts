@@ -682,30 +682,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ ok: false, error: "Invalid or expired token" });
       }
 
-      // Normalize payload to canonical store/channel format
       const normalized = normalizeWidgetPayload(payload);
+      const { storeId, channelId, entityType, entityId, entityName, entityLogoUrl, mode, capabilities, viewType, storeOwner, programId } = normalized;
       
-      // channelId MUST come from verified token - NEVER from request params
-      const { storeId, channelId, entityType, entityId, entityName, entityLogoUrl, mode, capabilities } = normalized;
-      
-      if (!channelId) {
+      if (!channelId && viewType !== 'program_series') {
         return res.status(400).json({ ok: false, error: "Token missing channelId" });
       }
 
-      // Load channel items from Firestore
-      const { getChannelItems } = await import("./lib/channelItemsService");
-      const items = await getChannelItems({ storeId, channelId, limit: 12 });
-      
-      // Cache for 60 seconds to reduce repeated loads
-      res.set('Cache-Control', 'public, max-age=60');
-      
-      res.json({
-        ok: true,
-        storeId,
-        channelId,
-        entityType,
-        entityId,
-        items: items.map(item => ({
+      if (storeOwner) {
+        const { resolveOrCreateStore } = await import("./lib/siteWidgetService");
+        await resolveOrCreateStore(storeOwner.ownerType, storeOwner.ownerId, {
+          name: entityName,
+          logoUrl: entityLogoUrl || undefined,
+          theme: payload.theme,
+        });
+      }
+
+      let items: any[] = [];
+      let moments: any[] = [];
+      let programData: any = null;
+
+      if (viewType === 'channel_products' || viewType === 'create_product') {
+        const { getChannelItems } = await import("./lib/channelItemsService");
+        const channelItems = await getChannelItems({ storeId, channelId, limit: 50 });
+        items = channelItems.map(item => ({
           itemId: item.itemId,
           packetId: item.packetId,
           title: item.title,
@@ -714,7 +714,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shareUrl: item.shareUrl,
           price: item.price,
           collectionTag: item.collectionTag,
-        })),
+          shareImageSquareUrl: item.shareImageSquareUrl,
+          shareCaption: item.shareCaption,
+        }));
+      }
+
+      if (viewType === 'program_series' && programId) {
+        const { getProgramMoments } = await import("./lib/programService");
+        const result = await getProgramMoments(programId);
+        if (result) {
+          programData = {
+            programId: result.program.programId,
+            title: result.program.title,
+            description: result.program.description,
+            coverImageUrl: result.program.coverImageUrl,
+            scheduleType: result.program.scheduleType,
+            totalDays: result.program.totalDays,
+            status: result.program.status,
+          };
+          moments = result.moments;
+        }
+      }
+      
+      res.set('Cache-Control', 'public, max-age=60');
+      
+      res.json({
+        ok: true,
+        mode: viewType === 'create_product' ? 'create' : 'display',
+        viewType,
+        storeId,
+        channelId,
+        entityType,
+        entityId,
+        storeOwner: storeOwner || undefined,
+        programId: programId || undefined,
+        program: programData || undefined,
+        items,
+        moments,
         display: {
           entityName,
           entityLogoUrl,
@@ -759,13 +795,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mint token (10 min expiry, proper kid header)
       const { token, expiresIn } = mintWidgetToken(parsed.data);
       
-      console.log(`[WidgetToken] Minted token for ${parsed.data.entityType}_${parsed.data.entityId}`);
+      const channelId = parsed.data.target?.channelId || `${parsed.data.entityType}_${parsed.data.entityId}`;
+      const storeId = parsed.data.storeOwner
+        ? `${parsed.data.storeOwner.ownerType}:${parsed.data.storeOwner.ownerId}`
+        : `${parsed.data.entityType}_${parsed.data.entityId}`;
+      
+      console.log(`[WidgetToken] Minted token for ${storeId} viewType=${parsed.data.viewType}`);
       
       res.json({ 
         ok: true,
         token,
         expiresIn,
-        channelId: `${parsed.data.entityType}_${parsed.data.entityId}`,
+        channelId,
+        storeId,
+        viewType: parsed.data.viewType || 'channel_products',
+        widgetUrl: `${process.env.VITE_BASE_URL || 'https://qrgear-c1ffd.web.app'}/widget?token=${encodeURIComponent(token)}`,
       });
     } catch (error: any) {
       console.error("[WidgetToken] Mint error:", error);
@@ -853,19 +897,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PostMessage handler info endpoint (for KC to know what events to expect)
   app.get("/api/widget/events", widgetCorsMiddleware, (req, res) => {
     res.json({
       events: [
-        { type: "qrgear:ready", description: "Widget has loaded and is ready" },
+        { type: "qrgear:ready", description: "Widget has loaded and is ready", data: { viewType: "string" } },
         { type: "qrgear:height", description: "Widget height changed", data: { height: "number" } },
+        { type: "qrgear:navigate", description: "User clicked return/back", data: { returnUrl: "string" } },
         { type: "qrgear:item_click", description: "User clicked on an item", data: { itemId: "string", packetId: "string" } },
         { type: "qrgear:item_share", description: "User shared an item", data: { itemId: "string", packetId: "string" } },
+        { type: "qrgear:share_copied", description: "Share URL copied to clipboard", data: { url: "string" } },
         { type: "qrgear:create_start", description: "Admin started create flow", data: { channelId: "string" } },
+        { type: "qrgear:publish_success", description: "Product published successfully", data: { productId: "string", channelId: "string" } },
+        { type: "qrgear:program_started", description: "User started a program/series", data: { programId: "string" } },
         { type: "qrgear:checkout_start", description: "User started checkout" },
         { type: "qrgear:checkout_complete", description: "User completed checkout" },
       ]
     });
+  });
+
+  // ============ PROGRAM / SERIES API ============
+  app.post("/api/widget/programs", widgetCorsMiddleware, async (req, res) => {
+    try {
+      const token = req.headers['x-widget-token'] as string;
+      if (!token) return res.status(401).json({ ok: false, error: "Widget token required" });
+
+      const payload = verifyWidgetToken(token);
+      if (!payload) return res.status(401).json({ ok: false, error: "Invalid token" });
+
+      const { normalizeWidgetPayload } = await import("./lib/widget-auth");
+      const normalized = normalizeWidgetPayload(payload);
+
+      if (!normalized.capabilities.canCreate && !normalized.capabilities.canManage) {
+        return res.status(403).json({ ok: false, error: "No create/manage permission" });
+      }
+
+      const { createProgram } = await import("./lib/programService");
+      const program = await createProgram({
+        storeId: normalized.storeId,
+        channelId: req.body.channelId || normalized.channelId,
+        title: req.body.title,
+        description: req.body.description,
+        coverImageUrl: req.body.coverImageUrl,
+        scheduleType: req.body.scheduleType,
+        entries: req.body.entries,
+      });
+
+      res.json({ ok: true, program });
+    } catch (error: any) {
+      console.error("[Widget] Create program error:", error);
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.get("/api/widget/programs/:programId", widgetCorsMiddleware, async (req, res) => {
+    try {
+      const { getProgram } = await import("./lib/programService");
+      const program = await getProgram(req.params.programId);
+      if (!program) return res.status(404).json({ ok: false, error: "Program not found" });
+      res.json({ ok: true, program });
+    } catch (error: any) {
+      console.error("[Widget] Get program error:", error);
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.get("/api/widget/programs/:programId/moments", widgetCorsMiddleware, async (req, res) => {
+    try {
+      const { getProgramMoments } = await import("./lib/programService");
+      const result = await getProgramMoments(req.params.programId);
+      if (!result) return res.status(404).json({ ok: false, error: "Program not found" });
+      res.json({ ok: true, program: result.program, moments: result.moments });
+    } catch (error: any) {
+      console.error("[Widget] Get program moments error:", error);
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.patch("/api/widget/programs/:programId", widgetCorsMiddleware, async (req, res) => {
+    try {
+      const token = req.headers['x-widget-token'] as string;
+      if (!token) return res.status(401).json({ ok: false, error: "Widget token required" });
+
+      const payload = verifyWidgetToken(token);
+      if (!payload) return res.status(401).json({ ok: false, error: "Invalid token" });
+
+      const { normalizeWidgetPayload } = await import("./lib/widget-auth");
+      const normalized = normalizeWidgetPayload(payload);
+
+      if (!normalized.capabilities.canManage) {
+        return res.status(403).json({ ok: false, error: "No manage permission" });
+      }
+
+      const { updateProgram } = await import("./lib/programService");
+      const success = await updateProgram(req.params.programId, req.body);
+      if (!success) return res.status(500).json({ ok: false, error: "Update failed" });
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("[Widget] Update program error:", error);
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.get("/api/widget/stores/:storeId/programs", widgetCorsMiddleware, async (req, res) => {
+    try {
+      const { getProgramsByStore } = await import("./lib/programService");
+      const programs = await getProgramsByStore(req.params.storeId);
+      res.json({ ok: true, programs });
+    } catch (error: any) {
+      console.error("[Widget] List programs error:", error);
+      res.status(500).json({ ok: false, error: error.message });
+    }
   });
 
   // Partner API - Simple endpoint for partners to fetch their products
