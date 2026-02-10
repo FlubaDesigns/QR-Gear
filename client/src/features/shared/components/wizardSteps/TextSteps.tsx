@@ -22,7 +22,7 @@ import {
 } from "./wizardTypes";
 
 function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 4, '18px': 5.5, '24px': 7 };
+  const sizeMap: Record<string, number> = { '12px': 4, '18px': 5.5, '24px': 7, '32px': 9 };
   const baseSvgSize = sizeMap[baseSize] || 3.5;
   const maxCharsPerLine = 20;
 
@@ -68,6 +68,7 @@ function PhoneMockup({
   const getFontSize = (size: string) => {
     if (size === '12px' || size === 'sm') return '10px';
     if (size === '24px' || size === 'lg') return '16px';
+    if (size === '32px' || size === 'xl') return '22px';
     return '12px';
   };
 
@@ -128,7 +129,8 @@ const TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef
 const TEXT_SIZES = [
   { id: 'sm', label: 'S', value: '12px' },
   { id: 'md', label: 'M', value: '18px' },
-  { id: 'lg', label: 'L', value: '24px' }
+  { id: 'lg', label: 'L', value: '24px' },
+  { id: 'xl', label: 'XL', value: '32px' }
 ];
 const TEXT_FONTS = [
   { id: 'sans', label: 'Clean', family: 'Arial' },

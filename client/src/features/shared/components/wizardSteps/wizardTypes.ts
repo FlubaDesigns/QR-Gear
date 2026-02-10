@@ -120,7 +120,8 @@ export const SHIRT_TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#
 export const SHIRT_TEXT_SIZES = [
   { id: 'sm', label: 'S', value: '12px' },
   { id: 'md', label: 'M', value: '18px' },
-  { id: 'lg', label: 'L', value: '24px' }
+  { id: 'lg', label: 'L', value: '24px' },
+  { id: 'xl', label: 'XL', value: '32px' }
 ];
 export const SHIRT_TEXT_FONTS = [
   { id: 'sans', label: 'Clean', family: 'Arial' },

@@ -44,6 +44,7 @@ const FOOTER_ZONE_HEIGHT = CANVAS_H * 0.25;
 export function getUnifiedFontSize(fontSize: string): number {
   if (fontSize === '12px' || fontSize === 'sm') return 10 * SCALE_FACTOR;
   if (fontSize === '24px' || fontSize === 'lg') return 16 * SCALE_FACTOR;
+  if (fontSize === '32px' || fontSize === 'xl') return 22 * SCALE_FACTOR;
   return 12 * SCALE_FACTOR;
 }
 

@@ -50,7 +50,8 @@ const FONT_MAP: Record<string, string> = {
 function getPreviewFontSize(fontSize: string): number {
   if (fontSize === '12px' || fontSize === 'sm') return 10;
   if (fontSize === '24px' || fontSize === 'lg') return 16;
-  return 12; // Default size shown in preview
+  if (fontSize === '32px' || fontSize === 'xl') return 22;
+  return 12;
 }
 
 // WYSIWYG scaling constants
