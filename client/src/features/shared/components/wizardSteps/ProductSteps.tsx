@@ -219,7 +219,7 @@ export function ColorPickerStep({
         <p className="text-slate-400 text-sm">
           {context === 'member'
             ? "This color creates your product's display image. Your customers can still choose their own color and size when they order."
-            : "This is your product's display color. You can pick a different color and size at checkout."}
+            : "Pick the color you want for your product. This is what you'll receive!"}
         </p>
       </div>
     </div>
