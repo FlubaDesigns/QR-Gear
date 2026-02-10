@@ -15,6 +15,7 @@ import {
   calculateAutoTextSize,
 } from "./wizardTypes";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
+import { UnifiedGraphic } from "@/features/shared/components/UnifiedGraphic";
 
 export function GraphicSizeStep({
   selectedSize,
@@ -131,33 +132,21 @@ export function GraphicSizeStep({
           rx="3"
         />
         
-        <text
-          x={graphicX}
-          y={graphicY - currentSize.h/2 + 10}
-          textAnchor="middle"
-          fill="#64748b"
-          fontSize={isLeftChest ? 4 : 6}
+        <foreignObject
+          x={graphicX - currentSize.w/2}
+          y={graphicY - currentSize.h/2}
+          width={currentSize.w}
+          height={currentSize.h}
         >
-          Header
-        </text>
-        
-        <g transform={`translate(${graphicX - (isLeftChest ? 4 : 6)}, ${graphicY - (isLeftChest ? 4 : 6)})`}>
-          <rect width={isLeftChest ? 8 : 12} height={isLeftChest ? 8 : 12} fill="white" rx="1" />
-          <rect x="1" y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
-          <rect x={isLeftChest ? 5 : 8.5} y="1" width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
-          <rect x="1" y={isLeftChest ? 5 : 8.5} width={isLeftChest ? 2 : 2.5} height={isLeftChest ? 2 : 2.5} fill="#374151" />
-          <rect x={isLeftChest ? 3 : 4.5} y={isLeftChest ? 3 : 4.5} width={isLeftChest ? 2 : 3} height={isLeftChest ? 2 : 3} fill="#374151" />
-        </g>
-        
-        <text
-          x={graphicX}
-          y={graphicY + currentSize.h/2 - 4}
-          textAnchor="middle"
-          fill="#64748b"
-          fontSize={isLeftChest ? 4 : 6}
-        >
-          Footer
-        </text>
+          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%' }}>
+            <UnifiedGraphic
+              qrColor="black"
+              backgroundColor="transparent"
+              width="100%"
+              className="w-full h-full"
+            />
+          </div>
+        </foreignObject>
       </svg>
     );
   };

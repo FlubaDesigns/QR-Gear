@@ -8,6 +8,8 @@ interface TextStyleProp {
   strokeColor?: string;
   strokeWidth?: number;
   enabled?: boolean;
+  verticalOffset?: number;
+  horizontalOffset?: number;
 }
 
 interface UnifiedGraphicProps {
@@ -31,6 +33,13 @@ const MAX_TEXT_WIDTH = CANVAS_W - PADDING * 2;
 const SCALE_FACTOR = 7.5;
 const BG_PADDING = 20;
 const BG_RADIUS = 16;
+
+const HEADER_ZONE_TOP = 0;
+const HEADER_ZONE_HEIGHT = CANVAS_H * 0.25;
+const QR_ZONE_TOP = HEADER_ZONE_HEIGHT;
+const QR_ZONE_HEIGHT = CANVAS_H * 0.50;
+const FOOTER_ZONE_TOP = QR_ZONE_TOP + QR_ZONE_HEIGHT;
+const FOOTER_ZONE_HEIGHT = CANVAS_H * 0.25;
 
 export function getUnifiedFontSize(fontSize: string): number {
   if (fontSize === '12px' || fontSize === 'sm') return 10 * SCALE_FACTOR;
@@ -113,14 +122,16 @@ function StylizedQRCode({ x, y, size, color }: { x: number; y: number; size: num
   );
 }
 
-function renderTextElements(
+function renderTextInZone(
   style: TextStyleProp,
-  startY: number,
+  zoneTop: number,
+  zoneHeight: number,
   fontSize: number,
-  opacity: number
-): { elements: JSX.Element[]; endY: number } {
+  opacity: number,
+  keyPrefix: string
+): JSX.Element[] {
   if (!style.enabled || !style.text) {
-    return { elements: [], endY: startY };
+    return [];
   }
 
   const lines = wrapText(style.text, fontSize);
@@ -129,17 +140,23 @@ function renderTextElements(
   const hasStroke = !!(style.strokeColor && style.strokeWidth && style.strokeWidth > 0);
   const strokeWidth = hasStroke ? (style.strokeWidth! * SCALE_FACTOR) : 0;
   const elements: JSX.Element[] = [];
-  let currentY = startY;
+
+  const vOffset = style.verticalOffset ?? 50;
+  const hOffset = style.horizontalOffset ?? 50;
+
+  const totalTextHeight = lines.length * fontSize * 1.3;
+  const startY = zoneTop + PADDING + (zoneHeight - 2 * PADDING - totalTextHeight) * (vOffset / 100);
+  const textXPos = PADDING + (CANVAS_W - 2 * PADDING) * (hOffset / 100);
 
   for (let i = 0; i < lines.length; i++) {
-    const textY = currentY + fontSize * 0.85;
-    const key = `text-${startY}-${i}`;
+    const textY = startY + i * fontSize * 1.3 + fontSize * 0.85;
+    const key = `${keyPrefix}-${i}`;
 
     if (hasStroke) {
       elements.push(
         <text
           key={`${key}-stroke`}
-          x={CANVAS_W / 2}
+          x={textXPos}
           y={textY}
           textAnchor="middle"
           fontFamily={`"${fontFamily}"`}
@@ -158,7 +175,7 @@ function renderTextElements(
     elements.push(
       <text
         key={key}
-        x={CANVAS_W / 2}
+        x={textXPos}
         y={textY}
         textAnchor="middle"
         fontFamily={`"${fontFamily}"`}
@@ -170,11 +187,9 @@ function renderTextElements(
         {lines[i]}
       </text>
     );
-
-    currentY += fontSize * 1.3;
   }
 
-  return { elements, endY: currentY };
+  return elements;
 }
 
 export function UnifiedGraphic({
@@ -192,31 +207,19 @@ export function UnifiedGraphic({
   const headerOpacity = highlightFooter ? 0.4 : 1;
   const footerOpacity = highlightHeader ? 0.4 : 1;
 
-  let currentY = PADDING;
-
   const headerFontSize = headerStyle ? getUnifiedFontSize(headerStyle.fontSize || '18px') : 90;
-  const headerResult = headerStyle
-    ? renderTextElements(headerStyle, currentY, headerFontSize, headerOpacity)
-    : { elements: [], endY: currentY };
+  const footerFontSize = footerStyle ? getUnifiedFontSize(footerStyle.fontSize || '18px') : 90;
 
-  if (headerStyle?.enabled && headerStyle?.text) {
-    currentY = headerResult.endY + PADDING;
-  }
+  const headerElements = headerStyle
+    ? renderTextInZone(headerStyle, HEADER_ZONE_TOP, HEADER_ZONE_HEIGHT, headerFontSize, headerOpacity, 'header')
+    : [];
 
-  const hasTopText = !!(headerStyle?.enabled && headerStyle?.text);
-  const hasBottomText = !!(footerStyle?.enabled && footerStyle?.text);
+  const footerElements = footerStyle
+    ? renderTextInZone(footerStyle, FOOTER_ZONE_TOP, FOOTER_ZONE_HEIGHT, footerFontSize, footerOpacity, 'footer')
+    : [];
 
   const qrX = (CANVAS_W - QR_SIZE) / 2;
-  const qrY = hasTopText
-    ? currentY
-    : (CANVAS_H - QR_SIZE) / 2 - (hasBottomText ? 100 : 0);
-
-  currentY = qrY + QR_SIZE + PADDING;
-
-  const footerFontSize = footerStyle ? getUnifiedFontSize(footerStyle.fontSize || '18px') : 90;
-  const footerResult = footerStyle
-    ? renderTextElements(footerStyle, currentY, footerFontSize, footerOpacity)
-    : { elements: [], endY: currentY };
+  const qrY = QR_ZONE_TOP + (QR_ZONE_HEIGHT - QR_SIZE) / 2;
 
   const qrFill = qrColor === 'white' ? '#FFFFFF' : '#000000';
   const qrBg = qrColor === 'white' ? '#000000' : '#FFFFFF';
@@ -239,7 +242,7 @@ export function UnifiedGraphic({
         <rect x={0} y={0} width={CANVAS_W} height={CANVAS_H} fill={backgroundColor} />
       )}
 
-      {headerResult.elements}
+      {headerElements}
 
       {showQRCode && (
         <g>
@@ -256,9 +259,11 @@ export function UnifiedGraphic({
         </g>
       )}
 
-      {footerResult.elements}
+      {footerElements}
     </svg>
   );
 }
+
+export { CANVAS_W, CANVAS_H, HEADER_ZONE_TOP, HEADER_ZONE_HEIGHT, QR_ZONE_TOP, QR_ZONE_HEIGHT, FOOTER_ZONE_TOP, FOOTER_ZONE_HEIGHT, QR_SIZE };
 
 export default UnifiedGraphic;

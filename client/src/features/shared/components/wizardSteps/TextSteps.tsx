@@ -10,6 +10,7 @@ import {
   Type,
 } from "lucide-react";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
+import { UnifiedGraphic } from "@/features/shared/components/UnifiedGraphic";
 import {
   type TextLayoutChoice,
   type GraphicSize,
@@ -462,38 +463,15 @@ export function HeaderTextEditStep({
   context?: 'member' | 'owner';
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
-  const isLeftChest = graphicLocation === 'left-chest';
-  const graphicX = isLeftChest ? 77 : 90;
-  const graphicY = isLeftChest ? 68 : 79;
-
-  const getOutlineSize = () => {
-    const sizeKey = graphicSize || 'medium';
-    const sizes: Record<string, { w: number; h: number }> = {
-      small: { w: 22, h: 30 },
-      medium: { w: 33, h: 44 },
-      large: { w: 41, h: 52 }
-    };
-    return sizes[sizeKey] || sizes.medium;
-  };
-  const outlineSize = getOutlineSize();
-
-  const qrHeight = outlineSize.h * 0.18;
-  const qrWidth = qrHeight;
-  const qrY = graphicY - qrHeight / 2;
-  const headerZoneTop = graphicY - outlineSize.h / 2 + 2;
-  const headerZoneBottom = qrY - 2;
 
   const updateHeader = (updates: Partial<TextStyleConfig>) => {
     onHeaderChange({ ...headerStyle, ...updates, enabled: true });
   };
 
   const charCount = (headerStyle.text || '').length;
-  const autoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', outlineSize.w);
 
   const vOffset = headerStyle.verticalOffset ?? 50;
   const hOffset = headerStyle.horizontalOffset ?? 50;
-  const textY = Math.max(headerZoneTop + autoText.fontSize * 0.8, Math.min(headerZoneBottom - (autoText.lines.length > 1 ? autoText.fontSize : 0), headerZoneTop + ((headerZoneBottom - headerZoneTop) * (vOffset / 100))));
-  const textX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (hOffset / 100));
 
   return (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-2 p-2">
@@ -503,52 +481,15 @@ export function HeaderTextEditStep({
       </div>
 
       <div className="flex justify-center">
-        <svg
-          width="280"
-          height="160"
-          viewBox={`${graphicX - outlineSize.w / 2 - 4} ${graphicY - outlineSize.h / 2 - 4} ${outlineSize.w + 8} ${outlineSize.h + 8}`}
-          className="drop-shadow-xl bg-slate-900/30 rounded"
+        <UnifiedGraphic
+          headerStyle={{ ...headerStyle, enabled: true }}
+          footerStyle={undefined}
+          qrColor="black"
+          backgroundColor={colorHex}
+          highlightHeader={true}
+          width={200}
           data-testid="svg-header-preview"
-        >
-          <rect
-            x={graphicX - outlineSize.w / 2}
-            y={graphicY - outlineSize.h / 2}
-            width={outlineSize.w}
-            height={outlineSize.h}
-            fill={colorHex}
-            stroke="#64748b"
-            strokeWidth="0.5"
-            strokeDasharray="3 1.5"
-            rx="2"
-          />
-          <rect
-            x={graphicX - qrWidth / 2}
-            y={qrY}
-            width={qrWidth}
-            height={qrHeight}
-            fill="white"
-            rx="1"
-          />
-          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-          <rect x={graphicX + qrWidth / 2 - 1 - qrHeight * 0.18} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + qrHeight - 1 - qrHeight * 0.18} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-          <rect x={graphicX - qrHeight * 0.12} y={qrY + qrHeight * 0.38} width={qrHeight * 0.24} height={qrHeight * 0.24} fill="#333" />
-
-          {autoText.lines.map((line, i) => (
-            <text
-              key={i}
-              x={textX}
-              y={textY + i * (autoText.fontSize + 1)}
-              textAnchor="middle"
-              fill={headerStyle.color || '#fff'}
-              fontSize={autoText.fontSize}
-              fontFamily={headerStyle.fontFamily || 'Arial'}
-              fontWeight="bold"
-            >
-              {line || (i === 0 ? 'Header' : '')}
-            </text>
-          ))}
-        </svg>
+        />
       </div>
 
       <textarea
@@ -678,47 +619,15 @@ export function FooterTextEditStep({
   context?: 'member' | 'owner';
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
-  const isLeftChest = graphicLocation === 'left-chest';
-  const graphicX = isLeftChest ? 77 : 90;
-  const graphicY = isLeftChest ? 68 : 79;
-
-  const getOutlineSize = () => {
-    const sizeKey = graphicSize || 'medium';
-    const sizes: Record<string, { w: number; h: number }> = {
-      small: { w: 22, h: 30 },
-      medium: { w: 33, h: 44 },
-      large: { w: 41, h: 52 }
-    };
-    return sizes[sizeKey] || sizes.medium;
-  };
-  const outlineSize = getOutlineSize();
-
-  const qrHeight = outlineSize.h * 0.18;
-  const qrWidth = qrHeight;
-  const qrY = graphicY - qrHeight / 2;
-  const footerZoneTop = qrY + qrHeight + 2;
-  const footerZoneBottom = graphicY + outlineSize.h / 2 - 2;
-
-  const headerZoneTop = graphicY - outlineSize.h / 2 + 2;
-  const headerZoneBottom = qrY - 2;
 
   const updateFooter = (updates: Partial<TextStyleConfig>) => {
     onFooterChange({ ...footerStyle, ...updates, enabled: true });
   };
 
   const charCount = (footerStyle.text || '').length;
-  const autoText = calculateAutoTextSize(footerStyle.text || '', footerStyle.fontSize || '18px', outlineSize.w);
-  const headerAutoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', outlineSize.w);
 
   const vOffset = footerStyle.verticalOffset ?? 50;
   const hOffset = footerStyle.horizontalOffset ?? 50;
-  const textY = Math.max(footerZoneTop + autoText.fontSize * 0.8, Math.min(footerZoneBottom - (autoText.lines.length > 1 ? autoText.fontSize : 0), footerZoneTop + ((footerZoneBottom - footerZoneTop) * (vOffset / 100))));
-  const textX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (hOffset / 100));
-
-  const headerVOffset = headerStyle.verticalOffset ?? 50;
-  const headerHOffset = headerStyle.horizontalOffset ?? 50;
-  const headerTextY = headerZoneTop + ((headerZoneBottom - headerZoneTop) * (headerVOffset / 100));
-  const headerTextX = (graphicX - outlineSize.w / 2) + (outlineSize.w * (headerHOffset / 100));
 
   return (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-2 p-2">
@@ -728,68 +637,15 @@ export function FooterTextEditStep({
       </div>
 
       <div className="flex justify-center">
-        <svg
-          width="280"
-          height="160"
-          viewBox={`${graphicX - outlineSize.w / 2 - 4} ${graphicY - outlineSize.h / 2 - 4} ${outlineSize.w + 8} ${outlineSize.h + 8}`}
-          className="drop-shadow-xl bg-slate-900/30 rounded"
+        <UnifiedGraphic
+          headerStyle={headerStyle?.text ? { ...headerStyle, enabled: true } : undefined}
+          footerStyle={{ ...footerStyle, enabled: true }}
+          qrColor="black"
+          backgroundColor={colorHex}
+          highlightFooter={true}
+          width={200}
           data-testid="svg-footer-preview"
-        >
-          <rect
-            x={graphicX - outlineSize.w / 2}
-            y={graphicY - outlineSize.h / 2}
-            width={outlineSize.w}
-            height={outlineSize.h}
-            fill={colorHex}
-            stroke="#64748b"
-            strokeWidth="0.5"
-            strokeDasharray="3 1.5"
-            rx="2"
-          />
-          <rect
-            x={graphicX - qrWidth / 2}
-            y={qrY}
-            width={qrWidth}
-            height={qrHeight}
-            fill="white"
-            rx="1"
-          />
-          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-          <rect x={graphicX + qrWidth / 2 - 1 - qrHeight * 0.18} y={qrY + 1} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-          <rect x={graphicX - qrWidth / 2 + 1} y={qrY + qrHeight - 1 - qrHeight * 0.18} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-          <rect x={graphicX - qrHeight * 0.12} y={qrY + qrHeight * 0.38} width={qrHeight * 0.24} height={qrHeight * 0.24} fill="#333" />
-
-          {headerStyle.text && headerAutoText.lines.map((line, i) => (
-            <text
-              key={`hdr-${i}`}
-              x={headerTextX}
-              y={headerTextY + i * (headerAutoText.fontSize + 1)}
-              textAnchor="middle"
-              fill={headerStyle.color || '#fff'}
-              fontSize={headerAutoText.fontSize}
-              fontFamily={headerStyle.fontFamily || 'Arial'}
-              fontWeight="bold"
-              opacity={0.4}
-            >
-              {line}
-            </text>
-          ))}
-
-          {autoText.lines.map((line, i) => (
-            <text
-              key={`ftr-${i}`}
-              x={textX}
-              y={textY + i * (autoText.fontSize + 1)}
-              textAnchor="middle"
-              fill={footerStyle.color || '#fff'}
-              fontSize={autoText.fontSize}
-              fontFamily={footerStyle.fontFamily || 'Arial'}
-              fontWeight="bold"
-            >
-              {line || (i === 0 ? 'Footer' : '')}
-            </text>
-          ))}
-        </svg>
+        />
       </div>
 
       <textarea

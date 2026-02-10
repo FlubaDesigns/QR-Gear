@@ -69,22 +69,22 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
 
-  // Only fill background if it's not transparent
-  // Canvas is transparent by default for PNG output
   if (backgroundColor && backgroundColor !== "transparent") {
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, width, height);
   }
 
-  const padding = 60;
   const textColor = "#000000";
-  
-  let currentY = padding;
+  const scaleFactor = width / PREVIEW_CONTAINER_WIDTH;
+
+  const headerZoneTop = 0;
+  const headerZoneHeight = height * 0.25;
+  const qrZoneTop = headerZoneHeight;
+  const qrZoneHeight = height * 0.50;
+  const footerZoneTop = qrZoneTop + qrZoneHeight;
+  const footerZoneHeight = height * 0.25;
 
   if (topText && topText.text) {
-    // WYSIWYG: Convert fontSize setting to preview size, then scale to print
-    // Scale factor = print width / preview width = 1200 / 160 = 7.5x
-    const scaleFactor = width / PREVIEW_CONTAINER_WIDTH;
     const previewFontSize = getPreviewFontSize(topText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
     const fontFamily = FONT_MAP[topText.fontFamily] || "Arial";
@@ -95,13 +95,15 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     
-    // Apply stroke if configured (scale to match print resolution)
     if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
       ctx.strokeStyle = topText.strokeColor;
       ctx.lineWidth = topText.strokeWidth * scaleFactor;
     }
     
-    const lines = wrapText(ctx, topText.text, width - padding * 2);
+    const lines = wrapText(ctx, topText.text, width - 120);
+    const totalTextHeight = lines.length * fontSize * 1.3;
+    let currentY = headerZoneTop + (headerZoneHeight - totalTextHeight) / 2;
+
     for (const line of lines) {
       if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
         ctx.strokeText(line, width / 2, currentY);
@@ -109,13 +111,10 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
       ctx.fillText(line, width / 2, currentY);
       currentY += fontSize * 1.3;
     }
-    currentY += padding;
   }
 
-  // Support black or white QR codes for different shirt colors
-  // QR needs a contrasting background to be scannable
   const qrDark = qrColor === 'white' ? "#FFFFFF" : "#000000";
-  const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF"; // Solid background, not transparent
+  const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF";
   
   const qrDataUrl = await QRCode.toDataURL(qrUrl, {
     width: qrSize,
@@ -125,10 +124,8 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   
   const qrImage = await loadImage(qrDataUrl);
   const qrX = (width - qrSize) / 2;
-  const qrY = topText ? currentY : (height - qrSize) / 2 - (bottomText ? 100 : 0);
+  const qrY = qrZoneTop + (qrZoneHeight - qrSize) / 2;
   
-  // Draw white background behind QR for visibility on colored shirts
-  // Add rounded corners for a polished look
   const bgPadding = 20;
   const bgRadius = 16;
   ctx.fillStyle = qrLight;
@@ -137,12 +134,8 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   ctx.fill();
   
   ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
-  
-  currentY = qrY + qrSize + padding;
 
   if (bottomText && bottomText.text) {
-    // WYSIWYG: Convert fontSize setting to preview size, then scale to print
-    const scaleFactor = width / PREVIEW_CONTAINER_WIDTH;
     const previewFontSize = getPreviewFontSize(bottomText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
     const fontFamily = FONT_MAP[bottomText.fontFamily] || "Arial";
@@ -153,13 +146,15 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     
-    // Apply stroke if configured
     if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
       ctx.strokeStyle = bottomText.strokeColor;
       ctx.lineWidth = bottomText.strokeWidth * scaleFactor;
     }
     
-    const lines = wrapText(ctx, bottomText.text, width - padding * 2);
+    const lines = wrapText(ctx, bottomText.text, width - 120);
+    const totalTextHeight = lines.length * fontSize * 1.3;
+    let currentY = footerZoneTop + (footerZoneHeight - totalTextHeight) / 2;
+
     for (const line of lines) {
       if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
         ctx.strokeText(line, width / 2, currentY);
