@@ -443,10 +443,13 @@
 }
 
 .qr-canvas {
-  width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.qr-canvas--fill {
+  width: 100%;
+  height: 100%;
 }
 
 .qr-canvas__header { flex: 0 0 25%; min-height: 0; }

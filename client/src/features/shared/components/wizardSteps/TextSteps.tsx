@@ -228,8 +228,10 @@ export function TextLayoutChoiceStep({
     <div className="text-center space-y-2">
       <div>
         <h2 className="text-base font-bold text-white mb-0.5">Add Text to Your Design</h2>
-        <p className="text-slate-400 text-xs">
-          {context === 'member' ? 'Each text line earns you more per sale' : 'Add custom text to personalize your product'}
+        <p className="text-slate-400 text-xs max-w-xs mx-auto">
+          {context === 'member'
+            ? 'Each text line earns you more per sale'
+            : 'Pick where text goes on your product — above the QR code, below it, or both. Each zone adds a small cost.'}
         </p>
       </div>
 

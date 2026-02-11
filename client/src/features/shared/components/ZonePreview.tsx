@@ -52,7 +52,7 @@ export function ZoneLayout({
 
   return (
     <div
-      className={`qr-canvas ${className}`}
+      className={`qr-canvas qr-canvas--fill ${className}`}
       style={{
         backgroundColor: backgroundColor || undefined,
         backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
@@ -139,10 +139,9 @@ export function ZoneThumbnail({
 
   return (
     <div
-      className={`${w} ${h} rounded flex-shrink-0 qr-canvas ${
+      className={`${w} ${h} min-w-8 p-0.5 rounded flex-shrink-0 qr-canvas ${
         isSelected ? 'bg-orange-900/40' : 'bg-slate-700'
       } ${className}`}
-      style={{ padding: '2px' }}
     >
       <div className="qr-canvas__header">
         <div className="zone-content">
@@ -196,7 +195,7 @@ export function DesignPreview({
       style={{ aspectRatio: '2/3' }}
       data-testid="design-preview"
     >
-      <div className="qr-canvas" style={{ height: '100%' }}>
+      <div className="qr-canvas qr-canvas--fill">
         <div className="qr-canvas__header">
           <div className="zone-content">
             {headerEnabled && headerText && (
@@ -250,7 +249,7 @@ interface PlaceholderPreviewProps {
 
 export function PlaceholderPreview({ className = '' }: PlaceholderPreviewProps) {
   return (
-    <div className={`bg-slate-700 rounded-lg qr-canvas ${className}`}>
+    <div className={`bg-slate-700 rounded-lg qr-canvas qr-canvas--fill ${className}`}>
       <div className="qr-canvas__header" />
       <div className="qr-canvas__middle">
         <div className="qr-area bg-white/20 rounded">
