@@ -465,7 +465,7 @@ export default function TestPricingPage() {
               <CardTitle className="text-lg">Pricing Formula</CardTitle>
             </CardHeader>
             <CardContent className="font-mono text-sm space-y-1">
-              <p>Base Cost = Production + Placements + Text + Hosting</p>
+              <p>Base Cost = Production + Placements + Text + Hosting + Brand Label</p>
               <p>Customer Price = Base × (1 + {markupPercent || 0}%) + ${markupFixed || 0}</p>
             </CardContent>
           </Card>
@@ -479,54 +479,68 @@ export default function TestPricingPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground mb-4">
-                Here's how pricing works for a $15 base product with 1 extra placement, 1 text line, and 1-year hosting:
+                Example: $15 base product, 1 extra placement, 1 text line, 1-year hosting, inside brand label
               </p>
+
+              <div className="flex gap-2 mb-4 flex-wrap">
+                <span className="text-xs font-medium text-muted-foreground">Example using:</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-medium">
+                  Printify inside: ${brandLabelPricing.printifyInside.toFixed(2)}
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 font-medium">
+                  Printful inside: ${brandLabelPricing.printfulInside.toFixed(2)}
+                </span>
+              </div>
               
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded border">
                   <span>Base Product Cost:</span>
                   <span className="font-bold">$15.00</span>
                 </div>
-                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded border">
                   <span>Extra Placement (1 × ${additionalPlacementCost || 4}):</span>
                   <span className="font-medium">+${parseFloat(additionalPlacementCost || "4").toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded border">
                   <span>Text Line (1 × ${textLineUpcharge || 2}):</span>
                   <span className="font-medium">+${parseFloat(textLineUpcharge || "2").toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
+                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded border">
                   <span>Hosting ({hostingTiers[0]?.name || "1 Year"}):</span>
                   <span className="font-medium">+${(hostingTiers[0]?.price || 5).toFixed(2)}</span>
                 </div>
+                <div className="flex justify-between gap-2 p-2 bg-amber-50 dark:bg-amber-950 rounded border border-amber-200 dark:border-amber-800">
+                  <span>Brand Label (inside):</span>
+                  <span className="font-medium">+${brandLabelPricing.printifyInside.toFixed(2)}</span>
+                </div>
                 
                 <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-                    <span className="font-medium">Subtotal:</span>
-                    <span className="font-bold">
-                      ${(15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5)).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between p-2 bg-white dark:bg-gray-900 rounded border">
-                  <span>Your Markup ({markupPercent || 0}% + ${markupFixed || 0}):</span>
-                  <span className="font-medium">
-                    +${(((15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5)) * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0")).toFixed(2)}
-                  </span>
-                </div>
-                
-                <div className="border-t-2 pt-2 mt-2">
-                  <div className="flex justify-between p-3 bg-green-100 dark:bg-green-950 rounded border-2 border-green-300 dark:border-green-700">
-                    <span className="font-semibold text-green-700 dark:text-green-300">Customer Price:</span>
-                    <span className="font-bold text-xl text-green-600 dark:text-green-400">
-                      ${(() => {
-                        const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5);
-                        const markup = (subtotal * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0");
-                        return (subtotal + markup).toFixed(2);
-                      })()}
-                    </span>
-                  </div>
+                  {(() => {
+                    const labelCost = brandLabelPricing.printifyInside;
+                    const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5) + labelCost;
+                    const markupAmount = (subtotal * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0");
+                    const customerPrice = subtotal + markupAmount;
+                    return (
+                      <>
+                        <div className="flex justify-between gap-2 p-2 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+                          <span className="font-medium">Subtotal:</span>
+                          <span className="font-bold">${subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded border mt-2">
+                          <span>Your Markup ({markupPercent || 0}% + ${markupFixed || 0}):</span>
+                          <span className="font-medium">+${markupAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="border-t-2 pt-2 mt-2">
+                          <div className="flex justify-between gap-2 p-3 bg-green-100 dark:bg-green-950 rounded border-2 border-green-300 dark:border-green-700">
+                            <span className="font-semibold text-green-700 dark:text-green-300">Customer Price:</span>
+                            <span className="font-bold text-xl text-green-600 dark:text-green-400">
+                              ${customerPrice.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </CardContent>
