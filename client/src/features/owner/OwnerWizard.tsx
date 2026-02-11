@@ -370,6 +370,10 @@ export function OwnerWizard() {
   const [guidedSeenSteps, setGuidedSeenSteps] = useState<Set<string>>(new Set(isGuided ? ['product'] : []));
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [simpleStep]);
+
+  useEffect(() => {
     if (!isGuided) return;
     if (!guidedSeenSteps.has(simpleStep)) {
       const cards = GUIDED_STEP_MAP[simpleStep];
@@ -927,7 +931,7 @@ export function OwnerWizard() {
           </>
         )}
 
-        <div className="min-h-[250px] max-h-[calc(100vh-280px)] overflow-y-auto" id="wizard-step-content">
+        <div className="min-h-[350px]" id="wizard-step-content">
           {guidedQueue.length > 0 && GUIDED_CARDS[guidedQueue[0]] ? (
             <GuidedCard
               data={GUIDED_CARDS[guidedQueue[0]]}

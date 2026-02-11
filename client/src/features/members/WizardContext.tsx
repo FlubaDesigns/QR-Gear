@@ -357,6 +357,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const sizeEarningsIncrement = (pricingSettings?.sizeUpcharges?.['M'] || 2) * (pricingSettings?.memberProfitShare || 0.25);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [simpleStep]);
+
+  useEffect(() => {
     if (user?.id) {
       const count = parseInt(localStorage.getItem(`publish_count_${user.id}`) || '0', 10);
       setPublishCount(count);
