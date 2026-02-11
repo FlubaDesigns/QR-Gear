@@ -42,6 +42,17 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
     tip: "You can change any of your choices along the way. No pressure.",
     buttonText: "Let's Do This",
   },
+  'product': {
+    icon: <ShoppingCart className="w-8 h-8" />,
+    title: "Pick Your Shirt",
+    lines: [
+      { text: "Here's where you choose which t-shirt style you want." },
+      { text: "Each one has a different look and starting price.", highlight: true },
+      { text: "Your QR code gets printed right on it \u2014 same great quality no matter which you pick." },
+      { text: "Tap the one you like and we'll keep going." },
+    ],
+    tip: "Don't stress \u2014 you can always come back and try a different one.",
+  },
   'color': {
     icon: <Palette className="w-8 h-8" />,
     title: "Make It Yours",
@@ -88,7 +99,7 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
 };
 
 const GUIDED_STEP_MAP: Record<string, string[]> = {
-  'product': ['welcome'],
+  'product': ['welcome', 'product'],
   'color': ['color'],
   'type': ['type'],
   'placement-count': ['placement'],
