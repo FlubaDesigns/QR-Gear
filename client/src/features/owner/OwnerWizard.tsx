@@ -370,7 +370,9 @@ export function OwnerWizard() {
   const [guidedSeenSteps, setGuidedSeenSteps] = useState<Set<string>>(new Set(isGuided ? ['product'] : []));
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   }, [simpleStep]);
 
   useEffect(() => {
@@ -384,7 +386,14 @@ export function OwnerWizard() {
     }
   }, [simpleStep, isGuided]);
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+
   const handleGuidedContinue = () => {
+    scrollToTop();
     if (guidedQueue[0] === 'checkout') {
       setGuidedQueue([]);
       setShowCheckoutCard(false);

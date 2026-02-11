@@ -357,7 +357,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const sizeEarningsIncrement = (pricingSettings?.sizeUpcharges?.['M'] || 2) * (pricingSettings?.memberProfitShare || 0.25);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   }, [simpleStep]);
 
   useEffect(() => {
@@ -1099,7 +1101,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleSimpleNext = async () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
     if (simpleStep === 'product-congrats' && selectedProductType) {
       setRunningEarnings(prev => prev + (selectedProductType.memberEarnings || 0));
     }
@@ -1390,7 +1394,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleSimpleBack = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
     if (simpleStep === 'compose-explainer' || simpleStep === 'platform-acknowledge') {
       setSimpleStep('canvas-fork');
       return;
