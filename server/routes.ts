@@ -9918,6 +9918,65 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ===== CLAIM TEMP PACKET FOR MEMBER =====
+  // When a user builds a product in the public wizard then signs up as a member,
+  // this endpoint claims the temp packet and returns its config so the member wizard
+  // can be pre-populated with the same product choices.
+  app.post("/api/members/:memberId/claim-temp-packet", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { tempPacketId } = req.body;
+      if (!tempPacketId) {
+        return res.status(400).json({ error: "tempPacketId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const docRef = db.collection('temp_packets').doc(tempPacketId);
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Temp packet not found or expired" });
+      }
+
+      const packet = doc.data()!;
+      if (packet.status === 'completed') {
+        return res.status(410).json({ error: "Temp packet already used" });
+      }
+
+      await docRef.update({
+        claimedByMemberId: memberId,
+        claimedAt: new Date().toISOString(),
+        status: 'claimed',
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log(`[TempPacket] Claimed ${tempPacketId} by member ${memberId}`);
+
+      res.json({
+        success: true,
+        packetConfig: {
+          blueprintId: packet.blueprintId || null,
+          productTitle: packet.productTitle || null,
+          selectedColor: packet.selectedColor || null,
+          selectedShirtSize: packet.selectedShirtSize || null,
+          qrType: packet.qrType || null,
+          selectedPlacements: packet.selectedPlacements || [],
+          graphicSize: packet.graphicSize || null,
+          headerStyle: packet.headerStyle || null,
+          footerStyle: packet.footerStyle || null,
+          textLayoutChoice: packet.textLayoutChoice || null,
+          qrBasicContent: packet.qrBasicContent || null,
+          mockupUrl: packet.mockupUrl || null,
+          lifestyleMockupUrl: packet.lifestyleMockupUrl || null,
+        },
+      });
+    } catch (error: any) {
+      console.error("[TempPacket] Claim error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // ===== TEMP PACKET SYSTEM (Public Wizard) =====
   // Create a temporary packet for public/owner wizard builds
   app.post("/api/public/packets", async (req: any, res) => {

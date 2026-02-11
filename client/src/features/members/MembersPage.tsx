@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -636,6 +636,7 @@ function MembersSandboxInner() {
     wizardTier, setWizardTier,
     publishCount,
     showUnlockPrompt, setShowUnlockPrompt,
+    setSelectedColor, setQrType, setSelectedPlacements, setGraphicSize,
   } = useWizardContext();
 
   const userId = user?.id || user?.uid || '';
@@ -644,6 +645,32 @@ function MembersSandboxInner() {
     if (!userId) return false;
     return localStorage.getItem(onboardingKey) === 'true';
   });
+
+  const params = new URLSearchParams(window.location.search);
+  const tempPacketIdFromUrl = params.get('tempPacketId');
+
+  const claimTempPacket = async (memberId: string, packetId: string) => {
+    try {
+      const token = await (await import("@/lib/firebase")).auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/members/${memberId}/claim-temp-packet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ tempPacketId: packetId }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.packetConfig) {
+        const cfg = data.packetConfig;
+        if (cfg.selectedColor) setSelectedColor(cfg.selectedColor);
+        if (cfg.qrType) setQrType(cfg.qrType);
+        if (cfg.selectedPlacements?.length) setSelectedPlacements(cfg.selectedPlacements);
+        if (cfg.graphicSize) setGraphicSize(cfg.graphicSize);
+        console.log('[Member] Claimed temp packet config:', cfg);
+      }
+    } catch (err) {
+      console.warn('[Member] Failed to claim temp packet:', err);
+    }
+  };
 
   const handleOnboardingComplete = (data: any) => {
     localStorage.setItem(onboardingKey, 'true');
@@ -655,7 +682,21 @@ function MembersSandboxInner() {
     setOnboardingComplete(true);
     setWizardTier('super-simple');
     setViewMode('wizard');
+
+    if (tempPacketIdFromUrl && userId) {
+      claimTempPacket(userId, tempPacketIdFromUrl);
+    }
   };
+
+  const claimedRef = useRef(false);
+  useEffect(() => {
+    if (onboardingComplete && tempPacketIdFromUrl && userId && !claimedRef.current) {
+      claimedRef.current = true;
+      claimTempPacket(userId, tempPacketIdFromUrl);
+      setWizardTier('super-simple');
+      setViewMode('wizard');
+    }
+  }, [onboardingComplete, tempPacketIdFromUrl, userId]);
 
   if (!onboardingComplete && userId) {
     return (
