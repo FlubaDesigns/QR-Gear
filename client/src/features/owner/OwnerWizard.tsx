@@ -269,6 +269,7 @@ export function OwnerWizard() {
   const [selectedShirtSize, setSelectedShirtSize] = useState('');
   const [graphicLocation, setGraphicLocation] = useState<GraphicLocation>('');
   const [graphicSize, setGraphicSize] = useState<GraphicSize>('');
+  const [perPlacementSizes, setPerPlacementSizes] = useState<Record<string, GraphicSize>>({});
   const [wantsHeaderFooter, setWantsHeaderFooter] = useState<boolean | null>(null);
   const [qrType, setQrType] = useState<QRType>(preSelectedType);
   const [runningCost, setRunningCost] = useState(0);
@@ -523,10 +524,21 @@ export function OwnerWizard() {
     }
     if (simpleStep === 'placement-count') {
       updateTempPacket({ selectedPlacements });
+      setCurrentPlacementIndex(0);
+      setGraphicSize('');
       setSimpleStep('graphic-size');
       return;
     }
     if (simpleStep === 'graphic-size') {
+      setPerPlacementSizes(prev => ({
+        ...prev,
+        [currentPlacement]: graphicSize
+      }));
+      if (currentPlacementIndex < selectedPlacements.length - 1) {
+        setCurrentPlacementIndex(prev => prev + 1);
+        setGraphicSize('');
+        return;
+      }
       updateTempPacket({ graphicSize });
       setSimpleStep('generate');
       return;
@@ -620,6 +632,13 @@ export function OwnerWizard() {
 
     if (showMemberPitch) {
       setShowMemberPitch(false);
+      return;
+    }
+
+    if (simpleStep === 'graphic-size' && currentPlacementIndex > 0) {
+      const prevPlacement = selectedPlacements[currentPlacementIndex - 1];
+      setCurrentPlacementIndex(prev => prev - 1);
+      setGraphicSize(perPlacementSizes[prevPlacement] || '');
       return;
     }
 
