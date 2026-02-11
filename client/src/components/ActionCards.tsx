@@ -111,7 +111,7 @@ export function QuickLinks() {
             </div>
             <h3>Quick Customize</h3>
             <p>Create your own custom QR product in minutes</p>
-            <Link href="/customize">
+            <Link href="/build">
               <QRButton variant="ghost" size="small" data-testid="button-quick-customize">
                 Start Creating
               </QRButton>
