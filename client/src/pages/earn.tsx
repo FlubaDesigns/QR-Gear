@@ -83,7 +83,7 @@ export default function EarnPage() {
                 Design custom QR merchandise, share it with the world, and earn money every time someone buys your creation. No inventory. No shipping. Just your creativity.
               </p>
               <div className="flex flex-wrap justify-center gap-4 pt-2">
-                <Link href="/register">
+                <Link href="/members">
                   <Button className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-lg px-8 min-h-12" data-testid="button-earn-join-hero">
                     <Crown className="w-5 h-5 mr-2" />
                     Join Free
@@ -238,7 +238,7 @@ export default function EarnPage() {
                 Join the QR Gear creator community. It's free, it's simple, and your first design could be earning money today.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <Link href="/register">
+                <Link href="/members">
                   <Button className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-lg px-8 min-h-12" data-testid="button-earn-join-bottom">
                     <Crown className="w-5 h-5 mr-2" />
                     Become a Member

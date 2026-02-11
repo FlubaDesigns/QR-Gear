@@ -178,7 +178,7 @@ export default function ClaimPage() {
               <Button 
                 variant="outline"
                 className="w-full" 
-                onClick={() => setLocation(`/register?redirect=/claim/${claimCode}`)}
+                onClick={() => setLocation(`/members?redirect=/claim/${claimCode}`)}
                 data-testid="btn-register"
               >
                 Create Account

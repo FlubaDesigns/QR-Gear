@@ -150,7 +150,7 @@ export default function BuildSuccess() {
           </Card>
 
           <div className="space-y-3">
-            <Link href="/register">
+            <Link href="/members">
               <Button className="w-full bg-amber-500 text-black font-bold" data-testid="button-create-account">
                 Create Free Account
                 <ArrowRight className="w-4 h-4 ml-2" />
