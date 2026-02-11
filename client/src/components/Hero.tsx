@@ -60,7 +60,7 @@ export default function Hero() {
           </p>
 
           <div className="hero__actions">
-            <Link href="/build">
+            <Link href="/build?guided=true">
               <QRButton variant="accent" data-testid="button-create-qr-gear">
                 Create Your QR Gear
               </QRButton>

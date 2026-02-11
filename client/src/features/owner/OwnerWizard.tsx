@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Package, Palette, Ruler, Crosshair, PenLine } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
@@ -20,6 +20,165 @@ import { SHIRT_SIZES, SHIRT_COLORS, SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS
 const OWNER_WIZARD_STEPS = SIMPLE_WIZARD_STEPS.filter(s => s.id !== 'channel');
 const OWNER_BASIC_STEPS = QR_BASIC_STEPS.filter(s => s.id !== 'channel');
 const OWNER_PLUS_STEPS = QR_PLUS_STEPS.filter(s => s.id !== 'channel');
+
+interface GuidedCardData {
+  icon: React.ReactNode;
+  title: string;
+  lines: { text: string; highlight?: boolean }[];
+  tip?: string;
+  buttonText?: string;
+}
+
+const GUIDED_CARDS: Record<string, GuidedCardData> = {
+  'welcome': {
+    icon: <Sparkles className="w-8 h-8" />,
+    title: "Let's Build Something Cool",
+    lines: [
+      { text: "You're about to design a one-of-a-kind product with a built-in QR code." },
+      { text: "When someone scans it, something happens \u2014 a video plays, a page opens, a message appears.", highlight: true },
+      { text: "We'll walk you through the whole thing. No design skills needed." },
+      { text: "Takes about 2 minutes. Let's go." },
+    ],
+    tip: "Everything you pick can be changed later. No pressure, just exploring.",
+    buttonText: "Let's Do This",
+  },
+  'product': {
+    icon: <Package className="w-8 h-8" />,
+    title: "Step 1: Pick Your Product",
+    lines: [
+      { text: "First up \u2014 what kind of thing do you want to make?" },
+      { text: "T-shirts, hoodies, hats, mugs, bags \u2014 whatever catches your eye.", highlight: true },
+      { text: "Each one comes with a QR code that you get to program." },
+      { text: "Pick the one that feels right. You can always come back and try another." },
+    ],
+    tip: "The most popular pick? T-shirts. But mugs are a dark horse.",
+  },
+  'color': {
+    icon: <Palette className="w-8 h-8" />,
+    title: "Now Pick a Color",
+    lines: [
+      { text: "This sets the color for your product preview." },
+      { text: "Don't overthink it \u2014 it's just for the mockup.", highlight: true },
+      { text: "When you (or anyone) actually orders, they pick their own color at checkout." },
+      { text: "All colors cost the same. No hidden upcharges." },
+    ],
+  },
+  'size': {
+    icon: <Ruler className="w-8 h-8" />,
+    title: "Pick a Size",
+    lines: [
+      { text: "Same idea as color \u2014 this is for your preview image." },
+      { text: "Bigger sizes cost a little more because they use more material.", highlight: true },
+      { text: "Buyers choose their own size when they order." },
+      { text: "Just pick whatever feels natural for now." },
+    ],
+    tip: "The price adjusts automatically as you go. No surprises at the end.",
+  },
+  'type': {
+    icon: <QrCode className="w-8 h-8" />,
+    title: "The Fun Part: QR Type",
+    lines: [
+      { text: "This is what makes your product special." },
+      { text: "Basic = a simple QR code that links somewhere. Clean and permanent." },
+      { text: "Plus = same thing, but with your custom text printed on the product too.", highlight: true },
+      { text: "Canvas & Play = the QR opens a full-screen image or video. That's the wow factor." },
+    ],
+    tip: "Not sure? Start with Basic or Plus. You can always level up later.",
+  },
+  'placement': {
+    icon: <Crosshair className="w-8 h-8" />,
+    title: "Where Should It Go?",
+    lines: [
+      { text: "Now you decide where on the product your QR design shows up." },
+      { text: "Front, back, or both \u2014 it's your call.", highlight: true },
+      { text: "Most people go with front. But back is great for bigger designs." },
+      { text: "Adding a second placement costs a little extra." },
+    ],
+  },
+  'text': {
+    icon: <PenLine className="w-8 h-8" />,
+    title: "Add Your Words",
+    lines: [
+      { text: "Want to print some text on the product alongside the QR?" },
+      { text: "A tagline on top, a call-to-action on the bottom \u2014 totally optional.", highlight: true },
+      { text: "This is what people see before they even scan." },
+      { text: "Keep it short and punchy. Or skip it entirely \u2014 your choice." },
+    ],
+    tip: "Good text examples: \"Scan me\" \u2014 \"Watch the video\" \u2014 \"Our story\"",
+  },
+};
+
+const GUIDED_STEP_MAP: Record<string, string[]> = {
+  'product': ['welcome', 'product'],
+  'color': ['color'],
+  'size': ['size'],
+  'type': ['type'],
+  'placement-count': ['placement'],
+  'generate': ['text'],
+};
+
+function GuidedCard({ data, onContinue }: { data: GuidedCardData; onContinue: () => void }) {
+  return (
+    <div
+      className="flex flex-col items-center justify-center px-2 animate-in fade-in duration-500"
+      style={{ minHeight: 'calc(60vh - 80px)' }}
+      data-testid="guided-chalkboard"
+    >
+      <div className="w-full max-w-sm">
+        <div className="relative overflow-hidden rounded-2xl border border-sky-500/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-950/30 to-slate-900" />
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+
+          <div className="relative p-6 space-y-5">
+            <div className="flex justify-center">
+              <div className="p-3 rounded-full bg-sky-500/20 text-sky-400">
+                {data.icon}
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-white text-center">{data.title}</h2>
+
+            <div className="space-y-3">
+              {data.lines.map((line, i) => (
+                <p
+                  key={i}
+                  className={`text-sm leading-relaxed text-center ${
+                    line.highlight
+                      ? 'text-sky-200 font-medium'
+                      : 'text-slate-300'
+                  }`}
+                >
+                  {line.text}
+                </p>
+              ))}
+            </div>
+
+            {data.tip && (
+              <div className="bg-sky-500/10 rounded-lg p-3 flex items-start gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-200/80 leading-relaxed">{data.tip}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Button
+          onClick={onContinue}
+          className="w-full mt-5 bg-sky-600 hover:bg-sky-700 text-white py-6 text-lg font-semibold"
+          data-testid="guided-continue"
+        >
+          {data.buttonText || 'Got It'}
+          <ArrowRight className="w-5 h-5 ml-2" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function OwnerCostSummary({ basePrice, sizeCost, placementCost, textCost, total }: {
   basePrice: number; sizeCost: number; placementCost: number; textCost: number; total: number;
@@ -103,6 +262,7 @@ function MemberConversionPitch({ earnings, onSignUp, onSkip }: {
 export function OwnerWizard() {
   const params = new URLSearchParams(window.location.search);
   const rawType = params.get('type') || '';
+  const isGuided = params.get('guided') === 'true';
   const TYPE_ALIASES: Record<string, string> = {
     'basic': 'qr-basic', 'plus': 'qr-plus', 'canvas': 'qr-canvas',
     'play': 'qr-play', 'compose': 'qr-compose',
@@ -147,6 +307,28 @@ export function OwnerWizard() {
   const [lifestyleMockupUrl, setLifestyleMockupUrl] = useState<string | null>(null);
   const [isGeneratingRealMockup, setIsGeneratingRealMockup] = useState(false);
   const packetCreating = useRef(false);
+
+  const [guidedQueue, setGuidedQueue] = useState<string[]>(isGuided ? ['welcome', 'product'] : []);
+  const [guidedSeenSteps, setGuidedSeenSteps] = useState<Set<string>>(new Set(isGuided ? ['product'] : []));
+
+  useEffect(() => {
+    if (!isGuided) return;
+    if (!guidedSeenSteps.has(simpleStep)) {
+      const cards = GUIDED_STEP_MAP[simpleStep];
+      if (cards) {
+        setGuidedQueue([...cards]);
+      }
+      setGuidedSeenSteps(prev => new Set(prev).add(simpleStep));
+    }
+  }, [simpleStep, isGuided]);
+
+  const handleGuidedContinue = () => {
+    if (guidedQueue.length <= 1) {
+      setGuidedQueue([]);
+    } else {
+      setGuidedQueue(prev => prev.slice(1));
+    }
+  };
 
   const createTempPacket = useCallback(async (product: AllowedProduct) => {
     if (packetCreating.current || tempPacketId) return;
@@ -611,22 +793,33 @@ export function OwnerWizard() {
         </Button>
       </CardHeader>
       <CardContent className="p-4 pt-1">
-        {tier && (
-          <div className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border mb-2 ${tier.color}`} data-testid="badge-tier-label">
-            {tier.label}
-          </div>
-        )}
-        <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
-        {runningCost > 0 && (
-          <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-blue-500/10 border border-blue-500/20 mx-auto w-fit transition-all ${costPulse ? 'scale-110 border-blue-400/60 bg-blue-500/20' : ''}`} data-testid="badge-running-cost">
-            <Tag className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-blue-400 font-bold text-sm">
-              ${runningCost.toFixed(2)} estimated cost
-            </span>
-          </div>
+        {guidedQueue.length === 0 && (
+          <>
+            {tier && (
+              <div className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border mb-2 ${tier.color}`} data-testid="badge-tier-label">
+                {tier.label}
+              </div>
+            )}
+            <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
+            {runningCost > 0 && (
+              <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-blue-500/10 border border-blue-500/20 mx-auto w-fit transition-all ${costPulse ? 'scale-110 border-blue-400/60 bg-blue-500/20' : ''}`} data-testid="badge-running-cost">
+                <Tag className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-blue-400 font-bold text-sm">
+                  ${runningCost.toFixed(2)} estimated cost
+                </span>
+              </div>
+            )}
+          </>
         )}
 
         <div className="min-h-[350px]" id="wizard-step-content">
+          {guidedQueue.length > 0 && GUIDED_CARDS[guidedQueue[0]] ? (
+            <GuidedCard
+              data={GUIDED_CARDS[guidedQueue[0]]}
+              onContinue={handleGuidedContinue}
+            />
+          ) : (<>
+
           {simpleStep === 'product' && (
             <ProductPickerStep
               selectedProduct={selectedProductType}
@@ -1096,8 +1289,11 @@ export function OwnerWizard() {
               />
             </div>
           )}
+
+          </>)}
         </div>
 
+        {guidedQueue.length === 0 && (
         <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
           <Button
             variant="outline"
@@ -1138,6 +1334,7 @@ export function OwnerWizard() {
             </Button>
           )}
         </div>
+        )}
       </CardContent>
     </Card>
   );
