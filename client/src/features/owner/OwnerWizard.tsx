@@ -96,6 +96,61 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
     ],
     tip: "Ideas: \"Scan me\" \u2014 \"Watch this\" \u2014 \"Our story\" \u2014 or your own phrase.",
   },
+  'type-confirm-basic': {
+    icon: <QrCode className="w-8 h-8" />,
+    title: "Nice \u2014 You Picked Basic QR",
+    lines: [
+      { text: "Your QR code will open any link you choose \u2014 a website, a social profile, a video, whatever you want." },
+      { text: "Simple, clean, and it works every time someone scans your shirt.", highlight: true },
+      { text: "Up next we'll figure out where it goes on your shirt and how big you want it." },
+      { text: "You'll have choices at every step \u2014 nothing is locked in until you say so." },
+    ],
+    tip: "You can always change the link your QR points to later \u2014 even after you get the shirt.",
+  },
+  'type-confirm-plus': {
+    icon: <Type className="w-8 h-8" />,
+    title: "Great Choice \u2014 QR Plus",
+    lines: [
+      { text: "QR Plus does everything Basic does, but you also get custom text printed right on the shirt alongside your QR code." },
+      { text: "A headline on top, a message underneath \u2014 whatever you want people to read before they scan.", highlight: true },
+      { text: "Next up, we'll set where everything goes on your shirt and how big it should be." },
+      { text: "More choices ahead \u2014 we'll walk you through each one." },
+    ],
+    tip: "Most people use something short like \"Scan Me\" or their brand name.",
+  },
+  'type-confirm-canvas': {
+    icon: <ImagePlus className="w-8 h-8" />,
+    title: "You Picked Canvas \u2014 Nice",
+    lines: [
+      { text: "When someone scans your shirt, they'll see a full-screen image \u2014 a photo, a design, art, anything you upload." },
+      { text: "This is the wow factor. It turns your t-shirt into a window to something bigger.", highlight: true },
+      { text: "Coming up, you'll place the QR on your shirt and upload the image people will see when they scan." },
+      { text: "Don't worry \u2014 we'll guide you through all of it step by step." },
+    ],
+    tip: "Think of it like a secret reveal \u2014 the shirt is the teaser, the scan is the payoff.",
+  },
+  'type-confirm-play': {
+    icon: <Play className="w-8 h-8" />,
+    title: "Play Mode \u2014 Love It",
+    lines: [
+      { text: "When someone scans your shirt, a video plays. Full screen, right on their phone." },
+      { text: "A message, a performance, a memory, a promo \u2014 whatever story you want to tell.", highlight: true },
+      { text: "Next we'll set where the QR goes on your shirt, then you'll upload or link your video." },
+      { text: "Every step has choices \u2014 we'll guide you through each one." },
+    ],
+    tip: "Videos hit different. This is the one that makes people stop and pay attention.",
+  },
+  'type-confirm-compose': {
+    icon: <Layers className="w-8 h-8" />,
+    title: "Compose \u2014 The Power Move",
+    lines: [
+      { text: "Compose lets you build a rotating playlist of content. Images, videos, whatever you create \u2014 it cycles through them on a schedule." },
+      { text: "One QR code, unlimited content. It's like having a channel on your shirt.", highlight: true },
+      { text: "This one's a bit more advanced, so we'll walk you through setting it up." },
+      { text: "But first \u2014 you'll need to build some content to put in the rotation." },
+    ],
+    tip: "Think of it like a TV channel \u2014 you're the programmer, and the shirt is the screen.",
+  },
   'checkout': {
     icon: <PartyPopper className="w-8 h-8" />,
     title: "You Just Designed a Custom Tee!",
@@ -302,6 +357,7 @@ export function OwnerWizard() {
 
   const [showMemberPitch, setShowMemberPitch] = useState(false);
   const [showCheckoutCard, setShowCheckoutCard] = useState(false);
+  const [pendingPostTypeStep, setPendingPostTypeStep] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const [tempPacketId, setTempPacketId] = useState<string | null>(null);
@@ -329,6 +385,14 @@ export function OwnerWizard() {
       setGuidedQueue([]);
       setShowCheckoutCard(false);
       handlePublicCheckout();
+      return;
+    }
+    if (guidedQueue[0]?.startsWith('type-confirm-')) {
+      setGuidedQueue([]);
+      if (pendingPostTypeStep) {
+        setSimpleStep(pendingPostTypeStep as SimpleWizardStep);
+        setPendingPostTypeStep(null);
+      }
       return;
     }
     if (guidedQueue.length <= 1) {
@@ -531,8 +595,22 @@ export function OwnerWizard() {
     if (simpleStep === 'type') {
       updateTempPacket({ qrType });
       if (qrType === 'qr-compose') {
+        if (isGuided) {
+          setGuidedQueue(['type-confirm-compose']);
+          setPendingPostTypeStep('compose-explain');
+          return;
+        }
         setSimpleStep('compose-explain' as SimpleWizardStep);
         return;
+      }
+      if (isGuided) {
+        const typeKey = qrType.replace('qr-', '');
+        const cardId = `type-confirm-${typeKey}`;
+        if (GUIDED_CARDS[cardId]) {
+          setGuidedQueue([cardId]);
+          setPendingPostTypeStep('placement-count');
+          return;
+        }
       }
       setSimpleStep('placement-count');
       return;
