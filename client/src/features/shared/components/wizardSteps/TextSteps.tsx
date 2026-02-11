@@ -233,12 +233,12 @@ export function TextLayoutChoiceStep({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 max-w-sm mx-auto">
+      <div className="grid grid-cols-1 gap-2 max-w-sm mx-auto w-full overflow-hidden">
         {options.map((option) => (
           <button
             key={option.id}
             onClick={() => handleSelect(option.id)}
-            className={`relative p-2 rounded-xl border-2 transition-all ${
+            className={`relative p-2 rounded-xl border-2 transition-all overflow-hidden ${
               selected === option.id
                 ? 'border-orange-500 bg-orange-500/20 shadow-lg shadow-orange-500/20'
                 : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
@@ -250,33 +250,33 @@ export function TextLayoutChoiceStep({
                 key={floatingEarning.key}
                 className="absolute -top-2 left-1/2 -translate-x-1/2 pointer-events-none z-20"
               >
-                <div className={`animate-bounce-up font-bold text-2xl flex items-center gap-1 rounded-full px-5 py-2 shadow-xl ${
+                <div className={`animate-bounce-up font-bold text-lg flex items-center gap-1 rounded-full px-3 py-1.5 shadow-xl ${
                   context === 'owner'
                     ? 'text-blue-200 bg-blue-500/30 border-2 border-blue-400/60 shadow-blue-400/40'
                     : 'text-green-200 bg-green-500/30 border-2 border-green-400/60 shadow-green-400/40'
                 }`}>
-                  <DollarSign className="w-5 h-5" />
+                  <DollarSign className="w-4 h-4" />
                   +${floatingEarning.amount.toFixed(2)}
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
               <ZoneThumbnail
                 showHeader={option.id === 'header' || option.id === 'both'}
                 showFooter={option.id === 'footer' || option.id === 'both'}
                 isSelected={selected === option.id}
                 size="sm"
               />
-              <div className="flex-1 text-left min-w-0">
-                <p className={`font-semibold text-sm ${selected === option.id ? 'text-orange-400' : 'text-white'}`}>{option.label}</p>
-                <p className={`text-xs ${selected === option.id ? 'text-orange-300/70' : 'text-slate-400'}`}>{option.description}</p>
+              <div className="flex-1 text-left min-w-0 overflow-hidden">
+                <p className={`font-semibold text-sm truncate ${selected === option.id ? 'text-orange-400' : 'text-white'}`}>{option.label}</p>
+                <p className={`text-xs truncate ${selected === option.id ? 'text-orange-300/70' : 'text-slate-400'}`}>{option.description}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className={`font-bold text-sm ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`}>+${(textLineEarningsBonus * option.lines).toFixed(2)}</p>
                 <p className="text-slate-500 text-[10px]">{context === 'owner' ? 'added' : 'per sale'}</p>
               </div>
               {selected === option.id && (
-                <Check className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                <Check className="w-4 h-4 text-orange-400 flex-shrink-0" />
               )}
             </div>
           </button>
@@ -496,7 +496,7 @@ export function HeaderTextEditStep({
           qrColor="black"
           backgroundColor={colorHex}
           highlightHeader={true}
-          width={200}
+          width={150}
           data-testid="svg-header-preview"
         />
       </div>
@@ -652,7 +652,7 @@ export function FooterTextEditStep({
           qrColor="black"
           backgroundColor={colorHex}
           highlightFooter={true}
-          width={200}
+          width={150}
           data-testid="svg-footer-preview"
         />
       </div>
