@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { ArrowLeft, DollarSign, Percent, Layers, Type, Clock, Save, Loader2, Check } from "lucide-react";
+import { ArrowLeft, DollarSign, Percent, Layers, Type, Clock, Save, Loader2, Check, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,13 @@ interface HostingTier {
   price: number;
 }
 
+interface BrandLabelPricing {
+  printifyInside: number;
+  printifyOutside: number;
+  printfulInside: number;
+  printfulOutside: number;
+}
+
 interface PricingSettings {
   markupPercent: number;
   markupFixed: number;
@@ -22,6 +29,7 @@ interface PricingSettings {
   textLineUpcharge: number;
   memberProfitShare: number;
   hostingTiers: HostingTier[];
+  brandLabelPricing: BrandLabelPricing;
 }
 
 export default function TestPricingPage() {
@@ -37,6 +45,12 @@ export default function TestPricingPage() {
   const [textLineUpcharge, setTextLineUpcharge] = useState<string>("");
   const [memberProfitShare, setMemberProfitShare] = useState<string>("");
   const [hostingTiers, setHostingTiers] = useState<HostingTier[]>([]);
+  const [brandLabelPricing, setBrandLabelPricing] = useState<BrandLabelPricing>({
+    printifyInside: 0.55,
+    printifyOutside: 0.55,
+    printfulInside: 0.99,
+    printfulOutside: 2.49,
+  });
   const [initialized, setInitialized] = useState(false);
 
   if (settings && !initialized) {
@@ -44,8 +58,11 @@ export default function TestPricingPage() {
     setMarkupFixed(String(settings.markupFixed));
     setAdditionalPlacementCost(String(settings.additionalPlacementCost));
     setTextLineUpcharge(String(settings.textLineUpcharge));
-    setMemberProfitShare(String((settings.memberProfitShare || 0.25) * 100)); // Store as percentage
+    setMemberProfitShare(String((settings.memberProfitShare || 0.25) * 100));
     setHostingTiers(settings.hostingTiers || []);
+    if (settings.brandLabelPricing) {
+      setBrandLabelPricing(settings.brandLabelPricing);
+    }
     setInitialized(true);
   }
 
@@ -74,8 +91,9 @@ export default function TestPricingPage() {
       markupFixed: parseFloat(markupFixed) || 0,
       additionalPlacementCost: parseFloat(additionalPlacementCost) || 0,
       textLineUpcharge: parseFloat(textLineUpcharge) || 0,
-      memberProfitShare: (parseFloat(memberProfitShare) || 25) / 100, // Convert from percentage to decimal
+      memberProfitShare: (parseFloat(memberProfitShare) || 25) / 100,
       hostingTiers,
+      brandLabelPricing,
     });
   };
   
@@ -243,6 +261,99 @@ export default function TestPricingPage() {
                 <p className="text-xs text-muted-foreground">
                   Charged per text line (header or footer) on each "full artwork" placement
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Brand Label Pricing
+              </CardTitle>
+              <CardDescription>
+                Cost per label by fulfillment center and placement (inside neck vs. outside neck)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold mb-3">Printify Labels</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="printify-inside">Inside Label ($)</Label>
+                    <Input
+                      id="printify-inside"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={brandLabelPricing.printifyInside}
+                      onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyInside: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.55"
+                      className="min-h-[48px] text-lg"
+                      inputMode="decimal"
+                      data-testid="input-printify-inside-label"
+                    />
+                    <p className="text-xs text-muted-foreground">Replaces manufacturer tag inside neck</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="printify-outside">Outside Label ($)</Label>
+                    <Input
+                      id="printify-outside"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={brandLabelPricing.printifyOutside}
+                      onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyOutside: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.55"
+                      className="min-h-[48px] text-lg"
+                      inputMode="decimal"
+                      data-testid="input-printify-outside-label"
+                    />
+                    <p className="text-xs text-muted-foreground">Printed on outside back of neck</p>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Printful Labels</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="printful-inside">Inside Label ($)</Label>
+                    <Input
+                      id="printful-inside"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={brandLabelPricing.printfulInside}
+                      onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulInside: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.99"
+                      className="min-h-[48px] text-lg"
+                      inputMode="decimal"
+                      data-testid="input-printful-inside-label"
+                    />
+                    <p className="text-xs text-muted-foreground">Replaces manufacturer tag inside neck</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="printful-outside">Outside Label ($)</Label>
+                    <Input
+                      id="printful-outside"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={brandLabelPricing.printfulOutside}
+                      onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulOutside: parseFloat(e.target.value) || 0 }))}
+                      placeholder="2.49"
+                      className="min-h-[48px] text-lg"
+                      inputMode="decimal"
+                      data-testid="input-printful-outside-label"
+                    />
+                    <p className="text-xs text-muted-foreground">Printed on outside back of neck</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1">
+                <p>Only one label type (inside OR outside) can be added per product.</p>
+                <p>Inside labels replace the manufacturer tag. Outside labels are printed on the back neck area.</p>
+                <p>Label choice is set per product in the product builder based on which fulfillment center you pick.</p>
               </div>
             </CardContent>
           </Card>
