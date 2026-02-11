@@ -1410,16 +1410,17 @@ export function OwnerWizard() {
 
         {guidedQueue.length === 0 && (
         <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
+          {simpleStep !== 'product' && (
           <Button
             variant="outline"
             onClick={handleBack}
-            disabled={simpleStep === 'product'}
             className="flex-1 min-w-[100px] sm:flex-none"
             data-testid="button-owner-back"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
             Back
           </Button>
+          )}
 
           {simpleStep !== 'generate' && simpleStep !== 'qr-basic-type' && simpleStep !== ('compose-explain' as SimpleWizardStep) && (
             <Button
