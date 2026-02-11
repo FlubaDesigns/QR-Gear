@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Package, Palette, Ruler, Crosshair, PenLine } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Palette, Crosshair, PenLine } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
@@ -32,86 +32,64 @@ interface GuidedCardData {
 const GUIDED_CARDS: Record<string, GuidedCardData> = {
   'welcome': {
     icon: <Sparkles className="w-8 h-8" />,
-    title: "Let's Build Something Cool",
+    title: "Let's Build Your Custom Tee",
     lines: [
-      { text: "You're about to design a one-of-a-kind product with a built-in QR code." },
-      { text: "When someone scans it, something happens \u2014 a video plays, a page opens, a message appears.", highlight: true },
-      { text: "We'll walk you through the whole thing. No design skills needed." },
-      { text: "Takes about 2 minutes. Let's go." },
+      { text: "You're about to design your own t-shirt with a QR code built right into it." },
+      { text: "When you or anyone scans it, something cool happens \u2014 a video plays, a page opens, whatever you set up.", highlight: true },
+      { text: "We'll walk you through every step. No design skills needed." },
+      { text: "Takes about 2 minutes. Ready?" },
     ],
-    tip: "Everything you pick can be changed later. No pressure, just exploring.",
+    tip: "You can change any of your choices along the way. No pressure.",
     buttonText: "Let's Do This",
-  },
-  'product': {
-    icon: <Package className="w-8 h-8" />,
-    title: "Step 1: Pick Your Product",
-    lines: [
-      { text: "First up \u2014 what kind of thing do you want to make?" },
-      { text: "T-shirts, hoodies, hats, mugs, bags \u2014 whatever catches your eye.", highlight: true },
-      { text: "Each one comes with a QR code that you get to program." },
-      { text: "Pick the one that feels right. You can always come back and try another." },
-    ],
-    tip: "The most popular pick? T-shirts. But mugs are a dark horse.",
   },
   'color': {
     icon: <Palette className="w-8 h-8" />,
-    title: "Now Pick a Color",
+    title: "Make It Yours",
     lines: [
-      { text: "This sets the color for your product preview." },
-      { text: "Don't overthink it \u2014 it's just for the mockup.", highlight: true },
-      { text: "When you (or anyone) actually orders, they pick their own color at checkout." },
-      { text: "All colors cost the same. No hidden upcharges." },
+      { text: "Time to pick your color and size." },
+      { text: "This is YOUR t-shirt \u2014 choose what you actually want to wear.", highlight: true },
+      { text: "Every color is the same price. No gotchas." },
+      { text: "Bigger sizes add a small upcharge \u2014 you'll see it update as you go." },
     ],
-  },
-  'size': {
-    icon: <Ruler className="w-8 h-8" />,
-    title: "Pick a Size",
-    lines: [
-      { text: "Same idea as color \u2014 this is for your preview image." },
-      { text: "Bigger sizes cost a little more because they use more material.", highlight: true },
-      { text: "Buyers choose their own size when they order." },
-      { text: "Just pick whatever feels natural for now." },
-    ],
-    tip: "The price adjusts automatically as you go. No surprises at the end.",
+    tip: "The price updates in real time so there are no surprises at checkout.",
   },
   'type': {
     icon: <QrCode className="w-8 h-8" />,
-    title: "The Fun Part: QR Type",
+    title: "What Should Your QR Do?",
     lines: [
-      { text: "This is what makes your product special." },
-      { text: "Basic = a simple QR code that links somewhere. Clean and permanent." },
-      { text: "Plus = same thing, but with your custom text printed on the product too.", highlight: true },
-      { text: "Canvas & Play = the QR opens a full-screen image or video. That's the wow factor." },
+      { text: "This is what makes your t-shirt interactive." },
+      { text: "Basic \u2014 a QR code that opens any link you choose. Simple and clean.", highlight: true },
+      { text: "Plus \u2014 same link, but with your own custom text printed on the shirt too." },
+      { text: "Canvas & Play \u2014 scanning opens a full-screen image or video. That's the wow factor." },
     ],
-    tip: "Not sure? Start with Basic or Plus. You can always level up later.",
+    tip: "Not sure yet? Basic is a great starting point. You can always upgrade later.",
   },
   'placement': {
     icon: <Crosshair className="w-8 h-8" />,
-    title: "Where Should It Go?",
+    title: "Where Do You Want It?",
     lines: [
-      { text: "Now you decide where on the product your QR design shows up." },
-      { text: "Front, back, or both \u2014 it's your call.", highlight: true },
-      { text: "Most people go with front. But back is great for bigger designs." },
-      { text: "Adding a second placement costs a little extra." },
+      { text: "Now pick where on your t-shirt the QR design goes." },
+      { text: "Front, back, or both \u2014 totally up to you.", highlight: true },
+      { text: "Most people go with front. Back works great if you want a bigger design." },
+      { text: "Adding a second spot costs a little extra." },
     ],
   },
   'text': {
     icon: <PenLine className="w-8 h-8" />,
-    title: "Add Your Words",
+    title: "Add Some Text",
     lines: [
-      { text: "Want to print some text on the product alongside the QR?" },
-      { text: "A tagline on top, a call-to-action on the bottom \u2014 totally optional.", highlight: true },
-      { text: "This is what people see before they even scan." },
-      { text: "Keep it short and punchy. Or skip it entirely \u2014 your choice." },
+      { text: "Want words printed on your shirt alongside the QR code?" },
+      { text: "A phrase on top, a message on the bottom \u2014 or nothing at all. Totally optional.", highlight: true },
+      { text: "This is what people see on your shirt before they scan." },
+      { text: "Keep it short and fun. Or skip it \u2014 your call." },
     ],
-    tip: "Good text examples: \"Scan me\" \u2014 \"Watch the video\" \u2014 \"Our story\"",
+    tip: "Ideas: \"Scan me\" \u2014 \"Watch this\" \u2014 \"Our story\" \u2014 or your own phrase.",
   },
 };
 
 const GUIDED_STEP_MAP: Record<string, string[]> = {
-  'product': ['welcome', 'product'],
+  'product': ['welcome'],
   'color': ['color'],
-  'size': ['size'],
   'type': ['type'],
   'placement-count': ['placement'],
   'generate': ['text'],
