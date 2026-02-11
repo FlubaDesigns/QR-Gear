@@ -51,7 +51,7 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
       { text: "Your QR code gets printed right on it \u2014 same great quality no matter which you pick." },
       { text: "Tap the one you like and we'll keep going." },
     ],
-    tip: "Don't stress \u2014 you can always come back and try a different one.",
+    tip: "Every style looks great with a QR code \u2014 pick the one that fits your vibe.",
   },
   'color': {
     icon: <Palette className="w-8 h-8" />,
@@ -69,11 +69,11 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
     title: "What Should Your QR Do?",
     lines: [
       { text: "This is what makes your t-shirt interactive." },
-      { text: "Basic \u2014 a QR code that opens any link you choose. Simple and clean.", highlight: true },
-      { text: "Plus \u2014 same link, but with your own custom text printed on the shirt too." },
-      { text: "Canvas & Play \u2014 scanning opens a full-screen image or video. That's the wow factor." },
+      { text: "Canvas \u2014 scanning reveals a full-screen image. A photo, a design, your art \u2014 it's like a hidden gallery.", highlight: true },
+      { text: "Play \u2014 scanning launches a full-screen video. Movement, sound, story \u2014 maximum impact." },
+      { text: "Basic & Plus are great too \u2014 they open a link or add custom text to your shirt." },
     ],
-    tip: "Not sure yet? Basic is a great starting point. You can always upgrade later.",
+    tip: "Canvas and Play create the biggest reactions \u2014 people love scanning and seeing something unexpected.",
   },
   'placement': {
     icon: <Crosshair className="w-8 h-8" />,
@@ -125,7 +125,7 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
       { text: "When someone scans your shirt, they'll see a full-screen image \u2014 a photo, a design, art, anything you upload." },
       { text: "This is the wow factor. It turns your t-shirt into a window to something bigger.", highlight: true },
       { text: "Coming up, you'll place the QR on your shirt and upload the image people will see when they scan." },
-      { text: "Don't worry \u2014 we'll guide you through all of it step by step." },
+      { text: "We'll walk you through each part \u2014 it's easier than you think." },
     ],
     tip: "Think of it like a secret reveal \u2014 the shirt is the teaser, the scan is the payoff.",
   },
