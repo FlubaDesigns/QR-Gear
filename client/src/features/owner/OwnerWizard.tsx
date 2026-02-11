@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Palette, Crosshair, PenLine } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Palette, Crosshair, PenLine, PartyPopper } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
@@ -95,6 +95,17 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
       { text: "Keep it short and fun. Or skip it \u2014 your call." },
     ],
     tip: "Ideas: \"Scan me\" \u2014 \"Watch this\" \u2014 \"Our story\" \u2014 or your own phrase.",
+  },
+  'checkout': {
+    icon: <PartyPopper className="w-8 h-8" />,
+    title: "You Just Designed a Custom Tee!",
+    lines: [
+      { text: "Look at that \u2014 you picked the shirt, chose your colors, set up your QR code, and built a real product." },
+      { text: "Your custom t-shirt is ready to order. One tap and it ships straight to your door.", highlight: true },
+      { text: "It's printed just for you. No warehouse, no waiting on stock \u2014 made fresh when you order." },
+    ],
+    tip: "After checkout you'll get a claim code so you can activate your QR when the shirt arrives.",
+    buttonText: "Take Me to Checkout",
   },
 };
 
@@ -290,6 +301,7 @@ export function OwnerWizard() {
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
 
   const [showMemberPitch, setShowMemberPitch] = useState(false);
+  const [showCheckoutCard, setShowCheckoutCard] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const [tempPacketId, setTempPacketId] = useState<string | null>(null);
@@ -313,6 +325,12 @@ export function OwnerWizard() {
   }, [simpleStep, isGuided]);
 
   const handleGuidedContinue = () => {
+    if (guidedQueue[0] === 'checkout') {
+      setGuidedQueue([]);
+      setShowCheckoutCard(false);
+      handlePublicCheckout();
+      return;
+    }
     if (guidedQueue.length <= 1) {
       setGuidedQueue([]);
     } else {
@@ -616,7 +634,12 @@ export function OwnerWizard() {
         lifestyleMockupUrl,
         readyForCheckout: true,
       });
-      setShowMemberPitch(true);
+      if (isGuided) {
+        setGuidedQueue(['checkout']);
+        setShowCheckoutCard(true);
+      } else {
+        handlePublicCheckout();
+      }
       return;
     }
 
@@ -629,6 +652,12 @@ export function OwnerWizard() {
 
   const handleBack = () => {
     if (simpleStep === 'product') return;
+
+    if (showCheckoutCard) {
+      setShowCheckoutCard(false);
+      setGuidedQueue([]);
+      return;
+    }
 
     if (showMemberPitch) {
       setShowMemberPitch(false);
@@ -750,7 +779,7 @@ export function OwnerWizard() {
           />
           <MemberConversionPitch
             earnings={memberEarnings}
-            onSignUp={() => navigate('/members')}
+            onSignUp={() => navigate('/member')}
             onSkip={handlePublicCheckout}
           />
           <div className="flex gap-3 flex-wrap justify-between pt-2 border-t border-slate-700">
@@ -1021,7 +1050,7 @@ export function OwnerWizard() {
                   Build Your First Moment
                 </Button>
                 <Button
-                  onClick={() => navigate('/members')}
+                  onClick={() => navigate('/member')}
                   variant="outline"
                   className="w-full border-amber-500/40 text-amber-400"
                   data-testid="button-compose-become-member"

@@ -155,7 +155,7 @@ export default function LoginPage() {
 
         <div className="qr-auth-footer">
           Don't have an account?{" "}
-          <Link href="/members" className="qr-auth-link" data-testid="link-register">
+          <Link href="/member" className="qr-auth-link" data-testid="link-register">
             Create one
           </Link>
         </div>
