@@ -452,6 +452,8 @@
   height: 100%;
 }
 
+/* Zone proportions — single source of truth: shared/constants/zoneLayout.ts */
+/* Header: 25%, Middle: 50% (10% top margin, 80% QR, 10% bottom margin), Footer: 25% */
 .qr-canvas__header { flex: 0 0 25%; min-height: 0; }
 .qr-canvas__middle { flex: 0 0 50%; min-height: 0; }
 .qr-canvas__footer { flex: 0 0 25%; min-height: 0; }

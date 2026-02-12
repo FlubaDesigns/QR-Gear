@@ -11,6 +11,7 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PLACEMENT_BASE_DIMENSIONS } from "../types";
+import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
 
 interface HostingTier {
   code: string;
@@ -106,14 +107,14 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
   const CANVAS_HEIGHT = placementDims.height;
   
   const HEADER_ZONE_TOP = 0;
-  const HEADER_ZONE_HEIGHT = CANVAS_HEIGHT * 0.25;
+  const HEADER_ZONE_HEIGHT = CANVAS_HEIGHT * ZONE_LAYOUT.HEADER_PERCENT;
   const QR_ZONE_TOP = HEADER_ZONE_HEIGHT;
-  const QR_ZONE_HEIGHT = CANVAS_HEIGHT * 0.50;
+  const QR_ZONE_HEIGHT = CANVAS_HEIGHT * ZONE_LAYOUT.MIDDLE_PERCENT;
   const FOOTER_ZONE_TOP = QR_ZONE_TOP + QR_ZONE_HEIGHT;
-  const FOOTER_ZONE_HEIGHT = CANVAS_HEIGHT * 0.25;
+  const FOOTER_ZONE_HEIGHT = CANVAS_HEIGHT * ZONE_LAYOUT.FOOTER_PERCENT;
 
-  const QR_MARGIN_Y = QR_ZONE_HEIGHT * 0.10;
-  const QR_AREA_HEIGHT = QR_ZONE_HEIGHT * 0.80;
+  const QR_MARGIN_Y = QR_ZONE_HEIGHT * ZONE_LAYOUT.QR_MARGIN_PERCENT;
+  const QR_AREA_HEIGHT = QR_ZONE_HEIGHT * ZONE_LAYOUT.QR_AREA_PERCENT;
   const BG_PADDING = 20;
   
   console.log('[generateProductGraphic] GENERATING TRANSPARENT PRODUCT GRAPHIC');

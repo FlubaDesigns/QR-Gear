@@ -1,4 +1,5 @@
 import type { TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
+import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
 
 interface TextStyleProp {
   text: string;
@@ -35,11 +36,11 @@ const BG_PADDING = 20;
 const BG_RADIUS = 16;
 
 const HEADER_ZONE_TOP = 0;
-const HEADER_ZONE_HEIGHT = CANVAS_H * 0.25;
+const HEADER_ZONE_HEIGHT = CANVAS_H * ZONE_LAYOUT.HEADER_PERCENT;
 const QR_ZONE_TOP = HEADER_ZONE_HEIGHT;
-const QR_ZONE_HEIGHT = CANVAS_H * 0.50;
+const QR_ZONE_HEIGHT = CANVAS_H * ZONE_LAYOUT.MIDDLE_PERCENT;
 const FOOTER_ZONE_TOP = QR_ZONE_TOP + QR_ZONE_HEIGHT;
-const FOOTER_ZONE_HEIGHT = CANVAS_H * 0.25;
+const FOOTER_ZONE_HEIGHT = CANVAS_H * ZONE_LAYOUT.FOOTER_PERCENT;
 
 export function getUnifiedFontSize(fontSize: string): number {
   if (fontSize === '12px' || fontSize === 'sm') return 10 * SCALE_FACTOR;
@@ -224,8 +225,8 @@ export function UnifiedGraphic({
     ? renderTextInZone(footerStyle, FOOTER_ZONE_TOP, FOOTER_ZONE_HEIGHT, footerFontSize, footerOpacity, 'footer')
     : [];
 
-  const qrMarginY = QR_ZONE_HEIGHT * 0.10;
-  const qrAreaHeight = QR_ZONE_HEIGHT * 0.80;
+  const qrMarginY = QR_ZONE_HEIGHT * ZONE_LAYOUT.QR_MARGIN_PERCENT;
+  const qrAreaHeight = QR_ZONE_HEIGHT * ZONE_LAYOUT.QR_AREA_PERCENT;
   const qrBgY = QR_ZONE_TOP + qrMarginY;
   const qrContentHeight = qrAreaHeight - BG_PADDING * 2;
   const qrContentWidth = qrContentHeight;
