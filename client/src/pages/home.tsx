@@ -203,7 +203,9 @@ export default function Home() {
           <HowItWorks />
         </div>
         <FeaturedStores />
-        {hasProducts ? <FeaturedProducts /> : <NoProductsYet />}
+        <div className="hidden md:block">
+          {hasProducts ? <FeaturedProducts /> : <NoProductsYet />}
+        </div>
       </main>
 
       <Footer />
