@@ -272,7 +272,7 @@ export default function TestPricingPage() {
                 Brand Label Pricing
               </CardTitle>
               <CardDescription>
-                Cost per label by fulfillment center and placement (inside neck vs. outside neck)
+                Your brand, front and center — custom labels make every product truly yours
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

@@ -39,7 +39,7 @@ const GUIDED_CARDS: Record<string, GuidedCardData> = {
       { text: "We'll walk you through every step. No design skills needed." },
       { text: "Takes about 2 minutes. Ready?" },
     ],
-    tip: "You can change any of your choices along the way. No pressure.",
+    tip: "Introduce the moments that matter — wear them, scan them, share them.",
     buttonText: "Let's Do This",
   },
   'product': {
