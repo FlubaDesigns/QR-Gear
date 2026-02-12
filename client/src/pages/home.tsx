@@ -190,10 +190,18 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <ActionCards />
-        <MarketingMessage />
-        <HistoryTeaser />
-        <QuickLinks />
-        <HowItWorks />
+        <div className="hidden md:block">
+          <MarketingMessage />
+        </div>
+        <div className="hidden md:block">
+          <HistoryTeaser />
+        </div>
+        <div className="hidden md:block">
+          <QuickLinks />
+        </div>
+        <div className="hidden md:block">
+          <HowItWorks />
+        </div>
         <FeaturedStores />
         {hasProducts ? <FeaturedProducts /> : <NoProductsYet />}
       </main>
