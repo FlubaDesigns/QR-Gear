@@ -1468,7 +1468,36 @@ export function registerAdminRoutes(app: Express): void {
       const { desc } = await import("drizzle-orm");
       
       const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
-      res.json(products);
+      
+      const grouped: Record<string, any[]> = {};
+      for (const p of products) {
+        const categoryName = p.typeName || p.type || "Other";
+        if (!grouped[categoryName]) grouped[categoryName] = [];
+        grouped[categoryName].push({
+          id: p.id,
+          title: p.title,
+          brand: p.brand || "",
+          model: p.model || "",
+          imageUrl: p.image || null,
+          madeInUSA: (p.originCountry || "").toUpperCase() === "US",
+          minPrice: p.minPrice || null,
+          maxPrice: p.maxPrice || null,
+          colorCount: 0,
+          availableColors: [],
+          availableSizes: [],
+          blueprintId: p.id,
+          printProviderId: null,
+          hasMockupMapping: false,
+        });
+      }
+      
+      const result = Object.entries(grouped).map(([name, items]) => ({
+        name,
+        items,
+        count: items.length,
+      }));
+      
+      res.json(result);
       
     } catch (error: any) {
       res.status(500).json({ error: error.message });
