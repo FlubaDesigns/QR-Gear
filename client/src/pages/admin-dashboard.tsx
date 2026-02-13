@@ -351,6 +351,10 @@ export default function AdminDashboard() {
                 <Package className="qr-admin-quicklink__icon" />
                 <span>Products</span>
               </Link>
+              <Link href="/admin/store-builder" className="qr-admin-quicklink" data-testid="link-store-builder">
+                <Package className="qr-admin-quicklink__icon" />
+                <span>Store Builder</span>
+              </Link>
             </div>
           </>
         )}

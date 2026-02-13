@@ -77,6 +77,7 @@ import TestLibrary from "@/pages/test-library";
 import TestProducts from "@/pages/test-products";
 import TestStores from "@/pages/test-stores";
 import TestStoreBuilder from "@/pages/test-store-builder";
+import AdminStoreBuilder from "@/pages/admin-store-builder";
 import TestARDemo from "@/pages/test-ar-demo";
 import TestDynamics from "@/pages/test-dynamics";
 import TestPricing from "@/pages/test-pricing";
@@ -152,6 +153,7 @@ function Router() {
       <Route path="/admin/test-dynamics" component={TestDynamics} />
       <Route path="/admin/test-pricing" component={TestPricing} />
       <Route path="/admin/test-store-builder" component={TestStoreBuilder} />
+      <Route path="/admin/store-builder" component={AdminStoreBuilder} />
       <Route path="/admin/test-ar-demo" component={TestARDemo} />
       <Route path="/admin/test-settings" component={TestSettings} />
       <Route path="/admin/test-canvas-packet" component={TestCanvasPacket} />

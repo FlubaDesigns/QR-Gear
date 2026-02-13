@@ -1391,6 +1391,741 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ADMIN STORE ROUTES (production mirrors of /api/test/stores) =====
+
+  app.get("/api/printify/local-blueprints", async (req: any, res) => {
+    try {
+      const localBlueprints = await storage.getPrintifyBlueprints();
+      res.json({ blueprints: localBlueprints.map(bp => ({ id: bp.id, title: bp.title })) });
+    } catch (error: any) {
+      console.error('[LocalBlueprints] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/stores", async (req: any, res) => {
+    try {
+      const roleType = req.query.roleType as string;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      let query = fsDb.collection('stores');
+      if (roleType) query = query.where('roleType', '==', roleType) as any;
+      const snapshot = await query.get();
+      const stores = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      stores.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+      res.json(stores);
+    } catch (error: any) {
+      console.error('[Stores] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/stores/by-id/:storeId", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      let doc = await fsDb.collection('stores').doc(storeId).get();
+      if (doc.exists) {
+        const data = doc.data();
+        return res.json({ id: doc.id, name: data?.name || storeId, type: data?.roleType || 'internal', roleType: data?.roleType || 'internal', isActive: data?.isActive ?? true });
+      }
+      doc = await fsDb.collection('partnerStores').doc(storeId).get();
+      if (doc.exists) {
+        const data = doc.data();
+        return res.json({ id: doc.id, name: data?.name || storeId, type: data?.isInternal ? 'internal' : 'external', roleType: data?.isInternal ? 'internal' : 'external', isActive: data?.isActive ?? true, isPartnerStore: true });
+      }
+      return res.status(404).json({ error: 'Store not found' });
+    } catch (error: any) {
+      console.error('[Stores] GET by-id error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/stores", async (req: any, res) => {
+    try {
+      const { name, roleType } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: 'Store name is required' });
+      if (!roleType || !['internal', 'external', 'member'].includes(roleType)) return res.status(400).json({ error: 'Valid roleType is required' });
+      const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const storeData = { name: name.trim(), roleType, isActive: true, channelCount: 0, createdAt: new Date().toISOString() };
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('stores').doc(storeId).set(storeData);
+      res.json({ id: storeId, ...storeData });
+    } catch (error: any) {
+      console.error('[Stores] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/stores/:storeId", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const channelsSnapshot = await fsDb.collection('storeChannels').where('storeId', '==', storeId).get();
+      const batch = fsDb.batch();
+      channelsSnapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
+      batch.delete(fsDb.collection('stores').doc(storeId));
+      await batch.commit();
+      res.json({ success: true, deletedChannels: channelsSnapshot.size });
+    } catch (error: any) {
+      console.error('[Stores] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/stores/:storeId/channels", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeChannels').where('storeId', '==', storeId).get();
+      const channels = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      channels.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      res.json(channels);
+    } catch (error: any) {
+      console.error('[Channels] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/stores/:storeId/channels", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { name } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: 'Channel name is required' });
+      const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const channelData = { name: name.trim(), storeId, isActive: true, productCount: 0, createdAt: new Date().toISOString() };
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('storeChannels').doc(channelId).set(channelData);
+      res.json({ id: channelId, ...channelData });
+    } catch (error: any) {
+      console.error('[Channels] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/stores/:storeId/channels/:channelId", async (req: any, res) => {
+    try {
+      const { channelId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('storeChannels').doc(channelId).delete();
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Channels] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/stores/:storeId/allowed-products", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const doc = await fsDb.collection('storeAllowedProducts').doc(storeId).get();
+      if (!doc.exists) return res.json({ storeId, products: [] });
+      const data = doc.data();
+      res.json({ storeId, products: data?.products || [], updatedAt: data?.updatedAt });
+    } catch (error: any) {
+      console.error('[AllowedProducts] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/stores/:storeId/allowed-products", async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { products } = req.body;
+      if (!Array.isArray(products)) return res.status(400).json({ error: 'products must be an array' });
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const pricingDoc = await fsDb.collection("testSettings").doc("pricing").get();
+      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+      const markupPercent = pricingSettings?.markupPercent ?? 25;
+      const markupFixed = pricingSettings?.markupFixed ?? 0;
+      const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
+      const textLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
+      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
+      const { downloadAndStoreFromUrl } = await import("./lib/firebase-storage-service");
+      const { syncProductVariants } = await import("./lib/printify");
+      const enrichedProducts = await Promise.all(
+        products.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
+          try {
+            const blueprint = await storage.getPrintifyBlueprint(p.blueprintId);
+            const providers = await storage.getPrintifyPrintProviders(p.blueprintId);
+            const usaProviders = providers.filter((prov: any) => prov.isUSA);
+            const selectedProvider = usaProviders[0] || providers[0];
+            let availableColors: Array<{name: string; hex: string}> = [];
+            let availableSizes: string[] = [];
+            if (selectedProvider?.availableColors && Array.isArray(selectedProvider.availableColors)) {
+              availableColors = selectedProvider.availableColors as Array<{name: string; hex: string}>;
+              availableSizes = (selectedProvider.availableSizes as string[]) || [];
+            } else if (selectedProvider?.id) {
+              try {
+                const variantData = await syncProductVariants(p.blueprintId, Number(selectedProvider.id));
+                availableColors = variantData.colors;
+                availableSizes = variantData.sizes;
+              } catch (syncErr) {
+                console.error(`[AllowedProducts] Failed to sync variants for ${p.blueprintId}:`, syncErr);
+              }
+            }
+            const baseCostCents = selectedProvider?.minCost || 0;
+            const baseCost = baseCostCents / 100;
+            const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+            const profit = retailPrice - baseCost;
+            const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+            let imageUrl: string | null = null;
+            if (blueprint?.primaryImageUrl) {
+              imageUrl = await downloadAndStoreFromUrl(blueprint.primaryImageUrl, `product-blueprint-${p.blueprintId}`);
+            }
+            const mockupsByColor: Record<string, { front: string | null }> = {};
+            if (availableColors.length > 0 && imageUrl) {
+              mockupsByColor[availableColors[0].name] = { front: imageUrl };
+            }
+            return {
+              blueprintId: p.blueprintId, title: p.title, addedAt: p.addedAt || new Date().toISOString(),
+              imageUrl, brand: blueprint?.brand || null, availableColors, availableSizes, mockupsByColor,
+              printProviderId: selectedProvider?.id || null, baseCost, retailPrice, profit, memberEarnings,
+              hasUSAProvider: usaProviders.length > 0,
+              pricingUsed: { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare },
+              packetCreatedAt: new Date().toISOString(),
+            };
+          } catch (err) {
+            console.error(`[AllowedProducts] Error enriching blueprint ${p.blueprintId}:`, err);
+            return { ...p, addedAt: p.addedAt || new Date().toISOString(), imageUrl: null, brand: null, baseCost: 0, retailPrice: 0, profit: 0, memberEarnings: 0, hasUSAProvider: false, pricingUsed: null, packetCreatedAt: new Date().toISOString() };
+          }
+        })
+      );
+      await fsDb.collection('storeAllowedProducts').doc(storeId).set({ storeId, products: enrichedProducts, updatedAt: new Date().toISOString() });
+      res.json({ success: true, storeId, productCount: enrichedProducts.length, message: `Created ${enrichedProducts.length} common packets with pricing` });
+    } catch (error: any) {
+      console.error('[AllowedProducts] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Partner stores (production)
+  app.get("/api/partner-stores", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('partnerStores').get();
+      const stores = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
+        return { id: doc.id, name: data.name, slug: data.slug, isInternal: data.isInternal ?? true, isActive: data.isActive ?? true, availableSegments: data.availableSegments || [], apiKey: data.apiKey || null, createdAt: data.createdAt?.toDate?.()?.toISOString() || null, updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null };
+      });
+      res.json(stores);
+    } catch (error: any) {
+      console.error('[PartnerStores] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Store channel products (production)
+  app.post("/api/stores/:storeId/channels/:channelId/products", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const { productIds } = req.body;
+      const { getFirestoreDb, getFirebaseAdmin } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const admin = getFirebaseAdmin();
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const batch = fsDb.batch();
+      const existingSnapshot = await fsDb.collection('storeChannelProducts').where('storeId', '==', storeId).where('channelId', '==', channelId).get();
+      existingSnapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
+      for (const productId of (productIds || [])) {
+        const docRef = fsDb.collection('storeChannelProducts').doc();
+        batch.set(docRef, { storeId, channelId, productId, createdAt: now });
+      }
+      await batch.commit();
+      res.json({ success: true, synced: (productIds || []).length });
+    } catch (error: any) {
+      console.error('[ChannelProducts] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/stores/:storeId/channels/:channelId/products", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeChannelProducts').where('storeId', '==', storeId).where('channelId', '==', channelId).get();
+      const products = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      res.json(products);
+    } catch (error: any) {
+      console.error('[ChannelProducts] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Store channel content (production)
+  app.get("/api/stores/:storeId/channels/:channelId/content", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeChannelContent').where('storeId', '==', storeId).where('channelId', '==', channelId).get();
+      const content = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      res.json(content);
+    } catch (error: any) {
+      console.error('[ChannelContent] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/stores/:storeId/channels/:channelId/content", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const contentData = req.body;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const docRef = fsDb.collection('storeChannelContent').doc();
+      await docRef.set({ ...contentData, storeId, channelId, createdAt: new Date().toISOString() });
+      res.json({ id: docRef.id, ...contentData, storeId, channelId });
+    } catch (error: any) {
+      console.error('[ChannelContent] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/stores/:storeId/channels/:channelId/content/:contentId", async (req: any, res) => {
+    try {
+      const { contentId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('storeChannelContent').doc(contentId).delete();
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[ChannelContent] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Store channel collections (production)
+  app.get("/api/stores/:storeId/channels/:channelId/collections", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeChannelCollections').where('storeId', '==', storeId).where('channelId', '==', channelId).get();
+      const collections = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      res.json(collections);
+    } catch (error: any) {
+      console.error('[ChannelCollections] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/stores/:storeId/channels/:channelId/collections", async (req: any, res) => {
+    try {
+      const { storeId, channelId } = req.params;
+      const collectionData = req.body;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const docRef = fsDb.collection('storeChannelCollections').doc();
+      await docRef.set({ ...collectionData, storeId, channelId, createdAt: new Date().toISOString() });
+      res.json({ id: docRef.id, ...collectionData, storeId, channelId });
+    } catch (error: any) {
+      console.error('[ChannelCollections] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/stores/:storeId/channels/:channelId/collections/:collectionName/items", async (req: any, res) => {
+    try {
+      const { storeId, channelId, collectionName } = req.params;
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeChannelCollections').where('storeId', '==', storeId).where('channelId', '==', channelId).where('name', '==', collectionName).get();
+      if (snapshot.empty) return res.json({ items: [] });
+      const collectionDoc = snapshot.docs[0];
+      const data = collectionDoc.data();
+      res.json({ items: data?.items || [] });
+    } catch (error: any) {
+      console.error('[CollectionItems] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== PRODUCTION PACKET ROUTES =====
+
+  app.post("/api/packets", async (req: any, res) => {
+    try {
+      const { 
+        qrOnlyUrl, 
+        compositeUrl, 
+        qrContent,
+        headerText,
+        footerText,
+        pricing,
+        productId,
+        productName,
+        productDescription,
+        productImageUrl,
+        blueprintId,
+        printProviderId,
+        manufacturer,
+        madeInUSA,
+        category,
+        defaultColor,
+        defaultColorHex,
+        defaultPlacement,
+        qrProductState,
+        placements,
+        availablePlacements,
+        sizes,
+        colors,
+        basePrice,
+        customerPrice,
+        mockupsByColor,
+        landingPageTitle,
+        landingPageDescription,
+        landingPageBackgroundUrl,
+        landingPageSlug,
+        headerStyle,
+        footerStyle,
+        roleType,
+        storeId,
+        storeName,
+        channelId,
+        channelName,
+        fulfillmentProvider,
+        playMediaUrl,
+        playMediaType,
+      } = req.body;
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const firestoreDb = getFirestoreDb();
+      
+      const now = FieldValue.serverTimestamp();
+      
+      const packetData = {
+        qrOnlyUrl: qrOnlyUrl || null,
+        compositeUrl: compositeUrl || null,
+        qrContent: qrContent || null,
+        headerText: headerText || null,
+        footerText: footerText || null,
+        pricing: pricing || null,
+        productId: productId || null,
+        productName: productName || null,
+        productDescription: productDescription || null,
+        productImageUrl: productImageUrl || null,
+        blueprintId: blueprintId || null,
+        printProviderId: printProviderId || null,
+        manufacturer: manufacturer || null,
+        madeInUSA: madeInUSA || false,
+        category: category || null,
+        defaultColor: defaultColor || null,
+        defaultColorHex: defaultColorHex || null,
+        defaultPlacement: defaultPlacement || null,
+        qrProductState: qrProductState || null,
+        placements: placements || [],
+        availablePlacements: availablePlacements || [],
+        sizes: sizes || [],
+        colors: colors || [],
+        basePrice: basePrice || null,
+        customerPrice: customerPrice || null,
+        mockupsByColor: mockupsByColor || null,
+        landingPageTitle: landingPageTitle || null,
+        landingPageDescription: landingPageDescription || null,
+        landingPageBackgroundUrl: landingPageBackgroundUrl || null,
+        landingPageSlug: landingPageSlug || null,
+        headerStyle: headerStyle || null,
+        footerStyle: footerStyle || null,
+        roleType: roleType || null,
+        storeId: storeId || null,
+        storeName: storeName || null,
+        channelId: channelId || null,
+        channelName: channelName || null,
+        fulfillmentProvider: fulfillmentProvider || 'printify',
+        playMediaUrl: playMediaUrl || null,
+        playMediaType: playMediaType || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      const packetRef = await firestoreDb.collection("productPackets").add(packetData);
+      const packetId = packetRef.id;
+      
+      console.log(`[Packets] Created packet: ${packetId}`);
+
+      let mockupJobsQueued = 0;
+      if (blueprintId && printProviderId && colors && Array.isArray(colors) && colors.length > 0) {
+        try {
+          const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
+          
+          const artworkUrl = compositeUrl || qrOnlyUrl;
+          if (artworkUrl) {
+            const targetPlacements = (placements && placements.length > 0) ? placements : ["front"];
+            const qrSizes: Array<"small" | "medium" | "large"> = ["small", "medium", "large"];
+            
+            const productIdForMockups = `packet_${packetId}`;
+            
+            console.log(`[Packets] Queueing mockups for ${colors.length} colors × ${targetPlacements.length} placements × ${qrSizes.length} sizes`);
+            
+            const jobs = await mockupJobQueue.createBatchJobs({
+              productId: productIdForMockups,
+              colors: colors.map((c: any) => ({ name: c.name || c, hex: c.hex || '#000000' })),
+              qrSizes,
+              placements: targetPlacements,
+              blueprintId: parseInt(blueprintId),
+              printProviderId: parseInt(printProviderId),
+              artworkUrl,
+              artworkVariant: "black",
+            });
+            
+            mockupJobsQueued = jobs.length;
+            console.log(`[Packets] Queued ${mockupJobsQueued} mockup jobs for packet ${packetId}`);
+          } else {
+            console.log(`[Packets] No artwork URL available yet, skipping mockup queue`);
+          }
+        } catch (err: any) {
+          console.error(`[Packets] Failed to queue mockup jobs:`, err.message);
+        }
+      }
+
+      res.json({
+        success: true,
+        packetId,
+        mockupJobsQueued,
+        message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
+      });
+    } catch (error: any) {
+      console.error("[Packets] Error creating packet:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/packets", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const snapshot = await firestoreDb.collection("productPackets")
+        .orderBy("createdAt", "desc")
+        .limit(100)
+        .get();
+      
+      const packets = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data?.createdAt?.toDate?.() || null,
+          updatedAt: data?.updatedAt?.toDate?.() || null,
+        };
+      });
+      
+      console.log(`[Packets] Retrieved ${packets.length} packets`);
+      
+      res.json({
+        success: true,
+        packets,
+        count: packets.length,
+      });
+    } catch (error: any) {
+      console.error("[Packets] Error getting packets:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/packets/:packetId", async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+
+      if (!packetId) {
+        return res.status(400).json({ error: "packetId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const doc = await firestoreDb.collection("productPackets").doc(packetId).get();
+      
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+      
+      const data = doc.data();
+      
+      let linkedTemplateId = null;
+      const templatesSnapshot = await firestoreDb.collection("productTemplates")
+        .where("packetId", "==", packetId)
+        .limit(1)
+        .get();
+      
+      if (!templatesSnapshot.empty) {
+        linkedTemplateId = templatesSnapshot.docs[0].id;
+      }
+      
+      res.json({
+        success: true,
+        packet: {
+          id: doc.id,
+          ...data,
+          templateId: linkedTemplateId,
+          createdAt: data?.createdAt?.toDate?.() || null,
+          updatedAt: data?.updatedAt?.toDate?.() || null,
+        },
+      });
+    } catch (error: any) {
+      console.error("[Packets] Error getting packet:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== PRODUCTION STORE-PRODUCT-LINKS ROUTES =====
+
+  app.get("/api/store-product-links", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      
+      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+        .orderBy("createdAt", "desc")
+        .limit(100)
+        .get();
+
+      const links = linksSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || null,
+      }));
+
+      console.log(`[Store Links] Listed ${links.length} total links`);
+      res.json({ success: true, links, count: links.length });
+    } catch (error: any) {
+      console.error("[Store Links] Error listing links:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/store-product-links", async (req: any, res) => {
+    try {
+      const { 
+        storeId, storeName, channel, collection, packetId, templateId, graphicsId, 
+        qrContent, productName, compositeUrl, qrOnlyUrl, pricing,
+        enabledColors, enabledSizes, selectedGraphicSize, defaultColor,
+        qrProductState, landingPageUrl, mockupUrl
+      } = req.body;
+
+      console.log("[Store Links] Creating link:", { storeId, channel, packetId, templateId, productName });
+
+      if (!storeId || !channel) {
+        return res.status(400).json({ error: "storeId and channel are required" });
+      }
+      
+      if (!packetId && !templateId && !graphicsId) {
+        return res.status(400).json({ error: "At least one of packetId, templateId, or graphicsId is required" });
+      }
+
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const admin = (await import("./lib/firebase-admin")).getFirebaseAdmin();
+      
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      
+      const linkData = {
+        storeId,
+        storeName: storeName || "",
+        channel,
+        collection: collection || null,
+        packetId: packetId || null,
+        templateId: templateId || null,
+        graphicsId: graphicsId || null,
+        qrContent: qrContent || null,
+        productName: productName || null,
+        compositeUrl: compositeUrl || null,
+        qrOnlyUrl: qrOnlyUrl || null,
+        pricing: pricing || null,
+        enabledColors: enabledColors || [],
+        enabledSizes: enabledSizes || [],
+        selectedGraphicSize: selectedGraphicSize || null,
+        defaultColor: defaultColor || null,
+        qrProductState: qrProductState || null,
+        landingPageUrl: landingPageUrl || null,
+        mockupUrl: mockupUrl || null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      const linkRef = await firestoreDb.collection("storeProductLinks").add(linkData);
+      
+      console.log(`[Store Links] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);
+
+      res.json({
+        success: true,
+        linkId: linkRef.id,
+        message: `Product linked to ${storeName || storeId} / ${channel}`,
+      });
+    } catch (error: any) {
+      console.error("[Store Links] Error creating link:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== PRODUCTION MOCKUP PRIORITY ROUTE =====
+
+  app.post("/api/mockup/priority", async (req: any, res) => {
+    try {
+      const { 
+        blueprintId, printProviderId, colorName, colorHex, 
+        placement, artworkUrl, qrSize = "medium",
+        fulfillmentProvider = "printify"
+      } = req.body;
+
+      if (!blueprintId || !colorName || !artworkUrl) {
+        return res.status(400).json({ 
+          error: "Missing required fields: blueprintId, colorName, artworkUrl" 
+        });
+      }
+
+      console.log(`[Priority Mockup] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
+
+      const { getMockupWithFallback } = await import("./lib/mockup-service");
+      const storage = (await import("./storage")).storage;
+      
+      const result = await getMockupWithFallback({
+        blueprintId: parseInt(blueprintId),
+        printProviderId: parseInt(printProviderId) || 99,
+        colorName,
+        colorHex,
+        canonicalPlacementId: placement || "FRONT_CHEST",
+        artworkUrl,
+        artworkVariant: "black",
+        qrSize: qrSize as 'small' | 'medium' | 'large',
+        fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
+      }, storage);
+
+      console.log(`[Priority Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+
+      res.json({
+        success: true,
+        mockupUrl: result.mockupUrl,
+        lifestyleMockupUrl: result.lifestyleMockupUrl,
+        fromCache: result.fromCache,
+        generatedAt: result.generatedAt,
+      });
+    } catch (error: any) {
+      console.error("[Priority Mockup] Error:", error);
+      res.json({
+        success: false,
+        error: error.message,
+        mockupUrl: null,
+        message: "Mockup generation in progress - check back shortly",
+      });
+    }
+  });
+
+  // ===== END ADMIN STORE ROUTES =====
+
   // File upload API for multipart form data (custom designs, etc.)
   app.post("/api/upload", async (req, res) => {
     try {
