@@ -1862,6 +1862,132 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
+  app.post("/api/admin/products/bulk-import", isAdmin, async (req: any, res) => {
+    try {
+      console.log('[BulkImport] Starting bulk product import from cached blueprints...');
+      const { detectCategory } = await import("../lib/printify");
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+
+      const existingProducts = await storage.getAllProducts();
+      const existingBlueprintProviders = new Set(
+        existingProducts
+          .filter(p => p.blueprintId && p.printProviderId)
+          .map(p => `${p.blueprintId}_${p.printProviderId}`)
+      );
+
+      const blueprintsSnap = await fsDb.collection('printifyBlueprints').get();
+      const blueprintMap = new Map<number, any>();
+      blueprintsSnap.docs.forEach(doc => {
+        const d = doc.data();
+        blueprintMap.set(parseInt(doc.id), d);
+      });
+
+      const providersSnap = await fsDb.collection('printifyPrintProviders').get();
+
+      const bestProviders = new Map<number, any>();
+      providersSnap.docs.forEach(doc => {
+        const d = doc.data();
+        if (!d.minCost || d.minCost <= 0) return;
+        if (!d.availableColors || !Array.isArray(d.availableColors) || d.availableColors.length === 0) return;
+
+        const bpId = d.blueprintId;
+        const existing = bestProviders.get(bpId);
+        if (!existing || d.availableColors.length > (existing.availableColors?.length || 0)) {
+          bestProviders.set(bpId, { ...d, docId: doc.id });
+        }
+      });
+
+      console.log(`[BulkImport] Found ${blueprintMap.size} blueprints, ${bestProviders.size} with cost+color data`);
+
+      const pricingDoc = await fsDb.collection("testSettings").doc("pricing").get();
+      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+      const markupPercent = pricingSettings?.markupPercent ?? 25;
+      const markupFixed = pricingSettings?.markupFixed ?? 0;
+
+      let created = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const [blueprintId, provider] of bestProviders.entries()) {
+        const key = `${blueprintId}_${provider.providerId}`;
+        if (existingBlueprintProviders.has(key)) {
+          skipped++;
+          continue;
+        }
+
+        const blueprint = blueprintMap.get(blueprintId);
+        if (!blueprint) {
+          skipped++;
+          continue;
+        }
+
+        try {
+          const baseCostCents = provider.minCost || 0;
+          const baseCost = (baseCostCents / 100).toFixed(2);
+          const baseCostNum = baseCostCents / 100;
+          const customerPrice = (Math.ceil((baseCostNum * (1 + markupPercent / 100) + markupFixed) * 100) / 100).toFixed(2);
+
+          const category = blueprint.category || detectCategory(blueprint.title || '', blueprint.brand || '');
+          const productId = `printify_${blueprintId}_${provider.providerId}`;
+
+          const placements = ['front'];
+          if (category === 't-shirts' || category === 'hoodies' || category === 'long-sleeves') {
+            placements.push('back');
+          }
+
+          await storage.createProduct({
+            id: productId,
+            printifyId: null,
+            blueprintId: blueprintId,
+            printProviderId: provider.providerId,
+            name: blueprint.title || `Product ${blueprintId}`,
+            description: blueprint.description || `${blueprint.brand || ''} ${blueprint.title || ''}`.trim(),
+            category: category,
+            basePrice: baseCost,
+            customerPrice: customerPrice,
+            imageUrl: blueprint.primaryImageUrl || blueprint.images?.[0] || null,
+            manufacturer: blueprint.brand || null,
+            madeInUSA: false,
+            availablePlacements: placements,
+            availableColors: provider.availableColors || [],
+            availableSizes: provider.availableSizes || [],
+            metadata: {
+              fulfillmentProvider: 'printify',
+              importedAt: new Date().toISOString(),
+              maxCost: provider.maxCost ? (provider.maxCost / 100).toFixed(2) : baseCost,
+            },
+            isEnabled: true,
+            isFeatured: false,
+            markupPercent: String(markupPercent),
+            markupFixed: String(markupFixed),
+            qrProductionCost: "0",
+            sortOrder: created,
+          });
+          created++;
+
+          if (created % 50 === 0) {
+            console.log(`[BulkImport] Created ${created} products so far...`);
+          }
+        } catch (err: any) {
+          errors.push(`Blueprint ${blueprintId}: ${err.message}`);
+        }
+      }
+
+      console.log(`[BulkImport] Complete: ${created} created, ${skipped} skipped, ${errors.length} errors`);
+      res.json({
+        success: true,
+        created,
+        skipped,
+        errors: errors.slice(0, 10),
+        total: bestProviders.size,
+      });
+    } catch (error: any) {
+      console.error('[BulkImport] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Admin: Assign categories to a product
   app.post("/api/admin/products/:id/categories", isAdmin, async (req: any, res) => {
     try {
