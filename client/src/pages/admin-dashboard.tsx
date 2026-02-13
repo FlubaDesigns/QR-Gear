@@ -390,14 +390,6 @@ export default function AdminDashboard() {
                 <DollarSign className="qr-admin-quicklink__icon" />
                 <span>Pricing</span>
               </Link>
-              <Link href="/admin/test-images" className="qr-admin-quicklink" data-testid="link-test-images">
-                <Image className="qr-admin-quicklink__icon" />
-                <span>Test Images</span>
-              </Link>
-              <Link href="/admin/test-library" className="qr-admin-quicklink" data-testid="link-test-library">
-                <Library className="qr-admin-quicklink__icon" />
-                <span>Test Library</span>
-              </Link>
               <Link href="/admin/test-products" className="qr-admin-quicklink" data-testid="link-test-products">
                 <Package className="qr-admin-quicklink__icon" />
                 <span>Test Products</span>

@@ -71,7 +71,6 @@ import BusinessAnalyticsQR from "@/pages/business-analytics-qr";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 import LogoPreview from "@/pages/logo-preview";
-import TestLibrary from "@/pages/test-library";
 import TestProducts from "@/pages/test-products";
 import TestStores from "@/pages/test-stores";
 import TestStoreBuilder from "@/pages/test-store-builder";
@@ -145,7 +144,6 @@ function Router() {
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
-      <Route path="/admin/test-library" component={TestLibrary} />
       <Route path="/admin/test-products" component={TestProducts} />
       <Route path="/admin/test-stores" component={TestStores} />
       <Route path="/admin/test-dynamics" component={TestDynamics} />
