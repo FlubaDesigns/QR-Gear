@@ -695,19 +695,31 @@ small { color: var(--text-2); }
 }
 
 /* ===== Mobile Responsive Admin ===== */
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .qr-admin-bar__inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
+    padding: 0.5rem 0.5rem;
+    gap: 0.5rem;
   }
-  
+
+  .qr-admin-bar__title {
+    font-size: 1rem;
+  }
+
   .qr-admin-bar__left {
-    justify-content: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
   }
-  
+
   .qr-admin-bar__right {
-    justify-content: center;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.25rem;
+  }
+
+  .qr-admin-main {
+    padding: 0.75rem 0.5rem;
   }
   
   .qr-admin-quicklinks {

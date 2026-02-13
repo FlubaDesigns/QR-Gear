@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import AdminShell from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  ArrowLeft,
   Activity,
   CheckCircle,
   AlertCircle,
@@ -155,8 +154,6 @@ function LogEntry({ log }: { log: ProviderHealthLog }) {
 }
 
 export default function AdminHealth() {
-  const [, navigate] = useLocation();
-
   const { data, isLoading, refetch, isRefetching } = useQuery<HealthOverview>({
     queryKey: ["/api/admin/health"],
     refetchInterval: 30000,
@@ -166,47 +163,23 @@ export default function AdminHealth() {
   const recentLogs = data?.recentLogs || [];
 
   return (
-    <div className="qr-admin-page">
-<div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
-          <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10 min-h-12 min-w-12"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Activity className="qr-admin-bar__icon" />
-              <div>
-                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
-                  System Health
-                </h1>
-                <p className="qr-admin-bar__subtitle">
-                  Provider & service monitoring
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="qr-admin-bar__right">
-            <Button
-              variant="outline"
-              onClick={() => refetch()}
-              disabled={isRefetching}
-              className="border-slate-600 text-slate-300 min-h-12"
-              data-testid="button-refresh"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <main className="qr-admin-main">
+    <AdminShell
+      title="System Health"
+      subtitle="Provider & service monitoring"
+      icon={Activity}
+      actions={
+        <Button
+          variant="outline"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="border-slate-600 text-slate-300 min-h-12"
+          data-testid="button-refresh"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      }
+    >
         {isLoading ? (
           <div className="space-y-6">
             <div className="qr-admin-grid qr-admin-grid--2">
@@ -290,7 +263,6 @@ export default function AdminHealth() {
             </Card>
           </div>
         )}
-      </main>
-    </div>
+    </AdminShell>
   );
 }

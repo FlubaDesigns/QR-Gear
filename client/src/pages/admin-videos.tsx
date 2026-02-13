@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Video, Play, Pause } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Video, Play, Pause } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
 import type { LibraryAsset } from "@shared/schema";
 
@@ -227,26 +228,22 @@ function VideosContent() {
     );
   }
 
-  return (
-    <div className="container mx-auto py-6 px-4 max-w-6xl">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/admin">
-          <Button variant="ghost" size="icon" className="h-12 w-12" data-testid="button-back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Video Library</h1>
-          <p className="text-muted-foreground">Manage video backgrounds for QR landing pages</p>
-        </div>
-        <div className="ml-auto">
-          <Button onClick={handleOpenCreate} data-testid="button-add-video">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Video
-          </Button>
-        </div>
-      </div>
+  const addVideoButton = (
+    <Button onClick={handleOpenCreate} data-testid="button-add-video">
+      <Plus className="h-4 w-4 mr-2" />
+      Add Video
+    </Button>
+  );
 
+  return (
+    <AdminShell
+      title="Video Library"
+      subtitle="Manage video backgrounds for QR landing pages"
+      icon={Video}
+      backHref="/admin"
+      backLabel="Back"
+      actions={addVideoButton}
+    >
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Filters</CardTitle>
@@ -490,7 +487,7 @@ function VideosContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminShell>
   );
 }
 
@@ -511,9 +508,5 @@ export default function AdminVideosPage() {
     return null;
   }
 
-  return (
-    <div className="min-h-screen">
-<VideosContent />
-    </div>
-  );
+  return <VideosContent />;
 }

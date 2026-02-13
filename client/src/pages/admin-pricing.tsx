@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
 import {
-  ArrowLeft, DollarSign, Percent, Layers, Type, Clock, Save, Loader2, Check, Tag,
+  DollarSign, Percent, Layers, Type, Clock, Save, Loader2, Check, Tag,
   Plus, Trash2,
 } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -486,35 +486,23 @@ export default function AdminPricing() {
   if (isLoading) {
     return (
       <AdminAuthProvider apiBase="/api">
-        <div className="min-h-screen flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <AdminShell title="Pricing Configuration" icon={DollarSign} backHref="/admin/products" backLabel="Back to Products">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </AdminShell>
       </AdminAuthProvider>
     );
   }
 
   return (
     <AdminAuthProvider apiBase="/api">
-    <div className="page-wrap">
-      <div className="container mobile-compact mobile-compact-stack">
-        <div className="glass-card">
-          <div className="flex flex-col gap-4">
-            <Link href="/admin/products" className="block">
-              <button 
-                className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                Back to Products
-              </button>
-            </Link>
-            <h1 className="glass-title text-lg flex items-center gap-2" data-testid="text-page-title">
-              <DollarSign className="h-5 w-5 text-green-600" />
-              Pricing Configuration
-            </h1>
-          </div>
-        </div>
-
+    <AdminShell
+      title="Pricing Configuration"
+      icon={DollarSign}
+      backHref="/admin/products"
+      backLabel="Back to Products"
+    >
         <div className="grid gap-6">
           <Card>
             <CardHeader>
@@ -911,8 +899,7 @@ export default function AdminPricing() {
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
+    </AdminShell>
     </AdminAuthProvider>
   );
 }

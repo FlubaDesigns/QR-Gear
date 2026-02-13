@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
   Users,
   Search,
   Mail,
@@ -24,6 +23,7 @@ import {
   DollarSign,
   ExternalLink,
 } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import type { User, OrderUnified } from "@shared/schema";
 import { getDisplayName, getInitials } from "@/lib/admin-utils";
 
@@ -237,7 +237,6 @@ function CustomerDetailModal({
 }
 
 export default function AdminCustomers() {
-  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
@@ -257,37 +256,13 @@ export default function AdminCustomers() {
   });
 
   return (
-    <div className="min-h-screen">
-<div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Users className="h-6 w-6 text-amber-400" />
-                <div>
-                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    Customers
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    {customers?.length || 0} total customers
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <main className="container max-w-6xl mx-auto py-6 px-4">
+    <AdminShell
+      title="Customers"
+      subtitle={`${customers?.length || 0} total customers`}
+      icon={Users}
+      backHref="/admin"
+      backLabel="Back"
+    >
         <div className="mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -348,7 +323,6 @@ export default function AdminCustomers() {
           open={!!selectedCustomerId}
           onClose={() => setSelectedCustomerId(null)}
         />
-      </main>
-    </div>
+    </AdminShell>
   );
 }

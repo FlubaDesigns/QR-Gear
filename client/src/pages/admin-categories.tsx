@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, Link } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,10 +37,10 @@ import {
   Music,
   Palette,
   Tag,
-  ArrowLeft,
   Loader2,
   RefreshCw,
 } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import {
   Category,
   CategoryInput,
@@ -340,7 +340,6 @@ function CategoriesContent() {
 }
 
 export default function AdminCategories() {
-  const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -351,56 +350,33 @@ export default function AdminCategories() {
     }
   };
 
-  return (
-    <div className="min-h-screen">
-<div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/admin")}
-                className="text-white hover:bg-white/10 h-12 w-12"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Tag className="h-6 w-6 text-amber-400" />
-                <div>
-                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    Templates
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Manage category templates
-                  </p>
-                </div>
-              </div>
-            </div>
-            {user && (
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs text-slate-400">Logged in as</p>
-                  <p className="text-sm font-medium">{user.email || user.id}</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  onClick={copyUserId}
-                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 h-12 px-4"
-                  data-testid="button-copy-user-id"
-                >
-                  Copy ID
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
+  const actionButtons = user ? (
+    <div className="flex items-center gap-3">
+      <div className="text-right hidden sm:block">
+        <p className="text-xs text-slate-400">Logged in as</p>
+        <p className="text-sm font-medium">{user.email || user.id}</p>
       </div>
-
-      <main className="container max-w-6xl mx-auto py-6 px-4">
-        <CategoriesContent />
-      </main>
+      <Button 
+        variant="outline" 
+        onClick={copyUserId}
+        className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 h-12 px-4"
+        data-testid="button-copy-user-id"
+      >
+        Copy ID
+      </Button>
     </div>
+  ) : undefined;
+
+  return (
+    <AdminShell
+      title="Templates"
+      subtitle="Manage category templates"
+      icon={Tag}
+      backHref="/admin"
+      backLabel="Back"
+      actions={actionButtons}
+    >
+      <CategoriesContent />
+    </AdminShell>
   );
 }

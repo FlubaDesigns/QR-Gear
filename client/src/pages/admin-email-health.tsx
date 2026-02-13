@@ -1,12 +1,11 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import AdminShell from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  ArrowLeft,
   Mail,
   CheckCircle,
   AlertCircle,
@@ -98,7 +97,6 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
 }
 
 export default function AdminEmailHealth() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
 
   const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useQuery<NexusMailStatus>({
@@ -160,46 +158,22 @@ export default function AdminEmailHealth() {
   };
 
   return (
-    <div className="qr-admin-page">
-<div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
-          <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10 min-h-12 min-w-12"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Mail className="qr-admin-bar__icon" />
-              <div>
-                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
-                  Email System Health
-                </h1>
-                <p className="qr-admin-bar__subtitle">
-                  NexusMail monitoring & controls
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="qr-admin-bar__right flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              className="border-slate-600 text-slate-300 min-h-12"
-              data-testid="button-refresh"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <main className="qr-admin-main">
+    <AdminShell
+      title="Email System Health"
+      subtitle="NexusMail monitoring & controls"
+      icon={Mail}
+      actions={
+        <Button
+          variant="outline"
+          onClick={handleRefresh}
+          className="border-slate-600 text-slate-300 min-h-12"
+          data-testid="button-refresh"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      }
+    >
         {isLoading ? (
           <div className="space-y-6">
             <Skeleton className="h-32 w-full" />
@@ -362,7 +336,6 @@ export default function AdminEmailHealth() {
             </Card>
           </div>
         )}
-      </main>
-    </div>
+    </AdminShell>
   );
 }

@@ -1,8 +1,7 @@
-import { useLocation, Link } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
-  ArrowLeft,
   Package,
   DollarSign,
   Image,
@@ -21,6 +20,7 @@ import {
   Mail,
   Book,
 } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
 
 const adminSections = [
@@ -123,7 +123,6 @@ const adminSections = [
 ];
 
 export default function Admin() {
-  const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -134,51 +133,27 @@ export default function Admin() {
     }
   };
 
-  return (
-    <div className="min-h-screen">
-<div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/")}
-                className="text-white hover:bg-white/10"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <Settings className="h-6 w-6 text-amber-400" />
-                <div>
-                  <h1 className="text-xl font-bold font-heading" data-testid="text-page-title">
-                    QR Gear Admin
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Manage products, pricing, and content
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {user && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={copyUserId}
-                  className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
-                  data-testid="button-copy-user-id"
-                >
-                  Copy ID
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+  const actionButtons = user ? (
+    <Button 
+      variant="outline" 
+      size="sm" 
+      onClick={copyUserId}
+      className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
+      data-testid="button-copy-user-id"
+    >
+      Copy ID
+    </Button>
+  ) : undefined;
 
-      <main className="container max-w-6xl mx-auto py-6 px-4">
+  return (
+    <AdminShell
+      title="QR Gear Admin"
+      subtitle="Manage products, pricing, and content"
+      icon={Settings}
+      backHref="/"
+      backLabel="Back"
+      actions={actionButtons}
+    >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {adminSections.map((section) => (
             <Link
@@ -205,7 +180,6 @@ export default function Admin() {
             </p>
           </div>
         )}
-      </main>
-    </div>
+    </AdminShell>
   );
 }

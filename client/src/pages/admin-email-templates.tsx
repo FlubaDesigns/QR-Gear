@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import AdminShell from "@/components/AdminShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Plus, Mail, Edit, Trash2, Send, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Mail, Edit, Trash2, Send, Clock, CheckCircle, XCircle } from "lucide-react";
 import type { EmailTemplate, EmailLog } from "@shared/schema";
 
 const EMAIL_TRIGGERS = [
@@ -37,7 +37,6 @@ const TEMPLATE_VARIABLES = {
 };
 
 export default function AdminEmailTemplates() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -127,33 +126,11 @@ export default function AdminEmailTemplates() {
   };
 
   return (
-    <div className="qr-admin-page">
-<div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
-          <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10 min-h-12 min-w-12"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Mail className="qr-admin-bar__icon" />
-              <div>
-                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
-                  Email Templates
-                </h1>
-                <p className="qr-admin-bar__subtitle">Manage email templates and view logs</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="qr-admin-main">
+    <AdminShell
+      title="Email Templates"
+      subtitle="Manage email templates and view logs"
+      icon={Mail}
+    >
         <Tabs defaultValue="templates" className="space-y-6">
           <TabsList className="min-h-12">
             <TabsTrigger value="templates" className="min-h-10 px-6" data-testid="tab-templates">
@@ -279,7 +256,6 @@ export default function AdminEmailTemplates() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
 
       <Dialog open={isCreateOpen || !!selectedTemplate} onOpenChange={(open) => { if (!open) { setIsCreateOpen(false); setSelectedTemplate(null); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -403,6 +379,6 @@ export default function AdminEmailTemplates() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminShell>
   );
 }

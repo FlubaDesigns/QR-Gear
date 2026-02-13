@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Gift, Plus, Edit, Trash2, Package, Sparkles, Clock, Eye, ArrowLeft, Copy, Mail, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { Gift, Plus, Edit, Trash2, Package, Sparkles, Clock, Eye, Copy, Mail, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import type { GiftPackage, GiftCode, GiftRedemption, MasterProduct } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -212,23 +212,13 @@ export default function AdminGiftsPage() {
   };
 
   return (
-    <div className="container max-w-7xl py-6 px-4">
-<div className="flex items-center gap-4 mb-6">
-        <Link href="/admin">
-          <Button variant="ghost" className="h-12 px-4" data-testid="button-back-admin">
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Back
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Gift className="h-6 w-6" />
-            Gift Management
-          </h1>
-          <p className="text-muted-foreground">Manage gift packages, codes, and redemptions</p>
-        </div>
-      </div>
-
+    <AdminShell
+      title="Gift Management"
+      subtitle="Manage gift packages, codes, and redemptions"
+      icon={Gift}
+      backHref="/admin"
+      backLabel="Back"
+    >
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="packages" className="!min-h-[48px] px-6" data-testid="tab-packages">
@@ -685,6 +675,6 @@ export default function AdminGiftsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminShell>
   );
 }

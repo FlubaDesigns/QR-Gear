@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  ArrowLeft,
   Book,
   ChevronRight,
   Search,
@@ -17,6 +14,7 @@ import {
   Layers,
   HelpCircle,
 } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 
 interface ManualSection {
   id: string;
@@ -321,7 +319,6 @@ const sections: ManualSection[] = [
 ];
 
 export default function AdminManual() {
-  const [, navigate] = useLocation();
   const [activeSection, setActiveSection] = useState<string>("getting-started");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -333,35 +330,13 @@ export default function AdminManual() {
   const currentSection = sections.find((s) => s.id === activeSection);
 
   return (
-    <div className="min-h-screen bg-background">
-<div className="bg-slate-900 dark:bg-slate-950 text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Book className="h-6 w-6 text-blue-400" />
-              <div>
-                <h1 className="text-xl font-bold" data-testid="text-page-title">
-                  Admin Manual
-                </h1>
-                <p className="text-xs text-slate-400">
-                  Complete guide to managing QR Gear
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="container max-w-6xl mx-auto px-4 py-6">
+    <AdminShell
+      title="Admin Manual"
+      subtitle="Complete guide to managing QR Gear"
+      icon={Book}
+      backHref="/admin"
+      backLabel="Back"
+    >
         <div className="grid lg:grid-cols-[280px_1fr] gap-6">
           <div className="space-y-4">
             <div className="relative">
@@ -430,7 +405,6 @@ export default function AdminManual() {
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
+    </AdminShell>
   );
 }

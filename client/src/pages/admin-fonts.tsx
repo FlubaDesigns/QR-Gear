@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Settings, Type, Plus, Trash2, GripVertical, Search, Loader2, Check, X, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -114,56 +115,48 @@ function FontManagerInner() {
 
   if (isLoading) {
     return (
-      <div className="page-wrap">
-        <div className="container mobile-compact mobile-compact-stack">
-          <div className="glass-card flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-          </div>
+      <AdminShell title="Font Management" icon={Settings}>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
         </div>
-      </div>
+      </AdminShell>
     );
   }
 
-  return (
-    <div className="page-wrap">
-      <div className="container mobile-compact mobile-compact-stack">
-        <div className="glass-card">
-          <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-            <h1 className="glass-title text-lg flex items-center gap-2" data-testid="text-page-title">
-              <Settings className="h-5 w-5 text-blue-400" />
-              Font Management
-            </h1>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetToDefaults}
-                data-testid="button-reset-fonts"
-              >
-                <RotateCcw className="h-4 w-4 mr-1" />
-                Defaults
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => saveMutation.mutate(localFonts)}
-                disabled={!hasChanges || saveMutation.isPending}
-                data-testid="button-save-fonts"
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <Check className="h-4 w-4 mr-1" />
-                )}
-                Save
-              </Button>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground mb-2">
-            {localFonts.length} font{localFonts.length !== 1 ? 's' : ''} active
-            {hasChanges && <span className="text-amber-400 ml-2">(unsaved changes)</span>}
-          </p>
-        </div>
+  const actionButtons = (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={resetToDefaults}
+        data-testid="button-reset-fonts"
+      >
+        <RotateCcw className="h-4 w-4 mr-1" />
+        Defaults
+      </Button>
+      <Button
+        size="sm"
+        onClick={() => saveMutation.mutate(localFonts)}
+        disabled={!hasChanges || saveMutation.isPending}
+        data-testid="button-save-fonts"
+      >
+        {saveMutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+        ) : (
+          <Check className="h-4 w-4 mr-1" />
+        )}
+        Save
+      </Button>
+    </div>
+  );
 
+  return (
+    <AdminShell
+      title="Font Management"
+      icon={Settings}
+      subtitle={`${localFonts.length} font${localFonts.length !== 1 ? 's' : ''} active${hasChanges ? ' (unsaved changes)' : ''}`}
+      actions={actionButtons}
+    >
         <div className="glass-card">
           <h2 className="glass-title text-base flex items-center gap-2 mb-3">
             <Type className="h-5 w-5 text-blue-400" />
@@ -296,8 +289,7 @@ function FontManagerInner() {
             </p>
           )}
         </div>
-      </div>
-    </div>
+    </AdminShell>
   );
 }
 

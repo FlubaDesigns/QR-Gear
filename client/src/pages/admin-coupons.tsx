@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import AdminShell from "@/components/AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +33,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  ArrowLeft,
   Tag,
   Plus,
   Percent,
@@ -323,7 +322,6 @@ function CouponCard({
 }
 
 export default function AdminCoupons() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -367,53 +365,31 @@ export default function AdminCoupons() {
   const FormTrigger = isMobile ? DrawerTrigger : DialogTrigger;
 
   return (
-    <div className="qr-admin-page">
-<div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
-          <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10 qr-touch-48"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
+    <AdminShell
+      title="Promo Codes"
+      subtitle="Manage discount codes"
+      icon={Tag}
+      actions={
+        <FormWrapper open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <FormTrigger asChild>
+            <Button className="qr-touch-48" data-testid="button-add-coupon">
+              <Plus className="h-5 w-5 mr-2" />
+              Add Code
             </Button>
-            <Tag className="qr-admin-bar__icon" />
-            <div>
-              <h1 className="qr-admin-bar__title" data-testid="text-page-title">
-                Promo Codes
-              </h1>
-              <p className="qr-admin-bar__subtitle">
-                Manage discount codes
-              </p>
-            </div>
-          </div>
-          <div className="qr-admin-bar__right">
-            <FormWrapper open={isFormOpen} onOpenChange={setIsFormOpen}>
-              <FormTrigger asChild>
-                <Button className="qr-touch-48" data-testid="button-add-coupon">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Add Code
-                </Button>
-              </FormTrigger>
-              <FormContent className={isMobile ? "" : "max-w-lg"}>
-                <FormHeader>
-                  <FormTitle>Create Promo Code</FormTitle>
-                </FormHeader>
-                <CouponForm
-                  onSubmit={(data) => createMutation.mutate(data)}
-                  onCancel={() => setIsFormOpen(false)}
-                  isPending={createMutation.isPending}
-                />
-              </FormContent>
-            </FormWrapper>
-          </div>
-        </div>
-      </div>
-
-      <main className="qr-admin-main">
+          </FormTrigger>
+          <FormContent className={isMobile ? "" : "max-w-lg"}>
+            <FormHeader>
+              <FormTitle>Create Promo Code</FormTitle>
+            </FormHeader>
+            <CouponForm
+              onSubmit={(data) => createMutation.mutate(data)}
+              onCancel={() => setIsFormOpen(false)}
+              isPending={createMutation.isPending}
+            />
+          </FormContent>
+        </FormWrapper>
+      }
+    >
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
@@ -447,7 +423,6 @@ export default function AdminCoupons() {
             </CardContent>
           </Card>
         )}
-      </main>
-    </div>
+    </AdminShell>
   );
 }

@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Link } from "wouter";
 import { 
-  ArrowLeft, Zap, Store, Layers, Film, 
+  Zap, Store, Layers, Film, 
   Check, Loader2, Plus, X, Calendar, Clock, 
   Play, Eye, RefreshCw, ExternalLink
 } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -369,24 +369,13 @@ export default function TestDynamicsPage() {
   );
 
   return (
-    <div className="page-wrap" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
-      <div className="container mobile-compact mobile-compact-stack">
-        <div className="glass-card">
-          <h1 className="glass-title text-lg flex items-center gap-2 mb-2" data-testid="text-page-title">
-            <Zap className="h-5 w-5 text-yellow-400" />
-            QR Dynamics V2
-          </h1>
-          <p className="text-sm text-blue-200 mb-4">
-            Build time-based rotating QR content with precise duration control
-          </p>
-          <Link href="/admin/products">
-            <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="button-back">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Products
-            </button>
-          </Link>
-        </div>
-
+    <AdminShell
+      title="QR Dynamics V2"
+      icon={Zap}
+      subtitle="Build time-based rotating QR content with precise duration control"
+      backHref="/admin/products"
+      backLabel="Back to Products"
+    >
         {error && (
           <div className="glass-card bg-red-500/20 border-red-500/50">
             <p className="text-red-200">{error}</p>
@@ -698,7 +687,6 @@ export default function TestDynamicsPage() {
             )}
           </>
         )}
-      </div>
-    </div>
+    </AdminShell>
   );
 }

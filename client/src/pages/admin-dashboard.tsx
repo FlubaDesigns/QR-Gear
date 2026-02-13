@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
+import AdminShell from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ArrowLeft,
   LayoutDashboard,
   DollarSign,
   ShoppingCart,
@@ -153,55 +153,31 @@ function SkeletonCard() {
 }
 
 export default function AdminDashboard() {
-  const [, navigate] = useLocation();
-
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
     queryKey: ["/api/admin/dashboard/metrics"],
   });
 
   return (
-    <div className="qr-admin-page">
-<div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
-          <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10 min-h-12 min-w-12"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <LayoutDashboard className="qr-admin-bar__icon hidden sm:block" />
-              <div>
-                <h1 className="qr-admin-bar__title" data-testid="text-page-title">
-                  Dashboard
-                </h1>
-                <p className="qr-admin-bar__subtitle hidden sm:block">
-                  Business metrics & health
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="qr-admin-bar__right">
-            <Button asChild variant="outline" size="icon" className="border-slate-600 text-slate-300 qr-touch-48 sm:hidden">
-              <Link href="/admin/health">
-                <Activity className="h-5 w-5" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="border-slate-600 text-slate-300 qr-touch-48 hidden sm:flex">
-              <Link href="/admin/health">
-                <Activity className="h-4 w-4 mr-2" />
-                System Health
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <main className="qr-admin-main">
+    <AdminShell
+      title="Dashboard"
+      subtitle="Business metrics & health"
+      icon={LayoutDashboard}
+      actions={
+        <>
+          <Button asChild variant="outline" size="icon" className="border-slate-600 text-slate-300 qr-touch-48 sm:hidden">
+            <Link href="/admin/health">
+              <Activity className="h-5 w-5" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="border-slate-600 text-slate-300 qr-touch-48 hidden sm:flex">
+            <Link href="/admin/health">
+              <Activity className="h-4 w-4 mr-2" />
+              System Health
+            </Link>
+          </Button>
+        </>
+      }
+    >
         {isLoading ? (
           <div className="qr-admin-grid qr-admin-grid--4">
             {[...Array(8)].map((_, i) => (
@@ -372,7 +348,6 @@ export default function AdminDashboard() {
 
           </>
         )}
-      </main>
-    </div>
+    </AdminShell>
   );
 }

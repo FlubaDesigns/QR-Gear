@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useLocation, Link } from "wouter";
+import { Link } from "wouter";
+import AdminShell from "@/components/AdminShell";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Plus, Edit, Trash2, Store, Copy, RefreshCw, ExternalLink, Key, Globe, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Store, Copy, RefreshCw, ExternalLink, Key, Globe, Loader2 } from "lucide-react";
 import type { PartnerStore } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -49,7 +50,6 @@ const defaultFormData: StoreFormData = {
 };
 
 export default function AdminPartners() {
-  const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const [showDialog, setShowDialog] = useState(false);
@@ -199,49 +199,29 @@ export default function AdminPartners() {
   };
 
   return (
-    <div className="qr-admin-page">
-<div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
-          <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10 qr-touch-48"
-              data-testid="button-back"
+    <AdminShell
+      title="Store Management"
+      subtitle="Internal stores (ours) & partner stores (external)"
+      icon={Store}
+      actions={
+        user ? (
+          <>
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-slate-400">Logged in as</p>
+              <p className="text-sm font-medium">{user.email || user.id}</p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={copyUserId}
+              className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 qr-touch-48"
+              data-testid="button-copy-user-id"
             >
-              <ArrowLeft className="h-5 w-5" />
+              Copy ID
             </Button>
-            <Store className="qr-admin-bar__icon" />
-            <div>
-              <h1 className="qr-admin-bar__title" data-testid="text-page-title">
-                Store Management
-              </h1>
-              <p className="qr-admin-bar__subtitle">
-                Internal stores (ours) & partner stores (external)
-              </p>
-            </div>
-          </div>
-          {user && (
-            <div className="qr-admin-bar__right">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs text-slate-400">Logged in as</p>
-                <p className="text-sm font-medium">{user.email || user.id}</p>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={copyUserId}
-                className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 qr-touch-48"
-                data-testid="button-copy-user-id"
-              >
-                Copy ID
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <main className="qr-admin-main">
+          </>
+        ) : undefined
+      }
+    >
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
             <div>
@@ -376,7 +356,6 @@ export default function AdminPartners() {
             </Link>
           </CardContent>
         </Card>
-      </main>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -650,6 +629,6 @@ export default function AdminPartners() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminShell>
   );
 }

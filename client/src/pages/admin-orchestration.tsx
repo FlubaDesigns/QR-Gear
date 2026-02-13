@@ -1,4 +1,4 @@
-import { useLocation, Link } from "wouter";
+import AdminShell from "@/components/AdminShell";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
-  ArrowLeft,
   Package,
   Plus,
   RefreshCw,
@@ -63,7 +62,6 @@ type ProductType = "hat" | "shirt" | "mug" | "bag" | "other";
 type ProductStatus = "draft" | "active" | "paused" | "archived";
 
 export default function AdminOrchestration() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<MasterProduct | null>(null);
@@ -454,45 +452,22 @@ export default function AdminOrchestration() {
   };
 
   return (
-    <div className="qr-admin-page">
-<div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
-          <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/admin")}
-              className="text-white hover:bg-white/10 qr-touch-48"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="sr-only">Back to Admin</span>
-            </Button>
-            <Layers className="qr-admin-bar__icon" />
-            <div>
-              <h1 className="qr-admin-bar__title" data-testid="text-page-title">
-                Multi-Provider Orchestration
-              </h1>
-              <p className="qr-admin-bar__subtitle">
-                Manage products across Printify, Printful, Etsy, eBay, Amazon
-              </p>
-            </div>
-          </div>
-          <div className="qr-admin-bar__right">
-            <Button
-              onClick={() => refetchProducts()}
-              variant="outline"
-              className="qr-touch-48 border-slate-600 text-slate-300 hover:bg-slate-800"
-              data-testid="button-refresh"
-            >
-              <RefreshCw className="h-5 w-5 mr-2" />
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <main className="qr-admin-main">
+    <AdminShell
+      title="Multi-Provider Orchestration"
+      subtitle="Manage products across Printify, Printful, Etsy, eBay, Amazon"
+      icon={Layers}
+      actions={
+        <Button
+          onClick={() => refetchProducts()}
+          variant="outline"
+          className="qr-touch-48 border-slate-600 text-slate-300 hover:bg-slate-800"
+          data-testid="button-refresh"
+        >
+          <RefreshCw className="h-5 w-5 mr-2" />
+          Refresh
+        </Button>
+      }
+    >
         <Tabs defaultValue="products" className="w-full">
           <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 mb-6 gap-1 h-auto p-1">
             <TabsTrigger value="products" className="!min-h-[48px] text-base px-4 py-3" data-testid="tab-products">
@@ -1714,8 +1689,7 @@ export default function AdminOrchestration() {
             )}
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+    </AdminShell>
   );
 }
 
