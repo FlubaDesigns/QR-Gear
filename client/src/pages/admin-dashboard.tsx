@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Clock,
   Activity,
+  Library,
 } from "lucide-react";
 import { formatCurrency, formatTrend } from "@/lib/admin-utils";
 
@@ -354,6 +355,10 @@ export default function AdminDashboard() {
               <Link href="/admin/store-builder" className="qr-admin-quicklink" data-testid="link-store-builder">
                 <Package className="qr-admin-quicklink__icon" />
                 <span>Store Builder</span>
+              </Link>
+              <Link href="/admin/store-library" className="qr-admin-quicklink" data-testid="link-store-library">
+                <Library className="qr-admin-quicklink__icon" />
+                <span>Store Library</span>
               </Link>
             </div>
           </>
