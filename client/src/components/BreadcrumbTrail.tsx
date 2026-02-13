@@ -10,6 +10,7 @@ const routeLabels: Record<string, string> = {
   "cart": "Cart",
   "checkout": "Checkout",
   "member": "Members",
+  "members": "Members",
   "login": "Sign In",
   "register": "Register",
   "gifts": "Gifts",
@@ -24,6 +25,7 @@ const routeLabels: Record<string, string> = {
   "pricing": "Pricing",
   "library": "Library",
   "store-builder": "Store Builder",
+  "store-library": "Store Library",
   "fonts": "Fonts",
   "dynamics": "Dynamics",
   "ar-demo": "AR Demo",
@@ -35,6 +37,12 @@ const routeLabels: Record<string, string> = {
   "orders": "Orders",
   "manual": "Manual",
   "orchestration": "Orchestration",
+  "partners": "Partners",
+  "coupons": "Coupons",
+  "dashboard": "Dashboard",
+  "email-templates": "Email Templates",
+  "email-health": "Email Health",
+  "sales": "Sales",
 };
 
 interface BreadcrumbTrailProps {
@@ -48,9 +56,11 @@ export default function BreadcrumbTrail({ dynamicLabel, currentPage }: Breadcrum
 
   if (segments.length === 0) return null;
 
-  const crumbs: { label: string; href: string }[] = [
-    { label: "Home", href: "/" },
-  ];
+  const crumbs: { label: string; href: string }[] = [];
+
+  if (segments.length === 1) {
+    crumbs.push({ label: "Home", href: "/" });
+  }
 
   let path = "";
   segments.forEach((seg, i) => {
