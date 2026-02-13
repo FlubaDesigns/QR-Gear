@@ -72,10 +72,6 @@ function AdminQuickAccess() {
         <DollarSign className="w-4 h-4" />
         Pricing
       </Link>
-      <Link href="/admin/test-images" className="admin-quick-link" data-testid="link-test-images">
-        <Image className="w-4 h-4" />
-        Test Images
-      </Link>
       <Link href="/admin/test-library" className="admin-quick-link" data-testid="link-test-library">
         <Library className="w-4 h-4" />
         Test Library
