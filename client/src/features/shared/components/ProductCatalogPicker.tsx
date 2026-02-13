@@ -69,7 +69,7 @@ export function ProductCatalogPicker({
     queryFn: async () => {
       const endpoint = provider === "printify" 
         ? `${apiBase}/printify/catalog` 
-        : `${apiBase}/catalog/printful-products`;
+        : `/api/catalog/printful-products`;
       const res = await fetch(endpoint);
       if (!res.ok) return [];
       const data = await res.json();
@@ -110,7 +110,7 @@ export function ProductCatalogPicker({
       if (!category) return null;
       const endpoint = provider === "printify" 
         ? `${apiBase}/printify/catalog` 
-        : `${apiBase}/catalog/printful-products`;
+        : `/api/catalog/printful-products`;
       const res = await fetch(endpoint);
       if (!res.ok) return null;
       const data = await res.json();

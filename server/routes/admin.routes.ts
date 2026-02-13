@@ -1518,6 +1518,39 @@ export function registerAdminRoutes(app: Express): void {
   // END LOCAL CATALOG SYNC ENDPOINTS
   // ========================================
 
+  // Public Printful catalog (no auth — catalog data is not sensitive, matches /api/printify/catalog pattern)
+  app.get("/api/catalog/printful-products", async (_req: any, res) => {
+    try {
+      const { printfulProducts } = await import("@shared/schema");
+      const { desc } = await import("drizzle-orm");
+      const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
+      const grouped: Record<string, any[]> = {};
+      for (const p of products) {
+        const categoryName = p.typeName || p.type || "Other";
+        if (!grouped[categoryName]) grouped[categoryName] = [];
+        const placements = (p.availablePlacements || []).map((pid: string) => ({
+          id: pid, type: pid,
+          title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          additionalPrice: 0,
+        }));
+        grouped[categoryName].push({
+          id: p.id, title: p.title, brand: p.brand || "", model: p.model || "",
+          imageUrl: p.image || null,
+          madeInUSA: (p.originCountry || "").toUpperCase() === "US",
+          minPrice: p.minPrice || null, maxPrice: p.maxPrice || null,
+          colorCount: 0, availableColors: [], availableSizes: [],
+          blueprintId: p.id, printProviderId: null, hasMockupMapping: false,
+          fulfillmentProvider: 'printful',
+          placements: placements.length > 0 ? placements : null,
+        });
+      }
+      const result = Object.entries(grouped).map(([name, items]) => ({ name, items, count: items.length }));
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Add product from Printify catalog
   app.post("/api/admin/products/from-printify", isAdmin, async (req: any, res) => {
     try {

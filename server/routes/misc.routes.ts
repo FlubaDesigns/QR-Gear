@@ -4078,14 +4078,29 @@ ${allPages.map(page => `  <url>
         }));
         
         return {
-          ...product,
+          id: product.id,
+          title: product.title,
+          brand: product.brand || "",
+          model: product.model || "",
+          imageUrl: product.image || null,
+          madeInUSA: (product.originCountry || "").toUpperCase() === "US",
+          minPrice: product.minPrice || null,
+          maxPrice: product.maxPrice || null,
+          colorCount: 0,
+          availableColors: [],
+          availableSizes: [],
+          blueprintId: product.id,
+          printProviderId: null,
+          hasMockupMapping: false,
+          fulfillmentProvider: 'printful' as const,
           placements: placements.length > 0 ? placements : null,
         };
       });
       
       const categoryMap = new Map<string, any[]>();
       for (const product of transformedProducts) {
-        const category = product.type || "Other";
+        const raw = products.find(p => p.id === product.id);
+        const category = raw?.typeName || raw?.type || "Other";
         if (!categoryMap.has(category)) {
           categoryMap.set(category, []);
         }

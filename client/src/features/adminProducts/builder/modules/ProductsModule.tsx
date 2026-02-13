@@ -83,15 +83,9 @@ export function ProductsModule() {
     queryKey: ["catalog-categories", provider],
     queryFn: async () => {
       const headers = await api.getAuthHeaders();
-      const isTestEndpoint = api.baseUrl.includes("/test");
-      const adminSegment = isTestEndpoint ? "" : "/admin";
-      let endpoint = "";
-      
-      if (provider === "printify") {
-        endpoint = `${api.baseUrl}/printify/catalog`;
-      } else if (provider === "printful") {
-        endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
-      }
+      const endpoint = provider === "printify"
+        ? `${api.baseUrl}/printify/catalog`
+        : `/api/catalog/printful-products`;
       
       if (!endpoint) return [];
       
@@ -106,7 +100,6 @@ export function ProductsModule() {
           itemCount: cat.items?.length || 0,
         }));
       } else if (provider === "printful") {
-        // Backend returns pre-grouped categories: [{ name, items, count }]
         return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
           name: cat.name,
           itemCount: cat.count || cat.items?.length || 0,
@@ -139,15 +132,9 @@ export function ProductsModule() {
       if (!state.category) return null;
       
       const headers = await api.getAuthHeaders();
-      const isTestEndpoint = api.baseUrl.includes("/test");
-      const adminSegment = isTestEndpoint ? "" : "/admin";
-      let endpoint = "";
-      
-      if (provider === "printify") {
-        endpoint = `${api.baseUrl}/printify/catalog`;
-      } else if (provider === "printful") {
-        endpoint = `${api.baseUrl}${adminSegment}/catalog/printful-products`;
-      }
+      const endpoint = provider === "printify"
+        ? `${api.baseUrl}/printify/catalog`
+        : `/api/catalog/printful-products`;
       
       if (!endpoint) {
         console.error("[ProductsModule] No catalog endpoint for provider:", provider);
@@ -297,10 +284,8 @@ export function ProductsModule() {
                 Debug: endpoint =
                 {" "}
                 {(() => {
-                  const isTestEndpoint = api.baseUrl.includes("/test");
-                  const adminSegment = isTestEndpoint ? "" : "/admin";
-                  if (provider === "printify") return `${api.baseUrl}${adminSegment}/printify/catalog`;
-                  if (provider === "printful") return `${api.baseUrl}${adminSegment}/catalog/printful-products`;
+                  if (provider === "printify") return `${api.baseUrl}/printify/catalog`;
+                  if (provider === "printful") return `/api/catalog/printful-products`;
                   return "NO_PROVIDER";
                 })()}
               </p>
