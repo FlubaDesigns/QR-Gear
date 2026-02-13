@@ -3,14 +3,24 @@ import { useQuery } from "@tanstack/react-query";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
 import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
 import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
+import { SyncModule } from "./modules/SyncModule";
+import { CatalogListModule } from "./modules/CatalogListModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 import type { Product } from "./shared/types";
 
 interface ProductsHarnessProps {
   showHeader?: boolean;
+  showCatalog?: boolean;
+  showBuilder?: boolean;
+  showSync?: boolean;
 }
 
-function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
+function ProductsHarnessInner({
+  showHeader = true,
+  showCatalog = true,
+  showBuilder = true,
+  showSync = true,
+}: ProductsHarnessProps) {
   const { 
     api, 
     providers, 
@@ -18,7 +28,6 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
     setSelectedProviders,
   } = useProductsContext();
 
-  // Get the primary selected provider for fetching
   const primaryProvider = selectedProviders.length === 1 ? selectedProviders[0] : undefined;
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -60,11 +69,25 @@ function ProductsHarnessInner({ showHeader = true }: ProductsHarnessProps) {
         />
       </div>
 
+      {showSync && (
+        <div className="glass-card">
+          <SyncModule selectedProviders={selectedProviders} />
+        </div>
+      )}
+
       <StoreChannelDropdownModule />
 
-      <div className="glass-card">
-        <BuilderHarness />
-      </div>
+      {showCatalog && filteredProducts.length > 0 && (
+        <div className="glass-card">
+          <CatalogListModule products={filteredProducts} />
+        </div>
+      )}
+
+      {showBuilder && (
+        <div className="glass-card">
+          <BuilderHarness />
+        </div>
+      )}
     </div>
   );
 }
