@@ -43,17 +43,18 @@ export function ComposeContentModule() {
   const composeMockup = state.content.composeMockup || '';
   const composeInstanceId = state.content.composeInstanceId || null;
 
-  if (state.qrProductState !== "qr_compose" || !state.selectedProduct) {
-    return null;
-  }
-
   const currentStepIndex = composeStep ? COMPOSE_STEPS.indexOf(composeStep as any) : -1;
 
   useEffect(() => {
+    if (state.qrProductState !== "qr_compose" || !state.selectedProduct) return;
     if (composeStep === 'pick-items' && availableItems.length === 0 && !isLoadingItems) {
       fetchAvailableItems();
     }
-  }, [composeStep]);
+  }, [composeStep, state.qrProductState, state.selectedProduct]);
+
+  if (state.qrProductState !== "qr_compose" || !state.selectedProduct) {
+    return null;
+  }
 
   const fetchAvailableItems = async () => {
     setIsLoadingItems(true);

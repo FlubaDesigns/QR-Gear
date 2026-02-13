@@ -471,6 +471,7 @@ export function CreateGraphicsModule() {
   const [packetResult, setPacketResult] = useState<PacketResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: pricingSettings } = useQuery<PricingSettings>({
     queryKey: [`${apiBase}/pricing-settings`],
@@ -1010,8 +1011,6 @@ export function CreateGraphicsModule() {
     resetBuilder();
   };
 
-  const [isDeleting, setIsDeleting] = useState(false);
-  
   const handleDeletePacket = async () => {
     if (!packetResult?.packetId || isDeleting) return;
     
