@@ -1,6 +1,4 @@
-import { db } from "../db";
-import { qrScanEvents, masterProducts } from "@shared/schema";
-import { eq, sql, and, gte, desc, inArray } from "drizzle-orm";
+import { fsInsert, fsGet, fsGetAll, fsQuery, fsUpdate } from "../lib/firestore-crud";
 
 export interface QrScanLogInput {
   masterProductId?: string;
@@ -42,52 +40,45 @@ class QrAnalyticsService {
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
     
-    const conditions = [];
+    const filters: Array<[string, FirebaseFirestore.WhereFilterOp, any]> = [];
     if (input.masterProductId) {
-      conditions.push(eq(qrScanEvents.masterProductId, input.masterProductId));
+      filters.push(['masterProductId', '==', input.masterProductId]);
     } else {
-      conditions.push(sql`${qrScanEvents.masterProductId} IS NULL`);
+      filters.push(['masterProductId', '==', null]);
     }
     if (input.customDesignId) {
-      conditions.push(eq(qrScanEvents.customDesignId, input.customDesignId));
+      filters.push(['customDesignId', '==', input.customDesignId]);
     } else {
-      conditions.push(sql`${qrScanEvents.customDesignId} IS NULL`);
+      filters.push(['customDesignId', '==', null]);
     }
     if (input.qrUrl) {
-      conditions.push(eq(qrScanEvents.qrUrl, input.qrUrl));
+      filters.push(['qrUrl', '==', input.qrUrl]);
     } else {
-      conditions.push(sql`${qrScanEvents.qrUrl} IS NULL`);
+      filters.push(['qrUrl', '==', null]);
     }
-    conditions.push(gte(qrScanEvents.scanDate, today));
+    filters.push(['scanDate', '>=', today.toISOString()]);
 
-    const existing = await db
-      .select()
-      .from(qrScanEvents)
-      .where(and(...conditions))
-      .limit(1);
+    const existing = await fsQuery('qr_scan_events', filters, undefined, 'asc', 1);
 
     if (existing.length > 0 && existing[0].scanCount !== null) {
-      await db
-        .update(qrScanEvents)
-        .set({
-          scanCount: (existing[0].scanCount || 0) + 1,
-          deviceType: input.deviceType || existing[0].deviceType,
-          userAgent: input.userAgent || existing[0].userAgent,
-          country: input.country || existing[0].country,
-          region: input.region || existing[0].region,
-        })
-        .where(eq(qrScanEvents.id, existing[0].id));
+      await fsUpdate('qr_scan_events', existing[0].id, {
+        scanCount: (existing[0].scanCount || 0) + 1,
+        deviceType: input.deviceType || existing[0].deviceType,
+        userAgent: input.userAgent || existing[0].userAgent,
+        country: input.country || existing[0].country,
+        region: input.region || existing[0].region,
+      });
     } else {
-      await db.insert(qrScanEvents).values({
-        masterProductId: input.masterProductId,
-        customDesignId: input.customDesignId,
-        qrUrl: input.qrUrl,
-        country: input.country,
-        region: input.region,
-        deviceType: input.deviceType,
-        userAgent: input.userAgent,
+      await fsInsert('qr_scan_events', {
+        masterProductId: input.masterProductId || null,
+        customDesignId: input.customDesignId || null,
+        qrUrl: input.qrUrl || null,
+        country: input.country || null,
+        region: input.region || null,
+        deviceType: input.deviceType || null,
+        userAgent: input.userAgent || null,
         scanCount: 1,
-        scanDate: now,
+        scanDate: now.toISOString(),
       });
     }
   }
@@ -105,67 +96,59 @@ class QrAnalyticsService {
     monthStart.setMonth(monthStart.getMonth() - 1);
     monthStart.setHours(0, 0, 0, 0);
 
-    const [totalResult] = await db
-      .select({ total: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)` })
-      .from(qrScanEvents);
+    const allEvents = await fsGetAll('qr_scan_events');
 
-    const [todayResult] = await db
-      .select({ total: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)` })
-      .from(qrScanEvents)
-      .where(gte(qrScanEvents.scanDate, todayStart));
+    let totalScans = 0;
+    let scansToday = 0;
+    let scansThisWeek = 0;
+    let scansThisMonth = 0;
+    const uniqueProductIds = new Set<string>();
+    const countryMap = new Map<string, number>();
+    const deviceMap = new Map<string, number>();
 
-    const [weekResult] = await db
-      .select({ total: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)` })
-      .from(qrScanEvents)
-      .where(gte(qrScanEvents.scanDate, weekStart));
+    for (const event of allEvents) {
+      const count = event.scanCount || 0;
+      const scanDate = event.scanDate ? new Date(event.scanDate) : null;
 
-    const [monthResult] = await db
-      .select({ total: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)` })
-      .from(qrScanEvents)
-      .where(gte(qrScanEvents.scanDate, monthStart));
+      totalScans += count;
 
-    const uniqueProductsResult = await db
-      .select({ productId: qrScanEvents.masterProductId })
-      .from(qrScanEvents)
-      .where(sql`${qrScanEvents.masterProductId} IS NOT NULL`)
-      .groupBy(qrScanEvents.masterProductId);
+      if (scanDate) {
+        if (scanDate >= todayStart) scansToday += count;
+        if (scanDate >= weekStart) scansThisWeek += count;
+        if (scanDate >= monthStart) scansThisMonth += count;
+      }
 
-    const topCountries = await db
-      .select({
-        country: qrScanEvents.country,
-        scans: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)`,
-      })
-      .from(qrScanEvents)
-      .where(sql`${qrScanEvents.country} IS NOT NULL`)
-      .groupBy(qrScanEvents.country)
-      .orderBy(sql`SUM(${qrScanEvents.scanCount}) DESC`)
-      .limit(5);
+      if (event.masterProductId) {
+        uniqueProductIds.add(event.masterProductId);
+      }
 
-    const topDevices = await db
-      .select({
-        deviceType: qrScanEvents.deviceType,
-        scans: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)`,
-      })
-      .from(qrScanEvents)
-      .where(sql`${qrScanEvents.deviceType} IS NOT NULL`)
-      .groupBy(qrScanEvents.deviceType)
-      .orderBy(sql`SUM(${qrScanEvents.scanCount}) DESC`)
-      .limit(5);
+      if (event.country) {
+        countryMap.set(event.country, (countryMap.get(event.country) || 0) + count);
+      }
+
+      if (event.deviceType) {
+        deviceMap.set(event.deviceType, (deviceMap.get(event.deviceType) || 0) + count);
+      }
+    }
+
+    const topCountries = Array.from(countryMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([country, scans]) => ({ country, scans }));
+
+    const topDevices = Array.from(deviceMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([deviceType, scans]) => ({ deviceType, scans }));
 
     return {
-      totalScans: Number(totalResult?.total || 0),
-      scansToday: Number(todayResult?.total || 0),
-      scansThisWeek: Number(weekResult?.total || 0),
-      scansThisMonth: Number(monthResult?.total || 0),
-      uniqueProducts: uniqueProductsResult.length,
-      topCountries: topCountries.map((c) => ({
-        country: c.country || "Unknown",
-        scans: Number(c.scans),
-      })),
-      topDevices: topDevices.map((d) => ({
-        deviceType: d.deviceType || "Unknown",
-        scans: Number(d.scans),
-      })),
+      totalScans,
+      scansToday,
+      scansThisWeek,
+      scansThisMonth,
+      uniqueProducts: uniqueProductIds.size,
+      topCountries,
+      topDevices,
     };
   }
 
@@ -178,44 +161,55 @@ class QrAnalyticsService {
     weekStart.setDate(weekStart.getDate() - 7);
     weekStart.setHours(0, 0, 0, 0);
 
-    const productScans = await db
-      .select({
-        productId: qrScanEvents.masterProductId,
-        totalScans: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)`,
-        scansToday: sql<number>`COALESCE(SUM(CASE WHEN ${qrScanEvents.scanDate} >= ${todayStart} THEN ${qrScanEvents.scanCount} ELSE 0 END), 0)`,
-        scansThisWeek: sql<number>`COALESCE(SUM(CASE WHEN ${qrScanEvents.scanDate} >= ${weekStart} THEN ${qrScanEvents.scanCount} ELSE 0 END), 0)`,
-        lastScanned: sql<string>`MAX(${qrScanEvents.scanDate})`,
-      })
-      .from(qrScanEvents)
-      .where(sql`${qrScanEvents.masterProductId} IS NOT NULL`)
-      .groupBy(qrScanEvents.masterProductId)
-      .orderBy(sql`SUM(${qrScanEvents.scanCount}) DESC`)
-      .limit(limit);
+    const allEvents = await fsGetAll('qr_scan_events');
 
-    if (productScans.length === 0) {
+    const productStats = new Map<string, { totalScans: number; scansToday: number; scansThisWeek: number; lastScanned: string | null }>();
+
+    for (const event of allEvents) {
+      if (!event.masterProductId) continue;
+      const pid = event.masterProductId;
+      const count = event.scanCount || 0;
+      const scanDate = event.scanDate ? new Date(event.scanDate) : null;
+      const scanDateStr = event.scanDate || null;
+
+      if (!productStats.has(pid)) {
+        productStats.set(pid, { totalScans: 0, scansToday: 0, scansThisWeek: 0, lastScanned: null });
+      }
+      const stats = productStats.get(pid)!;
+      stats.totalScans += count;
+
+      if (scanDate) {
+        if (scanDate >= todayStart) stats.scansToday += count;
+        if (scanDate >= weekStart) stats.scansThisWeek += count;
+        if (!stats.lastScanned || scanDateStr > stats.lastScanned) {
+          stats.lastScanned = scanDateStr;
+        }
+      }
+    }
+
+    const sorted = Array.from(productStats.entries())
+      .sort((a, b) => b[1].totalScans - a[1].totalScans)
+      .slice(0, limit);
+
+    if (sorted.length === 0) {
       return [];
     }
 
-    const productIds = productScans
-      .map((s) => s.productId)
-      .filter((id): id is string => id !== null);
-
-    const products = productIds.length > 0
-      ? await db
-          .select({ id: masterProducts.id, title: masterProducts.title })
-          .from(masterProducts)
-          .where(inArray(masterProducts.id, productIds))
-      : [];
-
+    const productIds = sorted.map(([id]) => id);
+    const products: any[] = [];
+    for (const pid of productIds) {
+      const p = await fsGet('master_products', pid);
+      if (p) products.push(p);
+    }
     const productMap = new Map(products.map((p) => [p.id, p.title]));
 
-    return productScans.map((scan) => ({
-      productId: scan.productId || "",
-      productName: productMap.get(scan.productId || "") || "Unknown Product",
-      totalScans: Number(scan.totalScans),
-      scansToday: Number(scan.scansToday),
-      scansThisWeek: Number(scan.scansThisWeek),
-      lastScanned: scan.lastScanned,
+    return sorted.map(([productId, stats]) => ({
+      productId,
+      productName: productMap.get(productId) || "Unknown Product",
+      totalScans: stats.totalScans,
+      scansToday: stats.scansToday,
+      scansThisWeek: stats.scansThisWeek,
+      lastScanned: stats.lastScanned,
     }));
   }
 
@@ -224,15 +218,15 @@ class QrAnalyticsService {
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    const trends = await db
-      .select({
-        date: sql<string>`DATE(${qrScanEvents.scanDate})`,
-        scans: sql<number>`COALESCE(SUM(${qrScanEvents.scanCount}), 0)`,
-      })
-      .from(qrScanEvents)
-      .where(gte(qrScanEvents.scanDate, startDate))
-      .groupBy(sql`DATE(${qrScanEvents.scanDate})`)
-      .orderBy(sql`DATE(${qrScanEvents.scanDate}) ASC`);
+    const allEvents = await fsGetAll('qr_scan_events');
+
+    const dateMap = new Map<string, number>();
+    for (const event of allEvents) {
+      const scanDate = event.scanDate ? new Date(event.scanDate) : null;
+      if (!scanDate || scanDate < startDate) continue;
+      const dateStr = scanDate.toISOString().split("T")[0];
+      dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + (event.scanCount || 0));
+    }
 
     const allDates: ScanTrend[] = [];
     const current = new Date(startDate);
@@ -240,10 +234,9 @@ class QrAnalyticsService {
     
     while (current <= now) {
       const dateStr = current.toISOString().split("T")[0];
-      const existing = trends.find((t) => t.date === dateStr);
       allDates.push({
         date: dateStr,
-        scans: existing ? Number(existing.scans) : 0,
+        scans: dateMap.get(dateStr) || 0,
       });
       current.setDate(current.getDate() + 1);
     }
@@ -252,30 +245,25 @@ class QrAnalyticsService {
   }
 
   async getRecentScans(limit = 50): Promise<any[]> {
-    const events = await db
-      .select()
-      .from(qrScanEvents)
-      .orderBy(desc(qrScanEvents.scanDate))
-      .limit(limit);
+    const events = await fsQuery('qr_scan_events', [], 'scanDate', 'desc', limit);
 
     if (events.length === 0) {
       return [];
     }
 
     const productIds = events
-      .map((e) => e.masterProductId)
-      .filter((id): id is string => id !== null);
+      .map((e: any) => e.masterProductId)
+      .filter((id: any): id is string => id !== null && id !== undefined);
 
-    const products = productIds.length > 0
-      ? await db
-          .select({ id: masterProducts.id, title: masterProducts.title })
-          .from(masterProducts)
-          .where(inArray(masterProducts.id, productIds))
-      : [];
-
+    const products: any[] = [];
+    const uniqueIds = Array.from(new Set(productIds));
+    for (const pid of uniqueIds) {
+      const p = await fsGet('master_products', pid);
+      if (p) products.push(p);
+    }
     const productMap = new Map(products.map((p) => [p.id, p.title]));
 
-    return events.map((event) => ({
+    return events.map((event: any) => ({
       ...event,
       productName: event.masterProductId
         ? productMap.get(event.masterProductId) || null

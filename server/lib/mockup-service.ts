@@ -8,9 +8,7 @@
  * 4. Return cached URL for instant display
  */
 
-import { db } from "../db";
-import { eq, and } from "drizzle-orm";
-import { mockupCache, canonicalPlacements, providerPlacementMappings, productPlacementAvailability, printifyPrintfulMapping } from "../../shared/schema";
+import { fsGet, fsGetAll, fsQuery, fsInsert, fsUpdate, fsUpsert } from "./firestore-crud";
 import type { IStorage } from "../storage";
 import { downloadAndStoreFromUrl, uploadImageFromBuffer } from "./firebase-storage-service";
 import { printfulClient } from "./printful";
@@ -149,29 +147,19 @@ export async function getMockupWithFallback(
   }
 
   // Validate placement exists
-  const placementExists = await db
-    .select({ id: canonicalPlacements.id })
-    .from(canonicalPlacements)
-    .where(eq(canonicalPlacements.id, canonicalPlacementId))
-    .limit(1);
+  const placementDoc = await fsGet('canonical_placements', canonicalPlacementId);
 
-  if (placementExists.length === 0) {
+  if (!placementDoc) {
     throw new Error(`Unknown canonical placement: ${canonicalPlacementId}`);
   }
 
   // If productId provided, validate placement is available for this product
   if (productId) {
-    const placementAvailable = await db
-      .select({ id: productPlacementAvailability.id })
-      .from(productPlacementAvailability)
-      .where(
-        and(
-          eq(productPlacementAvailability.productId, productId),
-          eq(productPlacementAvailability.canonicalPlacementId, canonicalPlacementId),
-          eq(productPlacementAvailability.isEnabled, true)
-        )
-      )
-      .limit(1);
+    const placementAvailable = await fsQuery('product_placement_availability', [
+      ['productId', '==', productId],
+      ['canonicalPlacementId', '==', canonicalPlacementId],
+      ['isEnabled', '==', true],
+    ], undefined, 'asc', 1);
 
     if (placementAvailable.length === 0) {
       console.warn(`[MockupService] Placement ${canonicalPlacementId} not available for product ${productId}. Proceeding anyway for blueprint-level cache.`);
@@ -182,21 +170,15 @@ export async function getMockupWithFallback(
   // Step 1: Check cache (includes qrSize and artworkUrl to get exact mockup)
   // For member-generated productGraphics (data URIs), artworkUrl is unique per composite
   // so we must include it in the cache lookup to avoid returning stale mockups
-  const cached = await db
-    .select()
-    .from(mockupCache)
-    .where(
-      and(
-        eq(mockupCache.blueprintId, blueprintId),
-        eq(mockupCache.printProviderId, printProviderId),
-        eq(mockupCache.colorName, colorName),
-        eq(mockupCache.canonicalPlacementId, canonicalPlacementId),
-        eq(mockupCache.artworkVariant, artworkVariant),
-        eq(mockupCache.qrSize, qrSize),
-        eq(mockupCache.artworkUrl, artworkUrl)
-      )
-    )
-    .limit(1);
+  const cached = await fsQuery('mockup_cache', [
+    ['blueprintId', '==', blueprintId],
+    ['printProviderId', '==', printProviderId],
+    ['colorName', '==', colorName],
+    ['canonicalPlacementId', '==', canonicalPlacementId],
+    ['artworkVariant', '==', artworkVariant],
+    ['qrSize', '==', qrSize],
+    ['artworkUrl', '==', artworkUrl],
+  ], undefined, 'asc', 1);
 
   if (cached.length > 0 && cached[0].status === "active") {
     console.log(`[MockupService] Cache HIT: ${colorName} ${canonicalPlacementId} ${qrSize}`);
@@ -232,9 +214,26 @@ export async function getMockupWithFallback(
 
   // Step 3: Cache the result (includes qrSize for size-specific caching)
   const now = new Date();
-  await db
-    .insert(mockupCache)
-    .values({
+  const existingCache = await fsQuery('mockup_cache', [
+    ['blueprintId', '==', blueprintId],
+    ['printProviderId', '==', printProviderId],
+    ['colorName', '==', colorName],
+    ['canonicalPlacementId', '==', canonicalPlacementId],
+    ['artworkVariant', '==', artworkVariant],
+    ['qrSize', '==', qrSize],
+  ], undefined, 'asc', 1);
+
+  if (existingCache.length > 0) {
+    await fsUpdate('mockup_cache', existingCache[0].id, {
+      mockupUrl,
+      lifestyleMockupUrl,
+      colorHex,
+      artworkUrl,
+      status: "active",
+      generatedAt: now.toISOString(),
+    });
+  } else {
+    await fsInsert('mockup_cache', {
       blueprintId,
       printProviderId,
       colorName,
@@ -247,26 +246,9 @@ export async function getMockupWithFallback(
       lifestyleMockupUrl,
       podProviderId: "printify",
       status: "active",
-      generatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [
-        mockupCache.blueprintId,
-        mockupCache.printProviderId,
-        mockupCache.colorName,
-        mockupCache.canonicalPlacementId,
-        mockupCache.artworkVariant,
-        mockupCache.qrSize,
-      ],
-      set: {
-        mockupUrl,
-        lifestyleMockupUrl,
-        colorHex,
-        artworkUrl,
-        status: "active",
-        generatedAt: now,
-      },
+      generatedAt: now.toISOString(),
     });
+  }
 
   console.log(`[MockupService] Generated and cached mockup for ${colorName} ${qrSize} (lifestyle: ${!!lifestyleMockupUrl})`);
 
@@ -307,16 +289,10 @@ async function generatePrintfulMockupInternal(params: {
     printfulProductId = blueprintId;
   } else {
     // Step 1: Look up the Printify-to-Printful mapping for Printify products
-    const mapping = await db
-      .select()
-      .from(printifyPrintfulMapping)
-      .where(
-        and(
-          eq(printifyPrintfulMapping.printifyBlueprintId, blueprintId),
-          eq(printifyPrintfulMapping.isActive, true)
-        )
-      )
-      .limit(1);
+    const mapping = await fsQuery('printify_printful_mapping', [
+      ['printifyBlueprintId', '==', blueprintId],
+      ['isActive', '==', true],
+    ], undefined, 'asc', 1);
 
     if (mapping.length === 0) {
       console.warn(`[MockupService/Printful] No mapping found for blueprint ${blueprintId}. Creating auto-mapping...`);
@@ -564,7 +540,7 @@ export function hasKnownMockupMapping(blueprintId: number): boolean {
  * Auto-create a mapping between Printify blueprint and Printful product
  * Uses common product mappings for known blueprints
  */
-async function createAutoMapping(printifyBlueprintId: number): Promise<typeof printifyPrintfulMapping.$inferSelect | null> {
+async function createAutoMapping(printifyBlueprintId: number): Promise<any | null> {
   // Common mappings: Printify Blueprint ID → Printful Product ID
   // References: https://www.printful.com/custom-products
   const knownMappings: Record<number, { printfulId: number; brand: string; model: string; colorMapping?: Record<string, string> }> = {
@@ -656,18 +632,15 @@ async function createAutoMapping(printifyBlueprintId: number): Promise<typeof pr
   console.log(`[MockupService/Printful] Creating auto-mapping: Blueprint ${printifyBlueprintId} → Printful ${mapping.printfulId}`);
 
   // Insert the mapping
-  const [inserted] = await db
-    .insert(printifyPrintfulMapping)
-    .values({
-      printifyBlueprintId,
-      printfulProductId: mapping.printfulId,
-      printfulBrand: mapping.brand,
-      printfulModel: mapping.model,
-      colorMapping: mapping.colorMapping || null,
-      matchConfidence: 'auto',
-      isActive: true,
-    })
-    .returning();
+  const inserted = await fsInsert('printify_printful_mapping', {
+    printifyBlueprintId,
+    printfulProductId: mapping.printfulId,
+    printfulBrand: mapping.brand,
+    printfulModel: mapping.model,
+    colorMapping: mapping.colorMapping || null,
+    matchConfidence: 'auto',
+    isActive: true,
+  });
 
   return inserted;
 }
@@ -679,16 +652,11 @@ export async function getCachedMockupsForProduct(
   blueprintId: number,
   printProviderId: number
 ): Promise<Record<string, { front?: string; back?: string; lifestyle?: string }>> {
-  const cached = await db
-    .select()
-    .from(mockupCache)
-    .where(
-      and(
-        eq(mockupCache.blueprintId, blueprintId),
-        eq(mockupCache.printProviderId, printProviderId),
-        eq(mockupCache.status, "active")
-      )
-    );
+  const cached = await fsQuery('mockup_cache', [
+    ['blueprintId', '==', blueprintId],
+    ['printProviderId', '==', printProviderId],
+    ['status', '==', 'active'],
+  ]);
 
   const result: Record<string, { front?: string; back?: string; lifestyle?: string }> = {};
 
@@ -762,13 +730,10 @@ export async function preGenerateMockupsForProduct(
  * Get canonical placements with preview coordinates
  */
 export async function getCanonicalPlacements(category?: string) {
-  let query = db.select().from(canonicalPlacements);
-  
   if (category) {
-    query = query.where(eq(canonicalPlacements.category, category)) as typeof query;
+    return fsQuery('canonical_placements', [['category', '==', category]], 'sortOrder', 'asc');
   }
-  
-  return query.orderBy(canonicalPlacements.sortOrder);
+  return fsGetAll('canonical_placements', 'sortOrder');
 }
 
 /**
@@ -778,16 +743,10 @@ export async function getProviderPlacementKey(
   providerId: string,
   canonicalPlacementId: string
 ): Promise<string | null> {
-  const mapping = await db
-    .select()
-    .from(providerPlacementMappings)
-    .where(
-      and(
-        eq(providerPlacementMappings.podProviderId, providerId),
-        eq(providerPlacementMappings.canonicalPlacementId, canonicalPlacementId)
-      )
-    )
-    .limit(1);
+  const mapping = await fsQuery('provider_placement_mappings', [
+    ['podProviderId', '==', providerId],
+    ['canonicalPlacementId', '==', canonicalPlacementId],
+  ], undefined, 'asc', 1);
 
   return mapping[0]?.providerPlacementKey || null;
 }
@@ -816,18 +775,12 @@ export async function getLifestyleMockupForColor(
   console.log(`[LifestyleMockup] Getting lifestyle for ${colorName} (hex: ${colorHex}, qrVariant: ${qrVariant})`);
   
   // Step 1: Check mockup_cache for existing lifestyle
-  const cached = await db
-    .select()
-    .from(mockupCache)
-    .where(
-      and(
-        eq(mockupCache.blueprintId, blueprintId),
-        eq(mockupCache.printProviderId, printProviderId),
-        eq(mockupCache.colorName, colorName),
-        eq(mockupCache.artworkVariant, qrVariant)
-      )
-    )
-    .limit(1);
+  const cached = await fsQuery('mockup_cache', [
+    ['blueprintId', '==', blueprintId],
+    ['printProviderId', '==', printProviderId],
+    ['colorName', '==', colorName],
+    ['artworkVariant', '==', qrVariant],
+  ], undefined, 'asc', 1);
   
   if (cached.length > 0 && cached[0].lifestyleMockupUrl) {
     console.log(`[LifestyleMockup] Cache HIT: ${colorName} has lifestyle mockup`);

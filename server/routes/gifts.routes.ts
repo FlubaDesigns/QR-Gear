@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { db } from "../db";
+import { fsQuery } from "../lib/firestore-crud";
 import { isAdmin } from "../firebaseAuth";
 
 function generateGiftCode(): string {
@@ -218,16 +218,8 @@ export function registerGiftRoutes(app: Express): void {
 
   app.get("/api/admin/gifts/codes", isAdmin, async (req: any, res) => {
     try {
-      if (db) {
-        const { giftCodes } = await import("@shared/schema");
-        const { desc } = await import("drizzle-orm");
-        const codes = await db.select().from(giftCodes)
-          .orderBy(desc(giftCodes.createdAt))
-          .limit(100);
-        res.json(codes);
-      } else {
-        res.json([]);
-      }
+      const codes = await fsQuery('gift_codes', [], 'createdAt', 'desc', 100);
+      res.json(codes);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -235,16 +227,8 @@ export function registerGiftRoutes(app: Express): void {
 
   app.get("/api/admin/gifts/redemptions", isAdmin, async (req: any, res) => {
     try {
-      if (db) {
-        const { giftRedemptions } = await import("@shared/schema");
-        const { desc } = await import("drizzle-orm");
-        const redemptions = await db.select().from(giftRedemptions)
-          .orderBy(desc(giftRedemptions.redeemedAt))
-          .limit(100);
-        res.json(redemptions);
-      } else {
-        res.json([]);
-      }
+      const redemptions = await fsQuery('gift_redemptions', [], 'redeemedAt', 'desc', 100);
+      res.json(redemptions);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

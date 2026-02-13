@@ -107,7 +107,8 @@ export class MockupJobQueue {
   }
 
   async getJobsByProduct(productId: string): Promise<MockupJob[]> {
-    return fsQuery('mockup_jobs', [['productId', '==', productId]], 'priority', 'asc');
+    const jobs = await fsQuery('mockup_jobs', [['productId', '==', productId]]);
+    return jobs.sort((a: any, b: any) => (a.priority ?? 10) - (b.priority ?? 10));
   }
 
   async getStats(): Promise<QueueStats> {
@@ -160,8 +161,8 @@ export class MockupJobQueue {
   async getNextJob(): Promise<MockupJob | null> {
     const now = new Date();
     
-    const pendingJobs = await fsQuery('mockup_jobs', [['status', '==', 'pending']], 'priority', 'asc');
-    const delayedJobs = await fsQuery('mockup_jobs', [['status', '==', 'delayed']], 'priority', 'asc');
+    const pendingJobs = await fsQuery('mockup_jobs', [['status', '==', 'pending']]);
+    const delayedJobs = await fsQuery('mockup_jobs', [['status', '==', 'delayed']]);
     
     const eligibleDelayed = delayedJobs.filter(j => {
       const nextRetry = j.nextRetryAt instanceof Date ? j.nextRetryAt : new Date(j.nextRetryAt);

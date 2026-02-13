@@ -2,10 +2,9 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
 import { isAuthenticated } from "../firebaseAuth";
-import { db } from "../db";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
-import { insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema, mockupCache } from "@shared/schema";
+import { insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema } from "@shared/schema";
+import { fsGetAll, fsCount } from "../lib/firestore-crud";
 import { printify, syncProductPlacements, syncProductVariants, detectCategory } from "../lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "../lib/printify-cost-sync";
 import { checkProviderHealth, autoSyncVariantsFromLocalCatalog } from "./route-helpers";
@@ -644,8 +643,7 @@ export function registerAdminRoutes(app: Express): void {
         allPrintifyBlueprints = await printify.getCatalogBlueprints();
       }
 
-      const { printfulProducts: printfulTable } = await import('@shared/schema');
-      const allPrintfulRows = await db.select().from(printfulTable);
+      const allPrintfulRows = await fsGetAll('printful_products');
 
       let matchedModels: Set<string> | null = null;
       if (providerFilter === 'matched') {
@@ -1458,19 +1456,17 @@ export function registerAdminRoutes(app: Express): void {
   app.get("/api/admin/catalog/printful-status", isAdmin, async (req: any, res) => {
     try {
       const { printfulClient } = await import("../lib/printful");
-      const { printfulProducts, printfulVariants } = await import("@shared/schema");
-      const { count } = await import("drizzle-orm");
       
-      const [productCount] = await db.select({ count: count() }).from(printfulProducts);
-      const [variantCount] = await db.select({ count: count() }).from(printfulVariants);
+      const productCountNum = await fsCount('printful_products');
+      const variantCountNum = await fsCount('printful_variants');
       
       const isConfigured = printfulClient.isConfigured;
       console.log('[Printful Status] isConfigured:', isConfigured);
       
       res.json({
         isConfigured,
-        productCount: productCount?.count || 0,
-        variantCount: variantCount?.count || 0,
+        productCount: productCountNum,
+        variantCount: variantCountNum,
       });
       
     } catch (error: any) {
@@ -1481,10 +1477,7 @@ export function registerAdminRoutes(app: Express): void {
   // Get Printful products list
   app.get("/api/admin/catalog/printful-products", isAdmin, async (req: any, res) => {
     try {
-      const { printfulProducts } = await import("@shared/schema");
-      const { desc } = await import("drizzle-orm");
-      
-      const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
+      const products = await fsGetAll('printful_products', 'lastSyncedAt', 'desc');
       
       const grouped: Record<string, any[]> = {};
       for (const p of products) {
@@ -1528,9 +1521,7 @@ export function registerAdminRoutes(app: Express): void {
   // Public Printful catalog (no auth — catalog data is not sensitive, matches /api/printify/catalog pattern)
   app.get("/api/catalog/printful-products", async (_req: any, res) => {
     try {
-      const { printfulProducts } = await import("@shared/schema");
-      const { desc } = await import("drizzle-orm");
-      const products = await db.select().from(printfulProducts).orderBy(desc(printfulProducts.lastSyncedAt));
+      const products = await fsGetAll('printful_products', 'lastSyncedAt', 'desc');
       const grouped: Record<string, any[]> = {};
       for (const p of products) {
         const categoryName = p.typeName || p.type || "Other";

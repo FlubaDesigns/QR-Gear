@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
-import { db } from "../db";
+import { fsQuery } from "../lib/firestore-crud";
 
 export function registerMockupRoutes(app: Express): void {
   // ============ MOCKUP & PLACEMENT API (Database-first with Printify fallback) ============
@@ -448,15 +448,12 @@ export function registerMockupRoutes(app: Express): void {
       
       // Generate mockups at all 3 sizes with delays to avoid rate limits
       const { printfulClient } = await import('../lib/printful.js');
-      const { printifyPrintfulMapping } = await import('@shared/schema');
-      const { eq, and } = await import('drizzle-orm');
       
-      // Get Printful mapping
-      const mapping = await db.select().from(printifyPrintfulMapping)
-        .where(and(
-          eq(printifyPrintfulMapping.printifyBlueprintId, blueprintId),
-          eq(printifyPrintfulMapping.isActive, true)
-        )).limit(1);
+      // Get Printful mapping from Firestore
+      const mapping = await fsQuery('printify_printful_mapping', [
+        ['printifyBlueprintId', '==', blueprintId],
+        ['isActive', '==', true]
+      ], undefined, 'asc', 1);
       
       if (mapping.length === 0) {
         return res.status(400).json({ error: "No Printful mapping for this blueprint" });

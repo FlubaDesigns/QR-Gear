@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { db } from "../db";
-import { eq, and } from "drizzle-orm";
+import { fsQuery } from "../lib/firestore-crud";
 import { isAuthenticated, isAdmin } from "../firebaseAuth";
 import { insertQrDesignSchema } from "@shared/schema";
 import { uploadImageFromBuffer } from "../lib/image-upload";
@@ -497,15 +496,11 @@ export function registerDesignRoutes(app: Express): void {
           try {
             const { mockupJobQueue } = await import('../lib/mockup-job-queue.js');
             
-            const { printifyPrintProviders } = await import('@shared/schema');
-            const [provider] = await db.select()
-              .from(printifyPrintProviders)
-              .where(
-                and(
-                  eq(printifyPrintProviders.blueprintId, validatedData.productId),
-                  eq(printifyPrintProviders.providerId, validatedData.printProviderId)
-                )
-              );
+            const providers = await fsQuery('printify_print_providers', [
+              ['blueprintId', '==', validatedData.productId],
+              ['providerId', '==', validatedData.printProviderId]
+            ]);
+            const provider = providers[0];
             
             const availableColors = provider?.availableColors as Array<{name: string; hex: string}> || [];
             

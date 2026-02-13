@@ -1,7 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
-import { db } from "../db";
-import { eq } from "drizzle-orm";
+import { fsInsert, fsQuery } from "../lib/firestore-crud";
 import { isAuthenticated, isAdmin } from "../firebaseAuth";
 import { insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
 import { uploadImage, uploadImageFromBuffer, getImageBuffer, deleteImage } from "../lib/image-upload";
@@ -378,8 +377,6 @@ export function registerCartCheckoutRoutes(app: Express): void {
       
       const buffer = Buffer.from(imageData, 'base64');
       const isZip = mimeType === 'application/zip' || mimeType === 'application/x-zip-compressed';
-      const { libraryAssets } = await import("@shared/schema");
-      
       // Handle ZIP file
       if (isZip) {
         console.log(`[TestUpload] Processing ZIP file: ${name}`);
@@ -425,7 +422,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
           const displayName = imageName.replace(/\.[^/.]+$/, '');
           const proxyUrl = `/api/library-files/${encodeURIComponent(sanitizedName)}`;
           
-          const [asset] = await db.insert(libraryAssets).values({
+          const asset = await fsInsert('library_assets', {
             ownerType: 'admin',
             assetType: assetType,
             mediaType: 'image',
@@ -437,7 +434,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
             mimeType: imageMime,
             sizeBytes: imageBuffer.length,
             isActive: true,
-          }).returning();
+          });
           
           uploadedAssets.push({ ...asset, proxyUrl });
         }
@@ -469,7 +466,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
       
       const proxyUrl = `/api/library-files/${encodeURIComponent(sanitizedName)}`;
       
-      const [asset] = await db.insert(libraryAssets).values({
+      const asset = await fsInsert('library_assets', {
         ownerType: 'admin',
         assetType: assetType,
         mediaType: 'image',
@@ -481,7 +478,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
         mimeType: mimeType || 'image/png',
         sizeBytes: buffer.length,
         isActive: true,
-      }).returning();
+      });
       
       console.log(`[TestUpload] Created asset: ${asset.id}`);
       
@@ -500,14 +497,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
   // PUBLIC test endpoint to list images (no auth required)
   app.get("/api/admin/images", isAdmin, async (req: any, res) => {
     try {
-      const { libraryAssets } = await import("@shared/schema");
-      const assets = await db.select({
-        id: libraryAssets.id,
-        name: libraryAssets.name,
-        storageUrl: libraryAssets.storageUrl,
-      }).from(libraryAssets)
-        .where(eq(libraryAssets.isActive, true))
-        .limit(20);
+      const assets = await fsQuery('library_assets', [['isActive', '==', true]], undefined, 'asc', 20);
       
       const assetsWithProxy = assets.map(a => {
         const filename = (a.storageUrl || '').split('/').pop() || '';

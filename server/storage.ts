@@ -3880,8 +3880,9 @@ class MemStorage implements IStorage {
   }
 }
 
-// Use database storage if DATABASE_URL is available, otherwise use in-memory
-const baseStorage: IStorage = db ? new DbStorage() : new MemStorage();
+// Use in-memory as fallback base; in firestore-only mode, the proxy will use FirestoreAdapter instead
+const storageMode = process.env.STORAGE_MODE || 'firestore-only';
+const baseStorage: IStorage = (storageMode !== 'firestore-only' && db) ? new DbStorage() : new MemStorage();
 
 // Export storage with dual-write support
 // The storage factory wraps the base storage when STORAGE_MODE is set to 'dual-write' or 'firestore-only'

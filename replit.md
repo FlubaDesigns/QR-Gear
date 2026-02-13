@@ -37,7 +37,7 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Mockup System**: Utilizes Printful for generating high-quality mockups for all product variations via a background job queue.
 - **QR Artwork Selection**: Automatic black or white QR code selection based on background luminance.
 - **Product Catalogs**: Printify and Printful catalogs are synced locally and to Firestore.
-- **Dual Storage System**: Supports `postgres-only`, `dual-write`, and `firestore-only` modes for data persistence.
+- **Firestore-Only Storage**: All data persistence uses Firebase/Firestore exclusively (STORAGE_MODE=firestore-only). PostgreSQL is no longer used for any application data. Both dev and production use the same Firebase database.
 - **File Storage**: Exclusively uses Firebase Storage for all file assets, including a background image library.
 - **Admin Library Module**: Modular, tenant-aware feature set for managing backgrounds, templates, and images (`client/src/features/adminLibrary/`).
 - **Shared Utilities Pattern**: Employs a Viewer/View/Skin architecture for reusable UI components (e.g., `SkinGridViewer`, `CropUtility`).
@@ -72,7 +72,7 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Printful-First Mockup Architecture**: Decouples mockup generation from fulfillment.
 - **Backend**: Node.js, Express, TypeScript.
 - **Frontend**: React, TypeScript, Vite.
-- **Database**: PostgreSQL with Drizzle ORM and Firestore.
+- **Database**: Firebase/Firestore exclusively (no PostgreSQL for application data). Firestore CRUD helper at `server/lib/firestore-crud.ts`.
 - **Nexus Vision Philosophy**: Self-learning, self-healing system using composable modules.
 - **Modular Route Architecture**: `server/routes.ts` refactored into 16 feature-based modules within `server/routes/` (e.g., `auth.routes.ts`, `products.routes.ts`, `admin.routes.ts`, `packets.routes.ts`, `designs.routes.ts`, `gifts.routes.ts`, `pricing.routes.ts`), with `routes.ts` acting as an orchestrator.
 - **Unified Admin Authorization**: All admin endpoints use `/api/admin/` prefix with `isAdmin` middleware (Firebase Auth token validation). Public buyer-facing endpoints use `/api/public/` prefix (no auth). No `/api/test/` endpoints remain — all have been consolidated.
@@ -82,7 +82,6 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Printful**: Product mockup generation.
 - **Stripe**: Payment processing.
 - **Firebase**: Hosting, Firestore, Firebase Storage, Cloud Functions, Authentication.
-- **Neon**: Managed PostgreSQL database service.
 - **Resend**: Email services.
 - **TanStack Query**: Frontend data fetching and state management.
 - **shadcn/ui**: UI component library.

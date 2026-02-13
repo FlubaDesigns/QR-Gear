@@ -14,9 +14,7 @@
  * - Full audit history
  */
 
-import { db } from "../db";
-import { repricingRules, repricingHistory, masterProducts, channelConfigs } from "@shared/schema";
-import { eq, desc, and, inArray, sql } from "drizzle-orm";
+import { fsGet, fsGetAll, fsQuery, fsInsert, fsUpdate, fsDelete } from "../lib/firestore-crud";
 import { profitCalculator } from "./profit-calculator";
 
 export interface RepricingConditions {
@@ -63,10 +61,14 @@ class AutoRepricerService {
    * Get all repricing rules, sorted by priority
    */
   async getRules(): Promise<any[]> {
-    const rules = await db
-      .select()
-      .from(repricingRules)
-      .orderBy(desc(repricingRules.priority), repricingRules.createdAt);
+    const rules = await fsGetAll('repricing_rules');
+    rules.sort((a: any, b: any) => {
+      const priDiff = (b.priority || 0) - (a.priority || 0);
+      if (priDiff !== 0) return priDiff;
+      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return aDate - bDate;
+    });
     return rules;
   }
 
@@ -74,11 +76,7 @@ class AutoRepricerService {
    * Get a specific rule by ID
    */
   async getRule(ruleId: string): Promise<any | null> {
-    const [rule] = await db
-      .select()
-      .from(repricingRules)
-      .where(eq(repricingRules.id, ruleId));
-    return rule || null;
+    return fsGet('repricing_rules', ruleId);
   }
 
   /**
@@ -95,20 +93,17 @@ class AutoRepricerService {
     appliesTo?: string;
     appliesToIds?: string[];
   }): Promise<any> {
-    const [rule] = await db
-      .insert(repricingRules)
-      .values({
-        name: data.name,
-        description: data.description,
-        isActive: data.isActive ?? true,
-        priority: data.priority ?? 0,
-        conditions: data.conditions,
-        actionType: data.actionType,
-        actionParams: data.actionParams,
-        appliesTo: data.appliesTo ?? "all",
-        appliesToIds: data.appliesToIds,
-      })
-      .returning();
+    const rule = await fsInsert('repricing_rules', {
+      name: data.name,
+      description: data.description,
+      isActive: data.isActive ?? true,
+      priority: data.priority ?? 0,
+      conditions: data.conditions,
+      actionType: data.actionType,
+      actionParams: data.actionParams,
+      appliesTo: data.appliesTo ?? "all",
+      appliesToIds: data.appliesToIds,
+    });
     return rule;
   }
 
@@ -126,11 +121,7 @@ class AutoRepricerService {
     appliesTo: string;
     appliesToIds: string[];
   }>): Promise<any | null> {
-    const [updated] = await db
-      .update(repricingRules)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(repricingRules.id, ruleId))
-      .returning();
+    const updated = await fsUpdate('repricing_rules', ruleId, { ...updates, updatedAt: new Date().toISOString() });
     return updated || null;
   }
 
@@ -138,9 +129,7 @@ class AutoRepricerService {
    * Delete a rule
    */
   async deleteRule(ruleId: string): Promise<boolean> {
-    const result = await db
-      .delete(repricingRules)
-      .where(eq(repricingRules.id, ruleId));
+    await fsDelete('repricing_rules', ruleId);
     return true;
   }
 
@@ -251,17 +240,14 @@ class AutoRepricerService {
   async evaluateAllProducts(dryRun: boolean = true): Promise<RepricingResult[]> {
     const results: RepricingResult[] = [];
 
-    const activeRules = await db
-      .select()
-      .from(repricingRules)
-      .where(eq(repricingRules.isActive, true))
-      .orderBy(desc(repricingRules.priority));
+    const allActiveRules = await fsQuery('repricing_rules', [['isActive', '==', true]]);
+    const activeRules = allActiveRules.sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0));
 
     if (activeRules.length === 0) {
       return results;
     }
 
-    const products = await db.select().from(masterProducts);
+    const products = await fsGetAll('master_products');
 
     for (const product of products) {
       const baseCost = parseFloat(product.baseCost || "0");
@@ -321,15 +307,12 @@ class AutoRepricerService {
             results.push(result);
 
             if (!dryRun) {
-              await db
-                .update(masterProducts)
-                .set({ 
-                  retailPrice: newPrice.toFixed(2),
-                  updatedAt: new Date() 
-                })
-                .where(eq(masterProducts.id, product.id));
+              await fsUpdate('master_products', product.id, { 
+                retailPrice: newPrice.toFixed(2),
+                updatedAt: new Date().toISOString() 
+              });
 
-              await db.insert(repricingHistory).values({
+              await fsInsert('repricing_history', {
                 ruleId: rule.id,
                 masterProductId: product.id,
                 channel: null,
@@ -355,62 +338,75 @@ class AutoRepricerService {
    * Get repricing history
    */
   async getHistory(limit: number = 50): Promise<any[]> {
-    const history = await db
-      .select({
-        id: repricingHistory.id,
-        ruleId: repricingHistory.ruleId,
-        masterProductId: repricingHistory.masterProductId,
-        channel: repricingHistory.channel,
-        previousPrice: repricingHistory.previousPrice,
-        newPrice: repricingHistory.newPrice,
-        reason: repricingHistory.reason,
-        previousMargin: repricingHistory.previousMargin,
-        newMargin: repricingHistory.newMargin,
-        appliedAt: repricingHistory.appliedAt,
-        wasAutomatic: repricingHistory.wasAutomatic,
-        productTitle: masterProducts.title,
-        ruleName: repricingRules.name,
-      })
-      .from(repricingHistory)
-      .leftJoin(masterProducts, eq(repricingHistory.masterProductId, masterProducts.id))
-      .leftJoin(repricingRules, eq(repricingHistory.ruleId, repricingRules.id))
-      .orderBy(desc(repricingHistory.appliedAt))
-      .limit(limit);
-    
-    return history;
+    const historyItems = await fsQuery('repricing_history', [], 'appliedAt', 'desc', limit);
+
+    const productIds = Array.from(new Set(historyItems.map((h: any) => h.masterProductId).filter(Boolean)));
+    const ruleIds = Array.from(new Set(historyItems.map((h: any) => h.ruleId).filter(Boolean)));
+
+    const products: any[] = [];
+    for (const pid of productIds) {
+      const p = await fsGet('master_products', pid as string);
+      if (p) products.push(p);
+    }
+    const productMap = new Map(products.map(p => [p.id, p.title]));
+
+    const rules: any[] = [];
+    for (const rid of ruleIds) {
+      const r = await fsGet('repricing_rules', rid as string);
+      if (r) rules.push(r);
+    }
+    const ruleMap = new Map(rules.map(r => [r.id, r.name]));
+
+    return historyItems.map((h: any) => ({
+      id: h.id,
+      ruleId: h.ruleId,
+      masterProductId: h.masterProductId,
+      channel: h.channel,
+      previousPrice: h.previousPrice,
+      newPrice: h.newPrice,
+      reason: h.reason,
+      previousMargin: h.previousMargin,
+      newMargin: h.newMargin,
+      appliedAt: h.appliedAt,
+      wasAutomatic: h.wasAutomatic,
+      productTitle: productMap.get(h.masterProductId) || null,
+      ruleName: ruleMap.get(h.ruleId) || null,
+    }));
   }
 
   /**
    * Get repricing statistics
    */
   async getStats(): Promise<RepricingStats> {
-    const allRules = await db.select().from(repricingRules);
-    const activeRules = allRules.filter(r => r.isActive);
+    const allRules = await fsGetAll('repricing_rules');
+    const activeRules = allRules.filter((r: any) => r.isActive);
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentHistory = await db
-      .select()
-      .from(repricingHistory)
-      .where(sql`${repricingHistory.appliedAt} > ${twentyFourHoursAgo}`);
+    const allHistory = await fsGetAll('repricing_history');
+    const recentHistory = allHistory.filter((h: any) => {
+      const appliedAt = h.appliedAt ? new Date(h.appliedAt) : null;
+      return appliedAt && appliedAt > twentyFourHoursAgo;
+    });
 
     const avgPriceChange = recentHistory.length > 0
-      ? recentHistory.reduce((sum, h) => {
+      ? recentHistory.reduce((sum: number, h: any) => {
           const prev = parseFloat(h.previousPrice || "0");
           const next = parseFloat(h.newPrice || "0");
           return sum + Math.abs(next - prev);
         }, 0) / recentHistory.length
       : 0;
 
-    const lastEntry = await db
-      .select()
-      .from(repricingHistory)
-      .orderBy(desc(repricingHistory.appliedAt))
-      .limit(1);
+    const sortedHistory = allHistory.sort((a: any, b: any) => {
+      const aDate = a.appliedAt ? new Date(a.appliedAt).getTime() : 0;
+      const bDate = b.appliedAt ? new Date(b.appliedAt).getTime() : 0;
+      return bDate - aDate;
+    });
+    const lastEntry = sortedHistory[0];
 
     return {
       totalRules: allRules.length,
       activeRules: activeRules.length,
-      lastRunTime: lastEntry[0]?.appliedAt || null,
+      lastRunTime: lastEntry?.appliedAt ? new Date(lastEntry.appliedAt) : null,
       productsAdjusted24h: recentHistory.length,
       avgPriceChange: Math.round(avgPriceChange * 100) / 100,
     };
@@ -424,7 +420,7 @@ class AutoRepricerService {
     if (!rule) return [];
 
     const results: RepricingResult[] = [];
-    const products = await db.select().from(masterProducts);
+    const products = await fsGetAll('master_products');
     const conditions = rule.conditions as RepricingConditions || {};
     const actionParams = rule.actionParams as RepricingActionParams || {};
     const appliesTo = rule.appliesTo || "all";
