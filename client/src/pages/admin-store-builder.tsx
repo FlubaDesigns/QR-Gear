@@ -671,7 +671,7 @@ export default function AdminStoreBuilderPage() {
                 </button>
               </Link>
               <Link href="/admin/pricing" className="block">
-                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-pricing">
+                <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-pricing">
                   <DollarSign className="h-5 w-5" />
                   Pricing
                 </button>

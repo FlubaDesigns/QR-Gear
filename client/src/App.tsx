@@ -78,7 +78,6 @@ import AdminStoreBuilder from "@/pages/admin-store-builder";
 import AdminStoreLibrary from "@/pages/admin-store-library";
 import TestARDemo from "@/pages/test-ar-demo";
 import TestDynamics from "@/pages/test-dynamics";
-import TestPricing from "@/pages/test-pricing";
 import FontManagement from "@/pages/test-settings";
 import Members from "@/features/members/MembersPage";
 import TestCanvasPacket from "@/pages/test-canvas-packet";
@@ -147,7 +146,6 @@ function Router() {
       <Route path="/admin/test-products" component={TestProducts} />
       <Route path="/admin/test-stores" component={TestStores} />
       <Route path="/admin/test-dynamics" component={TestDynamics} />
-      <Route path="/admin/test-pricing" component={TestPricing} />
       <Route path="/admin/test-store-builder" component={TestStoreBuilder} />
       <Route path="/admin/store-builder" component={AdminStoreBuilder} />
       <Route path="/admin/store-library" component={AdminStoreLibrary} />

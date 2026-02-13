@@ -386,10 +386,6 @@ export default function AdminDashboard() {
                 <Layers className="qr-admin-quicklink__icon" />
                 <span>QR Dynamics</span>
               </Link>
-              <Link href="/admin/test-pricing" className="qr-admin-quicklink" data-testid="link-test-pricing">
-                <DollarSign className="qr-admin-quicklink__icon" />
-                <span>Pricing</span>
-              </Link>
               <Link href="/admin/test-products" className="qr-admin-quicklink" data-testid="link-test-products">
                 <Package className="qr-admin-quicklink__icon" />
                 <span>Test Products</span>

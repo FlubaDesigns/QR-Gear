@@ -504,7 +504,7 @@ export function OwnerWizard() {
     sizeUpcharges: Record<string, number>;
     baseRetailPrice: number;
   }>({
-    queryKey: ['/api/test/pricing-settings'],
+    queryKey: ['/api/pricing-settings'],
     staleTime: 5 * 60 * 1000,
   });
 

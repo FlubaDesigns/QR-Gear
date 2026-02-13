@@ -33,7 +33,7 @@ export default function Cart() {
   });
 
   const { data: pricingSettings } = useQuery<{ memberProfitShare?: number }>({
-    queryKey: ["/api/test/pricing-settings"],
+    queryKey: ["/api/pricing-settings"],
     enabled: isAuthenticated,
   });
 

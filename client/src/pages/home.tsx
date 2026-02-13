@@ -68,10 +68,6 @@ function AdminQuickAccess() {
         <Layers className="w-4 h-4" />
         QR Dynamics
       </Link>
-      <Link href="/admin/test-pricing" className="admin-quick-link" data-testid="link-test-pricing">
-        <DollarSign className="w-4 h-4" />
-        Pricing
-      </Link>
       <Link href="/admin/test-ar-demo" className="admin-quick-link" data-testid="link-test-ar-demo">
         <Box className="w-4 h-4" />
         AR Demo

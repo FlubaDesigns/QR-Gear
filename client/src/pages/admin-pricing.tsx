@@ -527,7 +527,7 @@ export default function AdminPricing() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="markup-percent">Markup Percentage (%)</Label>
                   <Input
@@ -641,7 +641,7 @@ export default function AdminPricing() {
             <CardContent className="space-y-6">
               <div>
                 <h3 className="text-sm font-semibold mb-3">Printify Labels</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="printify-inside">Inside Label ($)</Label>
                     <Input
@@ -678,7 +678,7 @@ export default function AdminPricing() {
               </div>
               <div className="border-t pt-4">
                 <h3 className="text-sm font-semibold mb-3">Printful Labels</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="printful-inside">Inside Label ($)</Label>
                     <Input
@@ -783,7 +783,7 @@ export default function AdminPricing() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {hostingTiers.map((tier) => (
                   <div key={tier.code} className="space-y-2">
                     <Label htmlFor={`tier-${tier.code}`}>{tier.name}</Label>

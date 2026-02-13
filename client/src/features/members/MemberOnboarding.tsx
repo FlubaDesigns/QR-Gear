@@ -83,7 +83,7 @@ function slugify(text: string): string {
 
 export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) {
   const { data: pricingSettings } = useQuery<{ memberProfitShare?: number }>({
-    queryKey: ['/api/test/pricing-settings'],
+    queryKey: ['/api/pricing-settings'],
   });
   const profitShare = pricingSettings?.memberProfitShare ?? DEFAULT_MEMBER_PROFIT_SHARE;
   const shareLabel = formatProfitSharePercent(profitShare);
