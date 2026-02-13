@@ -164,7 +164,7 @@ export default function TestPricingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="markup-percent">Markup Percentage (%)</Label>
                   <Input
@@ -278,7 +278,7 @@ export default function TestPricingPage() {
             <CardContent className="space-y-6">
               <div>
                 <h3 className="text-sm font-semibold mb-3">Printify Labels</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="printify-inside">Inside Label ($)</Label>
                     <Input
@@ -315,7 +315,7 @@ export default function TestPricingPage() {
               </div>
               <div className="border-t pt-4">
                 <h3 className="text-sm font-semibold mb-3">Printful Labels</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="printful-inside">Inside Label ($)</Label>
                     <Input
@@ -420,7 +420,7 @@ export default function TestPricingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {hostingTiers.map((tier) => (
                   <div key={tier.code} className="space-y-2">
                     <Label htmlFor={`tier-${tier.code}`}>{tier.name}</Label>
@@ -464,7 +464,7 @@ export default function TestPricingPage() {
             <CardHeader>
               <CardTitle className="text-lg">Pricing Formula</CardTitle>
             </CardHeader>
-            <CardContent className="font-mono text-sm space-y-1">
+            <CardContent className="font-mono text-xs sm:text-sm space-y-1 overflow-x-auto">
               <p>Base Cost = Production + Placements + Text + Hosting + Brand Label</p>
               <p>Customer Price = Base × (1 + {markupPercent || 0}%) + ${markupFixed || 0}</p>
             </CardContent>
