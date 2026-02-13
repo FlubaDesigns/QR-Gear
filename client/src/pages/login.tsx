@@ -22,7 +22,13 @@ export default function LoginPage() {
       const result = await signInWithEmail(email, password);
       console.log("[Login] Success! User:", result.user?.uid);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setLocation("/");
+      const returnPath = localStorage.getItem('login_return_path');
+      if (returnPath) {
+        localStorage.removeItem('login_return_path');
+        setLocation(returnPath);
+      } else {
+        setLocation("/");
+      }
     } catch (err: any) {
       console.error("[Login] Error:", err.code, err.message);
       if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
@@ -48,7 +54,13 @@ export default function LoginPage() {
       const result = await signInWithGoogle();
       console.log("[Login] Google success! User:", result.user?.uid);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setLocation("/");
+      const returnPath = localStorage.getItem('login_return_path');
+      if (returnPath) {
+        localStorage.removeItem('login_return_path');
+        setLocation(returnPath);
+      } else {
+        setLocation("/");
+      }
     } catch (err: any) {
       console.error("[Login] Google error:", err.code, err.message);
       if (err.code === "auth/popup-closed-by-user") {

@@ -652,7 +652,7 @@ function MembersSandboxInner() {
   }, [userId, onboardingComplete, setLocation]);
 
   const params = new URLSearchParams(window.location.search);
-  const tempPacketIdFromUrl = params.get('tempPacketId');
+  const tempPacketIdFromUrl = params.get('tempPacketId') || localStorage.getItem('pending_temp_packet_id');
 
   const claimTempPacket = async (memberId: string, packetId: string) => {
     try {
@@ -681,6 +681,7 @@ function MembersSandboxInner() {
   useEffect(() => {
     if (onboardingComplete && tempPacketIdFromUrl && userId && !claimedRef.current) {
       claimedRef.current = true;
+      localStorage.removeItem('pending_temp_packet_id');
       claimTempPacket(userId, tempPacketIdFromUrl);
       setWizardTier('super-simple');
       setViewMode('wizard');

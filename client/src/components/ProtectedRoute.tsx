@@ -19,6 +19,15 @@ export function ProtectedRoute({ children, requireAdmin = true }: ProtectedRoute
   }
 
   if (!isAuthenticated) {
+    const searchParams = new URLSearchParams(window.location.search);
+    const tempPacketId = searchParams.get('tempPacketId');
+    if (tempPacketId) {
+      localStorage.setItem('pending_temp_packet_id', tempPacketId);
+    }
+    const returnPath = window.location.pathname + window.location.search;
+    if (returnPath !== '/') {
+      localStorage.setItem('login_return_path', returnPath);
+    }
     return <Redirect to="/login" />;
   }
 
