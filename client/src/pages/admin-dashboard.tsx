@@ -20,6 +20,11 @@ import {
   Activity,
   Library,
   Type,
+  Layers,
+  Image,
+  Film,
+  Box,
+  Palette,
 } from "lucide-react";
 import { formatCurrency, formatTrend } from "@/lib/admin-utils";
 
@@ -364,6 +369,50 @@ export default function AdminDashboard() {
               <Link href="/admin/test-settings" className="qr-admin-quicklink" data-testid="link-font-management">
                 <Type className="qr-admin-quicklink__icon" />
                 <span>Font Management</span>
+              </Link>
+            </div>
+
+            <h3 className="text-sm font-medium text-muted-foreground mt-6 mb-2">Test Pages (Under Review)</h3>
+            <div className="qr-admin-quicklinks">
+              <Link href="/admin/test-canvas-packet" className="qr-admin-quicklink" data-testid="link-test-canvas-packet">
+                <Palette className="qr-admin-quicklink__icon" />
+                <span>Canvas Packet</span>
+              </Link>
+              <Link href="/admin/test-qr-play" className="qr-admin-quicklink" data-testid="link-test-qr-play">
+                <Film className="qr-admin-quicklink__icon" />
+                <span>QR Play</span>
+              </Link>
+              <Link href="/admin/test-dynamics" className="qr-admin-quicklink" data-testid="link-test-dynamics">
+                <Layers className="qr-admin-quicklink__icon" />
+                <span>QR Dynamics</span>
+              </Link>
+              <Link href="/admin/test-pricing" className="qr-admin-quicklink" data-testid="link-test-pricing">
+                <DollarSign className="qr-admin-quicklink__icon" />
+                <span>Pricing</span>
+              </Link>
+              <Link href="/admin/test-images" className="qr-admin-quicklink" data-testid="link-test-images">
+                <Image className="qr-admin-quicklink__icon" />
+                <span>Test Images</span>
+              </Link>
+              <Link href="/admin/test-library" className="qr-admin-quicklink" data-testid="link-test-library">
+                <Library className="qr-admin-quicklink__icon" />
+                <span>Test Library</span>
+              </Link>
+              <Link href="/admin/test-products" className="qr-admin-quicklink" data-testid="link-test-products">
+                <Package className="qr-admin-quicklink__icon" />
+                <span>Test Products</span>
+              </Link>
+              <Link href="/admin/test-stores" className="qr-admin-quicklink" data-testid="link-test-stores">
+                <Package className="qr-admin-quicklink__icon" />
+                <span>Test Stores</span>
+              </Link>
+              <Link href="/admin/test-store-builder" className="qr-admin-quicklink" data-testid="link-test-store-builder">
+                <Package className="qr-admin-quicklink__icon" />
+                <span>Test Store Builder</span>
+              </Link>
+              <Link href="/admin/test-ar-demo" className="qr-admin-quicklink" data-testid="link-test-ar-demo">
+                <Box className="qr-admin-quicklink__icon" />
+                <span>AR Demo</span>
               </Link>
             </div>
           </>
