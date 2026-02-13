@@ -1516,4 +1516,225 @@ export function registerCartCheckoutRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ============ EMBEDDED STRIPE CHECKOUT ============
+
+  app.post("/api/checkout/embedded", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const cartItems = await storage.getCartItemsByUser(userId);
+
+      if (!cartItems || cartItems.length === 0) {
+        return res.status(400).json({ error: "Cart is empty" });
+      }
+
+      const { getUncachableStripeClient } = await import('../stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      const { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } = await import("@shared/constants");
+
+      let isMember = false;
+      let memberDiscount = DEFAULT_MEMBER_PROFIT_SHARE;
+      try {
+        const { getFirestoreDb } = await import("../lib/firebase-admin");
+        const fsDb = getFirestoreDb();
+        const memberDoc = await fsDb.collection('member_profiles').doc(userId).get();
+        isMember = memberDoc.exists && memberDoc.data()?.isMember === true;
+
+        const pricingDoc = await fsDb.collection('testSettings').doc('pricing').get();
+        if (pricingDoc.exists) {
+          memberDiscount = pricingDoc.data()?.memberProfitShare ?? DEFAULT_MEMBER_PROFIT_SHARE;
+        }
+      } catch (e) {
+        console.error('[EmbeddedCheckout] Member/pricing check failed, proceeding with defaults:', e);
+      }
+
+      const discountLabel = formatProfitSharePercent(memberDiscount);
+
+      const lineItems = cartItems.map((item) => {
+        const customization = item.customization as any || {};
+        const originalPrice = parseFloat(item.price || '0');
+        const finalPrice = isMember ? originalPrice * (1 - memberDiscount) : originalPrice;
+        const description = isMember
+          ? `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'} (${discountLabel} Creator Discount applied)`
+          : `${customization.productLine || 'Custom'} QR - ${customization.variantName || 'Standard'}`;
+        return {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: customization.productName || 'QR Gear Product',
+              description,
+            },
+            unit_amount: Math.round(finalPrice * 100),
+          },
+          quantity: item.quantity || 1,
+        };
+      });
+
+      if (isMember) {
+        console.log(`[EmbeddedCheckout] Creator discount applied for user ${userId} — ${discountLabel} off all items`);
+      }
+
+      const returnUrl = req.body.returnUrl || `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        mode: 'payment',
+        ui_mode: 'embedded',
+        return_url: returnUrl,
+        metadata: {
+          userId,
+          memberDiscount: isMember ? 'true' : 'false',
+        },
+      });
+
+      res.json({ clientSecret: session.client_secret });
+    } catch (error: any) {
+      console.error('Embedded checkout error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ UPLOAD REQUEST URL ============
+
+  app.post("/api/uploads/request-url", async (req, res) => {
+    try {
+      const { name, size, contentType } = req.body;
+
+      if (!name || !contentType) {
+        return res.status(400).json({ error: "Missing required fields: name, contentType" });
+      }
+
+      const path = `uploads/${Date.now()}-${name}`;
+      const { getStorageBucket } = await import("../lib/firebase-admin");
+      const bucket = getStorageBucket();
+      const file = bucket.file(path);
+
+      const [uploadUrl] = await file.getSignedUrl({
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType,
+      });
+
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${path}`;
+
+      res.json({ uploadUrl, fileUrl: publicUrl, path });
+    } catch (error: any) {
+      console.error('[UploadRequestUrl] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ CLAIM CODE ENDPOINTS ============
+
+  app.get("/api/claim/validate", async (req, res) => {
+    try {
+      const code = req.query.code as string;
+
+      if (!code) {
+        return res.status(400).json({ valid: false, reason: "Missing claim code" });
+      }
+
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+
+      const snapshot = await fsDb.collection('claim_codes').where('code', '==', code).limit(1).get();
+
+      if (snapshot.empty) {
+        return res.json({ valid: false, reason: "Claim code not found" });
+      }
+
+      const doc = snapshot.docs[0];
+      const data = doc.data();
+
+      if (data.status !== 'available') {
+        return res.json({ valid: false, reason: "This claim code has already been used" });
+      }
+
+      res.json({
+        valid: true,
+        claimData: {
+          claimCode: data.code,
+          productName: data.productName || 'QR Gear Product',
+          productDescription: data.productDescription || null,
+          previewImageUrl: data.previewImageUrl || null,
+          packetType: data.packetType || 'qr_basic',
+          status: data.status,
+        },
+      });
+    } catch (error: any) {
+      console.error('[ClaimValidate] Error:', error);
+      res.status(500).json({ valid: false, reason: error.message });
+    }
+  });
+
+  app.post("/api/claim/:claimCode", isAuthenticated, async (req: any, res) => {
+    try {
+      const { claimCode } = req.params;
+      const userId = req.user.claims.sub;
+
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+
+      const snapshot = await fsDb.collection('claim_codes').where('code', '==', claimCode).limit(1).get();
+
+      if (snapshot.empty) {
+        return res.status(404).json({ error: "Claim code not found" });
+      }
+
+      const doc = snapshot.docs[0];
+      const data = doc.data();
+
+      if (data.status !== 'available') {
+        return res.status(400).json({ error: "This claim code has already been used" });
+      }
+
+      await doc.ref.update({
+        status: 'claimed',
+        claimedBy: userId,
+        claimedAt: new Date(),
+      });
+
+      let instanceId: string | null = null;
+
+      if (data.packetId) {
+        const instanceRef = fsDb.collection('qr_dynamics_instances').doc();
+        instanceId = instanceRef.id;
+        await instanceRef.set({
+          packetId: data.packetId,
+          ownerId: userId,
+          claimCode: claimCode,
+          status: 'active',
+          createdAt: new Date(),
+        });
+      }
+
+      res.json({ success: true, instanceId });
+    } catch (error: any) {
+      console.error('[ClaimCode] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ DIAGNOSTIC ENDPOINTS ============
+
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const categories = await storage.getAllProductCategories();
+      res.json(categories);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/storage/health", async (req, res) => {
+    try {
+      const { getStorageBucket } = await import("../lib/firebase-admin");
+      const bucket = getStorageBucket();
+      res.json({ healthy: true, bucket: bucket.name });
+    } catch (error: any) {
+      res.json({ healthy: false, error: error.message });
+    }
+  });
 }
