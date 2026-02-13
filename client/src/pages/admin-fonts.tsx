@@ -295,7 +295,7 @@ function FontManagerInner() {
 
 export default function TestSettings() {
   return (
-    <AdminAuthProvider apiBase="/api">
+    <AdminAuthProvider apiBase="/api/admin">
       <FontManagerInner />
     </AdminAuthProvider>
   );

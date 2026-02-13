@@ -485,7 +485,7 @@ export default function AdminPricing() {
 
   if (isLoading) {
     return (
-      <AdminAuthProvider apiBase="/api">
+      <AdminAuthProvider apiBase="/api/admin">
         <AdminShell title="Pricing Configuration" icon={DollarSign} backHref="/admin/products" backLabel="Back to Products">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -496,7 +496,7 @@ export default function AdminPricing() {
   }
 
   return (
-    <AdminAuthProvider apiBase="/api">
+    <AdminAuthProvider apiBase="/api/admin">
     <AdminShell
       title="Pricing Configuration"
       icon={DollarSign}

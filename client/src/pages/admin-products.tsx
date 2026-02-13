@@ -6,7 +6,7 @@ import AdminShell from "@/components/AdminShell";
 
 export default function AdminProducts() {
   return (
-    <AdminAuthProvider apiBase="/api">
+    <AdminAuthProvider apiBase="/api/admin">
       <AdminShell
         title="Product Management"
         icon={Package}

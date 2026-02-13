@@ -83,9 +83,13 @@ export function ProductsModule() {
     queryKey: ["catalog-categories", provider],
     queryFn: async () => {
       const headers = await api.getAuthHeaders();
-      const endpoint = provider === "printify"
-        ? `${api.baseUrl}/printify/catalog`
-        : `/api/catalog/printful-products`;
+      let endpoint = "";
+      
+      if (provider === "printify") {
+        endpoint = `${api.baseUrl}/printify/catalog`;
+      } else if (provider === "printful") {
+        endpoint = `${api.baseUrl}/catalog/printful-products`;
+      }
       
       if (!endpoint) return [];
       
@@ -132,9 +136,13 @@ export function ProductsModule() {
       if (!state.category) return null;
       
       const headers = await api.getAuthHeaders();
-      const endpoint = provider === "printify"
-        ? `${api.baseUrl}/printify/catalog`
-        : `/api/catalog/printful-products`;
+      let endpoint = "";
+      
+      if (provider === "printify") {
+        endpoint = `${api.baseUrl}/printify/catalog`;
+      } else if (provider === "printful") {
+        endpoint = `${api.baseUrl}/catalog/printful-products`;
+      }
       
       if (!endpoint) {
         console.error("[ProductsModule] No catalog endpoint for provider:", provider);
@@ -285,7 +293,7 @@ export function ProductsModule() {
                 {" "}
                 {(() => {
                   if (provider === "printify") return `${api.baseUrl}/printify/catalog`;
-                  if (provider === "printful") return `/api/catalog/printful-products`;
+                  if (provider === "printful") return `${api.baseUrl}/catalog/printful-products`;
                   return "NO_PROVIDER";
                 })()}
               </p>

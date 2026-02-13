@@ -4,7 +4,7 @@ import { StoreLibraryHarness } from "@/features/adminProducts/storeLibrary/Store
 
 export default function AdminStoreLibraryPage() {
   return (
-    <AdminAuthProvider apiBase="/api">
+    <AdminAuthProvider apiBase="/api/admin">
       <div className="page-wrap">
         <div className="container mobile-compact mobile-compact-stack">
           <div className="glass-card">

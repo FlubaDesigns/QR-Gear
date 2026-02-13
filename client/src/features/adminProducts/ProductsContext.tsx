@@ -43,11 +43,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     queryKey: ["fulfillment-providers", apiBase],
     queryFn: async () => {
       const headers = await getAuthHeaders();
-      const isTestEndpoint = apiBase.includes("/test");
-      // Both test and admin routes now exist
-      const endpoint = isTestEndpoint 
-        ? `${apiBase}/fulfillment-providers`
-        : `${apiBase}/admin/fulfillment-providers`;
+      const endpoint = `${apiBase}/fulfillment-providers`;
       try {
         const res = await fetch(endpoint, { headers });
         if (!res.ok) {
@@ -86,11 +82,8 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     const loadDefaults = async () => {
       try {
         const headers = await getAuthHeaders();
-        const isTestEndpoint = apiBase.includes("/test");
-        const adminSegment = isTestEndpoint ? "" : "/admin";
         
-        // Fetch internal stores
-        const storesRes = await fetch(`${apiBase}${adminSegment}/stores?roleType=internal`, { headers });
+        const storesRes = await fetch(`${apiBase}/stores?roleType=internal`, { headers });
         if (!storesRes.ok) return;
         const stores: Store[] = await storesRes.json();
         
@@ -99,7 +92,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
         if (!qrGearStore) return;
         
         // Fetch channels for QR Gear
-        const channelsRes = await fetch(`${apiBase}${adminSegment}/stores/${qrGearStore.id}/channels`, { headers });
+        const channelsRes = await fetch(`${apiBase}/stores/${qrGearStore.id}/channels`, { headers });
         if (!channelsRes.ok) return;
         const channels: Channel[] = await channelsRes.json();
         
@@ -140,21 +133,17 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchProducts: async (provider?: string): Promise<Product[]> => {
         const headers = await getAuthHeaders();
-        const isTestEndpoint = apiBase.includes("/test");
-        const adminSegment = isTestEndpoint ? "" : "/admin";
         const providerParam = provider ? `?provider=${provider}` : "";
-        const res = await fetch(`${apiBase}${adminSegment}/products${providerParam}`, { headers });
+        const res = await fetch(`${apiBase}/products${providerParam}`, { headers });
         if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
         return res.json();
       },
 
       syncCatalog: async (provider?: string): Promise<{ synced: number }> => {
         const headers = await getAuthHeaders();
-        const isTestEndpoint = apiBase.includes("/test");
-        const adminSegment = isTestEndpoint ? "" : "/admin";
         const syncEndpoint = provider === "printful" 
-          ? `${apiBase}${adminSegment}/catalog/sync-printful`
-          : `${apiBase}${adminSegment}/products/sync`;
+          ? `${apiBase}/catalog/sync-printful`
+          : `${apiBase}/products/sync`;
         const res = await fetch(syncEndpoint, {
           method: "POST",
           headers,
@@ -165,9 +154,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchStores: async (roleType: RoleType): Promise<Store[]> => {
         const headers = await getAuthHeaders();
-        const isTestEndpoint = apiBase.includes("/test");
-        const adminSegment = isTestEndpoint ? "" : "/admin";
-        const res = await fetch(`${apiBase}${adminSegment}/stores?roleType=${roleType}`, { headers });
+        const res = await fetch(`${apiBase}/stores?roleType=${roleType}`, { headers });
         if (!res.ok) {
           if (res.status === 404) return [];
           throw new Error(`Failed to fetch stores: ${res.status}`);
@@ -177,9 +164,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchChannels: async (storeId: string): Promise<Channel[]> => {
         const headers = await getAuthHeaders();
-        const isTestEndpoint = apiBase.includes("/test");
-        const adminSegment = isTestEndpoint ? "" : "/admin";
-        const res = await fetch(`${apiBase}${adminSegment}/stores/${storeId}/channels`, { headers });
+        const res = await fetch(`${apiBase}/stores/${storeId}/channels`, { headers });
         if (!res.ok) {
           if (res.status === 404) return [];
           throw new Error(`Failed to fetch channels: ${res.status}`);
@@ -189,9 +174,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchLibraryAssets: async (assetType: string): Promise<any[]> => {
         const headers = await getAuthHeaders();
-        const isTestEndpoint = apiBase.includes("/test");
-        const adminSegment = isTestEndpoint ? "" : "/admin";
-        const res = await fetch(`${apiBase}${adminSegment}/background-assets?type=${assetType}`, { headers });
+        const res = await fetch(`${apiBase}/background-assets?type=${assetType}`, { headers });
         if (!res.ok) {
           if (res.status === 404) return [];
           throw new Error(`Failed to fetch library assets: ${res.status}`);

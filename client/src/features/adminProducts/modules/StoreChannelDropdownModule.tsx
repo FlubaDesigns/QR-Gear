@@ -102,9 +102,7 @@ export function StoreChannelDropdownModule() {
   const createStoreMutation = useMutation({
     mutationFn: async ({ name, roleType }: { name: string; roleType: RoleType }) => {
       const headers = await api.getAuthHeaders();
-      const isTestEndpoint = api.baseUrl.includes("/test");
-      const adminSegment = isTestEndpoint ? "" : "/admin";
-      const res = await fetch(`${api.baseUrl}${adminSegment}/stores`, {
+      const res = await fetch(`${api.baseUrl}/stores`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name, roleType }),
@@ -125,9 +123,7 @@ export function StoreChannelDropdownModule() {
   const deleteStoreMutation = useMutation({
     mutationFn: async (storeId: string) => {
       const headers = await api.getAuthHeaders();
-      const isTestEndpoint = api.baseUrl.includes("/test");
-      const adminSegment = isTestEndpoint ? "" : "/admin";
-      const res = await fetch(`${api.baseUrl}${adminSegment}/stores/${storeId}`, {
+      const res = await fetch(`${api.baseUrl}/stores/${storeId}`, {
         method: "DELETE",
         headers,
       });
@@ -144,9 +140,7 @@ export function StoreChannelDropdownModule() {
   const createChannelMutation = useMutation({
     mutationFn: async ({ storeId, name }: { storeId: string; name: string }) => {
       const headers = await api.getAuthHeaders();
-      const isTestEndpoint = api.baseUrl.includes("/test");
-      const adminSegment = isTestEndpoint ? "" : "/admin";
-      const res = await fetch(`${api.baseUrl}${adminSegment}/stores/${storeId}/channels`, {
+      const res = await fetch(`${api.baseUrl}/stores/${storeId}/channels`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
@@ -167,9 +161,7 @@ export function StoreChannelDropdownModule() {
   const deleteChannelMutation = useMutation({
     mutationFn: async ({ storeId, channelId }: { storeId: string; channelId: string }) => {
       const headers = await api.getAuthHeaders();
-      const isTestEndpoint = api.baseUrl.includes("/test");
-      const adminSegment = isTestEndpoint ? "" : "/admin";
-      const res = await fetch(`${api.baseUrl}${adminSegment}/stores/${storeId}/channels/${channelId}`, {
+      const res = await fetch(`${api.baseUrl}/stores/${storeId}/channels/${channelId}`, {
         method: "DELETE",
         headers,
       });

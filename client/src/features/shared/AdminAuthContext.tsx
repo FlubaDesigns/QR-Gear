@@ -16,7 +16,7 @@ interface AdminAuthProviderProps {
 
 export function AdminAuthProvider({
   children,
-  apiBase = "/api",
+  apiBase = "/api/admin",
 }: AdminAuthProviderProps) {
   const requiresAuth = !apiBase.includes("/test");
 

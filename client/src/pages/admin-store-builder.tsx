@@ -655,7 +655,7 @@ function MemberProductLibrary() {
 
 export default function AdminStoreBuilderPage() {
   return (
-    <AdminAuthProvider apiBase="/api">
+    <AdminAuthProvider apiBase="/api/admin">
       <AdminShell
         title="Store Builder"
         icon={Store}
