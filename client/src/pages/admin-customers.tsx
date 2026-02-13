@@ -290,16 +290,6 @@ export default function AdminCustomers() {
       </div>
 
       <main className="container max-w-6xl mx-auto py-6 px-4">
-        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <Link href="/admin" className="text-muted-foreground hover:text-foreground">
-            Admin
-          </Link>
-          <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page">
-            Customers
-          </span>
-        </nav>
-
         <div className="mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

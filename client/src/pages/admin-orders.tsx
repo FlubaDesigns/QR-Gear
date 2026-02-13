@@ -480,16 +480,6 @@ export default function AdminOrdersPage() {
       </div>
 
       <main className="qr-admin-main">
-        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/admin">Admin</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <Link href="/admin/dashboard">Dashboard</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <span className="qr-admin-breadcrumb__current" aria-current="page">
-            Orders
-          </span>
-        </nav>
-
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <Card>
             <CardContent className="p-4 text-center">

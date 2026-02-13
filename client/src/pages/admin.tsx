@@ -181,12 +181,6 @@ export default function Admin() {
       </div>
 
       <main className="container max-w-6xl mx-auto py-6 px-4">
-        <nav className="mb-4 text-sm" aria-label="Breadcrumb">
-          <span className="text-muted-foreground">Home</span>
-          <span className="text-muted-foreground mx-2">/</span>
-          <span className="text-foreground font-medium" aria-current="page">Admin Dashboard</span>
-        </nav>
-
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {adminSections.map((section) => (
             <Link

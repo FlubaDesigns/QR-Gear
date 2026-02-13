@@ -547,33 +547,6 @@ small { color: var(--text-2); }
   padding: 1.5rem 1rem;
 }
 
-/* ===== Admin Breadcrumb ===== */
-.qr-admin-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-}
-
-.qr-admin-breadcrumb a {
-  color: var(--text-2, hsl(var(--muted-foreground)));
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.qr-admin-breadcrumb a:hover {
-  color: var(--text-0, hsl(var(--foreground)));
-}
-
-.qr-admin-breadcrumb__separator {
-  color: var(--text-2, hsl(var(--muted-foreground)));
-}
-
-.qr-admin-breadcrumb__current {
-  color: var(--text-0, hsl(var(--foreground)));
-  font-weight: 500;
-}
 
 /* ===== Admin Grid Layouts ===== */
 .qr-admin-grid {

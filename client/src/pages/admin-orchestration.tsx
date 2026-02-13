@@ -495,14 +495,6 @@ export default function AdminOrchestration() {
       </div>
 
       <main className="qr-admin-main">
-        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/">Home</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <Link href="/admin">Admin</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <span className="qr-admin-breadcrumb__current">Orchestration</span>
-        </nav>
-
         <Tabs defaultValue="products" className="w-full">
           <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 mb-6 gap-1 h-auto p-1">
             <TabsTrigger value="products" className="!min-h-[48px] text-base px-4 py-3" data-testid="tab-products">

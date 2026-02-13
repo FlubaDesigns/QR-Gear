@@ -204,14 +204,6 @@ export default function AdminDashboard() {
       </div>
 
       <main className="qr-admin-main">
-        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/admin">Admin</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <span className="qr-admin-breadcrumb__current" aria-current="page">
-            Dashboard
-          </span>
-        </nav>
-
         {isLoading ? (
           <div className="qr-admin-grid qr-admin-grid--4">
             {[...Array(8)].map((_, i) => (

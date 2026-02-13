@@ -202,14 +202,6 @@ export default function AdminEmailHealth() {
       </div>
 
       <main className="qr-admin-main">
-        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/admin" data-testid="link-admin">Admin</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <span className="qr-admin-breadcrumb__current" aria-current="page">
-            Email Health
-          </span>
-        </nav>
-
         {isLoading ? (
           <div className="space-y-6">
             <Skeleton className="h-32 w-full" />

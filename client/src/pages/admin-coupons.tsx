@@ -416,12 +416,6 @@ export default function AdminCoupons() {
       </div>
 
       <main className="qr-admin-main">
-        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/admin">Admin</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <span className="qr-admin-breadcrumb__current" aria-current="page">Promo Codes</span>
-        </nav>
-
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (

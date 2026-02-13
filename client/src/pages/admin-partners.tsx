@@ -244,12 +244,6 @@ export default function AdminPartners() {
       </div>
 
       <main className="qr-admin-main">
-        <nav className="qr-admin-breadcrumb" aria-label="Breadcrumb">
-          <Link href="/admin" data-testid="link-breadcrumb-admin">Admin</Link>
-          <span className="qr-admin-breadcrumb__separator">/</span>
-          <span className="qr-admin-breadcrumb__current" aria-current="page" data-testid="text-breadcrumb-current">Partners</span>
-        </nav>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
             <div>
